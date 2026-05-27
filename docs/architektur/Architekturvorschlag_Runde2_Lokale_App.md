@@ -4,7 +4,9 @@ Stand: 27.05.2026
 
 ## Zielbild
 
-Runde 2 wird als lokale, agentenfreundliche Finanzmodell-App gebaut. Der Master liegt nicht mehr in Excel, sondern in validierbaren Dateien. Die Oberflaeche ist zuerst eine statische HTML/JavaScript-App, die ohne Webserver geoeffnet werden kann. Ein lokaler Backend-Anteil entsteht nur dort, wo deterministische Validierung, Import, Migration oder Export robuster als reine Browserlogik sind.
+Runde 2 wird als lokale, agentenfreundliche Finanzmodell-App gebaut. Der Master liegt nicht mehr in Excel, sondern in validierbaren Dateien. Die Oberflaeche ist eine statische HTML/JavaScript-App, die ohne Webserver geoeffnet werden kann. Eine eigene Backend-Schicht ist fuer den Start ausdruecklich kein Ziel.
+
+Die eigentliche "Schreiblogik" liegt bei Agentenarbeit: Ein Agent bekommt Informationen aus Dateien, manuellen Angaben oder Belegen, transformiert sie in die vereinbarten Formate und schreibt sie an die richtigen Stellen in `data/master/` oder als Vorschlag in `data/inbox/` bzw. `data/master/vorschlaege.jsonl`. Das Webfrontend liest diese Daten, berechnet Kennzahlen, filtert, gruppiert und zeigt offene Punkte.
 
 Die Baufolge ist bewusst konservativ:
 
@@ -17,9 +19,9 @@ Ab dem ersten produktiven Datenstand duerfen weitere Meilensteine bestehende Dat
 
 ## Architekturentscheidung
 
-Empfohlen wird eine Local-First-Dateiarchitektur mit zwei Betriebsarten.
+Empfohlen wird eine schlanke Local-First-Dateiarchitektur mit drei klar getrennten Rollen.
 
-### Betriebsart 1: statische App
+### Rolle 1: statische App
 
 Die erste nutzbare App liegt in `app/`:
 
@@ -27,39 +29,72 @@ Die erste nutzbare App liegt in `app/`:
 app/index.html
 app/styles.css
 app/main.js
+app/domain.js
+app/demo-data.js
 ```
 
 Eigenschaften:
 
 - Start per Doppelklick oder Browser-Datei oeffnen.
-- Daten werden per Dateiimport geladen, nicht per verstecktem Zugriff auf lokale Pfade.
-- Ergebnisse und Aenderungsvorschlaege werden als Datei exportiert.
+- Daten werden per Dateiimport geladen.
+- Kennzahlen, Filter, Gruppierungen, Plausibilitaetschecks und Anzeigezustand liegen in JavaScript.
+- Ergebnisse, gefilterte Sichten oder Review-Entscheidungen koennen als Datei exportiert werden.
 - Keine Build-Pipeline, keine externen Runtime-Abhaengigkeiten fuer den ersten Schnitt.
-- Geeignet fuer Oberflaechen-Review, Datenqualitaetsblick, einfache Stammdaten- und Transaktionssicht.
+- Keine eigene Server- oder Backend-Schicht.
 
-Diese Betriebsart bleibt wichtig, weil sie niedrigschwellig, nachvollziehbar und ohne Server lauffaehig ist.
+Die App ist damit nicht "dumm", aber sie ist bewusst nur lesend bzw. dateiexportierend. Sie darf umfangreiche Fachlogik fuer Auswertungen enthalten, wird aber nicht zur versteckten Datenbank.
 
-### Betriebsart 2: lokaler Werkzeuglauf
+### Rolle 2: strukturierte Dateien
 
-Parallel entsteht ein lokales Backend als CLI/Werkzeugschicht, nicht sofort als dauerhafter Server:
+Der Master sind Dateien:
 
 ```text
-tools/
-  validate.mjs
-  import-bank-csv.mjs
-  export-bundle.mjs
-  migrate.mjs
+data/master/*.json
+data/master/*.jsonl
+schemas/*.schema.json
 ```
 
 Eigenschaften:
 
-- Validiert Masterdaten gegen Schemas und Referenzregeln.
-- Erzeugt Importvorschlaege aus Kontoauszuegen.
-- Fuehrt Migrationen kontrolliert aus.
-- Erzeugt Export-Bundles fuer die statische App und spaeter Excel/CSV/PDF.
-- Kann spaeter optional als lokaler HTTP-Service wachsen, wenn echte Schreib-Workflows in der UI gebraucht werden.
+- JSON fuer Stammdaten.
+- JSONL fuer groessere, append-orientierte Bewegungsdaten und Vorschlaege.
+- Schemas und Konventionen definieren, was ein Agent schreiben darf.
+- Berechnete Sichten bleiben abgeleitet und werden nicht als Master gepflegt.
 
-Der lokale Werkzeuglauf ist der "Backend"-Teil der ersten Version. Ein permanenter Webserver ist fuer M1/M2 nicht noetig und wuerde die lokale Nutzbarkeit unnoetig erschweren.
+### Rolle 3: Agentenarbeit
+
+Agenten ersetzen die klassische Backend-Schreibschicht. Sie sind aber nicht frei: Sie schreiben gegen Schemas, erzeugen nachvollziehbare Aenderungen und lassen Unsicherheit sichtbar.
+
+Typische Agentenaufgaben:
+
+- Aus einer manuellen Angabe eine neue Kategorie, Quelle oder Regelzahlung anlegen.
+- Aus einem Kontoauszug Transaktionsvorschlaege erzeugen.
+- Bestehende Daten gegen Schemas und Referenzen pruefen.
+- Vorschlaege nach Nutzerentscheidung in Masterdateien uebernehmen.
+- Bei Schema-Aenderungen Migrationen als nachvollziehbare Dateiaenderungen ausfuehren.
+- Kurze Aenderungsprotokolle und offene Risiken dokumentieren.
+
+Damit das funktioniert, braucht jeder produktive Arbeitsschritt eine konkrete Agentenanweisung. Diese Anweisung beschreibt:
+
+- Eingangsdaten: Welche Datei, Nutzereingabe oder Belege der Agent verwenden darf.
+- Zielartefakt: Welche Datei geschrieben oder geaendert werden soll.
+- Schema/Format: Gegen welches Schema und welche ID-Konvention geschrieben wird.
+- Entscheidungsgrenzen: Was der Agent final entscheiden darf und was als Vorschlag/offen markiert werden muss.
+- Pruefung: Welche Referenzen, Pflichtfelder und fachlichen Plausibilitaeten nach der Aenderung zu pruefen sind.
+- Protokoll: Was am Ende als Aenderungsnotiz, Check oder offenes Risiko dokumentiert wird.
+
+Die Agentenanweisungen sind selbst Projektartefakte und sollten im Repository liegen, zum Beispiel:
+
+```text
+docs/agenten/
+  01_stammdaten_pflegen.md
+  02_kontoauszug_importieren.md
+  03_vorschlaege_uebernehmen.md
+  04_datenqualitaet_pruefen.md
+  05_schema_migration.md
+```
+
+Kleine Skripte sind erlaubt, aber sie sind Helfer fuer Agenten oder Tests, keine eigene Anwendungsschicht. Sie sollten nur entstehen, wenn sie Wiederholbarkeit schaffen, zum Beispiel fuer Validierung, Hashbildung oder CSV-Normalisierung.
 
 ## Frontend
 
@@ -89,6 +124,32 @@ Fruehe Oberflaechen sollten nicht wie eine Landingpage wirken, sondern wie ein A
 - Checks: Validierungsfehler, Warnungen, offene Entscheidungen
 - Export: Datenbundle herunterladen, spaeter Excel/CSV/PDF
 
+### JavaScript-Fachlogik
+
+Die Fachlogik der Oberflaeche liegt in kleinen, testbaren JavaScript-Modulen:
+
+```text
+app/domain.js       Berechnungen, Filter, Statusableitungen
+app/validation.js   leichte UI-Plausibilitaeten und Referenzchecks
+app/main.js         Rendering und Interaktion
+```
+
+Geeignete Logik fuer das Frontend:
+
+- Cashflow-Ist aus Transaktionen aggregieren.
+- Einnahmen, Ausgaben und Transfers trennen.
+- Offene Kategorien, fehlende Quellen und kaputte Referenzen sichtbar machen.
+- Konten, Personen, Kategorien und Quellen filtern.
+- Monats-, Kategorie- und Gegenparteiensichten berechnen.
+- Datenqualitaetsindikatoren neben Kennzahlen anzeigen.
+
+Nicht geeignet fuer das Frontend:
+
+- Stille produktive Schreibaktionen.
+- Automatische Fachentscheidungen ohne Vorschlagsstatus.
+- Nicht nachvollziehbare Migrationen.
+- Versteckte Persistenz in Browser-Speichern als Master.
+
 ### Rapid Prototyping
 
 Vor tiefer Implementierung wird ein klickbarer Oberflaechen-Prototyp gebaut:
@@ -101,35 +162,21 @@ Vor tiefer Implementierung wird ein klickbarer Oberflaechen-Prototyp gebaut:
 
 Der Prototyp darf noch nicht als fuehrender Dateneditor missverstanden werden. Er ist ein UI-Vertrag, kein produktiver Datenvertrag.
 
-## Backend
+## Backend-Verzicht
 
-### Start: CLI statt Server
+Eine Backend-Schicht wird vorerst bewusst nicht gebaut.
 
-Das Backend beginnt als deterministische Node.js-Werkzeugschicht. Sie liest Dateien, validiert sie und schreibt neue Artefakte. Das ist fuer Agenten und lokale Nutzung besser kontrollierbar als ein frueher Server.
+Das heisst konkret:
 
-Empfohlene Aufgaben:
+- Kein lokaler HTTP-Service.
+- Keine API-Routen.
+- Keine Datenbank als erster Master.
+- Keine dauerhafte Laufzeitkomponente neben dem Browser.
+- Keine UI, die im Hintergrund produktive Masterdateien veraendert.
 
-- `validate`: Schemas, Pflichtfelder, erlaubte Werte, Referenzen, fachliche Minimalchecks
-- `bundle`: validierten Datenstand zu einem UI-ladbaren Paket zusammenfassen
-- `import`: Kontoauszuege in Vorschlagsdateien umwandeln
-- `apply`: angenommene Vorschlaege kontrolliert in Masterdaten uebernehmen
-- `migrate`: Datenstaende zwischen Schema-Versionen ueberfuehren
-- `export`: Excel/CSV/PDF aus validierten Daten erzeugen
+Die Architektur bleibt dadurch leichter: Dateien sind der Vertrag, Agenten sind die Bearbeiter, JavaScript ist die Anzeige- und Berechnungsschicht.
 
-### Spaeter: lokaler Service nur bei Bedarf
-
-Ein lokaler HTTP-Service wird erst sinnvoll, wenn die UI produktiv schreiben soll, zum Beispiel fuer gefuehrte CRUD-Dialoge, Akzeptieren von Vorschlaegen oder Massenoperationen. Dann bleibt er lokal und optional:
-
-```text
-localhost-only service
-  /api/validate
-  /api/load
-  /api/proposals
-  /api/apply
-  /api/export
-```
-
-Der Service darf keine stille Magie einfuehren. Jede Schreibaktion erzeugt weiterhin Dateien, Auditspur und Validierungsbericht.
+Falls spaeter etwas wiederholbar automatisiert werden muss, wird zuerst geprueft, ob ein Agent mit klarer Arbeitsanweisung reicht. Erst wenn Wiederholbarkeit, Geschwindigkeit oder Fehlerrisiko dafuer sprechen, entsteht ein kleines Skript. Auch dann bleibt das Skript ein Werkzeug, nicht das Zentrum der Architektur.
 
 ## Datenhaltung
 
@@ -156,13 +203,16 @@ Grundregel:
 
 ### UI-Bundle
 
-Weil eine statische Datei-App nicht einfach lokale Ordner lesen darf, sollte es zusaetzlich ein exportiertes UI-Bundle geben:
+Weil eine statische Datei-App nicht einfach lokale Ordner lesen darf, gibt es zwei leichte Ladewege:
 
 ```text
 data/exports/current-finance-bundle.json
 ```
 
-Dieses Bundle wird aus validierten Masterdaten erzeugt und in der UI per Dateiimport geladen. Es ist nicht der Master, sondern ein bequemes Transportformat fuer die Oberflaeche.
+- Einfacher Weg: Ein Agent erzeugt aus den Masterdateien ein `current-finance-bundle.json`, das die UI per Dateiimport laedt.
+- Direkter Weg: Die UI kann mehrere JSON-/JSONL-Dateien per Dateiauswahl laden, wenn das fuer den jeweiligen Meilenstein ergonomisch genug ist.
+
+Das Bundle ist nicht der Master, sondern ein bequemes Transportformat fuer die Oberflaeche. Wenn es veraltet ist, wird es neu erzeugt, nicht manuell korrigiert.
 
 ### Produktive Daten ab M1/M2
 
@@ -177,7 +227,7 @@ Sobald echte Daten im System liegen, gelten harte Datenhaltungsregeln:
 
 ### SQLite-Option
 
-SQLite ist mittelfristig sinnvoll, wenn Abfragen, Datenmenge oder UI-Schreibfluesse wachsen. Es sollte aber nicht der erste Master sein.
+SQLite ist nur eine spaete Option, falls Dateien und JavaScript-Auswertungen nicht mehr reichen. Es sollte nicht der erste Master sein.
 
 Moeglicher Zeitpunkt:
 
@@ -185,11 +235,13 @@ Moeglicher Zeitpunkt:
 - Nach geklaerten Import- und Review-Workflows.
 - Wenn die UI viele Filter, Aggregationen und Schreibaktionen braucht.
 
-Dann kann SQLite als lokaler abgeleiteter Index dienen, waehrend JSON/JSONL zunaechst weiter die auditierbare Quelle bleibt. Ein vollstaendiger Wechsel zu SQLite als Master sollte eine eigene Architekturentscheidung sein.
+Dann kann SQLite hoechstens als lokaler abgeleiteter Index dienen, waehrend JSON/JSONL weiter die auditierbare Quelle bleibt. Ein vollstaendiger Wechsel zu SQLite als Master sollte eine eigene Architekturentscheidung sein.
 
 ## Meilensteinplan
 
 Jeder Meilenstein liefert ein nutzbares Artefakt. Ab M2 ist der vorhandene Datenbestand wie produktiv zu behandeln.
+
+Jeder Meilenstein, in dem Agenten produktiv Daten schreiben oder pruefen, muss zusaetzlich eine passende Agentenanweisung liefern. Ohne diese Anweisung ist der Meilenstein nicht fertig, weil dann die eigentliche Bearbeitungsschicht nicht reproduzierbar waere.
 
 ### M0.1 - Architektur- und UI-Vertrag
 
@@ -199,6 +251,7 @@ Artefakt:
 
 - Dieses Architekturkonzept.
 - Klickbarer statischer UI-Prototyp mit Demo-Daten.
+- Vorlage fuer Agentenanweisungen.
 
 Umfang:
 
@@ -211,6 +264,7 @@ Exit-Kriterien:
 - Der Nutzer kann anhand der Oberflaechen sagen, ob fachliche Sichten fehlen.
 - Die wichtigsten Arbeitswege sind als Screens sichtbar.
 - Der Prototyp schreibt keine Masterdaten.
+- Es gibt eine kurze Vorlage, nach der spaetere Agentenanweisungen einheitlich geschrieben werden.
 
 ### M1 - Grundgeruest und Validierungsbasis
 
@@ -220,7 +274,8 @@ Artefakt:
 
 - Schemas fuer Personen, Konten, Kategorien, Quellen und Transaktionen.
 - Kleiner Startdatenstand in `data/master/`.
-- Lokaler Validierungslauf.
+- Validierungsanweisung fuer Agenten plus nachvollziehbarer Pruefbericht.
+- Agentenanweisung `datenqualitaet_pruefen`.
 
 Umfang:
 
@@ -234,6 +289,7 @@ Exit-Kriterien:
 - Guter Datensatz validiert erfolgreich.
 - Absichtlich fehlerhafter Datensatz scheitert mit verstaendlichem Bericht.
 - Keine UI-Fachlogik, die Validierungsfehler verdeckt.
+- Ein Agent kann anhand der Anweisung den Datenstand pruefen und die Befunde reproduzierbar dokumentieren.
 
 ### M2 - Lokale Leseflaeche fuer Stammdaten
 
@@ -241,13 +297,13 @@ Ziel: Der Nutzer kann den validierten Stammdatenstand lokal ansehen.
 
 Artefakt:
 
-- `app/index.html` mit Dateiimport eines UI-Bundles.
+- `app/index.html` mit Dateiimport eines UI-Bundles oder einzelner Datenfiles.
 - Stammdatenansichten fuer Personen, Konten, Kategorien und Quellen.
 - Datenqualitaetsbereich mit Checks.
 
 Umfang:
 
-- Bundle-Export aus Masterdaten.
+- Agentenerzeugtes Bundle aus Masterdaten oder direkter Mehrdatei-Import.
 - Tabellen und Detailansichten.
 - Filter fuer Status, fehlende Quelle, offene Entscheidung.
 - Kein direktes produktives Editieren in der UI.
@@ -270,8 +326,9 @@ Ziel: Stammdaten koennen kontrolliert erweitert oder korrigiert werden.
 Artefakt:
 
 - Vorschlagsformat fuer Stammdatenaenderungen.
-- Apply-Werkzeug fuer angenommene Aenderungen.
+- Agenten-Arbeitsanweisung fuer angenommene Aenderungen.
 - Auditierbarer Aenderungsbericht.
+- Agentenanweisung `stammdaten_pflegen`.
 
 Umfang:
 
@@ -287,8 +344,9 @@ Produktivdaten-Regeln:
 
 Exit-Kriterien:
 
-- Eine neue Kategorie kann als Vorschlag erzeugt, geprueft und uebernommen werden.
+- Eine neue Kategorie kann als Vorschlag erzeugt, geprueft und durch Agentenarbeit uebernommen werden.
 - Kaputte Referenzen verhindern die Uebernahme.
+- Die Agentenanweisung klaert, wann eine Stammdatenangabe final geschrieben werden darf und wann sie Vorschlag bleiben muss.
 
 ### M4 - Bewegungsdaten-Basis
 
@@ -322,9 +380,10 @@ Ziel: Kontoauszuege erzeugen pruefbare Vorschlaege statt finaler Buchungen.
 
 Artefakt:
 
-- Import-CLI fuer mindestens ein CSV-Format.
+- Agenten-Importprozess fuer mindestens ein CSV-Format.
 - Schema fuer Importvorschlaege.
 - Review-Ansicht fuer neue, doppelte und unsichere Transaktionen.
+- Agentenanweisung `kontoauszug_importieren`.
 
 Umfang:
 
@@ -340,8 +399,9 @@ Produktivdaten-Regeln:
 
 Exit-Kriterien:
 
-- Ein Kontoauszug kann als Vorschlagsliste erzeugt werden.
+- Ein Kontoauszug kann durch Agentenarbeit als Vorschlagsliste erzeugt werden.
 - Doppelte Buchungen werden erkannt oder als Risiko markiert.
+- Die Agentenanweisung verhindert, dass unsichere Kategorien oder Dubletten direkt als finale Transaktionen geschrieben werden.
 
 ### M6 - Cashflow-Ist und Regelzahlungen
 
@@ -456,6 +516,7 @@ Artefakt:
 - Agentenauftraege, Pruefregeln, Vorschlaege und Laufprotokolle.
 - Wiederholbare Checks.
 - Review-Oberflaeche fuer Agentenergebnisse.
+- Vollstaendiger Satz der bis dahin benoetigten Agentenanweisungen.
 
 Umfang:
 
@@ -472,6 +533,7 @@ Exit-Kriterien:
 
 - Ein Agentenlauf ist auditierbar.
 - Nutzerentscheidungen bleiben von Agentenvorschlaegen getrennt.
+- Jede wiederkehrende Agentenaufgabe hat eine benannte Anweisung mit Eingangsdaten, erlaubten Schreibzielen, Pruefschritten und Protokollpflicht.
 
 ### M11 - Exporte und umfassende lokale App
 
@@ -487,7 +549,7 @@ Umfang:
 
 - Dashboard, Datenqualitaet, Stammdaten, Bewegungsdaten, Vorschlaege, Szenarien, Exporte.
 - Manuelles CRUD fuer Sonderfaelle.
-- Exportprotokolle.
+- Exportprotokolle oder agentisch erzeugte Exportnotizen.
 
 Produktivdaten-Regeln:
 
@@ -496,7 +558,7 @@ Produktivdaten-Regeln:
 
 Exit-Kriterien:
 
-- Ein vollstaendiger lokaler Arbeitszyklus ist moeglich: laden, pruefen, Vorschlaege reviewen, validieren, exportieren.
+- Ein vollstaendiger lokaler Arbeitszyklus ist moeglich: laden, pruefen, Vorschlaege reviewen, Agentenaenderung ausfuehren lassen, erneut laden, exportieren.
 
 ## Naechste empfohlene Umsetzung
 
@@ -507,4 +569,3 @@ Als naechstes sollte M0.1 umgesetzt werden:
 3. Screens fuer Dashboard, Stammdaten, Bewegungsdaten, Vorschlaege und Checks bauen.
 4. Danach gemeinsam pruefen, ob Oberflaechen, Statuswerte oder Review-Aktionen fehlen.
 5. Erst danach M1-Schemas und produktive Startdaten bauen.
-

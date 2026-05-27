@@ -1,327 +1,191 @@
 # Datenmodell Runde 2
 
-Stand: 26.05.2026
+Stand: 27.05.2026
+
+Dieses Dokument beschreibt die Struktur der Masterdaten. **Die fachliche Sprache steht in `CONTEXT.md`** — bei Begriffsfragen immer dort nachsehen. **Die Begruendungen fuer ueberraschende Entscheidungen stehen in `docs/adr/`**.
 
 ## Leitprinzip
 
-Das Datenmodell trennt Rohdaten, fachliche Masterdaten, Agentenvorschlaege und Auswertungen. Auswertungen werden berechnet, nicht als fuehrende Daten gepflegt.
+Trennung von Rohdaten, fachlichen Masterdaten und Auswertungen. Auswertungen (Cashflow, Nettovermoegen, Saldo, Restschuld) werden berechnet, nicht als fuehrende Daten gepflegt.
 
-## Vorgeschlagene Dateien
+## Dateien in `data/master/`
 
 ```text
-data/master/personen.json
-data/master/konten.json
-data/master/kategorien.json
-data/master/transaktionen.jsonl
-data/master/regelzahlungen.json
-data/master/transfers.json
-data/master/vermoegen.json
-data/master/verbindlichkeiten.json
-data/master/immobilien.json
-data/master/darlehen.json
-data/master/versicherungen.json
-data/master/renten.json
-data/master/ereignisse.json
-data/master/erwerbsstatus.json
-data/master/sozialleistungen.json
-data/master/annahmen.json
-data/master/szenarien.json
-data/master/quellen.json
-data/master/agentenauftraege.jsonl
-data/master/pruefregeln.json
-data/master/agentenlaeufe.jsonl
-data/master/vorschlaege.jsonl
-data/master/checks.json
-data/master/warnungen.jsonl
+personen.json
+konten.json
+kategorien.json
+transaktionen.jsonl
+transfers.json
+regelzahlungen.json
+immobilien.json
+darlehen.json
+verbindlichkeiten.json   (offen: Abgrenzung zu Darlehen — siehe M5)
+versicherungen.json
+renten.json
+ereignisse.json
+erwerbsstatus.json
+sozialleistungen.json
+annahmen.json
+szenarien.json
+zeitwerte.jsonl          (alle Werte mit zeitlichem Bezug, siehe CONTEXT.md)
+agent_log.jsonl          (Lauf-Protokoll fuer autonome Agenten)
 ```
 
-## Kernentitaeten
+**Bewusst nicht im Modell** (im Vergleich zu fruehen Entwuerfen explizit gestrichen):
+
+- `quellen.json` — Quellen sind inline am Datensatz (siehe `CONTEXT.md > Quelle`)
+- `vorschlaege.jsonl` — Vorschlaege leben am Datensatz selbst per `kategorisierung_status = vorgeschlagen` (siehe `CONTEXT.md > Kategorisierung`)
+- `agentenauftraege.jsonl`, `pruefregeln.json` — Agentenarbeit wird ueber Cron + Inbox-Konvention + Prompt gesteuert, nicht ueber Daten
+- `checks.json`, `warnungen.jsonl` — Checks sind Code, Befunde werden live berechnet
+- `vermoegen.json` — Vermoegenssicht entsteht berechnet aus Konten + Immobilien + Verbindlichkeiten + Zeitwerten
+
+## Kernentitaeten (M1)
+
+Hier nur die Entitaeten fuer M1. Spaetere Module werden mit ihrem Meilenstein detailliert.
 
 ### Person
 
 Pflichtfelder:
 
-- `person_id`
+- `person_id` (Format `PER-001`)
 - `name`
-- `rolle`
-- `status`
+- `status` (`aktiv | inaktiv`)
+- `aktiv_bis` (optional, ISO-Datum)
 
-Beispiele fuer `rolle`: `P01`, `P02`, `kind`, `haushalt`.
+Kein `rolle`-Feld. Lebensphasen werden ueber Ereignisse und Erwerbsstatus modelliert.
 
 ### Konto
 
 Pflichtfelder:
 
-- `konto_id`
+- `konto_id` (Format `KTO-001`)
 - `name`
-- `kontotyp`
-- `inhaber_person_ids`
-- `waehrung`
-- `liquiditaetsrelevant`
-- `status`
+- `kontotyp` (`giro | spar | tagesgeld | depot | kreditkarte | bar`)
+- `inhaber_person_ids` (Liste, gleichberechtigt)
+- `liquiditaetsrelevant` (Bool)
+- `status` (`aktiv | geschlossen`)
+- `aktiv_bis` (optional)
+
+Kein `waehrung`-Feld (siehe `CONTEXT.md > Waehrung`).
 
 ### Kategorie
 
 Pflichtfelder:
 
-- `kategorie_id`
+- `kategorie_id` (Format `KAT-001`)
 - `name`
-- `typ`
-- `cashflow_wirkung`
-- `lebenshaltung_relevant`
-- `status`
+- `typ` (`einnahme | ausgabe | neutral`)
+- `lebenshaltung_relevant` (Bool)
+- `status` (`aktiv | inaktiv`)
+- `aktiv_bis` (optional)
+
+Kein `cashflow_wirkung`-Feld an der Kategorie noetig — der `typ` traegt die Richtung.
 
 ### Transaktion
 
 Pflichtfelder:
 
-- `transaktion_id`
-- `rohquelle_id`
+- `transaktion_id` (Format `TXN-YYYYMMDD-000001`)
+- `dedupe_hash` (siehe `CONTEXT.md > Transaktions-ID und Deduplikation`)
+- `rohquelle` (Pfad zur Import-Datei)
 - `konto_id`
-- `buchungsdatum`
-- `betrag`
-- `waehrung`
+- `buchungsdatum` (ISO Date)
+- `betrag` (Decimal-String, exakt 2 Nachkommastellen, mit Vorzeichen)
 - `gegenpartei`
 - `verwendungszweck`
-- `kategorie_id`
-- `kategorisierung_status`
-- `cashflow_wirkung`
-- `ist_transfer`
+- `kategorisierung_status` (`offen | vorgeschlagen | bestaetigt | abgelehnt`)
+- `ist_transfer` (Bool)
 
-Transaktionen sind append-orientiert. Korrekturen erfolgen ueber neue Review-/Aenderungseintraege oder explizite Feldupdates mit Auditspur.
+Optional:
 
-### Regelzahlung
+- `kategorie_id` — Pflicht **nur** bei `kategorisierung_status = bestaetigt` (Cross-Field-Regel)
+- `bank_referenz` — wenn der Bankexport eine eindeutige ID liefert (z. B. Ende-zu-Ende-ID)
+- `transfer_id` — bei `ist_transfer = true` Pflicht (siehe Transfer)
+- `bemerkung` — Freitext, vom Agenten oder Nutzer
 
-Pflichtfelder:
+Kein `cashflow_wirkung`-Feld (Vorzeichen + `ist_transfer` genuegen). Kein `waehrung`-Feld. Korrekturen erfolgen in-place (siehe `docs/adr/0002`).
 
-- `regelzahlung_id`
-- `name`
-- `richtung`
-- `betrag_erwartet`
-- `intervall`
-- `kategorie_id`
-- `person_id`
-- `status`
-
-### Quelle
+### Transfer
 
 Pflichtfelder:
 
-- `quelle_id`
-- `quellentyp`
-- `pfad_oder_hinweis`
-- `standdatum`
-- `erfasst_am`
-- `status`
+- `transfer_id` (Format `TRF-YYYYMMDD-001`)
+- `betrag` (Decimal-String, positiv)
+- `typ` (`intern | extern`)
 
-### Vorschlag
+Bei `typ = intern`:
 
-Pflichtfelder:
+- `abgang_transaktion_id` Pflicht
+- `zugang_transaktion_id` Pflicht
+- Cross-Field: beide Transaktionen existieren, Betraege gegenlaeufig, gleicher Betrag
 
-- `vorschlag_id`
-- `typ`
-- `ziel_entitaet`
-- `ziel_id`
-- `vorschlag`
-- `evidenz`
-- `status`
-- `umsetzung_status`
+Bei `typ = extern`:
 
-Agenten erzeugen Vorschlaege, aber keine stillen finalen Fachentscheidungen.
+- Genau eine von `abgang_transaktion_id` / `zugang_transaktion_id` Pflicht
+- `gegenseite_typ` (`bar | extern_familie | extern_sonstiges`)
+- `begruendung` (Freitext, Pflicht)
 
-### Versicherung
+### Zeitwerte (`zeitwerte.jsonl`)
 
-Pflichtfelder:
+Pro Eintrag:
 
-- `versicherung_id`
-- `name`
-- `versicherungsart`
-- `person_id`
-- `beitrag_regelzahlung_id`
-- `quelle_id`
-- `status`
+- `entitaet` (`immobilie | rente | versicherung | ...`)
+- `entitaet_id`
+- `feld` (Name des bewerteten Felds, z. B. `marktwert`, `erwarteter_betrag`, `rueckkaufswert`)
+- `wert` (Decimal-String)
+- `standdatum` (ISO Date)
+- `qualitaet` (`belegt | geschaetzt`)
+- `quelle_hinweis` (optional)
 
-Versicherungen decken Schutz-, Vorsorge- und Vertragslogik ab. Spaetere Leistungen koennen mit Renten oder Ereignissen verknuepft werden.
+Aktueller Wert pro `(entitaet_id, feld)` = neuester Eintrag nach `standdatum`. Anhaengen, nicht ueberschreiben — Verlauf bleibt erhalten.
 
-### Rente
+### Agent-Lauf-Log (`agent_log.jsonl`)
 
-Pflichtfelder:
+Pro Lauf:
 
-- `rente_id`
-- `person_id`
-- `rentenart`
-- `beginn`
-- `betrag_erwartet`
-- `zahlweise`
-- `quelle_id`
-- `status`
+- `zeitpunkt` (ISO Timestamp mit lokalem Offset)
+- `anlass` (z. B. `cron-import`, `manuell-review`)
+- `inputs` (Liste der verarbeiteten Dateien/IDs)
+- `anzahl_importiert`, `anzahl_offen`, `anzahl_fehler`
+- `notiz` (Freitext-Zusammenfassung)
+- `betroffene_ids` (Liste, optional)
 
-Unsichere Renten duerfen in Szenarien nur mit sichtbar eingeschraenkter Datenqualitaet wirken.
+## Pruefregeln fuer M1
 
-### Immobilie
+Mindestens diese Cross-Field-Regeln muessen im Validator stehen:
 
-Pflichtfelder:
-
-- `immobilie_id`
-- `name`
-- `nutzung`
-- `eigentuemer_person_ids`
-- `wert`
-- `wert_standdatum`
-- `quelle_id`
-- `status`
-
-Immobilienwerte wirken im Nettovermoegen. Liquiditaetswirkung entsteht nur ueber Ertraege, Kosten, Darlehen und explizite Szenarioannahmen.
-
-### Darlehen
-
-Pflichtfelder:
-
-- `darlehen_id`
-- `immobilie_id`
-- `schuldner_person_ids`
-- `restschuld`
-- `zinsbindung_bis`
-- `rate_regelzahlung_id`
-- `quelle_id`
-- `status`
-
-Tilgung und Zinswirkung sollen getrennt auswertbar bleiben.
-
-### Ereignis
-
-Pflichtfelder:
-
-- `ereignis_id`
-- `name`
-- `person_id`
-- `datum_oder_zeitraum`
-- `wirkung`
-- `quelle_id`
-- `status`
-
-Ereignisse bilden z. B. Arbeitsende, Vertragsende, Einmalzahlungen, Auszahlungen oder relevante Familienereignisse ab.
-
-### Erwerbsstatus
-
-Pflichtfelder:
-
-- `erwerbsstatus_id`
-- `person_id`
-- `gueltig_von`
-- `gueltig_bis`
-- `einkommensfaktor`
-- `szenario_id`
-- `status`
-
-Ueberlappende oder fehlende Erwerbsstatus-Zeitraeume muessen Checks erzeugen.
-
-### Sozialleistung
-
-Pflichtfelder:
-
-- `sozialleistung_id`
-- `person_id`
-- `leistungsart`
-- `betrag_erwartet`
-- `gueltig_von`
-- `gueltig_bis`
-- `quelle_id`
-- `status`
-
-Sozialleistungen wirken wie regelmaessige oder zeitlich begrenzte Cashflow-Bestandteile.
-
-### Agentenauftrag
-
-Pflichtfelder:
-
-- `auftrag_id`
-- `typ`
-- `agentenrolle`
-- `ziel_entitaet`
-- `ziel_id`
-- `status`
-- `prioritaet`
-
-Agentenauftraege sind Aufgaben, nicht Datenersatz.
-
-### Pruefregel
-
-Pflichtfelder:
-
-- `pruefregel_id`
-- `name`
-- `ausloeser`
-- `agentenrolle`
-- `ziel_entitaet`
-- `aktiv`
-- `status`
-
-Pruefregeln beschreiben wiederholbare Ausloeser fuer Agentenarbeit und Checks.
-
-### Warnung
-
-Pflichtfelder:
-
-- `warnung_id`
-- `check_id`
-- `betroffene_entitaet`
-- `betroffene_id`
-- `schweregrad`
-- `status`
-- `erstellt_am`
-
-Warnungen sind konkrete Befunde aus Checks. Bearbeitungsstatus bleibt getrennt von der Checkdefinition.
-
-## Statuswerte
-
-Fachliche Daten:
-
-- `offen`
-- `belegt`
-- `geprueft`
-- `geschaetzt`
-- `inaktiv`
-
-Kategorisierung:
-
-- `offen`
-- `vorgeschlagen`
-- `bestaetigt`
-- `abgelehnt`
-
-Vorschlaege:
-
-- `offen`
-- `angenommen`
-- `abgelehnt`
-- `zurueckgestellt`
-- `umgesetzt`
+1. Jede Transaktion referenziert ein existierendes Konto.
+2. Wenn `kategorisierung_status = bestaetigt`, dann `kategorie_id` Pflicht und existierend.
+3. Wenn `ist_transfer = true`, dann `transfer_id` Pflicht und existierend.
+4. Transfer `typ = intern`: beide referenzierten Transaktionen existieren, ihre Betraege sind gegenlaeufig und betragsgleich.
+5. Transfer `typ = extern`: genau eine Transaktion referenziert, `gegenseite_typ` und `begruendung` gesetzt.
+6. `dedupe_hash` ist innerhalb `transaktionen.jsonl` eindeutig.
+7. Betrag entspricht Pattern `^-?\d+\.\d{2}$`.
+8. Wenn `aktiv_bis` gesetzt und in der Vergangenheit, darf die Entitaet nicht in **neuen** Datensaetzen referenziert werden (Altreferenzen bleiben gueltig).
 
 ## ID-Konventionen
 
 ```text
-PER-001
-KTO-001
-KAT-001
-TXN-YYYYMMDD-000001
-SRC-YYYYMMDD-001
-REG-001
-TRF-YYYYMMDD-001
-SUG-YYYYMMDD-001
-RUN-YYYYMMDD-001
-CHK-001
+PER-001                    Person
+KTO-001                    Konto
+KAT-001                    Kategorie
+TXN-YYYYMMDD-000001        Transaktion
+TRF-YYYYMMDD-001           Transfer
+REG-001                    Regelzahlung
+IMM-001                    Immobilie
+DAR-001                    Darlehen
+VER-001                    Versicherung
+RNT-001                    Rente
+EVT-YYYYMMDD-001           Ereignis
 ```
 
-## Pruefregeln fuer Runde 2
+## Spaetere Meilensteine (Strukturen offen)
 
-Mindestens diese Checks gehoeren in die erste Validierung:
+Diese Entitaeten existieren als Dateien, sind aber im Detail erst in ihrem Meilenstein zu spezifizieren:
 
-- Jede Transaktion referenziert ein vorhandenes Konto.
-- Jede Transaktion hat eine Kategorie oder `kategorisierung_status = offen`.
-- Jede nicht-neutrale Transaktion hat eine Cashflow-Wirkung.
-- Transfers muessen paarweise oder bewusst ungeklaert markiert sein.
-- Jede Quelle mit Datei verweist auf einen existierenden Pfad oder ist als extern/manuell markiert.
-- Dashboard-Kennzahlen duerfen nur aus validierten Masterdaten berechnet werden.
-- Kritische Versicherungen, Renten, Darlehen, Immobilienwerte und Vermoegenswerte brauchen Quelle oder bewusst sichtbaren Schaetzstatus.
-- Szenarioergebnisse muessen Datenqualitaet und offene Annahmen anzeigen.
+- **M4**: `regelzahlungen.json`, Verknuepfung Regelzahlung → Transaktion
+- **M5**: `immobilien.json`, `darlehen.json`, `verbindlichkeiten.json` (Abgrenzung Darlehen ↔ Verbindlichkeiten noch offen)
+- **M6**: `annahmen.json`, `szenarien.json`, `ereignisse.json`, `erwerbsstatus.json`, `sozialleistungen.json`
+- **M7**: `versicherungen.json`, `renten.json` und Verknuepfung zu Regelzahlungen / Zeitwerten
+
+Im M1-Schritt werden diese Dateien **nicht** angelegt — keine leeren Platzhalter, keine vorzeitige Detaillierung.

@@ -1,0 +1,9 @@
+[
+  {
+    "kategorie_id": "KAT-001",
+    "name": "Gehalt",
+    "typ": "einnahme",
+    "lebenshaltung_relevant": false,
+    "status": "aktiv"
+  }
+]

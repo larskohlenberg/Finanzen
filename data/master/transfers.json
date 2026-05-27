@@ -1,0 +1,9 @@
+[
+  {
+    "transfer_id": "TRF-20260505-001",
+    "betrag": "500.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-20260505-000003",
+    "zugang_transaktion_id": "TXN-20260505-000004"
+  }
+]

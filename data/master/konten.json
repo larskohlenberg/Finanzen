@@ -1,0 +1,18 @@
+[
+  {
+    "konto_id": "KTO-001",
+    "name": "Girokonto",
+    "kontotyp": "giro",
+    "inhaber_person_ids": ["PER-001"],
+    "liquiditaetsrelevant": true,
+    "status": "aktiv"
+  },
+  {
+    "konto_id": "KTO-002",
+    "name": "Tagesgeld",
+    "kontotyp": "tagesgeld",
+    "inhaber_person_ids": ["PER-001", "PER-002"],
+    "liquiditaetsrelevant": true,
+    "status": "aktiv"
+  }
+]

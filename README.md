@@ -32,3 +32,9 @@ Belege/              Bestehende Nutzerbelege, weiterhin aktive Nutzdaten
 3. Nur den naechsten fachlichen Meilenstein umsetzen.
 4. Vor jedem neuen Ausbau die Exit-Kriterien in `docs/runde2/Meilensteine_Runde2.md` pruefen.
 
+## Checks
+
+```bash
+npm test
+npm run validate:m1
+```

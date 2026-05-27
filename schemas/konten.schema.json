@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "konten.schema.json",
+  "title": "Konten",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["konto_id", "name", "kontotyp", "inhaber_person_ids", "liquiditaetsrelevant", "status"],
+    "properties": {
+      "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
+      "name": { "type": "string", "minLength": 1 },
+      "kontotyp": { "type": "string", "enum": ["giro", "spar", "tagesgeld", "depot", "kreditkarte", "bar"] },
+      "inhaber_person_ids": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "string", "pattern": "^PER-\\d{3}$" },
+        "uniqueItems": true
+      },
+      "liquiditaetsrelevant": { "type": "boolean" },
+      "status": { "type": "string", "enum": ["aktiv", "geschlossen"] },
+      "aktiv_bis": { "type": "string", "format": "date" }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "kategorie_id": "KAT-001",
+    "name": "Gehalt",
+    "typ": "einnahme",
+    "lebenshaltung_relevant": false,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-002",
+    "name": "Lebensmittel",
+    "typ": "ausgabe",
+    "lebenshaltung_relevant": true,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-003",
+    "name": "Transfer",
+    "typ": "neutral",
+    "lebenshaltung_relevant": false,
+    "status": "aktiv"
+  }
+]

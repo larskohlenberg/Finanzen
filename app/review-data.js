@@ -213,24 +213,6 @@ window.FINANCE_REVIEW_DATA = {
       title_key: "checks.accountReferenceMissing.title",
       detail_key: "checks.accountReferenceMissing.detail",
     },
-    {
-      check_id: "CHK-M2-REF-005",
-      severity: "review",
-      status: "offen",
-      scope: "konto",
-      entity_id: "KTO-006",
-      title_key: "checks.accountReferenceMissing.title",
-      detail_key: "checks.accountReferenceMissing.detail",
-    },
-    {
-      check_id: "CHK-M2-REF-006",
-      severity: "review",
-      status: "offen",
-      scope: "konto",
-      entity_id: "KTO-007",
-      title_key: "checks.accountReferenceMissing.title",
-      detail_key: "checks.accountReferenceMissing.detail",
-    },
   ],
 };
 

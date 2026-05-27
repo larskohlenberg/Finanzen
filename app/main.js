@@ -28,7 +28,7 @@ const state = {
   },
   transactionPage: 1,
   pageSize: 10,
-  selectedTransactionId: data.transaktionen[0]?.transaktion_id || "",
+  selectedTransactionId: "",
   masterSection: "konten",
 };
 
@@ -279,20 +279,24 @@ function renderAccountGroup(label, accounts) {
     <tr class="group-row"><td colspan="5">${escapeHtml(label)}</td></tr>
     ${accounts
       .map((konto) => {
-        const balance = accountBalance(konto.konto_id);
-        const status = konto.kontotyp === "depot"
+        const isDepot = konto.kontotyp === "depot";
+        const balanceCell = isDepot
+          ? `<span class="muted">—</span>`
+          : escapeHtml(formatMoney(accountBalance(konto.konto_id)));
+        const status = isDepot
           ? t("labels.depotValueMissing")
           : konto.kontoreferenz
             ? t("labels.accountStatusMissing")
             : t("labels.referenceMissing");
-        const chipClass = konto.kontoreferenz ? "neutral" : "review";
+        const chipClass = isDepot ? "neutral" : konto.kontoreferenz ? "neutral" : "review";
+        const chipIcon = isDepot || konto.kontoreferenz ? "•" : "?";
         return `
           <tr class="clickable" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
             <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
             <td>${escapeHtml(accountOwnerNames(konto))}</td>
             <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
-            <td class="amount">${escapeHtml(formatMoney(balance))}</td>
-            <td><span class="chip ${chipClass}">${konto.kontoreferenz ? "•" : "?"} ${escapeHtml(status)}</span></td>
+            <td class="amount">${balanceCell}</td>
+            <td><span class="chip ${chipClass}">${chipIcon} ${escapeHtml(status)}</span></td>
           </tr>
         `;
       })
@@ -317,11 +321,11 @@ function renderTransactions() {
   state.transactionPage = Math.min(Math.max(1, state.transactionPage), pageCount);
   const pageStart = (state.transactionPage - 1) * state.pageSize;
   const rows = allRows.slice(pageStart, pageStart + state.pageSize);
-  const selected = transaktionenById.get(state.selectedTransactionId) || allRows[0];
-  if (selected && !allRows.some((tx) => tx.transaktion_id === selected.transaktion_id)) {
-    state.selectedTransactionId = allRows[0]?.transaktion_id || "";
+  const inFilter = state.selectedTransactionId && allRows.some((tx) => tx.transaktion_id === state.selectedTransactionId);
+  if (!inFilter) {
+    state.selectedTransactionId = rows[0]?.transaktion_id || allRows[0]?.transaktion_id || "";
   }
-  const selectedInFilter = transaktionenById.get(state.selectedTransactionId) || allRows[0];
+  const selectedInFilter = transaktionenById.get(state.selectedTransactionId);
   const filterBalance = allRows.reduce((sum, tx) => sum + cents(tx.betrag), 0);
   const openCount = allRows.filter((tx) => tx.kategorisierung_status === "offen").length;
   const accountName = state.transactionFilters.account ? kontenById.get(state.transactionFilters.account)?.name : "";

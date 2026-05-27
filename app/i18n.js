@@ -25,8 +25,8 @@ window.FINANCE_I18N = {
     overview: {
       title: "Übersicht",
       lead: "Finanzstatus, Review-Hinweise und nächste Schritte aus dem aktuellen Review-Bundle.",
-      totalBalance: "Geladener Gesamtsaldo (Konten)",
-      balanceNote: "Geladener Saldo · Kontostand noch nicht belegt",
+      totalBalance: "Summe geladener Bewegungen (Konten)",
+      balanceNote: "Nur geladene Buchungen · kein Anfangssaldo enthalten",
       nextActionText: "1 Kategorie prüfen",
       accountBalances: "Konten und Depots",
       accounts: "Konten",
@@ -161,8 +161,8 @@ window.FINANCE_I18N = {
     overview: {
       title: "Overview",
       lead: "Financial status, review hints, and next steps from the current review bundle.",
-      totalBalance: "Loaded Total Balance (Accounts)",
-      balanceNote: "Loaded balance · account statement not confirmed",
+      totalBalance: "Sum of Loaded Movements (Accounts)",
+      balanceNote: "Loaded bookings only · no opening balance included",
       nextActionText: "Review 1 category",
       accountBalances: "Accounts and Depots",
       accounts: "Accounts",

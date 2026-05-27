@@ -94,6 +94,34 @@ Wichtigste Entscheidungen:
 - Die Uebersicht fuehrt mit `Geladener Gesamtsaldo (Konten)` und wiederholt den Arbeitsstatus dort nicht doppelt.
 - Helles Farbschema: weisser Hintergrund, leicht graue Navigation und Kacheln.
 
+## Bewusste M2-Schulden (vor M3 adressieren)
+
+Im Review am 27.05.2026 identifiziert und bewusst nicht in M2 gefixt:
+
+- **Full-innerHTML-Re-render bei jeder Interaktion** (`app/main.js`, `render()`).
+  Bei 30 Demo-Transaktionen tolerierbar. Mit echten Daten verliert die UI Fokus
+  und Scroll-Position. Spaetestens bei M4/M5 oder M9 entscheiden, ob ein
+  Framework-Wechsel oder gezielte Partial-Renders die richtige Antwort sind.
+- **History-/Hash-Handler-Kollision** (`app/main.js`, Transfer-Anker `#transaction=...`).
+  Click auf eine Gegenbuchung loest sowohl `hashchange` als auch
+  `data-action="paired-transfer"` aus. Doppel-Render, Reihenfolgen-Risiko.
+  Entweder Anker entfernen oder Click-Handler — nicht beides.
+- **`pushState("", "", "")` ohne URL-Update**. Browser-Zurueck funktioniert,
+  aber Refresh verliert Filter, Auswahl und Seite. Fuer eine reine Review-App
+  ok, soll aber bewusst so bleiben.
+- **`cents()` stringbasiert** (`app/main.js`). Funktioniert, ist aber fragil
+  bei Sonderformaten. `Math.round(Number(s) * 100)` waere robuster. Schema
+  garantiert das Format heute schon, deswegen kein akuter Bug.
+- **Unicode-Glyph-Icons** (`⌂ ≡ ◫ ✓ ⇩ ↔ ‹ ›`). Darstellung stark
+  fontabhaengig. Vor M3 durch SVG-Icons ersetzen.
+- **Hardcoded deutsche Strings**: `accountTypeLabel()` (`Depot`, capitalize),
+  `aria-label="Hauptnavigation"`. Erscheinen im EN-Modus weiterhin deutsch.
+- **Checks-Page-Tiles sind `<button>`, machen aber nichts**. Entweder
+  klickbar machen (Filter/Drill-down) oder als `<div>` darstellen.
+- **Transfer-Tile in Checks** zeigt fest `0` und gruenen Erfolgs-Chip,
+  obwohl keine Transfer-Pruefung existiert. Als „noch nicht implementiert"
+  kennzeichnen.
+
 ## Naechster sinnvoller Schritt
 
 Naechste Session:

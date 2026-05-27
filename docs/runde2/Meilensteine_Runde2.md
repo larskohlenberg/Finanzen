@@ -42,11 +42,14 @@ Exit-Kriterien:
 
 Ziel: Eine statische HTML-App zeigt den validierten Datenstand aus M1.5, offene Kategorien und Validierungsstatus.
 
+Stand 27.05.2026: M2 ist in `app/` als statische Review-Oberflaeche umgesetzt. Der fachliche und technische Stand ist in `docs/runde2/M2_Review_Oberflaeche.md` dokumentiert.
+
 Exit-Kriterien:
 
 - `app/index.html` laeuft lokal ohne Webserver.
-- Nutzer kann Daten per Datei laden.
+- Die App kann ein agentisch bereitgestelltes Review-Bundle anzeigen.
 - Offene Kategorien, Checks und Basis-Kennzahlen sind sichtbar.
+- Keine Import-Funktion in der Weboberflaeche; Datenbereitstellung passiert agentisch.
 - Keine Persistenz-Magie: Export erfolgt als Datei.
 
 ## M3 - Importvorschlaege fuer Kontoauszuege

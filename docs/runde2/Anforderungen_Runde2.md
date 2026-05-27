@@ -24,7 +24,8 @@ Der Unterschied zu Runde 1 ist nicht ein kleinerer Zielumfang, sondern eine ande
 
 1. Lokale Nutzbarkeit:
    - Die erste UI soll als `app/index.html` ohne Webserver nutzbar sein.
-   - Daten koennen ueber Dateiimport geladen und als Datei exportiert werden.
+   - Daten werden agentisch als Review-Bundle bereitgestellt und von der UI angezeigt.
+   - Die Weboberflaeche hat keine eigene Import-Funktion fuer Masterdaten.
 
 2. Agentenfreundlichkeit:
    - Masterdaten sind strukturierte Dateien, nicht Excel-Zellen.

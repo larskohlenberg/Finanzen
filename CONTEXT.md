@@ -22,6 +22,14 @@ Hat **Eigentumsanteile** mit Quoten (`eigentumsanteile: [{person_id, anteil}]`, 
 
 **Kein Konzept im Modell.** Aggregation "Familie/Haushalt" entsteht ausschliesslich als View (alle Konten zusammen, gefiltert nach Kategorie), nicht als Entitaet. Begruendung: ein Ehepaar + Kinder braucht keine zusaetzliche Aggregationsentitaet; Gemeinschaftskonten erledigen das durch ihre Inhaberliste.
 
+## Stammdaten
+
+Relativ stabile Bezugsdaten des Finanzmodells, z. B. Personen, Konten und Kategorien. Sie werden selten geaendert und geben **Bewegungsdaten** ihren fachlichen Rahmen.
+
+## Bewegungsdaten
+
+Regelmaessig hinzukommende kontobezogene Ereignisdaten, z. B. **Transaktionen** und **Transfers**. Sie werden gegen **Stammdaten** referenziert und sind der primaere Gegenstand von Review und Import.
+
 ## Cashflow-Traeger
 
 Wirtschaftlicher Traeger einer Transaktion folgt dem **Konto**, nicht der Person. Keine fiktive Quotenverteilung pro Buchung. "Wer hat das bezahlt" beantwortet sich ueber die Inhaberliste des Kontos.
@@ -36,7 +44,7 @@ Banken liefern Auszuege in unterschiedlichen Formaten — die Normalisierung in 
 
 ## Transaktion
 
-Buchung auf einem Konto. Hat immer einen `kategorisierung_status` (`offen | vorgeschlagen | bestaetigt | abgelehnt`). Die `kategorie_id` ist **optional**: nur wenn der Status `bestaetigt` ist, muss eine Kategorie gesetzt sein. Offene Transaktionen werden nicht ueber eine Pseudo-Kategorie versteckt — sie sind sichtbar offen.
+ Buchung auf einem Konto. Hat immer einen `kategorisierung_status` (`offen | vorgeschlagen | bestaetigt | abgelehnt`). Die `kategorie_id` ist **optional**: nur wenn der Status `bestaetigt` ist, muss eine Kategorie gesetzt sein. Transaktionen mit offener Kategorie werden nicht ueber eine Pseudo-Kategorie versteckt — sie sind als **Kategorie offen** sichtbar.
 
 Kein separates Feld `cashflow_wirkung` an der Transaktion. Die Wirkung ergibt sich aus dem Vorzeichen des `betrag`-Feldes plus dem Flag `ist_transfer` (Transfers sind cashflow-neutral). Die Kategorie steuert die fachliche Klassifikation, nicht das Vorzeichen.
 
@@ -57,6 +65,12 @@ Zeitstempel (z. B. `zeitpunkt` im Agent-Lauf-Log): ISO 8601 mit lokalem Offset, 
 Auf der Platte: Decimal-String mit exakt zwei Nachkommastellen, z. B. `"betrag": "-123.45"`. Schema-Pattern `^-?\d+\.\d{2}$`.
 
 Intern in Code: Cent-Integer. Konvertierung an genau zwei Stellen (Reader, Writer); im Rest des Codes nur Integer-Arithmetik. Damit keine Float-Precision-Bugs in Summen oder Paarungs-Checks.
+
+## Geladener Saldo und Kontostand
+
+**Geladener Saldo** ist die Summe der aktuell geladenen Transaktionen fuer ein Konto oder eine Kontenauswahl. Er ist eine Review-Kennzahl und kein bankbestaetigter Kontostand.
+
+**Kontostand** bezeichnet einen belegten Stand eines Kontos zu einem bestimmten Datum, typischerweise aus Bank- oder Depotunterlagen. In M2 wird der Begriff in der UI vermieden, solange nur Demo- oder Teildaten geladen sind.
 
 ## Waehrung
 
@@ -83,7 +97,7 @@ Werte mit zeitlichem Bezug, die **nicht aus Transaktionen berechenbar** sind, le
 {entitaet, entitaet_id, feld, wert, standdatum, qualitaet, quelle_hinweis}
 ```
 
-Anwendungsfaelle: Immobilien-Marktwert, erwartete Rente, Rueckkaufswert Versicherung. Aktueller Wert = neuester Eintrag pro `(entitaet_id, feld)`. Verlauf entsteht durch Anhaengen, nicht durch Ueberschreiben — weil **git als Audit-Spur nicht zaehlt**: die App soll spaeter standalone ohne Git laufen.
+Anwendungsfaelle: Immobilien-Marktwert, Depotwert, erwartete Rente, Rueckkaufswert Versicherung. Aktueller Wert = neuester Eintrag pro `(entitaet_id, feld)`. Verlauf entsteht durch Anhaengen, nicht durch Ueberschreiben — weil **git als Audit-Spur nicht zaehlt**: die App soll spaeter standalone ohne Git laufen.
 
 Werte, die berechenbar sind (Konto-Saldo, Darlehen-Restschuld, Nettovermoegen), gehoeren **nicht** in `zeitwerte.jsonl` — sie werden in der App berechnet.
 

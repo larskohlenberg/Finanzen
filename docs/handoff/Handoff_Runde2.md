@@ -1,6 +1,14 @@
 # Handoff Runde 2
 
-Stand: 26.05.2026
+Stand: 27.05.2026
+
+## ZUERST LESEN
+
+1. `CONTEXT.md` — Glossar, die verbindliche Sprache des Projekts.
+2. `docs/adr/` — vier Architekturentscheidungen, die nicht offensichtlich sind.
+3. `docs/runde2/Datenmodell_Runde2.md` — aktuelle Struktur der Masterdaten.
+
+Die drei Dokumente sind konsistent gehalten. Bei Widerspruechen gilt `CONTEXT.md` fuer Begriffe, ADRs fuer Begruendungen, Datenmodell fuer Struktur.
 
 ## Zweck
 
@@ -32,12 +40,15 @@ Das finale Ziel bleibt eine umfassende Finanzmodell-App. Runde 2 reduziert nicht
 
 ## Naechster sinnvoller Schritt
 
-Mit Meilenstein M1 beginnen:
+Mit Meilenstein M1 beginnen — Reihenfolge wichtig:
 
-1. JSON-Schemas fuer Personen, Konten, Kategorien und Transaktionen erstellen.
-2. Einen kleinen Masterdaten-Startstand in `data/master/` anlegen.
-3. Eine deterministische Validierung bauen, die Pflichtfelder und Referenzen prueft.
-4. Erst danach eine UI oder Importlogik bauen.
+1. **Validator-Bibliothek** bauen (siehe ADR-0003). JSON Schema Draft 2020-12 + Cross-Field-Engine, browserfaehig und Node-CLI-faehig.
+2. JSON-Schemas fuer Personen, Konten, Kategorien, Transaktionen erstellen — strikt nach `CONTEXT.md` (z. B. Betraege als Decimal-String, `kategorie_id` optional, kein `cashflow_wirkung`-Feld, kein `waehrung`-Feld).
+3. Kleinen Masterdaten-Startstand in `data/master/` anlegen.
+4. Validierung gegen guten + absichtlich kaputten Datensatz testen.
+5. Erst danach UI (M2) oder Importlogik (M3).
+
+Wenn bei der Schema-Erstellung Begriffe auftauchen, die in `CONTEXT.md` nicht stehen, **Begriff klaeren bevor er ins Schema kommt** — nicht raten.
 
 ## Harte Arbeitsregeln
 

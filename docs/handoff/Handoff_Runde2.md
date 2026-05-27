@@ -38,15 +38,30 @@ Das finale Ziel bleibt eine umfassende Finanzmodell-App. Runde 2 reduziert nicht
   - `schemas/`
 - `Belege/` bleibt als aktive Nutzdatenablage erhalten.
 
+## M1-Stand
+
+M1 ist umgesetzt, wenn die frischen Checks erfolgreich laufen:
+
+```bash
+npm test
+npm run validate:m1
+```
+
+Umgesetzte M1-Bestandteile:
+
+- `schemas/` enthaelt Schemas fuer Personen, Konten, Kategorien, Transaktionen und Transfers.
+- `data/master/` enthaelt einen kleinen validen Startdatenstand.
+- `tools/validator.mjs` validiert Strukturregeln und die M1-Cross-Field-Regeln.
+- `data/test-invalid/` enthaelt einen absichtlich kaputten Datensatz fuer den Negativtest.
+
 ## Naechster sinnvoller Schritt
 
-Mit Meilenstein M1 beginnen — Reihenfolge wichtig:
+Mit Meilenstein M2 beginnen — Reihenfolge wichtig:
 
-1. **Validator-Bibliothek** bauen (siehe ADR-0003). JSON Schema Draft 2020-12 + Cross-Field-Engine, browserfaehig und Node-CLI-faehig.
-2. JSON-Schemas fuer Personen, Konten, Kategorien, Transaktionen erstellen — strikt nach `CONTEXT.md` (z. B. Betraege als Decimal-String, `kategorie_id` optional, kein `cashflow_wirkung`-Feld, kein `waehrung`-Feld).
-3. Kleinen Masterdaten-Startstand in `data/master/` anlegen.
-4. Validierung gegen guten + absichtlich kaputten Datensatz testen.
-5. Erst danach UI (M2) oder Importlogik (M3).
+1. `app/index.html`, `app/styles.css` und `app/main.js` als statische Review-Oberflaeche bauen.
+2. Datei-Laden fuer den Masterdatenstand ermoeglichen.
+3. Validierungsstatus, offene Kategorien und Basis-Kennzahlen sichtbar machen.
+4. Keine Importautomatik (M3), bevor die Review-Oberflaeche den M1-Datenstand sauber anzeigen kann.
 
 Wenn bei der Schema-Erstellung Begriffe auftauchen, die in `CONTEXT.md` nicht stehen, **Begriff klaeren bevor er ins Schema kommt** — nicht raten.
 
@@ -72,4 +87,4 @@ Der aktuelle fachliche Abgleich steht in `docs/runde2/Traceability_Runde1_zu_Run
 
 ## Definition von "fertig" fuer M1
 
-M1 ist erst fertig, wenn ein Validierungslauf mit einem guten Datensatz erfolgreich ist und mit einem absichtlich fehlerhaften Datensatz fehlschlaegt. Ohne diese Evidenz wird nicht mit UI oder Importautomatik begonnen.
+M1 ist fertig, wenn ein Validierungslauf mit einem guten Datensatz erfolgreich ist und mit einem absichtlich fehlerhaften Datensatz fehlschlaegt. Die Evidenz liefern `npm test` und `npm run validate:m1`.

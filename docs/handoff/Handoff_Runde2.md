@@ -30,6 +30,7 @@ Das finale Ziel bleibt eine umfassende Finanzmodell-App. Runde 2 reduziert nicht
   - `docs/runde2/Traceability_Runde1_zu_Runde2.md`
   - `docs/architektur/Architekturreview_Runde2.md`
   - `docs/runde2/Meilensteine_Runde2.md`
+  - `docs/runde2/M2_Review_Oberflaeche.md`
 - Aktive Zielordner:
   - `app/`
   - `data/inbox/`
@@ -74,15 +75,52 @@ Arbeitsmodus fuer M1.5:
 - Offene Fragen werden nur dann in `docs/runde2/M1_5_Offene_Fragen.md` festgehalten, wenn sie am Session-Ende ungeklart bleiben oder bewusst vertagt werden.
 - Demo-Transaktionen bleiben vorerst in `data/master/transaktionen.jsonl`, werden aber klar als Demo markiert und spaeter in einem Wrap-up geloescht oder verschoben.
 
+## M2-Stand
+
+M2 ist als designgefuehrte Review-Oberflaeche geschnitten und in `app/` umgesetzt. Die verbindliche Leitplanke und der Umsetzungsstand stehen in `docs/runde2/M2_Review_Oberflaeche.md`.
+
+Wichtigste Entscheidungen:
+
+- Finanzstatus steht auf der Uebersicht im Vordergrund.
+- Die App hat keine Import-Funktion; Daten werden agentisch als Review-Bundle bereitgestellt.
+- Fuer M2 kann das Review-Bundle als `app/review-data.js` neben der statischen App liegen.
+- Hauptnavigation: Uebersicht, Transaktionen, Stammdaten, Checks, Export.
+- Export ist in M2 nur Platzhalter fuer spaeter.
+- Sprache und Darstellung sind dezente Dropdowns, nicht breite Umschalter.
+- UI-Texte kommen aus i18n-Labels.
+- `Kategorie offen` ist der UI-Begriff fuer Transaktionen mit offener Kategorie.
+- Die Sidebar ist einklappbar.
+- Die Transaktionsliste hat Pagination und genug M2-Demodaten fuer Blaettern.
+- Die Uebersicht fuehrt mit `Geladener Gesamtsaldo (Konten)` und wiederholt den Arbeitsstatus dort nicht doppelt.
+- Helles Farbschema: weisser Hintergrund, leicht graue Navigation und Kacheln.
+
 ## Naechster sinnvoller Schritt
 
-Mit einer eigenen Grill-Session fuer Meilenstein M1.5 beginnen — Reihenfolge wichtig:
+Naechste Session:
 
-1. Begrenzen, welche vorhandenen echten Quellen fuer Stammdaten genutzt werden duerfen.
-2. Klaeren, wie offene Fragen am Ende der Session dokumentiert werden.
-3. Personen, Konten und Kategorien agentisch extrahieren, aber nicht raten.
-4. Masterdaten validieren (`npm test`, `npm run validate:m1`).
-5. Erst danach M2-Grill und UI-Bau wieder aufnehmen.
+1. `docs/runde2/M2_Review_Oberflaeche.md` lesen.
+2. `app/index.html` lokal im normalen Browser oeffnen.
+3. M2 visuell reviewen: Uebersicht, Transaktionen mit Pagination, Stammdaten, Checks, Export, Light/Dark und DE/EN.
+4. Kleine UI-Feinheiten direkt notieren oder umsetzen.
+5. Danach entscheiden, ob M2 abgeschlossen bleibt oder ob M3 geplant wird.
+
+Technischer Hinweis:
+
+M2 ist bewusst als statische HTML/CSS/Vanilla-JS-Oberflaeche gebaut. Fuer M2 bleibt das richtig, weil die Oberflaeche Anzeige und Review macht, nicht Pflege, Persistenz oder Import. Ein Framework-Wechsel sollte erst vor M4/M5 oder M9 entschieden werden, wenn komplexere App-Zustaende, wiederverwendbare Komponenten oder gefuehrte Bearbeitung tatsaechlich noetig werden.
+
+Letzte Verifikation:
+
+```bash
+node --check app/main.js
+node --check app/review-data.js
+node --check app/i18n.js
+npm test
+npm run validate:m1
+```
+
+Codex-Browser-Einschraenkung:
+
+Die letzte gerenderte Browser-Pruefung der finalen Farb-/Pagination-Aenderung konnte in Codex nicht frisch abgeschlossen werden, weil `file://` blockiert wurde und lokale Ports aus der Sandbox nicht erreichbar waren. Die vorherige Browser-QA fuer Navigation, Browser-Zurueck, Breadcrumbs, Transfer-Link und Detailansicht war erfolgreich. Darum in der naechsten Session einmal lokal im normalen Browser ansehen.
 
 Wenn bei der Schema-Erstellung Begriffe auftauchen, die in `CONTEXT.md` nicht stehen, **Begriff klaeren bevor er ins Schema kommt** — nicht raten.
 

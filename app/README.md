@@ -6,8 +6,9 @@ Ziel: Eine lokale HTML/JavaScript-Oberflaeche, die ohne Webserver als Datei geoe
 
 - Keine Build-Pipeline fuer den ersten Meilenstein.
 - Keine externen Runtime-Abhaengigkeiten fuer die erste nutzbare Version.
-- Daten werden nicht in HTML hartkodiert, ausser fuer kleine Demo-Fixtures.
-- Persistenz erfolgt zunaechst ueber Import/Export von Dateien, nicht ueber versteckte Browser-Speicher.
+- Daten werden agentisch als Review-Bundle bereitgestellt, nicht in der UI importiert.
+- Persistenz fuer Finanzdaten erfolgt nicht ueber versteckte Browser-Speicher.
+- UI-Praeferenzen wie Sprache und Darstellung duerfen lokal gespeichert werden.
 
 ## Erwartete spaetere Dateien
 
@@ -15,5 +16,6 @@ Ziel: Eine lokale HTML/JavaScript-Oberflaeche, die ohne Webserver als Datei geoe
 app/index.html
 app/styles.css
 app/main.js
+app/review-data.js
+app/i18n.js
 ```
-

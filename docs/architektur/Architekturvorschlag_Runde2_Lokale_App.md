@@ -36,7 +36,7 @@ app/demo-data.js
 Eigenschaften:
 
 - Start per Doppelklick oder Browser-Datei oeffnen.
-- Daten werden per Dateiimport geladen.
+- Daten werden agentisch als Review-Bundle bereitgestellt und von der UI angezeigt.
 - Kennzahlen, Filter, Gruppierungen, Plausibilitaetschecks und Anzeigezustand liegen in JavaScript.
 - Ergebnisse, gefilterte Sichten oder Review-Entscheidungen koennen als Datei exportiert werden.
 - Keine Build-Pipeline, keine externen Runtime-Abhaengigkeiten fuer den ersten Schnitt.
@@ -209,8 +209,9 @@ Weil eine statische Datei-App nicht einfach lokale Ordner lesen darf, gibt es zw
 data/exports/current-finance-bundle.json
 ```
 
-- Einfacher Weg: Ein Agent erzeugt aus den Masterdateien ein `current-finance-bundle.json`, das die UI per Dateiimport laedt.
-- Direkter Weg: Die UI kann mehrere JSON-/JSONL-Dateien per Dateiauswahl laden, wenn das fuer den jeweiligen Meilenstein ergonomisch genug ist.
+- Einfacher Weg: Ein Agent erzeugt aus den Masterdateien ein Review-Bundle, das die UI anzeigen kann.
+- Fuer M2 kann dieses Bundle als `app/review-data.js` bereitgestellt werden, damit die App lokal ohne Webserver funktioniert.
+- Eine Import-Funktion in der Weboberflaeche ist kein Ziel fuer M2; Datenbereitstellung passiert agentisch.
 
 Das Bundle ist nicht der Master, sondern ein bequemes Transportformat fuer die Oberflaeche. Wenn es veraltet ist, wird es neu erzeugt, nicht manuell korrigiert.
 
@@ -297,7 +298,7 @@ Ziel: Der Nutzer kann den validierten Stammdatenstand lokal ansehen.
 
 Artefakt:
 
-- `app/index.html` mit Dateiimport eines UI-Bundles oder einzelner Datenfiles.
+- `app/index.html` mit agentisch bereitgestelltem Review-Bundle.
 - Stammdatenansichten fuer Personen, Konten, Kategorien und Quellen.
 - Datenqualitaetsbereich mit Checks.
 

@@ -61,6 +61,7 @@ Pflichtfelder:
 - `konto_id` (Format `KTO-001`)
 - `name`
 - `kontotyp` (`giro | spar | tagesgeld | depot | kreditkarte | bar`)
+- `kontoreferenz` (maskierte externe Kennung, z. B. IBAN-Endziffern oder Depotnummer-Endziffern)
 - `inhaber_person_ids` (Liste, gleichberechtigt)
 - `liquiditaetsrelevant` (Bool)
 - `status` (`aktiv | geschlossen`)

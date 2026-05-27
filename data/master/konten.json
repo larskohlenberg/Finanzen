@@ -1,16 +1,57 @@
 [
   {
     "konto_id": "KTO-001",
-    "name": "Girokonto",
+    "name": "Girokonto Lars",
     "kontotyp": "giro",
+    "kontoreferenz": "DE98...1175",
     "inhaber_person_ids": ["PER-001"],
     "liquiditaetsrelevant": true,
     "status": "aktiv"
   },
   {
     "konto_id": "KTO-002",
-    "name": "Tagesgeld",
+    "name": "Girokonto Katrin Deutsche Bank",
+    "kontotyp": "giro",
+    "inhaber_person_ids": ["PER-002"],
+    "liquiditaetsrelevant": true,
+    "status": "aktiv"
+  },
+  {
+    "konto_id": "KTO-003",
+    "name": "Hauskonto Volksbank BraWo",
+    "kontotyp": "giro",
+    "inhaber_person_ids": ["PER-001"],
+    "liquiditaetsrelevant": true,
+    "status": "aktiv"
+  },
+  {
+    "konto_id": "KTO-004",
+    "name": "Tagesgeld Lars Volkswagenbank",
     "kontotyp": "tagesgeld",
+    "inhaber_person_ids": ["PER-001"],
+    "liquiditaetsrelevant": true,
+    "status": "aktiv"
+  },
+  {
+    "konto_id": "KTO-005",
+    "name": "Tagesgeld Katrin Volkswagenbank",
+    "kontotyp": "tagesgeld",
+    "inhaber_person_ids": ["PER-002"],
+    "liquiditaetsrelevant": true,
+    "status": "aktiv"
+  },
+  {
+    "konto_id": "KTO-006",
+    "name": "Trade Republic Lars",
+    "kontotyp": "depot",
+    "inhaber_person_ids": ["PER-001"],
+    "liquiditaetsrelevant": true,
+    "status": "aktiv"
+  },
+  {
+    "konto_id": "KTO-007",
+    "name": "Gemeinsames Depot MLP",
+    "kontotyp": "depot",
     "inhaber_person_ids": ["PER-001", "PER-002"],
     "liquiditaetsrelevant": true,
     "status": "aktiv"

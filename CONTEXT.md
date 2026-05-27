@@ -10,6 +10,10 @@ Eine natuerliche Person mit eindeutiger Identitaet (`person_id`). Reine Identita
 
 Bankkonto oder Depot. Hat eine **Inhaberliste** (`inhaber_person_ids`) — alle Inhaber sind **gleichberechtigt**, ohne Quoten. Begruendung: die Bank kennt keine wirtschaftlichen Quoten an einem Konto; ein Gemeinschaftskonto ist gemeinschaftlich.
 
+## Kontoreferenz
+
+Eine externe, vom Anbieter vergebene, bevorzugt maskierte Kennung eines Kontos oder Depots, z. B. IBAN-Endziffern, Depotnummer-Endziffern oder eine maskierte Depotnummer. Sie dient der Wiedererkennung durch Nutzer und Agenten, nicht der Berechnung; vollstaendige IBANs oder Depotnummern gehoeren nur in die Quelle, nicht in den Masterdatensatz.
+
 ## Immobilie
 
 Hat **Eigentumsanteile** mit Quoten (`eigentumsanteile: [{person_id, anteil}]`, Summe = 1). Anders als beim Konto, weil hier reale, ungleiche Eigentumsverhaeltnisse existieren (Beispiel: 2/3 zu 1/3 im Grundbuch).

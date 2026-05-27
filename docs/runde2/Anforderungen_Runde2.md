@@ -52,6 +52,7 @@ Der Unterschied zu Runde 1 ist nicht ein kleinerer Zielumfang, sondern eine ande
 
 - Es gibt genau einen dokumentierten Masterdatenstand.
 - Ein kleiner Datensatz mit Personen, Konten, Kategorien und Transaktionen laesst sich validieren.
+- Vor der lokalen HTML-App werden echte Personen, Konten und Kategorien als M1.5-Stammdaten extrahiert und mit dem Nutzer geprueft.
 - Die lokale HTML-App zeigt Cashflow-Basis, offene Kategorien und Datenqualitaet.
 - Ein Agent kann eine neue Transaktionsdatei als Importvorschlag erzeugen, ohne direkt final zu kategorisieren.
 - Offene fachliche Punkte sind sichtbar statt in Platzhaltern versteckt.

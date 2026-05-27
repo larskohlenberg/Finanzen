@@ -8,16 +8,79 @@
   },
   {
     "kategorie_id": "KAT-002",
-    "name": "Lebensmittel",
+    "name": "Wohnen",
     "typ": "ausgabe",
     "lebenshaltung_relevant": true,
     "status": "aktiv"
   },
   {
     "kategorie_id": "KAT-003",
+    "name": "Lebensmittel",
+    "typ": "ausgabe",
+    "lebenshaltung_relevant": true,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-004",
+    "name": "Mobilitaet",
+    "typ": "ausgabe",
+    "lebenshaltung_relevant": true,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-005",
+    "name": "Versicherung",
+    "typ": "ausgabe",
+    "lebenshaltung_relevant": true,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-006",
+    "name": "Gesundheit",
+    "typ": "ausgabe",
+    "lebenshaltung_relevant": true,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-007",
+    "name": "Freizeit",
+    "typ": "ausgabe",
+    "lebenshaltung_relevant": true,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-008",
+    "name": "Kinder/Familie",
+    "typ": "ausgabe",
+    "lebenshaltung_relevant": true,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-009",
+    "name": "Steuern/Abgaben",
+    "typ": "ausgabe",
+    "lebenshaltung_relevant": false,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-010",
+    "name": "Sparen/Investieren",
+    "typ": "neutral",
+    "lebenshaltung_relevant": false,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-011",
     "name": "Transfer",
     "typ": "neutral",
     "lebenshaltung_relevant": false,
+    "status": "aktiv"
+  },
+  {
+    "kategorie_id": "KAT-012",
+    "name": "Sonstiges / zu pruefen",
+    "typ": "ausgabe",
+    "lebenshaltung_relevant": true,
     "status": "aktiv"
   }
 ]

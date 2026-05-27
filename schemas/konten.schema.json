@@ -11,6 +11,7 @@
       "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
       "name": { "type": "string", "minLength": 1 },
       "kontotyp": { "type": "string", "enum": ["giro", "spar", "tagesgeld", "depot", "kreditkarte", "bar"] },
+      "kontoreferenz": { "type": "string", "minLength": 1 },
       "inhaber_person_ids": {
         "type": "array",
         "minItems": 1,

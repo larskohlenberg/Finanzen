@@ -1,0 +1,138 @@
+{
+  "manifestVersion": 1,
+  "generatedAt": "2026-05-22T14:26:14.176Z",
+  "status": "ok",
+  "steps": [
+    {
+      "id": "build_start_workbook",
+      "script": "workbook-build/build_finanzmodell_v1.mjs",
+      "produces": [
+        "start_workbook"
+      ],
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 12684,
+      "stdoutPreview": "{\"kind\":\"table\",\"sheet\":\"00_Dashboard\",\"address\":\"A1:M20\",\"rows\":20,\"cols\":13,\"values\":[[\"Finanzmodell V1 Startmappe\",null,null,null,null,null,null,null,null,null,null,null,null],[\"Struktur-, Referenz- und Sichtbarkeitsnachweis nach Sparring FINAL_ARTIFACT. Liquiditaet, Cashflow-Erwartung, Offen-Anteil und Reichweite sind als Task-3-Einstieg berechnet.\",null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null],[\"Modellstatus\",\"Rot\",\"Rueckgebunden an offene Build-, Kategorie- und Annahmenchecks\",null,null,null,null,null,null,\"Schweregrad\",\"Offene Checks\",null,null],[\"Kontrollstatus\",\"nicht_ausgefuehrt\",\"Build-Verifikation ist als Startzustand nicht ausgefuehrt\",null,null,null,null,null,null,\"Fehler\",1,null,null],[\"Naechste Aktion\",\"Review abschliessen, offene Kategorie und Platzhalterannahme pruefen\",\"Danach Prognose aus akzeptierten Review-Entscheidungen schaerfen\",null,null,null,null,null,null,\"Warnung\",6,null,null],[null,null,null,null,null,null,null,null,null,\"Hinweis\",0,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null],[\"Kennzahl\",\"Wert\",\"Status\",\"Warum\",null,\"Top-Warnung\",\"Schweregrad\",\"Naechste Aktion\",null,null,null,null,null],[\"Liquiditaet heute\",4250,\"berechnet\",\"Summe liquider Konten\",null,\"Workbook-Verifikation noch nicht bestanden\",\"Fehler\",\"Build/Verifier ausfuehren\",null,null,null,null,null],[\"Freie Liquiditaet nach Reserve\",1250,\"berechnet\",\"Liquiditaet minus Sicherheitsreserve\",null,\"Buchung mit offener Kategorie\",\"Warnung\",\"Kategorie pruefen\",null,null,null,null,null],[\"Cashflow Monat gesamt\",1038.68,\"teilberechnet\",\"Ist-Cashflow aus Modellbuchungen\",null,\"Prognose nutzt unbestaetigte Regelzahlung\",\"Warnung\",\"Regelzahlung im Review entscheiden\",null,null,null,null,null],[\"Reichweite Standardszenario\",0.6,\"teilberechnet\",\"Freie Liquiditaet geteilt durch erwarteten Monatsverbrauch\",null,null,null,null,null,null,null,null,null],[\"Offene Checks\",7,\"sichtbar\",\"Mindestens ein Fehler/Warnung begruendet Rot/Gelb\",null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null],[\"Format\",\"Bedeutung\",null,null,null,null,null,null,null,null,null,null,null],[\"Blaue Schrift\",\"hardcodierte Startdaten / editierbare Inputs\",null,null,null,null,null,null,null,null,null,null,null],[\"Schwarze Schrift\",\"Formeln oder berechnete Statusfelder\",null,null,null,null,null,null,null,null,null,null,null],[\"Gelbe Flaeche\",\"offen, Platzhalter oder pruefpflichtig\",null,null,null,null,null,null,null,null,null,null,null]]}\n{\"kind\":\"notice\",\"message\":\"Cell search matched 0 entries.\"}\nEXPORTED /Users/larskohlenberg/Library/CloudStorage/OneDrive-Perso%CC%88nlich/Lars/Finanzen/outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Startmappe.xlsx\n",
+      "stderrPreview": ""
+    },
+    {
+      "id": "build_review_workbook",
+      "script": "workbook-build/build_proposal_review_workbook.mjs",
+      "produces": [
+        "review_workbook"
+      ],
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 10467,
+      "stdoutPreview": "{\n  \"outputPath\": \"./outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Vorschlagsreview.xlsx\",\n  \"counts\": {\n    \"regularPaymentSuggestions\": 50,\n    \"transferSuggestions\": 11,\n    \"categorySuggestions\": 25,\n    \"allSuggestions\": 86\n  }\n}\n",
+      "stderrPreview": ""
+    },
+    {
+      "id": "build_decision_plan",
+      "script": "workbook-build/build_review_decision_plan.mjs",
+      "produces": [
+        "decision_plan"
+      ],
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 10443,
+      "stdoutPreview": "{\n  \"outputPath\": \"./outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Review_Entscheidungsplan.xlsx\",\n  \"validation\": {\n    \"valid\": true,\n    \"errors\": [],\n    \"warnings\": []\n  },\n  \"reviewStatus\": {\n    \"reviewWorkbookPath\": \"./outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Vorschlagsreview.xlsx\",\n    \"totalDecisions\": 86,\n    \"counts\": {\n      \"open\": 86,\n      \"accepted\": 0,\n      \"rejected\": 0,\n      \"merged\": 0,\n      \"deferred\": 0,\n      \"acceptedRegularPayments\": 0,\n      \"acceptedCategoryMappings\": 0,\n      \"acceptedTransferRules\": 0,\n      \"incompleteAccepted\": 0\n    },\n    \"incompleteAcceptedDecisions\": [],\n    \"validation\": {\n      \"valid\": true,\n      \"errors\": [],\n      \"warnings\": []\n    },\n    \"readyForDecisionPlan\": true\n  },\n  \"counts\": {\n    \"acceptedRegularPayments\": 0,\n    \"acceptedCategoryMappings\": 0,\n    \"acceptedTransferRules\": 0,\n    \"blockedDecisions\": 0\n  }\n}\n",
+      "stderrPreview": ""
+    },
+    {
+      "id": "write_verified_workbook",
+      "script": "workbook-build/write_verified_finanzmodell_v1.mjs",
+      "produces": [
+        "verified_workbook"
+      ],
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 10445,
+      "stdoutPreview": "{\n  \"verification\": {\n    \"workbookPath\": \"outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Startmappe.xlsx\",\n    \"checks\": [\n      {\n        \"name\": \"sheet count is 23\",\n        \"status\": \"ok\",\n        \"detail\": \"23\"\n      },\n      {\n        \"name\": \"sheet order matches final artifact\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"dashboard Modellstatus is Rot\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"dashboard Kontrollstatus is nicht_ausgefuehrt\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"Liquiditaet heute is calculated\",\n        \"status\": \"ok\",\n        \"detail\": \"4250\"\n      },\n      {\n        \"name\": \"freie Liquiditaet is calculated\",\n        \"status\": \"ok\",\n        \"detail\": \"1250\"\n      },\n      {\n        \"name\": \"Cashflow Monat ist calculated\",\n        \"status\": \"ok\",\n        \"detail\": \"1038.68\"\n      },\n      {\n        \"name\": \"Reichweite is calculated\",\n        \"status\": \"ok\",\n        \"detail\": \"0.6\"\n      },\n      {\n        \"name\": \"dashboard open checks count is 7\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"expected monthly cashflow is calculated\",\n        \"status\": \"ok\",\n        \"detail\": \"-2100\"\n      },\n      {\n        \"name\": \"uncategorized expense share is calculated\",\n        \"status\": \"ok\",\n        \"detail\": \"5.13\"\n      },\n      {\n        \"name\": \"timeline month 1 is calculated\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"timeline month 2 is calculated\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"timeline month 3 is calculated\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"liquidity runway metric is calculated\",\n        \"status\": \"ok\",\n        \"detail\": \"0.6\"\n      },\n      {\n        \"name\": \"CHK-BLD-01 exists\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"CHK003 exists\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"CHK012 exists\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"CHK015 exists\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"CHK016 exists\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"all visible checks are open\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"checks reference build verification\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"checks reference import run\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"checks reference placeholder assumption\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"checks reference source\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"checks reference unconfirmed regular payment\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"checks reference negative timeline month\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"import run exists\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"four raw transactions exist\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      },\n      {\n        \"name\": \"formula error scan has 0 matches\",\n        \"status\": \"ok\",\n        \"detail\": \"\"\n      }\n    ]\n  },\n  \"writeReport\": {\n    \"outputPath\": \"outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Verifiziert.xlsx\",\n    \"closedCheckId\": \"CHK-BLD-01\",\n    \"verificationStatus\": \"bestanden\",\n    \"openFindingsAfterBuildCheck\": 6\n  }\n}\n",
+      "stderrPreview": ""
+    },
+    {
+      "id": "apply_review_to_start_workbook",
+      "script": "workbook-build/apply_review_decision_plan_to_finance_copy.mjs",
+      "produces": [
+        "start_apply_noop"
+      ],
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 10441,
+      "stdoutPreview": "{\n  \"validation\": {\n    \"valid\": true,\n    \"errors\": [],\n    \"warnings\": []\n  },\n  \"preflight\": {\n    \"valid\": true,\n    \"errors\": [],\n    \"warnings\": [],\n    \"regularPayments\": {\n      \"count\": 0,\n      \"existingRuleIds\": [\n        \"REG001\"\n      ],\n      \"plannedRuleIds\": [],\n      \"duplicateRuleIds\": [],\n      \"appendRow\": 8,\n      \"lastAvailableRow\": 9,\n      \"availableBlankRows\": 2,\n      \"requiresRowInsertion\": false,\n      \"writableWithoutInsertion\": true\n    }\n  },\n  \"applied\": {\n    \"regularPayments\": 0,\n    \"layoutExpandedRows\": 0\n  },\n  \"outputPath\": \"./outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Applied_Review_NoOp.xlsx\"\n}\n",
+      "stderrPreview": ""
+    },
+    {
+      "id": "apply_review_to_verified_workbook",
+      "script": "workbook-build/apply_review_decision_plan_to_verified_finance_copy.mjs",
+      "produces": [
+        "verified_apply_noop"
+      ],
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 10478,
+      "stdoutPreview": "{\n  \"validation\": {\n    \"valid\": true,\n    \"errors\": [],\n    \"warnings\": []\n  },\n  \"preflight\": {\n    \"valid\": true,\n    \"errors\": [],\n    \"warnings\": [],\n    \"regularPayments\": {\n      \"count\": 0,\n      \"existingRuleIds\": [\n        \"REG001\"\n      ],\n      \"plannedRuleIds\": [],\n      \"duplicateRuleIds\": [],\n      \"appendRow\": 8,\n      \"lastAvailableRow\": 9,\n      \"availableBlankRows\": 2,\n      \"requiresRowInsertion\": false,\n      \"writableWithoutInsertion\": true\n    }\n  },\n  \"applied\": {\n    \"regularPayments\": 0,\n    \"layoutExpandedRows\": 0\n  },\n  \"outputPath\": \"./outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Verifiziert_Applied_Review_NoOp.xlsx\"\n}\n",
+      "stderrPreview": ""
+    },
+    {
+      "id": "verify_start_workbook",
+      "script": "workbook-build/verify_finanzmodell_v1.mjs",
+      "produces": [],
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 10518,
+      "stdoutPreview": "{\n  \"workbookPath\": \"outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Startmappe.xlsx\",\n  \"checks\": [\n    {\n      \"name\": \"sheet count is 23\",\n      \"status\": \"ok\",\n      \"detail\": \"23\"\n    },\n    {\n      \"name\": \"sheet order matches final artifact\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"dashboard Modellstatus is Rot\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"dashboard Kontrollstatus is nicht_ausgefuehrt\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"Liquiditaet heute is calculated\",\n      \"status\": \"ok\",\n      \"detail\": \"4250\"\n    },\n    {\n      \"name\": \"freie Liquiditaet is calculated\",\n      \"status\": \"ok\",\n      \"detail\": \"1250\"\n    },\n    {\n      \"name\": \"Cashflow Monat ist calculated\",\n      \"status\": \"ok\",\n      \"detail\": \"1038.68\"\n    },\n    {\n      \"name\": \"Reichweite is calculated\",\n      \"status\": \"ok\",\n      \"detail\": \"0.6\"\n    },\n    {\n      \"name\": \"dashboard open checks count is 7\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"expected monthly cashflow is calculated\",\n      \"status\": \"ok\",\n      \"detail\": \"-2100\"\n    },\n    {\n      \"name\": \"uncategorized expense share is calculated\",\n      \"status\": \"ok\",\n      \"detail\": \"5.13\"\n    },\n    {\n      \"name\": \"timeline month 1 is calculated\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"timeline month 2 is calculated\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"timeline month 3 is calculated\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"liquidity runway metric is calculated\",\n      \"status\": \"ok\",\n      \"detail\": \"0.6\"\n    },\n    {\n      \"name\": \"CHK-BLD-01 exists\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"CHK003 exists\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"CHK012 exists\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"CHK015 exists\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"CHK016 exists\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"all visible checks are open\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"checks reference build verification\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"checks reference import run\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"checks reference placeholder assumption\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"checks reference source\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"checks reference unconfirmed regular payment\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"checks reference negative timeline month\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"import run exists\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"four raw transactions exist\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"formula error scan has 0 matches\",\n      \"status\": \"ok\",\n      \"detail\": \"\"\n    }\n  ]\n}\n",
+      "stderrPreview": ""
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "start_workbook",
+      "path": "outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Startmappe.xlsx",
+      "exists": true,
+      "sizeBytes": 71475,
+      "sha256": "c8ba034512b2573c9f66b1be975c04bf73ca7dc0f9501a10b2577ab26d33ecb2"
+    },
+    {
+      "id": "review_workbook",
+      "path": "outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Vorschlagsreview.xlsx",
+      "exists": true,
+      "sizeBytes": 37525,
+      "sha256": "3a97a8b62ade087aa4412afcc1f32dcf972cb1f5804afa77246a806eb81f84e6"
+    },
+    {
+      "id": "decision_plan",
+      "path": "outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Review_Entscheidungsplan.xlsx",
+      "exists": true,
+      "sizeBytes": 8542,
+      "sha256": "db32fd9aeef66c5ed94feb3f6285bf3d7fb436206e7a37044e1d248155a40926"
+    },
+    {
+      "id": "verified_workbook",
+      "path": "outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Verifiziert.xlsx",
+      "exists": true,
+      "sizeBytes": 72328,
+      "sha256": "84ffc880933bb74460c90afbebd707151d37dd6f6206549a49871f914f7edd6d"
+    },
+    {
+      "id": "start_apply_noop",
+      "path": "outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Applied_Review_NoOp.xlsx",
+      "exists": true,
+      "sizeBytes": 72707,
+      "sha256": "1f335a26e411105accb98c3d028aeb8817892a2025195bb93dc8cab95ca73658"
+    },
+    {
+      "id": "verified_apply_noop",
+      "path": "outputs/finanzmodell-v1-startmappe/Finanzmodell_V1_Verifiziert_Applied_Review_NoOp.xlsx",
+      "exists": true,
+      "sizeBytes": 73573,
+      "sha256": "61eadef3004a1661689b8e0d64954650576fa699ead812b9d88cb2412add7c95"
+    }
+  ],
+  "handoffArtifactId": "verified_apply_noop",
+  "notes": [
+    "Startmappe bleibt der rote Roh-Buildzustand.",
+    "Verifizierte Apply-NoOp-Kopie ist der aktuelle Uebergabestand ohne angenommene Review-Entscheidungen."
+  ]
+}

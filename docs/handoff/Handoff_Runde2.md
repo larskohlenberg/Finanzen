@@ -54,14 +54,35 @@ Umgesetzte M1-Bestandteile:
 - `tools/validator.mjs` validiert Strukturregeln und die M1-Cross-Field-Regeln.
 - `data/test-invalid/` enthaelt einen absichtlich kaputten Datensatz fuer den Negativtest.
 
+## Warum M1.5 vor M2 eingeschoben wurde
+
+In der M2-Grill-Session wurde entschieden, die Review-Oberflaeche nicht nur gegen Demo-Daten zu bauen. Vor M2 soll ein kleiner agentischer Schritt echte Stammdaten aus vorhandenen Unterlagen und Runde-1-Artefakten extrahieren.
+
+M1.5 ist bewusst eng begrenzt:
+
+- Ja: echte Personen, Konten und Kategorien extrahieren und mit dem Nutzer pruefen.
+- Ja: unklare Werte als offene Fragen sichtbar machen.
+- Ja: vorhandene Unterlagen, Runde-1-Artefakte und CSVs lesen, aber nur um Stammdaten abzuleiten.
+- Nein: Kontoauszuege massenhaft importieren.
+- Nein: Transaktionen automatisch kategorisieren.
+- Nein: Regelzahlungen oder Cashflow-Prognosen erkennen.
+
+Arbeitsmodus fuer M1.5:
+
+- Der Agent fragt im Dialog; der Nutzer entscheidet.
+- Nach expliziter Bestaetigung pro fachlichem Block darf der Agent `data/master/personen.json`, `konten.json` und `kategorien.json` direkt ersetzen.
+- Offene Fragen werden nur dann in `docs/runde2/M1_5_Offene_Fragen.md` festgehalten, wenn sie am Session-Ende ungeklart bleiben oder bewusst vertagt werden.
+- Demo-Transaktionen bleiben vorerst in `data/master/transaktionen.jsonl`, werden aber klar als Demo markiert und spaeter in einem Wrap-up geloescht oder verschoben.
+
 ## Naechster sinnvoller Schritt
 
-Mit Meilenstein M2 beginnen — Reihenfolge wichtig:
+Mit einer eigenen Grill-Session fuer Meilenstein M1.5 beginnen — Reihenfolge wichtig:
 
-1. `app/index.html`, `app/styles.css` und `app/main.js` als statische Review-Oberflaeche bauen.
-2. Datei-Laden fuer den Masterdatenstand ermoeglichen.
-3. Validierungsstatus, offene Kategorien und Basis-Kennzahlen sichtbar machen.
-4. Keine Importautomatik (M3), bevor die Review-Oberflaeche den M1-Datenstand sauber anzeigen kann.
+1. Begrenzen, welche vorhandenen echten Quellen fuer Stammdaten genutzt werden duerfen.
+2. Klaeren, wie offene Fragen am Ende der Session dokumentiert werden.
+3. Personen, Konten und Kategorien agentisch extrahieren, aber nicht raten.
+4. Masterdaten validieren (`npm test`, `npm run validate:m1`).
+5. Erst danach M2-Grill und UI-Bau wieder aufnehmen.
 
 Wenn bei der Schema-Erstellung Begriffe auftauchen, die in `CONTEXT.md` nicht stehen, **Begriff klaeren bevor er ins Schema kommt** — nicht raten.
 
@@ -88,3 +109,7 @@ Der aktuelle fachliche Abgleich steht in `docs/runde2/Traceability_Runde1_zu_Run
 ## Definition von "fertig" fuer M1
 
 M1 ist fertig, wenn ein Validierungslauf mit einem guten Datensatz erfolgreich ist und mit einem absichtlich fehlerhaften Datensatz fehlschlaegt. Die Evidenz liefern `npm test` und `npm run validate:m1`.
+
+## Definition von "fertig" fuer M1.5
+
+M1.5 ist fertig, wenn echte Personen, Konten und Kategorien in `data/master/` stehen, der Nutzer sie geprueft hat, offene Punkte dokumentiert sind und die M1-Validierung weiterhin erfolgreich laeuft.

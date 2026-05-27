@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "transaktionen.schema.json",
+  "title": "Transaktionen",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "transaktion_id",
+      "dedupe_hash",
+      "rohquelle",
+      "konto_id",
+      "buchungsdatum",
+      "betrag",
+      "gegenpartei",
+      "verwendungszweck",
+      "kategorisierung_status",
+      "ist_transfer"
+    ],
+    "properties": {
+      "transaktion_id": { "type": "string", "pattern": "^TXN-\\d{8}-\\d{6}$" },
+      "dedupe_hash": { "type": "string", "minLength": 1 },
+      "rohquelle": { "type": "string", "minLength": 1 },
+      "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
+      "buchungsdatum": { "type": "string", "format": "date" },
+      "betrag": { "type": "string", "pattern": "^-?\\d+\\.\\d{2}$" },
+      "gegenpartei": { "type": "string" },
+      "verwendungszweck": { "type": "string" },
+      "kategorisierung_status": { "type": "string", "enum": ["offen", "vorgeschlagen", "bestaetigt", "abgelehnt"] },
+      "ist_transfer": { "type": "boolean" },
+      "kategorie_id": { "type": "string", "pattern": "^KAT-\\d{3}$" },
+      "bank_referenz": { "type": "string" },
+      "transfer_id": { "type": "string", "pattern": "^TRF-\\d{8}-\\d{3}$" },
+      "bemerkung": { "type": "string" }
+    }
+  }
+}

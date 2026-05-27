@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "kategorien.schema.json",
+  "title": "Kategorien",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["kategorie_id", "name", "typ", "lebenshaltung_relevant", "status"],
+    "properties": {
+      "kategorie_id": { "type": "string", "pattern": "^KAT-\\d{3}$" },
+      "name": { "type": "string", "minLength": 1 },
+      "typ": { "type": "string", "enum": ["einnahme", "ausgabe", "neutral"] },
+      "lebenshaltung_relevant": { "type": "boolean" },
+      "status": { "type": "string", "enum": ["aktiv", "inaktiv"] },
+      "aktiv_bis": { "type": "string", "format": "date" }
+    }
+  }
+}

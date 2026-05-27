@@ -1,6 +1,6 @@
 # Fachliche Meilensteine Runde 2
 
-Stand: 26.05.2026
+Stand: 27.05.2026
 
 Diese Meilensteine sollen verhindern, dass wieder ein grosser, schwer pruefbarer Gesamtbau entsteht. Jeder Meilenstein hat ein fachliches Ziel und harte Exit-Kriterien.
 
@@ -26,9 +26,21 @@ Exit-Kriterien:
 - Validierung findet fehlende Pflichtfelder und kaputte Referenzen.
 - Kein Dashboard, bevor diese Validierung steht.
 
+## M1.5 - Reale Stammdatenbasis
+
+Ziel: Aus vorhandenen echten Unterlagen und Runde-1-Artefakten werden echte Personen, Konten und Kategorien als validierter Masterdatenstand extrahiert, bevor die Review-Oberflaeche gebaut wird.
+
+Exit-Kriterien:
+
+- `data/master/personen.json`, `konten.json` und `kategorien.json` enthalten echte, mit dem Nutzer gepruefte Stammdaten.
+- Unsichere Werte werden als offene Fragen dokumentiert, nicht geraten.
+- Der M1-Validator laeuft weiterhin erfolgreich.
+- Demo-Transaktionen bleiben vorerst in `data/master/`, muessen aber klar als Demo erkennbar sein und werden spaeter in einem Wrap-up entfernt oder verschoben.
+- Kein Kontoauszugsimport, keine automatische Kategorisierung und keine Regelzahlungserkennung.
+
 ## M2 - Lokale Review-Oberflaeche
 
-Ziel: Eine statische HTML-App zeigt den Datenstand, offene Kategorien und Validierungsstatus.
+Ziel: Eine statische HTML-App zeigt den validierten Datenstand aus M1.5, offene Kategorien und Validierungsstatus.
 
 Exit-Kriterien:
 

@@ -1,0 +1,4 @@
+[
+  { "regel_id": "REG-001", "gegenpartei_pattern": "edeka", "kategorie_id": "KAT-003", "status": "aktiv", "erstellt_am": "2026-05-28" },
+  { "regel_id": "REG-002", "gegenpartei_pattern": "supermarkt", "kategorie_id": "KAT-003", "status": "aktiv", "erstellt_am": "2026-05-28" }
+]

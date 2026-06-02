@@ -81,7 +81,7 @@ function accountOwnerNames(konto) {
 }
 
 function accountTypeLabel(type) {
-  return type === "depot" ? "Depot" : type.charAt(0).toUpperCase() + type.slice(1);
+  return t(`accountTypes.${type}`) || (type.charAt(0).toUpperCase() + type.slice(1));
 }
 
 function categoryName(categoryId) {
@@ -153,7 +153,7 @@ function renderSidebar() {
           ${state.sidebarCollapsed ? "›" : "‹"}
         </button>
       </div>
-      <nav class="nav" aria-label="Hauptnavigation">
+      <nav class="nav" aria-label="${escapeHtml(t("chrome.mainNav"))}">
         ${navItems
           .map(([view, labelKey, icon]) => `
             <button class="nav-button ${state.view === view ? "active" : ""}" data-view="${view}" aria-label="${escapeHtml(t(labelKey))}" title="${escapeHtml(t(labelKey))}">

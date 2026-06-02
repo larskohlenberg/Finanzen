@@ -14,6 +14,7 @@ window.FINANCE_I18N = {
       validationPassed: "Validierung bestanden",
       categoryOpen: "Kategorie offen",
       importErrors: "Importfehler",
+      mainNav: "Hauptnavigation",
       nextAction: "Nächste Aktion",
       language: "Sprache",
       appearance: "Darstellung",
@@ -114,6 +115,11 @@ window.FINANCE_I18N = {
       yes: "ja",
       no: "nein",
     },
+    accountTypes: {
+      giro: "Giro",
+      tagesgeld: "Tagesgeld",
+      depot: "Depot",
+    },
     status: {
       offen: "Kategorie offen",
       vorgeschlagen: "Vorgeschlagen",
@@ -154,6 +160,7 @@ window.FINANCE_I18N = {
       validationPassed: "Validation passed",
       categoryOpen: "Category open",
       importErrors: "Import errors",
+      mainNav: "Main navigation",
       nextAction: "Next action",
       language: "Language",
       appearance: "Appearance",
@@ -253,6 +260,11 @@ window.FINANCE_I18N = {
       referencePresent: "Account reference present",
       yes: "yes",
       no: "no",
+    },
+    accountTypes: {
+      giro: "Checking",
+      tagesgeld: "Savings",
+      depot: "Depot",
     },
     status: {
       offen: "Category open",

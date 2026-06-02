@@ -214,6 +214,15 @@ window.FINANCE_REVIEW_DATA = {
       detail_key: "checks.accountReferenceMissing.detail",
     },
   ],
+  importfehler: [
+    {
+      fehler_id: "IMP-20260528-001",
+      rohquelle: "data/inbox/error/volksbank-mai.csv",
+      row: 7,
+      reason: "konto_unbekannt",
+      detail: "KTO-009 nicht in konten.json",
+    },
+  ],
 };
 
 window.FINANCE_REVIEW_DATA.transaktionen.push(

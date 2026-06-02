@@ -223,6 +223,11 @@ window.FINANCE_REVIEW_DATA = {
       detail: "KTO-009 nicht in konten.json",
     },
   ],
+  regelzahlungen: [
+    { regelzahlung_id: "RZ-001", bezeichnung: "Gehalt Person A (Demo)", betrag: "3500.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-30", status: "bestaetigt", kategorie_id: "KAT-001", erstellt_am: "2026-06-02", bemerkung: "Demo" },
+    { regelzahlung_id: "RZ-002", bezeichnung: "Miete (Demo)", betrag: "-1200.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt", kategorie_id: "KAT-002", erstellt_am: "2026-06-02", bemerkung: "Demo" },
+    { regelzahlung_id: "RZ-003", bezeichnung: "Handyvertrag (Demo)", betrag: "-29.99", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2025-07-01", aktiv_bis: "2027-07-01", status: "vorgeschlagen", kategorie_id: "KAT-007", erstellt_am: "2026-06-02", bemerkung: "Demo, Vorschlag" },
+  ],
 };
 
 window.FINANCE_REVIEW_DATA.transaktionen.push(

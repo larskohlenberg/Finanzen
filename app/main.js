@@ -1,4 +1,6 @@
+import { computeCashflowIst, computeCashflowPrognose } from "./cashflow.mjs";
 const data = window.FINANCE_REVIEW_DATA;
+data.regelzahlungen = data.regelzahlungen ?? [];
 const dictionaries = window.FINANCE_I18N;
 
 const storageKeys = {

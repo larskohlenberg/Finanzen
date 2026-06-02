@@ -14,6 +14,7 @@ window.FINANCE_I18N = {
       validationPassed: "Validierung bestanden",
       categoryOpen: "Kategorie offen",
       importErrors: "Importfehler",
+      mainNav: "Hauptnavigation",
       nextAction: "Nächste Aktion",
       language: "Sprache",
       appearance: "Darstellung",
@@ -87,6 +88,9 @@ window.FINANCE_I18N = {
       affected: "Betroffen",
       importErrors: "Importfehler",
       importErrorsLead: "Dateien, die der Import-Agent nicht verarbeiten konnte. Fix im Dialog mit Claude Code.",
+      transfersLead: "Automatisch gepaarte Transfers aus dem Import. Externe Transfers markiert der Nutzer manuell.",
+      transferOk: "Vollständig gepaart",
+      transferIncomplete: "Unvollständig",
     },
     exportPage: {
       title: "Export",
@@ -113,6 +117,11 @@ window.FINANCE_I18N = {
       referencePresent: "Kontoreferenz vorhanden",
       yes: "ja",
       no: "nein",
+    },
+    accountTypes: {
+      giro: "Giro",
+      tagesgeld: "Tagesgeld",
+      depot: "Depot",
     },
     status: {
       offen: "Kategorie offen",
@@ -154,6 +163,7 @@ window.FINANCE_I18N = {
       validationPassed: "Validation passed",
       categoryOpen: "Category open",
       importErrors: "Import errors",
+      mainNav: "Main navigation",
       nextAction: "Next action",
       language: "Language",
       appearance: "Appearance",
@@ -227,6 +237,9 @@ window.FINANCE_I18N = {
       affected: "Affected",
       importErrors: "Import errors",
       importErrorsLead: "Files the import agent could not process. Fix via dialog in Claude Code.",
+      transfersLead: "Auto-paired transfers from import. External transfers are marked manually by the user.",
+      transferOk: "Fully paired",
+      transferIncomplete: "Incomplete",
     },
     exportPage: {
       title: "Export",
@@ -253,6 +266,11 @@ window.FINANCE_I18N = {
       referencePresent: "Account reference present",
       yes: "yes",
       no: "no",
+    },
+    accountTypes: {
+      giro: "Checking",
+      tagesgeld: "Savings",
+      depot: "Depot",
     },
     status: {
       offen: "Category open",

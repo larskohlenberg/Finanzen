@@ -72,6 +72,7 @@ Wenn eines dieser Felder fuer eine Zeile nicht zuverlaessig extrahierbar ist: **
 - Bei Unsicherheit (Konto, Datum, Betrag, Gegenpartei) lieber im Dialog fragen oder in `error/` legen — niemals raten.
 - Den Stand am Ende eines Laufs als kurze Zusammenfassung in den Chat schreiben (importiert: X, offen: Y, Fehler: Z).
 - Bei einem geklaerten Fehler aus `error/` die Datei zuruck nach `data/inbox/` schieben und den Lauf nochmal starten.
+- Beim ersten Import einer neuen Bank pruefen, ob `bank_referenz` (Buchungsnummer) ueber Re-Exports stabil bleibt. Wenn nicht: Feld weglassen, damit der Freitext-Hash greift (ADR 0007).
 
 ## Don'ts
 
@@ -113,8 +114,11 @@ Wenn eines dieser Felder fuer eine Zeile nicht zuverlaessig extrahierbar ist: **
 | `data/master/agent_log.jsonl` | Lauf-Protokoll fuer Uebergabe |
 | `schemas/` | JSON Schemas zur Validierung |
 | `tools/validator.mjs` | Deterministischer Validator |
+| `tools/import.mjs` | Import-Pipeline `runImport` + CLI (M3) |
+| `tools/dedupe.mjs` | Deterministischer Dedupe-Hash (M3) |
 | `tools/categorizer.mjs` | Deterministischer Categorizer (M3) |
 | `tools/transfer-matcher.mjs` | Deterministischer Transfer-Matcher (M3) |
+| `tools/import-format.mjs` | Validierung des standardisierten Importformats (M3) |
 
 ## Verwandte Skills (noch nicht vorhanden)
 

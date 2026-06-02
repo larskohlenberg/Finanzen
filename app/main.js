@@ -565,12 +565,28 @@ function renderSimpleTable(headers, rows) {
   `;
 }
 
+function transferChecks() {
+  return (data.transfers || []).map((transfer) => {
+    const abgang = transaktionenById.get(transfer.abgang_transaktion_id);
+    const zugang = transaktionenById.get(transfer.zugang_transaktion_id);
+    const ok =
+      !!abgang &&
+      !!zugang &&
+      abgang.ist_transfer === true &&
+      zugang.ist_transfer === true &&
+      abgang.transfer_id === transfer.transfer_id &&
+      zugang.transfer_id === transfer.transfer_id;
+    return { transfer_id: transfer.transfer_id, betrag: transfer.betrag, ok };
+  });
+}
+
 function renderChecks() {
+  const transferResults = transferChecks();
   const groups = [
     [t("checksPage.validation"), data.checks.filter((check) => check.scope === "datenstand")],
     [t("checksPage.categories"), data.checks.filter((check) => check.scope === "transaktion")],
     [t("checksPage.accountReferences"), data.checks.filter((check) => check.scope === "konto")],
-    [t("checksPage.transfers"), []],
+    [t("checksPage.transfers"), transferResults.map((tc) => ({ severity: tc.ok ? "success" : "review" }))],
   ];
   return `
     ${renderPageHead(t("checksPage.title"), t("checksPage.lead"))}
@@ -597,6 +613,20 @@ function renderChecks() {
               <span class="chip danger">⚠ ${escapeHtml(fehler.reason)}</span>
               <span>${escapeHtml(fehler.rohquelle)} · ${escapeHtml(t("labels.row"))} ${escapeHtml(String(fehler.row ?? "-"))}</span>
               <span class="muted">${escapeHtml(fehler.detail)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    ` : ""}
+    ${transferResults.length > 0 ? `
+      <section class="panel panel-pad" style="margin-top: 16px;">
+        <h2 class="section-title">${escapeHtml(t("checksPage.transfers"))}</h2>
+        <p class="page-lead">${escapeHtml(t("checksPage.transfersLead"))}</p>
+        <div class="rail-list">
+          ${transferResults.map((tc) => `
+            <div class="rail-item">
+              <span class="chip ${tc.ok ? "success" : "review"}">${tc.ok ? "✓" : "?"} ${escapeHtml(tc.ok ? t("checksPage.transferOk") : t("checksPage.transferIncomplete"))}</span>
+              <span>${escapeHtml(tc.transfer_id)} · ${escapeHtml(formatMoney(cents(tc.betrag)))}</span>
             </div>
           `).join("")}
         </div>

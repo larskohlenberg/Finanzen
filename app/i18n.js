@@ -88,6 +88,9 @@ window.FINANCE_I18N = {
       affected: "Betroffen",
       importErrors: "Importfehler",
       importErrorsLead: "Dateien, die der Import-Agent nicht verarbeiten konnte. Fix im Dialog mit Claude Code.",
+      transfersLead: "Automatisch gepaarte Transfers aus dem Import. Externe Transfers markiert der Nutzer manuell.",
+      transferOk: "Vollständig gepaart",
+      transferIncomplete: "Unvollständig",
     },
     exportPage: {
       title: "Export",
@@ -234,6 +237,9 @@ window.FINANCE_I18N = {
       affected: "Affected",
       importErrors: "Import errors",
       importErrorsLead: "Files the import agent could not process. Fix via dialog in Claude Code.",
+      transfersLead: "Auto-paired transfers from import. External transfers are marked manually by the user.",
+      transferOk: "Fully paired",
+      transferIncomplete: "Incomplete",
     },
     exportPage: {
       title: "Export",

@@ -576,11 +576,11 @@ function renderChecks() {
     ${renderPageHead(t("checksPage.title"), t("checksPage.lead"))}
     <div class="tile-grid">
       ${groups.map(([label, checks]) => `
-        <button class="tile">
+        <div class="tile tile-static">
           <strong>${escapeHtml(label)}</strong>
           <div class="count">${checks.length}</div>
           <span class="chip ${checks.some((check) => check.severity === "review") ? "review" : "success"}">${checks.some((check) => check.severity === "review") ? "?" : "✓"} ${escapeHtml(checks.length ? t("status.review") : t("status.success"))}</span>
-        </button>
+        </div>
       `).join("")}
     </div>
     <section class="panel panel-pad" style="margin-top: 16px;">

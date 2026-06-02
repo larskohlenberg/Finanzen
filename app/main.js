@@ -60,9 +60,7 @@ function escapeHtml(value) {
 }
 
 function cents(decimalString) {
-  const [euros, centsPart] = decimalString.replace("-", "").split(".");
-  const sign = decimalString.startsWith("-") ? -1 : 1;
-  return sign * (Number(euros) * 100 + Number(centsPart || 0));
+  return Math.round(Number(decimalString) * 100);
 }
 
 function formatMoney(amountInCents) {

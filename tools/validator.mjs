@@ -79,12 +79,30 @@ const schemas = {
       begruendung: { type: "string", minLength: 1 },
     },
   },
+  regelzahlungen: {
+    optional: true,
+    required: ["regelzahlung_id", "bezeichnung", "betrag", "rhythmus_einheit", "rhythmus_intervall", "anker_datum", "status", "erstellt_am"],
+    fields: {
+      regelzahlung_id: { type: "string", pattern: /^RZ-\d{3}$/ },
+      bezeichnung: { type: "string", minLength: 1 },
+      betrag: { type: "string", pattern: /^-?\d+\.\d{2}$/ },
+      rhythmus_einheit: { type: "string", enum: ["tag", "woche", "monat", "jahr"] },
+      rhythmus_intervall: { type: "number", integer: true, min: 1 },
+      anker_datum: { type: "string", format: "date" },
+      aktiv_bis: { type: "string", format: "date" },
+      status: { type: "string", enum: ["vorgeschlagen", "bestaetigt", "abgelehnt"] },
+      kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
+      erstellt_am: { type: "string", format: "date" },
+      bemerkung: { type: "string" },
+    },
+  },
 };
 
 export function validateMasterData(data) {
   const errors = [];
 
   for (const [collectionName, schema] of Object.entries(schemas)) {
+    if (schema.optional && data[collectionName] === undefined) continue;
     validateCollection(collectionName, data[collectionName], schema, errors);
   }
 
@@ -151,6 +169,12 @@ function validateField(path, value, rule, errors) {
     errors.push(`${path}: muss ${rule.type} sein`);
     return;
   }
+  if (rule.integer && !Number.isInteger(value)) {
+    errors.push(`${path}: muss eine Ganzzahl sein`);
+  }
+  if (rule.min !== undefined && value < rule.min) {
+    errors.push(`${path}: muss mindestens ${rule.min} sein`);
+  }
   if (rule.minLength && value.length < rule.minLength) {
     errors.push(`${path}: darf nicht leer sein`);
   }
@@ -205,6 +229,15 @@ function validateCrossFieldRules(data, errors) {
   });
 
   data.transfers?.forEach((transfer) => validateTransfer(transfer, transaktionen, errors));
+
+  data.regelzahlungen?.forEach((rz) => {
+    if (rz.kategorie_id && !kategorien.has(rz.kategorie_id)) {
+      errors.push(`regelzahlungen.${rz.regelzahlung_id}.kategorie_id: ${rz.kategorie_id} existiert nicht`);
+    }
+    if (rz.aktiv_bis && rz.anker_datum && rz.aktiv_bis < rz.anker_datum) {
+      errors.push(`regelzahlungen.${rz.regelzahlung_id}.aktiv_bis: liegt vor anker_datum`);
+    }
+  });
 }
 
 function validateTransfer(transfer, transaktionen, errors) {
@@ -281,6 +314,7 @@ export async function loadMasterData(root = new URL("../data/master/", import.me
     kategorien: await readJson(new URL("kategorien.json", root)),
     transaktionen: await readJsonl(new URL("transaktionen.jsonl", root)),
     transfers: await readJson(new URL("transfers.json", root)),
+    regelzahlungen: await readJson(new URL("regelzahlungen.json", root)),
   };
 }
 

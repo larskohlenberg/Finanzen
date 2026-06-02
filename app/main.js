@@ -595,7 +595,7 @@ function renderChecks() {
         <div class="tile tile-static">
           <strong>${escapeHtml(label)}</strong>
           <div class="count">${checks.length}</div>
-          <span class="chip ${checks.some((check) => check.severity === "review") ? "review" : "success"}">${checks.some((check) => check.severity === "review") ? "?" : "✓"} ${escapeHtml(checks.length ? t("status.review") : t("status.success"))}</span>
+          <span class="chip ${checks.some((check) => check.severity === "review") ? "review" : "success"}">${checks.some((check) => check.severity === "review") ? "?" : "✓"} ${escapeHtml(checks.some((check) => check.severity === "review") ? t("status.review") : t("status.success"))}</span>
         </div>
       `).join("")}
     </div>

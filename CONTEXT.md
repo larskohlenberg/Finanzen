@@ -36,9 +36,15 @@ Wirtschaftlicher Traeger einer Transaktion folgt dem **Konto**, nicht der Person
 
 ## Transaktions-ID und Deduplikation
 
-`transaktion_id` ist menschenlesbar und sequenziell: `TXN-YYYYMMDD-000001`. Zusaetzlich traegt jede Transaktion einen `dedupe_hash` — Hash ueber `(konto_id, buchungsdatum, betrag, gegenpartei, verwendungszweck, bank_referenz?)`. Beim Import prueft der Agent, ob der Hash bereits existiert; wenn ja, ueberspringt er den Datensatz.
+`transaktion_id` ist menschenlesbar und sequenziell: `TXN-YYYYMMDD-000001`. Zusaetzlich traegt jede Transaktion einen `dedupe_hash`. Beim Import prueft die Import-Pipeline, ob der Hash bereits existiert; wenn ja, wird der Datensatz uebersprungen.
 
-`bank_referenz` ist optional. Wenn die Bank im Export eine eindeutige Buchungsnummer (z. B. Ende-zu-Ende-ID) liefert, wird sie uebernommen und floesst in den Hash ein. Andernfalls bleibt das Feld leer und der Hash basiert nur auf den uebrigen Feldern.
+Der Hash wird **zweistufig** gebildet (siehe ADR 0007):
+- Liefert die Bank eine eindeutige Buchungsnummer (`bank_referenz`, z. B. Ende-zu-Ende-ID), basiert der Hash **nur** auf `(konto_id, bank_referenz)`. Das ist die staerkste Eindeutigkeit und ueberlebt Umformatierungen des Verwendungszwecks zwischen zwei Exports.
+- Fehlt `bank_referenz`, basiert der Hash auf `(konto_id, buchungsdatum, betrag, gegenpartei, verwendungszweck)`.
+
+Die Freitextfelder `gegenpartei` und `verwendungszweck` werden vor dem Hash **leicht normalisiert** (trim, Mehrfach-Whitespace kollabieren) — aber **nicht** lowercased oder von Sonderzeichen befreit. Begruendung: zu starke Normalisierung wuerde knapp verschiedene Buchungen verschmelzen und damit echte Buchungen still verschlucken — der schlimmste Fehlerfall.
+
+Wenn eine Bank `bank_referenz` nicht stabil ueber Re-Exports vergibt, laesst der Agent das Feld bewusst weg, damit der Freitext-Hash greift. Das ist ein Pruefpunkt beim ersten Import einer neuen Bank.
 
 Banken liefern Auszuege in unterschiedlichen Formaten — die Normalisierung in die Standardform ist Aufgabe des Import-Agenten, nicht des Datenmodells.
 
@@ -130,6 +136,16 @@ Keine eigene Entitaet. Quellen leben als Felder direkt am Datensatz:
 - **Stammdaten** (Immobilie, Darlehen, Versicherung, Rente, Sozialleistung): optionales `quelle_hinweis` (Pfad oder Freitext) plus optionales `quelle_standdatum`.
 
 Keine `quellen.json`. Wenn dasselbe PDF an mehreren Stellen referenziert wird, steht der Pfad mehrfach — das ist akzeptiert, weil es keinen echten Pflegeaufwand erzeugt.
+
+## Kategorisierungsregel
+
+Stammdatensatz in `data/master/kategorisierungsregeln.json`. Ordnet eingehenden Transaktionen anhand von Mustern (z. B. Substring in `gegenpartei` oder `verwendungszweck`, optional gefiltert auf `konto_id`) eine `kategorie_id` zu. Wird beim Import von einem deterministischen Tool ausgewertet — der Agent ruft das Tool, das Tool matcht, der Agent uebernimmt das Ergebnis.
+
+Bei Treffer setzt der Importer `kategorisierung_status = vorgeschlagen` und die `kategorie_id`. Bei Konflikt (zwei Regeln, unterschiedliche Kategorien) bleibt die Transaktion `offen` — Mehrdeutigkeit wird sichtbar gemacht, nicht stillschweigend per Reihenfolge entschieden.
+
+## Standardisiertes Importformat
+
+Zwischenformat zwischen Rohdatei (CSV, PDF, MT940 …) und dem finalen Transaktionseintrag. Liegt unter `data/inbox/` und enthaelt die normalisierten Felder einer Buchung in einer JSONL-Form, gegen die der Validator laeuft. Die Normalisierung aus dem Bank-Rohformat ist Aufgabe des Agenten, nicht des Modells — **es gibt keine bankspezifischen Parser im Code**, weil Bankformate sich ohne Vorwarnung aendern und der Agent gut im Normalisieren ist.
 
 ## Transfer
 

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addInterval, occurrences, computeCashflowIst } from "../app/cashflow.mjs";
+import { addInterval, occurrences, computeCashflowIst, computeCashflowPrognose, defaultHorizonEnd } from "../app/cashflow.mjs";
 
 test("addInterval addiert Tage", () => {
   assert.equal(addInterval("2026-01-30", "tag", 5), "2026-02-04");
@@ -47,4 +47,48 @@ test("computeCashflowIst summiert je Monat, ohne Transfers, bis heute", () => {
   assert.equal(result.gesamt_netto_cents, 222000);
   assert.equal(result.qualitaet.gesamt_anzahl, 3);
   assert.equal(result.qualitaet.offene_kategorie_anzahl, 1);
+});
+
+function rz(extra = {}) {
+  return { regelzahlung_id: "RZ-001", betrag: "-1200.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt", ...extra };
+}
+
+test("defaultHorizonEnd nimmt das spaeteste aktiv_bis, mindestens Fallback", () => {
+  const liste = [rz({ aktiv_bis: "2030-01-01" }), rz({ regelzahlung_id: "RZ-002", aktiv_bis: "2028-01-01" })];
+  assert.equal(defaultHorizonEnd(liste, "2026-06-01", 12), "2030-01-01");
+});
+
+test("defaultHorizonEnd faellt auf today+Fallback zurueck, wenn alle unbefristet", () => {
+  const liste = [rz()];
+  assert.equal(defaultHorizonEnd(liste, "2026-06-01", 12), "2027-06-01");
+});
+
+test("computeCashflowPrognose projiziert nur bestaetigte ab nach heute", () => {
+  const liste = [
+    rz({ betrag: "3500.00", anker_datum: "2026-01-30", kategorie_id: "KAT-001" }),
+    rz({ regelzahlung_id: "RZ-009", status: "vorgeschlagen", betrag: "-99.00" }),
+  ];
+  const result = computeCashflowPrognose(liste, { today: "2026-06-15", horizonEnd: "2026-08-31" });
+  assert.deepEqual(result.monate, [
+    { monat: "2026-06", netto_cents: 350000 },
+    { monat: "2026-07", netto_cents: 350000 },
+    { monat: "2026-08", netto_cents: 350000 },
+  ]);
+  assert.equal(result.qualitaet.bestaetigte_regelzahlungen, 1);
+  assert.equal(result.qualitaet.vorschlaege_nicht_enthalten, 1);
+  assert.equal(result.qualitaet.einmaleffekte_enthalten, false);
+  assert.equal(result.horizont_ende, "2026-08-31");
+});
+
+test("Stufenaenderung: zwei aufeinanderfolgende Regelzahlungen ohne Ueberlappung", () => {
+  const liste = [
+    rz({ regelzahlung_id: "RZ-A", betrag: "3500.00", anker_datum: "2026-01-01", aktiv_bis: "2026-07-31" }),
+    rz({ regelzahlung_id: "RZ-B", betrag: "1750.00", anker_datum: "2026-08-01" }),
+  ];
+  const result = computeCashflowPrognose(liste, { today: "2026-06-15", horizonEnd: "2026-09-30" });
+  assert.deepEqual(result.monate, [
+    { monat: "2026-07", netto_cents: 350000 },
+    { monat: "2026-08", netto_cents: 175000 },
+    { monat: "2026-09", netto_cents: 175000 },
+  ]);
 });

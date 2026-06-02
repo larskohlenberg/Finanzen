@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Standardisiertes Importformat",
+  "type": "object",
+  "required": ["konto_id", "buchungsdatum", "betrag", "gegenpartei", "verwendungszweck", "rohquelle"],
+  "additionalProperties": false,
+  "properties": {
+    "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
+    "buchungsdatum": { "type": "string", "format": "date" },
+    "betrag": { "type": "string", "pattern": "^-?\\d+\\.\\d{2}$" },
+    "gegenpartei": { "type": "string" },
+    "verwendungszweck": { "type": "string" },
+    "bank_referenz": { "type": "string" },
+    "rohquelle": { "type": "string", "minLength": 1 }
+  }
+}

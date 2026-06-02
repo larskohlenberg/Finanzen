@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Kategorisierungsregel",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["regel_id", "kategorie_id", "status", "erstellt_am"],
+    "additionalProperties": false,
+    "properties": {
+      "regel_id": { "type": "string", "pattern": "^REG-\\d{3}$" },
+      "gegenpartei_pattern": { "type": "string", "minLength": 1 },
+      "verwendungszweck_pattern": { "type": "string", "minLength": 1 },
+      "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
+      "vorzeichen": { "type": "string", "enum": ["einnahme", "ausgabe"] },
+      "kategorie_id": { "type": "string", "pattern": "^KAT-\\d{3}$" },
+      "status": { "type": "string", "enum": ["aktiv", "inaktiv"] },
+      "erstellt_am": { "type": "string", "format": "date" },
+      "kommentar": { "type": "string" }
+    }
+  }
+}

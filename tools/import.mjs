@@ -1,6 +1,7 @@
 // tools/import.mjs
 import { readFile, writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolve } from "node:path";
 import { validateImportEntry } from "./import-format.mjs";
 import { computeDedupeHash } from "./dedupe.mjs";
 import { categorize } from "./categorizer.mjs";
@@ -89,7 +90,7 @@ async function main() {
     readJson(new URL("transfers.json", masterRoot)),
     readJson(new URL("kategorisierungsregeln.json", masterRoot)),
   ]);
-  const entries = await readJsonl(new URL(inputPath.replace(/^\.?\//, ""), `file://${process.cwd()}/`));
+  const entries = await readJsonl(pathToFileURL(resolve(process.cwd(), inputPath)));
 
   const out = runImport({ entries, konten, kategorien, kategorisierungsregeln, transaktionen, transfers });
 

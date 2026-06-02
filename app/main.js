@@ -174,6 +174,7 @@ function renderTopbar() {
         <strong>${escapeHtml(t("chrome.workStatus"))}</strong>
         <span class="chip success">✓ ${escapeHtml(t("chrome.validationPassed"))}</span>
         <button class="chip review linkish" data-action="filter-open-category">? ${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
+        ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">⚠ ${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
         <button class="chip neutral linkish" data-action="next-action">${escapeHtml(t("chrome.nextAction"))}: ${escapeHtml(t("overview.nextActionText"))}</button>
       </div>
       <div class="controls">
@@ -588,6 +589,21 @@ function renderChecks() {
       <h2 class="section-title">${escapeHtml(t("checksPage.title"))}</h2>
       <div class="rail-list">${renderCheckItems(data.checks)}</div>
     </section>
+    ${(data.importfehler?.length ?? 0) > 0 ? `
+      <section class="panel panel-pad" style="margin-top: 16px;">
+        <h2 class="section-title">${escapeHtml(t("checksPage.importErrors"))}</h2>
+        <p class="page-lead">${escapeHtml(t("checksPage.importErrorsLead"))}</p>
+        <div class="rail-list">
+          ${data.importfehler.map((fehler) => `
+            <div class="rail-item">
+              <span class="chip danger">⚠ ${escapeHtml(fehler.reason)}</span>
+              <span>${escapeHtml(fehler.rohquelle)} · ${escapeHtml(t("labels.row"))} ${escapeHtml(String(fehler.row ?? "-"))}</span>
+              <span class="muted">${escapeHtml(fehler.detail)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    ` : ""}
   `;
 }
 
@@ -689,6 +705,11 @@ function handleAction(element) {
   }
   if (action === "go-overview") {
     state.view = "overview";
+    commitNavigation();
+    return;
+  }
+  if (action === "show-import-errors") {
+    state.view = "checks";
     commitNavigation();
     return;
   }

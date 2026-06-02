@@ -49,3 +49,25 @@ export function occurrences(regelzahlung, today, horizonEnd) {
   }
   return dates;
 }
+
+export function computeCashflowIst(transaktionen, { today }) {
+  const monate = new Map();
+  let gesamt = 0;
+  let offen = 0;
+  for (const tx of transaktionen) {
+    if (tx.ist_transfer === true) continue;
+    if (tx.buchungsdatum > today) continue;
+    gesamt++;
+    if (tx.kategorisierung_status !== "bestaetigt") offen++;
+    const monat = monatVon(tx.buchungsdatum);
+    monate.set(monat, (monate.get(monat) ?? 0) + toCents(tx.betrag));
+  }
+  const monatsListe = [...monate.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([monat, netto_cents]) => ({ monat, netto_cents }));
+  return {
+    monate: monatsListe,
+    gesamt_netto_cents: monatsListe.reduce((s, m) => s + m.netto_cents, 0),
+    qualitaet: { gesamt_anzahl: gesamt, offene_kategorie_anzahl: offen },
+  };
+}

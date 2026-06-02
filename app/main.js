@@ -462,7 +462,7 @@ function renderTransferCell(tx) {
   if (!tx.ist_transfer) return `<td><span class="muted">${escapeHtml(t("labels.no"))}</span></td>`;
   const paired = pairedTransferTransaction(tx);
   if (!paired) return `<td><span class="chip neutral">↔ ${escapeHtml(t("labels.yes"))}</span></td>`;
-  return `<td class="transfer-link-cell" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${escapeHtml(t("transactions.pairedTransfer"))}"><a class="chip neutral linkish transfer-anchor" href="#transaction=${escapeHtml(paired.transaktion_id)}" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}">↔ ${escapeHtml(t("labels.yes"))}</a></td>`;
+  return `<td class="transfer-link-cell" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${escapeHtml(t("transactions.pairedTransfer"))}"><span class="chip neutral linkish transfer-anchor">↔ ${escapeHtml(t("labels.yes"))}</span></td>`;
 }
 
 function pairedTransferTransaction(tx) {
@@ -816,21 +816,6 @@ window.addEventListener("popstate", (event) => {
   render();
 });
 
-window.addEventListener("hashchange", () => {
-  const transactionId = location.hash.startsWith("#transaction=")
-    ? decodeURIComponent(location.hash.replace("#transaction=", ""))
-    : "";
-  const transaction = transaktionenById.get(transactionId);
-  if (!transaction) return;
-  state.view = "transactions";
-  state.selectedTransactionId = transactionId;
-  state.transactionFilters.account = transaction.konto_id;
-  state.transactionFilters.status = "";
-  state.transactionFilters.category = "";
-  state.transactionFilters.transfer = "";
-  history.replaceState(snapshotState(), "", location.href);
-  render();
-});
 
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
   if (state.theme === "system") render();

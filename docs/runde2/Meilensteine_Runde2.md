@@ -52,16 +52,37 @@ Exit-Kriterien:
 - Keine Import-Funktion in der Weboberflaeche; Datenbereitstellung passiert agentisch.
 - Keine Persistenz-Magie: Export erfolgt als Datei.
 
-## M3 - Importvorschlaege fuer Kontoauszuege
+## M3 - Import von Kontoauszuegen
 
-Ziel: Neue Transaktionsdateien werden nicht direkt final geschrieben, sondern als validierbarer Importvorschlag erzeugt.
+Ziel: Rohdateien (CSV, PDF, copy-paste) werden vom Agenten in ein standardisiertes Importformat normalisiert und von einer deterministischen Pipeline dedupliziert, kategorisiert, transfer-gepaart, validiert und in den Masterdatenstand geschrieben.
+
+Stand 28.05.2026: In einer Grilling-Session konkretisiert. Eine Bankbuchung ist eine Tatsache und wird **nicht** abgelehnt — die einzige Unsicherheit ist die Kategorie (`kategorisierung_status`). Was nicht verarbeitet werden kann, ist ein **Importfehler** (`data/inbox/error/`), keine Ablehnung.
+
+Architektur-Entscheidungen (siehe ADRs):
+- Keine bankspezifischen Parser — der Agent normalisiert (ADR 0005).
+- Dialog laeuft in Claude Code, die App ist nur Anzeige (ADR 0006).
+- Zweistufiger Dedupe-Hash mit leichter Normalisierung (ADR 0007).
+
+Verantwortungsteilung:
+- **Agent**: Format erkennen, Konto zuordnen, normalisieren, nachfragen bei Unsicherheit, Fehler nach `error/` legen, Lauf protokollieren.
+- **Pipeline** (`tools/`, deterministisch): Schema- und Cross-Field-Validierung, Dedupe-Check, Kategorisierung via Regeln, Transfer-Match, Schreiben. Arbeitet **zeilenweise** — saubere Buchungen werden geschrieben, kaputte gesammelt (keine Alles-oder-nichts-Transaktion).
+
+Kategorisierung: regelbasiert (`data/master/kategorisierungsregeln.json`), Substring-Match auf `gegenpartei`/`verwendungszweck`, optional gefiltert auf `konto_id` und `vorzeichen`. Eindeutiger Treffer → `vorgeschlagen`. Konflikt oder kein Treffer → `offen`.
+
+Transfer-Match: deterministisch, Auto-Paarung nur bei (Betrag exakt invers) UND (beide Konten im Modell) UND (Datumsdifferenz ≤ 3 Tage) UND (Verwendungszweck nach Normalisierung identisch). Externe Transfers markiert der Nutzer manuell.
+
+UI: Importfehler kommen ueber das Review-Bundle in die App, werden im Checks-Bereich angezeigt und als Chip im Arbeitsstatus-Streifen gezaehlt.
 
 Exit-Kriterien:
 
-- Importvorschlag hat ein Schema.
-- Unsichere Kategorien bleiben offen.
-- Deduplikation ueber stabilen Hash ist definiert.
-- Der Nutzer oder Agent kann Vorschlaege annehmen, ablehnen oder zurueckstellen.
+- Standardisiertes Importformat hat ein Schema in `schemas/`.
+- Kategorisierungsregel hat ein Schema; der Categorizer ist ein deterministisches Tool.
+- Zweistufiger Dedupe-Hash ist implementiert (ADR 0007).
+- Transfer-Matcher ist ein deterministisches Tool.
+- Die Pipeline gibt ein strukturiertes Ergebnis zurueck (geschrieben, uebersprungen, Fehler, Transfer-Treffer).
+- Unsichere Kategorien bleiben offen; nichts wird geraten.
+- Importfehler sind in der App sichtbar.
+- Der Import-Agent-Skill beschreibt Prozess, Do's und Don'ts.
 
 ## M4 - Cashflow und Regelzahlungen
 

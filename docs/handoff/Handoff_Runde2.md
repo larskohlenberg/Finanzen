@@ -122,6 +122,19 @@ Im Review am 27.05.2026 identifiziert und bewusst nicht in M2 gefixt:
   obwohl keine Transfer-Pruefung existiert. Als „noch nicht implementiert"
   kennzeichnen.
 
+## M3-Stand
+
+M3 ist als deterministische Import-Pipeline umgesetzt (`tools/import.mjs` plus reine Helfer-Module). Der Agent normalisiert Rohdateien ins standardisierte Importformat, die Pipeline dedupliziert, kategorisiert, paart Transfers, validiert und schreibt. Importfehler sind im Checks-Bereich der App sichtbar.
+
+Verifikation:
+
+```bash
+npm test
+npm run validate:m1
+```
+
+Offen / spaeter: Import-Agent-Skill von Markdown in echtes Skill-Format ueberfuehren (skill-creator), sobald die Pipeline produktiv genutzt wurde.
+
 ## Naechster sinnvoller Schritt
 
 Naechste Session:

@@ -96,6 +96,8 @@ Wichtigste Entscheidungen:
 
 ## Bewusste M2-Schulden (vor M3 adressieren)
 
+**Stand 02.06.2026 (nach M3):** Auf Branch `fix/m2-schulden` abgebaut: **#2** (Hash/Click-Kollision), **#4** (`cents()` robust), **#6** (i18n: Kontotyp-Labels + Nav-`aria-label`), **#7** (Checks-Tiles nicht-interaktiv), **#8** (Transfer-Tile mit echter Prüfung). Plan: `docs/superpowers/plans/2026-06-02-m2-schulden.md`. **Bewusst offen:** #1 (Full-Re-render — erst M4/M5/M9), #3 (`pushState` ohne URL-Update — akzeptiert). **#5 (Unicode-Glyphen → SVG)** bekommt einen eigenen Durchgang (Inventar größer als die 8 Nav-Glyphen; Icon-Ansatz noch zu entscheiden). Residual-Minor aus dem Review: inerte CSS-Regeln `.transfer-anchor` und `.tile-static:focus-visible` — beim #5-CSS-Durchgang mit aufräumen.
+
 Im Review am 27.05.2026 identifiziert und bewusst nicht in M2 gefixt:
 
 - **Full-innerHTML-Re-render bei jeder Interaktion** (`app/main.js`, `render()`).

@@ -60,9 +60,7 @@ function escapeHtml(value) {
 }
 
 function cents(decimalString) {
-  const [euros, centsPart] = decimalString.replace("-", "").split(".");
-  const sign = decimalString.startsWith("-") ? -1 : 1;
-  return sign * (Number(euros) * 100 + Number(centsPart || 0));
+  return Math.round(Number(decimalString) * 100);
 }
 
 function formatMoney(amountInCents) {
@@ -81,7 +79,7 @@ function accountOwnerNames(konto) {
 }
 
 function accountTypeLabel(type) {
-  return type === "depot" ? "Depot" : type.charAt(0).toUpperCase() + type.slice(1);
+  return t(`accountTypes.${type}`) || (type.charAt(0).toUpperCase() + type.slice(1));
 }
 
 function categoryName(categoryId) {
@@ -153,7 +151,7 @@ function renderSidebar() {
           ${state.sidebarCollapsed ? "›" : "‹"}
         </button>
       </div>
-      <nav class="nav" aria-label="Hauptnavigation">
+      <nav class="nav" aria-label="${escapeHtml(t("chrome.mainNav"))}">
         ${navItems
           .map(([view, labelKey, icon]) => `
             <button class="nav-button ${state.view === view ? "active" : ""}" data-view="${view}" aria-label="${escapeHtml(t(labelKey))}" title="${escapeHtml(t(labelKey))}">
@@ -462,7 +460,7 @@ function renderTransferCell(tx) {
   if (!tx.ist_transfer) return `<td><span class="muted">${escapeHtml(t("labels.no"))}</span></td>`;
   const paired = pairedTransferTransaction(tx);
   if (!paired) return `<td><span class="chip neutral">↔ ${escapeHtml(t("labels.yes"))}</span></td>`;
-  return `<td class="transfer-link-cell" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${escapeHtml(t("transactions.pairedTransfer"))}"><a class="chip neutral linkish transfer-anchor" href="#transaction=${escapeHtml(paired.transaktion_id)}" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}">↔ ${escapeHtml(t("labels.yes"))}</a></td>`;
+  return `<td class="transfer-link-cell" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${escapeHtml(t("transactions.pairedTransfer"))}"><span class="chip neutral linkish transfer-anchor">↔ ${escapeHtml(t("labels.yes"))}</span></td>`;
 }
 
 function pairedTransferTransaction(tx) {
@@ -567,22 +565,38 @@ function renderSimpleTable(headers, rows) {
   `;
 }
 
+function transferChecks() {
+  return (data.transfers || []).map((transfer) => {
+    const abgang = transaktionenById.get(transfer.abgang_transaktion_id);
+    const zugang = transaktionenById.get(transfer.zugang_transaktion_id);
+    const ok =
+      !!abgang &&
+      !!zugang &&
+      abgang.ist_transfer === true &&
+      zugang.ist_transfer === true &&
+      abgang.transfer_id === transfer.transfer_id &&
+      zugang.transfer_id === transfer.transfer_id;
+    return { transfer_id: transfer.transfer_id, betrag: transfer.betrag, ok };
+  });
+}
+
 function renderChecks() {
+  const transferResults = transferChecks();
   const groups = [
     [t("checksPage.validation"), data.checks.filter((check) => check.scope === "datenstand")],
     [t("checksPage.categories"), data.checks.filter((check) => check.scope === "transaktion")],
     [t("checksPage.accountReferences"), data.checks.filter((check) => check.scope === "konto")],
-    [t("checksPage.transfers"), []],
+    [t("checksPage.transfers"), transferResults.map((tc) => ({ severity: tc.ok ? "success" : "review" }))],
   ];
   return `
     ${renderPageHead(t("checksPage.title"), t("checksPage.lead"))}
     <div class="tile-grid">
       ${groups.map(([label, checks]) => `
-        <button class="tile">
+        <div class="tile tile-static">
           <strong>${escapeHtml(label)}</strong>
           <div class="count">${checks.length}</div>
-          <span class="chip ${checks.some((check) => check.severity === "review") ? "review" : "success"}">${checks.some((check) => check.severity === "review") ? "?" : "✓"} ${escapeHtml(checks.length ? t("status.review") : t("status.success"))}</span>
-        </button>
+          <span class="chip ${checks.some((check) => check.severity === "review") ? "review" : "success"}">${checks.some((check) => check.severity === "review") ? "?" : "✓"} ${escapeHtml(checks.some((check) => check.severity === "review") ? t("status.review") : t("status.success"))}</span>
+        </div>
       `).join("")}
     </div>
     <section class="panel panel-pad" style="margin-top: 16px;">
@@ -599,6 +613,20 @@ function renderChecks() {
               <span class="chip danger">⚠ ${escapeHtml(fehler.reason)}</span>
               <span>${escapeHtml(fehler.rohquelle)} · ${escapeHtml(t("labels.row"))} ${escapeHtml(String(fehler.row ?? "-"))}</span>
               <span class="muted">${escapeHtml(fehler.detail)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    ` : ""}
+    ${transferResults.length > 0 ? `
+      <section class="panel panel-pad" style="margin-top: 16px;">
+        <h2 class="section-title">${escapeHtml(t("checksPage.transfers"))}</h2>
+        <p class="page-lead">${escapeHtml(t("checksPage.transfersLead"))}</p>
+        <div class="rail-list">
+          ${transferResults.map((tc) => `
+            <div class="rail-item">
+              <span class="chip ${tc.ok ? "success" : "review"}">${tc.ok ? "✓" : "?"} ${escapeHtml(tc.ok ? t("checksPage.transferOk") : t("checksPage.transferIncomplete"))}</span>
+              <span>${escapeHtml(tc.transfer_id)} · ${escapeHtml(formatMoney(cents(tc.betrag)))}</span>
             </div>
           `).join("")}
         </div>
@@ -816,21 +844,6 @@ window.addEventListener("popstate", (event) => {
   render();
 });
 
-window.addEventListener("hashchange", () => {
-  const transactionId = location.hash.startsWith("#transaction=")
-    ? decodeURIComponent(location.hash.replace("#transaction=", ""))
-    : "";
-  const transaction = transaktionenById.get(transactionId);
-  if (!transaction) return;
-  state.view = "transactions";
-  state.selectedTransactionId = transactionId;
-  state.transactionFilters.account = transaction.konto_id;
-  state.transactionFilters.status = "";
-  state.transactionFilters.category = "";
-  state.transactionFilters.transfer = "";
-  history.replaceState(snapshotState(), "", location.href);
-  render();
-});
 
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
   if (state.theme === "system") render();

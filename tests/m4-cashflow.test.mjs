@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addInterval, occurrences } from "../app/cashflow.mjs";
+import { addInterval, occurrences, computeCashflowIst } from "../app/cashflow.mjs";
 
 test("addInterval addiert Tage", () => {
   assert.equal(addInterval("2026-01-30", "tag", 5), "2026-02-04");
@@ -29,4 +29,22 @@ test("occurrences stoppt an aktiv_bis (24-Monate-Vertrag)", () => {
   const rz = { anker_datum: "2025-07-01", aktiv_bis: "2027-07-01", rhythmus_einheit: "monat", rhythmus_intervall: 1 };
   const result = occurrences(rz, "2027-04-15", "2030-12-31");
   assert.deepEqual(result, ["2027-05-01", "2027-06-01", "2027-07-01"]);
+});
+
+test("computeCashflowIst summiert je Monat, ohne Transfers, bis heute", () => {
+  const tx = [
+    { buchungsdatum: "2026-04-01", betrag: "3500.00", ist_transfer: false, kategorisierung_status: "bestaetigt" },
+    { buchungsdatum: "2026-04-10", betrag: "-1200.00", ist_transfer: false, kategorisierung_status: "bestaetigt" },
+    { buchungsdatum: "2026-04-12", betrag: "-500.00", ist_transfer: true, kategorisierung_status: "bestaetigt" },
+    { buchungsdatum: "2026-05-02", betrag: "-80.00", ist_transfer: false, kategorisierung_status: "offen" },
+    { buchungsdatum: "2026-07-01", betrag: "-50.00", ist_transfer: false, kategorisierung_status: "bestaetigt" },
+  ];
+  const result = computeCashflowIst(tx, { today: "2026-05-31" });
+  assert.deepEqual(result.monate, [
+    { monat: "2026-04", netto_cents: 230000 },
+    { monat: "2026-05", netto_cents: -8000 },
+  ]);
+  assert.equal(result.gesamt_netto_cents, 222000);
+  assert.equal(result.qualitaet.gesamt_anzahl, 3);
+  assert.equal(result.qualitaet.offene_kategorie_anzahl, 1);
 });

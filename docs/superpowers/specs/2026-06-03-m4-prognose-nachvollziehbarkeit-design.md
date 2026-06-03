@@ -57,7 +57,8 @@ Texte in `app/i18n.js`. Vorgehen: neue pure Funktionen → Tests → UI.
 **Neue Hilfsfunktion `periodenSchluessel(monat, granularitaet)`**
 - Input: Monat als `"YYYY-MM"`, Granularität `"monat" | "quartal" | "jahr"`.
 - Output: Periodenschlüssel — `"2026-08"` (Monat), `"2026-Q3"` (Quartal), `"2026"` (Jahr).
-- Quartalsberechnung: `Q = Math.floor((monatNr - 1) / 3) + 1`.
+- **Fixe Kalenderquartale**, nicht rollierend: Q1 = Jan–Mär, Q2 = Apr–Jun,
+  Q3 = Jul–Sep, Q4 = Okt–Dez. Formel: `Q = Math.floor((monatNr - 1) / 3) + 1`.
 
 **Neue Funktion `computeCashflowPrognoseDetail(regelzahlungen, { today, horizonEnd, granularitaet })`**
 - Iteriert wie `computeCashflowPrognose` über Regelzahlungen, berücksichtigt nur
@@ -73,10 +74,12 @@ Texte in `app/i18n.js`. Vorgehen: neue pure Funktionen → Tests → UI.
     {
       periode: "2026-Q3",
       netto_cents,
+      ist_laufend,        // true, wenn das Quartal das heutige Datum enthält
       monate: [
         {
           monat: "2026-08",
           netto_cents,
+          ist_laufend,    // true, wenn dies der heutige Monat ist
           posten: [
             { datum: "2026-08-01", bezeichnung: "Miete", regelzahlung_id: "RZ-002", betrag_cents: -120000 },
             ...
@@ -100,6 +103,14 @@ Texte in `app/i18n.js`. Vorgehen: neue pure Funktionen → Tests → UI.
 
 - Sortierung: Perioden, Monate und Posten je aufsteigend (Posten nach Datum).
 - Bei Granularität `"monat"` enthält jede Periode genau einen Monat.
+- **Laufender Zeitraum:** Die Prognose enthält nur Fälligkeiten *nach heute*
+  (`cur > today` in `occurrences`). Das laufende Quartal und der laufende Monat
+  sind daher **unvollständig** — der bereits vergangene Teil steckt im Ist.
+  `ist_laufend` markiert die betroffene Periode bzw. den betroffenen Monat, damit
+  die UI klarmachen kann, dass dort nur die *erwarteten/restlichen* Fälligkeiten
+  stehen und der Zeitraum bewusst weniger Monate/Beträge zeigt.
+  Bestimmung: `ist_laufend` der Periode = `periodenSchluessel(monatVon(today), gran) === periode`;
+  `ist_laufend` des Monats = `monatVon(today) === monat`.
 
 **Bestehende `computeCashflowPrognose`** bleibt erhalten (liefert weiterhin die
 flache Monatsliste für die Summen-Kachel und Rückwärtskompatibilität der Tests).
@@ -128,6 +139,13 @@ Ob sie aus der Detail-Variante abgeleitet wird, entscheidet der Implementierungs
   - Ebene 3: Postenzeile (Datum, Bezeichnung, Betrag).
 - Bei Granularität „Monat" entfällt Ebene 1 visuell sinnvoll (Periode == Monat);
   Monatszeile klappt direkt zu Posten auf.
+- **Summe bleibt sichtbar:** Beim Aufklappen bleibt die zugehörige Perioden- bzw.
+  Monatszeile mit ihrer Netto-Summe **über** den aufgeklappten Detailzeilen stehen
+  (Summenzeile ist die Kopfzeile des aufgeklappten Blocks, verschwindet nicht).
+- **Laufender Zeitraum kenntlich:** Perioden/Monate mit `ist_laufend === true`
+  tragen einen „laufend"-Chip und einen kurzen Hinweis, dass nur die noch
+  erwarteten Fälligkeiten gezeigt werden (bereits Gebuchtes steht im Ist). So ist
+  nachvollziehbar, warum das laufende Quartal/der laufende Monat weniger enthält.
 - **Ist-Tabelle bleibt unverändert.**
 
 **c) State**
@@ -140,7 +158,8 @@ Ob sie aus der Detail-Variante abgeleitet wird, entscheidet der Implementierungs
 - Neuer Block `regelzahlungen.*` (Titel, Lead, Spaltenköpfe, „unbefristet",
   Status-Labels falls nötig) — DE + EN.
 - Erweiterung `cashflow.*` (Granularität Monat/Quartal/Jahr, „Prognose bis",
-  Spaltenköpfe Datum/Bezeichnung, Aufklapp-Hinweise) — DE + EN.
+  Spaltenköpfe Datum/Bezeichnung, Aufklapp-Hinweise, „laufend" + Hinweistext
+  „nur erwartete Fälligkeiten, Gebuchtes siehe Ist") — DE + EN.
 - Nav-Label `nav.regelzahlungen` — DE + EN.
 - Rhythmus-Texte für `formatRhythmus`.
 
@@ -173,8 +192,9 @@ data.regelzahlungen ── renderRegelzahlungen() → Stammdaten-Tabelle (Eingan
 Neue Tests in [tests/m4-cashflow.test.mjs](../../../tests/m4-cashflow.test.mjs),
 gleicher Stil wie bestehend (`node:test`, `assert/strict`):
 
-- `periodenSchluessel`: Monat/Quartal/Jahr inkl. Jahres- und Quartalsgrenzen
-  (z. B. `2026-03` → `2026-Q1`, `2026-04` → `2026-Q2`, `2026-12` → `2026-Q4`).
+- `periodenSchluessel`: Monat/Quartal/Jahr inkl. fixer Quartalsgrenzen
+  (`2026-03` → `2026-Q1`, `2026-04` → `2026-Q2`, `2026-07` → `2026-Q3`,
+  `2026-10`/`2026-12` → `2026-Q4`).
 - `computeCashflowPrognoseDetail`:
   - Gruppierung Periode → Monate → Posten korrekt.
   - Einzelposten bleiben erhalten (Datum, Bezeichnung, Betrag, ID).
@@ -183,11 +203,15 @@ gleicher Stil wie bestehend (`node:test`, `assert/strict`):
   - Bis-Datum-Grenze: keine Fälligkeit nach `horizonEnd`.
   - Vorschläge ausgeschlossen, `qualitaet`-Zähler stimmen.
   - Granularität „monat": je Periode genau ein Monat.
+  - `ist_laufend`: gesetzt für Periode und Monat, die `today` enthalten;
+    nicht gesetzt für rein zukünftige Perioden/Monate.
 
 Die UI (`renderRegelzahlungen`, Filter, Aufklappen) wird nicht unit-getestet
 (bestehendes Muster), sondern im Browser verifiziert (Preview-Workflow): Nav-Punkt
 erscheint, Liste zeigt Regelzahlungen, Granularitäts-Buttons und Bis-Datum ändern
-die Prognose, Zeilen klappen auf und zeigen die korrekten Einzelposten.
+die Prognose, Zeilen klappen auf und zeigen die korrekten Einzelposten, die
+Summenzeile bleibt beim Aufklappen sichtbar, laufendes Quartal/laufender Monat
+sind als „laufend" markiert.
 
 ## Nicht im Umfang (YAGNI)
 

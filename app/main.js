@@ -34,6 +34,11 @@ const state = {
   pageSize: 10,
   selectedTransactionId: "",
   masterSection: "konten",
+  cashflow: {
+    granularitaet: "monat",
+    bisDatum: defaultHorizonEnd(data.regelzahlungen, localTodayIso()),
+  },
+  cashflowExpanded: new Set(),
 };
 
 const app = document.querySelector("#app");
@@ -546,7 +551,11 @@ function renderMonatsTabelle(monate) {
 function renderCashflow() {
   const today = heuteIso();
   const ist = computeCashflowIst(data.transaktionen, { today });
-  const prognose = computeCashflowPrognoseDetail(data.regelzahlungen, { today, granularitaet: "monat" });
+  const prognose = computeCashflowPrognoseDetail(data.regelzahlungen, {
+    today,
+    horizonEnd: state.cashflow.bisDatum,
+    granularitaet: state.cashflow.granularitaet,
+  });
   const istChipClass = ist.qualitaet.offene_kategorie_anzahl > 0 ? "review" : "success";
   const istChipIcon = ist.qualitaet.offene_kategorie_anzahl > 0 ? "?" : "✓";
   const vorschlaegeChip = prognose.qualitaet.vorschlaege_nicht_enthalten > 0
@@ -555,6 +564,9 @@ function renderCashflow() {
   const unbefristetChip = prognose.qualitaet.unbefristete_regelzahlungen > 0
     ? `<span class="chip neutral">• ${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`
     : "";
+  const granButtons = ["monat", "quartal", "jahr"]
+    .map((g) => `<button class="chip ${state.cashflow.granularitaet === g ? "success" : "neutral"} linkish" data-cashflow-gran="${g}">${escapeHtml(t(`cashflow.gran.${g}`))}</button>`)
+    .join("");
   return `
     ${renderPageHead(t("cashflow.title"), t("cashflow.lead"))}
     <div class="tile-grid">
@@ -579,8 +591,94 @@ function renderCashflow() {
     </section>
     <section class="panel panel-pad" style="margin-top: 16px;">
       <h2 class="section-title">${escapeHtml(t("cashflow.prognose"))} · ${escapeHtml(t("cashflow.monthlyTable"))}</h2>
-      ${prognose.perioden.length ? renderMonatsTabelle(prognose.perioden.map((p) => ({ monat: p.periode, netto_cents: p.netto_cents }))) : `<p class="muted">${escapeHtml(t("cashflow.empty"))}</p>`}
+      <div class="cashflow-filter">
+        <span>${granButtons}</span>
+        <label class="cashflow-bis">${escapeHtml(t("cashflow.forecastUntil"))}
+          <input type="date" data-control="cashflow-bis" value="${escapeHtml(state.cashflow.bisDatum)}" />
+        </label>
+      </div>
+      ${renderPrognoseDetail(prognose)}
     </section>
+  `;
+}
+
+function formatMonat(monat) {
+  return new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "long", year: "numeric" }).format(new Date(`${monat}-01T00:00:00`));
+}
+
+function formatPeriode(periode) {
+  if (periode.includes("-Q")) {
+    const [jahr, q] = periode.split("-");
+    return `${q} ${jahr}`;
+  }
+  if (/^\d{4}$/.test(periode)) return periode;
+  return formatMonat(periode);
+}
+
+function laufendMarkup(istLaufend) {
+  if (!istLaufend) return "";
+  return `<span class="chip neutral">${escapeHtml(t("cashflow.running"))}</span><div class="running-note muted">${escapeHtml(t("cashflow.runningNote"))}</div>`;
+}
+
+function renderPostenRows(posten) {
+  return posten.map((p) => `
+    <tr class="row-posten">
+      <td class="posten-cell">${escapeHtml(formatDate(p.datum))} · ${escapeHtml(p.bezeichnung)}</td>
+      <td class="amount">${escapeHtml(formatMoney(p.betrag_cents))}</td>
+    </tr>
+  `).join("");
+}
+
+function renderMonatRows(monat, nested) {
+  const expanded = state.cashflowExpanded.has(monat.monat);
+  const monthRow = `
+    <tr class="row-month ${nested ? "nested" : ""}">
+      <td>
+        <button class="row-toggle" data-cashflow-toggle="${escapeHtml(monat.monat)}">
+          <span class="toggle-icon">${expanded ? "▾" : "▸"}</span>${escapeHtml(formatMonat(monat.monat))}
+        </button>
+        ${laufendMarkup(monat.ist_laufend)}
+      </td>
+      <td class="amount">${escapeHtml(formatMoney(monat.netto_cents))}</td>
+    </tr>
+  `;
+  return monthRow + (expanded ? renderPostenRows(monat.posten) : "");
+}
+
+function renderPrognoseDetail(prognose) {
+  if (!prognose.perioden.length) return `<p class="muted">${escapeHtml(t("cashflow.empty"))}</p>`;
+  const gran = state.cashflow.granularitaet;
+  const body = prognose.perioden.map((periode) => {
+    if (gran === "monat") {
+      return periode.monate.map((monat) => renderMonatRows(monat, false)).join("");
+    }
+    const expanded = state.cashflowExpanded.has(periode.periode);
+    const periodRow = `
+      <tr class="row-period">
+        <td>
+          <button class="row-toggle" data-cashflow-toggle="${escapeHtml(periode.periode)}">
+            <span class="toggle-icon">${expanded ? "▾" : "▸"}</span>${escapeHtml(formatPeriode(periode.periode))}
+          </button>
+          ${laufendMarkup(periode.ist_laufend)}
+        </td>
+        <td class="amount">${escapeHtml(formatMoney(periode.netto_cents))}</td>
+      </tr>
+    `;
+    const monatsZeilen = expanded ? periode.monate.map((monat) => renderMonatRows(monat, true)).join("") : "";
+    return periodRow + monatsZeilen;
+  }).join("");
+  return `
+    <div class="table-wrap">
+      <table class="cashflow-detail">
+        <thead>
+          <tr>
+            <th>${escapeHtml(t("cashflow.period"))}</th>
+            <th class="amount">${escapeHtml(t("cashflow.net"))}</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -799,6 +897,23 @@ app.addEventListener("click", (event) => {
     return;
   }
 
+  const cashflowToggle = event.target.closest("[data-cashflow-toggle]");
+  if (cashflowToggle) {
+    const key = cashflowToggle.dataset.cashflowToggle;
+    if (state.cashflowExpanded.has(key)) state.cashflowExpanded.delete(key);
+    else state.cashflowExpanded.add(key);
+    render();
+    return;
+  }
+
+  const cashflowGran = event.target.closest("[data-cashflow-gran]");
+  if (cashflowGran) {
+    state.cashflow.granularitaet = cashflowGran.dataset.cashflowGran;
+    state.cashflowExpanded.clear();
+    render();
+    return;
+  }
+
   const action = event.target.closest("[data-action]");
   if (action) {
     handleAction(action);
@@ -823,6 +938,12 @@ app.addEventListener("change", (event) => {
   if (control?.dataset.control === "theme") {
     state.theme = control.value;
     localStorage.setItem(storageKeys.theme, state.theme);
+    render();
+    return;
+  }
+  if (control?.dataset.control === "cashflow-bis") {
+    state.cashflow.bisDatum = control.value || defaultHorizonEnd(data.regelzahlungen, heuteIso());
+    state.cashflowExpanded.clear();
     render();
     return;
   }

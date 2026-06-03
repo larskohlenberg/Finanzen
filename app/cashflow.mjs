@@ -130,8 +130,8 @@ export function computeCashflowPrognoseDetail(regelzahlungen, { today, horizonEn
     const betrag = toCents(rz.betrag);
     for (const datum of occurrences(rz, today, ende)) {
       const monat = monatVon(datum);
-      if (!monateMap.has(monat)) monateMap.set(monat, { posten: [], netto_cents: 0 });
-      const eintrag = monateMap.get(monat);
+      let eintrag = monateMap.get(monat);
+      if (!eintrag) { eintrag = { posten: [], netto_cents: 0 }; monateMap.set(monat, eintrag); }
       eintrag.posten.push({ datum, bezeichnung: rz.bezeichnung, regelzahlung_id: rz.regelzahlung_id, betrag_cents: betrag });
       eintrag.netto_cents += betrag;
     }
@@ -140,8 +140,9 @@ export function computeCashflowPrognoseDetail(regelzahlungen, { today, horizonEn
   const periodenMap = new Map(); // periodenkey -> Map(monat -> eintrag)
   for (const [monat, eintrag] of monateMap) {
     const key = periodenSchluessel(monat, granularitaet);
-    if (!periodenMap.has(key)) periodenMap.set(key, new Map());
-    periodenMap.get(key).set(monat, eintrag);
+    let monMap = periodenMap.get(key);
+    if (!monMap) { monMap = new Map(); periodenMap.set(key, monMap); }
+    monMap.set(monat, eintrag);
   }
 
   const perioden = [...periodenMap.entries()]

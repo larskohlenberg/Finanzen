@@ -1,4 +1,5 @@
 import { computeCashflowIst, computeCashflowPrognoseDetail, defaultHorizonEnd, toCents, localTodayIso } from "./cashflow.mjs";
+import { computeNettovermoegen, computeVermoegenChecks } from "./vermoegen.mjs";
 const data = window.FINANCE_REVIEW_DATA;
 data.regelzahlungen = data.regelzahlungen ?? [];
 const dictionaries = window.FINANCE_I18N;
@@ -14,6 +15,7 @@ const navItems = [
   ["transactions", "nav.transactions", "≡"],
   ["cashflow", "nav.cashflow", "€"],
   ["regelzahlungen", "nav.regelzahlungen", "↻"],
+  ["vermoegen", "nav.vermoegen", "▲"],
   ["masterdata", "nav.masterdata", "◫"],
   ["checks", "nav.checks", "✓"],
   ["export", "nav.export", "⇩"],
@@ -203,6 +205,7 @@ function renderView() {
   if (state.view === "transactions") return renderTransactions();
   if (state.view === "cashflow") return renderCashflow();
   if (state.view === "regelzahlungen") return renderRegelzahlungen();
+  if (state.view === "vermoegen") return renderVermoegen();
   if (state.view === "masterdata") return renderMasterdata();
   if (state.view === "checks") return renderChecks();
   if (state.view === "export") return renderExport();
@@ -721,6 +724,50 @@ function renderRegelzahlungen() {
   `;
 }
 
+function renderVermoegen() {
+  const today = localTodayIso();
+  const r = computeNettovermoegen(data, today);
+  const rows = r.positionen.map((p) => `
+    <tr>
+      <td>${escapeHtml(t(`vermoegen.klasse.${p.klasse}`))}</td>
+      <td>${escapeHtml(p.name)}</td>
+      <td class="amount">${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : escapeHtml(formatMoney(p.wert_cents))}</td>
+      <td>${escapeHtml(p.standdatum ?? "—")}</td>
+      <td>${p.qualitaet ? `<span class="chip ${p.qualitaet === "belegt" ? "success" : "neutral"}">${escapeHtml(t(`vermoegen.quality${p.qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`))}</span>` : `<span class="chip review">? ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`}</td>
+    </tr>`).join("");
+  return `
+    ${renderPageHead(t("vermoegen.title"), t("vermoegen.lead"))}
+    <div class="tile-grid">
+      <div class="tile tile-static">
+        <strong>${escapeHtml(t("vermoegen.netto"))}</strong>
+        <div class="count">${escapeHtml(formatMoney(r.netto_cents))}</div>
+        <div class="kpi-note">${escapeHtml(t("vermoegen.aktiva"))}: ${escapeHtml(formatMoney(r.aktiva_cents))} · ${escapeHtml(t("vermoegen.passiva"))}: ${escapeHtml(formatMoney(r.passiva_cents))}</div>
+      </div>
+      <div class="tile tile-static">
+        <strong>${escapeHtml(t("vermoegen.qualitaetTitle"))}</strong>
+        <div class="count">${r.positionen.length}</div>
+        <span class="chip success">• ${r.qualitaet.belegt} ${escapeHtml(t("vermoegen.qualityBelegt"))}</span>
+        <span class="chip neutral">• ${r.qualitaet.geschaetzt} ${escapeHtml(t("vermoegen.qualityGeschaetzt"))}</span>
+        ${r.qualitaet.fehlend > 0 ? `<span class="chip review">? ${r.qualitaet.fehlend} ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : ""}
+      </div>
+    </div>
+    <p class="page-lead" style="margin-top: 12px;">${escapeHtml(t("vermoegen.incompleteNote"))}</p>
+    <section class="panel panel-pad" style="margin-top: 16px;">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>${escapeHtml(t("vermoegen.klasseHead"))}</th>
+            <th>${escapeHtml(t("vermoegen.position"))}</th>
+            <th class="amount">${escapeHtml(t("vermoegen.wert"))}</th>
+            <th>${escapeHtml(t("vermoegen.stand"))}</th>
+            <th>${escapeHtml(t("vermoegen.qualitaetHead"))}</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
 function renderMasterdata() {
   const missingRefs = missingReferenceChecks().length;
   return `
@@ -793,11 +840,13 @@ function transferChecks() {
 
 function renderChecks() {
   const transferResults = transferChecks();
+  const m5 = computeVermoegenChecks(data, localTodayIso());
   const groups = [
     [t("checksPage.validation"), data.checks.filter((check) => check.scope === "datenstand")],
     [t("checksPage.categories"), data.checks.filter((check) => check.scope === "transaktion")],
     [t("checksPage.accountReferences"), data.checks.filter((check) => check.scope === "konto")],
     [t("checksPage.transfers"), transferResults.map((tc) => ({ severity: tc.ok ? "success" : "review" }))],
+    [t("nav.vermoegen"), m5.map(() => ({ severity: "review" }))],
   ];
   return `
     ${renderPageHead(t("checksPage.title"), t("checksPage.lead"))}
@@ -838,6 +887,20 @@ function renderChecks() {
             <div class="rail-item">
               <span class="chip ${tc.ok ? "success" : "review"}">${tc.ok ? "✓" : "?"} ${escapeHtml(tc.ok ? t("checksPage.transferOk") : t("checksPage.transferIncomplete"))}</span>
               <span>${escapeHtml(tc.transfer_id)} · ${escapeHtml(formatMoney(cents(tc.betrag)))}</span>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    ` : ""}
+    ${m5.length > 0 ? `
+      <section class="panel panel-pad" style="margin-top: 16px;">
+        <h2 class="section-title">${escapeHtml(t("nav.vermoegen"))}</h2>
+        <div class="rail-list">
+          ${m5.map((check) => `
+            <div class="rail-item">
+              <span class="chip review">? ${escapeHtml(check.art)}</span>
+              <span class="muted">${escapeHtml(check.entitaet_id)}</span>
+              <span>${escapeHtml(check.text)}</span>
             </div>
           `).join("")}
         </div>

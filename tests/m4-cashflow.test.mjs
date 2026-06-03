@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addInterval, occurrences, computeCashflowIst, computeCashflowPrognose, defaultHorizonEnd } from "../app/cashflow.mjs";
+import { addInterval, occurrences, computeCashflowIst, computeCashflowPrognose, defaultHorizonEnd, localTodayIso } from "../app/cashflow.mjs";
 
 test("addInterval addiert Tage", () => {
   assert.equal(addInterval("2026-01-30", "tag", 5), "2026-02-04");
@@ -25,10 +25,32 @@ test("occurrences liefert nur Fälligkeiten nach heute bis Horizont", () => {
   assert.deepEqual(result, ["2026-04-01", "2026-05-01", "2026-06-01"]);
 });
 
+test("occurrences behalten den Ankertag nach Monatsende-Clamping bei", () => {
+  const rz = { anker_datum: "2026-01-31", rhythmus_einheit: "monat", rhythmus_intervall: 1 };
+  const result = occurrences(rz, "2026-01-01", "2026-05-31");
+  assert.deepEqual(result, ["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30", "2026-05-31"]);
+});
+
+test("occurrences zaehlen gedriftete Termine nicht vor aktiv_bis hinein", () => {
+  const rz = { anker_datum: "2026-01-31", aktiv_bis: "2026-03-30", rhythmus_einheit: "monat", rhythmus_intervall: 1 };
+  const result = occurrences(rz, "2026-01-01", "2026-12-31");
+  assert.deepEqual(result, ["2026-01-31", "2026-02-28"]);
+});
+
+test("occurrences behalten den Schalttag-Anker fuer spaetere Schaltjahre bei", () => {
+  const rz = { anker_datum: "2024-02-29", rhythmus_einheit: "jahr", rhythmus_intervall: 1 };
+  const result = occurrences(rz, "2024-01-01", "2028-12-31");
+  assert.deepEqual(result, ["2024-02-29", "2025-02-28", "2026-02-28", "2027-02-28", "2028-02-29"]);
+});
+
 test("occurrences stoppt an aktiv_bis (24-Monate-Vertrag)", () => {
   const rz = { anker_datum: "2025-07-01", aktiv_bis: "2027-07-01", rhythmus_einheit: "monat", rhythmus_intervall: 1 };
   const result = occurrences(rz, "2027-04-15", "2030-12-31");
   assert.deepEqual(result, ["2027-05-01", "2027-06-01", "2027-07-01"]);
+});
+
+test("localTodayIso formatiert das lokale Datum ohne UTC-Verschiebung", () => {
+  assert.equal(localTodayIso(new Date(2026, 5, 3, 0, 30)), "2026-06-03");
 });
 
 test("computeCashflowIst summiert je Monat, ohne Transfers, bis heute", () => {

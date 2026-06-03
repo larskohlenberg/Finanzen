@@ -81,3 +81,150 @@ export function anteilWertCents(marktwertCents, eigentumsanteile) {
   }
   return summe;
 }
+
+export const STANDDATUM_SCHWELLEN = {
+  immobilie: 12,
+  vermoegenswert_edelmetall: 6,
+  vermoegenswert_beteiligung: 12,
+  vermoegenswert_sonstiges: 12,
+  depot_aktiv: 1,
+  depot_ruhig: 3,
+};
+
+function monateZwischen(vonIso, bisIso) {
+  const [vy, vm, vd] = vonIso.split("-").map(Number);
+  const [by, bm, bd] = bisIso.split("-").map(Number);
+  let m = (by - vy) * 12 + (bm - vm);
+  if (bd < vd) m -= 1;
+  return m;
+}
+
+function hatDepotBewegungLetztenMonat(kontoId, transaktionen, today) {
+  const grenze = addInterval(today, "monat", -1);
+  return (transaktionen ?? []).some((tx) => tx.konto_id === kontoId && tx.buchungsdatum > grenze && tx.buchungsdatum <= today);
+}
+
+export function computeNettovermoegen(data, today) {
+  const positionen = [];
+  let aktiva = 0;
+  let passiva = 0;
+  let belegt = 0, geschaetzt = 0, fehlend = 0;
+
+  for (const konto of data.konten ?? []) {
+    if (konto.status === "geschlossen") continue;
+    if (konto.kontotyp === "bar") continue;
+    const w = kontoWert(konto, data.zeitwerte, data.transaktionen, today);
+    if (w.wert_cents === null) { fehlend++; positionen.push({ klasse: "konto", id: konto.konto_id, name: konto.name, wert_cents: 0, basis: w.basis, qualitaet: null, standdatum: null, fehlt: true }); continue; }
+    aktiva += w.wert_cents;
+    if (w.qualitaet === "belegt") belegt++; else if (w.qualitaet === "geschaetzt") geschaetzt++;
+    positionen.push({ klasse: "konto", id: konto.konto_id, name: konto.name, wert_cents: w.wert_cents, basis: w.basis, qualitaet: w.qualitaet, standdatum: w.standdatum, fehlt: false });
+  }
+
+  for (const imm of data.immobilien ?? []) {
+    if (imm.status === "verkauft") continue;
+    const mw = aktuellerZeitwert(data.zeitwerte, "immobilie", imm.immobilie_id, "marktwert");
+    if (!mw) { fehlend++; positionen.push({ klasse: "immobilie", id: imm.immobilie_id, name: imm.bezeichnung, wert_cents: 0, basis: "marktwert-fehlt", qualitaet: null, standdatum: null, fehlt: true }); continue; }
+    const cents = anteilWertCents(toCents(mw.wert), imm.eigentumsanteile);
+    aktiva += cents;
+    if (mw.qualitaet === "belegt") belegt++; else if (mw.qualitaet === "geschaetzt") geschaetzt++;
+    positionen.push({ klasse: "immobilie", id: imm.immobilie_id, name: imm.bezeichnung, wert_cents: cents, basis: "marktwert", qualitaet: mw.qualitaet, standdatum: mw.standdatum, fehlt: false });
+  }
+
+  for (const vmw of data.vermoegenswerte ?? []) {
+    if (vmw.status === "veraeussert") continue;
+    const mw = aktuellerZeitwert(data.zeitwerte, "vermoegenswert", vmw.vermoegenswert_id, "marktwert");
+    if (!mw) { fehlend++; positionen.push({ klasse: "vermoegenswert", id: vmw.vermoegenswert_id, name: vmw.bezeichnung, wert_cents: 0, basis: "marktwert-fehlt", qualitaet: null, standdatum: null, fehlt: true }); continue; }
+    const cents = anteilWertCents(toCents(mw.wert), vmw.eigentumsanteile);
+    aktiva += cents;
+    if (mw.qualitaet === "belegt") belegt++; else if (mw.qualitaet === "geschaetzt") geschaetzt++;
+    positionen.push({ klasse: "vermoegenswert", id: vmw.vermoegenswert_id, name: vmw.bezeichnung, wert_cents: cents, basis: "marktwert", qualitaet: mw.qualitaet, standdatum: mw.standdatum, fehlt: false });
+  }
+
+  for (const dar of data.darlehen ?? []) {
+    if (dar.status === "abgeloest") continue;
+    const r = restschuldHeute(dar, data.zeitwerte, today);
+    if (r.wert_cents === null) { fehlend++; positionen.push({ klasse: "darlehen", id: dar.darlehen_id, name: dar.bezeichnung, wert_cents: 0, basis: r.basis, qualitaet: null, standdatum: null, fehlt: true }); continue; }
+    passiva += r.wert_cents;
+    if (r.qualitaet === "belegt") belegt++; else if (r.qualitaet === "geschaetzt") geschaetzt++;
+    positionen.push({ klasse: "darlehen", id: dar.darlehen_id, name: dar.bezeichnung, wert_cents: -r.wert_cents, basis: r.basis, qualitaet: r.qualitaet, standdatum: r.standdatum, fehlt: false });
+  }
+
+  return {
+    aktiva_cents: aktiva,
+    passiva_cents: passiva,
+    netto_cents: aktiva - passiva,
+    positionen,
+    qualitaet: { belegt, geschaetzt, fehlend },
+  };
+}
+
+export function computeVermoegenChecks(data, today) {
+  const checks = [];
+
+  for (const konto of data.konten ?? []) {
+    if (konto.status === "geschlossen" || konto.kontotyp === "bar" || konto.kontotyp === "depot") continue;
+    if (!konto.liquiditaetsrelevant) continue;
+    const anker = aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand");
+    if (!anker) {
+      checks.push({ art: "anker-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, text: `Konto ${konto.name}: kein belegter Kontostand` });
+      continue;
+    }
+    // Reconciliation über aufeinanderfolgende belegte Stände
+    const staende = (data.zeitwerte ?? [])
+      .filter((z) => z.entitaet === "konto" && z.entitaet_id === konto.konto_id && z.feld === "kontostand" && z.qualitaet === "belegt")
+      .sort((a, b) => a.standdatum.localeCompare(b.standdatum));
+    for (let i = 1; i < staende.length; i++) {
+      const von = staende[i - 1], bis = staende[i];
+      let gebucht = 0;
+      for (const tx of data.transaktionen ?? []) {
+        if (tx.konto_id !== konto.konto_id) continue;
+        if (tx.buchungsdatum > von.standdatum && tx.buchungsdatum <= bis.standdatum) gebucht += toCents(tx.betrag);
+      }
+      const erwartet = toCents(von.wert) + gebucht;
+      if (erwartet !== toCents(bis.wert)) {
+        checks.push({ art: "reconciliation-drift", entitaet: "konto", entitaet_id: konto.konto_id, text: `Konto ${konto.name}: Buchungen passen nicht zum Kontoauszug ${bis.standdatum} (erwartet ${(erwartet / 100).toFixed(2)}, belegt ${(toCents(bis.wert) / 100).toFixed(2)})` });
+      }
+    }
+  }
+
+  for (const konto of data.konten ?? []) {
+    if (konto.kontotyp !== "depot" || konto.status === "geschlossen") continue;
+    const dw = aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert");
+    if (!dw) { checks.push({ art: "marktwert-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, text: `Depot ${konto.name}: kein Depotwert` }); continue; }
+    const aktiv = hatDepotBewegungLetztenMonat(konto.konto_id, data.transaktionen, today);
+    const schwelle = aktiv ? STANDDATUM_SCHWELLEN.depot_aktiv : STANDDATUM_SCHWELLEN.depot_ruhig;
+    if (monateZwischen(dw.standdatum, today) >= schwelle) {
+      checks.push({ art: "bewertung-veraltet", entitaet: "konto", entitaet_id: konto.konto_id, text: `Depot ${konto.name}: Depotwert vom ${dw.standdatum} älter als ${schwelle} Monat(e)` });
+    }
+  }
+
+  for (const imm of data.immobilien ?? []) {
+    if (imm.status === "verkauft") continue;
+    const mw = aktuellerZeitwert(data.zeitwerte, "immobilie", imm.immobilie_id, "marktwert");
+    if (!mw) { checks.push({ art: "marktwert-fehlt", entitaet: "immobilie", entitaet_id: imm.immobilie_id, text: `Immobilie ${imm.bezeichnung}: kein Marktwert` }); continue; }
+    if (monateZwischen(mw.standdatum, today) >= STANDDATUM_SCHWELLEN.immobilie) {
+      checks.push({ art: "bewertung-veraltet", entitaet: "immobilie", entitaet_id: imm.immobilie_id, text: `Immobilie ${imm.bezeichnung}: Marktwert vom ${mw.standdatum} älter als ${STANDDATUM_SCHWELLEN.immobilie} Monate` });
+    }
+  }
+
+  for (const vmw of data.vermoegenswerte ?? []) {
+    if (vmw.status === "veraeussert") continue;
+    const mw = aktuellerZeitwert(data.zeitwerte, "vermoegenswert", vmw.vermoegenswert_id, "marktwert");
+    if (!mw) { checks.push({ art: "marktwert-fehlt", entitaet: "vermoegenswert", entitaet_id: vmw.vermoegenswert_id, text: `Vermögenswert ${vmw.bezeichnung}: kein Marktwert` }); continue; }
+    const schwelle = STANDDATUM_SCHWELLEN[`vermoegenswert_${vmw.typ}`] ?? 12;
+    if (monateZwischen(mw.standdatum, today) >= schwelle) {
+      checks.push({ art: "bewertung-veraltet", entitaet: "vermoegenswert", entitaet_id: vmw.vermoegenswert_id, text: `Vermögenswert ${vmw.bezeichnung}: Wert vom ${mw.standdatum} älter als ${schwelle} Monat(e)` });
+    }
+  }
+
+  for (const dar of data.darlehen ?? []) {
+    if (dar.status === "abgeloest") continue;
+    const anker = aktuellerZeitwert(data.zeitwerte, "darlehen", dar.darlehen_id, "restschuld");
+    // kein continue — fehlender Anker und fehlende Regelzahlung sind unabhängige Befunde
+    if (!anker) checks.push({ art: "anker-fehlt", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: kein belegter Restschuldstand` });
+    const hatRate = (data.regelzahlungen ?? []).some((rz) => rz.darlehen_id === dar.darlehen_id && rz.status === "bestaetigt");
+    if (!hatRate) checks.push({ art: "darlehen-ohne-regelzahlung", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: Rate nicht in der Cashflow-Prognose — Regelzahlung anlegen?` });
+  }
+
+  return checks;
+}

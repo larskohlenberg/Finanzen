@@ -90,10 +90,11 @@ Ziel: Wiederkehrende Zahlungen werden als Vorschlaege sichtbar und erst nach Bes
 
 Exit-Kriterien:
 
-- Regelzahlungsvorschlaege sind von bestaetigten Regelzahlungen getrennt.
+- Regelzahlungsvorschlaege sind von bestaetigten Regelzahlungen getrennt (ein Datensatz, Status-Feld; keine separate Vorschlags-Datei).
 - Cashflow-Ist basiert auf Transaktionen.
-- Cashflow-Prognose kennzeichnet unbestaetigte Annahmen.
-- Dashboard zeigt Datenqualitaet neben Kennzahlen.
+- Cashflow-Prognose kennzeichnet unbestaetigte Annahmen und ihre bewusste Unvollstaendigkeit (nur Regelzahlungen; keine Einmaleffekte/Szenarien).
+- Dashboard zeigt Datenqualitaet neben Kennzahlen (faktische Zaehler, kein Konfidenz-Score).
+- Der Regelzahlungs-Agent-Skill beschreibt Erkennung, Vorschlag und Bestaetigung und **meldet offene Vorschlaege zu Session-Beginn aktiv** (App ist nur Anzeige, Agent ist der einzige Aenderungskanal).
 
 ## M5 - Vermoegen, Verbindlichkeiten und Immobilien
 

@@ -1,4 +1,6 @@
+import { computeCashflowIst, computeCashflowPrognose } from "./cashflow.mjs";
 const data = window.FINANCE_REVIEW_DATA;
+data.regelzahlungen = data.regelzahlungen ?? [];
 const dictionaries = window.FINANCE_I18N;
 
 const storageKeys = {
@@ -10,6 +12,7 @@ const storageKeys = {
 const navItems = [
   ["overview", "nav.overview", "⌂"],
   ["transactions", "nav.transactions", "≡"],
+  ["cashflow", "nav.cashflow", "€"],
   ["masterdata", "nav.masterdata", "◫"],
   ["checks", "nav.checks", "✓"],
   ["export", "nav.export", "⇩"],
@@ -192,6 +195,7 @@ function renderTopbar() {
 
 function renderView() {
   if (state.view === "transactions") return renderTransactions();
+  if (state.view === "cashflow") return renderCashflow();
   if (state.view === "masterdata") return renderMasterdata();
   if (state.view === "checks") return renderChecks();
   if (state.view === "export") return renderExport();
@@ -229,7 +233,6 @@ function renderOverview() {
         <section class="panel panel-pad">
           <h2 class="section-title">${escapeHtml(t("overview.roadmap"))}</h2>
           <div class="roadmap roadmap-large">
-            <div class="roadmap-card"><strong>${escapeHtml(t("overview.cashflowRoadmap"))}</strong><span class="muted">${escapeHtml(t("overview.plannedLater"))}</span></div>
             <div class="roadmap-card"><strong>${escapeHtml(t("overview.wealthRoadmap"))}</strong><span class="muted">${escapeHtml(t("overview.plannedLater"))}</span></div>
           </div>
         </section>
@@ -507,6 +510,75 @@ function renderTransactionDetail(tx) {
     <div class="detail-section">
       <button class="linkish" data-action="show-checks-for" data-entity="${escapeHtml(tx.transaktion_id)}">${escapeHtml(t("transactions.showInChecks"))}</button>
     </div>
+  `;
+}
+
+function heuteIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function renderMonatsTabelle(monate) {
+  if (!monate.length) return "";
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>${escapeHtml(t("cashflow.month"))}</th>
+            <th class="amount">${escapeHtml(t("cashflow.net"))}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${monate.map((m) => `
+            <tr>
+              <td>${escapeHtml(m.monat)}</td>
+              <td class="amount">${escapeHtml(formatMoney(m.netto_cents))}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderCashflow() {
+  const today = heuteIso();
+  const ist = computeCashflowIst(data.transaktionen, { today });
+  const prognose = computeCashflowPrognose(data.regelzahlungen, { today });
+  const istChipClass = ist.qualitaet.offene_kategorie_anzahl > 0 ? "review" : "success";
+  const istChipIcon = ist.qualitaet.offene_kategorie_anzahl > 0 ? "?" : "✓";
+  const vorschlaegeChip = prognose.qualitaet.vorschlaege_nicht_enthalten > 0
+    ? `<span class="chip review">? ${escapeHtml(String(prognose.qualitaet.vorschlaege_nicht_enthalten))} ${escapeHtml(t("cashflow.qualityProposalsExcluded"))}</span>`
+    : "";
+  const unbefristetChip = prognose.qualitaet.unbefristete_regelzahlungen > 0
+    ? `<span class="chip neutral">• ${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`
+    : "";
+  return `
+    ${renderPageHead(t("cashflow.title"), t("cashflow.lead"))}
+    <div class="tile-grid">
+      <div class="tile tile-static">
+        <strong>${escapeHtml(t("cashflow.ist"))}</strong>
+        <div class="count">${escapeHtml(formatMoney(ist.gesamt_netto_cents))}</div>
+        <span class="chip ${istChipClass}">${istChipIcon} ${escapeHtml(String(ist.qualitaet.offene_kategorie_anzahl))} ${escapeHtml(t("cashflow.qualityOpenCategories"))}</span>
+      </div>
+      <div class="tile tile-static">
+        <strong>${escapeHtml(t("cashflow.prognose"))}</strong>
+        <div class="count">${escapeHtml(formatMoney(prognose.gesamt_netto_cents))}</div>
+        <span class="chip neutral">• ${escapeHtml(String(prognose.qualitaet.bestaetigte_regelzahlungen))} ${escapeHtml(t("cashflow.qualityConfirmed"))}</span>
+        ${vorschlaegeChip}
+        ${unbefristetChip}
+        <span class="chip neutral">• ${escapeHtml(t("cashflow.horizonTo"))} ${escapeHtml(prognose.horizont_ende)}</span>
+      </div>
+    </div>
+    <p class="page-lead" style="margin-top: 12px;">${escapeHtml(t("cashflow.incompleteNote"))}</p>
+    <section class="panel panel-pad" style="margin-top: 16px;">
+      <h2 class="section-title">${escapeHtml(t("cashflow.ist"))} · ${escapeHtml(t("cashflow.monthlyTable"))}</h2>
+      ${ist.monate.length ? renderMonatsTabelle(ist.monate) : `<p class="muted">${escapeHtml(t("cashflow.empty"))}</p>`}
+    </section>
+    <section class="panel panel-pad" style="margin-top: 16px;">
+      <h2 class="section-title">${escapeHtml(t("cashflow.prognose"))} · ${escapeHtml(t("cashflow.monthlyTable"))}</h2>
+      ${prognose.monate.length ? renderMonatsTabelle(prognose.monate) : `<p class="muted">${escapeHtml(t("cashflow.empty"))}</p>`}
+    </section>
   `;
 }
 

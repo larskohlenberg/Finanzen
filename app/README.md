@@ -19,3 +19,7 @@ app/main.js
 app/review-data.js
 app/i18n.js
 ```
+
+## Betriebsmodus
+
+Ab M4 läuft die App **nur über einen lokalen Webserver** (Synology Web Station bzw. lokaler Preview-Server), nicht mehr per `file://`-Doppelklick: `main.js` ist ein ES-Modul und importiert `cashflow.mjs`; Browser blockieren ES-Module unter `file://`. Hintergrund: ADR 0008 (Webserver zulässig), ADR 0009 (Zugriffsschutz LAN), ADR 0012 (App als ES-Modul).

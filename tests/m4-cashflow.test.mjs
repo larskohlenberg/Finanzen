@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addInterval, occurrences, computeCashflowIst, computeCashflowPrognose, periodenSchluessel, defaultHorizonEnd, localTodayIso } from "../app/cashflow.mjs";
+import { addInterval, occurrences, computeCashflowIst, computeCashflowPrognose, computeCashflowPrognoseDetail, periodenSchluessel, defaultHorizonEnd, localTodayIso } from "../app/cashflow.mjs";
 
 test("addInterval addiert Tage", () => {
   assert.equal(addInterval("2026-01-30", "tag", 5), "2026-02-04");
@@ -130,4 +130,74 @@ test("periodenSchluessel: feste Kalenderquartale", () => {
 
 test("periodenSchluessel: Jahr liefert das Jahr", () => {
   assert.equal(periodenSchluessel("2026-08", "jahr"), "2026");
+});
+
+const detailRegeln = [
+  { regelzahlung_id: "RZ-001", bezeichnung: "Gehalt", betrag: "3500.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-30", status: "bestaetigt" },
+  { regelzahlung_id: "RZ-002", bezeichnung: "Miete", betrag: "-1200.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt" },
+  { regelzahlung_id: "RZ-003", bezeichnung: "Vorschlag", betrag: "-30.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "vorgeschlagen" },
+];
+
+test("computeCashflowPrognoseDetail: Monat behält Einzelposten je Monat", () => {
+  const res = computeCashflowPrognoseDetail(detailRegeln, { today: "2026-06-15", horizonEnd: "2026-07-31", granularitaet: "monat" });
+  const juli = res.perioden.find((p) => p.periode === "2026-07");
+  assert.ok(juli, "Juli-Periode vorhanden");
+  assert.equal(juli.monate.length, 1);
+  const juliMonat = juli.monate[0];
+  assert.equal(juliMonat.monat, "2026-07");
+  const bezeichnungen = juliMonat.posten.map((p) => p.bezeichnung).sort();
+  assert.deepEqual(bezeichnungen, ["Gehalt", "Miete"]);
+  assert.equal(juliMonat.netto_cents, 350000 + -120000);
+});
+
+test("computeCashflowPrognoseDetail: Summen-Konsistenz Posten=Monat=Periode=Gesamt", () => {
+  const res = computeCashflowPrognoseDetail(detailRegeln, { today: "2026-06-15", horizonEnd: "2026-09-30", granularitaet: "quartal" });
+  let gesamtAusPosten = 0;
+  for (const periode of res.perioden) {
+    let periodeSumme = 0;
+    for (const monat of periode.monate) {
+      const monatAusPosten = monat.posten.reduce((s, p) => s + p.betrag_cents, 0);
+      assert.equal(monat.netto_cents, monatAusPosten, `Monat ${monat.monat}`);
+      periodeSumme += monat.netto_cents;
+    }
+    assert.equal(periode.netto_cents, periodeSumme, `Periode ${periode.periode}`);
+    gesamtAusPosten += periode.netto_cents;
+  }
+  assert.equal(res.gesamt_netto_cents, gesamtAusPosten);
+});
+
+test("computeCashflowPrognoseDetail: Vorschläge ausgeschlossen, Qualität gezählt", () => {
+  const res = computeCashflowPrognoseDetail(detailRegeln, { today: "2026-06-15", horizonEnd: "2026-07-31", granularitaet: "monat" });
+  assert.equal(res.qualitaet.bestaetigte_regelzahlungen, 2);
+  assert.equal(res.qualitaet.vorschlaege_nicht_enthalten, 1);
+  for (const periode of res.perioden) {
+    for (const monat of periode.monate) {
+      assert.ok(!monat.posten.some((p) => p.bezeichnung === "Vorschlag"));
+    }
+  }
+});
+
+test("computeCashflowPrognoseDetail: Bis-Datum begrenzt Fälligkeiten", () => {
+  const res = computeCashflowPrognoseDetail(detailRegeln, { today: "2026-06-15", horizonEnd: "2026-06-30", granularitaet: "monat" });
+  const alleDaten = res.perioden.flatMap((p) => p.monate.flatMap((m) => m.posten.map((x) => x.datum)));
+  assert.ok(alleDaten.every((d) => d <= "2026-06-30"));
+  assert.equal(res.horizont_ende, "2026-06-30");
+});
+
+test("computeCashflowPrognoseDetail: ist_laufend markiert heutiges Quartal und heutigen Monat", () => {
+  const res = computeCashflowPrognoseDetail(detailRegeln, { today: "2026-06-15", horizonEnd: "2026-09-30", granularitaet: "quartal" });
+  const q2 = res.perioden.find((p) => p.periode === "2026-Q2");
+  const q3 = res.perioden.find((p) => p.periode === "2026-Q3");
+  assert.equal(q2?.ist_laufend, true, "Q2 enthält heute");
+  assert.equal(q3?.ist_laufend, false, "Q3 ist Zukunft");
+  const juni = q2.monate.find((m) => m.monat === "2026-06");
+  assert.equal(juni?.ist_laufend, true);
+});
+
+test("computeCashflowPrognoseDetail: Granularität monat hat genau einen Monat je Periode", () => {
+  const res = computeCashflowPrognoseDetail(detailRegeln, { today: "2026-06-15", horizonEnd: "2026-12-31", granularitaet: "monat" });
+  for (const periode of res.perioden) {
+    assert.equal(periode.monate.length, 1);
+    assert.equal(periode.periode, periode.monate[0].monat);
+  }
 });

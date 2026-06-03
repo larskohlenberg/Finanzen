@@ -14,6 +14,13 @@ export function monatVon(isoDate) {
   return isoDate.slice(0, 7);
 }
 
+export function localTodayIso(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function addInterval(isoDate, einheit, intervall) {
   const [y, m, d] = isoDate.split("-").map(Number);
   if (einheit === "tag") {
@@ -40,11 +47,13 @@ export function addInterval(isoDate, einheit, intervall) {
 export function occurrences(regelzahlung, today, horizonEnd) {
   const ende = regelzahlung.aktiv_bis && regelzahlung.aktiv_bis < horizonEnd ? regelzahlung.aktiv_bis : horizonEnd;
   const dates = [];
-  let cur = regelzahlung.anker_datum;
+  let step = 0;
   let guard = 0;
+  let cur = regelzahlung.anker_datum;
   while (cur <= ende && guard < 100000) {
     if (cur > today) dates.push(cur);
-    cur = addInterval(cur, regelzahlung.rhythmus_einheit, regelzahlung.rhythmus_intervall);
+    step++;
+    cur = addInterval(regelzahlung.anker_datum, regelzahlung.rhythmus_einheit, regelzahlung.rhythmus_intervall * step);
     guard++;
   }
   return dates;

@@ -201,3 +201,10 @@ test("computeCashflowPrognoseDetail: Granularität monat hat genau einen Monat j
     assert.equal(periode.periode, periode.monate[0].monat);
   }
 });
+
+test("computeCashflowPrognoseDetail: leere Eingabe liefert leere Perioden", () => {
+  const res = computeCashflowPrognoseDetail([], { today: "2026-06-15", horizonEnd: "2026-12-31", granularitaet: "monat" });
+  assert.deepEqual(res.perioden, []);
+  assert.equal(res.gesamt_netto_cents, 0);
+  assert.equal(res.qualitaet.bestaetigte_regelzahlungen, 0);
+});

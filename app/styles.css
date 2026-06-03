@@ -547,6 +547,22 @@ button.mini-kpi.linkish {
   font-size: 18px;
 }
 
+button.roadmap-card-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-style: solid;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+button.roadmap-card-link:hover,
+button.roadmap-card-link:focus-visible {
+  border-color: var(--accent, var(--border-strong));
+}
+
 .filter-bar {
   display: grid;
   grid-template-columns: repeat(4, minmax(140px, 1fr));

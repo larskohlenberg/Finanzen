@@ -92,8 +92,76 @@ const schemas = {
       aktiv_bis: { type: "string", format: "date" },
       status: { type: "string", enum: ["vorgeschlagen", "bestaetigt", "abgelehnt"] },
       kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
+      darlehen_id: { type: "string", pattern: /^DAR-\d{3}$/ },
       erstellt_am: { type: "string", format: "date" },
       bemerkung: { type: "string" },
+    },
+  },
+  immobilien: {
+    optional: true,
+    required: ["immobilie_id", "bezeichnung", "eigentumsanteile", "status"],
+    fields: {
+      immobilie_id: { type: "string", pattern: /^IMM-\d{3}$/ },
+      bezeichnung: { type: "string", minLength: 1 },
+      eigentumsanteile: { type: "array", minItems: 1 },
+      status: { type: "string", enum: ["aktiv", "verkauft"] },
+      adresse: { type: "string" },
+      anschaffungsdatum: { type: "string", format: "date" },
+      anschaffungskosten: { type: "string", pattern: /^-?\d+\.\d{2}$/ },
+      quelle_hinweis: { type: "string" },
+      quelle_standdatum: { type: "string", format: "date" },
+      aktiv_bis: { type: "string", format: "date" },
+      bemerkung: { type: "string" },
+    },
+  },
+  darlehen: {
+    optional: true,
+    required: ["darlehen_id", "bezeichnung", "status", "anfangsbetrag", "anfangsdatum", "zinssatz", "sollrate", "rhythmus_einheit", "rhythmus_intervall"],
+    fields: {
+      darlehen_id: { type: "string", pattern: /^DAR-\d{3}$/ },
+      bezeichnung: { type: "string", minLength: 1 },
+      status: { type: "string", enum: ["aktiv", "abgeloest"] },
+      anfangsbetrag: { type: "string", pattern: /^\d+\.\d{2}$/ },
+      anfangsdatum: { type: "string", format: "date" },
+      zinssatz: { type: "string", pattern: /^\d+\.\d{2,4}$/ },
+      sollrate: { type: "string", pattern: /^\d+\.\d{2}$/ },
+      rhythmus_einheit: { type: "string", enum: ["tag", "woche", "monat", "jahr"] },
+      rhythmus_intervall: { type: "number", integer: true, min: 1 },
+      immobilie_id: { type: "string", pattern: /^IMM-\d{3}$/ },
+      konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
+      zinsbindung_bis: { type: "string", format: "date" },
+      aktiv_bis: { type: "string", format: "date" },
+      quelle_hinweis: { type: "string" },
+      quelle_standdatum: { type: "string", format: "date" },
+      bemerkung: { type: "string" },
+    },
+  },
+  vermoegenswerte: {
+    optional: true,
+    required: ["vermoegenswert_id", "typ", "bezeichnung", "eigentumsanteile", "status"],
+    fields: {
+      vermoegenswert_id: { type: "string", pattern: /^VMW-\d{3}$/ },
+      typ: { type: "string", enum: ["edelmetall", "beteiligung", "sonstiges"] },
+      bezeichnung: { type: "string", minLength: 1 },
+      eigentumsanteile: { type: "array", minItems: 1 },
+      status: { type: "string", enum: ["aktiv", "veraeussert"] },
+      quelle_hinweis: { type: "string" },
+      quelle_standdatum: { type: "string", format: "date" },
+      aktiv_bis: { type: "string", format: "date" },
+      bemerkung: { type: "string" },
+    },
+  },
+  zeitwerte: {
+    optional: true,
+    required: ["entitaet", "entitaet_id", "feld", "wert", "standdatum", "qualitaet"],
+    fields: {
+      entitaet: { type: "string", enum: ["konto", "immobilie", "vermoegenswert", "darlehen"] },
+      entitaet_id: { type: "string", minLength: 1 },
+      feld: { type: "string", enum: ["kontostand", "depotwert", "marktwert", "restschuld"] },
+      wert: { type: "string", pattern: /^-?\d+\.\d{2}$/ },
+      standdatum: { type: "string", format: "date" },
+      qualitaet: { type: "string", enum: ["belegt", "geschaetzt"] },
+      quelle_hinweis: { type: "string" },
     },
   },
 };
@@ -238,6 +306,41 @@ function validateCrossFieldRules(data, errors) {
       errors.push(`regelzahlungen.${rz.regelzahlung_id}.aktiv_bis: liegt vor anker_datum`);
     }
   });
+
+  const immobilien = byId(data.immobilien, "immobilie_id");
+  const darlehen = byId(data.darlehen, "darlehen_id");
+  const vermoegenswerte = byId(data.vermoegenswerte, "vermoegenswert_id");
+
+  data.immobilien?.forEach((imm) => pruefeAnteile(`immobilien.${imm.immobilie_id}`, imm.eigentumsanteile, personen, errors));
+  data.vermoegenswerte?.forEach((vmw) => pruefeAnteile(`vermoegenswerte.${vmw.vermoegenswert_id}`, vmw.eigentumsanteile, personen, errors));
+
+  data.darlehen?.forEach((dar) => {
+    if (dar.immobilie_id && !immobilien.has(dar.immobilie_id)) {
+      errors.push(`darlehen.${dar.darlehen_id}.immobilie_id: ${dar.immobilie_id} existiert nicht`);
+    }
+    if (dar.konto_id && !konten.has(dar.konto_id)) {
+      errors.push(`darlehen.${dar.darlehen_id}.konto_id: ${dar.konto_id} existiert nicht`);
+    }
+    if (dar.aktiv_bis && dar.anfangsdatum && dar.aktiv_bis < dar.anfangsdatum) {
+      errors.push(`darlehen.${dar.darlehen_id}.aktiv_bis: liegt vor anfangsdatum`);
+    }
+  });
+
+  const zeitwertEntitaeten = {
+    konto: konten, immobilie: immobilien, vermoegenswert: vermoegenswerte, darlehen,
+  };
+  data.zeitwerte?.forEach((zw, i) => {
+    const map = zeitwertEntitaeten[zw.entitaet];
+    if (map && !map.has(zw.entitaet_id)) {
+      errors.push(`zeitwerte[${i}].entitaet_id: ${zw.entitaet_id} existiert nicht (${zw.entitaet})`);
+    }
+  });
+
+  data.regelzahlungen?.forEach((rz) => {
+    if (rz.darlehen_id && !darlehen.has(rz.darlehen_id)) {
+      errors.push(`regelzahlungen.${rz.regelzahlung_id}.darlehen_id: ${rz.darlehen_id} existiert nicht`);
+    }
+  });
 }
 
 function validateTransfer(transfer, transaktionen, errors) {
@@ -280,6 +383,30 @@ function byId(collection = [], idField) {
   return new Map(collection.map((item) => [item[idField], item]));
 }
 
+// Prueft Eigentumsanteile als exakte Brueche: person_id existiert (ausser extern),
+// zaehler/nenner Ganzzahl >= 1, und die Bruch-Summe genau 1 (Integer-Arithmetik).
+function pruefeAnteile(prefix, anteile, personenMap, errors) {
+  if (!Array.isArray(anteile)) return;
+  let num = 0, den = 1;
+  anteile.forEach((a, i) => {
+    const p = `${prefix}.eigentumsanteile[${i}]`;
+    if (!a || typeof a !== "object") { errors.push(`${p}: muss ein Objekt sein`); return; }
+    const extern = a.extern === true;
+    if (!extern && !personenMap.has(a.person_id)) {
+      errors.push(`${p}.person_id: ${a.person_id} existiert nicht`);
+    }
+    if (!Number.isInteger(a.zaehler) || a.zaehler < 1) errors.push(`${p}.zaehler: muss Ganzzahl >= 1 sein`);
+    if (!Number.isInteger(a.nenner) || a.nenner < 1) errors.push(`${p}.nenner: muss Ganzzahl >= 1 sein`);
+    if (Number.isInteger(a.zaehler) && Number.isInteger(a.nenner) && a.nenner >= 1) {
+      num = num * a.nenner + a.zaehler * den;
+      den = den * a.nenner;
+    }
+  });
+  if (num !== den) {
+    errors.push(`${prefix}.eigentumsanteile: Summe der Anteile muss genau 1 sein`);
+  }
+}
+
 function isIsoDate(value) {
   if (!datePattern.test(value)) {
     return false;
@@ -307,6 +434,24 @@ async function readJsonl(path) {
     .map((line) => JSON.parse(line));
 }
 
+async function readJsonOptional(path, fallback) {
+  try {
+    return await readJson(path);
+  } catch (error) {
+    if (error.code === "ENOENT") return fallback;
+    throw error;
+  }
+}
+
+async function readJsonlOptional(path) {
+  try {
+    return await readJsonl(path);
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
 export async function loadMasterData(root = new URL("../data/master/", import.meta.url)) {
   return {
     personen: await readJson(new URL("personen.json", root)),
@@ -315,6 +460,10 @@ export async function loadMasterData(root = new URL("../data/master/", import.me
     transaktionen: await readJsonl(new URL("transaktionen.jsonl", root)),
     transfers: await readJson(new URL("transfers.json", root)),
     regelzahlungen: await readJson(new URL("regelzahlungen.json", root)),
+    immobilien: await readJsonOptional(new URL("immobilien.json", root), []),
+    darlehen: await readJsonOptional(new URL("darlehen.json", root), []),
+    vermoegenswerte: await readJsonOptional(new URL("vermoegenswerte.json", root), []),
+    zeitwerte: await readJsonlOptional(new URL("zeitwerte.jsonl", root)),
   };
 }
 

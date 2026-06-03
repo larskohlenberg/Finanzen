@@ -78,6 +78,20 @@ Intern in Code: Cent-Integer. Konvertierung an genau zwei Stellen (Reader, Write
 
 **Kontostand** bezeichnet einen belegten Stand eines Kontos zu einem bestimmten Datum, typischerweise aus Bank- oder Depotunterlagen. In M2 wird der Begriff in der UI vermieden, solange nur Demo- oder Teildaten geladen sind.
 
+## Cashflow-Ist
+
+Der **tatsaechliche** Cashflow, vollstaendig aus Transaktionen der Vergangenheit berechnet (Cent-Integer-Summe, gruppiert z. B. nach Monat und/oder Kategorie). Transfers zaehlen nicht (cashflow-neutral). Kein gespeicherter Wert — beim Laden berechnet, wie Nettovermoegen. Reicht bis „heute".
+
+## Cashflow-Prognose
+
+Der **erwartete** Cashflow der Zukunft, ausschliesslich aus **bestaetigten Regelzahlungen** projiziert (`status = bestaetigt`, ab Ankerdatum, begrenzt durch `aktiv_bis`). Vorschlaege wirken nicht. Beginnt nach „heute" — keine zeitliche Ueberlappung mit dem Cashflow-Ist, daher keine Doppelzaehlung.
+
+Der **Horizont** ist konfigurierbar; Untergrenze ist das spaeteste `aktiv_bis` aller bestaetigten Regelzahlungen, damit langfristig bekannte Fakten (z. B. Gehalt bis Renteneintritt) nicht abgeschnitten werden. Unbefristete Regelzahlungen werden bis zum konfigurierten Horizont-Ende projiziert und als unbefristet markiert.
+
+Die M4-Prognose ist **regelzahlungsbasiert und bewusst unvollstaendig**: bekannte Einmaleffekte (z. B. Kapitalleistung einer Lebensversicherung → M7) und hypothetische Szenarien (→ M6) sind nicht enthalten. Diese Unvollstaendigkeit wird in der Ansicht **explizit gekennzeichnet**, damit keine Entscheidung auf einer scheinbar vollstaendigen Zahl getroffen wird. Eine bekannte **Stufenaenderung** einer wiederkehrenden Zahlung (z. B. Gehalt ab 60 halbiert) wird als zwei aufeinanderfolgende Regelzahlungen abgebildet, nicht als Szenario.
+
+Die Berechnung (Ist wie Prognose) ist eine **geteilte, reine Funktion**, die die App beim Laden aufruft und Node testen/ausfuehren kann — eine getestete Funktion an zwei Aufrufstellen, kein App-eigener Sonderweg.
+
 ## Waehrung
 
 Alle Betraege in EUR. Kein `waehrung`-Feld an Konto oder Transaktion. Sollte spaeter ein Fremdwaehrungskonto auftauchen, wird das gezielt nachgeruestet — bis dahin: YAGNI.
@@ -92,6 +106,7 @@ Statuswerte sind **pro Entitaet** spezifisch — kein einheitliches Vokabular ue
 - Versicherung: `aktiv | gekuendigt | ruhend`
 - Darlehen: `aktiv | abgeloest`
 - Rente: `geplant | laufend | beendet`
+- Regelzahlung: `vorgeschlagen | bestaetigt | abgelehnt`
 
 Statuswechsel mit Zeitbezug: Feld `aktiv_bis` (optional, Datum). Wenn gesetzt und in der Vergangenheit, gilt die Entitaet fuer **neue** Zuordnungen als inaktiv; **bestehende** Verweise (z. B. Altbuchungen auf eine inaktive Kategorie) bleiben gueltig.
 
@@ -146,6 +161,18 @@ Bei Treffer setzt der Importer `kategorisierung_status = vorgeschlagen` und die 
 ## Standardisiertes Importformat
 
 Zwischenformat zwischen Rohdatei (CSV, PDF, MT940 …) und dem finalen Transaktionseintrag. Liegt unter `data/inbox/` und enthaelt die normalisierten Felder einer Buchung in einer JSONL-Form, gegen die der Validator laeuft. Die Normalisierung aus dem Bank-Rohformat ist Aufgabe des Agenten, nicht des Modells — **es gibt keine bankspezifischen Parser im Code**, weil Bankformate sich ohne Vorwarnung aendern und der Agent gut im Normalisieren ist.
+
+## Regelzahlung
+
+Eine wiederkehrend erwartete Zahlung mit Rhythmus und erwarteter Hoehe (z. B. Miete monatlich, Gehalt monatlich, Versicherungsbeitrag jaehrlich). Eigener Stammdatensatz, **orthogonal zur Kategorie**: eine Regelzahlung kann in jeder Kategorie vorkommen, und eine Kategorie enthaelt sowohl Regelzahlungen als auch einmalige Betraege.
+
+Abgrenzung zur **Kategorisierungsregel**: Die Kategorisierungsregel beantwortet „wie klassifiziere ich eine Buchung" (Muster → `kategorie_id`, zeitlos). Die Regelzahlung beantwortet „welche Zahlung erwarte ich wiederkehrend, mit welchem Rhythmus und welcher Hoehe" und ist die Grundlage der **Cashflow-Prognose**. Eine Regelzahlung kann eine Kategorie referenzieren, ersetzt die Kategorisierungsregel aber nicht.
+
+Vorschlag und Bestaetigung werden ueber **ein Status-Feld** an *einem* Datensatz getrennt (`status`), analog zur Kategorisierung — **keine** separate Vorschlags-Datei. Nur eine Regelzahlung mit `status = bestaetigt` wirkt auf die **Cashflow-Prognose**; Vorschlaege sind sichtbar, wirken aber nicht still.
+
+Regelzahlungen entstehen **ausschliesslich ueber den Agent-Dialog** in Claude Code (ADR 0006); die App zeigt sie nur an und editiert nie. Der `status` spiegelt die Quelle: ein vom Agenten aus Transaktionen erkanntes Muster ist `vorgeschlagen`, ein vom Nutzer diktiertes Faktum schreibt der Agent direkt als `bestaetigt`. Es gibt kein Hand-Editieren der Datei und kein App-CRUD.
+
+Zeitlich ist eine Regelzahlung ein **begrenztes Intervall**: Ankerdatum (Start) + Rhythmus + optional `aktiv_bis` (bekanntes Ende, z. B. 24-Monate-Handyvertrag). Der Rhythmus wird als `{einheit, intervall}` ausgedrueckt (`einheit ∈ tag | woche | monat | jahr`), nicht als festes Enum: monatlich = `(monat, 1)`, quartalsweise = `(monat, 3)`, 14-taegig = `(woche, 2)`, jaehrlich = `(jahr, 1)`. Die erwartete Hoehe ist **ein vorzeichenbehafteter Punktbetrag** (negativ = Ausgabe, positiv = Eingang) — die Richtung ergibt sich aus dem Vorzeichen, kein eigenes Richtungsfeld (wie bei der Transaktion). Bandbreiten und Werktagslogik sind in M4 bewusst nicht modelliert (YAGNI).
 
 ## Transfer
 

@@ -70,6 +70,16 @@ export function defaultHorizonEnd(regelzahlungen, today, fallbackMonate = 12) {
   return max > fallback ? max : fallback;
 }
 
+export function periodenSchluessel(monat, granularitaet) {
+  const [jahr, mm] = monat.split("-");
+  if (granularitaet === "jahr") return jahr;
+  if (granularitaet === "quartal") {
+    const quartal = Math.floor((Number(mm) - 1) / 3) + 1;
+    return `${jahr}-Q${quartal}`;
+  }
+  return monat;
+}
+
 export function computeCashflowPrognose(regelzahlungen, { today, horizonEnd }) {
   const ende = horizonEnd ?? defaultHorizonEnd(regelzahlungen, today);
   const monate = new Map();
@@ -93,6 +103,70 @@ export function computeCashflowPrognose(regelzahlungen, { today, horizonEnd }) {
   return {
     monate: monatsListe,
     gesamt_netto_cents: monatsListe.reduce((s, m) => s + m.netto_cents, 0),
+    horizont_ende: ende,
+    qualitaet: {
+      bestaetigte_regelzahlungen: bestaetigt,
+      vorschlaege_nicht_enthalten: vorschlaege,
+      unbefristete_regelzahlungen: unbefristet,
+      einmaleffekte_enthalten: false,
+    },
+  };
+}
+
+export function computeCashflowPrognoseDetail(regelzahlungen, { today, horizonEnd, granularitaet = "monat" }) {
+  const ende = horizonEnd ?? defaultHorizonEnd(regelzahlungen, today);
+  const heuteMonat = monatVon(today);
+  const heutePeriode = periodenSchluessel(heuteMonat, granularitaet);
+
+  const monateMap = new Map(); // monat -> { posten: [], netto_cents }
+  let bestaetigt = 0;
+  let vorschlaege = 0;
+  let unbefristet = 0;
+  for (const rz of regelzahlungen) {
+    if (rz.status === "vorgeschlagen") { vorschlaege++; continue; }
+    if (rz.status !== "bestaetigt") continue;
+    bestaetigt++;
+    if (!rz.aktiv_bis) unbefristet++;
+    const betrag = toCents(rz.betrag);
+    for (const datum of occurrences(rz, today, ende)) {
+      const monat = monatVon(datum);
+      let eintrag = monateMap.get(monat);
+      if (!eintrag) { eintrag = { posten: [], netto_cents: 0 }; monateMap.set(monat, eintrag); }
+      eintrag.posten.push({ datum, bezeichnung: rz.bezeichnung, regelzahlung_id: rz.regelzahlung_id, betrag_cents: betrag });
+      eintrag.netto_cents += betrag;
+    }
+  }
+
+  const periodenMap = new Map(); // periodenkey -> Map(monat -> eintrag)
+  for (const [monat, eintrag] of monateMap) {
+    const key = periodenSchluessel(monat, granularitaet);
+    let monMap = periodenMap.get(key);
+    if (!monMap) { monMap = new Map(); periodenMap.set(key, monMap); }
+    monMap.set(monat, eintrag);
+  }
+
+  const perioden = [...periodenMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([periode, monMap]) => {
+      const monate = [...monMap.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([monat, eintrag]) => ({
+          monat,
+          netto_cents: eintrag.netto_cents,
+          ist_laufend: monat === heuteMonat,
+          posten: [...eintrag.posten].sort((x, y) => x.datum.localeCompare(y.datum)),
+        }));
+      return {
+        periode,
+        netto_cents: monate.reduce((s, m) => s + m.netto_cents, 0),
+        ist_laufend: periode === heutePeriode,
+        monate,
+      };
+    });
+
+  return {
+    perioden,
+    gesamt_netto_cents: perioden.reduce((s, p) => s + p.netto_cents, 0),
     horizont_ende: ende,
     qualitaet: {
       bestaetigte_regelzahlungen: bestaetigt,

@@ -1,6 +1,6 @@
 # Handoff Runde 2
 
-Stand: 27.05.2026
+Stand: 03.06.2026
 
 ## ZUERST LESEN
 
@@ -137,15 +137,44 @@ npm run validate:m1
 
 Offen / spaeter: Import-Agent-Skill von Markdown in echtes Skill-Format ueberfuehren (skill-creator), sobald die Pipeline produktiv genutzt wurde.
 
+## M4-Stand
+
+**Stand 03.06.2026:** M4 ist abgeschlossen. Cashflow-Ist und -Prognose laufen ueber eine geteilte, reine Funktion (`app/cashflow.mjs`, in Node getestet, im Browser aufgerufen). Regelzahlungen sind ein eigener Stammdatensatz mit Status-Feld (`vorgeschlagen | bestaetigt | abgelehnt`); nur `bestaetigt` wirkt auf die Prognose, Vorschlaege sind sichtbar, wirken aber nicht still.
+
+Die Prognose ist in der Oberflaeche **nachvollziehbar** gemacht (Branch `fix/m4-prognose-nachvollziehbarkeit`, in `main` gemergt):
+
+- Eigener Nav-Punkt **Regelzahlungen** zeigt die Eingangsdaten (Bezeichnung, Betrag, Rhythmus, erste Faelligkeit, Gueltig-bis, Status).
+- Die Prognose-Tabelle ist nach **Monat/Quartal/Jahr** aggregierbar (feste Kalenderquartale, nicht rollierend) und bis zu einem waehlbaren **Bis-Datum** begrenzbar.
+- Jeder Zeitraum ist bis zu den einzelnen Faelligkeiten aufklappbar (Zeitraum → Monate → Posten); die Summe bleibt ueber dem aufgeklappten Inhalt sichtbar.
+- Der **laufende** Zeitraum (Quartal/Monat) ist markiert, weil er nur noch die erwarteten Faelligkeiten enthaelt — bereits Gebuchtes steht im Cashflow-Ist.
+
+Exit-Kriterien (alle erfuellt):
+
+- Vorschlaege von bestaetigten getrennt (ein Datensatz, Status-Feld; keine separate Vorschlags-Datei).
+- Cashflow-Ist basiert auf Transaktionen.
+- Prognose kennzeichnet unbestaetigte Annahmen und ihre bewusste Unvollstaendigkeit (nur Regelzahlungen; keine Einmaleffekte/Szenarien) — Chip „Vorschlaege nicht enthalten", Hinweistext, `einmaleffekte_enthalten = false`.
+- Datenqualitaet steht als faktische Zaehler neben den Kennzahlen (kein Konfidenz-Score).
+- Regelzahlungs-Agent-Skill (`docs/skills/regelzahlung-agent.md`) beschreibt Erkennung/Vorschlag/Bestaetigung und meldet offene Vorschlaege zu Session-Beginn aktiv (App ist nur Anzeige, Agent ist der einzige Aenderungskanal).
+
+Dokumente: ADRs 0010/0011/0012; Spec `docs/superpowers/specs/2026-06-03-m4-prognose-nachvollziehbarkeit-design.md`; Plan `docs/superpowers/plans/2026-06-03-m4-prognose-nachvollziehbarkeit.md`.
+
+Verifikation:
+
+```bash
+npm test
+npm run validate:m1
+```
+
+Technische Notiz: M4 nutzt weiterhin den Full-Re-render (M2-Schuld #1). Mit Demo-Daten und der aufklappbaren Prognose-Tabelle tolerierbar; bei echten, langen Regelzahlungslisten Fokus-/Scroll-Verlust beobachten und spaetestens in M5/M9 ueber gezielte Partial-Renders oder einen Framework-Wechsel entscheiden.
+
 ## Naechster sinnvoller Schritt
 
-Naechste Session:
+Naechste Session: **M5 — Vermoegen, Verbindlichkeiten und Immobilien** (siehe `docs/runde2/Meilensteine_Runde2.md`).
 
-1. `docs/runde2/M2_Review_Oberflaeche.md` lesen.
-2. `app/index.html` lokal im normalen Browser oeffnen.
-3. M2 visuell reviewen: Uebersicht, Transaktionen mit Pagination, Stammdaten, Checks, Export, Light/Dark und DE/EN.
-4. Kleine UI-Feinheiten direkt notieren oder umsetzen.
-5. Danach entscheiden, ob M2 abgeschlossen bleibt oder ob M3 geplant wird.
+1. M5-Exit-Kriterien in `docs/runde2/Meilensteine_Runde2.md` lesen.
+2. Mit dem Nutzer den Schnitt der Entitaeten klaeren (Immobilien, Darlehen, Konten, Depots getrennt; Bewertung mit Standdatum und Quelle; Nettovermoegen berechnet, nicht manuell gepflegt; fehlende Quellen erzeugen sichtbare Checks).
+3. Vor neuen Schemas: Begriffe gegen `CONTEXT.md` pruefen — Unbekanntes klaeren, nicht raten.
+4. Cashflow-/Prognose-Oberflaeche bei echten Regelzahlungen einmal im Browser gegenpruefen (Full-Re-render-Verhalten, s. technische Notiz im M4-Stand).
 
 Technischer Hinweis:
 

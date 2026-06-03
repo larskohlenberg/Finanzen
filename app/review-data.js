@@ -1,8 +1,8 @@
 window.FINANCE_REVIEW_DATA = {
   metadata: {
-    bundleVersion: "m2-review-1",
+    bundleVersion: "m4-review-1",
     generatedAt: "2026-05-27",
-    label: "M2 Review-Daten",
+    label: "M4 Review-Daten",
     validation: "passed",
   },
   personen: [

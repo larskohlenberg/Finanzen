@@ -1,10 +1,26 @@
 window.FINANCE_REVIEW_DATA = {
   metadata: {
-    bundleVersion: "m4-review-1",
+    bundleVersion: "m5-review-1",
     generatedAt: "2026-05-27",
-    label: "M4 Review-Daten",
+    label: "M5 Review-Daten (Demo)",
     validation: "passed",
   },
+  immobilien: [
+    { immobilie_id: "IMM-001", bezeichnung: "DEMO Eigenheim", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 2 }, { person_id: "PER-002", zaehler: 1, nenner: 2 }], status: "aktiv", quelle_hinweis: "DEMO" },
+  ],
+  darlehen: [
+    { darlehen_id: "DAR-001", bezeichnung: "DEMO Hypothek", status: "aktiv", anfangsbetrag: "300000.00", anfangsdatum: "2020-01-31", zinssatz: "1.80", sollrate: "1000.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, immobilie_id: "IMM-001", konto_id: "KTO-003", quelle_hinweis: "DEMO" },
+  ],
+  vermoegenswerte: [
+    { vermoegenswert_id: "VMW-001", typ: "edelmetall", bezeichnung: "DEMO Gold", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }], status: "aktiv", quelle_hinweis: "DEMO" },
+  ],
+  zeitwerte: [
+    { entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "3500.00", standdatum: "2026-05-01", qualitaet: "belegt", quelle_hinweis: "DEMO" },
+    { entitaet: "konto", entitaet_id: "KTO-006", feld: "depotwert", wert: "25000.00", standdatum: "2026-05-01", qualitaet: "geschaetzt", quelle_hinweis: "DEMO" },
+    { entitaet: "immobilie", entitaet_id: "IMM-001", feld: "marktwert", wert: "450000.00", standdatum: "2026-01-01", qualitaet: "geschaetzt", quelle_hinweis: "DEMO" },
+    { entitaet: "darlehen", entitaet_id: "DAR-001", feld: "restschuld", wert: "250000.00", standdatum: "2026-05-01", qualitaet: "belegt", quelle_hinweis: "DEMO" },
+    { entitaet: "vermoegenswert", entitaet_id: "VMW-001", feld: "marktwert", wert: "8000.00", standdatum: "2026-04-01", qualitaet: "geschaetzt", quelle_hinweis: "DEMO" },
+  ],
   personen: [
     { person_id: "PER-001", name: "Lars", status: "aktiv" },
     { person_id: "PER-002", name: "Katrin", status: "aktiv" },

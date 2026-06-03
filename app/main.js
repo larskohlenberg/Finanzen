@@ -1,4 +1,4 @@
-import { computeCashflowIst, computeCashflowPrognose, localTodayIso } from "./cashflow.mjs";
+import { computeCashflowIst, computeCashflowPrognoseDetail, defaultHorizonEnd, toCents, localTodayIso } from "./cashflow.mjs";
 const data = window.FINANCE_REVIEW_DATA;
 data.regelzahlungen = data.regelzahlungen ?? [];
 const dictionaries = window.FINANCE_I18N;
@@ -13,6 +13,7 @@ const navItems = [
   ["overview", "nav.overview", "⌂"],
   ["transactions", "nav.transactions", "≡"],
   ["cashflow", "nav.cashflow", "€"],
+  ["regelzahlungen", "nav.regelzahlungen", "↻"],
   ["masterdata", "nav.masterdata", "◫"],
   ["checks", "nav.checks", "✓"],
   ["export", "nav.export", "⇩"],
@@ -33,6 +34,11 @@ const state = {
   pageSize: 10,
   selectedTransactionId: "",
   masterSection: "konten",
+  cashflow: {
+    granularitaet: "monat",
+    bisDatum: defaultHorizonEnd(data.regelzahlungen, localTodayIso()),
+  },
+  cashflowExpanded: new Set(),
 };
 
 const app = document.querySelector("#app");
@@ -196,6 +202,7 @@ function renderTopbar() {
 function renderView() {
   if (state.view === "transactions") return renderTransactions();
   if (state.view === "cashflow") return renderCashflow();
+  if (state.view === "regelzahlungen") return renderRegelzahlungen();
   if (state.view === "masterdata") return renderMasterdata();
   if (state.view === "checks") return renderChecks();
   if (state.view === "export") return renderExport();
@@ -544,7 +551,11 @@ function renderMonatsTabelle(monate) {
 function renderCashflow() {
   const today = heuteIso();
   const ist = computeCashflowIst(data.transaktionen, { today });
-  const prognose = computeCashflowPrognose(data.regelzahlungen, { today });
+  const prognose = computeCashflowPrognoseDetail(data.regelzahlungen, {
+    today,
+    horizonEnd: state.cashflow.bisDatum,
+    granularitaet: state.cashflow.granularitaet,
+  });
   const istChipClass = ist.qualitaet.offene_kategorie_anzahl > 0 ? "review" : "success";
   const istChipIcon = ist.qualitaet.offene_kategorie_anzahl > 0 ? "?" : "✓";
   const vorschlaegeChip = prognose.qualitaet.vorschlaege_nicht_enthalten > 0
@@ -553,6 +564,9 @@ function renderCashflow() {
   const unbefristetChip = prognose.qualitaet.unbefristete_regelzahlungen > 0
     ? `<span class="chip neutral">• ${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`
     : "";
+  const granButtons = ["monat", "quartal", "jahr"]
+    .map((g) => `<button class="chip ${state.cashflow.granularitaet === g ? "success" : "neutral"} linkish" data-cashflow-gran="${g}">${escapeHtml(t(`cashflow.gran.${g}`))}</button>`)
+    .join("");
   return `
     ${renderPageHead(t("cashflow.title"), t("cashflow.lead"))}
     <div class="tile-grid">
@@ -577,7 +591,132 @@ function renderCashflow() {
     </section>
     <section class="panel panel-pad" style="margin-top: 16px;">
       <h2 class="section-title">${escapeHtml(t("cashflow.prognose"))} · ${escapeHtml(t("cashflow.monthlyTable"))}</h2>
-      ${prognose.monate.length ? renderMonatsTabelle(prognose.monate) : `<p class="muted">${escapeHtml(t("cashflow.empty"))}</p>`}
+      <div class="cashflow-filter">
+        <span>${granButtons}</span>
+        <label class="cashflow-bis">${escapeHtml(t("cashflow.forecastUntil"))}
+          <input type="date" data-control="cashflow-bis" value="${escapeHtml(state.cashflow.bisDatum)}" />
+        </label>
+      </div>
+      ${renderPrognoseDetail(prognose)}
+    </section>
+  `;
+}
+
+function formatMonat(monat) {
+  return new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "long", year: "numeric" }).format(new Date(`${monat}-01T00:00:00`));
+}
+
+function formatPeriode(periode) {
+  if (periode.includes("-Q")) {
+    const [jahr, q] = periode.split("-");
+    return `${q} ${jahr}`;
+  }
+  if (/^\d{4}$/.test(periode)) return periode;
+  return formatMonat(periode);
+}
+
+function laufendMarkup(istLaufend) {
+  if (!istLaufend) return "";
+  return `<span class="chip neutral">${escapeHtml(t("cashflow.running"))}</span><div class="running-note muted">${escapeHtml(t("cashflow.runningNote"))}</div>`;
+}
+
+function renderPostenRows(posten) {
+  return posten.map((p) => `
+    <tr class="row-posten">
+      <td class="posten-cell">${escapeHtml(formatDate(p.datum))} · ${escapeHtml(p.bezeichnung)}</td>
+      <td class="amount">${escapeHtml(formatMoney(p.betrag_cents))}</td>
+    </tr>
+  `).join("");
+}
+
+function renderMonatRows(monat, nested) {
+  const expanded = state.cashflowExpanded.has(monat.monat);
+  const monthRow = `
+    <tr class="row-month ${nested ? "nested" : ""}">
+      <td>
+        <button class="row-toggle" data-cashflow-toggle="${escapeHtml(monat.monat)}">
+          <span class="toggle-icon">${expanded ? "▾" : "▸"}</span>${escapeHtml(formatMonat(monat.monat))}
+        </button>
+        ${laufendMarkup(monat.ist_laufend)}
+      </td>
+      <td class="amount">${escapeHtml(formatMoney(monat.netto_cents))}</td>
+    </tr>
+  `;
+  return monthRow + (expanded ? renderPostenRows(monat.posten) : "");
+}
+
+function renderPrognoseDetail(prognose) {
+  if (!prognose.perioden.length) return `<p class="muted">${escapeHtml(t("cashflow.empty"))}</p>`;
+  const gran = state.cashflow.granularitaet;
+  const body = prognose.perioden.map((periode) => {
+    if (gran === "monat") {
+      return periode.monate.map((monat) => renderMonatRows(monat, false)).join("");
+    }
+    const expanded = state.cashflowExpanded.has(periode.periode);
+    const periodRow = `
+      <tr class="row-period">
+        <td>
+          <button class="row-toggle" data-cashflow-toggle="${escapeHtml(periode.periode)}">
+            <span class="toggle-icon">${expanded ? "▾" : "▸"}</span>${escapeHtml(formatPeriode(periode.periode))}
+          </button>
+          ${laufendMarkup(periode.ist_laufend)}
+        </td>
+        <td class="amount">${escapeHtml(formatMoney(periode.netto_cents))}</td>
+      </tr>
+    `;
+    const monatsZeilen = expanded ? periode.monate.map((monat) => renderMonatRows(monat, true)).join("") : "";
+    return periodRow + monatsZeilen;
+  }).join("");
+  return `
+    <div class="table-wrap">
+      <table class="cashflow-detail">
+        <thead>
+          <tr>
+            <th>${escapeHtml(t("cashflow.period"))}</th>
+            <th class="amount">${escapeHtml(t("cashflow.net"))}</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function formatRhythmus(einheit, intervall) {
+  const key = intervall === 1 ? "eins" : "mehr";
+  return t(`rhythmus.${einheit}.${key}`).replace("{n}", String(intervall));
+}
+
+function renderRegelzahlungen() {
+  const rows = data.regelzahlungen.map((rz) => `
+    <tr>
+      <td>${escapeHtml(rz.bezeichnung)}</td>
+      <td class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</td>
+      <td>${escapeHtml(formatRhythmus(rz.rhythmus_einheit, rz.rhythmus_intervall))}</td>
+      <td>${escapeHtml(formatDate(rz.anker_datum))}</td>
+      <td>${rz.aktiv_bis ? escapeHtml(formatDate(rz.aktiv_bis)) : `<span class="chip neutral">${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`}</td>
+      <td>${statusChip(rz.status)}</td>
+    </tr>
+  `).join("");
+  return `
+    ${renderPageHead(t("regelzahlungen.title"), t("regelzahlungen.lead"))}
+    <section class="panel panel-pad" style="margin-top: 16px;">
+      ${data.regelzahlungen.length ? `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>${escapeHtml(t("regelzahlungen.bezeichnung"))}</th>
+              <th class="amount">${escapeHtml(t("cashflow.net"))}</th>
+              <th>${escapeHtml(t("regelzahlungen.rhythmus"))}</th>
+              <th>${escapeHtml(t("regelzahlungen.anker"))}</th>
+              <th>${escapeHtml(t("regelzahlungen.aktivBis"))}</th>
+              <th>${escapeHtml(t("labels.status"))}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>` : `<p class="muted">${escapeHtml(t("regelzahlungen.empty"))}</p>`}
     </section>
   `;
 }
@@ -758,6 +897,23 @@ app.addEventListener("click", (event) => {
     return;
   }
 
+  const cashflowToggle = event.target.closest("[data-cashflow-toggle]");
+  if (cashflowToggle) {
+    const key = cashflowToggle.dataset.cashflowToggle;
+    if (state.cashflowExpanded.has(key)) state.cashflowExpanded.delete(key);
+    else state.cashflowExpanded.add(key);
+    render();
+    return;
+  }
+
+  const cashflowGran = event.target.closest("[data-cashflow-gran]");
+  if (cashflowGran) {
+    state.cashflow.granularitaet = cashflowGran.dataset.cashflowGran;
+    state.cashflowExpanded.clear();
+    render();
+    return;
+  }
+
   const action = event.target.closest("[data-action]");
   if (action) {
     handleAction(action);
@@ -782,6 +938,12 @@ app.addEventListener("change", (event) => {
   if (control?.dataset.control === "theme") {
     state.theme = control.value;
     localStorage.setItem(storageKeys.theme, state.theme);
+    render();
+    return;
+  }
+  if (control?.dataset.control === "cashflow-bis") {
+    state.cashflow.bisDatum = control.value || defaultHorizonEnd(data.regelzahlungen, heuteIso());
+    state.cashflowExpanded.clear();
     render();
     return;
   }

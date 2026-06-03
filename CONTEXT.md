@@ -88,6 +88,8 @@ Der **erwartete** Cashflow der Zukunft, ausschliesslich aus **bestaetigten Regel
 
 Der **Horizont** ist konfigurierbar; Untergrenze ist das spaeteste `aktiv_bis` aller bestaetigten Regelzahlungen, damit langfristig bekannte Fakten (z. B. Gehalt bis Renteneintritt) nicht abgeschnitten werden. Unbefristete Regelzahlungen werden bis zum konfigurierten Horizont-Ende projiziert und als unbefristet markiert.
 
+Die Prognose ist in der Ansicht **nachvollziehbar**: eine eigene Regelzahlungs-Liste zeigt die Eingangsdaten, und die Prognose-Tabelle ist nach **Monat/Quartal/Jahr** aggregierbar (feste Kalenderquartale) sowie bis zu einem waehlbaren **Bis-Datum** begrenzbar. Jeder Zeitraum laesst sich bis zu den einzelnen Faelligkeiten aufklappen (Zeitraum → Monate → Posten), wobei die Summe ueber dem aufgeklappten Inhalt sichtbar bleibt. Der **laufende** Zeitraum (Quartal/Monat) ist als solcher markiert, weil er nur noch die erwarteten Faelligkeiten enthaelt — bereits Gebuchtes steht im Cashflow-Ist.
+
 Die M4-Prognose ist **regelzahlungsbasiert und bewusst unvollstaendig**: bekannte Einmaleffekte (z. B. Kapitalleistung einer Lebensversicherung → M7) und hypothetische Szenarien (→ M6) sind nicht enthalten. Diese Unvollstaendigkeit wird in der Ansicht **explizit gekennzeichnet**, damit keine Entscheidung auf einer scheinbar vollstaendigen Zahl getroffen wird. Eine bekannte **Stufenaenderung** einer wiederkehrenden Zahlung (z. B. Gehalt ab 60 halbiert) wird als zwei aufeinanderfolgende Regelzahlungen abgebildet, nicht als Szenario.
 
 Die Berechnung (Ist wie Prognose) ist eine **geteilte, reine Funktion**, die die App beim Laden aufruft und Node testen/ausfuehren kann — eine getestete Funktion an zwei Aufrufstellen, kein App-eigener Sonderweg.

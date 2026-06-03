@@ -1,6 +1,28 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { aktuellerZeitwert, kontoWert, restschuldHeute, anteilWertCents, faelligkeiten } from "../app/vermoegen.mjs";
+import { aktuellerZeitwert, kontoWert, restschuldHeute, anteilWertCents, faelligkeiten, computeNettovermoegen, computeVermoegenChecks, STANDDATUM_SCHWELLEN } from "../app/vermoegen.mjs";
+
+function vollDaten() {
+  return {
+    personen: [{ person_id: "PER-001", name: "Person A", status: "aktiv" }, { person_id: "PER-002", name: "Person B", status: "aktiv" }],
+    konten: [
+      { konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" },
+      { konto_id: "KTO-006", name: "Depot", kontotyp: "depot", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" },
+    ],
+    transaktionen: [{ konto_id: "KTO-001", buchungsdatum: "2026-02-10", betrag: "-200.00", ist_transfer: false }],
+    immobilien: [{ immobilie_id: "IMM-001", bezeichnung: "EFH", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }], status: "aktiv" }],
+    darlehen: [{ darlehen_id: "DAR-001", bezeichnung: "Hyp", status: "aktiv", anfangsbetrag: "300000.00", anfangsdatum: "2020-01-31", zinssatz: "1.80", sollrate: "800.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, immobilie_id: "IMM-001" }],
+    vermoegenswerte: [{ vermoegenswert_id: "VMW-001", typ: "edelmetall", bezeichnung: "Gold", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }], status: "aktiv" }],
+    regelzahlungen: [],
+    zeitwerte: [
+      { entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "1000.00", standdatum: "2026-01-31", qualitaet: "belegt" },
+      { entitaet: "konto", entitaet_id: "KTO-006", feld: "depotwert", wert: "25000.00", standdatum: "2026-02-01", qualitaet: "belegt" },
+      { entitaet: "immobilie", entitaet_id: "IMM-001", feld: "marktwert", wert: "400000.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },
+      { entitaet: "darlehen", entitaet_id: "DAR-001", feld: "restschuld", wert: "200000.00", standdatum: "2026-01-31", qualitaet: "belegt" },
+      { entitaet: "vermoegenswert", entitaet_id: "VMW-001", feld: "marktwert", wert: "5000.00", standdatum: "2026-02-01", qualitaet: "geschaetzt" },
+    ],
+  };
+}
 
 test("aktuellerZeitwert nimmt den jüngsten Eintrag pro (entitaet_id, feld)", () => {
   const zw = [
@@ -101,4 +123,51 @@ test("faelligkeiten: mehrere Perioden zwischen nach und bis", () => {
   const dar = { anfangsdatum: "2020-01-15", rhythmus_einheit: "monat", rhythmus_intervall: 1 };
   const dates = faelligkeiten(dar, "2026-01-15", "2026-04-15");
   assert.deepEqual(dates, ["2026-02-15", "2026-03-15", "2026-04-15"]);
+});
+
+test("computeNettovermoegen summiert Aktiva minus Passiva", () => {
+  const r = computeNettovermoegen(vollDaten(), "2026-03-01");
+  // Aktiva: Giro 800.00 + Depot 25000.00 + Immobilie 400000.00 + Gold 5000.00 = 430800.00
+  // Passiva: Restschuld 199500.00 (Zins 300, Tilgung 500 für eine Februar-Rate)
+  // Netto = 430800.00 - 199500.00 = 231300.00
+  assert.equal(r.aktiva_cents, 43080000);
+  assert.equal(r.passiva_cents, 19950000);
+  assert.equal(r.netto_cents, 23130000);
+  assert.ok(r.positionen.length >= 5);
+});
+
+test("computeVermoegenChecks meldet fehlenden Marktwert und fehlenden Anker", () => {
+  const daten = vollDaten();
+  daten.zeitwerte = daten.zeitwerte.filter((z) => !(z.entitaet === "immobilie") && !(z.entitaet === "konto" && z.entitaet_id === "KTO-001"));
+  const checks = computeVermoegenChecks(daten, "2026-03-01");
+  assert.ok(checks.some((c) => c.art === "marktwert-fehlt" && c.entitaet_id === "IMM-001"));
+  assert.ok(checks.some((c) => c.art === "anker-fehlt" && c.entitaet_id === "KTO-001"));
+});
+
+test("computeVermoegenChecks meldet aktives Darlehen ohne Raten-Regelzahlung", () => {
+  const checks = computeVermoegenChecks(vollDaten(), "2026-03-01");
+  assert.ok(checks.some((c) => c.art === "darlehen-ohne-regelzahlung" && c.entitaet_id === "DAR-001"));
+});
+
+test("computeVermoegenChecks: Reconciliation-Drift bei zwei belegten Kontoständen", () => {
+  const daten = vollDaten();
+  daten.zeitwerte.push({ entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "5000.00", standdatum: "2026-02-28", qualitaet: "belegt" });
+  // gebucht zwischen 01-31 und 02-28: -200.00 -> erwartet 800.00, belegt 5000.00 -> Drift
+  const checks = computeVermoegenChecks(daten, "2026-03-01");
+  assert.ok(checks.some((c) => c.art === "reconciliation-drift" && c.entitaet_id === "KTO-001"));
+});
+
+test("computeVermoegenChecks: geschätzter Kontostand ankert keine Reconciliation", () => {
+  const daten = vollDaten();
+  // Zweiter Stand ist nur geschätzt -> darf keine Drift erzeugen (ADR 0013: nur belegte Anker)
+  daten.zeitwerte.push({ entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "5000.00", standdatum: "2026-02-28", qualitaet: "geschaetzt" });
+  const checks = computeVermoegenChecks(daten, "2026-03-01");
+  assert.ok(!checks.some((c) => c.art === "reconciliation-drift" && c.entitaet_id === "KTO-001"));
+});
+
+test("computeVermoegenChecks: veralteter Marktwert je Schwelle", () => {
+  const daten = vollDaten();
+  // Immobilie marktwert standdatum 2026-01-01, today weit später -> > 12 Monate
+  const checks = computeVermoegenChecks(daten, "2027-06-01");
+  assert.ok(checks.some((c) => c.art === "bewertung-veraltet" && c.entitaet_id === "IMM-001"));
 });

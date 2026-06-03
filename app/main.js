@@ -233,7 +233,6 @@ function renderOverview() {
         <section class="panel panel-pad">
           <h2 class="section-title">${escapeHtml(t("overview.roadmap"))}</h2>
           <div class="roadmap roadmap-large">
-            <div class="roadmap-card"><strong>${escapeHtml(t("overview.cashflowRoadmap"))}</strong><span class="muted">${escapeHtml(t("overview.plannedLater"))}</span></div>
             <div class="roadmap-card"><strong>${escapeHtml(t("overview.wealthRoadmap"))}</strong><span class="muted">${escapeHtml(t("overview.plannedLater"))}</span></div>
           </div>
         </section>
@@ -551,6 +550,9 @@ function renderCashflow() {
   const vorschlaegeChip = prognose.qualitaet.vorschlaege_nicht_enthalten > 0
     ? `<span class="chip review">? ${escapeHtml(String(prognose.qualitaet.vorschlaege_nicht_enthalten))} ${escapeHtml(t("cashflow.qualityProposalsExcluded"))}</span>`
     : "";
+  const unbefristetChip = prognose.qualitaet.unbefristete_regelzahlungen > 0
+    ? `<span class="chip neutral">• ${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`
+    : "";
   return `
     ${renderPageHead(t("cashflow.title"), t("cashflow.lead"))}
     <div class="tile-grid">
@@ -564,6 +566,7 @@ function renderCashflow() {
         <div class="count">${escapeHtml(formatMoney(prognose.gesamt_netto_cents))}</div>
         <span class="chip neutral">• ${escapeHtml(String(prognose.qualitaet.bestaetigte_regelzahlungen))} ${escapeHtml(t("cashflow.qualityConfirmed"))}</span>
         ${vorschlaegeChip}
+        ${unbefristetChip}
         <span class="chip neutral">• ${escapeHtml(t("cashflow.horizonTo"))} ${escapeHtml(prognose.horizont_ende)}</span>
       </div>
     </div>

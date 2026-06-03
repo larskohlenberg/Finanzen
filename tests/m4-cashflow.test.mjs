@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addInterval, occurrences, computeCashflowIst, computeCashflowPrognose, defaultHorizonEnd, localTodayIso } from "../app/cashflow.mjs";
+import { addInterval, occurrences, computeCashflowIst, computeCashflowPrognose, periodenSchluessel, defaultHorizonEnd, localTodayIso } from "../app/cashflow.mjs";
 
 test("addInterval addiert Tage", () => {
   assert.equal(addInterval("2026-01-30", "tag", 5), "2026-02-04");
@@ -113,4 +113,21 @@ test("Stufenaenderung: zwei aufeinanderfolgende Regelzahlungen ohne Ueberlappung
     { monat: "2026-08", netto_cents: 175000 },
     { monat: "2026-09", netto_cents: 175000 },
   ]);
+});
+
+test("periodenSchluessel: Monat liefert den Monat unverändert", () => {
+  assert.equal(periodenSchluessel("2026-08", "monat"), "2026-08");
+});
+
+test("periodenSchluessel: feste Kalenderquartale", () => {
+  assert.equal(periodenSchluessel("2026-01", "quartal"), "2026-Q1");
+  assert.equal(periodenSchluessel("2026-03", "quartal"), "2026-Q1");
+  assert.equal(periodenSchluessel("2026-04", "quartal"), "2026-Q2");
+  assert.equal(periodenSchluessel("2026-07", "quartal"), "2026-Q3");
+  assert.equal(periodenSchluessel("2026-10", "quartal"), "2026-Q4");
+  assert.equal(periodenSchluessel("2026-12", "quartal"), "2026-Q4");
+});
+
+test("periodenSchluessel: Jahr liefert das Jahr", () => {
+  assert.equal(periodenSchluessel("2026-08", "jahr"), "2026");
 });

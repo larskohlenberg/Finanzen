@@ -70,6 +70,16 @@ export function defaultHorizonEnd(regelzahlungen, today, fallbackMonate = 12) {
   return max > fallback ? max : fallback;
 }
 
+export function periodenSchluessel(monat, granularitaet) {
+  const [jahr, mm] = monat.split("-");
+  if (granularitaet === "jahr") return jahr;
+  if (granularitaet === "quartal") {
+    const quartal = Math.floor((Number(mm) - 1) / 3) + 1;
+    return `${jahr}-Q${quartal}`;
+  }
+  return monat;
+}
+
 export function computeCashflowPrognose(regelzahlungen, { today, horizonEnd }) {
   const ende = horizonEnd ?? defaultHorizonEnd(regelzahlungen, today);
   const monate = new Map();

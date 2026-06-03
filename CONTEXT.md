@@ -16,7 +16,23 @@ Eine externe, vom Anbieter vergebene, bevorzugt maskierte Kennung eines Kontos o
 
 ## Immobilie
 
-Hat **Eigentumsanteile** mit Quoten (`eigentumsanteile: [{person_id, anteil}]`, Summe = 1). Anders als beim Konto, weil hier reale, ungleiche Eigentumsverhaeltnisse existieren (Beispiel: 2/3 zu 1/3 im Grundbuch).
+Hat **Eigentumsanteile** mit Quoten als **exakten Bruch** (`eigentumsanteile: [{person_id, zaehler, nenner}]`, Summe = 1). Anders als beim Konto, weil hier reale, ungleiche Eigentumsverhaeltnisse existieren (Beispiel: 2/3 zu 1/3 im Grundbuch). Bruch statt Dezimalzahl, weil Grundbuch-Quoten Brueche sind und die Summenpruefung so exakt als Integer-Arithmetik laeuft (keine Float-/Rundungsunschaerfe, passt zur Cent-Integer-Philosophie). Anzeige als "2/3" oder "66,7 %" ist reine Darstellung.
+
+**Anschaffung vs. Marktwert** sind verschiedene Dinge. *Anschaffungskosten* (Kaufpreis laut Kaufvertrag, ohne Nebenkosten — die ggf. in `bemerkung`) und *Anschaffungsdatum* sind eine **fixe historische Tatsache** (normales Feld, kein Zeitwert). Das **Anschaffungsdatum** ist das Datum des **notariellen Kaufvertrags** (Beurkundungstag), bewusst nicht Uebergabe/Nutzen-Lasten-Wechsel und nicht Grundbucheintragung (steuerlich massgeblich, z. B. 10-Jahres-Frist §23 EStG). Der *Marktwert* ist dagegen ein zeitveraenderlicher **Zeitwert** (`feld = marktwert`, fortschreibbar). Die Differenz ist die Wertentwicklung.
+
+Die Quoten sind primaer **Darstellung/Metadaten**; das Nettovermoegen ist eine Gesamt-/Haushaltssicht und wird **anteilsgewichtet** ueber Haushaltspersonen gerechnet (heute faktisch 100 %, solange alle Miteigentuemer zum Haushalt gehoeren). Ein **externer Miteigentuemer** (ausserhalb des Haushalts) wird **nicht** als Person modelliert — das wuerde ueber ein Rollen-/Haushalts-Flag den als Nicht-Entitaet verworfenen Haushalt durch die Hintertuer einfuehren. Stattdessen als expliziter Anteilseintrag **ohne** `person_id`, z. B. `{zaehler, nenner, extern: true, bezeichnung}`. Das Nettovermoegen zaehlt nur Anteile **mit** `person_id`. Dieser externe Fall wird erst bei Bedarf gebaut (YAGNI); die anteilsgewichtete Rechnung greift dann sofort.
+
+## Weiterer Vermoegenswert
+
+Bewerteter Besitz, der weder Konto/Depot noch Immobilie ist — z. B. Edelmetall (Gold/Silber) oder eine Firmenbeteiligung. **Eine** erweiterbare Entitaet (`vermoegenswerte.json`) mit `typ` (`edelmetall | beteiligung | sonstiges`), nicht je Klasse eine eigene Datei — analog zur parametrisierten Regelzahlung/Darlehen statt Subtyp-Duplikaten. Hat Eigentumsanteile mit Quoten wie die Immobilie (inkl. externem-Miteigentuemer-Muster). Der Wert ist **nicht** aus Transaktionen berechenbar und lebt als Zeitwert (`feld = marktwert`, `qualitaet = belegt | geschaetzt`). Geht anteilsgewichtet ins Nettovermoegen ein. Nicht zu verwechseln mit der als Nicht-Entitaet verworfenen `vermoegen.json` (das war die *aggregierte* Vermoegenssicht, die berechnet entsteht).
+
+## Darlehen
+
+Eine verzinste Verbindlichkeit mit Tilgung (privat: Annuitaetendarlehen). Stammdaten: Anfangsbetrag, Anfangsdatum, Nominalzins, Sollrate, Rhythmus (`{einheit, intervall}` wie bei der Regelzahlung), optional Bezug zu Immobilie und zum belastenden Konto. Die **Restschuld** ist kein gepflegter Wert, sondern wird aus einem belegten Anker + Tilgung berechnet (siehe ADR 0013). Endfaelliges und 0%-Darlehen sind Sonderwerte derselben Struktur (kein eigenes Typ-Feld). Geht mit der Restschuld als Passivum ins Nettovermoegen ein. Status: `aktiv | abgeloest`.
+
+## Nettovermoegen
+
+Berechnete Gesamt-/Haushaltssicht: Aktiva (liquide Konten + Depotwerte + anteilsgewichtete Immobilien/Vermoegenswerte) minus Passiva (Darlehen-Restschulden). **Nie** ein gepflegter oder gespeicherter Wert — immer beim Laden berechnet, mit sichtbarer Datenqualitaet (belegt/geschaetzt/fehlend). Keine Aufteilung pro Person (siehe ADR 0014). Bargeld zaehlt nicht (bewusster blinder Fleck).
 
 ## Haushalt
 
@@ -78,6 +94,12 @@ Intern in Code: Cent-Integer. Konvertierung an genau zwei Stellen (Reader, Write
 
 **Kontostand** bezeichnet einen belegten Stand eines Kontos zu einem bestimmten Datum, typischerweise aus Bank- oder Depotunterlagen. In M2 wird der Begriff in der UI vermieden, solange nur Demo- oder Teildaten geladen sind.
 
+Ab M5 ist der belegte Kontostand ein **Zeitwert** (`entitaet = konto`, `feld = kontostand`, `qualitaet = belegt`); pro Konto duerfen mehrere existieren (Auszug fuer Auszug). Er ist **belegt, nicht abgeleitet** — der Saldo steht auf dem Auszug selbst ("alter/neuer Saldo"). Bewusst nicht "Endstand minus alle Buchungen" rechnen: das wuerde fehlende Buchungen in den Anker hineinrechnen und den Reconciliation-Check (s. u.) wirkungslos machen.
+
+**Live-Saldo eines Kontos** = juengster belegter Kontostand **+** Summe der Buchungen *nach* dessen Standdatum. So sammeln sich keine alten Buchungsfehler an. Liegt fuer ein liquiditaetsrelevantes Konto kein belegter Kontostand vor → sichtbarer Check.
+
+**Reconciliation-Check** (ab M5, Ist-gegen-Ist): ueber je zwei aufeinanderfolgende belegte Kontostaende muss die belegte Differenz der gebuchten Differenz entsprechen. Weicht sie ab → Check "Buchungen passen nicht zum Kontoauszug" (vergessene oder doppelte Buchungen). Abzugrenzen vom **Plan-Ist-Abgleich** (M8), der Zukunftsplan gegen Realitaet prueft.
+
 ## Cashflow-Ist
 
 Der **tatsaechliche** Cashflow, vollstaendig aus Transaktionen der Vergangenheit berechnet (Cent-Integer-Summe, gruppiert z. B. nach Monat und/oder Kategorie). Transfers zaehlen nicht (cashflow-neutral). Kein gespeicherter Wert — beim Laden berechnet, wie Nettovermoegen. Reicht bis „heute".
@@ -122,7 +144,9 @@ Werte mit zeitlichem Bezug, die **nicht aus Transaktionen berechenbar** sind, le
 
 Anwendungsfaelle: Immobilien-Marktwert, Depotwert, erwartete Rente, Rueckkaufswert Versicherung. Aktueller Wert = neuester Eintrag pro `(entitaet_id, feld)`. Verlauf entsteht durch Anhaengen, nicht durch Ueberschreiben — weil **git als Audit-Spur nicht zaehlt**: die App soll spaeter standalone ohne Git laufen.
 
-Werte, die berechenbar sind (Konto-Saldo, Darlehen-Restschuld, Nettovermoegen), gehoeren **nicht** in `zeitwerte.jsonl` — sie werden in der App berechnet.
+Werte, die aus den Bewegungsdaten **vollstaendig** berechenbar sind (Nettovermoegen als Aggregat, sowie laufende Veraenderungen), gehoeren **nicht** in `zeitwerte.jsonl` — sie werden in der App berechnet.
+
+Praezisierung (M5): Konto-Saldo und Darlehen-Restschuld sind nur dann rein berechenbar, wenn die Historie **vollstaendig** vorliegt. Da das in der Praxis nicht garantiert ist, braucht beides einen belegten **Ankerpunkt** als Zeitwert (`feld = kontostand` bzw. `feld = restschuld`, `qualitaet = belegt`); der laufende Wert wird daraus + Bewegungen berechnet, und weitere belegte Staende dienen dem Reconciliation-Check. Das Nettovermoegen selbst bleibt rein berechnet (Aggregat) und nie ein Zeitwert.
 
 `qualitaet`: `belegt | geschaetzt`. Datenqualitaet ist immer am einzelnen Wert, nie an der Entitaet.
 

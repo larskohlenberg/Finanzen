@@ -1,4 +1,4 @@
-import { computeCashflowIst, computeCashflowPrognose } from "./cashflow.mjs";
+import { computeCashflowIst, computeCashflowPrognose, localTodayIso } from "./cashflow.mjs";
 const data = window.FINANCE_REVIEW_DATA;
 data.regelzahlungen = data.regelzahlungen ?? [];
 const dictionaries = window.FINANCE_I18N;
@@ -514,7 +514,7 @@ function renderTransactionDetail(tx) {
 }
 
 function heuteIso() {
-  return new Date().toISOString().slice(0, 10);
+  return localTodayIso();
 }
 
 function renderMonatsTabelle(monate) {

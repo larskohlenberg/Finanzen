@@ -123,5 +123,5 @@ Wenn eines dieser Felder fuer eine Zeile nicht zuverlaessig extrahierbar ist: **
 ## Verwandte Skills (noch nicht vorhanden)
 
 - **kategorisierungsregel-pflegen** — neue Regel anlegen oder bestehende anpassen.
-- **regelzahlungserkennung** (ab M4) — wiederkehrende Buchungen als Regelzahlungen markieren.
+- **regelzahlung-agent** (M4, `docs/skills/regelzahlung-agent.md`) — wiederkehrende Buchungen als Regelzahlungen erkennen, vorschlagen, bestätigen.
 - **belegextraktion** (ab M5/M7) — Belege, Vertraege, Versicherungspolicen lesen.

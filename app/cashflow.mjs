@@ -113,6 +113,69 @@ export function computeCashflowPrognose(regelzahlungen, { today, horizonEnd }) {
   };
 }
 
+export function computeCashflowPrognoseDetail(regelzahlungen, { today, horizonEnd, granularitaet = "monat" }) {
+  const ende = horizonEnd ?? defaultHorizonEnd(regelzahlungen, today);
+  const heuteMonat = monatVon(today);
+  const heutePeriode = periodenSchluessel(heuteMonat, granularitaet);
+
+  const monateMap = new Map(); // monat -> { posten: [], netto_cents }
+  let bestaetigt = 0;
+  let vorschlaege = 0;
+  let unbefristet = 0;
+  for (const rz of regelzahlungen) {
+    if (rz.status === "vorgeschlagen") { vorschlaege++; continue; }
+    if (rz.status !== "bestaetigt") continue;
+    bestaetigt++;
+    if (!rz.aktiv_bis) unbefristet++;
+    const betrag = toCents(rz.betrag);
+    for (const datum of occurrences(rz, today, ende)) {
+      const monat = monatVon(datum);
+      if (!monateMap.has(monat)) monateMap.set(monat, { posten: [], netto_cents: 0 });
+      const eintrag = monateMap.get(monat);
+      eintrag.posten.push({ datum, bezeichnung: rz.bezeichnung, regelzahlung_id: rz.regelzahlung_id, betrag_cents: betrag });
+      eintrag.netto_cents += betrag;
+    }
+  }
+
+  const periodenMap = new Map(); // periodenkey -> Map(monat -> eintrag)
+  for (const [monat, eintrag] of monateMap) {
+    const key = periodenSchluessel(monat, granularitaet);
+    if (!periodenMap.has(key)) periodenMap.set(key, new Map());
+    periodenMap.get(key).set(monat, eintrag);
+  }
+
+  const perioden = [...periodenMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([periode, monMap]) => {
+      const monate = [...monMap.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([monat, eintrag]) => ({
+          monat,
+          netto_cents: eintrag.netto_cents,
+          ist_laufend: monat === heuteMonat,
+          posten: [...eintrag.posten].sort((x, y) => x.datum.localeCompare(y.datum)),
+        }));
+      return {
+        periode,
+        netto_cents: monate.reduce((s, m) => s + m.netto_cents, 0),
+        ist_laufend: periode === heutePeriode,
+        monate,
+      };
+    });
+
+  return {
+    perioden,
+    gesamt_netto_cents: perioden.reduce((s, p) => s + p.netto_cents, 0),
+    horizont_ende: ende,
+    qualitaet: {
+      bestaetigte_regelzahlungen: bestaetigt,
+      vorschlaege_nicht_enthalten: vorschlaege,
+      unbefristete_regelzahlungen: unbefristet,
+      einmaleffekte_enthalten: false,
+    },
+  };
+}
+
 export function computeCashflowIst(transaktionen, { today }) {
   const monate = new Map();
   let gesamt = 0;

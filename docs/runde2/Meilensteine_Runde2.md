@@ -102,7 +102,7 @@ Ziel: Vermoegenswerte und Schulden werden als separate Stammdaten mit Quellensta
 
 Exit-Kriterien:
 
-- Immobilien, Darlehen, Konten und Depots haben getrennte Entitaeten.
+- Immobilien, Darlehen und Konten (inkl. Depots als `kontotyp=depot`) haben getrennte Entitaeten.
 - Bewertungen haben Standdatum und Quelle.
 - Nettovermoegen ist berechnet, nicht manuell gepflegt.
 - Fehlende Quellen erzeugen sichtbare Checks.
@@ -116,6 +116,26 @@ Exit-Kriterien:
 - Annahmen sind versioniert oder mit Gueltigkeit versehen.
 - Szenarioergebnisse zeigen Datenqualitaet.
 - Keine zentrale Lebensentscheidung wird aus Platzhaltern als scheinbar belastbarer Wert dargestellt.
+
+Vorgemerkt aus M5-Grilling (2026-06-03):
+
+- **Geplante Sondertilgungen** auf Darlehen, einmalig (z. B. "Februar 2031: 20.000")
+  und wiederkehrend (z. B. "jedes Jahr im Dezember: 500"), als Annahme/Planwert mit
+  Darlehensbezug. In M5 bewusst ausgeklammert (M5 rechnet nur bereits **erfolgte**
+  Sondertilgungen in die Restschuld ein).
+- **Restschuld-Projektion auf ein Zukunftsdatum** (braucht die geplanten
+  Sondertilgungen). M5 berechnet Restschuld nur zum Stichtag/heute.
+- **Cash-Realismus-Guardrail für Prognosen.** Geplante Ausgaben-Regelzahlungen
+  duerfen die Zukunft nicht faelschlich rosig aussehen lassen, weil zu wenig
+  Ausgabe geplant ist. Beispiel: geplant 500/Monat Supermarkt, real per Auszug
+  nur Rewe 280 + Lidl 100, plus 120 **bar** (unsichtbar, weil als Abhebung schon
+  abgeflossen). Die Prognose/Szenarien muessen auf Implausibilitaet hinweisen,
+  wenn geplante Ausgaben deutlich unter dem historischen Ist liegen, statt still
+  ein zu gutes Bild zu zeigen (vgl. ADR 0011: bewusste Unvollstaendigkeit
+  sichtbar machen).
+- **Kanal fuer Plan-Zusammensetzung an den Agenten.** Der Nutzer muss dem Agenten
+  mitteilen koennen, aus welchen realen Buchungen (inkl. Bar-Anteil) sich ein
+  Planwert zusammensetzt, damit Abgleich und Prognose realistisch bleiben.
 
 ## M7 - Versicherungen, Renten und Vorsorge
 
@@ -138,6 +158,13 @@ Exit-Kriterien:
 - Rollenrechte verhindern stille Fachentscheidungen.
 - Wiederholte Laeufe erzeugen keine doppelten Vorschlaege.
 - Nutzerentscheidungen sind von Agentenvorschlaegen getrennt.
+
+Vorgemerkt aus M5-Grilling (2026-06-03):
+
+- **Plan-Ist-Abgleich** als generelle wiederkehrende Pruefregel ueber *alle* Planwerte
+  (geplante Sondertilgungen, Regelzahlungen, weitere Planzahlen): "wurde aus dem Plan
+  Realitaet?". Bewusst nicht als M5-Sonderfall nur fuer Darlehen, sondern hier
+  systematisch ueber alle Entitaeten mit Planwerten.
 
 ## M9 - Umfassende App statt Datenviewer
 

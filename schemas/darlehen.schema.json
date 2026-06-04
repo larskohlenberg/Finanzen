@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Darlehen",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["darlehen_id", "bezeichnung", "status", "anfangsbetrag", "anfangsdatum", "zinssatz", "sollrate", "rhythmus_einheit", "rhythmus_intervall"],
+    "additionalProperties": false,
+    "properties": {
+      "darlehen_id": { "type": "string", "pattern": "^DAR-\\d{3}$" },
+      "bezeichnung": { "type": "string", "minLength": 1 },
+      "status": { "type": "string", "enum": ["aktiv", "abgeloest"] },
+      "anfangsbetrag": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+      "anfangsdatum": { "type": "string", "format": "date" },
+      "zinssatz": { "type": "string", "pattern": "^\\d+\\.\\d{2,4}$" },
+      "sollrate": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+      "rhythmus_einheit": { "type": "string", "enum": ["tag", "woche", "monat", "jahr"] },
+      "rhythmus_intervall": { "type": "integer", "minimum": 1 },
+      "immobilie_id": { "type": "string", "pattern": "^IMM-\\d{3}$" },
+      "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
+      "zinsbindung_bis": { "type": "string", "format": "date" },
+      "aktiv_bis": { "type": "string", "format": "date" },
+      "quelle_hinweis": { "type": "string" },
+      "quelle_standdatum": { "type": "string", "format": "date" },
+      "bemerkung": { "type": "string" }
+    }
+  }
+}

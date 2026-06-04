@@ -16,6 +16,7 @@
       "aktiv_bis": { "type": "string", "format": "date" },
       "status": { "type": "string", "enum": ["vorgeschlagen", "bestaetigt", "abgelehnt"] },
       "kategorie_id": { "type": "string", "pattern": "^KAT-\\d{3}$" },
+      "darlehen_id": { "type": "string", "pattern": "^DAR-\\d{3}$" },
       "erstellt_am": { "type": "string", "format": "date" },
       "bemerkung": { "type": "string" }
     }

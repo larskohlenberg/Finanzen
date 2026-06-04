@@ -102,7 +102,7 @@ Ziel: Vermoegenswerte und Schulden werden als separate Stammdaten mit Quellensta
 
 Exit-Kriterien:
 
-- Immobilien, Darlehen, Konten und Depots haben getrennte Entitaeten.
+- Immobilien, Darlehen und Konten (inkl. Depots als `kontotyp=depot`) haben getrennte Entitaeten.
 - Bewertungen haben Standdatum und Quelle.
 - Nettovermoegen ist berechnet, nicht manuell gepflegt.
 - Fehlende Quellen erzeugen sichtbare Checks.

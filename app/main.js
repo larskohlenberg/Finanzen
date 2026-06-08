@@ -1,8 +1,23 @@
 import { computeCashflowIst, computeCashflowPrognoseDetail, defaultHorizonEnd, toCents, localTodayIso } from "./cashflow.mjs";
+import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
 const data = window.FINANCE_REVIEW_DATA;
-data.regelzahlungen = data.regelzahlungen ?? [];
 const dictionaries = window.FINANCE_I18N;
+
+if (!data || !Array.isArray(data.personen) || !Array.isArray(data.konten) || !dictionaries) {
+  const shell = document.querySelector("#app");
+  if (shell) {
+    shell.innerHTML = `
+      <div class="bootstrap-error" role="alert">
+        <h1>Daten konnten nicht geladen werden</h1>
+        <p>Die Review-Daten (<code>review-data.js</code>) oder die Sprachdatei (<code>i18n.js</code>) wurden nicht oder unvollständig geladen.</p>
+        <p>Bitte die Seite über den lokalen Webserver öffnen und neu laden. Falls das Problem bestehen bleibt, das Review-Bundle erneut bereitstellen.</p>
+      </div>`;
+  }
+  throw new Error("Finanzmodell: Bootstrap abgebrochen – FINANCE_REVIEW_DATA oder FINANCE_I18N fehlt/unvollständig.");
+}
+
+data.regelzahlungen = data.regelzahlungen ?? [];
 
 const storageKeys = {
   lang: "finance-m2-language",
@@ -11,14 +26,14 @@ const storageKeys = {
 };
 
 const navItems = [
-  ["overview", "nav.overview", "⌂"],
-  ["transactions", "nav.transactions", "≡"],
-  ["cashflow", "nav.cashflow", "€"],
-  ["regelzahlungen", "nav.regelzahlungen", "↻"],
-  ["vermoegen", "nav.vermoegen", "▲"],
-  ["masterdata", "nav.masterdata", "◫"],
-  ["checks", "nav.checks", "✓"],
-  ["export", "nav.export", "⇩"],
+  ["overview", "nav.overview", "overview"],
+  ["transactions", "nav.transactions", "transactions"],
+  ["cashflow", "nav.cashflow", "cashflow"],
+  ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
+  ["vermoegen", "nav.vermoegen", "vermoegen"],
+  ["masterdata", "nav.masterdata", "masterdata"],
+  ["checks", "nav.checks", "checks"],
+  ["export", "nav.export", "export"],
 ];
 
 const state = {
@@ -35,6 +50,7 @@ const state = {
   transactionPage: 1,
   pageSize: 10,
   selectedTransactionId: "",
+  detailRailClosed: false,
   masterSection: "konten",
   cashflow: {
     granularitaet: "monat",
@@ -47,6 +63,7 @@ const state = {
   },
   vermoegenSort: { key: "klasse", dir: "asc" },
   selectedVermoegenId: "",
+  vermoegenDetailRailClosed: false,
 };
 
 const app = document.querySelector("#app");
@@ -77,7 +94,12 @@ function escapeHtml(value) {
 }
 
 function cents(decimalString) {
-  return Math.round(Number(decimalString) * 100);
+  const raw = String(decimalString ?? "").trim();
+  if (raw === "") return 0;
+  const sign = raw.startsWith("-") ? -1 : 1;
+  const [euros = "0", frac = ""] = raw.replace("-", "").split(".");
+  const fracPadded = (frac + "00").slice(0, 2);
+  return sign * (Number(euros) * 100 + Number(fracPadded));
 }
 
 function formatMoney(amountInCents) {
@@ -105,8 +127,8 @@ function categoryName(categoryId) {
 
 function statusChip(status) {
   const className = status === "offen" ? "review" : status === "bestaetigt" ? "success" : "neutral";
-  const icon = status === "offen" ? "?" : status === "bestaetigt" ? "✓" : "•";
-  return `<span class="chip ${className}"><span>${icon}</span>${escapeHtml(t(`status.${status}`))}</span>`;
+  const icon = status === "offen" ? "review" : status === "bestaetigt" ? "success" : "neutral";
+  return `<span class="chip ${className}">${iconSvg(icon)}${escapeHtml(t(`status.${status}`))}</span>`;
 }
 
 function reviewChecks() {
@@ -136,6 +158,37 @@ function loadedTotalAccountsBalance() {
     .reduce((sum, tx) => sum + cents(tx.betrag), 0);
 }
 
+function currentNettovermoegen() {
+  return computeNettovermoegen(data, localTodayIso());
+}
+
+function overviewAccountStandDate(konto) {
+  if (konto.kontotyp === "depot") {
+    return aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert")?.standdatum || "";
+  }
+  const latestBookingDate = data.transaktionen
+    .filter((tx) => tx.konto_id === konto.konto_id)
+    .reduce((latest, tx) => (String(tx.buchungsdatum ?? "") > latest ? String(tx.buchungsdatum ?? "") : latest), "");
+  return latestBookingDate || aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand")?.standdatum || "";
+}
+
+function overviewAccountRank(konto) {
+  if (konto.kontotyp === "giro") return 0;
+  if (konto.kontotyp === "tagesgeld") return 1;
+  if (konto.kontotyp === "depot") return 2;
+  return 3;
+}
+
+function sortedOverviewAccounts() {
+  return data.konten.slice().sort((a, b) => {
+    const rank = overviewAccountRank(a) - overviewAccountRank(b);
+    if (rank !== 0) return rank;
+    const dateCmp = overviewAccountStandDate(b).localeCompare(overviewAccountStandDate(a));
+    if (dateCmp !== 0) return dateCmp;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 function applyTheme() {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const theme = state.theme === "system" ? (systemDark ? "dark" : "light") : state.theme;
@@ -143,16 +196,107 @@ function applyTheme() {
   document.documentElement.lang = state.lang;
 }
 
+const FOCUS_ATTRS = [
+  "id", "data-view", "data-action", "data-account", "data-transaction",
+  "data-vermoegen", "data-cashflow-toggle", "data-cashflow-gran", "data-master-section",
+  "data-vermoegen-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
+];
+const SCROLL_SELECTORS = [".nav", ".table-wrap"];
+
+// render() ersetzt den kompletten DOM (app.innerHTML). Ohne Gegenmassnahme
+// springt der Fokus auf <body> und horizontale Scrollpositionen gehen verloren.
+// Vor jedem Re-Render Fokus + Scroll sichern und danach wiederherstellen.
+function captureFocus() {
+  const el = document.activeElement;
+  if (!el || el === document.body || !app.contains(el)) return null;
+  const parts = [];
+  for (const attr of FOCUS_ATTRS) {
+    const value = el.getAttribute?.(attr);
+    if (value != null) parts.push(`[${attr}="${CSS.escape(value)}"]`);
+  }
+  if (!parts.length) return null;
+  const selectionStart = typeof el.selectionStart === "number" ? el.selectionStart : null;
+  const selectionEnd = typeof el.selectionEnd === "number" ? el.selectionEnd : null;
+  return { selector: el.tagName.toLowerCase() + parts.join(""), selectionStart, selectionEnd };
+}
+
+function restoreFocus(snap) {
+  if (!snap) return;
+  let target = null;
+  try {
+    target = app.querySelector(snap.selector);
+  } catch {
+    target = null;
+  }
+  if (!target) return;
+  target.focus({ preventScroll: true });
+  if (snap.selectionStart != null && typeof target.setSelectionRange === "function") {
+    try {
+      target.setSelectionRange(snap.selectionStart, snap.selectionEnd);
+    } catch {
+      /* z. B. input[type=date] erlaubt keine Selektion – ignorieren */
+    }
+  }
+}
+
+function captureScroll() {
+  const map = {};
+  for (const sel of SCROLL_SELECTORS) {
+    map[sel] = [...app.querySelectorAll(sel)].map((el) => ({ left: el.scrollLeft, top: el.scrollTop }));
+  }
+  return { x: window.scrollX, y: window.scrollY, map };
+}
+
+function restoreScroll(snap) {
+  if (!snap) return;
+  for (const sel of SCROLL_SELECTORS) {
+    const els = app.querySelectorAll(sel);
+    (snap.map[sel] || []).forEach((pos, i) => {
+      const el = els[i];
+      if (el) {
+        el.scrollLeft = pos.left;
+        el.scrollTop = pos.top;
+      }
+    });
+  }
+  window.scrollTo(snap.x, snap.y);
+}
+
+// Schlanke Statusmeldung fuer Screenreader. Sitzt in #sr-status ausserhalb von
+// #app, damit nicht bei jedem Re-Render die komplette Oberflaeche vorgelesen wird.
+function statusMessage() {
+  const navLabel = navItems.find(([view]) => view === state.view)?.[1];
+  const title = navLabel ? t(navLabel) : "";
+  if (state.view === "transactions") {
+    const rows = filteredTransactions();
+    const balance = rows.reduce((sum, tx) => sum + cents(tx.betrag), 0);
+    return `${title}: ${rows.length} ${t("transactions.hits")}, ${t("transactions.filteredBalance")} ${formatMoney(balance)}`;
+  }
+  return title;
+}
+
+function announceStatus() {
+  const region = document.querySelector("#sr-status");
+  if (!region) return;
+  const msg = statusMessage();
+  if (region.textContent !== msg) region.textContent = msg;
+}
+
 function render() {
   applyTheme();
+  const focusSnap = captureFocus();
+  const scrollSnap = captureScroll();
   app.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
   app.innerHTML = `
     ${renderSidebar()}
-    <main class="main">
+    <main class="main" id="main-content" tabindex="-1">
       ${renderTopbar()}
       ${renderView()}
     </main>
   `;
+  restoreScroll(scrollSnap);
+  restoreFocus(focusSnap);
+  announceStatus();
 }
 
 function renderSidebar() {
@@ -162,22 +306,25 @@ function renderSidebar() {
         <div class="brand-mark">FM</div>
         <div class="brand-copy">
           <div class="brand-title">${escapeHtml(t("appTitle"))}</div>
-          <div class="brand-subtitle">${escapeHtml(t("appSubtitle"))}</div>
         </div>
         <button class="sidebar-toggle" data-action="toggle-sidebar" aria-label="${escapeHtml(state.sidebarCollapsed ? t("chrome.expandNav") : t("chrome.collapseNav"))}" title="${escapeHtml(state.sidebarCollapsed ? t("chrome.expandNav") : t("chrome.collapseNav"))}">
-          ${state.sidebarCollapsed ? "›" : "‹"}
+          ${state.sidebarCollapsed ? iconSvg("chevronRight") : iconSvg("chevronLeft")}
         </button>
       </div>
       <nav class="nav" aria-label="${escapeHtml(t("chrome.mainNav"))}">
         ${navItems
           .map(([view, labelKey, icon]) => `
             <button class="nav-button ${state.view === view ? "active" : ""}" data-view="${view}" aria-label="${escapeHtml(t(labelKey))}" title="${escapeHtml(t(labelKey))}">
-              <span class="nav-icon">${icon}</span>
+              <span class="nav-icon">${iconSvg(icon)}</span>
               <span class="nav-label">${escapeHtml(t(labelKey))}</span>
             </button>
           `)
           .join("")}
       </nav>
+      <div class="sidebar-meta">
+        <span>${escapeHtml(t("chrome.workState"))}</span>
+        <strong>${escapeHtml(t("chrome.releaseState"))}</strong>
+      </div>
     </aside>
   `;
 }
@@ -187,9 +334,9 @@ function renderTopbar() {
     <header class="topbar">
       <div class="work-status">
         <strong>${escapeHtml(t("chrome.workStatus"))}</strong>
-        <span class="chip success">✓ ${escapeHtml(t("chrome.validationPassed"))}</span>
-        <button class="chip review linkish" data-action="filter-open-category">? ${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
-        ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">⚠ ${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
+        <span class="chip success">${iconSvg("success")}${escapeHtml(t("chrome.validationPassed"))}</span>
+        <button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
+        ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
         <button class="chip neutral linkish" data-action="next-action">${escapeHtml(t("chrome.nextAction"))}: ${escapeHtml(t("overview.nextActionText"))}</button>
       </div>
       <div class="controls">
@@ -232,35 +379,37 @@ function renderPageHead(title, lead, extra = "") {
 
 function renderOverview() {
   return `
-    ${renderPageHead(t("overview.title"), t("overview.lead"))}
+    ${renderPageHead(t("overview.title"), "")}
     <div class="layout-with-rail">
       <div class="stack">
-        <section class="panel hero-kpi">
-          <div>
-            <div class="kpi-label">${escapeHtml(t("overview.totalBalance"))}</div>
-            <div class="kpi-value">${escapeHtml(formatMoney(loadedTotalAccountsBalance()))}</div>
-            <div class="kpi-note">${escapeHtml(t("overview.balanceNote"))}</div>
-          </div>
-        </section>
+        <div class="overview-kpis">
+          <section class="panel hero-kpi" aria-labelledby="kpi-balance-label">
+            <div>
+              <div class="kpi-label" id="kpi-balance-label">${escapeHtml(t("overview.totalBalance"))}</div>
+              <div class="kpi-value">${escapeHtml(formatMoney(loadedTotalAccountsBalance()))}</div>
+              <div class="kpi-note">${escapeHtml(t("overview.balanceNote"))}</div>
+            </div>
+          </section>
+          <section class="panel hero-kpi" aria-labelledby="kpi-networth-label">
+            <div>
+              <div class="kpi-label" id="kpi-networth-label">${escapeHtml(t("nav.vermoegen"))}</div>
+              <div class="kpi-value">${escapeHtml(formatMoney(currentNettovermoegen().netto_cents))}</div>
+              <div class="kpi-note">${escapeHtml(t("overview.netWorthNote"))}</div>
+            </div>
+          </section>
+        </div>
         <section class="panel panel-pad">
           <h2 class="section-title">${escapeHtml(t("overview.accountBalances"))}</h2>
           ${renderAccountTable()}
         </section>
-        <section class="panel panel-pad">
-          <h2 class="section-title">${escapeHtml(t("overview.roadmap"))}</h2>
-          <div class="roadmap roadmap-large">
-            <button class="roadmap-card roadmap-card-link" data-view="vermoegen"><strong>${escapeHtml(t("overview.wealthRoadmap"))}</strong><span class="chip success">✓ ${escapeHtml(t("overview.available"))}</span></button>
-            <div class="roadmap-card"><strong>${escapeHtml(t("overview.nextRoadmap"))}</strong><span class="muted">${escapeHtml(t("overview.plannedLater"))}</span></div>
-          </div>
-        </section>
       </div>
-      <aside class="rail">
+      <aside class="rail overview-rail">
         <section class="panel panel-pad next-action">
           <h2 class="section-title">${escapeHtml(t("chrome.nextAction"))}</h2>
           <button class="linkish" data-action="filter-open-category">${escapeHtml(t("overview.nextActionText"))}</button>
           <p class="page-lead">${escapeHtml(t("checks.categoryOpen.detail"))}</p>
         </section>
-        <section class="panel panel-pad">
+        <section class="panel panel-pad checks-rail">
           <h2 class="section-title">${escapeHtml(t("overview.checksPreview"))}</h2>
           <div class="rail-list">${renderCheckItems(data.checks.slice(0, 4))}</div>
         </section>
@@ -270,8 +419,6 @@ function renderOverview() {
 }
 
 function renderAccountTable() {
-  const accounts = data.konten.filter((konto) => konto.kontotyp !== "depot");
-  const depots = data.konten.filter((konto) => konto.kontotyp === "depot");
   return `
     <div class="table-wrap">
       <table>
@@ -280,47 +427,46 @@ function renderAccountTable() {
             <th>${escapeHtml(t("labels.account"))}</th>
             <th>${escapeHtml(t("labels.owner"))}</th>
             <th>${escapeHtml(t("labels.type"))}</th>
+            <th>${escapeHtml(t("labels.stand"))}</th>
             <th class="amount">${escapeHtml(t("labels.loadedBalance"))}</th>
             <th>${escapeHtml(t("labels.status"))}</th>
           </tr>
         </thead>
         <tbody>
-          ${renderAccountGroup(t("overview.accounts"), accounts)}
-          ${renderAccountGroup(t("overview.depots"), depots)}
+          ${renderAccountRows(sortedOverviewAccounts())}
         </tbody>
       </table>
     </div>
   `;
 }
 
-function renderAccountGroup(label, accounts) {
-  return `
-    <tr class="group-row"><td colspan="5">${escapeHtml(label)}</td></tr>
-    ${accounts
-      .map((konto) => {
-        const isDepot = konto.kontotyp === "depot";
-        const balanceCell = isDepot
-          ? `<span class="muted">—</span>`
-          : escapeHtml(formatMoney(accountBalance(konto.konto_id)));
-        const status = isDepot
-          ? t("labels.depotValueMissing")
-          : konto.kontoreferenz
-            ? t("labels.accountStatusMissing")
-            : t("labels.referenceMissing");
-        const chipClass = isDepot ? "neutral" : konto.kontoreferenz ? "neutral" : "review";
-        const chipIcon = isDepot || konto.kontoreferenz ? "•" : "?";
-        return `
-          <tr class="clickable" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
-            <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
-            <td>${escapeHtml(accountOwnerNames(konto))}</td>
-            <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
-            <td class="amount">${balanceCell}</td>
-            <td><span class="chip ${chipClass}">${chipIcon} ${escapeHtml(status)}</span></td>
-          </tr>
-        `;
-      })
-      .join("")}
-  `;
+function renderAccountRows(accounts) {
+  return accounts
+    .map((konto) => {
+      const isDepot = konto.kontotyp === "depot";
+      const latestDate = overviewAccountStandDate(konto);
+      const balanceCell = isDepot
+        ? `<span class="muted">—</span>`
+        : escapeHtml(formatMoney(accountBalance(konto.konto_id)));
+      const status = isDepot
+        ? t("labels.depotValueMissing")
+        : konto.kontoreferenz
+          ? t("labels.accountStatusMissing")
+          : t("labels.referenceMissing");
+      const chipClass = isDepot ? "neutral" : konto.kontoreferenz ? "neutral" : "review";
+      const chipIcon = isDepot || konto.kontoreferenz ? "neutral" : "review";
+      return `
+        <tr class="clickable" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
+          <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
+          <td>${escapeHtml(accountOwnerNames(konto))}</td>
+          <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
+          <td>${latestDate ? escapeHtml(formatDate(latestDate)) : `<span class="muted">${escapeHtml(t("labels.noStand"))}</span>`}</td>
+          <td class="amount">${balanceCell}</td>
+          <td><span class="chip ${chipClass}">${iconSvg(chipIcon)}${escapeHtml(status)}</span></td>
+        </tr>
+      `;
+    })
+    .join("");
 }
 
 function filteredTransactions() {
@@ -351,8 +497,8 @@ function renderTransactions() {
   const breadcrumb = renderBreadcrumb(accountName);
 
   return `
-    ${renderPageHead(t("transactions.title"), t("transactions.lead"), breadcrumb)}
-    <div class="layout-with-rail">
+    ${renderPageHead(t("transactions.title"), "", breadcrumb)}
+    <div class="layout-with-rail ${state.detailRailClosed ? "rail-closed" : ""}">
       <div class="stack">
         <section class="summary-strip">
           <div class="summary-cell"><span class="muted">${escapeHtml(t("transactions.hits"))}</span><strong>${allRows.length}</strong></div>
@@ -383,10 +529,15 @@ function renderTransactions() {
           ${renderPagination(allRows.length, pageCount)}
         </section>
       </div>
-      <aside class="panel panel-pad detail-panel">
-        <h2 class="section-title">${escapeHtml(t("transactions.details"))}</h2>
-        ${selectedInFilter ? renderTransactionDetail(selectedInFilter) : `<p>${escapeHtml(t("transactions.noSelection"))}</p>`}
-      </aside>
+      ${state.detailRailClosed ? "" : `
+        <aside class="panel panel-pad detail-panel">
+          <div class="detail-head">
+            <h2 class="section-title">${escapeHtml(t("transactions.details"))}</h2>
+            <button class="icon-button" data-action="close-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
+          </div>
+          ${selectedInFilter ? renderTransactionDetail(selectedInFilter) : `<p>${escapeHtml(t("transactions.noSelection"))}</p>`}
+        </aside>
+      `}
     </div>
   `;
 }
@@ -421,39 +572,81 @@ function renderBreadcrumb(accountName) {
 }
 
 function renderTransactionFilters() {
-  return `
-    <section class="filter-bar">
-      ${renderSelect("account", t("transactions.filterAccount"), [
+  return renderTableFilters({
+    fields: [
+      {
+        name: "account",
+        label: t("transactions.filterAccount"),
+        options: [
         ["", t("transactions.allAccounts")],
         ...data.konten.map((konto) => [konto.konto_id, konto.name]),
-      ])}
-      ${renderSelect("status", t("transactions.filterStatus"), [
+        ],
+      },
+      {
+        name: "status",
+        label: t("transactions.filterStatus"),
+        options: [
         ["", t("transactions.allStatuses")],
         ["offen", t("status.offen")],
         ["vorgeschlagen", t("status.vorgeschlagen")],
         ["bestaetigt", t("status.bestaetigt")],
         ["abgelehnt", t("status.abgelehnt")],
-      ])}
-      ${renderSelect("category", t("transactions.filterCategory"), [
+        ],
+      },
+      {
+        name: "category",
+        label: t("transactions.filterCategory"),
+        options: [
         ["", t("transactions.allCategories")],
         ...data.kategorien.map((kategorie) => [kategorie.kategorie_id, kategorie.name]),
-      ])}
-      ${renderSelect("transfer", t("transactions.filterTransfer"), [
+        ],
+      },
+      {
+        name: "transfer",
+        label: t("transactions.filterTransfer"),
+        options: [
         ["", t("transactions.allTransfers")],
         ["only", t("transactions.onlyTransfers")],
         ["without", t("transactions.withoutTransfers")],
-      ])}
+        ],
+      },
+    ],
+    filters: state.transactionFilters,
+    filterAttr: "filter",
+    clearAction: "clear-transaction-filter",
+    resetAction: "reset-transaction-filters",
+  });
+}
+
+function hasActiveFilters(filters) {
+  return Object.values(filters).some(Boolean);
+}
+
+function renderTableFilters({ fields, filters, filterAttr, clearAction, resetAction }) {
+  return `
+    <section class="filter-bar">
+      <div class="filter-grid">
+        ${fields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
+      </div>
+      <div class="filter-actions">
+        ${hasActiveFilters(filters) ? `<button class="filter-reset" data-action="${escapeHtml(resetAction)}">${iconSvg("clear")}${escapeHtml(t("chrome.clearAllFilters"))}</button>` : ""}
+      </div>
     </section>
   `;
 }
 
-function renderSelect(name, label, options) {
+function renderFilterSelect({ name, label, options, filters, filterAttr, clearAction }) {
+  const active = Boolean(filters[name]);
+  const controlId = `${filterAttr}-${name}`;
   return `
-    <div class="filter-field ${state.transactionFilters[name] ? "active" : ""}">
-      <label for="filter-${name}">${escapeHtml(label)}</label>
-      <select id="filter-${name}" data-filter="${name}">
-        ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${state.transactionFilters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
-      </select>
+    <div class="filter-field ${active ? "active" : ""}">
+      <label for="${escapeHtml(controlId)}">${escapeHtml(label)}</label>
+      <div class="filter-control-row">
+        <select id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}">
+          ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${filters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
+        </select>
+        ${active ? `<button class="filter-clear" data-action="${escapeHtml(clearAction)}" data-filter-name="${escapeHtml(name)}" aria-label="${escapeHtml(t("chrome.clearFilter"))}" title="${escapeHtml(t("chrome.clearFilter"))}">${iconSvg("clear")}</button>` : ""}
+      </div>
     </div>
   `;
 }
@@ -464,13 +657,13 @@ function renderTransactionRow(tx) {
   const selectAttrs = `data-action="select-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}"`;
   return `
     <tr class="transaction-row ${tx.transaktion_id === state.selectedTransactionId ? "selected" : ""} ${tx.kategorisierung_status === "offen" ? "open" : ""}">
-      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
       <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button></td>
-      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(tx.gegenpartei)}</td>
-      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
-      <td class="amount row-select-cell" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
-      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(category)}</td>
-      <td class="row-select-cell" ${selectAttrs}>${statusChip(tx.kategorisierung_status)}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.gegenpartei)}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
+      <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(category)}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${statusChip(tx.kategorisierung_status)}</td>
       ${renderTransferCell(tx)}
     </tr>
   `;
@@ -479,8 +672,8 @@ function renderTransactionRow(tx) {
 function renderTransferCell(tx) {
   if (!tx.ist_transfer) return `<td><span class="muted">${escapeHtml(t("labels.no"))}</span></td>`;
   const paired = pairedTransferTransaction(tx);
-  if (!paired) return `<td><span class="chip neutral">↔ ${escapeHtml(t("labels.yes"))}</span></td>`;
-  return `<td class="transfer-link-cell" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${escapeHtml(t("transactions.pairedTransfer"))}"><span class="chip neutral linkish transfer-anchor">↔ ${escapeHtml(t("labels.yes"))}</span></td>`;
+  if (!paired) return `<td><span class="chip neutral">${iconSvg("transfer")}${escapeHtml(t("labels.yes"))}</span></td>`;
+  return `<td class="transfer-link-cell" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${escapeHtml(t("transactions.pairedTransfer"))}"><span class="chip neutral linkish transfer-anchor">${iconSvg("transfer")}${escapeHtml(t("labels.yes"))}</span></td>`;
 }
 
 function pairedTransferTransaction(tx) {
@@ -567,12 +760,12 @@ function renderCashflow() {
     granularitaet: state.cashflow.granularitaet,
   });
   const istChipClass = ist.qualitaet.offene_kategorie_anzahl > 0 ? "review" : "success";
-  const istChipIcon = ist.qualitaet.offene_kategorie_anzahl > 0 ? "?" : "✓";
+  const istChipIcon = ist.qualitaet.offene_kategorie_anzahl > 0 ? iconSvg("review") : iconSvg("success");
   const vorschlaegeChip = prognose.qualitaet.vorschlaege_nicht_enthalten > 0
-    ? `<span class="chip review">? ${escapeHtml(String(prognose.qualitaet.vorschlaege_nicht_enthalten))} ${escapeHtml(t("cashflow.qualityProposalsExcluded"))}</span>`
+    ? `<span class="chip review">${iconSvg("review")}${escapeHtml(String(prognose.qualitaet.vorschlaege_nicht_enthalten))} ${escapeHtml(t("cashflow.qualityProposalsExcluded"))}</span>`
     : "";
   const unbefristetChip = prognose.qualitaet.unbefristete_regelzahlungen > 0
-    ? `<span class="chip neutral">• ${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`
+    ? `<span class="chip neutral">${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`
     : "";
   const granButtons = ["monat", "quartal", "jahr"]
     .map((g) => `<button class="chip ${state.cashflow.granularitaet === g ? "success" : "neutral"} linkish" data-cashflow-gran="${g}">${escapeHtml(t(`cashflow.gran.${g}`))}</button>`)
@@ -583,23 +776,23 @@ function renderCashflow() {
       <div class="tile tile-static">
         <strong>${escapeHtml(t("cashflow.ist"))}</strong>
         <div class="count">${escapeHtml(formatMoney(ist.gesamt_netto_cents))}</div>
-        <span class="chip ${istChipClass}">${istChipIcon} ${escapeHtml(String(ist.qualitaet.offene_kategorie_anzahl))} ${escapeHtml(t("cashflow.qualityOpenCategories"))}</span>
+        <span class="chip ${istChipClass}">${istChipIcon}${escapeHtml(String(ist.qualitaet.offene_kategorie_anzahl))} ${escapeHtml(t("cashflow.qualityOpenCategories"))}</span>
       </div>
       <div class="tile tile-static">
         <strong>${escapeHtml(t("cashflow.prognose"))}</strong>
         <div class="count">${escapeHtml(formatMoney(prognose.gesamt_netto_cents))}</div>
-        <span class="chip neutral">• ${escapeHtml(String(prognose.qualitaet.bestaetigte_regelzahlungen))} ${escapeHtml(t("cashflow.qualityConfirmed"))}</span>
+        <span class="chip neutral">${escapeHtml(String(prognose.qualitaet.bestaetigte_regelzahlungen))} ${escapeHtml(t("cashflow.qualityConfirmed"))}</span>
         ${vorschlaegeChip}
         ${unbefristetChip}
-        <span class="chip neutral">• ${escapeHtml(t("cashflow.horizonTo"))} ${escapeHtml(prognose.horizont_ende)}</span>
+        <span class="chip neutral">${escapeHtml(t("cashflow.horizonTo"))} ${escapeHtml(prognose.horizont_ende)}</span>
       </div>
     </div>
-    <p class="page-lead" style="margin-top: 12px;">${escapeHtml(t("cashflow.incompleteNote"))}</p>
-    <section class="panel panel-pad" style="margin-top: 16px;">
+    <p class="page-lead section-note">${escapeHtml(t("cashflow.incompleteNote"))}</p>
+    <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(t("cashflow.ist"))} · ${escapeHtml(t("cashflow.monthlyTable"))}</h2>
       ${ist.monate.length ? renderMonatsTabelle(ist.monate) : `<p class="muted">${escapeHtml(t("cashflow.empty"))}</p>`}
     </section>
-    <section class="panel panel-pad" style="margin-top: 16px;">
+    <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(t("cashflow.prognose"))} · ${escapeHtml(t("cashflow.monthlyTable"))}</h2>
       <div class="cashflow-filter">
         <span>${granButtons}</span>
@@ -645,7 +838,7 @@ function renderMonatRows(monat, nested) {
     <tr class="row-month ${nested ? "nested" : ""}">
       <td>
         <button class="row-toggle" data-cashflow-toggle="${escapeHtml(monat.monat)}">
-          <span class="toggle-icon">${expanded ? "▾" : "▸"}</span>${escapeHtml(formatMonat(monat.monat))}
+          <span class="toggle-icon">${expanded ? iconSvg("chevronDown") : iconSvg("chevronRight")}</span>${escapeHtml(formatMonat(monat.monat))}
         </button>
         ${laufendMarkup(monat.ist_laufend)}
       </td>
@@ -667,7 +860,7 @@ function renderPrognoseDetail(prognose) {
       <tr class="row-period">
         <td>
           <button class="row-toggle" data-cashflow-toggle="${escapeHtml(periode.periode)}">
-            <span class="toggle-icon">${expanded ? "▾" : "▸"}</span>${escapeHtml(formatPeriode(periode.periode))}
+            <span class="toggle-icon">${expanded ? iconSvg("chevronDown") : iconSvg("chevronRight")}</span>${escapeHtml(formatPeriode(periode.periode))}
           </button>
           ${laufendMarkup(periode.ist_laufend)}
         </td>
@@ -710,7 +903,7 @@ function renderRegelzahlungen() {
   `).join("");
   return `
     ${renderPageHead(t("regelzahlungen.title"), t("regelzahlungen.lead"))}
-    <section class="panel panel-pad" style="margin-top: 16px;">
+    <section class="panel panel-pad section-spacing">
       ${data.regelzahlungen.length ? `
       <div class="table-wrap">
         <table>
@@ -772,8 +965,8 @@ function vermoegenSortHeader(key, labelKey, amount = false) {
 }
 
 function qualitaetChip(p) {
-  if (p.fehlt || !p.qualitaet) return `<span class="chip review">? ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`;
-  return `<span class="chip ${p.qualitaet === "belegt" ? "success" : "neutral"}">${escapeHtml(t(`vermoegen.quality${p.qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`))}</span>`;
+  if (p.fehlt || !p.qualitaet) return `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`;
+  return `<span class="chip ${p.qualitaet === "belegt" ? "success" : "neutral"}">${p.qualitaet === "belegt" ? iconSvg("success") : ""}${escapeHtml(t(`vermoegen.quality${p.qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`))}</span>`;
 }
 
 function renderVermoegen() {
@@ -787,7 +980,7 @@ function renderVermoegen() {
   const rows = visible.map((p) => {
     const key = positionKey(p);
     return `
-    <tr class="clickable ${key === state.selectedVermoegenId ? "selected" : ""} ${p.fehlt ? "open" : ""}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(key)}">
+    <tr class="clickable ${key === state.selectedVermoegenId ? "selected" : ""} ${p.fehlt ? "open" : ""}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(key)}" tabindex="0" role="button" aria-label="${escapeHtml(p.name)}">
       <td>${escapeHtml(t(`vermoegen.klasse.${p.klasse}`))}</td>
       <td>${escapeHtml(p.name)}</td>
       <td class="amount">${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : escapeHtml(formatMoney(p.wert_cents))}</td>
@@ -798,7 +991,7 @@ function renderVermoegen() {
 
   return `
     ${renderPageHead(t("vermoegen.title"), t("vermoegen.lead"))}
-    <div class="layout-with-rail">
+    <div class="layout-with-rail ${state.vermoegenDetailRailClosed ? "rail-closed" : ""}">
       <div class="stack">
         <div class="tile-grid">
           <div class="tile tile-static">
@@ -809,9 +1002,9 @@ function renderVermoegen() {
           <div class="tile tile-static">
             <strong>${escapeHtml(t("vermoegen.qualitaetTitle"))}</strong>
             <div class="count">${r.positionen.length}</div>
-            <span class="chip success">• ${r.qualitaet.belegt} ${escapeHtml(t("vermoegen.qualityBelegt"))}</span>
-            <span class="chip neutral">• ${r.qualitaet.geschaetzt} ${escapeHtml(t("vermoegen.qualityGeschaetzt"))}</span>
-            ${r.qualitaet.fehlend > 0 ? `<span class="chip review">? ${r.qualitaet.fehlend} ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : ""}
+            <span class="chip success">${iconSvg("success")}${r.qualitaet.belegt} ${escapeHtml(t("vermoegen.qualityBelegt"))}</span>
+            <span class="chip neutral">${r.qualitaet.geschaetzt} ${escapeHtml(t("vermoegen.qualityGeschaetzt"))}</span>
+            ${r.qualitaet.fehlend > 0 ? `<span class="chip review">${iconSvg("review")}${r.qualitaet.fehlend} ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : ""}
           </div>
         </div>
         <p class="page-lead">${escapeHtml(t("vermoegen.incompleteNote"))}</p>
@@ -831,42 +1024,48 @@ function renderVermoegen() {
           </div>
         </section>
       </div>
-      <aside class="panel panel-pad detail-panel">
-        <h2 class="section-title">${escapeHtml(t("vermoegen.detailTitle"))}</h2>
-        ${selected ? renderVermoegenDetail(selected, today) : `<p>${escapeHtml(t("vermoegen.noSelection"))}</p>`}
-      </aside>
+      ${state.vermoegenDetailRailClosed ? "" : `
+        <aside class="panel panel-pad detail-panel">
+          <div class="detail-head">
+            <h2 class="section-title">${escapeHtml(t("vermoegen.detailTitle"))}</h2>
+            <button class="icon-button" data-action="close-vermoegen-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
+          </div>
+          ${selected ? renderVermoegenDetail(selected, today) : `<p>${escapeHtml(t("vermoegen.noSelection"))}</p>`}
+        </aside>
+      `}
     </div>`;
 }
 
 function renderVermoegenFilters() {
-  return `
-    <section class="filter-bar">
-      ${renderVermoegenSelect("klasse", t("vermoegen.filterKlasse"), [
+  return renderTableFilters({
+    fields: [
+      {
+        name: "klasse",
+        label: t("vermoegen.filterKlasse"),
+        options: [
         ["", t("vermoegen.filterAll")],
         ["konto", t("vermoegen.klasse.konto")],
         ["immobilie", t("vermoegen.klasse.immobilie")],
         ["vermoegenswert", t("vermoegen.klasse.vermoegenswert")],
         ["darlehen", t("vermoegen.klasse.darlehen")],
-      ])}
-      ${renderVermoegenSelect("qualitaet", t("vermoegen.filterQualitaet"), [
+        ],
+      },
+      {
+        name: "qualitaet",
+        label: t("vermoegen.filterQualitaet"),
+        options: [
         ["", t("vermoegen.filterAll")],
         ["belegt", t("vermoegen.qualityBelegt")],
         ["geschaetzt", t("vermoegen.qualityGeschaetzt")],
         ["fehlend", t("vermoegen.qualityFehlend")],
-      ])}
-    </section>
-  `;
-}
-
-function renderVermoegenSelect(name, label, options) {
-  return `
-    <div class="filter-field ${state.vermoegenFilters[name] ? "active" : ""}">
-      <label for="vfilter-${name}">${escapeHtml(label)}</label>
-      <select id="vfilter-${name}" data-vermoegen-filter="${name}">
-        ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${state.vermoegenFilters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
-      </select>
-    </div>
-  `;
+        ],
+      },
+    ],
+    filters: state.vermoegenFilters,
+    filterAttr: "vermoegen-filter",
+    clearAction: "clear-vermoegen-filter",
+    resetAction: "reset-vermoegen-filters",
+  });
 }
 
 function detailRow(label, valueHtml) {
@@ -923,7 +1122,7 @@ function renderVermoegenDetail(p, today) {
       + (zw
         ? detailRow(istDepot ? t("vermoegen.depotwert") : t("vermoegen.anker"),
             `<strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong><br>${escapeHtml(formatDate(zw.standdatum))} · ${qualitaetChip({ qualitaet: zw.qualitaet })}${zw.quelle_hinweis ? `<br><span class="muted">${escapeHtml(zw.quelle_hinweis)}</span>` : ""}`)
-        : detailRow(t("vermoegen.anker"), `<span class="chip review">? ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
+        : detailRow(t("vermoegen.anker"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + buchungenHtml
       + detailRow(t("vermoegen.aktuellerSaldo"),
           `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`);
@@ -940,7 +1139,7 @@ function renderVermoegenDetail(p, today) {
       + (mw
         ? detailRow(t("vermoegen.marktwert"),
             `<strong>${escapeHtml(formatMoney(mwCents))}</strong><br>${escapeHtml(formatDate(mw.standdatum))} · ${qualitaetChip({ qualitaet: mw.qualitaet })}${mw.quelle_hinweis ? `<br><span class="muted">${escapeHtml(mw.quelle_hinweis)}</span>` : ""}`)
-        : detailRow(t("vermoegen.marktwert"), `<span class="chip review">? ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
+        : detailRow(t("vermoegen.marktwert"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + (entity?.eigentumsanteile ? detailRow(t("vermoegen.eigentumsanteile"), anteileHtml(entity.eigentumsanteile, mwCents)) : "")
       + detailRow(t("vermoegen.anteiligerWert"),
           p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`);
@@ -961,7 +1160,7 @@ function renderVermoegenDetail(p, today) {
       + (anker
         ? detailRow(t("vermoegen.anker"),
             `<strong>${escapeHtml(formatMoney(cents(anker.wert)))}</strong><br>${escapeHtml(formatDate(anker.standdatum))} · ${qualitaetChip({ qualitaet: anker.qualitaet })}${anker.quelle_hinweis ? `<br><span class="muted">${escapeHtml(anker.quelle_hinweis)}</span>` : ""}`)
-        : detailRow(t("vermoegen.anker"), `<span class="chip review">? ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
+        : detailRow(t("vermoegen.anker"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + detailRow(t("vermoegen.restschuld"),
           `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(Math.abs(p.wert_cents)))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`)
       + (dar?.zinssatz ? detailRow(t("vermoegen.zinssatz"), `${escapeHtml(dar.zinssatz)} %`) : "")
@@ -986,20 +1185,20 @@ function renderMasterdata() {
       <button class="tile ${state.masterSection === "personen" ? "active" : ""}" data-master-section="personen">
         <strong>${escapeHtml(t("masterdata.people"))}</strong>
         <div class="count">${data.personen.length}</div>
-        <span class="chip success">✓ ${escapeHtml(t("masterdata.active"))}</span>
+        <span class="chip success">${iconSvg("success")}${escapeHtml(t("masterdata.active"))}</span>
       </button>
       <button class="tile ${state.masterSection === "konten" ? "active" : ""}" data-master-section="konten">
         <strong>${escapeHtml(t("masterdata.accounts"))}</strong>
         <div class="count">${data.konten.length}</div>
-        <span class="chip review">? ${missingRefs} ${escapeHtml(t("masterdata.missingRefs"))}</span>
+        <span class="chip review">${iconSvg("review")}${missingRefs} ${escapeHtml(t("masterdata.missingRefs"))}</span>
       </button>
       <button class="tile ${state.masterSection === "kategorien" ? "active" : ""}" data-master-section="kategorien">
         <strong>${escapeHtml(t("masterdata.categories"))}</strong>
         <div class="count">${data.kategorien.length}</div>
-        <span class="chip success">✓ ${escapeHtml(t("masterdata.active"))}</span>
+        <span class="chip success">${iconSvg("success")}${escapeHtml(t("masterdata.active"))}</span>
       </button>
     </div>
-    <section class="panel panel-pad" style="margin-top: 16px;">
+    <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(sectionTitle())}</h2>
       ${renderMasterSection()}
     </section>
@@ -1065,22 +1264,22 @@ function renderChecks() {
         <div class="tile tile-static">
           <strong>${escapeHtml(label)}</strong>
           <div class="count">${checks.length}</div>
-          <span class="chip ${checks.some((check) => check.severity === "review") ? "review" : "success"}">${checks.some((check) => check.severity === "review") ? "?" : "✓"} ${escapeHtml(checks.some((check) => check.severity === "review") ? t("status.review") : t("status.success"))}</span>
+          <span class="chip ${checks.some((check) => check.severity === "review") ? "review" : "success"}">${checks.some((check) => check.severity === "review") ? iconSvg("review") : iconSvg("success")}${escapeHtml(checks.some((check) => check.severity === "review") ? t("status.review") : t("status.success"))}</span>
         </div>
       `).join("")}
     </div>
-    <section class="panel panel-pad" style="margin-top: 16px;">
+    <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(t("checksPage.title"))}</h2>
       <div class="rail-list">${renderCheckItems(data.checks)}</div>
     </section>
     ${(data.importfehler?.length ?? 0) > 0 ? `
-      <section class="panel panel-pad" style="margin-top: 16px;">
+      <section class="panel panel-pad section-spacing">
         <h2 class="section-title">${escapeHtml(t("checksPage.importErrors"))}</h2>
         <p class="page-lead">${escapeHtml(t("checksPage.importErrorsLead"))}</p>
         <div class="rail-list">
           ${data.importfehler.map((fehler) => `
             <div class="rail-item">
-              <span class="chip danger">⚠ ${escapeHtml(fehler.reason)}</span>
+              <span class="chip danger">${iconSvg("warning")}${escapeHtml(fehler.reason)}</span>
               <span>${escapeHtml(fehler.rohquelle)} · ${escapeHtml(t("labels.row"))} ${escapeHtml(String(fehler.row ?? "-"))}</span>
               <span class="muted">${escapeHtml(fehler.detail)}</span>
             </div>
@@ -1089,13 +1288,13 @@ function renderChecks() {
       </section>
     ` : ""}
     ${transferResults.length > 0 ? `
-      <section class="panel panel-pad" style="margin-top: 16px;">
+      <section class="panel panel-pad section-spacing">
         <h2 class="section-title">${escapeHtml(t("checksPage.transfers"))}</h2>
         <p class="page-lead">${escapeHtml(t("checksPage.transfersLead"))}</p>
         <div class="rail-list">
           ${transferResults.map((tc) => `
             <div class="rail-item">
-              <span class="chip ${tc.ok ? "success" : "review"}">${tc.ok ? "✓" : "?"} ${escapeHtml(tc.ok ? t("checksPage.transferOk") : t("checksPage.transferIncomplete"))}</span>
+              <span class="chip ${tc.ok ? "success" : "review"}">${tc.ok ? iconSvg("success") : iconSvg("review")}${escapeHtml(tc.ok ? t("checksPage.transferOk") : t("checksPage.transferIncomplete"))}</span>
               <span>${escapeHtml(tc.transfer_id)} · ${escapeHtml(formatMoney(cents(tc.betrag)))}</span>
             </div>
           `).join("")}
@@ -1103,12 +1302,12 @@ function renderChecks() {
       </section>
     ` : ""}
     ${m5.length > 0 ? `
-      <section class="panel panel-pad" style="margin-top: 16px;">
+      <section class="panel panel-pad section-spacing">
         <h2 class="section-title">${escapeHtml(t("nav.vermoegen"))}</h2>
         <div class="rail-list">
           ${m5.map((check) => `
             <div class="rail-item">
-              <span class="chip review">? ${escapeHtml(t(`vermoegen.checkArt.${check.art}`))}</span>
+              <span class="chip review">${iconSvg("review")}${escapeHtml(t(`vermoegen.checkArt.${check.art}`))}</span>
               <button class="linkish" data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(check.entitaet)}" data-vid="${escapeHtml(check.entitaet_id)}">${escapeHtml(check.entitaet_id)}</button>
               <span class="muted">${escapeHtml(check.text)}</span>
             </div>
@@ -1126,7 +1325,7 @@ function renderCheckItems(checks) {
     const affected = check.entity_id ? affectedLabel(check) : data.metadata.label;
     return `
       <div class="rail-item">
-        <span class="chip ${check.severity === "success" ? "success" : "review"}">${check.severity === "success" ? "✓" : "?"} ${escapeHtml(title)}</span>
+        <span class="chip ${check.severity === "success" ? "success" : "review"}">${check.severity === "success" ? iconSvg("success") : iconSvg("review")}${escapeHtml(title)}</span>
         <button class="linkish" data-action="open-entity" data-scope="${escapeHtml(check.scope)}" data-entity="${escapeHtml(check.entity_id || "")}">${escapeHtml(affected)}</button>
         <span class="muted">${escapeHtml(detail)}</span>
       </div>
@@ -1212,6 +1411,21 @@ app.addEventListener("click", (event) => {
   }
 });
 
+// Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
+// (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
+// Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-cashflow-toggle], [data-cashflow-gran], [data-vermoegen-sort]";
+app.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+  const el = event.target;
+  if (!el || typeof el.matches !== "function") return;
+  if (el.matches("button, a, input, select, textarea")) return;
+  if (el.getAttribute("tabindex") == null) return;
+  if (!el.matches(KEY_ACTIVATION_SELECTOR)) return;
+  event.preventDefault();
+  el.click();
+});
+
 app.addEventListener("change", (event) => {
   const control = event.target.closest("[data-control]");
   if (control?.dataset.control === "lang") {
@@ -1285,6 +1499,25 @@ function handleAction(element) {
     commitNavigation();
     return;
   }
+  if (action === "clear-transaction-filter") {
+    if (Object.hasOwn(state.transactionFilters, element.dataset.filterName)) {
+      state.transactionFilters[element.dataset.filterName] = "";
+      state.transactionPage = 1;
+      commitNavigation();
+    }
+    return;
+  }
+  if (action === "reset-transaction-filters") {
+    state.transactionFilters = {
+      account: "",
+      status: "",
+      category: "",
+      transfer: "",
+    };
+    state.transactionPage = 1;
+    commitNavigation();
+    return;
+  }
   if (action === "account-transactions") {
     state.view = "transactions";
     state.transactionFilters.account = element.dataset.account;
@@ -1298,6 +1531,17 @@ function handleAction(element) {
   }
   if (action === "select-transaction") {
     state.selectedTransactionId = element.dataset.transaction;
+    state.detailRailClosed = false;
+    commitNavigation();
+    return;
+  }
+  if (action === "close-detail-rail") {
+    state.detailRailClosed = true;
+    commitNavigation();
+    return;
+  }
+  if (action === "close-vermoegen-detail-rail") {
+    state.vermoegenDetailRailClosed = true;
     commitNavigation();
     return;
   }
@@ -1323,13 +1567,30 @@ function handleAction(element) {
   }
   if (action === "select-vermoegen") {
     state.selectedVermoegenId = element.dataset.vermoegen;
-    render();
+    state.vermoegenDetailRailClosed = false;
+    commitNavigation();
+    return;
+  }
+  if (action === "clear-vermoegen-filter") {
+    if (Object.hasOwn(state.vermoegenFilters, element.dataset.filterName)) {
+      state.vermoegenFilters[element.dataset.filterName] = "";
+      commitNavigation();
+    }
+    return;
+  }
+  if (action === "reset-vermoegen-filters") {
+    state.vermoegenFilters = {
+      klasse: "",
+      qualitaet: "",
+    };
+    commitNavigation();
     return;
   }
   if (action === "open-vermoegen-entity") {
     state.view = "vermoegen";
     state.vermoegenFilters = { klasse: "", qualitaet: "" };
     state.selectedVermoegenId = `${element.dataset.vklasse}:${element.dataset.vid}`;
+    state.vermoegenDetailRailClosed = false;
     commitNavigation();
     return;
   }
@@ -1373,13 +1634,23 @@ function restoreState(snapshot) {
   state.masterSection = snapshot.masterSection || "konten";
 }
 
+// Neuer History-Eintrag nur bei echtem View-Wechsel. Zustandsaenderungen
+// innerhalb einer View (Filter, Seite, Auswahl) ersetzen den aktuellen Eintrag,
+// damit der Zurueck-Button nicht durch jeden Klick zugemuellt wird.
+let lastCommittedView = state.view;
 function commitNavigation() {
-  history.pushState(snapshotState(), "", "");
+  if (state.view !== lastCommittedView) {
+    history.pushState(snapshotState(), "", "");
+  } else {
+    history.replaceState(snapshotState(), "", "");
+  }
+  lastCommittedView = state.view;
   render();
 }
 
 window.addEventListener("popstate", (event) => {
   restoreState(event.state);
+  lastCommittedView = state.view;
   render();
 });
 

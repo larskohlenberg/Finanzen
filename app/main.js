@@ -1,4 +1,5 @@
 import { computeCashflowIst, computeCashflowPrognoseDetail, defaultHorizonEnd, toCents, localTodayIso } from "./cashflow.mjs";
+import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
 const data = window.FINANCE_REVIEW_DATA;
 data.regelzahlungen = data.regelzahlungen ?? [];
@@ -11,14 +12,14 @@ const storageKeys = {
 };
 
 const navItems = [
-  ["overview", "nav.overview", "⌂"],
-  ["transactions", "nav.transactions", "≡"],
-  ["cashflow", "nav.cashflow", "€"],
-  ["regelzahlungen", "nav.regelzahlungen", "↻"],
-  ["vermoegen", "nav.vermoegen", "▲"],
-  ["masterdata", "nav.masterdata", "◫"],
-  ["checks", "nav.checks", "✓"],
-  ["export", "nav.export", "⇩"],
+  ["overview", "nav.overview", "overview"],
+  ["transactions", "nav.transactions", "transactions"],
+  ["cashflow", "nav.cashflow", "cashflow"],
+  ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
+  ["vermoegen", "nav.vermoegen", "vermoegen"],
+  ["masterdata", "nav.masterdata", "masterdata"],
+  ["checks", "nav.checks", "checks"],
+  ["export", "nav.export", "export"],
 ];
 
 const state = {
@@ -35,6 +36,7 @@ const state = {
   transactionPage: 1,
   pageSize: 10,
   selectedTransactionId: "",
+  detailRailClosed: false,
   masterSection: "konten",
   cashflow: {
     granularitaet: "monat",
@@ -47,6 +49,7 @@ const state = {
   },
   vermoegenSort: { key: "klasse", dir: "asc" },
   selectedVermoegenId: "",
+  vermoegenDetailRailClosed: false,
 };
 
 const app = document.querySelector("#app");
@@ -105,8 +108,8 @@ function categoryName(categoryId) {
 
 function statusChip(status) {
   const className = status === "offen" ? "review" : status === "bestaetigt" ? "success" : "neutral";
-  const icon = status === "offen" ? "?" : status === "bestaetigt" ? "✓" : "•";
-  return `<span class="chip ${className}"><span>${icon}</span>${escapeHtml(t(`status.${status}`))}</span>`;
+  const icon = status === "offen" ? "review" : status === "bestaetigt" ? "success" : "neutral";
+  return `<span class="chip ${className}">${iconSvg(icon)}${escapeHtml(t(`status.${status}`))}</span>`;
 }
 
 function reviewChecks() {
@@ -136,6 +139,37 @@ function loadedTotalAccountsBalance() {
     .reduce((sum, tx) => sum + cents(tx.betrag), 0);
 }
 
+function currentNettovermoegen() {
+  return computeNettovermoegen(data, localTodayIso());
+}
+
+function overviewAccountStandDate(konto) {
+  if (konto.kontotyp === "depot") {
+    return aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert")?.standdatum || "";
+  }
+  const latestBookingDate = data.transaktionen
+    .filter((tx) => tx.konto_id === konto.konto_id)
+    .reduce((latest, tx) => (String(tx.buchungsdatum ?? "") > latest ? String(tx.buchungsdatum ?? "") : latest), "");
+  return latestBookingDate || aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand")?.standdatum || "";
+}
+
+function overviewAccountRank(konto) {
+  if (konto.kontotyp === "giro") return 0;
+  if (konto.kontotyp === "tagesgeld") return 1;
+  if (konto.kontotyp === "depot") return 2;
+  return 3;
+}
+
+function sortedOverviewAccounts() {
+  return data.konten.slice().sort((a, b) => {
+    const rank = overviewAccountRank(a) - overviewAccountRank(b);
+    if (rank !== 0) return rank;
+    const dateCmp = overviewAccountStandDate(b).localeCompare(overviewAccountStandDate(a));
+    if (dateCmp !== 0) return dateCmp;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 function applyTheme() {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const theme = state.theme === "system" ? (systemDark ? "dark" : "light") : state.theme;
@@ -162,7 +196,6 @@ function renderSidebar() {
         <div class="brand-mark">FM</div>
         <div class="brand-copy">
           <div class="brand-title">${escapeHtml(t("appTitle"))}</div>
-          <div class="brand-subtitle">${escapeHtml(t("appSubtitle"))}</div>
         </div>
         <button class="sidebar-toggle" data-action="toggle-sidebar" aria-label="${escapeHtml(state.sidebarCollapsed ? t("chrome.expandNav") : t("chrome.collapseNav"))}" title="${escapeHtml(state.sidebarCollapsed ? t("chrome.expandNav") : t("chrome.collapseNav"))}">
           ${state.sidebarCollapsed ? "›" : "‹"}
@@ -172,12 +205,16 @@ function renderSidebar() {
         ${navItems
           .map(([view, labelKey, icon]) => `
             <button class="nav-button ${state.view === view ? "active" : ""}" data-view="${view}" aria-label="${escapeHtml(t(labelKey))}" title="${escapeHtml(t(labelKey))}">
-              <span class="nav-icon">${icon}</span>
+              <span class="nav-icon">${iconSvg(icon)}</span>
               <span class="nav-label">${escapeHtml(t(labelKey))}</span>
             </button>
           `)
           .join("")}
       </nav>
+      <div class="sidebar-meta">
+        <span>${escapeHtml(t("chrome.workState"))}</span>
+        <strong>${escapeHtml(t("chrome.releaseState"))}</strong>
+      </div>
     </aside>
   `;
 }
@@ -232,35 +269,37 @@ function renderPageHead(title, lead, extra = "") {
 
 function renderOverview() {
   return `
-    ${renderPageHead(t("overview.title"), t("overview.lead"))}
+    ${renderPageHead(t("overview.title"), "")}
     <div class="layout-with-rail">
       <div class="stack">
-        <section class="panel hero-kpi">
-          <div>
-            <div class="kpi-label">${escapeHtml(t("overview.totalBalance"))}</div>
-            <div class="kpi-value">${escapeHtml(formatMoney(loadedTotalAccountsBalance()))}</div>
-            <div class="kpi-note">${escapeHtml(t("overview.balanceNote"))}</div>
-          </div>
-        </section>
+        <div class="overview-kpis">
+          <section class="panel hero-kpi">
+            <div>
+              <div class="kpi-label">${escapeHtml(t("overview.totalBalance"))}</div>
+              <div class="kpi-value">${escapeHtml(formatMoney(loadedTotalAccountsBalance()))}</div>
+              <div class="kpi-note">${escapeHtml(t("overview.balanceNote"))}</div>
+            </div>
+          </section>
+          <section class="panel hero-kpi">
+            <div>
+              <div class="kpi-label">${escapeHtml(t("nav.vermoegen"))}</div>
+              <div class="kpi-value">${escapeHtml(formatMoney(currentNettovermoegen().netto_cents))}</div>
+              <div class="kpi-note">${escapeHtml(t("overview.netWorthNote"))}</div>
+            </div>
+          </section>
+        </div>
         <section class="panel panel-pad">
           <h2 class="section-title">${escapeHtml(t("overview.accountBalances"))}</h2>
           ${renderAccountTable()}
         </section>
-        <section class="panel panel-pad">
-          <h2 class="section-title">${escapeHtml(t("overview.roadmap"))}</h2>
-          <div class="roadmap roadmap-large">
-            <button class="roadmap-card roadmap-card-link" data-view="vermoegen"><strong>${escapeHtml(t("overview.wealthRoadmap"))}</strong><span class="chip success">✓ ${escapeHtml(t("overview.available"))}</span></button>
-            <div class="roadmap-card"><strong>${escapeHtml(t("overview.nextRoadmap"))}</strong><span class="muted">${escapeHtml(t("overview.plannedLater"))}</span></div>
-          </div>
-        </section>
       </div>
-      <aside class="rail">
+      <aside class="rail overview-rail">
         <section class="panel panel-pad next-action">
           <h2 class="section-title">${escapeHtml(t("chrome.nextAction"))}</h2>
           <button class="linkish" data-action="filter-open-category">${escapeHtml(t("overview.nextActionText"))}</button>
           <p class="page-lead">${escapeHtml(t("checks.categoryOpen.detail"))}</p>
         </section>
-        <section class="panel panel-pad">
+        <section class="panel panel-pad checks-rail">
           <h2 class="section-title">${escapeHtml(t("overview.checksPreview"))}</h2>
           <div class="rail-list">${renderCheckItems(data.checks.slice(0, 4))}</div>
         </section>
@@ -270,8 +309,6 @@ function renderOverview() {
 }
 
 function renderAccountTable() {
-  const accounts = data.konten.filter((konto) => konto.kontotyp !== "depot");
-  const depots = data.konten.filter((konto) => konto.kontotyp === "depot");
   return `
     <div class="table-wrap">
       <table>
@@ -280,47 +317,46 @@ function renderAccountTable() {
             <th>${escapeHtml(t("labels.account"))}</th>
             <th>${escapeHtml(t("labels.owner"))}</th>
             <th>${escapeHtml(t("labels.type"))}</th>
+            <th>${escapeHtml(t("labels.stand"))}</th>
             <th class="amount">${escapeHtml(t("labels.loadedBalance"))}</th>
             <th>${escapeHtml(t("labels.status"))}</th>
           </tr>
         </thead>
         <tbody>
-          ${renderAccountGroup(t("overview.accounts"), accounts)}
-          ${renderAccountGroup(t("overview.depots"), depots)}
+          ${renderAccountRows(sortedOverviewAccounts())}
         </tbody>
       </table>
     </div>
   `;
 }
 
-function renderAccountGroup(label, accounts) {
-  return `
-    <tr class="group-row"><td colspan="5">${escapeHtml(label)}</td></tr>
-    ${accounts
-      .map((konto) => {
-        const isDepot = konto.kontotyp === "depot";
-        const balanceCell = isDepot
-          ? `<span class="muted">—</span>`
-          : escapeHtml(formatMoney(accountBalance(konto.konto_id)));
-        const status = isDepot
-          ? t("labels.depotValueMissing")
-          : konto.kontoreferenz
-            ? t("labels.accountStatusMissing")
-            : t("labels.referenceMissing");
-        const chipClass = isDepot ? "neutral" : konto.kontoreferenz ? "neutral" : "review";
-        const chipIcon = isDepot || konto.kontoreferenz ? "•" : "?";
-        return `
-          <tr class="clickable" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
-            <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
-            <td>${escapeHtml(accountOwnerNames(konto))}</td>
-            <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
-            <td class="amount">${balanceCell}</td>
-            <td><span class="chip ${chipClass}">${chipIcon} ${escapeHtml(status)}</span></td>
-          </tr>
-        `;
-      })
-      .join("")}
-  `;
+function renderAccountRows(accounts) {
+  return accounts
+    .map((konto) => {
+      const isDepot = konto.kontotyp === "depot";
+      const latestDate = overviewAccountStandDate(konto);
+      const balanceCell = isDepot
+        ? `<span class="muted">—</span>`
+        : escapeHtml(formatMoney(accountBalance(konto.konto_id)));
+      const status = isDepot
+        ? t("labels.depotValueMissing")
+        : konto.kontoreferenz
+          ? t("labels.accountStatusMissing")
+          : t("labels.referenceMissing");
+      const chipClass = isDepot ? "neutral" : konto.kontoreferenz ? "neutral" : "review";
+      const chipIcon = isDepot || konto.kontoreferenz ? "neutral" : "review";
+      return `
+        <tr class="clickable" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
+          <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
+          <td>${escapeHtml(accountOwnerNames(konto))}</td>
+          <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
+          <td>${latestDate ? escapeHtml(formatDate(latestDate)) : `<span class="muted">${escapeHtml(t("labels.noStand"))}</span>`}</td>
+          <td class="amount">${balanceCell}</td>
+          <td><span class="chip ${chipClass}">${iconSvg(chipIcon)}${escapeHtml(status)}</span></td>
+        </tr>
+      `;
+    })
+    .join("");
 }
 
 function filteredTransactions() {
@@ -351,8 +387,8 @@ function renderTransactions() {
   const breadcrumb = renderBreadcrumb(accountName);
 
   return `
-    ${renderPageHead(t("transactions.title"), t("transactions.lead"), breadcrumb)}
-    <div class="layout-with-rail">
+    ${renderPageHead(t("transactions.title"), "", breadcrumb)}
+    <div class="layout-with-rail ${state.detailRailClosed ? "rail-closed" : ""}">
       <div class="stack">
         <section class="summary-strip">
           <div class="summary-cell"><span class="muted">${escapeHtml(t("transactions.hits"))}</span><strong>${allRows.length}</strong></div>
@@ -383,10 +419,15 @@ function renderTransactions() {
           ${renderPagination(allRows.length, pageCount)}
         </section>
       </div>
-      <aside class="panel panel-pad detail-panel">
-        <h2 class="section-title">${escapeHtml(t("transactions.details"))}</h2>
-        ${selectedInFilter ? renderTransactionDetail(selectedInFilter) : `<p>${escapeHtml(t("transactions.noSelection"))}</p>`}
-      </aside>
+      ${state.detailRailClosed ? "" : `
+        <aside class="panel panel-pad detail-panel">
+          <div class="detail-head">
+            <h2 class="section-title">${escapeHtml(t("transactions.details"))}</h2>
+            <button class="icon-button" data-action="close-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
+          </div>
+          ${selectedInFilter ? renderTransactionDetail(selectedInFilter) : `<p>${escapeHtml(t("transactions.noSelection"))}</p>`}
+        </aside>
+      `}
     </div>
   `;
 }
@@ -421,39 +462,81 @@ function renderBreadcrumb(accountName) {
 }
 
 function renderTransactionFilters() {
-  return `
-    <section class="filter-bar">
-      ${renderSelect("account", t("transactions.filterAccount"), [
+  return renderTableFilters({
+    fields: [
+      {
+        name: "account",
+        label: t("transactions.filterAccount"),
+        options: [
         ["", t("transactions.allAccounts")],
         ...data.konten.map((konto) => [konto.konto_id, konto.name]),
-      ])}
-      ${renderSelect("status", t("transactions.filterStatus"), [
+        ],
+      },
+      {
+        name: "status",
+        label: t("transactions.filterStatus"),
+        options: [
         ["", t("transactions.allStatuses")],
         ["offen", t("status.offen")],
         ["vorgeschlagen", t("status.vorgeschlagen")],
         ["bestaetigt", t("status.bestaetigt")],
         ["abgelehnt", t("status.abgelehnt")],
-      ])}
-      ${renderSelect("category", t("transactions.filterCategory"), [
+        ],
+      },
+      {
+        name: "category",
+        label: t("transactions.filterCategory"),
+        options: [
         ["", t("transactions.allCategories")],
         ...data.kategorien.map((kategorie) => [kategorie.kategorie_id, kategorie.name]),
-      ])}
-      ${renderSelect("transfer", t("transactions.filterTransfer"), [
+        ],
+      },
+      {
+        name: "transfer",
+        label: t("transactions.filterTransfer"),
+        options: [
         ["", t("transactions.allTransfers")],
         ["only", t("transactions.onlyTransfers")],
         ["without", t("transactions.withoutTransfers")],
-      ])}
+        ],
+      },
+    ],
+    filters: state.transactionFilters,
+    filterAttr: "filter",
+    clearAction: "clear-transaction-filter",
+    resetAction: "reset-transaction-filters",
+  });
+}
+
+function hasActiveFilters(filters) {
+  return Object.values(filters).some(Boolean);
+}
+
+function renderTableFilters({ fields, filters, filterAttr, clearAction, resetAction }) {
+  return `
+    <section class="filter-bar">
+      <div class="filter-grid">
+        ${fields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
+      </div>
+      <div class="filter-actions">
+        ${hasActiveFilters(filters) ? `<button class="filter-reset" data-action="${escapeHtml(resetAction)}">${iconSvg("clear")}${escapeHtml(t("chrome.clearAllFilters"))}</button>` : ""}
+      </div>
     </section>
   `;
 }
 
-function renderSelect(name, label, options) {
+function renderFilterSelect({ name, label, options, filters, filterAttr, clearAction }) {
+  const active = Boolean(filters[name]);
+  const controlId = `${filterAttr}-${name}`;
   return `
-    <div class="filter-field ${state.transactionFilters[name] ? "active" : ""}">
-      <label for="filter-${name}">${escapeHtml(label)}</label>
-      <select id="filter-${name}" data-filter="${name}">
-        ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${state.transactionFilters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
-      </select>
+    <div class="filter-field ${active ? "active" : ""}">
+      <label for="${escapeHtml(controlId)}">${escapeHtml(label)}</label>
+      <div class="filter-control-row">
+        <select id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}">
+          ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${filters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
+        </select>
+        ${active ? `<button class="filter-clear" data-action="${escapeHtml(clearAction)}" data-filter-name="${escapeHtml(name)}" aria-label="${escapeHtml(t("chrome.clearFilter"))}" title="${escapeHtml(t("chrome.clearFilter"))}">${iconSvg("clear")}</button>` : ""}
+      </div>
     </div>
   `;
 }
@@ -464,13 +547,13 @@ function renderTransactionRow(tx) {
   const selectAttrs = `data-action="select-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}"`;
   return `
     <tr class="transaction-row ${tx.transaktion_id === state.selectedTransactionId ? "selected" : ""} ${tx.kategorisierung_status === "offen" ? "open" : ""}">
-      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
       <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button></td>
-      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(tx.gegenpartei)}</td>
-      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
-      <td class="amount row-select-cell" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
-      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(category)}</td>
-      <td class="row-select-cell" ${selectAttrs}>${statusChip(tx.kategorisierung_status)}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.gegenpartei)}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
+      <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(category)}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${statusChip(tx.kategorisierung_status)}</td>
       ${renderTransferCell(tx)}
     </tr>
   `;
@@ -594,12 +677,12 @@ function renderCashflow() {
         <span class="chip neutral">• ${escapeHtml(t("cashflow.horizonTo"))} ${escapeHtml(prognose.horizont_ende)}</span>
       </div>
     </div>
-    <p class="page-lead" style="margin-top: 12px;">${escapeHtml(t("cashflow.incompleteNote"))}</p>
-    <section class="panel panel-pad" style="margin-top: 16px;">
+    <p class="page-lead section-note">${escapeHtml(t("cashflow.incompleteNote"))}</p>
+    <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(t("cashflow.ist"))} · ${escapeHtml(t("cashflow.monthlyTable"))}</h2>
       ${ist.monate.length ? renderMonatsTabelle(ist.monate) : `<p class="muted">${escapeHtml(t("cashflow.empty"))}</p>`}
     </section>
-    <section class="panel panel-pad" style="margin-top: 16px;">
+    <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(t("cashflow.prognose"))} · ${escapeHtml(t("cashflow.monthlyTable"))}</h2>
       <div class="cashflow-filter">
         <span>${granButtons}</span>
@@ -710,7 +793,7 @@ function renderRegelzahlungen() {
   `).join("");
   return `
     ${renderPageHead(t("regelzahlungen.title"), t("regelzahlungen.lead"))}
-    <section class="panel panel-pad" style="margin-top: 16px;">
+    <section class="panel panel-pad section-spacing">
       ${data.regelzahlungen.length ? `
       <div class="table-wrap">
         <table>
@@ -798,7 +881,7 @@ function renderVermoegen() {
 
   return `
     ${renderPageHead(t("vermoegen.title"), t("vermoegen.lead"))}
-    <div class="layout-with-rail">
+    <div class="layout-with-rail ${state.vermoegenDetailRailClosed ? "rail-closed" : ""}">
       <div class="stack">
         <div class="tile-grid">
           <div class="tile tile-static">
@@ -831,42 +914,48 @@ function renderVermoegen() {
           </div>
         </section>
       </div>
-      <aside class="panel panel-pad detail-panel">
-        <h2 class="section-title">${escapeHtml(t("vermoegen.detailTitle"))}</h2>
-        ${selected ? renderVermoegenDetail(selected, today) : `<p>${escapeHtml(t("vermoegen.noSelection"))}</p>`}
-      </aside>
+      ${state.vermoegenDetailRailClosed ? "" : `
+        <aside class="panel panel-pad detail-panel">
+          <div class="detail-head">
+            <h2 class="section-title">${escapeHtml(t("vermoegen.detailTitle"))}</h2>
+            <button class="icon-button" data-action="close-vermoegen-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
+          </div>
+          ${selected ? renderVermoegenDetail(selected, today) : `<p>${escapeHtml(t("vermoegen.noSelection"))}</p>`}
+        </aside>
+      `}
     </div>`;
 }
 
 function renderVermoegenFilters() {
-  return `
-    <section class="filter-bar">
-      ${renderVermoegenSelect("klasse", t("vermoegen.filterKlasse"), [
+  return renderTableFilters({
+    fields: [
+      {
+        name: "klasse",
+        label: t("vermoegen.filterKlasse"),
+        options: [
         ["", t("vermoegen.filterAll")],
         ["konto", t("vermoegen.klasse.konto")],
         ["immobilie", t("vermoegen.klasse.immobilie")],
         ["vermoegenswert", t("vermoegen.klasse.vermoegenswert")],
         ["darlehen", t("vermoegen.klasse.darlehen")],
-      ])}
-      ${renderVermoegenSelect("qualitaet", t("vermoegen.filterQualitaet"), [
+        ],
+      },
+      {
+        name: "qualitaet",
+        label: t("vermoegen.filterQualitaet"),
+        options: [
         ["", t("vermoegen.filterAll")],
         ["belegt", t("vermoegen.qualityBelegt")],
         ["geschaetzt", t("vermoegen.qualityGeschaetzt")],
         ["fehlend", t("vermoegen.qualityFehlend")],
-      ])}
-    </section>
-  `;
-}
-
-function renderVermoegenSelect(name, label, options) {
-  return `
-    <div class="filter-field ${state.vermoegenFilters[name] ? "active" : ""}">
-      <label for="vfilter-${name}">${escapeHtml(label)}</label>
-      <select id="vfilter-${name}" data-vermoegen-filter="${name}">
-        ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${state.vermoegenFilters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
-      </select>
-    </div>
-  `;
+        ],
+      },
+    ],
+    filters: state.vermoegenFilters,
+    filterAttr: "vermoegen-filter",
+    clearAction: "clear-vermoegen-filter",
+    resetAction: "reset-vermoegen-filters",
+  });
 }
 
 function detailRow(label, valueHtml) {
@@ -999,7 +1088,7 @@ function renderMasterdata() {
         <span class="chip success">✓ ${escapeHtml(t("masterdata.active"))}</span>
       </button>
     </div>
-    <section class="panel panel-pad" style="margin-top: 16px;">
+    <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(sectionTitle())}</h2>
       ${renderMasterSection()}
     </section>
@@ -1069,12 +1158,12 @@ function renderChecks() {
         </div>
       `).join("")}
     </div>
-    <section class="panel panel-pad" style="margin-top: 16px;">
+    <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(t("checksPage.title"))}</h2>
       <div class="rail-list">${renderCheckItems(data.checks)}</div>
     </section>
     ${(data.importfehler?.length ?? 0) > 0 ? `
-      <section class="panel panel-pad" style="margin-top: 16px;">
+      <section class="panel panel-pad section-spacing">
         <h2 class="section-title">${escapeHtml(t("checksPage.importErrors"))}</h2>
         <p class="page-lead">${escapeHtml(t("checksPage.importErrorsLead"))}</p>
         <div class="rail-list">
@@ -1089,7 +1178,7 @@ function renderChecks() {
       </section>
     ` : ""}
     ${transferResults.length > 0 ? `
-      <section class="panel panel-pad" style="margin-top: 16px;">
+      <section class="panel panel-pad section-spacing">
         <h2 class="section-title">${escapeHtml(t("checksPage.transfers"))}</h2>
         <p class="page-lead">${escapeHtml(t("checksPage.transfersLead"))}</p>
         <div class="rail-list">
@@ -1103,7 +1192,7 @@ function renderChecks() {
       </section>
     ` : ""}
     ${m5.length > 0 ? `
-      <section class="panel panel-pad" style="margin-top: 16px;">
+      <section class="panel panel-pad section-spacing">
         <h2 class="section-title">${escapeHtml(t("nav.vermoegen"))}</h2>
         <div class="rail-list">
           ${m5.map((check) => `
@@ -1285,6 +1374,25 @@ function handleAction(element) {
     commitNavigation();
     return;
   }
+  if (action === "clear-transaction-filter") {
+    if (Object.hasOwn(state.transactionFilters, element.dataset.filterName)) {
+      state.transactionFilters[element.dataset.filterName] = "";
+      state.transactionPage = 1;
+      commitNavigation();
+    }
+    return;
+  }
+  if (action === "reset-transaction-filters") {
+    state.transactionFilters = {
+      account: "",
+      status: "",
+      category: "",
+      transfer: "",
+    };
+    state.transactionPage = 1;
+    commitNavigation();
+    return;
+  }
   if (action === "account-transactions") {
     state.view = "transactions";
     state.transactionFilters.account = element.dataset.account;
@@ -1298,6 +1406,17 @@ function handleAction(element) {
   }
   if (action === "select-transaction") {
     state.selectedTransactionId = element.dataset.transaction;
+    state.detailRailClosed = false;
+    commitNavigation();
+    return;
+  }
+  if (action === "close-detail-rail") {
+    state.detailRailClosed = true;
+    commitNavigation();
+    return;
+  }
+  if (action === "close-vermoegen-detail-rail") {
+    state.vermoegenDetailRailClosed = true;
     commitNavigation();
     return;
   }
@@ -1323,13 +1442,30 @@ function handleAction(element) {
   }
   if (action === "select-vermoegen") {
     state.selectedVermoegenId = element.dataset.vermoegen;
-    render();
+    state.vermoegenDetailRailClosed = false;
+    commitNavigation();
+    return;
+  }
+  if (action === "clear-vermoegen-filter") {
+    if (Object.hasOwn(state.vermoegenFilters, element.dataset.filterName)) {
+      state.vermoegenFilters[element.dataset.filterName] = "";
+      commitNavigation();
+    }
+    return;
+  }
+  if (action === "reset-vermoegen-filters") {
+    state.vermoegenFilters = {
+      klasse: "",
+      qualitaet: "",
+    };
+    commitNavigation();
     return;
   }
   if (action === "open-vermoegen-entity") {
     state.view = "vermoegen";
     state.vermoegenFilters = { klasse: "", qualitaet: "" };
     state.selectedVermoegenId = `${element.dataset.vklasse}:${element.dataset.vid}`;
+    state.vermoegenDetailRailClosed = false;
     commitNavigation();
     return;
   }

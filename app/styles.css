@@ -5,20 +5,20 @@
   --surface-2: #edf3ef;
   --text: #17211d;
   --muted: #66716d;
-  --faint: #8a9691;
   --border: #dde5df;
   --border-strong: #c8d3cc;
   --accent: #0f766e;
   --accent-strong: #0b5f59;
   --accent-soft: #dcefeb;
-  --review: #b7791f;
+  --review: #8f5d12;
   --review-soft: #fff3d6;
   --success: #267a4a;
   --success-soft: #e2f4e9;
   --danger: #b42318;
   --danger-soft: #fde7e4;
-  --shadow: 0 18px 50px rgba(24, 38, 31, 0.08);
-  --radius: 8px;
+  --shadow: none;
+  --radius: 6px;
+  --radius-tight: 4px;
   --sidebar-width: 248px;
   --sidebar-collapsed-width: 84px;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -31,7 +31,6 @@
   --surface-2: #202b27;
   --text: #eef5f0;
   --muted: #a8b5af;
-  --faint: #7f8d86;
   --border: #2d3a35;
   --border-strong: #405049;
   --accent: #5ac7b8;
@@ -43,7 +42,9 @@
   --success-soft: #173821;
   --danger: #ff8b7f;
   --danger-soft: #421b18;
-  --shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+  --shadow: none;
+  --radius: 6px;
+  --radius-tight: 4px;
 }
 
 * {
@@ -52,7 +53,7 @@
 
 body {
   margin: 0;
-  min-width: 1040px;
+  min-width: 0;
   background: var(--bg);
   color: var(--text);
 }
@@ -64,6 +65,40 @@ select {
 
 button {
   color: inherit;
+}
+
+.icon {
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: -0.15em;
+  pointer-events: none;
+}
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon-button:hover,
+.icon-button:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
+  outline: none;
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .app-shell {
@@ -78,9 +113,17 @@ button {
 }
 
 .sidebar {
+  min-height: 100vh;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  align-self: start;
   padding: 24px 18px;
   border-right: 1px solid var(--border);
   background: var(--surface);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
 }
 
 .brand {
@@ -95,7 +138,7 @@ button {
   display: grid;
   place-items: center;
   margin-bottom: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--accent-soft);
   color: var(--accent-strong);
   font-weight: 800;
@@ -119,8 +162,10 @@ button {
   right: 0;
   width: 30px;
   height: 30px;
+  display: grid;
+  place-items: center;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
@@ -162,20 +207,46 @@ button {
   padding-inline: 0;
 }
 
+.sidebar-meta {
+  display: grid;
+  gap: 3px;
+  padding: 14px 10px 0;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sidebar-meta strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.sidebar-collapsed .sidebar-meta {
+  justify-items: center;
+}
+
+.sidebar-collapsed .sidebar-meta span {
+  display: none;
+}
+
 .nav {
   display: grid;
+  align-content: start;
+  align-items: start;
+  grid-auto-rows: min-content;
   gap: 6px;
   padding-top: 18px;
 }
 
 .nav-button {
   width: 100%;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 11px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -197,8 +268,10 @@ button {
 
 .nav-icon {
   width: 20px;
+  height: 20px;
   display: inline-grid;
   place-items: center;
+  font-size: 18px;
 }
 
 .main {
@@ -207,18 +280,23 @@ button {
 }
 
 .topbar {
+  min-height: 54px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 10px 0 20px;
+  padding: 8px 0 18px;
 }
 
-.work-status {
+.work-status,
+.controls {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.work-status {
   color: var(--muted);
   font-size: 13px;
 }
@@ -229,17 +307,15 @@ button {
 }
 
 .controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
 }
 
 .control-select {
   min-width: 128px;
-  height: 34px;
+  height: 40px;
   padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   font-size: 13px;
@@ -274,11 +350,23 @@ button {
   font-size: 14px;
 }
 
+.section-note {
+  margin-top: 12px;
+}
+
+.section-spacing {
+  margin-top: 16px;
+}
+
 .layout-with-rail {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 18px;
   align-items: start;
+}
+
+.layout-with-rail.rail-closed {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .layout-with-rail > * {
@@ -299,6 +387,22 @@ button {
   box-shadow: var(--shadow);
 }
 
+.panel,
+.mini-kpi,
+.summary-cell,
+.tile,
+.rail-item,
+.table-wrap,
+.filter-bar,
+.filter-field,
+.icon-button,
+.sidebar-toggle,
+.nav-button,
+.control-select,
+.pager-button {
+  border-radius: var(--radius);
+}
+
 .panel-pad {
   padding: 18px;
 }
@@ -307,6 +411,13 @@ button {
   padding: 24px;
   display: grid;
   gap: 0;
+  container-type: inline-size;
+}
+
+.overview-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .kpi-label {
@@ -316,10 +427,13 @@ button {
 }
 
 .kpi-value {
-  font-size: clamp(38px, 5vw, 62px);
+  /* An die Card-Breite (Container) gekoppelt statt an die Viewport-Breite,
+     damit die Grosszahl bei zwei Spalten + offener Rail nicht ueberlaeuft. */
+  font-size: clamp(28px, 11cqi, 48px);
   line-height: 0.95;
   font-weight: 800;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .kpi-note {
@@ -337,7 +451,7 @@ button {
   min-height: 86px;
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -359,14 +473,18 @@ button {
 }
 
 .table-wrap {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -392,6 +510,18 @@ tr:last-child td {
 
 .row-select-cell {
   cursor: pointer;
+}
+
+tbody tr.clickable,
+tbody tr.transaction-row {
+  cursor: pointer;
+}
+
+tbody tr.clickable:hover td,
+tbody tr.clickable:focus-within td,
+tbody tr.transaction-row:hover td,
+tbody tr.transaction-row:focus-within td {
+  background: var(--surface-2);
 }
 
 .transaction-row:hover .row-select-cell {
@@ -506,8 +636,16 @@ button.mini-kpi.linkish {
   gap: 14px;
 }
 
+.overview-rail {
+  grid-template-rows: auto 1fr;
+}
+
 .next-action {
   border-left: 4px solid var(--review);
+}
+
+.overview-rail .next-action {
+  min-height: 100%;
 }
 
 .rail-list {
@@ -520,7 +658,7 @@ button.mini-kpi.linkish {
   gap: 5px;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -537,7 +675,7 @@ button.mini-kpi.linkish {
   min-height: 126px;
   padding: 18px;
   border: 1px dashed var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface-2);
 }
 
@@ -565,12 +703,30 @@ button.roadmap-card-link:focus-visible {
 
 .filter-bar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
-  gap: 10px;
-  padding: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--surface-2) 68%, var(--surface));
+}
+
+.filter-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.filter-actions {
+  min-height: 58px;
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .pagination {
@@ -593,7 +749,7 @@ button.roadmap-card-link:focus-visible {
   min-width: 86px;
   height: 34px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
@@ -612,11 +768,12 @@ button.roadmap-card-link:focus-visible {
 }
 
 .filter-field {
+  min-width: 0;
   display: grid;
   gap: 6px;
   padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -632,13 +789,63 @@ button.roadmap-card-link:focus-visible {
 }
 
 .filter-field select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   height: 40px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-tight);
   background: var(--surface);
   color: var(--text);
   padding: 0 10px;
   font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.filter-control-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-control-row select {
+  flex: 1 1 auto;
+}
+
+.filter-clear,
+.filter-reset {
+  position: static;
+  flex: 0 0 auto;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-tight);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.filter-clear {
+  width: 34px;
+  padding: 0;
+}
+
+.filter-reset {
+  padding: 0 10px;
+}
+
+.filter-clear:hover,
+.filter-clear:focus-visible,
+.filter-reset:hover,
+.filter-reset:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
+  outline: none;
 }
 
 .summary-strip {
@@ -650,7 +857,7 @@ button.roadmap-card-link:focus-visible {
 .summary-cell {
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -671,6 +878,22 @@ button.roadmap-card-link:focus-visible {
 .detail-panel {
   position: sticky;
   top: 18px;
+}
+
+.detail-panel.hidden {
+  display: none;
+}
+
+.detail-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-head .section-title {
+  margin-bottom: 0;
 }
 
 .detail-section {
@@ -704,7 +927,7 @@ button.roadmap-card-link:focus-visible {
 .tile {
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   cursor: pointer;
 }
@@ -764,63 +987,77 @@ button.roadmap-card-link:focus-visible {
 }
 
 @media (max-width: 1180px) {
-  body {
-    min-width: 0;
-  }
-
-  .app-shell {
+  .app-shell,
+  .app-shell.sidebar-collapsed {
     grid-template-columns: 1fr;
   }
 
   .sidebar {
+    min-height: auto;
+    height: auto;
     position: sticky;
     top: 0;
-    z-index: 2;
-    display: flex;
+    z-index: 3;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto;
     align-items: center;
-    gap: 18px;
-    padding: 12px 16px;
-    overflow-x: auto;
+    gap: 12px;
+    padding: 10px 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
   }
 
   .brand {
-    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 16px 0 0;
-    border-right: 1px solid var(--border);
-    border-bottom: 0;
+    padding: 0;
+    border: 0;
   }
 
-  .sidebar-toggle {
-    display: none;
-  }
-
-  .sidebar-collapsed {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar-collapsed .brand-copy,
-  .sidebar-collapsed .nav-label {
-    display: initial;
-  }
-
-  .brand-mark {
+  .brand-mark,
+  .sidebar-collapsed .brand-mark {
     margin-bottom: 0;
+  }
+
+  .sidebar-toggle,
+  .sidebar-meta {
+    display: none;
   }
 
   .nav {
     display: flex;
+    justify-content: flex-start;
+    gap: 4px;
     padding-top: 0;
+    overflow-x: auto;
+    min-width: 0;
+    scrollbar-width: thin;
   }
 
   .nav-button {
+    width: auto;
+    /* Nicht schrumpfen: sonst werden die Buttons schmaler als ihre Labels
+       und der Text ueberlappt. Stattdessen scrollt die Leiste horizontal. */
+    flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
     white-space: nowrap;
   }
 
   .layout-with-rail {
-    grid-template-columns: 1fr;
+    display: block;
+  }
+
+  .layout-with-rail .stack,
+  .layout-with-rail .rail {
+    display: grid;
+    gap: 16px;
+  }
+
+  .layout-with-rail .rail {
+    margin-top: 16px;
   }
 
   .detail-panel {
@@ -830,10 +1067,17 @@ button.roadmap-card-link:focus-visible {
 
 @media (max-width: 760px) {
   .main {
-    padding: 14px;
+    padding: 12px 12px 76px;
   }
 
-  .topbar,
+  .topbar {
+    min-height: auto;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 14px;
+  }
+
   .page-head {
     align-items: stretch;
     flex-direction: column;
@@ -844,16 +1088,96 @@ button.roadmap-card-link:focus-visible {
     width: 100%;
   }
 
+  .controls {
+    justify-content: flex-end;
+  }
+
   .control-select {
-    flex: 1;
+    flex: 0 0 auto;
+  }
+
+  .control-select.icon-select {
+    width: 44px;
+    min-width: 44px;
+    height: 34px;
+    padding: 0 6px;
+    font-size: 15px;
+  }
+
+  .nav {
+    gap: 3px;
+  }
+
+  .nav-button {
+    flex: 0 0 44px;
+    width: 44px;
+    padding: 0;
+  }
+
+  .nav-label {
+    display: none;
+  }
+
+  .sidebar {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .nav {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .kpi-grid,
+  .overview-kpis,
   .summary-strip,
   .filter-bar,
+  .filter-grid,
   .tile-grid,
   .roadmap-large {
     grid-template-columns: 1fr;
+  }
+
+  .filter-actions {
+    width: 100%;
+    min-height: auto;
+    justify-content: stretch;
+  }
+
+  .filter-reset {
+    width: 100%;
+  }
+
+  .filter-control-row {
+    align-items: stretch;
+  }
+
+  .tile {
+    padding: 14px;
+  }
+
+  .tile strong {
+    font-size: 15px;
+  }
+
+  .tile .count {
+    margin: 10px 0 6px;
+    font-size: 24px;
+  }
+
+  .empty-state {
+    min-height: 180px;
+    padding: 20px;
+  }
+
+  .detail-head {
+    align-items: center;
   }
 
   .pagination {
@@ -912,4 +1236,77 @@ button.roadmap-card-link:focus-visible {
 .cashflow-detail .running-note {
   font-size: 0.82em;
   margin-top: 3px;
+}
+
+/* Sichtbarer Fokusring app-weit. Steht am Dateiende, damit er die zahlreichen
+   `outline: none`-Regeln der einzelnen Komponenten bei gleicher Spezifitaet
+   ueber die Quellreihenfolge gewinnt. Gilt nur fuer Tastaturfokus
+   (:focus-visible), nicht fuer Hover/Maus. */
+.app-shell :focus-visible,
+.skip-link:focus,
+.skip-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Skip-Link: liegt vor der Navigation, sichtbar nur bei Tastaturfokus. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 10;
+  padding: 8px 14px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 8px;
+}
+
+/* Nur fuer Screenreader: visuell ausgeblendet, im Accessibility-Tree sichtbar. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Fallback-Meldung, falls das Review-Bundle nicht geladen werden konnte. */
+.bootstrap-error {
+  max-width: 560px;
+  margin: 48px auto;
+  padding: 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.bootstrap-error code {
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: var(--radius-tight);
+}
+
+/* Nutzer mit prefers-reduced-motion: Transitions/Animationen praktisch aus. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

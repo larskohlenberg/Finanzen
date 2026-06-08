@@ -4,6 +4,8 @@ Stand: 2026-06-04
 
 Diese Guideline ist der Zielstandard fuer die weitere App-Umsetzung. Sie verbindet die Stitch-Designsprache `Forest Dark Precision` mit den tatsaechlichen App-Screens und ersetzt nicht die fachlichen Meilensteinplaene.
 
+Konkrete Masse, Tokens, States und bekannte Bugs der App-Shell und wiederkehrender Komponenten (Navigation, Panels/KPI-Cards, Tabellen, Filter, Status-Badges, Detail-Rail) stehen in `docs/runde2/UI_Handoff_Komponenten_Runde2.md`.
+
 ## 1. Leitbild
 
 Finanzmodell ist eine lokale, browserbasierte Review- und Arbeitsoberflaeche fuer private Finanzen. Die App ist kein Marketing-Dashboard und keine dekorative Analyse-Seite.

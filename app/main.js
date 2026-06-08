@@ -2,8 +2,22 @@ import { computeCashflowIst, computeCashflowPrognoseDetail, defaultHorizonEnd, t
 import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
 const data = window.FINANCE_REVIEW_DATA;
-data.regelzahlungen = data.regelzahlungen ?? [];
 const dictionaries = window.FINANCE_I18N;
+
+if (!data || !Array.isArray(data.personen) || !Array.isArray(data.konten) || !dictionaries) {
+  const shell = document.querySelector("#app");
+  if (shell) {
+    shell.innerHTML = `
+      <div class="bootstrap-error" role="alert">
+        <h1>Daten konnten nicht geladen werden</h1>
+        <p>Die Review-Daten (<code>review-data.js</code>) oder die Sprachdatei (<code>i18n.js</code>) wurden nicht oder unvollständig geladen.</p>
+        <p>Bitte die Seite über den lokalen Webserver öffnen und neu laden. Falls das Problem bestehen bleibt, das Review-Bundle erneut bereitstellen.</p>
+      </div>`;
+  }
+  throw new Error("Finanzmodell: Bootstrap abgebrochen – FINANCE_REVIEW_DATA oder FINANCE_I18N fehlt/unvollständig.");
+}
+
+data.regelzahlungen = data.regelzahlungen ?? [];
 
 const storageKeys = {
   lang: "finance-m2-language",
@@ -80,7 +94,12 @@ function escapeHtml(value) {
 }
 
 function cents(decimalString) {
-  return Math.round(Number(decimalString) * 100);
+  const raw = String(decimalString ?? "").trim();
+  if (raw === "") return 0;
+  const sign = raw.startsWith("-") ? -1 : 1;
+  const [euros = "0", frac = ""] = raw.replace("-", "").split(".");
+  const fracPadded = (frac + "00").slice(0, 2);
+  return sign * (Number(euros) * 100 + Number(fracPadded));
 }
 
 function formatMoney(amountInCents) {
@@ -177,16 +196,107 @@ function applyTheme() {
   document.documentElement.lang = state.lang;
 }
 
+const FOCUS_ATTRS = [
+  "id", "data-view", "data-action", "data-account", "data-transaction",
+  "data-vermoegen", "data-cashflow-toggle", "data-cashflow-gran", "data-master-section",
+  "data-vermoegen-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
+];
+const SCROLL_SELECTORS = [".nav", ".table-wrap"];
+
+// render() ersetzt den kompletten DOM (app.innerHTML). Ohne Gegenmassnahme
+// springt der Fokus auf <body> und horizontale Scrollpositionen gehen verloren.
+// Vor jedem Re-Render Fokus + Scroll sichern und danach wiederherstellen.
+function captureFocus() {
+  const el = document.activeElement;
+  if (!el || el === document.body || !app.contains(el)) return null;
+  const parts = [];
+  for (const attr of FOCUS_ATTRS) {
+    const value = el.getAttribute?.(attr);
+    if (value != null) parts.push(`[${attr}="${CSS.escape(value)}"]`);
+  }
+  if (!parts.length) return null;
+  const selectionStart = typeof el.selectionStart === "number" ? el.selectionStart : null;
+  const selectionEnd = typeof el.selectionEnd === "number" ? el.selectionEnd : null;
+  return { selector: el.tagName.toLowerCase() + parts.join(""), selectionStart, selectionEnd };
+}
+
+function restoreFocus(snap) {
+  if (!snap) return;
+  let target = null;
+  try {
+    target = app.querySelector(snap.selector);
+  } catch {
+    target = null;
+  }
+  if (!target) return;
+  target.focus({ preventScroll: true });
+  if (snap.selectionStart != null && typeof target.setSelectionRange === "function") {
+    try {
+      target.setSelectionRange(snap.selectionStart, snap.selectionEnd);
+    } catch {
+      /* z. B. input[type=date] erlaubt keine Selektion – ignorieren */
+    }
+  }
+}
+
+function captureScroll() {
+  const map = {};
+  for (const sel of SCROLL_SELECTORS) {
+    map[sel] = [...app.querySelectorAll(sel)].map((el) => ({ left: el.scrollLeft, top: el.scrollTop }));
+  }
+  return { x: window.scrollX, y: window.scrollY, map };
+}
+
+function restoreScroll(snap) {
+  if (!snap) return;
+  for (const sel of SCROLL_SELECTORS) {
+    const els = app.querySelectorAll(sel);
+    (snap.map[sel] || []).forEach((pos, i) => {
+      const el = els[i];
+      if (el) {
+        el.scrollLeft = pos.left;
+        el.scrollTop = pos.top;
+      }
+    });
+  }
+  window.scrollTo(snap.x, snap.y);
+}
+
+// Schlanke Statusmeldung fuer Screenreader. Sitzt in #sr-status ausserhalb von
+// #app, damit nicht bei jedem Re-Render die komplette Oberflaeche vorgelesen wird.
+function statusMessage() {
+  const navLabel = navItems.find(([view]) => view === state.view)?.[1];
+  const title = navLabel ? t(navLabel) : "";
+  if (state.view === "transactions") {
+    const rows = filteredTransactions();
+    const balance = rows.reduce((sum, tx) => sum + cents(tx.betrag), 0);
+    return `${title}: ${rows.length} ${t("transactions.hits")}, ${t("transactions.filteredBalance")} ${formatMoney(balance)}`;
+  }
+  return title;
+}
+
+function announceStatus() {
+  const region = document.querySelector("#sr-status");
+  if (!region) return;
+  const msg = statusMessage();
+  if (region.textContent !== msg) region.textContent = msg;
+}
+
 function render() {
   applyTheme();
+  const focusSnap = captureFocus();
+  const scrollSnap = captureScroll();
   app.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
   app.innerHTML = `
     ${renderSidebar()}
-    <main class="main">
+    <main class="main" id="main-content" tabindex="-1">
       ${renderTopbar()}
       ${renderView()}
     </main>
   `;
+  restoreScroll(scrollSnap);
+  restoreFocus(focusSnap);
+  announceStatus();
 }
 
 function renderSidebar() {
@@ -198,7 +308,7 @@ function renderSidebar() {
           <div class="brand-title">${escapeHtml(t("appTitle"))}</div>
         </div>
         <button class="sidebar-toggle" data-action="toggle-sidebar" aria-label="${escapeHtml(state.sidebarCollapsed ? t("chrome.expandNav") : t("chrome.collapseNav"))}" title="${escapeHtml(state.sidebarCollapsed ? t("chrome.expandNav") : t("chrome.collapseNav"))}">
-          ${state.sidebarCollapsed ? "›" : "‹"}
+          ${state.sidebarCollapsed ? iconSvg("chevronRight") : iconSvg("chevronLeft")}
         </button>
       </div>
       <nav class="nav" aria-label="${escapeHtml(t("chrome.mainNav"))}">
@@ -224,9 +334,9 @@ function renderTopbar() {
     <header class="topbar">
       <div class="work-status">
         <strong>${escapeHtml(t("chrome.workStatus"))}</strong>
-        <span class="chip success">✓ ${escapeHtml(t("chrome.validationPassed"))}</span>
-        <button class="chip review linkish" data-action="filter-open-category">? ${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
-        ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">⚠ ${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
+        <span class="chip success">${iconSvg("success")}${escapeHtml(t("chrome.validationPassed"))}</span>
+        <button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
+        ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
         <button class="chip neutral linkish" data-action="next-action">${escapeHtml(t("chrome.nextAction"))}: ${escapeHtml(t("overview.nextActionText"))}</button>
       </div>
       <div class="controls">
@@ -273,16 +383,16 @@ function renderOverview() {
     <div class="layout-with-rail">
       <div class="stack">
         <div class="overview-kpis">
-          <section class="panel hero-kpi">
+          <section class="panel hero-kpi" aria-labelledby="kpi-balance-label">
             <div>
-              <div class="kpi-label">${escapeHtml(t("overview.totalBalance"))}</div>
+              <div class="kpi-label" id="kpi-balance-label">${escapeHtml(t("overview.totalBalance"))}</div>
               <div class="kpi-value">${escapeHtml(formatMoney(loadedTotalAccountsBalance()))}</div>
               <div class="kpi-note">${escapeHtml(t("overview.balanceNote"))}</div>
             </div>
           </section>
-          <section class="panel hero-kpi">
+          <section class="panel hero-kpi" aria-labelledby="kpi-networth-label">
             <div>
-              <div class="kpi-label">${escapeHtml(t("nav.vermoegen"))}</div>
+              <div class="kpi-label" id="kpi-networth-label">${escapeHtml(t("nav.vermoegen"))}</div>
               <div class="kpi-value">${escapeHtml(formatMoney(currentNettovermoegen().netto_cents))}</div>
               <div class="kpi-note">${escapeHtml(t("overview.netWorthNote"))}</div>
             </div>
@@ -562,8 +672,8 @@ function renderTransactionRow(tx) {
 function renderTransferCell(tx) {
   if (!tx.ist_transfer) return `<td><span class="muted">${escapeHtml(t("labels.no"))}</span></td>`;
   const paired = pairedTransferTransaction(tx);
-  if (!paired) return `<td><span class="chip neutral">↔ ${escapeHtml(t("labels.yes"))}</span></td>`;
-  return `<td class="transfer-link-cell" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${escapeHtml(t("transactions.pairedTransfer"))}"><span class="chip neutral linkish transfer-anchor">↔ ${escapeHtml(t("labels.yes"))}</span></td>`;
+  if (!paired) return `<td><span class="chip neutral">${iconSvg("transfer")}${escapeHtml(t("labels.yes"))}</span></td>`;
+  return `<td class="transfer-link-cell" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${escapeHtml(t("transactions.pairedTransfer"))}"><span class="chip neutral linkish transfer-anchor">${iconSvg("transfer")}${escapeHtml(t("labels.yes"))}</span></td>`;
 }
 
 function pairedTransferTransaction(tx) {
@@ -650,12 +760,12 @@ function renderCashflow() {
     granularitaet: state.cashflow.granularitaet,
   });
   const istChipClass = ist.qualitaet.offene_kategorie_anzahl > 0 ? "review" : "success";
-  const istChipIcon = ist.qualitaet.offene_kategorie_anzahl > 0 ? "?" : "✓";
+  const istChipIcon = ist.qualitaet.offene_kategorie_anzahl > 0 ? iconSvg("review") : iconSvg("success");
   const vorschlaegeChip = prognose.qualitaet.vorschlaege_nicht_enthalten > 0
-    ? `<span class="chip review">? ${escapeHtml(String(prognose.qualitaet.vorschlaege_nicht_enthalten))} ${escapeHtml(t("cashflow.qualityProposalsExcluded"))}</span>`
+    ? `<span class="chip review">${iconSvg("review")}${escapeHtml(String(prognose.qualitaet.vorschlaege_nicht_enthalten))} ${escapeHtml(t("cashflow.qualityProposalsExcluded"))}</span>`
     : "";
   const unbefristetChip = prognose.qualitaet.unbefristete_regelzahlungen > 0
-    ? `<span class="chip neutral">• ${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`
+    ? `<span class="chip neutral">${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`
     : "";
   const granButtons = ["monat", "quartal", "jahr"]
     .map((g) => `<button class="chip ${state.cashflow.granularitaet === g ? "success" : "neutral"} linkish" data-cashflow-gran="${g}">${escapeHtml(t(`cashflow.gran.${g}`))}</button>`)
@@ -666,15 +776,15 @@ function renderCashflow() {
       <div class="tile tile-static">
         <strong>${escapeHtml(t("cashflow.ist"))}</strong>
         <div class="count">${escapeHtml(formatMoney(ist.gesamt_netto_cents))}</div>
-        <span class="chip ${istChipClass}">${istChipIcon} ${escapeHtml(String(ist.qualitaet.offene_kategorie_anzahl))} ${escapeHtml(t("cashflow.qualityOpenCategories"))}</span>
+        <span class="chip ${istChipClass}">${istChipIcon}${escapeHtml(String(ist.qualitaet.offene_kategorie_anzahl))} ${escapeHtml(t("cashflow.qualityOpenCategories"))}</span>
       </div>
       <div class="tile tile-static">
         <strong>${escapeHtml(t("cashflow.prognose"))}</strong>
         <div class="count">${escapeHtml(formatMoney(prognose.gesamt_netto_cents))}</div>
-        <span class="chip neutral">• ${escapeHtml(String(prognose.qualitaet.bestaetigte_regelzahlungen))} ${escapeHtml(t("cashflow.qualityConfirmed"))}</span>
+        <span class="chip neutral">${escapeHtml(String(prognose.qualitaet.bestaetigte_regelzahlungen))} ${escapeHtml(t("cashflow.qualityConfirmed"))}</span>
         ${vorschlaegeChip}
         ${unbefristetChip}
-        <span class="chip neutral">• ${escapeHtml(t("cashflow.horizonTo"))} ${escapeHtml(prognose.horizont_ende)}</span>
+        <span class="chip neutral">${escapeHtml(t("cashflow.horizonTo"))} ${escapeHtml(prognose.horizont_ende)}</span>
       </div>
     </div>
     <p class="page-lead section-note">${escapeHtml(t("cashflow.incompleteNote"))}</p>
@@ -728,7 +838,7 @@ function renderMonatRows(monat, nested) {
     <tr class="row-month ${nested ? "nested" : ""}">
       <td>
         <button class="row-toggle" data-cashflow-toggle="${escapeHtml(monat.monat)}">
-          <span class="toggle-icon">${expanded ? "▾" : "▸"}</span>${escapeHtml(formatMonat(monat.monat))}
+          <span class="toggle-icon">${expanded ? iconSvg("chevronDown") : iconSvg("chevronRight")}</span>${escapeHtml(formatMonat(monat.monat))}
         </button>
         ${laufendMarkup(monat.ist_laufend)}
       </td>
@@ -750,7 +860,7 @@ function renderPrognoseDetail(prognose) {
       <tr class="row-period">
         <td>
           <button class="row-toggle" data-cashflow-toggle="${escapeHtml(periode.periode)}">
-            <span class="toggle-icon">${expanded ? "▾" : "▸"}</span>${escapeHtml(formatPeriode(periode.periode))}
+            <span class="toggle-icon">${expanded ? iconSvg("chevronDown") : iconSvg("chevronRight")}</span>${escapeHtml(formatPeriode(periode.periode))}
           </button>
           ${laufendMarkup(periode.ist_laufend)}
         </td>
@@ -855,8 +965,8 @@ function vermoegenSortHeader(key, labelKey, amount = false) {
 }
 
 function qualitaetChip(p) {
-  if (p.fehlt || !p.qualitaet) return `<span class="chip review">? ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`;
-  return `<span class="chip ${p.qualitaet === "belegt" ? "success" : "neutral"}">${escapeHtml(t(`vermoegen.quality${p.qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`))}</span>`;
+  if (p.fehlt || !p.qualitaet) return `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`;
+  return `<span class="chip ${p.qualitaet === "belegt" ? "success" : "neutral"}">${p.qualitaet === "belegt" ? iconSvg("success") : ""}${escapeHtml(t(`vermoegen.quality${p.qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`))}</span>`;
 }
 
 function renderVermoegen() {
@@ -870,7 +980,7 @@ function renderVermoegen() {
   const rows = visible.map((p) => {
     const key = positionKey(p);
     return `
-    <tr class="clickable ${key === state.selectedVermoegenId ? "selected" : ""} ${p.fehlt ? "open" : ""}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(key)}">
+    <tr class="clickable ${key === state.selectedVermoegenId ? "selected" : ""} ${p.fehlt ? "open" : ""}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(key)}" tabindex="0" role="button" aria-label="${escapeHtml(p.name)}">
       <td>${escapeHtml(t(`vermoegen.klasse.${p.klasse}`))}</td>
       <td>${escapeHtml(p.name)}</td>
       <td class="amount">${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : escapeHtml(formatMoney(p.wert_cents))}</td>
@@ -892,9 +1002,9 @@ function renderVermoegen() {
           <div class="tile tile-static">
             <strong>${escapeHtml(t("vermoegen.qualitaetTitle"))}</strong>
             <div class="count">${r.positionen.length}</div>
-            <span class="chip success">• ${r.qualitaet.belegt} ${escapeHtml(t("vermoegen.qualityBelegt"))}</span>
-            <span class="chip neutral">• ${r.qualitaet.geschaetzt} ${escapeHtml(t("vermoegen.qualityGeschaetzt"))}</span>
-            ${r.qualitaet.fehlend > 0 ? `<span class="chip review">? ${r.qualitaet.fehlend} ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : ""}
+            <span class="chip success">${iconSvg("success")}${r.qualitaet.belegt} ${escapeHtml(t("vermoegen.qualityBelegt"))}</span>
+            <span class="chip neutral">${r.qualitaet.geschaetzt} ${escapeHtml(t("vermoegen.qualityGeschaetzt"))}</span>
+            ${r.qualitaet.fehlend > 0 ? `<span class="chip review">${iconSvg("review")}${r.qualitaet.fehlend} ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : ""}
           </div>
         </div>
         <p class="page-lead">${escapeHtml(t("vermoegen.incompleteNote"))}</p>
@@ -1012,7 +1122,7 @@ function renderVermoegenDetail(p, today) {
       + (zw
         ? detailRow(istDepot ? t("vermoegen.depotwert") : t("vermoegen.anker"),
             `<strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong><br>${escapeHtml(formatDate(zw.standdatum))} · ${qualitaetChip({ qualitaet: zw.qualitaet })}${zw.quelle_hinweis ? `<br><span class="muted">${escapeHtml(zw.quelle_hinweis)}</span>` : ""}`)
-        : detailRow(t("vermoegen.anker"), `<span class="chip review">? ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
+        : detailRow(t("vermoegen.anker"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + buchungenHtml
       + detailRow(t("vermoegen.aktuellerSaldo"),
           `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`);
@@ -1029,7 +1139,7 @@ function renderVermoegenDetail(p, today) {
       + (mw
         ? detailRow(t("vermoegen.marktwert"),
             `<strong>${escapeHtml(formatMoney(mwCents))}</strong><br>${escapeHtml(formatDate(mw.standdatum))} · ${qualitaetChip({ qualitaet: mw.qualitaet })}${mw.quelle_hinweis ? `<br><span class="muted">${escapeHtml(mw.quelle_hinweis)}</span>` : ""}`)
-        : detailRow(t("vermoegen.marktwert"), `<span class="chip review">? ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
+        : detailRow(t("vermoegen.marktwert"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + (entity?.eigentumsanteile ? detailRow(t("vermoegen.eigentumsanteile"), anteileHtml(entity.eigentumsanteile, mwCents)) : "")
       + detailRow(t("vermoegen.anteiligerWert"),
           p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`);
@@ -1050,7 +1160,7 @@ function renderVermoegenDetail(p, today) {
       + (anker
         ? detailRow(t("vermoegen.anker"),
             `<strong>${escapeHtml(formatMoney(cents(anker.wert)))}</strong><br>${escapeHtml(formatDate(anker.standdatum))} · ${qualitaetChip({ qualitaet: anker.qualitaet })}${anker.quelle_hinweis ? `<br><span class="muted">${escapeHtml(anker.quelle_hinweis)}</span>` : ""}`)
-        : detailRow(t("vermoegen.anker"), `<span class="chip review">? ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
+        : detailRow(t("vermoegen.anker"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + detailRow(t("vermoegen.restschuld"),
           `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(Math.abs(p.wert_cents)))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`)
       + (dar?.zinssatz ? detailRow(t("vermoegen.zinssatz"), `${escapeHtml(dar.zinssatz)} %`) : "")
@@ -1075,17 +1185,17 @@ function renderMasterdata() {
       <button class="tile ${state.masterSection === "personen" ? "active" : ""}" data-master-section="personen">
         <strong>${escapeHtml(t("masterdata.people"))}</strong>
         <div class="count">${data.personen.length}</div>
-        <span class="chip success">✓ ${escapeHtml(t("masterdata.active"))}</span>
+        <span class="chip success">${iconSvg("success")}${escapeHtml(t("masterdata.active"))}</span>
       </button>
       <button class="tile ${state.masterSection === "konten" ? "active" : ""}" data-master-section="konten">
         <strong>${escapeHtml(t("masterdata.accounts"))}</strong>
         <div class="count">${data.konten.length}</div>
-        <span class="chip review">? ${missingRefs} ${escapeHtml(t("masterdata.missingRefs"))}</span>
+        <span class="chip review">${iconSvg("review")}${missingRefs} ${escapeHtml(t("masterdata.missingRefs"))}</span>
       </button>
       <button class="tile ${state.masterSection === "kategorien" ? "active" : ""}" data-master-section="kategorien">
         <strong>${escapeHtml(t("masterdata.categories"))}</strong>
         <div class="count">${data.kategorien.length}</div>
-        <span class="chip success">✓ ${escapeHtml(t("masterdata.active"))}</span>
+        <span class="chip success">${iconSvg("success")}${escapeHtml(t("masterdata.active"))}</span>
       </button>
     </div>
     <section class="panel panel-pad section-spacing">
@@ -1154,7 +1264,7 @@ function renderChecks() {
         <div class="tile tile-static">
           <strong>${escapeHtml(label)}</strong>
           <div class="count">${checks.length}</div>
-          <span class="chip ${checks.some((check) => check.severity === "review") ? "review" : "success"}">${checks.some((check) => check.severity === "review") ? "?" : "✓"} ${escapeHtml(checks.some((check) => check.severity === "review") ? t("status.review") : t("status.success"))}</span>
+          <span class="chip ${checks.some((check) => check.severity === "review") ? "review" : "success"}">${checks.some((check) => check.severity === "review") ? iconSvg("review") : iconSvg("success")}${escapeHtml(checks.some((check) => check.severity === "review") ? t("status.review") : t("status.success"))}</span>
         </div>
       `).join("")}
     </div>
@@ -1169,7 +1279,7 @@ function renderChecks() {
         <div class="rail-list">
           ${data.importfehler.map((fehler) => `
             <div class="rail-item">
-              <span class="chip danger">⚠ ${escapeHtml(fehler.reason)}</span>
+              <span class="chip danger">${iconSvg("warning")}${escapeHtml(fehler.reason)}</span>
               <span>${escapeHtml(fehler.rohquelle)} · ${escapeHtml(t("labels.row"))} ${escapeHtml(String(fehler.row ?? "-"))}</span>
               <span class="muted">${escapeHtml(fehler.detail)}</span>
             </div>
@@ -1184,7 +1294,7 @@ function renderChecks() {
         <div class="rail-list">
           ${transferResults.map((tc) => `
             <div class="rail-item">
-              <span class="chip ${tc.ok ? "success" : "review"}">${tc.ok ? "✓" : "?"} ${escapeHtml(tc.ok ? t("checksPage.transferOk") : t("checksPage.transferIncomplete"))}</span>
+              <span class="chip ${tc.ok ? "success" : "review"}">${tc.ok ? iconSvg("success") : iconSvg("review")}${escapeHtml(tc.ok ? t("checksPage.transferOk") : t("checksPage.transferIncomplete"))}</span>
               <span>${escapeHtml(tc.transfer_id)} · ${escapeHtml(formatMoney(cents(tc.betrag)))}</span>
             </div>
           `).join("")}
@@ -1197,7 +1307,7 @@ function renderChecks() {
         <div class="rail-list">
           ${m5.map((check) => `
             <div class="rail-item">
-              <span class="chip review">? ${escapeHtml(t(`vermoegen.checkArt.${check.art}`))}</span>
+              <span class="chip review">${iconSvg("review")}${escapeHtml(t(`vermoegen.checkArt.${check.art}`))}</span>
               <button class="linkish" data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(check.entitaet)}" data-vid="${escapeHtml(check.entitaet_id)}">${escapeHtml(check.entitaet_id)}</button>
               <span class="muted">${escapeHtml(check.text)}</span>
             </div>
@@ -1215,7 +1325,7 @@ function renderCheckItems(checks) {
     const affected = check.entity_id ? affectedLabel(check) : data.metadata.label;
     return `
       <div class="rail-item">
-        <span class="chip ${check.severity === "success" ? "success" : "review"}">${check.severity === "success" ? "✓" : "?"} ${escapeHtml(title)}</span>
+        <span class="chip ${check.severity === "success" ? "success" : "review"}">${check.severity === "success" ? iconSvg("success") : iconSvg("review")}${escapeHtml(title)}</span>
         <button class="linkish" data-action="open-entity" data-scope="${escapeHtml(check.scope)}" data-entity="${escapeHtml(check.entity_id || "")}">${escapeHtml(affected)}</button>
         <span class="muted">${escapeHtml(detail)}</span>
       </div>
@@ -1299,6 +1409,21 @@ app.addEventListener("click", (event) => {
     state.masterSection = masterSection.dataset.masterSection;
     commitNavigation();
   }
+});
+
+// Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
+// (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
+// Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-cashflow-toggle], [data-cashflow-gran], [data-vermoegen-sort]";
+app.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+  const el = event.target;
+  if (!el || typeof el.matches !== "function") return;
+  if (el.matches("button, a, input, select, textarea")) return;
+  if (el.getAttribute("tabindex") == null) return;
+  if (!el.matches(KEY_ACTIVATION_SELECTOR)) return;
+  event.preventDefault();
+  el.click();
 });
 
 app.addEventListener("change", (event) => {
@@ -1509,13 +1634,23 @@ function restoreState(snapshot) {
   state.masterSection = snapshot.masterSection || "konten";
 }
 
+// Neuer History-Eintrag nur bei echtem View-Wechsel. Zustandsaenderungen
+// innerhalb einer View (Filter, Seite, Auswahl) ersetzen den aktuellen Eintrag,
+// damit der Zurueck-Button nicht durch jeden Klick zugemuellt wird.
+let lastCommittedView = state.view;
 function commitNavigation() {
-  history.pushState(snapshotState(), "", "");
+  if (state.view !== lastCommittedView) {
+    history.pushState(snapshotState(), "", "");
+  } else {
+    history.replaceState(snapshotState(), "", "");
+  }
+  lastCommittedView = state.view;
   render();
 }
 
 window.addEventListener("popstate", (event) => {
   restoreState(event.state);
+  lastCommittedView = state.view;
   render();
 });
 

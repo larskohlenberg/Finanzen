@@ -52,6 +52,23 @@ const icons = {
   chevronDown: [
     '<path d="m6 9 6 6 6-6"/>',
   ],
+  chevronRight: [
+    '<path d="m9 18 6-6-6-6"/>',
+  ],
+  chevronLeft: [
+    '<path d="m15 18-6-6 6-6"/>',
+  ],
+  warning: [
+    '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>',
+    '<path d="M12 9v4"/>',
+    '<path d="M12 17h.01"/>',
+  ],
+  transfer: [
+    '<path d="M8 3 4 7l4 4"/>',
+    '<path d="M4 7h16"/>',
+    '<path d="m16 21 4-4-4-4"/>',
+    '<path d="M20 17H4"/>',
+  ],
   search: [
     '<circle cx="11" cy="11" r="8"/>',
     '<path d="m21 21-4.3-4.3"/>',

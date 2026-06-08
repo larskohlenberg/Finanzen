@@ -31,6 +31,7 @@ Belege/              Bestehende Nutzerbelege, weiterhin aktive Nutzdaten
 2. `docs/runde2/Anforderungen_Runde2.md` und `docs/runde2/Datenmodell_Runde2.md` lesen.
 3. Nur den naechsten fachlichen Meilenstein umsetzen.
 4. Vor jedem neuen Ausbau die Exit-Kriterien in `docs/runde2/Meilensteine_Runde2.md` pruefen.
+5. Fuer UI-Arbeit zusaetzlich `docs/runde2/UI_Guideline_Runde2.md` (Stilrichtlinie), `docs/runde2/UI_Umsetzungsplan_Runde2.md` (Phasenplan) und `docs/runde2/UI_Handoff_Komponenten_Runde2.md` (Komponenten-Spec mit Massen, Tokens, States, bekannten Bugs) lesen.
 
 ## Checks
 

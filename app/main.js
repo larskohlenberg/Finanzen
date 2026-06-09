@@ -851,7 +851,7 @@ function renderLiquiditaet() {
       ${renderSaldoVerlauf(ist.monatsverlauf, "liquiditaet.emptyIst")}
     </section>
     <section class="panel panel-pad section-spacing">
-      <h2 class="section-title">${escapeHtml(t("liquiditaet.prognose"))} · ${escapeHtml(t("liquiditaet.monthlyTable"))}</h2>
+      <h2 class="section-title">${escapeHtml(t("liquiditaet.prognose"))} · ${escapeHtml(t("liquiditaet.forecastTable"))}</h2>
       <div class="liquiditaet-filter">
         <span>${granButtons}</span>
         <label class="liquiditaet-bis">${escapeHtml(t("liquiditaet.forecastUntil"))}

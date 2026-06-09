@@ -142,7 +142,7 @@ Vorgemerkt aus M5-Grilling (2026-06-03):
   koennen in Reichweiten-/Arbeitsende-Szenarien als Deckung einer Liquiditaetsluecke
   beruecksichtigt werden — mit explizitem Verfuegbarkeits-Vorbehalt (Settlement,
   Kursrisiko, realisierter Gewinn/Verlust). Bewusst **nicht** im M4-Liquiditaetssaldo,
-  der nur kurzfristig verfuegbares Cash zeigt (vgl. ADR 0011).
+  der nur kurzfristig verfuegbares Cash zeigt (vgl. ADR 0016).
 
 ## M7 - Versicherungen, Renten und Vorsorge
 

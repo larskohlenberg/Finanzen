@@ -66,3 +66,20 @@ test("liquiditaetsprognose keeps granularity controls and expandable rows", () =
   assert.match(css, /\.liquiditaet-detail \.row-toggle/);
   assert.match(i18n, /gran:\s*{\s*monat:/);
 });
+
+test("work status chip never claims validation passed unconditionally", () => {
+  // Der Browser validiert nicht (metadata.validation = "not-run-in-browser") —
+  // die UI darf keinen pauschalen Erfolgs-Chip rendern, sondern verweist auf den externen Lauf.
+  assert.doesNotMatch(main, /chrome\.validationPassed/);
+  assert.match(main, /chrome\.validationExternal/);
+  assert.match(i18n, /validationExternal:\s*"Validierung extern"/);
+  assert.match(i18n, /validationExternal:\s*"Validation external"/);
+});
+
+test("next action shows the live open-category count, not a hardcoded number", () => {
+  assert.doesNotMatch(i18n, /nextActionText:\s*"1 /);
+  assert.doesNotMatch(i18n, /nextActionText:\s*"Review 1 /);
+  // Beide Renderstellen (Topbar-Chip und Overview-Panel) müssen die echte Anzahl voranstellen.
+  const renders = main.match(/openCategoryTransactions\(\)\.length[^\n]*overview\.nextActionText/g) ?? [];
+  assert.equal(renders.length, 2);
+});

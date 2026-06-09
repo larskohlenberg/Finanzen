@@ -9,6 +9,11 @@ node_modules/
 **/.superpowers/
 *.pid
 
+# Lokale Tooling-/Agenten-Verzeichnisse
+.claude/
+.codex/
+.stitch/
+
 # Produktive App-Daten und Belege bleiben lokal.
 # Nur die Ordnerstruktur (.gitkeep) und strukturbeschreibende README.md
 # werden versioniert; echte Daten nicht.

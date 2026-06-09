@@ -104,13 +104,21 @@ Ab M5 ist der belegte Kontostand ein **Zeitwert** (`entitaet = konto`, `feld = k
 
 **Live-Saldo eines Kontos** = juengster belegter Kontostand **+** Summe der Buchungen *nach* dessen Standdatum. So sammeln sich keine alten Buchungsfehler an. Liegt fuer ein liquiditaetsrelevantes Konto kein belegter Kontostand vor → sichtbarer Check.
 
+Beim Initialimport eines neuen Kontos muss der Import-Agent einen moeglichen belegten Start-/Stichtagssaldo aus der Rohquelle erkennen, wenn die Rohquelle ihn enthaelt (z. B. "Kontostand vom ..."), und dem Nutzer konkrete Umgangsoptionen vorschlagen. Nach Bestaetigung wird der Wert als Zeitwert `entitaet = konto`, `feld = kontostand`, `qualitaet = belegt` erfasst. Fehlt ein belegter Anker in der Rohquelle, fragt der Agent den Nutzer, ob ein belegter Ankerwert manuell nachgetragen werden kann oder der Import ohne Liquiditaetsanker fortgesetzt werden soll. Ohne solchen Anker darf Liquiditaet nicht aus Bewegungen allein geraten werden.
+
 **Reconciliation-Check** (ab M5, Ist-gegen-Ist): ueber je zwei aufeinanderfolgende belegte Kontostaende muss die belegte Differenz der gebuchten Differenz entsprechen. Weicht sie ab → Check "Buchungen passen nicht zum Kontoauszug" (vergessene oder doppelte Buchungen). Abzugrenzen vom **Plan-Ist-Abgleich** (M8), der Zukunftsplan gegen Realitaet prueft.
+
+## Liquiditaet
+
+Die fuehrende Sicht fuer kurzfristig verfuegbares Geld ist **Liquiditaet**, nicht Cashflow. Sie zeigt den aufgelaufenen Saldo aller liquiditaetsrelevanten Konten: belegter Kontostand als Anker plus Buchungen seit diesem Standdatum. Die Zukunft wird als Saldo-Fortschreibung aus erwarteten Regelzahlungen berechnet. Cashflow bleibt die Bewegungs-Summe eines Zeitraums, ist aber nicht die fuehrende Kennzahl dieser Sicht.
+
+Im Hauptbereich zeigt die Liquiditaetsseite nur den laufenden Kalendermonat. Innerhalb dieses Monats besteht der Verlauf aus gebuchten Ist-Transaktionen bis heute und den noch erwarteten Regelzahlungen nach heute. Historische Monate gehoeren nicht in diese kompakte laufende Sicht. Der spaetere Plan-Ist-Abgleich klaert separat, ob eine konkrete Ist-Zahlung eine erwartete Regelzahlung erfuellt hat.
 
 ## Cashflow-Ist
 
 Der **tatsaechliche** Cashflow, vollstaendig aus Transaktionen der Vergangenheit berechnet (Cent-Integer-Summe, gruppiert z. B. nach Monat und/oder Kategorie). Transfers zaehlen nicht (cashflow-neutral). Kein gespeicherter Wert — beim Laden berechnet, wie Nettovermoegen. Reicht bis „heute".
 
-In der Cashflow-Seite meint der **Monatsverlauf bis heute** nur den laufenden Kalendermonat (Month-to-date), nicht die gesamte importierte Historie. Historische Ist-Monate gehoeren in eine separate Auswertung, nicht in diese kompakte laufende Cashflow-Sicht.
+In aktuellen App-Sichten ist Cashflow eine Auswertungs-/Analysegroesse. Die fuehrende kurzfristige Seite ist **Liquiditaet** (siehe oben); historische Cashflow-Monate gehoeren in eine separate Auswertung, nicht in die kompakte laufende Liquiditaetssicht.
 
 ## Cashflow-Prognose
 
@@ -118,7 +126,7 @@ Der **erwartete** Cashflow der Zukunft, ausschliesslich aus **bestaetigten Regel
 
 Der **Horizont** ist konfigurierbar; Untergrenze ist das spaeteste `aktiv_bis` aller bestaetigten Regelzahlungen, damit langfristig bekannte Fakten (z. B. Gehalt bis Renteneintritt) nicht abgeschnitten werden. Unbefristete Regelzahlungen werden bis zum konfigurierten Horizont-Ende projiziert und als unbefristet markiert.
 
-Die Prognose ist in der Ansicht **nachvollziehbar**: eine eigene Regelzahlungs-Liste zeigt die Eingangsdaten, und die Prognose-Tabelle ist nach **Monat/Quartal/Jahr** aggregierbar (feste Kalenderquartale) sowie bis zu einem waehlbaren **Bis-Datum** begrenzbar. Jeder Zeitraum laesst sich bis zu den einzelnen Faelligkeiten aufklappen (Zeitraum → Monate → Posten), wobei die Summe ueber dem aufgeklappten Inhalt sichtbar bleibt. Der **laufende** Zeitraum (Quartal/Monat) ist als solcher markiert, weil er nur noch die erwarteten Faelligkeiten enthaelt — bereits Gebuchtes steht im Cashflow-Ist.
+Die regelzahlungsbasierte Zukunftsrechnung bleibt **nachvollziehbar**: eine eigene Regelzahlungs-Liste zeigt die Eingangsdaten, und die Liquiditaetsseite schreibt den heutigen Saldo mit den einzelnen bestaetigten Faelligkeiten bis zu einem waehlbaren **Bis-Datum** fort. Eine separate aggregierte Cashflow-Auswertung nach Monat/Quartal/Jahr kann spaeter darauf aufbauen, ist aber nicht mehr die fuehrende App-Sicht.
 
 Die M4-Prognose ist **regelzahlungsbasiert und bewusst unvollstaendig**: bekannte Einmaleffekte (z. B. Kapitalleistung einer Lebensversicherung → M7) und hypothetische Szenarien (→ M6) sind nicht enthalten. Diese Unvollstaendigkeit wird in der Ansicht **explizit gekennzeichnet**, damit keine Entscheidung auf einer scheinbar vollstaendigen Zahl getroffen wird. Eine bekannte **Stufenaenderung** einer wiederkehrenden Zahlung (z. B. Gehalt ab 60 halbiert) wird als zwei aufeinanderfolgende Regelzahlungen abgebildet, nicht als Szenario.
 
@@ -200,9 +208,9 @@ Zwischenformat zwischen Rohdatei (CSV, PDF, MT940 …) und dem finalen Transakti
 
 Eine wiederkehrend erwartete Zahlung mit Rhythmus und erwarteter Hoehe (z. B. Miete monatlich, Gehalt monatlich, Versicherungsbeitrag jaehrlich). Eigener Stammdatensatz, **orthogonal zur Kategorie**: eine Regelzahlung kann in jeder Kategorie vorkommen, und eine Kategorie enthaelt sowohl Regelzahlungen als auch einmalige Betraege.
 
-Abgrenzung zur **Kategorisierungsregel**: Die Kategorisierungsregel beantwortet „wie klassifiziere ich eine Buchung" (Muster → `kategorie_id`, zeitlos). Die Regelzahlung beantwortet „welche Zahlung erwarte ich wiederkehrend, mit welchem Rhythmus und welcher Hoehe" und ist die Grundlage der **Cashflow-Prognose**. Eine Regelzahlung kann eine Kategorie referenzieren, ersetzt die Kategorisierungsregel aber nicht.
+Abgrenzung zur **Kategorisierungsregel**: Die Kategorisierungsregel beantwortet „wie klassifiziere ich eine Buchung" (Muster → `kategorie_id`, zeitlos). Die Regelzahlung beantwortet „welche Zahlung erwarte ich wiederkehrend, mit welchem Rhythmus und welcher Hoehe" und ist die Grundlage der **Liquiditaetsprognose**. Eine Regelzahlung kann eine Kategorie referenzieren, ersetzt die Kategorisierungsregel aber nicht.
 
-Vorschlag und Bestaetigung werden ueber **ein Status-Feld** an *einem* Datensatz getrennt (`status`), analog zur Kategorisierung — **keine** separate Vorschlags-Datei. Nur eine Regelzahlung mit `status = bestaetigt` wirkt auf die **Cashflow-Prognose**; Vorschlaege sind sichtbar, wirken aber nicht still.
+Vorschlag und Bestaetigung werden ueber **ein Status-Feld** an *einem* Datensatz getrennt (`status`), analog zur Kategorisierung — **keine** separate Vorschlags-Datei. Nur eine Regelzahlung mit `status = bestaetigt` wirkt auf die **Liquiditaetsprognose**; Vorschlaege sind sichtbar, wirken aber nicht still.
 
 Regelzahlungen entstehen **ausschliesslich ueber den Agent-Dialog** in Claude Code (ADR 0006); die App zeigt sie nur an und editiert nie. Der `status` spiegelt die Quelle: ein vom Agenten aus Transaktionen erkanntes Muster ist `vorgeschlagen`, ein vom Nutzer diktiertes Faktum schreibt der Agent direkt als `bestaetigt`. Es gibt kein Hand-Editieren der Datei und kein App-CRUD.
 

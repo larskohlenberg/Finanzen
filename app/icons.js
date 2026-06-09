@@ -12,7 +12,7 @@ const icons = {
     '<path d="M3 12h.01"/>',
     '<path d="M3 18h.01"/>',
   ],
-  cashflow: [
+  liquiditaet: [
     '<path d="M12 2v20"/>',
     '<path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>',
   ],

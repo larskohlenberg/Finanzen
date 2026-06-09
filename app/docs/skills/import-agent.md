@@ -82,17 +82,37 @@ Bei abgehenden Zahlungen ist `Zahlungsempfaenger*in` die Gegenpartei/der Empfaen
 
 Wenn eines dieser Felder fuer eine Zeile nicht zuverlaessig extrahierbar ist: **nicht raten** — die Zeile gehoert in den Fehlerpfad (siehe unten).
 
+Zusaetzlich zu den Buchungen musst du bei Kontoauszuegen und Banking-Exporten auf belegte Kontostaende achten, z. B. "Kontostand vom ...", "Alter Saldo", "Neuer Saldo" oder vergleichbare Bankformulierungen. Beim Initialimport eines neuen Kontos ist ein solcher Stand ein moeglicher Saldo-Anker fuer die Liquiditaet. Du erkennst ihn und fragst den Nutzer, wie damit umzugehen ist, statt ihn still zu uebernehmen.
+
+Wenn die Rohquelle einen belegten Kontostand enthaelt, schlage konkret vor:
+
+1. Kontostand als Liquiditaetsanker uebernehmen.
+2. Kontostand ignorieren und ohne Liquiditaetsanker importieren.
+3. Anderen belegten Ankerwert verwenden, falls der Nutzer einen besseren Belegwert nennt.
+
+Nach Bestaetigung wird der Anker als Zeitwert erfasst:
+
+- `entitaet = "konto"`
+- `entitaet_id = <konto_id>`
+- `feld = "kontostand"`
+- `wert = <Decimal-String mit zwei Nachkommastellen>`
+- `standdatum = <Datum des belegten Kontostands>`
+- `qualitaet = "belegt"`
+- `quelle_hinweis = <finaler Beleg-Pfad oder kurzer Rohquellenhinweis>`
+
+Wenn die Rohquelle keinen belegten Kontostand enthaelt, darfst du keinen Anfangsbestand aus den Buchungen raten. Frage den Nutzer, ob er einen belegten Ankerwert mit Standdatum mitteilen kann oder ob der Import ohne Liquiditaetsanker fortgesetzt werden soll. Dann muss der Lauf sichtbar machen, dass fuer dieses liquiditaetsrelevante Konto ein belegter Kontostand fehlt.
+
 ## Prozessablauf pro Importlauf
 
 1. **Rohdatei sichten**: Welches Format? Welche Bank? Welches Konto? Wenn das aus der Datei nicht hervorgeht (z. B. weil die CSV keine IBAN-Spalte hat), beim Nutzer nachfragen.
-2. **Konto zuordnen**: Erkenne das Konto, indem du die IBAN/Kontonummer der Rohdatei gegen die `kontoreferenz` in `data/master/konten.json` abgleichst (die Referenz ist bevorzugt die volle IBAN, ggf. nur Endziffern). Das ist eine Wiedererkennung durch dich, kein im Code erzwungener String-Abgleich — im finalen Eintrag traegst du die `konto_id`. Mehrdeutig (z. B. gleiche Endziffern bei maskierter Referenz)? Pruefen, ob `inhaber_person_ids` oder Banknamen die Mehrdeutigkeit aufloesen. Nicht eindeutig zuordbar → in `error/`. Steht das Konto noch **gar nicht** in `konten.json` (z. B. erster Import einer neuen Bank), nicht raten: dem Nutzer einen konkreten Konto-Eintrag (`konto_id`, `name`, `kontotyp`, `kontoreferenz`, `inhaber_person_ids`) **vorschlagen** und ihn erst nach **expliziter Bestaetigung** validiert anlegen. Erst danach importieren.
+2. **Konto zuordnen**: Erkenne das Konto, indem du die IBAN/Kontonummer der Rohdatei gegen die `kontoreferenz` in `data/master/konten.json` abgleichst (die Referenz ist bevorzugt die volle IBAN, ggf. nur Endziffern). Das ist eine Wiedererkennung durch dich, kein im Code erzwungener String-Abgleich — im finalen Eintrag traegst du die `konto_id`. Mehrdeutig (z. B. gleiche Endziffern bei maskierter Referenz)? Pruefen, ob `inhaber_person_ids` oder Banknamen die Mehrdeutigkeit aufloesen. Nicht eindeutig zuordbar → in `error/`. Steht das Konto noch **gar nicht** in `konten.json` (z. B. erster Import einer neuen Bank), nicht raten: dem Nutzer einen konkreten Konto-Eintrag (`konto_id`, `name`, `kontotyp`, `kontoreferenz`, `inhaber_person_ids`) **vorschlagen** und ihn erst nach **expliziter Bestaetigung** validiert anlegen. Erst danach importieren. Bei einem Initialimport pruefen, ob die Rohquelle einen belegten Kontostand enthaelt; dem Nutzer den erkannten Stand oder das Fehlen eines Standes mit Handlungsoptionen vorlegen.
 3. **Normalisieren**: Roheintraege ins **standardisierte Importformat** (siehe `schemas/`) ueberfuehren. Eine JSONL-Datei pro Lauf unter `data/inbox/standardized/`.
 4. **Validieren**: `tools/validator.mjs` (bzw. die Browser-faehige Bibliothek) auf das Standardformat anwenden. Fehlschlag → in `error/`.
 5. **Dedupe**: Fuer jede Buchung den `dedupe_hash` bilden (Felder siehe `CONTEXT.md`). Gegen `data/master/transaktionen.jsonl` (den **Bestand**) pruefen. Hash bekannt → ueberspringen. **Nicht** innerhalb desselben Auszugs deduplizieren — ein amtlicher Auszug enthaelt reale Buchungen; das Tool laesst gleich aussehende Zeilen stehen und disambiguiert in allen Quellfeldern identische automatisch (siehe ADR 0007, Praezisierung 2026-06-09). `bank_referenz` aus der Rohdatei roh mitgeben, wo die Bank eine liefert — die Pipeline nutzt sie nur als Schluessel, wenn sie **dateiweit eindeutig** ist, und faellt sonst auf den Freitext-Hash zurueck. Du musst die Eindeutigkeit nicht selbst herausfiltern.
 6. **Kategorisieren**: `tools/categorizer.mjs` aufrufen mit der Buchung und `kategorisierungsregeln.json`.
    - Eindeutiger Treffer → `kategorie_id` setzen, `kategorisierung_status = vorgeschlagen`.
    - Kein Treffer oder Konflikt → `kategorisierung_status = offen`, keine `kategorie_id`.
-7. **Schreiben**: Buchungen an `data/master/transaktionen.jsonl` anhaengen. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz.
+7. **Schreiben**: Buchungen an `data/master/transaktionen.jsonl` anhaengen. Belegte Kontostaende als Zeitwerte an `data/master/zeitwerte.jsonl` anhaengen, sofern sie aus der Rohquelle extrahiert wurden und nicht bereits identisch vorhanden sind. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz.
 8. **Transfer-Match**: Nach dem Schreiben `tools/transfer-matcher.mjs` aufrufen. Kriterien fuer Auto-Match (alle vier zwingend):
    - Betrag exakt invers (cent-genau).
    - Beide Konten liegen im Modell.

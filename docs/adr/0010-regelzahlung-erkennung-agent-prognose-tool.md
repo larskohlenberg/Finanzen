@@ -1,5 +1,7 @@
 # Regelzahlungs-Erkennung ist Agent-Urteil, Prognose-Mathematik ist deterministisches Tool
 
+Statushinweis 2026-06-09: Der Grundsatz gilt weiter. Durch ADR 0016 wirkt die Prognose-Mathematik in der aktiven App nicht mehr als eigenstaendige Cashflow-Seite, sondern als Liquiditaets-Fortschreibung in `app/liquiditaet.mjs`.
+
 Bei Regelzahlungen (M4) wird die Arbeit asymmetrisch aufgeteilt: Das **Erkennen** eines wiederkehrenden Musters und seines Zyklus (taeglich, woechentlich, monatlich, quartalsweise, jaehrlich, andere) ist **Agent-Urteil**, nicht Tool-Heuristik. Das **Hochrechnen** einer bestaetigten Regelzahlung in die Cashflow-Prognose ist ein **deterministisches, per `node --test` abgesichertes Modul** (`app/cashflow.mjs`, liegt unter `app/`, weil der Webserver nur das App-Verzeichnis ausliefert — siehe ADR 0012).
 
 ## Begruendung

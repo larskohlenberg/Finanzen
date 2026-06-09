@@ -700,10 +700,7 @@ button.roadmap-card-link:focus-visible {
 }
 
 .filter-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px;
+  position: relative;
   width: 100%;
   min-width: 0;
   padding: 12px;
@@ -719,12 +716,12 @@ button.roadmap-card-link:focus-visible {
   gap: 10px 12px;
 }
 
+/* Reset als kompakter Chip im Label-Band oben rechts — absolut positioniert,
+   damit sein Erscheinen das Filter-Grid nicht verschiebt. */
 .filter-actions {
-  min-height: 36px;
-  display: flex;
-  align-items: end;
-  justify-content: flex-end;
-  gap: 8px;
+  position: absolute;
+  top: 8px;
+  right: 12px;
 }
 
 .pagination {
@@ -867,7 +864,20 @@ button.roadmap-card-link:focus-visible {
 }
 
 .filter-reset {
-  padding: 0 10px;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-color: transparent;
+  background: transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.filter-reset svg {
+  width: 13px;
+  height: 13px;
 }
 
 .filter-clear:hover,
@@ -1193,16 +1203,6 @@ button.roadmap-card-link:focus-visible {
   .tile-grid,
   .roadmap-large {
     grid-template-columns: 1fr;
-  }
-
-  .filter-actions {
-    width: 100%;
-    min-height: auto;
-    justify-content: stretch;
-  }
-
-  .filter-reset {
-    width: 100%;
   }
 
   .filter-control-row {

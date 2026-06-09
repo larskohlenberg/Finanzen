@@ -681,7 +681,7 @@ function renderFilterSelect({ name, label, options, type, placeholder, filters, 
       <label for="${escapeHtml(controlId)}">${escapeHtml(label)}</label>
       <div class="filter-control-row">
         ${control}
-        ${active ? `<button class="filter-clear" data-action="${escapeHtml(clearAction)}" data-filter-name="${escapeHtml(name)}" aria-label="${escapeHtml(t("chrome.clearFilter"))}" title="${escapeHtml(t("chrome.clearFilter"))}">${iconSvg("clear")}</button>` : ""}
+        ${type === "search" && active ? `<button class="filter-clear" data-action="${escapeHtml(clearAction)}" data-filter-name="${escapeHtml(name)}" aria-label="${escapeHtml(t("chrome.clearFilter"))}" title="${escapeHtml(t("chrome.clearFilter"))}">${iconSvg("clear")}</button>` : ""}
       </div>
     </div>
   `;

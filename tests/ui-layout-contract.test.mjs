@@ -57,3 +57,12 @@ test("account masterdata table renders account reference column", () => {
   assert.match(main, /t\("labels\.accountReference"\)/);
   assert.match(main, /konto\.kontoreferenz/);
 });
+
+test("liquiditaetsprognose keeps granularity controls and expandable rows", () => {
+  assert.match(main, /data-liquiditaet-gran/);
+  assert.match(main, /data-liquiditaet-toggle/);
+  assert.match(main, /renderLiquiditaetPrognoseDetail/);
+  assert.match(main, /state\.liquiditaet\.granularitaet/);
+  assert.match(css, /\.liquiditaet-detail \.row-toggle/);
+  assert.match(i18n, /gran:\s*{\s*monat:/);
+});

@@ -5,8 +5,10 @@ import {
   occurrences,
   computeLiquiditaetIst,
   computeLiquiditaetPrognose,
+  computeLiquiditaetPrognoseDetail,
   defaultHorizonEnd,
   localTodayIso,
+  periodenSchluessel,
   toCents,
 } from "../app/liquiditaet.mjs";
 
@@ -89,6 +91,39 @@ test("computeLiquiditaetPrognose schreibt Saldo ab morgen mit bestaetigten Regel
   ]);
   assert.equal(result.qualitaet.bestaetigte_regelzahlungen, 2);
   assert.equal(result.qualitaet.vorschlaege_nicht_enthalten, 1);
+});
+
+test("periodenSchluessel gruppiert Monate nach Monat Quartal Jahr", () => {
+  assert.equal(periodenSchluessel("2026-08", "monat"), "2026-08");
+  assert.equal(periodenSchluessel("2026-08", "quartal"), "2026-Q3");
+  assert.equal(periodenSchluessel("2026-08", "jahr"), "2026");
+});
+
+test("computeLiquiditaetPrognoseDetail gruppiert Prognose und fuehrt Saldo je Posten fort", () => {
+  const data = {
+    konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", liquiditaetsrelevant: true, status: "aktiv" }],
+    zeitwerte: [{ entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "1000.00", standdatum: "2026-06-01", qualitaet: "belegt" }],
+    transaktionen: [{ konto_id: "KTO-001", buchungsdatum: "2026-06-05", betrag: "-100.00", ist_transfer: false }],
+    regelzahlungen: [
+      { regelzahlung_id: "RZ-001", bezeichnung: "Gehalt", betrag: "3000.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-06-10", status: "bestaetigt" },
+      { regelzahlung_id: "RZ-002", bezeichnung: "Miete", betrag: "-1200.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-06-15", status: "bestaetigt" },
+    ],
+  };
+
+  const result = computeLiquiditaetPrognoseDetail(data, { today: "2026-06-09", horizonEnd: "2026-07-31", granularitaet: "quartal" });
+
+  assert.equal(result.start_saldo_cents, 90000);
+  assert.equal(result.end_saldo_cents, 450000);
+  assert.deepEqual(result.perioden.map((p) => ({ periode: p.periode, bewegung_cents: p.bewegung_cents, saldo_cents: p.saldo_cents })), [
+    { periode: "2026-Q2", bewegung_cents: 180000, saldo_cents: 270000 },
+    { periode: "2026-Q3", bewegung_cents: 180000, saldo_cents: 450000 },
+  ]);
+  const juni = result.perioden[0].monate[0];
+  assert.equal(juni.monat, "2026-06");
+  assert.deepEqual(juni.posten.map((p) => ({ datum: p.datum, bewegung_cents: p.bewegung_cents, saldo_cents: p.saldo_cents })), [
+    { datum: "2026-06-10", bewegung_cents: 300000, saldo_cents: 390000 },
+    { datum: "2026-06-15", bewegung_cents: -120000, saldo_cents: 270000 },
+  ]);
 });
 
 test("defaultHorizonEnd faellt auf today+Fallback zurueck, wenn alle unbefristet", () => {

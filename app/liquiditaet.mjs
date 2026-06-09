@@ -74,6 +74,16 @@ export function defaultHorizonEnd(regelzahlungen, today, fallbackMonate = 12) {
   return max > fallback ? max : fallback;
 }
 
+export function periodenSchluessel(monat, granularitaet) {
+  const [jahr, mm] = monat.split("-");
+  if (granularitaet === "jahr") return jahr;
+  if (granularitaet === "quartal") {
+    const quartal = Math.floor((Number(mm) - 1) / 3) + 1;
+    return `${jahr}-Q${quartal}`;
+  }
+  return monat;
+}
+
 function aktuellerZeitwert(zeitwerte, entitaet, entitaetId, feld) {
   let best = null;
   for (const zw of zeitwerte ?? []) {
@@ -194,5 +204,64 @@ export function computeLiquiditaetPrognose(data, { today, horizonEnd }) {
       fehlende_anker: ist.qualitaet.fehlende_anker,
       einmaleffekte_enthalten: false,
     },
+  };
+}
+
+export function computeLiquiditaetPrognoseDetail(data, { today, horizonEnd, granularitaet = "monat" }) {
+  const prognose = computeLiquiditaetPrognose(data, { today, horizonEnd });
+  const heuteMonat = monatVon(today);
+  const heutePeriode = periodenSchluessel(heuteMonat, granularitaet);
+
+  const monatsMap = new Map();
+  for (const posten of prognose.verlauf) {
+    const monat = monatVon(posten.datum);
+    let eintrag = monatsMap.get(monat);
+    if (!eintrag) {
+      eintrag = { posten: [], bewegung_cents: 0, saldo_cents: prognose.start_saldo_cents };
+      monatsMap.set(monat, eintrag);
+    }
+    eintrag.posten.push(posten);
+    eintrag.bewegung_cents += posten.bewegung_cents;
+    eintrag.saldo_cents = posten.saldo_cents;
+  }
+
+  const periodenMap = new Map();
+  for (const [monat, eintrag] of monatsMap) {
+    const periode = periodenSchluessel(monat, granularitaet);
+    let monMap = periodenMap.get(periode);
+    if (!monMap) {
+      monMap = new Map();
+      periodenMap.set(periode, monMap);
+    }
+    monMap.set(monat, eintrag);
+  }
+
+  const perioden = [...periodenMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([periode, monMap]) => {
+      const monate = [...monMap.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([monat, eintrag]) => ({
+          monat,
+          bewegung_cents: eintrag.bewegung_cents,
+          saldo_cents: eintrag.saldo_cents,
+          ist_laufend: monat === heuteMonat,
+          posten: [...eintrag.posten].sort((a, b) => a.datum.localeCompare(b.datum) || a.regelzahlung_id.localeCompare(b.regelzahlung_id)),
+        }));
+      return {
+        periode,
+        bewegung_cents: monate.reduce((sum, monat) => sum + monat.bewegung_cents, 0),
+        saldo_cents: monate.at(-1)?.saldo_cents ?? prognose.start_saldo_cents,
+        ist_laufend: periode === heutePeriode,
+        monate,
+      };
+    });
+
+  return {
+    perioden,
+    start_saldo_cents: prognose.start_saldo_cents,
+    end_saldo_cents: prognose.end_saldo_cents,
+    horizont_ende: prognose.horizont_ende,
+    qualitaet: prognose.qualitaet,
   };
 }

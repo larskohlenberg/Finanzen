@@ -107,3 +107,12 @@ test("filter fields are flat: no per-field box inside the filter bar frame", () 
   assert.doesNotMatch(css, /\.filter-field\s*{[^}]*border:/s);
   assert.doesNotMatch(css, /\.filter-field\s*{[^}]*background:/s);
 });
+
+test("filter reset is a compact overlay that does not shift the filter grid", () => {
+  assert.match(css, /\.filter-bar\s*{[^}]*position:\s*relative/s);
+  assert.match(css, /\.filter-actions\s*{[^}]*position:\s*absolute/s);
+});
+
+test("select filters clear via their all-option: clear button only on search field", () => {
+  assert.match(main, /type === "search" && active/);
+});

@@ -138,6 +138,11 @@ Vorgemerkt aus M5-Grilling (2026-06-03):
 - **Kanal fuer Plan-Zusammensetzung an den Agenten.** Der Nutzer muss dem Agenten
   mitteilen koennen, aus welchen realen Buchungen (inkl. Bar-Anteil) sich ein
   Planwert zusammensetzt, damit Abgleich und Prognose realistisch bleiben.
+- **Quasi-liquide Reserven in Szenarien** (vorgemerkt 2026-06-09): Depots/Wertpapiere
+  koennen in Reichweiten-/Arbeitsende-Szenarien als Deckung einer Liquiditaetsluecke
+  beruecksichtigt werden — mit explizitem Verfuegbarkeits-Vorbehalt (Settlement,
+  Kursrisiko, realisierter Gewinn/Verlust). Bewusst **nicht** im M4-Liquiditaetssaldo,
+  der nur kurzfristig verfuegbares Cash zeigt (vgl. ADR 0011).
 
 ## M7 - Versicherungen, Renten und Vorsorge
 

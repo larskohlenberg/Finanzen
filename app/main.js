@@ -1,5 +1,6 @@
 import { computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, defaultHorizonEnd, toCents, localTodayIso } from "./liquiditaet.mjs";
 import { loadFinanceData } from "./data-loader.mjs";
+import { formatIban } from "./tools/lib/text.mjs";
 import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
 
@@ -464,7 +465,7 @@ function renderAccountRows(accounts) {
       return `
         <tr class="clickable" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
           <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
-          <td>${konto.kontoreferenz ? escapeHtml(konto.kontoreferenz) : `<span class="muted">—</span>`}</td>
+          <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
           <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
           <td>${latestDate ? escapeHtml(formatDate(latestDate)) : `<span class="muted">${escapeHtml(t("labels.noStand"))}</span>`}</td>
@@ -701,7 +702,7 @@ function renderTransactionDetail(tx) {
     ["transactions.transactionType", tx.transaktionstyp],
     ["transactions.customerReference", tx.kundenreferenz],
     ["transactions.recipient", tx.empfaenger],
-    ["transactions.recipientIban", tx.empfaenger_iban],
+    ["transactions.recipientIban", formatIban(tx.empfaenger_iban)],
     ["transactions.mandateReference", tx.mandatsreferenz],
     ["transactions.creditorId", tx.glaeubiger_id],
   ].filter(([, value]) => hasDetailValue(value));

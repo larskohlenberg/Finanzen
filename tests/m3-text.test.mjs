@@ -24,6 +24,15 @@ test("toCents wandelt Decimal-String in Cent-Integer", () => {
   assert.equal(toCents("0.00"), 0);
 });
 
+test("toCents ist robust gegen fehlende oder kurze Nachkommastellen", () => {
+  // Schema garantiert zwei Nachkommastellen — aber als einzige toCents-Implementierung
+  // (auch fuer UI-Anzeigewege) darf die Funktion bei Abweichungen nicht centfalsch rechnen.
+  assert.equal(toCents("1.5"), 150);
+  assert.equal(toCents("12"), 1200);
+  assert.equal(toCents(""), 0);
+  assert.equal(toCents(null), 0);
+});
+
 test("centsToDecimal wandelt zurueck mit zwei Nachkommastellen", () => {
   assert.equal(centsToDecimal(350000), "3500.00");
   assert.equal(centsToDecimal(-8245), "-82.45");

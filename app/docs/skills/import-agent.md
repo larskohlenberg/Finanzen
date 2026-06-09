@@ -2,7 +2,10 @@
 
 Aktuelle Betriebsanweisung fuer Importlaeufe. Fachlich aus M3 entstanden, inzwischen Teil des App-Datenraums.
 
-Alle Pfade in diesem Skill sind app-relativ: `data/...`, `Belege/...`, `schemas/...` und `tools/...` liegen unter dem App-Raum.
+Es gibt zwei Wurzeln, halte sie auseinander:
+
+- **App-Datenraum** (`app/`): `data/...`, `Belege/...`, `schemas/...` und `tools/...` sind app-relativ und liegen darunter.
+- **Repo-Root** (eine Ebene ueber `app/`): die Projekt-Doku `CONTEXT.md` und `docs/adr/...` liegen hier — sie gehoeren bewusst **nicht** in den deploybaren Datenraum (ADR 0015). Pfade auf diese Doku sind in diesem Skill repo-root-relativ, nicht app-relativ.
 
 ## Wann diesen Skill nutzen
 
@@ -22,9 +25,14 @@ Nicht nutzen fuer:
 
 Vor jedem Import lesen:
 
+Im **Repo-Root** (nicht unter `app/`):
+
 1. `CONTEXT.md` — verbindliches Glossar. Insbesondere die Eintraege zu **Transaktion**, **Transaktions-ID und Deduplikation**, **Kategorisierung**, **Transfer**, **Inbox-Konvention**, **Standardisiertes Importformat**, **Kategorisierungsregel**.
 2. `docs/adr/0005-keine-bankspezifischen-parser.md` — du normalisierst selbst, es gibt keinen Parser.
 3. `docs/adr/0003-validator-als-deterministisches-tool.md` — du rufst den Validator, du fuehrst ihn nicht aus.
+
+Im **App-Datenraum** (`app/`):
+
 4. `schemas/` — Schemas fuer Transaktion, Transfer, ggf. Importformat.
 5. `data/master/konten.json` — fuer die Zuordnung Rohdatei → Konto via `kontoreferenz`.
 6. `data/master/kategorisierungsregeln.json` — Input fuer den Categorizer.

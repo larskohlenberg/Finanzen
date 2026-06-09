@@ -83,3 +83,8 @@ test("next action shows the live open-category count, not a hardcoded number", (
   const renders = main.match(/openCategoryTransactions\(\)\.length[^\n]*overview\.nextActionText/g) ?? [];
   assert.equal(renders.length, 2);
 });
+
+test("IBAN fields render with grouped display format", () => {
+  assert.match(main, /formatIban\(konto\.kontoreferenz\)/);
+  assert.match(main, /formatIban\(tx\.empfaenger_iban\)/);
+});

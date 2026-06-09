@@ -23,6 +23,15 @@ export function centsToDecimal(cents) {
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
 }
 
+// Reine Darstellung: IBANs in 4er-Bloecken (DE98 1203 ...). Gespeichert wird
+// immer die ungruppierte Form. Nicht-IBANs (z. B. Depotnummern) unveraendert.
+export function formatIban(value) {
+  const raw = String(value ?? "").trim();
+  const compact = raw.replace(/\s+/g, "");
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(compact)) return raw;
+  return compact.replace(/(.{4})/g, "$1 ").trim();
+}
+
 export function dayDiff(dateA, dateB) {
   const a = Date.parse(`${dateA}T00:00:00Z`);
   const b = Date.parse(`${dateB}T00:00:00Z`);

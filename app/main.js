@@ -1,4 +1,4 @@
-import { computeCashflowIst, computeCashflowPrognoseDetail, defaultHorizonEnd, toCents, localTodayIso } from "./cashflow.mjs";
+import { computeLiquiditaetIst, computeLiquiditaetPrognose, defaultHorizonEnd, toCents, localTodayIso } from "./liquiditaet.mjs";
 import { loadFinanceData } from "./data-loader.mjs";
 import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
@@ -42,7 +42,7 @@ const storageKeys = {
 const navItems = [
   ["overview", "nav.overview", "overview"],
   ["transactions", "nav.transactions", "transactions"],
-  ["cashflow", "nav.cashflow", "cashflow"],
+  ["liquiditaet", "nav.liquiditaet", "liquiditaet"],
   ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
   ["vermoegen", "nav.vermoegen", "vermoegen"],
   ["masterdata", "nav.masterdata", "masterdata"],
@@ -66,11 +66,9 @@ const state = {
   selectedTransactionId: "",
   detailRailClosed: false,
   masterSection: "konten",
-  cashflow: {
-    granularitaet: "monat",
+  liquiditaet: {
     bisDatum: defaultHorizonEnd(data.regelzahlungen, localTodayIso()),
   },
-  cashflowExpanded: new Set(),
   vermoegenFilters: {
     klasse: "",
     qualitaet: "",
@@ -210,7 +208,7 @@ function applyTheme() {
 
 const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
-  "data-vermoegen", "data-cashflow-toggle", "data-cashflow-gran", "data-master-section",
+  "data-vermoegen", "data-master-section",
   "data-vermoegen-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
 ];
 const SCROLL_SELECTORS = [".nav", ".table-wrap"];
@@ -368,7 +366,7 @@ function renderTopbar() {
 
 function renderView() {
   if (state.view === "transactions") return renderTransactions();
-  if (state.view === "cashflow") return renderCashflow();
+  if (state.view === "liquiditaet") return renderLiquiditaet();
   if (state.view === "regelzahlungen") return renderRegelzahlungen();
   if (state.view === "vermoegen") return renderVermoegen();
   if (state.view === "masterdata") return renderMasterdata();
@@ -783,22 +781,24 @@ function heuteIso() {
   return localTodayIso();
 }
 
-function renderMonatsTabelle(monate) {
-  if (!monate.length) return "";
+function renderSaldoVerlauf(verlauf, emptyKey) {
+  if (!verlauf.length) return `<p class="muted">${escapeHtml(t(emptyKey))}</p>`;
   return `
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>${escapeHtml(t("cashflow.month"))}</th>
-            <th class="amount">${escapeHtml(t("cashflow.net"))}</th>
+            <th>${escapeHtml(t("labels.date"))}</th>
+            <th class="amount">${escapeHtml(t("liquiditaet.movement"))}</th>
+            <th class="amount">${escapeHtml(t("liquiditaet.balance"))}</th>
           </tr>
         </thead>
         <tbody>
-          ${monate.map((m) => `
+          ${verlauf.map((punkt) => `
             <tr>
-              <td>${escapeHtml(m.monat)}</td>
-              <td class="amount">${escapeHtml(formatMoney(m.netto_cents))}</td>
+              <td>${escapeHtml(formatDate(punkt.datum))}${punkt.bezeichnung ? ` · ${escapeHtml(punkt.bezeichnung)}` : ""}</td>
+              <td class="amount">${escapeHtml(formatMoney(punkt.bewegung_cents))}</td>
+              <td class="amount">${escapeHtml(formatMoney(punkt.saldo_cents))}</td>
             </tr>
           `).join("")}
         </tbody>
@@ -807,137 +807,52 @@ function renderMonatsTabelle(monate) {
   `;
 }
 
-function renderCashflow() {
+function renderLiquiditaet() {
   const today = heuteIso();
-  const ist = computeCashflowIst(data.transaktionen, { today });
-  const prognose = computeCashflowPrognoseDetail(data.regelzahlungen, {
+  const ist = computeLiquiditaetIst(data, { today });
+  const prognose = computeLiquiditaetPrognose(data, {
     today,
-    horizonEnd: state.cashflow.bisDatum,
-    granularitaet: state.cashflow.granularitaet,
+    horizonEnd: state.liquiditaet.bisDatum,
   });
-  const istChipClass = ist.qualitaet.offene_kategorie_anzahl > 0 ? "review" : "success";
-  const istChipIcon = ist.qualitaet.offene_kategorie_anzahl > 0 ? iconSvg("review") : iconSvg("success");
+  const istChipClass = ist.qualitaet.fehlende_anker > 0 ? "review" : "success";
+  const istChipIcon = ist.qualitaet.fehlende_anker > 0 ? iconSvg("review") : iconSvg("success");
   const vorschlaegeChip = prognose.qualitaet.vorschlaege_nicht_enthalten > 0
-    ? `<span class="chip review">${iconSvg("review")}${escapeHtml(String(prognose.qualitaet.vorschlaege_nicht_enthalten))} ${escapeHtml(t("cashflow.qualityProposalsExcluded"))}</span>`
+    ? `<span class="chip review">${iconSvg("review")}${escapeHtml(String(prognose.qualitaet.vorschlaege_nicht_enthalten))} ${escapeHtml(t("liquiditaet.qualityProposalsExcluded"))}</span>`
     : "";
   const unbefristetChip = prognose.qualitaet.unbefristete_regelzahlungen > 0
-    ? `<span class="chip neutral">${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`
+    ? `<span class="chip neutral">${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("liquiditaet.qualityOpenEnded"))}</span>`
     : "";
-  const granButtons = ["monat", "quartal", "jahr"]
-    .map((g) => `<button class="chip ${state.cashflow.granularitaet === g ? "success" : "neutral"} linkish" data-cashflow-gran="${g}">${escapeHtml(t(`cashflow.gran.${g}`))}</button>`)
-    .join("");
   return `
-    ${renderPageHead(t("cashflow.title"), t("cashflow.lead"))}
+    ${renderPageHead(t("liquiditaet.title"), t("liquiditaet.lead"))}
     <div class="tile-grid">
       <div class="tile tile-static">
-        <strong>${escapeHtml(t("cashflow.ist"))}</strong>
-        <div class="count">${escapeHtml(formatMoney(ist.gesamt_netto_cents))}</div>
-        <span class="chip ${istChipClass}">${istChipIcon}${escapeHtml(String(ist.qualitaet.offene_kategorie_anzahl))} ${escapeHtml(t("cashflow.qualityOpenCategories"))}</span>
+        <strong>${escapeHtml(t("liquiditaet.ist"))}</strong>
+        <div class="count">${escapeHtml(formatMoney(ist.saldo_cents))}</div>
+        <span class="chip ${istChipClass}">${istChipIcon}${escapeHtml(String(ist.qualitaet.fehlende_anker))} ${escapeHtml(t("liquiditaet.qualityMissingAnchors"))}</span>
       </div>
       <div class="tile tile-static">
-        <strong>${escapeHtml(t("cashflow.prognose"))}</strong>
-        <div class="count">${escapeHtml(formatMoney(prognose.gesamt_netto_cents))}</div>
-        <span class="chip neutral">${escapeHtml(String(prognose.qualitaet.bestaetigte_regelzahlungen))} ${escapeHtml(t("cashflow.qualityConfirmed"))}</span>
+        <strong>${escapeHtml(t("liquiditaet.prognose"))}</strong>
+        <div class="count">${escapeHtml(formatMoney(prognose.end_saldo_cents))}</div>
+        <span class="chip neutral">${escapeHtml(String(prognose.qualitaet.bestaetigte_regelzahlungen))} ${escapeHtml(t("liquiditaet.qualityConfirmed"))}</span>
         ${vorschlaegeChip}
         ${unbefristetChip}
-        <span class="chip neutral">${escapeHtml(t("cashflow.horizonTo"))} ${escapeHtml(prognose.horizont_ende)}</span>
+        <span class="chip neutral">${escapeHtml(t("liquiditaet.horizonTo"))} ${escapeHtml(prognose.horizont_ende)}</span>
       </div>
     </div>
-    <p class="page-lead section-note">${escapeHtml(t("cashflow.incompleteNote"))}</p>
+    <p class="page-lead section-note">${escapeHtml(t("liquiditaet.incompleteNote"))}</p>
     <section class="panel panel-pad section-spacing">
-      <h2 class="section-title">${escapeHtml(t("cashflow.ist"))} · ${escapeHtml(t("cashflow.monthlyTable"))}</h2>
-      ${ist.monate.length ? renderMonatsTabelle(ist.monate) : `<p class="muted">${escapeHtml(t("cashflow.empty"))}</p>`}
+      <h2 class="section-title">${escapeHtml(t("liquiditaet.ist"))} · ${escapeHtml(t("liquiditaet.monthlyTable"))}</h2>
+      ${renderSaldoVerlauf(ist.monatsverlauf, "liquiditaet.emptyIst")}
     </section>
     <section class="panel panel-pad section-spacing">
-      <h2 class="section-title">${escapeHtml(t("cashflow.prognose"))} · ${escapeHtml(t("cashflow.monthlyTable"))}</h2>
-      <div class="cashflow-filter">
-        <span>${granButtons}</span>
-        <label class="cashflow-bis">${escapeHtml(t("cashflow.forecastUntil"))}
-          <input type="date" data-control="cashflow-bis" value="${escapeHtml(state.cashflow.bisDatum)}" />
+      <h2 class="section-title">${escapeHtml(t("liquiditaet.prognose"))} · ${escapeHtml(t("liquiditaet.monthlyTable"))}</h2>
+      <div class="liquiditaet-filter">
+        <label class="liquiditaet-bis">${escapeHtml(t("liquiditaet.forecastUntil"))}
+          <input type="date" data-control="liquiditaet-bis" value="${escapeHtml(state.liquiditaet.bisDatum)}" />
         </label>
       </div>
-      ${renderPrognoseDetail(prognose)}
+      ${renderSaldoVerlauf(prognose.verlauf, "liquiditaet.emptyForecast")}
     </section>
-  `;
-}
-
-function formatMonat(monat) {
-  return new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "long", year: "numeric" }).format(new Date(`${monat}-01T00:00:00`));
-}
-
-function formatPeriode(periode) {
-  if (periode.includes("-Q")) {
-    const [jahr, q] = periode.split("-");
-    return `${q} ${jahr}`;
-  }
-  if (/^\d{4}$/.test(periode)) return periode;
-  return formatMonat(periode);
-}
-
-function laufendMarkup(istLaufend) {
-  if (!istLaufend) return "";
-  return `<span class="chip neutral">${escapeHtml(t("cashflow.running"))}</span><div class="running-note muted">${escapeHtml(t("cashflow.runningNote"))}</div>`;
-}
-
-function renderPostenRows(posten) {
-  return posten.map((p) => `
-    <tr class="row-posten">
-      <td class="posten-cell">${escapeHtml(formatDate(p.datum))} · ${escapeHtml(p.bezeichnung)}</td>
-      <td class="amount">${escapeHtml(formatMoney(p.betrag_cents))}</td>
-    </tr>
-  `).join("");
-}
-
-function renderMonatRows(monat, nested) {
-  const expanded = state.cashflowExpanded.has(monat.monat);
-  const monthRow = `
-    <tr class="row-month ${nested ? "nested" : ""}">
-      <td>
-        <button class="row-toggle" data-cashflow-toggle="${escapeHtml(monat.monat)}">
-          <span class="toggle-icon">${expanded ? iconSvg("chevronDown") : iconSvg("chevronRight")}</span>${escapeHtml(formatMonat(monat.monat))}
-        </button>
-        ${laufendMarkup(monat.ist_laufend)}
-      </td>
-      <td class="amount">${escapeHtml(formatMoney(monat.netto_cents))}</td>
-    </tr>
-  `;
-  return monthRow + (expanded ? renderPostenRows(monat.posten) : "");
-}
-
-function renderPrognoseDetail(prognose) {
-  if (!prognose.perioden.length) return `<p class="muted">${escapeHtml(t("cashflow.empty"))}</p>`;
-  const gran = state.cashflow.granularitaet;
-  const body = prognose.perioden.map((periode) => {
-    if (gran === "monat") {
-      return periode.monate.map((monat) => renderMonatRows(monat, false)).join("");
-    }
-    const expanded = state.cashflowExpanded.has(periode.periode);
-    const periodRow = `
-      <tr class="row-period">
-        <td>
-          <button class="row-toggle" data-cashflow-toggle="${escapeHtml(periode.periode)}">
-            <span class="toggle-icon">${expanded ? iconSvg("chevronDown") : iconSvg("chevronRight")}</span>${escapeHtml(formatPeriode(periode.periode))}
-          </button>
-          ${laufendMarkup(periode.ist_laufend)}
-        </td>
-        <td class="amount">${escapeHtml(formatMoney(periode.netto_cents))}</td>
-      </tr>
-    `;
-    const monatsZeilen = expanded ? periode.monate.map((monat) => renderMonatRows(monat, true)).join("") : "";
-    return periodRow + monatsZeilen;
-  }).join("");
-  return `
-    <div class="table-wrap">
-      <table class="cashflow-detail">
-        <thead>
-          <tr>
-            <th>${escapeHtml(t("cashflow.period"))}</th>
-            <th class="amount">${escapeHtml(t("cashflow.net"))}</th>
-          </tr>
-        </thead>
-        <tbody>${body}</tbody>
-      </table>
-    </div>
   `;
 }
 
@@ -953,7 +868,7 @@ function renderRegelzahlungen() {
       <td class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</td>
       <td>${escapeHtml(formatRhythmus(rz.rhythmus_einheit, rz.rhythmus_intervall))}</td>
       <td>${escapeHtml(formatDate(rz.anker_datum))}</td>
-      <td>${rz.aktiv_bis ? escapeHtml(formatDate(rz.aktiv_bis)) : `<span class="chip neutral">${escapeHtml(t("cashflow.qualityOpenEnded"))}</span>`}</td>
+      <td>${rz.aktiv_bis ? escapeHtml(formatDate(rz.aktiv_bis)) : `<span class="chip neutral">${escapeHtml(t("liquiditaet.qualityOpenEnded"))}</span>`}</td>
       <td>${statusChip(rz.status)}</td>
     </tr>
   `).join("");
@@ -966,7 +881,7 @@ function renderRegelzahlungen() {
           <thead>
             <tr>
               <th>${escapeHtml(t("regelzahlungen.bezeichnung"))}</th>
-              <th class="amount">${escapeHtml(t("cashflow.net"))}</th>
+              <th class="amount">${escapeHtml(t("liquiditaet.net"))}</th>
               <th>${escapeHtml(t("regelzahlungen.rhythmus"))}</th>
               <th>${escapeHtml(t("regelzahlungen.anker"))}</th>
               <th>${escapeHtml(t("regelzahlungen.aktivBis"))}</th>
@@ -1425,23 +1340,6 @@ app.addEventListener("click", (event) => {
     return;
   }
 
-  const cashflowToggle = event.target.closest("[data-cashflow-toggle]");
-  if (cashflowToggle) {
-    const key = cashflowToggle.dataset.cashflowToggle;
-    if (state.cashflowExpanded.has(key)) state.cashflowExpanded.delete(key);
-    else state.cashflowExpanded.add(key);
-    render();
-    return;
-  }
-
-  const cashflowGran = event.target.closest("[data-cashflow-gran]");
-  if (cashflowGran) {
-    state.cashflow.granularitaet = cashflowGran.dataset.cashflowGran;
-    state.cashflowExpanded.clear();
-    render();
-    return;
-  }
-
   const vermoegenSort = event.target.closest("[data-vermoegen-sort]");
   if (vermoegenSort) {
     const key = vermoegenSort.dataset.vermoegenSort;
@@ -1470,7 +1368,7 @@ app.addEventListener("click", (event) => {
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
-const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-cashflow-toggle], [data-cashflow-gran], [data-vermoegen-sort]";
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-vermoegen-sort]";
 app.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
@@ -1496,9 +1394,8 @@ app.addEventListener("change", (event) => {
     render();
     return;
   }
-  if (control?.dataset.control === "cashflow-bis") {
-    state.cashflow.bisDatum = control.value || defaultHorizonEnd(data.regelzahlungen, heuteIso());
-    state.cashflowExpanded.clear();
+  if (control?.dataset.control === "liquiditaet-bis") {
+    state.liquiditaet.bisDatum = control.value || defaultHorizonEnd(data.regelzahlungen, heuteIso());
     render();
     return;
   }

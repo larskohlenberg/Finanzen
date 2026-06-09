@@ -11,7 +11,7 @@ Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...` und `tool
 
 ## Kontext, den du kennen musst
 
-- `CONTEXT.md`: Einträge **Regelzahlung**, **Cashflow-Ist**, **Cashflow-Prognose**, **Status und Lebenszyklus**.
+- `CONTEXT.md`: Einträge **Regelzahlung**, **Liquiditaet**, **Cashflow-Ist**, **Cashflow-Prognose**, **Status und Lebenszyklus**.
 - `docs/adr/0010` (Erkennung = Agent-Urteil, Prognose = deterministisches Modul).
 - `docs/adr/0011` (Prognose regelzahlungsbasiert + Unvollständigkeit gekennzeichnet).
 - `schemas/regelzahlungen.schema.json`.
@@ -49,6 +49,6 @@ Bekannte Änderung einer laufenden Zahlung (z. B. Gehalt ab 60 halbiert): alte R
 | Pfad | Zweck |
 | --- | --- |
 | `data/master/regelzahlungen.json` | Regelzahlungs-Stammdaten |
-| `cashflow.mjs` | Deterministische Cashflow-Mathematik (Browser + Node) |
+| `liquiditaet.mjs` | Deterministische Liquiditaets-Mathematik (Browser + Node) |
 | `schemas/regelzahlungen.schema.json` | Schema-Referenz |
 | `tools/validator.mjs` | Validator (vor jedem Schreiben) |

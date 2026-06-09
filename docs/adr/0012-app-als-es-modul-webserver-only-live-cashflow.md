@@ -1,5 +1,7 @@
 # App als ES-Modul, webserver-only, Cashflow live berechnet
 
+Statushinweis 2026-06-09: Durch ADR 0016 ist die aktive Pilotseite nicht mehr Cashflow, sondern Liquiditaet. Der webserver-only- und Live-Berechnungs-Grundsatz gilt weiter; das aktive Modul heisst `app/liquiditaet.mjs`.
+
 Statushinweis 2026-06-09: Der webserver-only- und Live-Berechnungs-Grundsatz gilt weiter. Die Aussage zu `review-data.js` ist durch ADR 0015 und die direkte Masterdaten-Ladung ueberholt.
 
 Ab M4 wird `app/main.js` als ES-Modul (`<script type="module">`) geladen und importiert die Cashflow-Berechnung aus `app/cashflow.mjs`. Cashflow-Ist und Cashflow-Prognose werden damit **live in der App** berechnet (eine getestete reine Funktion, die auch Node ausfuehrt), statt vorberechnet im Review-Bundle zu liegen. Konsequenz: Die App laeuft **nur noch ueber einen Webserver**, nicht mehr per `file://`-Doppelklick.

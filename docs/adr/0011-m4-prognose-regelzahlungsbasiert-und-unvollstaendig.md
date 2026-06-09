@@ -1,5 +1,7 @@
 # M4-Prognose ist regelzahlungsbasiert und kennzeichnet ihre Unvollstaendigkeit
 
+Statushinweis 2026-06-09: Der Grundsatz gilt weiter. Durch ADR 0016 ist die fuehrende Ansicht Liquiditaet; bestaetigte Regelzahlungen schreiben den Saldo fort, statt eine eigene Cashflow-Seite zu fuehren.
+
 Die Cashflow-Prognose in M4 wird **ausschliesslich** aus bestaetigten Regelzahlungen projiziert. Bekannte einmalige Zukunfts-Ereignisse (z. B. Kapitalleistung einer Lebensversicherung) und hypothetische Szenarien gehoeren **nicht** in M4. Weil der Nutzer langfristige Entscheidungen auf der Prognose trifft, kennzeichnet die Ansicht ihre **bewusste Unvollstaendigkeit** explizit.
 
 ## Begruendung

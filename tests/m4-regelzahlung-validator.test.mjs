@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateMasterData } from "../tools/validator.mjs";
+import { validateMasterData } from "../app/tools/validator.mjs";
 
 function base() {
   return {

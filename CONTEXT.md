@@ -2,6 +2,10 @@
 
 Glossar der fachlichen Begriffe. Keine Implementierungsdetails, keine Schemas, keine Entscheidungen — nur die Sprache.
 
+## Pfadkonvention
+
+Produktive App-Daten, Belege, Schemas, Tools und Agenten-Skills liegen fuehrend im App-Raum unter `app/`. Fachliche Pfade in diesem Glossar sind app-relativ: `data/master/...` meint physisch `app/data/master/...`, `data/inbox/...` meint `app/data/inbox/...`, `schemas/...` meint `app/schemas/...` und `tools/...` meint `app/tools/...`.
+
 ## Person
 
 Eine natuerliche Person mit eindeutiger Identitaet (`person_id`). Reine Identitaetsentitaet: keine Rollen wie "Kind", "Erwachsen" oder "Haushalt". Lebensphasen werden ueber Ereignisse und Erwerbsstatus abgebildet, nicht ueber ein Rollenfeld.

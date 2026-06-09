@@ -279,7 +279,7 @@ Vollständiges Audit siehe separates Accessibility-Dokument (WCAG 2.1 AA, Stand 
 
 Diese zwei Punkte betreffen nicht Layout/Styling, sondern Datenfluss und Navigationszustand. Sie gehören nicht in eine UI-Komponentenspec im engeren Sinn, sind aber für jede Session, die an `main.js` arbeitet, unmittelbar relevant — deshalb hier vermerkt statt verloren:
 
-- **Kein Schutz beim Bootstrap**: `const data = window.FINANCE_REVIEW_DATA;` ([main.js:4](../../app/main.js)) wird ungeprüft destrukturiert (`data.personen.map(...)`, [main.js:57](../../app/main.js)). Lädt `review-data.js` (oder `i18n.js`) nicht oder liefert ein unerwartetes Format, wirft das Modul beim Import sofort eine Exception — Ergebnis: weiße Seite ohne jeden Hinweis. Empfehlung: Bootstrap in `try/catch` mit sichtbarer Fallback-Meldung im `#app`-Container kapseln.
+- **Bootstrap-/Ladefehler sichtbar machen**: `main.js` lädt die Masterdaten inzwischen direkt aus `data/master/`. Wenn eine Masterdatei fehlt, invalide JSON/JSONL enthält oder der Webserver einen direkten Dateizugriff blockiert, darf die App nicht mit weißer Seite enden. Empfehlung: Bootstrap in `try/catch` mit sichtbarer Fallback-Meldung im `#app`-Container kapseln.
 - **History-Spam durch `commitNavigation()`**: Die Funktion ([main.js:1512](../../app/main.js)) ruft bei **jeder** der 21 Aufrufstellen `history.pushState(...)` auf — auch bei Filteränderungen, Pagination oder Zeilenauswahl innerhalb derselben View. Der Browser-Zurück-Button wird dadurch zäh/unvorhersehbar (mehrere Schritte nötig, um zur vorherigen View zu gelangen). Empfehlung: `replaceState` für Zustandsänderungen *innerhalb* einer View nutzen, `pushState` nur bei echtem View-Wechsel.
 
 ---

@@ -2,13 +2,15 @@
 
 Stand: 27.05.2026
 
+Statushinweis 2026-06-09: Die Datenstruktur ist in den App-Raum migriert. Wenn dieses Dokument `data/master/...` nennt, ist der aktuelle physische Pfad `app/data/master/...`; dateninterne Referenzen bleiben app-relativ.
+
 Dieses Dokument beschreibt die Struktur der Masterdaten. **Die fachliche Sprache steht in `CONTEXT.md`** — bei Begriffsfragen immer dort nachsehen. **Die Begruendungen fuer ueberraschende Entscheidungen stehen in `docs/adr/`**.
 
 ## Leitprinzip
 
 Trennung von Rohdaten, fachlichen Masterdaten und Auswertungen. Auswertungen (Cashflow, Nettovermoegen, Saldo, Restschuld) werden berechnet, nicht als fuehrende Daten gepflegt.
 
-## Dateien in `data/master/`
+## Dateien in `app/data/master/`
 
 ```text
 personen.json

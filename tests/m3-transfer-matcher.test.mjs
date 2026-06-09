@@ -1,7 +1,7 @@
 // tests/m3-transfer-matcher.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { matchTransfers } from "../tools/transfer-matcher.mjs";
+import { matchTransfers } from "../app/tools/transfer-matcher.mjs";
 
 function tx(id, konto, datum, betrag, zweck) {
   return { transaktion_id: id, konto_id: konto, buchungsdatum: datum, betrag, verwendungszweck: zweck, ist_transfer: false };

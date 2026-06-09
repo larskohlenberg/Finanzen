@@ -1,7 +1,7 @@
 // tests/m3-import.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { runImport } from "../tools/import.mjs";
+import { runImport } from "../app/tools/import.mjs";
 
 const konten = [
   { konto_id: "KTO-001", kontoreferenz: "DE..1175" },

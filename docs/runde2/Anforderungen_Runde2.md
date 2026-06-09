@@ -2,6 +2,8 @@
 
 Stand: 26.05.2026
 
+Statushinweis 2026-06-09: Dieses Dokument beschreibt den Ausgangsvertrag von Runde 2. Der Betriebsmodus der App wurde seitdem weiterentwickelt: Die aktuelle App ist webserver-only, laedt Masterdaten direkt aus dem App-Datenraum und verwendet kein fuehrendes Review-Bundle mehr (siehe ADR 0012 und ADR 0015).
+
 ## Ausgangspunkt
 
 Runde 1 hat gezeigt, dass Excel als Masterformat fuer dieses Projekt zu viele Risiken erzeugt: OpenXML-Kompatibilitaet, Layoutbruch, unklare Zwischenartefakte, schwer pruefbare Zellzustande und hohe Tokenkosten. Der Nutzer wird voraussichtlich ca. 99 Prozent der Pflege ueber KI-Agenten erledigen lassen und nur auf Aufforderung oder in Sonderfaellen manuell CRUD-Arbeit machen.
@@ -22,9 +24,9 @@ Der Unterschied zu Runde 1 ist nicht ein kleinerer Zielumfang, sondern eine ande
 
 ## Kernanforderungen
 
-1. Lokale Nutzbarkeit:
-   - Die erste UI soll als `app/index.html` ohne Webserver nutzbar sein.
-   - Daten werden agentisch als Review-Bundle bereitgestellt und von der UI angezeigt.
+1. Nutzbarkeit:
+   - Die App soll lokal bzw. im geschuetzten LAN ueber einen Webserver nutzbar sein.
+   - Daten werden agentisch gepflegt und von der UI direkt aus dem App-Datenraum gelesen.
    - Die Weboberflaeche hat keine eigene Import-Funktion fuer Masterdaten.
 
 2. Agentenfreundlichkeit:

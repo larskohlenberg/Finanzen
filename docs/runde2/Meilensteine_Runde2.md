@@ -2,6 +2,8 @@
 
 Stand: 27.05.2026
 
+Statushinweis 2026-06-09: Dieses Dokument ist der fachliche Meilensteinplan mit historischen Exit-Kriterien. Aktuelle Betriebsentscheidungen zu Webserver, App-Datenraum und direkter Masterdaten-Ladung stehen in ADR 0012 und ADR 0015; alte M2-Formulierungen zu `file://` und Review-Bundle sind historisch zu lesen.
+
 Diese Meilensteine sollen verhindern, dass wieder ein grosser, schwer pruefbarer Gesamtbau entsteht. Jeder Meilenstein hat ein fachliches Ziel und harte Exit-Kriterien.
 
 ## M0 - Projekt- und Datenvertrag
@@ -71,7 +73,7 @@ Kategorisierung: regelbasiert (`data/master/kategorisierungsregeln.json`), Subst
 
 Transfer-Match: deterministisch, Auto-Paarung nur bei (Betrag exakt invers) UND (beide Konten im Modell) UND (Datumsdifferenz ≤ 3 Tage) UND (Verwendungszweck nach Normalisierung identisch). Externe Transfers markiert der Nutzer manuell.
 
-UI: Importfehler kommen ueber das Review-Bundle in die App, werden im Checks-Bereich angezeigt und als Chip im Arbeitsstatus-Streifen gezaehlt.
+UI: Importfehler werden aus den App-Daten geladen, im Checks-Bereich angezeigt und als Chip im Arbeitsstatus-Streifen gezaehlt.
 
 Exit-Kriterien:
 

@@ -7,7 +7,7 @@ import {
   toCents,
   centsToDecimal,
   dayDiff,
-} from "../tools/lib/text.mjs";
+} from "../app/tools/lib/text.mjs";
 
 test("normalizeWhitespace trimmt und kollabiert, ohne lowercase", () => {
   assert.equal(normalizeWhitespace("  Wocheneinkauf   Demo "), "Wocheneinkauf Demo");

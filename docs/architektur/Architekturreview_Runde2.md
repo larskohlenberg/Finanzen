@@ -2,6 +2,8 @@
 
 Stand: 26.05.2026
 
+Statushinweis 2026-06-09: Dieses Review ist die fruehe Architekturentscheidung gegen Excel als Master. Der Grundsatz "strukturierte Dateien statt Excel" gilt weiter; konkrete Pfade und Betriebsmodus wurden durch ADR 0012 und ADR 0015 weiterentwickelt (`app/` als Web-App-Raum, Daten/Schemas/Tools unter `app/`).
+
 ## Entscheidung
 
 Runde 2 sollte nicht auf der Excel-V1-Pipeline aufsetzen. Die neue Architektur ist:
@@ -70,7 +72,7 @@ Export Layer
 - Kein neuer Grossplan ohne konkreten naechsten Meilenstein.
 - Keine Implementierung mehrerer Subsysteme in einem Schritt.
 - Keine langen Agentenketten fuer Aufgaben, die durch kleine Schemas und deterministische Tests abgedeckt werden koennen.
-- Jede Session beginnt mit `docs/handoff/Handoff_Runde2.md`.
+- Jede Session beginnt mit `CONTEXT.md`, `app/README.md` und den fuer die Aufgabe relevanten ADRs.
 - Jede Umsetzung endet mit einem kurzen Status: geaenderte Dateien, ausgefuehrte Checks, offene Risiken.
 
 ## Technologieempfehlung
@@ -83,4 +85,3 @@ Fuer den ersten lauffaehigen Schnitt:
 - Optional spaeter: SQLite, wenn Abfragen und Datenmenge stark wachsen.
 
 SQLite ist fachlich attraktiv, aber fuer den ersten Schritt nicht zwingend. Ein dateibasierter Start ist transparenter und leichter durch Agenten zu bearbeiten.
-

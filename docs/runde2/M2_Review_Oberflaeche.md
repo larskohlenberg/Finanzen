@@ -2,6 +2,8 @@
 
 Stand: 27.05.2026
 
+Statushinweis 2026-06-09: Dieses Dokument beschreibt den historischen M2-Abschluss. Der aktuelle Betriebsmodus ist webserver-only mit direkter Masterdaten-Ladung aus `app/data/master/`; `app/review-data.js` ist entfallen (siehe ADR 0012/0015 und `app/README.md`).
+
 ## Umsetzungsstand 27.05.2026
 
 M2 ist als statische Review-Oberflaeche in `app/` umgesetzt.

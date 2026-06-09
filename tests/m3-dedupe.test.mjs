@@ -1,7 +1,7 @@
 // tests/m3-dedupe.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { computeDedupeHash } from "../tools/dedupe.mjs";
+import { computeDedupeHash } from "../app/tools/dedupe.mjs";
 
 const base = {
   konto_id: "KTO-001",

@@ -1,5 +1,7 @@
 # Zweistufiger Dedupe-Hash mit leichter Normalisierung
 
+Statushinweis 2026-06-09: Die Entscheidung gilt weiter. Die Import-Pipeline liegt physisch unter `app/tools/`; fachlich wird sie app-relativ als `tools/` referenziert.
+
 Der `dedupe_hash` einer Transaktion wird zweistufig gebildet:
 
 1. **Mit Bank-Referenz**: Liefert die Bank eine eindeutige Buchungsnummer (`bank_referenz`, z. B. SEPA-Ende-zu-Ende-ID), basiert der Hash **ausschliesslich** auf `(konto_id, bank_referenz)`.

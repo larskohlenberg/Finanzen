@@ -66,6 +66,8 @@ Die Freitextfelder `gegenpartei` und `verwendungszweck` werden vor dem Hash **le
 
 Wenn eine Bank `bank_referenz` nicht stabil ueber Re-Exports vergibt, laesst der Agent das Feld bewusst weg, damit der Freitext-Hash greift. Das ist ein Pruefpunkt beim ersten Import einer neuen Bank.
 
+Zwei Praezisierungen (siehe ADR 0007, Stand 2026-06-09): (1) Eine `bank_referenz` wird nur als Schluessel genutzt, wenn sie im Importlauf **dateiweit eindeutig** ist — manche Banken vergeben dieselbe Referenz auf verschiedenen Buchungen; nicht-eindeutige Referenzen fallen auf den Freitext-Hash zurueck. (2) Der Hash-Abgleich prueft gegen den **Bestand**, nicht innerhalb desselben Auszugs: zwei gleich aussehende Zeilen eines amtlichen Auszugs sind reale Buchungen, keine Importdublette. Sind sie in allen Quellfeldern identisch, erhaelt das zweite Vorkommen einen deterministisch disambiguierten `dedupe_hash` (Inhalte unveraendert), weil der Validator eindeutige Hashes verlangt.
+
 Banken liefern Auszuege in unterschiedlichen Formaten — die Normalisierung in die Standardform ist Aufgabe des Import-Agenten, nicht des Datenmodells.
 
 ## Transaktion

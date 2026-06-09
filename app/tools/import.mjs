@@ -3,19 +3,42 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 import { validateImportEntry } from "./import-format.mjs";
-import { computeDedupeHash } from "./dedupe.mjs";
+import { computeDedupeHash, disambiguateHash } from "./dedupe.mjs";
 import { categorize } from "./categorizer.mjs";
 import { matchTransfers } from "./transfer-matcher.mjs";
 import { nextTransaktionId } from "./ids.mjs";
+
+const optionalTransactionFields = [
+  "wertstellungsdatum",
+  "transaktionstyp",
+  "kundenreferenz",
+  "empfaenger",
+  "empfaenger_iban",
+  "mandatsreferenz",
+  "glaeubiger_id",
+];
 
 export function runImport({ entries, konten, kategorien, kategorisierungsregeln, transaktionen, transfers }) {
   const kontenIds = new Set(konten.map((k) => k.konto_id));
   const kategorienIds = new Set(kategorien.map((k) => k.kategorie_id));
   const working = [...transaktionen];
   const existingIds = new Set(working.map((tx) => tx.transaktion_id));
-  const existingHashes = new Set(working.map((tx) => tx.dedupe_hash));
+  // Dedupe prueft gegen den BESTAND (Re-Import-Schutz), nicht innerhalb desselben
+  // Auszugs — ein amtlicher Auszug enthaelt reale Buchungen, keine Importdubletten.
+  const masterHashes = new Set(working.map((tx) => tx.dedupe_hash));
+  // In diesem Lauf vergebene Hashes — zur Disambiguierung identischer Auszugszeilen.
+  const runHashes = new Set();
 
-  const result = { written: [], skipped_dedupe: [], errors: [], transfers_matched: [] };
+  // bank_referenz taugt nur als Dedupe-Schluessel, wenn sie im Lauf dateiweit
+  // EINDEUTIG ist. Manche Banken (MusterbankA) vergeben dieselbe Referenz auf verschiedenen
+  // Buchungen — diese als Schluessel zu nutzen wuerde reale Buchungen verschmelzen.
+  const refCount = new Map();
+  for (const e of entries) {
+    const ref = String(e?.bank_referenz ?? "").trim();
+    if (ref) refCount.set(ref, (refCount.get(ref) ?? 0) + 1);
+  }
+
+  const result = { written: [], skipped_dedupe: [], disambiguated: [], errors: [], transfers_matched: [] };
 
   entries.forEach((entry, index) => {
     const row = index + 1;
@@ -26,9 +49,13 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
       return;
     }
 
-    const dedupe_hash = computeDedupeHash(entry);
-    if (existingHashes.has(dedupe_hash)) {
-      result.skipped_dedupe.push({ row, dedupe_hash });
+    const ref = String(entry.bank_referenz ?? "").trim();
+    const refEindeutig = ref !== "" && refCount.get(ref) === 1;
+    // Nicht-eindeutige Referenz fuer die Hash-Bildung ignorieren -> Freitext-Hash.
+    const basisHash = computeDedupeHash(refEindeutig ? entry : { ...entry, bank_referenz: undefined });
+
+    if (masterHashes.has(basisHash)) {
+      result.skipped_dedupe.push({ row, dedupe_hash: basisHash });
       return;
     }
 
@@ -38,9 +65,19 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
       return;
     }
 
+    // Identische Quellzeile im selben Auszug: nicht verwerfen, sondern Hash
+    // disambiguieren (beide Buchungen sind Fakten, Validator verlangt eindeutige Hashes).
+    let dedupe_hash = basisHash;
+    if (runHashes.has(dedupe_hash)) {
+      let n = 2;
+      while (runHashes.has(disambiguateHash(basisHash, n))) n++;
+      dedupe_hash = disambiguateHash(basisHash, n);
+      result.disambiguated.push({ row, basis: basisHash, dedupe_hash });
+    }
+
     const transaktion_id = nextTransaktionId(entry.buchungsdatum, existingIds);
     existingIds.add(transaktion_id);
-    existingHashes.add(dedupe_hash);
+    runHashes.add(dedupe_hash);
 
     const transaktion = {
       transaktion_id,
@@ -55,7 +92,12 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
       ist_transfer: false,
     };
     if (verdict.kategorie_id) transaktion.kategorie_id = verdict.kategorie_id;
-    if (Object.hasOwn(entry, "bank_referenz") && entry.bank_referenz) transaktion.bank_referenz = entry.bank_referenz;
+    for (const field of optionalTransactionFields) {
+      if (Object.hasOwn(entry, field)) transaktion[field] = entry[field];
+    }
+    // Nur eine dateiweit eindeutige Referenz speichern — sonst waere sie ein
+    // irrefuehrender Dedupe-Key beim Re-Import.
+    if (refEindeutig) transaktion.bank_referenz = entry.bank_referenz;
 
     working.push(transaktion);
     result.written.push({ transaktion_id, kategorisierung_status: verdict.status });

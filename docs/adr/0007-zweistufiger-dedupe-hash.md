@@ -31,3 +31,13 @@ Die Sonderrolle von `bank_referenz`: Sie ist die einzige von der Bank **garantie
 Risiko: Manche Banken vergeben `bank_referenz` **nicht stabil** ueber Re-Exports (selten, aber real — manche erzeugen pro Export neue IDs). Dann versagt Stufe 1. Mitigation: Beim ersten Import einer neuen Bank prueft der Agent die Stabilitaet der Buchungsnummer. Ist sie nicht stabil, laesst er `bank_referenz` weg, sodass der Freitext-Hash (Stufe 2) greift. Dieser Pruefpunkt gehoert in den Import-Agent-Skill.
 
 Die Hash-Bildung ist Teil der deterministischen Import-Pipeline (`tools/`), nicht Agent-Verhalten — gleiche Eingabe ergibt immer denselben Hash.
+
+## Praezisierung 2026-06-09 (MusterbankA-Erstimport, 2663 Buchungen)
+
+Drei Annahmen der urspruenglichen Entscheidung waren in der Praxis zu eng. Die Korrekturen sitzen im Tool (`runImport`/`dedupe.mjs`), nicht im Agenten:
+
+1. **`bank_referenz` vorhanden ⇒ eindeutig — gilt nicht.** Die MusterbankA-Spalte „Kundenreferenz" ist nicht durchgaengig pro Buchung eindeutig: einzelne Werte tauchen auf mehreren, real verschiedenen Buchungen auf (Karten-Autorisierungen, Jahresbeitraege mit stabiler Ref). Stufe 1 nur auf `(konto_id, bank_referenz)` zu stuetzen, wuerde diese Buchungen verschmelzen — genau der „strenge" Fehler. **Regel:** Die Pipeline nutzt `bank_referenz` nur dann als Schluessel, wenn sie **im Lauf dateiweit eindeutig** ist; sonst faellt sie auf den Freitext-Hash zurueck und die mehrdeutige Referenz wird **nicht** gespeichert (sie waere ein irrefuehrender Dedupe-Key beim Re-Import). Die Eindeutigkeitspruefung ist deterministisch im Tool, nicht Agent-Disziplin.
+
+2. **Dedupe prueft gegen den Bestand, nicht intra-file.** Ein amtlicher Kontoauszug enthaelt reale Buchungen; zwei gleich aussehende Zeilen sind keine Importdublette, sondern zwei Tatsachen. Der Skip-Vergleich laeuft deshalb nur gegen `transaktionen.jsonl` (Re-Import-Schutz), nicht gegen die bereits in **diesem** Lauf geschriebenen Zeilen.
+
+3. **Identische Zeilen + Hash-Eindeutigkeit.** Sind zwei Zeilen in allen Quellfeldern identisch und referenzlos (z. B. referenzlose Ruecklaeufer), ergibt der Freitext-Hash zweimal denselben Wert — der Validator verlangt aber eindeutige `dedupe_hash`. Das zweite und jedes weitere Vorkommen erhaelt einen deterministisch disambiguierten Hash (`disambiguateHash`, weiterhin 64-stellig); die Buchungsinhalte bleiben unveraendert. So bleibt jede reale Buchung erhalten, ohne den blinden Fleck zu verstecken.

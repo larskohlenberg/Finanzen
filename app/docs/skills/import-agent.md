@@ -53,15 +53,42 @@ Aus jedem Eingang musst du **pro Buchung** mindestens extrahieren:
 - Konto-Zuordnung (siehe naechster Abschnitt)
 - `bank_referenz` (optional, falls die Bank eine eindeutige Buchungsnummer liefert)
 
+Zusaetzliche Bankdetails aus der Rohquelle nicht wegwerfen, sondern optional ins standardisierte Importformat uebernehmen, wenn sie pro Buchung vorhanden sind:
+
+- `wertstellungsdatum`
+- `transaktionstyp`
+- `kundenreferenz`
+- `empfaenger`
+- `empfaenger_iban`
+- `mandatsreferenz`
+- `glaeubiger_id`
+
+**Wichtig:** "optional" heisst nur, dass eine Rohquelle das Feld nicht immer liefert. Wenn die Spalte in der Rohquelle vorhanden ist, muss der Agent sie normalisieren und mitgeben. Nicht auf die Tabellenansicht der App optimieren.
+
+Typische Spaltenzuordnung fuer Bank-CSV-Exporte:
+
+| Rohspalte | Standardisiertes Feld |
+| --- | --- |
+| `Buchungsdatum` | `buchungsdatum` |
+| `Wertstellung` | `wertstellungsdatum` |
+| `Umsatztyp` / `Transaktionstyp` | `transaktionstyp` |
+| `Zahlungsempfaenger*in` / `Zahlungsempfänger*in` | `empfaenger` |
+| `IBAN` | `empfaenger_iban` |
+| `Glaeubiger-ID` / `Gläubiger-ID` | `glaeubiger_id` |
+| `Mandatsreferenz` | `mandatsreferenz` |
+| `Kundenreferenz` | `kundenreferenz`; wenn das die von der Bank gelieferte eindeutige Buchungsnummer ist, zusaetzlich als `bank_referenz` |
+
+Bei abgehenden Zahlungen ist `Zahlungsempfaenger*in` die Gegenpartei/der Empfaenger. Bei eingehenden Zahlungen kann die Rohspalte stattdessen `Zahlungspflichtige*r`, `Auftraggeber*in` oder aehnlich heissen; dann diese Partei als `gegenpartei` verwenden und `empfaenger` nur setzen, wenn wirklich ein separater Empfaenger ausgewiesen ist.
+
 Wenn eines dieser Felder fuer eine Zeile nicht zuverlaessig extrahierbar ist: **nicht raten** — die Zeile gehoert in den Fehlerpfad (siehe unten).
 
 ## Prozessablauf pro Importlauf
 
 1. **Rohdatei sichten**: Welches Format? Welche Bank? Welches Konto? Wenn das aus der Datei nicht hervorgeht (z. B. weil die CSV keine IBAN-Spalte hat), beim Nutzer nachfragen.
-2. **Konto zuordnen**: ueber den `kontoreferenz`-Match in `data/master/konten.json`. Mehrere mit denselben letzten Ziffern? Pruefen, ob `inhaber_person_ids` oder Banknamen die Mehrdeutigkeit aufloesen. Nicht eindeutig zuordbar → in `error/`.
+2. **Konto zuordnen**: ueber den `kontoreferenz`-Match in `data/master/konten.json`. Mehrere mit denselben letzten Ziffern? Pruefen, ob `inhaber_person_ids` oder Banknamen die Mehrdeutigkeit aufloesen. Nicht eindeutig zuordbar → in `error/`. Steht das Konto noch **gar nicht** in `konten.json` (z. B. erster Import einer neuen Bank), nicht raten: dem Nutzer einen konkreten Konto-Eintrag (`konto_id`, `name`, `kontotyp`, `kontoreferenz`, `inhaber_person_ids`) **vorschlagen** und ihn erst nach **expliziter Bestaetigung** validiert anlegen. Erst danach importieren.
 3. **Normalisieren**: Roheintraege ins **standardisierte Importformat** (siehe `schemas/`) ueberfuehren. Eine JSONL-Datei pro Lauf unter `data/inbox/standardized/`.
 4. **Validieren**: `tools/validator.mjs` (bzw. die Browser-faehige Bibliothek) auf das Standardformat anwenden. Fehlschlag → in `error/`.
-5. **Dedupe**: Fuer jede Buchung den `dedupe_hash` bilden (Felder siehe `CONTEXT.md`). Gegen `data/master/transaktionen.jsonl` pruefen. Hash bekannt → ueberspringen.
+5. **Dedupe**: Fuer jede Buchung den `dedupe_hash` bilden (Felder siehe `CONTEXT.md`). Gegen `data/master/transaktionen.jsonl` (den **Bestand**) pruefen. Hash bekannt → ueberspringen. **Nicht** innerhalb desselben Auszugs deduplizieren — ein amtlicher Auszug enthaelt reale Buchungen; das Tool laesst gleich aussehende Zeilen stehen und disambiguiert in allen Quellfeldern identische automatisch (siehe ADR 0007, Praezisierung 2026-06-09). `bank_referenz` aus der Rohdatei roh mitgeben, wo die Bank eine liefert — die Pipeline nutzt sie nur als Schluessel, wenn sie **dateiweit eindeutig** ist, und faellt sonst auf den Freitext-Hash zurueck. Du musst die Eindeutigkeit nicht selbst herausfiltern.
 6. **Kategorisieren**: `tools/categorizer.mjs` aufrufen mit der Buchung und `kategorisierungsregeln.json`.
    - Eindeutiger Treffer → `kategorie_id` setzen, `kategorisierung_status = vorgeschlagen`.
    - Kein Treffer oder Konflikt → `kategorisierung_status = offen`, keine `kategorie_id`.
@@ -106,7 +133,7 @@ Ablage in `Belege/`:
 - **Keine Kategorie raten**, die nicht aus dem Categorizer kommt. Wenn du eine Buchung „eigentlich klar" findest und keine Regel matcht, dem Nutzer vorschlagen, eine Regel anzulegen — nicht still die Kategorie setzen.
 - **Keine Regeln automatisch anlegen**, auch wenn du sie sinnvoll findest. Regel-Pflege ist ein eigener Dialogschritt.
 - **Keine Transaktion „ablehnen"**. Eine Bankbuchung ist eine Tatsache. Wenn etwas nicht eingespielt werden kann, ist das ein Importfehler in `error/`, keine Ablehnung.
-- **Keine Annahmen ueber Konten, die nicht in `konten.json` stehen.** Unbekanntes Konto → Fehler, Nutzer pflegt erst die Stammdaten.
+- **Keine Annahmen ueber Konten, die nicht in `konten.json` stehen.** Unbekanntes Konto → nicht still durchlaufen. Entweder in `error/`, oder dem Nutzer einen Konto-Eintrag vorschlagen und nach **expliziter Bestaetigung** anlegen (siehe Schritt 2) — nie raten oder ungefragt anlegen.
 
 ## Wann fragen, wann handeln
 

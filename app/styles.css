@@ -310,22 +310,21 @@ button {
   justify-content: flex-end;
 }
 
+/* Chip-Hoehe (26px) und Pill-Form, damit die Selects nicht aus der Statuszeile ragen. */
 .control-select {
-  min-width: 128px;
-  height: 40px;
-  padding: 0 10px;
+  height: 26px;
+  padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: var(--surface);
-  color: var(--text);
+  color: var(--muted);
   font-size: 13px;
 }
 
 .control-select.icon-select {
-  min-width: 54px;
-  width: 54px;
-  padding: 0 8px;
-  font-size: 16px;
+  min-width: 48px;
+  width: 48px;
+  padding: 0 6px;
   text-align: center;
 }
 
@@ -398,7 +397,6 @@ button {
 .icon-button,
 .sidebar-toggle,
 .nav-button,
-.control-select,
 .pager-button {
   border-radius: var(--radius);
 }
@@ -1122,9 +1120,6 @@ button.roadmap-card-link:focus-visible {
   .control-select.icon-select {
     width: 44px;
     min-width: 44px;
-    height: 34px;
-    padding: 0 6px;
-    font-size: 15px;
   }
 
   .nav {

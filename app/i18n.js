@@ -230,6 +230,7 @@ window.FINANCE_I18N = {
     },
     labels: {
       account: "Konto",
+      accountReference: "Kontoreferenz",
       owner: "Inhaber",
       type: "Typ",
       loadedBalance: "Geladener Saldo",
@@ -512,6 +513,7 @@ window.FINANCE_I18N = {
     },
     labels: {
       account: "Account",
+      accountReference: "Account reference",
       owner: "Owner",
       type: "Type",
       loadedBalance: "Loaded balance",

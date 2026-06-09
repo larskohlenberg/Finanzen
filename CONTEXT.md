@@ -16,7 +16,7 @@ Bankkonto oder Depot. Hat eine **Inhaberliste** (`inhaber_person_ids`) — alle 
 
 ## Kontoreferenz
 
-Eine externe, vom Anbieter vergebene, bevorzugt maskierte Kennung eines Kontos oder Depots, z. B. IBAN-Endziffern, Depotnummer-Endziffern oder eine maskierte Depotnummer. Sie dient der Wiedererkennung durch Nutzer und Agenten, nicht der Berechnung; vollstaendige IBANs oder Depotnummern gehoeren nur in die Quelle, nicht in den Masterdatensatz.
+Eine externe, vom Anbieter vergebene Kennung eines Kontos oder Depots — vorzugsweise die **vollstaendige** IBAN bzw. Depotnummer, damit die Referenz eindeutig und vollstaendig ist. Sie dient der Wiedererkennung durch Nutzer und Agenten, nicht der Berechnung (die fachliche Identitaet im Modell traegt `konto_id`). Eine maskierte Form (z. B. nur Endziffern) ist zulaessig, wo die volle Kennung nicht vorliegt; sie ist aber nicht mehr die bevorzugte Form. Hintergrund: Die produktiven Daten unter `data/` sind nicht versioniert und liegen nur lokal bzw. auf dem zugriffsgeschuetzten Webserver — eine vollstaendige IBAN im Masterdatensatz ist in diesem privaten Kontext akzeptiert.
 
 ## Immobilie
 
@@ -109,6 +109,8 @@ Ab M5 ist der belegte Kontostand ein **Zeitwert** (`entitaet = konto`, `feld = k
 ## Cashflow-Ist
 
 Der **tatsaechliche** Cashflow, vollstaendig aus Transaktionen der Vergangenheit berechnet (Cent-Integer-Summe, gruppiert z. B. nach Monat und/oder Kategorie). Transfers zaehlen nicht (cashflow-neutral). Kein gespeicherter Wert — beim Laden berechnet, wie Nettovermoegen. Reicht bis „heute".
+
+In der Cashflow-Seite meint der **Monatsverlauf bis heute** nur den laufenden Kalendermonat (Month-to-date), nicht die gesamte importierte Historie. Historische Ist-Monate gehoeren in eine separate Auswertung, nicht in diese kompakte laufende Cashflow-Sicht.
 
 ## Cashflow-Prognose
 

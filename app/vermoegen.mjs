@@ -161,9 +161,10 @@ export function computeNettovermoegen(data, today) {
 export function computeVermoegenChecks(data, today) {
   const checks = [];
 
+  // Auch nicht-liquiditaetsrelevante Cash-Konten pruefen: sie fliessen via
+  // kontoWert ins Nettovermoegen, also gelten Anker-Pflicht und Reconciliation dort genauso.
   for (const konto of data.konten ?? []) {
     if (konto.status === "geschlossen" || konto.kontotyp === "bar" || konto.kontotyp === "depot") continue;
-    if (!konto.liquiditaetsrelevant) continue;
     const anker = aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand");
     if (!anker) {
       checks.push({ art: "anker-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, text: `Konto ${konto.name}: kein belegter Kontostand` });

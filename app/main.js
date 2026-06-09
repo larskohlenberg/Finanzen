@@ -105,14 +105,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function cents(decimalString) {
-  const raw = String(decimalString ?? "").trim();
-  if (raw === "") return 0;
-  const sign = raw.startsWith("-") ? -1 : 1;
-  const [euros = "0", frac = ""] = raw.replace("-", "").split(".");
-  const fracPadded = (frac + "00").slice(0, 2);
-  return sign * (Number(euros) * 100 + Number(fracPadded));
-}
+const cents = toCents;
 
 function formatMoney(amountInCents) {
   return new Intl.NumberFormat(state.lang === "de" ? "de-DE" : "en-US", {
@@ -346,10 +339,10 @@ function renderTopbar() {
     <header class="topbar">
       <div class="work-status">
         <strong>${escapeHtml(t("chrome.workStatus"))}</strong>
-        <span class="chip success">${iconSvg("success")}${escapeHtml(t("chrome.validationPassed"))}</span>
+        <span class="chip neutral" title="${escapeHtml(t("chrome.validationExternalHint"))}">${iconSvg("neutral")}${escapeHtml(t("chrome.validationExternal"))}</span>
         <button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
-        <button class="chip neutral linkish" data-action="next-action">${escapeHtml(t("chrome.nextAction"))}: ${escapeHtml(t("overview.nextActionText"))}</button>
+        <button class="chip neutral linkish" data-action="next-action">${escapeHtml(t("chrome.nextAction"))}: ${openCategoryTransactions().length} ${escapeHtml(t("overview.nextActionText"))}</button>
       </div>
       <div class="controls">
         <select class="control-select icon-select" data-control="lang" aria-label="${escapeHtml(t("chrome.language"))}" title="${escapeHtml(t("chrome.language"))}">
@@ -418,7 +411,7 @@ function renderOverview() {
       <aside class="rail overview-rail">
         <section class="panel panel-pad next-action">
           <h2 class="section-title">${escapeHtml(t("chrome.nextAction"))}</h2>
-          <button class="linkish" data-action="filter-open-category">${escapeHtml(t("overview.nextActionText"))}</button>
+          <button class="linkish" data-action="filter-open-category">${openCategoryTransactions().length} ${escapeHtml(t("overview.nextActionText"))}</button>
           <p class="page-lead">${escapeHtml(t("checks.categoryOpen.detail"))}</p>
         </section>
         <section class="panel panel-pad checks-rail">

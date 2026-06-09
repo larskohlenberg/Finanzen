@@ -3,12 +3,8 @@
 // Eine getestete Funktion an zwei Aufrufstellen: Browser (app/main.js) und Node (tests/).
 // Modell-Begruendung: Liquiditaet = belegter Konto-Anker + Ist-Buchungen + Regelzahlungs-Fortschreibung.
 
-export function toCents(decimalString) {
-  const sign = decimalString.startsWith("-") ? -1 : 1;
-  const unsigned = decimalString.replace("-", "");
-  const [euros, cents] = unsigned.split(".");
-  return sign * (Number(euros) * 100 + Number(cents));
-}
+import { toCents } from "./tools/lib/text.mjs";
+export { toCents };
 
 export function monatVon(isoDate) {
   return isoDate.slice(0, 7);
@@ -106,12 +102,16 @@ function kontoSaldoZuDatum(konto, zeitwerte, transaktionen, bisDatum) {
   const anker = aktuellerZeitwert(zeitwerte, "konto", konto.konto_id, "kontostand");
   if (!anker) return { saldo_cents: null, basis: "anker-fehlt", anker: null };
 
+  // Vorwaerts: Buchungen nach dem Anker addieren. Rueckwaerts (Stichtag vor dem
+  // Anker): Buchungen bis zum Anker abziehen — sie stecken im Ankerwert bereits drin.
   let saldo = toCents(anker.wert);
   for (const tx of transaktionen ?? []) {
     if (tx.konto_id !== konto.konto_id) continue;
-    if (tx.buchungsdatum <= anker.standdatum) continue;
-    if (tx.buchungsdatum > bisDatum) continue;
-    saldo += toCents(tx.betrag);
+    if (bisDatum >= anker.standdatum) {
+      if (tx.buchungsdatum > anker.standdatum && tx.buchungsdatum <= bisDatum) saldo += toCents(tx.betrag);
+    } else {
+      if (tx.buchungsdatum > bisDatum && tx.buchungsdatum <= anker.standdatum) saldo -= toCents(tx.betrag);
+    }
   }
   return { saldo_cents: saldo, basis: "anker+buchungen", anker };
 }

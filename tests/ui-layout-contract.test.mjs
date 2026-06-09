@@ -88,3 +88,11 @@ test("IBAN fields render with grouped display format", () => {
   assert.match(main, /formatIban\(konto\.kontoreferenz\)/);
   assert.match(main, /formatIban\(tx\.empfaenger_iban\)/);
 });
+
+test("transactions view has a local search over loaded transactions", () => {
+  assert.match(main, /name:\s*"search"/);
+  assert.match(main, /matchesQuery\(/);
+  assert.match(main, /addEventListener\("input"/);
+  assert.match(i18n, /filterSearch:\s*"Suche"/);
+  assert.match(i18n, /filterSearch:\s*"Search"/);
+});

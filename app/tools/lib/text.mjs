@@ -7,11 +7,14 @@ export function normalizeLoose(value) {
   return normalizeWhitespace(value).toLowerCase();
 }
 
+// Einzige toCents-Implementierung im Projekt (CONTEXT: Cent-Integer-Philosophie).
+// Browser-Module importieren sie ueber app/liquiditaet.mjs, Tools direkt.
 export function toCents(decimalString) {
-  const sign = decimalString.startsWith("-") ? -1 : 1;
-  const unsigned = decimalString.replace("-", "");
-  const [euros, cents] = unsigned.split(".");
-  return sign * (Number(euros) * 100 + Number(cents));
+  const raw = String(decimalString ?? "").trim();
+  if (raw === "") return 0;
+  const sign = raw.startsWith("-") ? -1 : 1;
+  const [euros = "0", frac = ""] = raw.replace("-", "").split(".");
+  return sign * (Number(euros) * 100 + Number((frac + "00").slice(0, 2)));
 }
 
 export function centsToDecimal(cents) {

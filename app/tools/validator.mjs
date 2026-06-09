@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { toCents } from "./lib/text.mjs";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -420,13 +421,6 @@ function isIsoDate(value) {
   }
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
-}
-
-function toCents(decimalString) {
-  const sign = decimalString.startsWith("-") ? -1 : 1;
-  const unsigned = decimalString.replace("-", "");
-  const [euros, cents] = unsigned.split(".");
-  return sign * (Number(euros) * 100 + Number(cents));
 }
 
 async function readJson(path) {

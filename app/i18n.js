@@ -132,7 +132,11 @@ window.FINANCE_I18N = {
       incompleteNote: "Prognose enthält nur wiederkehrende Zahlungen nach heute. Einmalige Ereignisse (z. B. Versicherungsleistung, ab M7), Szenarien (ab M6) und Plan-Ist-Abgleich folgen später.",
       emptyIst: "Kein belegter Liquiditätsverlauf für den laufenden Monat.",
       emptyForecast: "Keine erwarteten Regelzahlungen im gewählten Horizont.",
+      period: "Zeitraum",
       forecastUntil: "Prognose bis",
+      running: "laufend",
+      runningNote: "Laufender Zeitraum: Ist bis heute, Prognose nach heute.",
+      gran: { monat: "Monat", quartal: "Quartal", jahr: "Jahr" },
     },
     regelzahlungen: {
       title: "Regelzahlungen",
@@ -412,7 +416,11 @@ window.FINANCE_I18N = {
       incompleteNote: "Forecast only includes recurring payments after today. One-off events (e.g. insurance payout, from M7), scenarios (from M6), and plan-vs-actual matching follow later.",
       emptyIst: "No confirmed liquidity path for the current month.",
       emptyForecast: "No expected recurring payments in the selected horizon.",
+      period: "Period",
       forecastUntil: "Forecast until",
+      running: "current",
+      runningNote: "Current period: actuals until today, forecast after today.",
+      gran: { monat: "Month", quartal: "Quarter", jahr: "Year" },
     },
     regelzahlungen: {
       title: "Recurring payments",

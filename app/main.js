@@ -700,12 +700,23 @@ function pairedTransferTransaction(tx) {
 function renderTransactionDetail(tx) {
   const konto = kontenById.get(tx.konto_id);
   const paired = pairedTransferTransaction(tx);
+  const bankDetails = [
+    ["transactions.bankReference", tx.bank_referenz],
+    ["transactions.valueDate", tx.wertstellungsdatum, "date"],
+    ["transactions.transactionType", tx.transaktionstyp],
+    ["transactions.customerReference", tx.kundenreferenz],
+    ["transactions.recipient", tx.empfaenger],
+    ["transactions.recipientIban", tx.empfaenger_iban],
+    ["transactions.mandateReference", tx.mandatsreferenz],
+    ["transactions.creditorId", tx.glaeubiger_id],
+  ].filter(([, value]) => hasDetailValue(value));
   return `
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("transactions.booking"))}</div>
       <div class="detail-value">
         <strong>${escapeHtml(formatMoney(cents(tx.betrag)))}</strong><br>
-        ${escapeHtml(formatDate(tx.buchungsdatum))}<br>
+        ${escapeHtml(formatDate(tx.buchungsdatum))}
+        ${tx.wertstellungsdatum ? `<span class="muted"> · ${escapeHtml(t("transactions.valueDateShort"))} ${escapeHtml(formatDate(tx.wertstellungsdatum))}</span>` : ""}<br>
         ${escapeHtml(tx.gegenpartei)}
       </div>
     </div>
@@ -715,6 +726,24 @@ function renderTransactionDetail(tx) {
         <button class="linkish" data-action="account-transactions" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button>
       </div>
     </div>
+    <div class="detail-section">
+      <div class="detail-label">${escapeHtml(t("transactions.coreData"))}</div>
+      <div class="detail-list">
+        ${transactionDetailRow(t("labels.date"), formatDate(tx.buchungsdatum))}
+        ${transactionDetailRow(t("labels.counterparty"), tx.gegenpartei)}
+        ${transactionDetailRow(t("labels.purpose"), tx.verwendungszweck)}
+        ${transactionDetailRow(t("labels.amount"), formatMoney(cents(tx.betrag)))}
+        ${transactionDetailRow(t("transactions.transactionId"), tx.transaktion_id)}
+      </div>
+    </div>
+    ${bankDetails.length ? `
+      <div class="detail-section">
+        <div class="detail-label">${escapeHtml(t("transactions.bankDetails"))}</div>
+        <div class="detail-list">
+          ${bankDetails.map(([labelKey, value, format]) => transactionDetailRow(t(labelKey), format === "date" ? formatDate(value) : value)).join("")}
+        </div>
+      </div>
+    ` : ""}
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("labels.category"))}</div>
       <div class="detail-value">${escapeHtml(tx.kategorie_id ? categoryName(tx.kategorie_id) : t("labels.noCategory"))}<br>${statusChip(tx.kategorisierung_status)}</div>
@@ -731,6 +760,19 @@ function renderTransactionDetail(tx) {
     ` : ""}
     <div class="detail-section">
       <button class="linkish" data-action="show-checks-for" data-entity="${escapeHtml(tx.transaktion_id)}">${escapeHtml(t("transactions.showInChecks"))}</button>
+    </div>
+  `;
+}
+
+function hasDetailValue(value) {
+  return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+function transactionDetailRow(label, value) {
+  return `
+    <div class="detail-list-row">
+      <span class="detail-list-label">${escapeHtml(label)}</span>
+      <span class="detail-list-value">${escapeHtml(value)}</span>
     </div>
   `;
 }

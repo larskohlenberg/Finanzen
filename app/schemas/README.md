@@ -23,3 +23,4 @@ Die Schemas sind Referenz fuer Import, Stammdatenpflege, Validierung und spaeter
 | `darlehen.schema.json` | Hypotheken und sonstige Darlehen mit Zinssatz und Sollrate |
 | `vermoegenswerte.schema.json` | Weitere Vermoegenswerte (Edelmetalle, Beteiligungen, Sonstiges) mit Eigentumsanteilen |
 | `zeitwerte.schema.json` | Einzelner Zeitwert-Eintrag (Kontostand, Depotwert, Marktwert, Restschuld) fuer beliebige Entitaeten |
+| `importformat.schema.json` | Standardisierte Zwischenform fuer Bankimporte; enthaelt neben den Pflichtfeldern auch optionale Bankdetails wie `wertstellungsdatum`, `transaktionstyp`, `empfaenger_iban`, `mandatsreferenz` und `glaeubiger_id` |

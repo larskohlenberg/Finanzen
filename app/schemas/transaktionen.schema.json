@@ -31,6 +31,13 @@
       "ist_transfer": { "type": "boolean" },
       "kategorie_id": { "type": "string", "pattern": "^KAT-\\d{3}$" },
       "bank_referenz": { "type": "string" },
+      "wertstellungsdatum": { "type": "string", "format": "date" },
+      "transaktionstyp": { "type": "string" },
+      "kundenreferenz": { "type": "string" },
+      "empfaenger": { "type": "string" },
+      "empfaenger_iban": { "type": "string" },
+      "mandatsreferenz": { "type": "string" },
+      "glaeubiger_id": { "type": "string" },
       "transfer_id": { "type": "string", "pattern": "^TRF-\\d{8}-\\d{3}$" },
       "bemerkung": { "type": "string" }
     }

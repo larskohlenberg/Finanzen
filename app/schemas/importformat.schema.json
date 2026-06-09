@@ -11,6 +11,13 @@
     "gegenpartei": { "type": "string" },
     "verwendungszweck": { "type": "string" },
     "bank_referenz": { "type": "string" },
+    "wertstellungsdatum": { "type": "string", "format": "date" },
+    "transaktionstyp": { "type": "string" },
+    "kundenreferenz": { "type": "string" },
+    "empfaenger": { "type": "string" },
+    "empfaenger_iban": { "type": "string" },
+    "mandatsreferenz": { "type": "string" },
+    "glaeubiger_id": { "type": "string" },
     "rohquelle": { "type": "string", "minLength": 1 }
   }
 }

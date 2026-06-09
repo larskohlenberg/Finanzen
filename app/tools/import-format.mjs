@@ -1,6 +1,15 @@
 // app/tools/import-format.mjs
 const betragPattern = /^-?\d+\.\d{2}$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+const optionalStringFields = [
+  "bank_referenz",
+  "transaktionstyp",
+  "kundenreferenz",
+  "empfaenger",
+  "empfaenger_iban",
+  "mandatsreferenz",
+  "glaeubiger_id",
+];
 
 function isIsoDate(value) {
   if (typeof value !== "string" || !datePattern.test(value)) return false;
@@ -34,8 +43,14 @@ export function validateImportEntry(entry, kontenIds) {
     errors.push("rohquelle: Pflichtfeld fehlt");
   }
 
-  if (Object.hasOwn(entry, "bank_referenz") && typeof entry.bank_referenz !== "string") {
-    errors.push("bank_referenz: muss string sein");
+  if (Object.hasOwn(entry, "wertstellungsdatum") && !isIsoDate(entry.wertstellungsdatum)) {
+    errors.push("wertstellungsdatum: muss ISO-Datum YYYY-MM-DD sein");
+  }
+
+  for (const field of optionalStringFields) {
+    if (Object.hasOwn(entry, field) && typeof entry[field] !== "string") {
+      errors.push(`${field}: muss string sein`);
+    }
   }
 
   return errors;

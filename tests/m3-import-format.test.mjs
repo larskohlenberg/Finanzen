@@ -43,3 +43,21 @@ test("fehlende rohquelle wird gemeldet", () => {
   const { rohquelle, ...ohneQuelle } = valid;
   assert.match(validateImportEntry(ohneQuelle, kontenIds).join("\n"), /rohquelle/);
 });
+
+test("optionale Bankdetails sind erlaubt", () => {
+  assert.deepEqual(validateImportEntry({
+    ...valid,
+    bank_referenz: "BANK-REF-1",
+    wertstellungsdatum: "2026-05-21",
+    transaktionstyp: "SEPA-Basislastschrift",
+    kundenreferenz: "KREF-123",
+    empfaenger: "Muster GmbH",
+    empfaenger_iban: "DE00111111111111111111",
+    mandatsreferenz: "MANDAT-123",
+    glaeubiger_id: "DE00ZZZ00000000000",
+  }, kontenIds), []);
+});
+
+test("unplausibles Wertstellungsdatum wird gemeldet", () => {
+  assert.match(validateImportEntry({ ...valid, wertstellungsdatum: "2026-02-31" }, kontenIds).join("\n"), /wertstellungsdatum/);
+});

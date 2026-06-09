@@ -32,6 +32,25 @@ test("schreibt gueltige Buchung mit Regel-Kategorie", () => {
   assert.equal(tx.rohquelle, "data/inbox/test.csv");
 });
 
+test("uebernimmt optionale Bankdetails in die Transaktion", () => {
+  const bankdetails = {
+    bank_referenz: "BANK-REF-1",
+    wertstellungsdatum: "2026-05-21",
+    transaktionstyp: "SEPA-Ueberweisung",
+    kundenreferenz: "KREF-123",
+    empfaenger: "Muster GmbH",
+    empfaenger_iban: "DE00111111111111111111",
+    mandatsreferenz: "MANDAT-123",
+    glaeubiger_id: "DE00ZZZ00000000000",
+  };
+  const out = runImport({
+    entries: [entry("KTO-001", "2026-05-20", "-42.80", "MusterladenA Mitte", "Einkauf", bankdetails)],
+    konten, kategorien, kategorisierungsregeln: regeln, transaktionen: [], transfers: [],
+  });
+
+  assert.deepEqual(Object.fromEntries(Object.keys(bankdetails).map((key) => [key, out.transaktionen[0][key]])), bankdetails);
+});
+
 test("ohne Regel-Treffer bleibt Kategorie offen", () => {
   const out = runImport({
     entries: [entry("KTO-001", "2026-05-20", "-9.99", "Unbekannt", "x")],

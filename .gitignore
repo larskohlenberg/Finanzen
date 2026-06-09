@@ -20,3 +20,6 @@ app/Belege/**
 !app/Belege/**/
 !app/Belege/**/.gitkeep
 !app/Belege/**/README.md
+
+# Runde-1-Excel-Archiv enthaelt echte Finanzdaten und bleibt lokal.
+archiv/

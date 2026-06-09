@@ -1,5 +1,7 @@
 # Keine bankspezifischen Parser, Agent normalisiert in Standardformat
 
+Statushinweis 2026-06-09: Die Entscheidung gilt weiter. Die genannten Pfade sind app-relativ im App-Raum; physisch liegen sie unter `app/data/...`, `app/schemas/...` und `app/tools/...`.
+
 Bankexporte (CSV, PDF, MT940, CAMT.053) werden **nicht** durch bankspezifische Parser-Skripte im Code uebersetzt. Stattdessen normalisiert der Import-Agent die Rohdatei in ein einheitliches **standardisiertes Importformat** unter `data/inbox/`, gegen das dann der deterministische Import-Pipeline-Code laeuft (Validator, Dedupe-Check, Categorizer, Transfer-Matcher).
 
 Begruendung: Bankformate aendern sich ohne Vorwarnung, jede Bank hat eigene Spalten und Quirks, und eine Privatperson nutzt nur eine Handvoll Banken — der Pflegeaufwand fuer Parser-Skripte steht in keinem Verhaeltnis zum Nutzen. Der Agent (Claude) ist in der Normalisierung tabellarischer und PDF-Daten gut, und der menschliche Nutzer ist als Reviewer beim Importlauf ohnehin dabei. Der Code fokussiert sich damit auf das, was deterministisch sein muss: das standardisierte Format danach.

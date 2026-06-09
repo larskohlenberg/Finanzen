@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { validateMasterData } from "../tools/validator.mjs";
+import { validateMasterData } from "../app/tools/validator.mjs";
 
 async function readJson(path) {
   return JSON.parse(await readFile(new URL(path, import.meta.url), "utf8"));
@@ -14,7 +14,7 @@ async function readJsonl(path) {
     .map((line) => JSON.parse(line));
 }
 
-async function loadMasterData(root = "../data/master/") {
+async function loadMasterData(root = "./fixtures/master-valid/") {
   return {
     personen: await readJson(`${root}personen.json`),
     konten: await readJson(`${root}konten.json`),
@@ -27,9 +27,8 @@ async function loadMasterData(root = "../data/master/") {
 const validResult = validateMasterData(await loadMasterData());
 assert.equal(validResult.valid, true, validResult.errors.join("\n"));
 
-const invalidResult = validateMasterData(await loadMasterData("../data/test-invalid/"));
+const invalidResult = validateMasterData(await loadMasterData("./fixtures/master-invalid/"));
 assert.equal(invalidResult.valid, false);
 assert.match(invalidResult.errors.join("\n"), /konto_id.*existiert nicht/);
 assert.match(invalidResult.errors.join("\n"), /kategorie_id.*Pflicht/);
 assert.match(invalidResult.errors.join("\n"), /dedupe_hash.*doppelt/);
-

@@ -1,7 +1,7 @@
 // tests/m3-categorizer.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { categorize } from "../tools/categorizer.mjs";
+import { categorize } from "../app/tools/categorizer.mjs";
 
 const regeln = [
   { regel_id: "REG-001", gegenpartei_pattern: "musterladena", kategorie_id: "KAT-003", status: "aktiv", erstellt_am: "2026-06-01" },

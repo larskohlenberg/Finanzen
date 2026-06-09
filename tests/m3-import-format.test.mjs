@@ -1,7 +1,7 @@
 // tests/m3-import-format.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { validateImportEntry } from "../tools/import-format.mjs";
+import { validateImportEntry } from "../app/tools/import-format.mjs";
 
 const kontenIds = new Set(["KTO-001", "KTO-004"]);
 const valid = {

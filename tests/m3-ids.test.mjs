@@ -1,7 +1,7 @@
 // tests/m3-ids.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { nextTransaktionId, nextTransferId } from "../tools/ids.mjs";
+import { nextTransaktionId, nextTransferId } from "../app/tools/ids.mjs";
 
 test("erste Transaktion eines Tages bekommt 000001", () => {
   assert.equal(nextTransaktionId("2026-05-20", new Set()), "TXN-20260520-000001");

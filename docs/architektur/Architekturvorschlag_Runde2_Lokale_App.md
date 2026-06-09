@@ -2,6 +2,8 @@
 
 Stand: 27.05.2026
 
+Statushinweis 2026-06-09: Dieses Dokument ist ein historischer Architekturvorschlag. Der heutige fuehrende Stand ist durch ADR 0012 (webserver-only) und ADR 0015 (App als deploybarer Datenraum) weiterentwickelt: `app/` ist der Web-App-Raum, Daten/Schemas/Tools/Skills liegen fuehrend unter `app/`, und `review-data.js` ist entfallen.
+
 ## Zielbild
 
 Runde 2 wird als lokale, agentenfreundliche Finanzmodell-App gebaut. Der Master liegt nicht mehr in Excel, sondern in validierbaren Dateien. Die Oberflaeche ist eine statische HTML/JavaScript-App, die ohne Webserver geoeffnet werden kann. Eine eigene Backend-Schicht ist fuer den Start ausdruecklich kein Ziel.

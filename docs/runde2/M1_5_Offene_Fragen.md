@@ -2,6 +2,8 @@
 
 Stand: 27.05.2026
 
+Statushinweis 2026-06-09: Historisches Arbeitsdokument aus M1.5. Pfade wie `data/master/...` sind nach ADR 0015 app-relativ zu lesen; physisch liegt der Master heute unter `app/data/master/...`.
+
 Diese Datei enthaelt nur Fragen, die nach der dialogischen M1.5-Erarbeitung offen bleiben oder bewusst vertagt werden.
 
 ## Geklaert

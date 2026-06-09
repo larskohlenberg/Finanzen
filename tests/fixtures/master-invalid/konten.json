@@ -1,0 +1,11 @@
+[
+  {
+    "konto_id": "KTO-001",
+    "name": "Test Girokonto",
+    "kontotyp": "giro",
+    "kontoreferenz": "TEST-KTO-001",
+    "inhaber_person_ids": ["PER-001"],
+    "liquiditaetsrelevant": true,
+    "status": "aktiv"
+  }
+]

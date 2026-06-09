@@ -8,3 +8,15 @@ node_modules/
 .superpowers/
 **/.superpowers/
 *.pid
+
+# Produktive App-Daten und Belege bleiben lokal.
+# Nur die Ordnerstruktur (.gitkeep) und strukturbeschreibende README.md
+# werden versioniert; echte Daten nicht.
+app/data/**
+!app/data/**/
+!app/data/**/.gitkeep
+!app/data/**/README.md
+app/Belege/**
+!app/Belege/**/
+!app/Belege/**/.gitkeep
+!app/Belege/**/README.md

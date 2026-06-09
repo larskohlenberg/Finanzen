@@ -1,22 +1,36 @@
 import { computeCashflowIst, computeCashflowPrognoseDetail, defaultHorizonEnd, toCents, localTodayIso } from "./cashflow.mjs";
+import { loadFinanceData } from "./data-loader.mjs";
 import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
-const data = window.FINANCE_REVIEW_DATA;
-const dictionaries = window.FINANCE_I18N;
 
-if (!data || !Array.isArray(data.personen) || !Array.isArray(data.konten) || !dictionaries) {
-  const shell = document.querySelector("#app");
-  if (shell) {
-    shell.innerHTML = `
-      <div class="bootstrap-error" role="alert">
-        <h1>Daten konnten nicht geladen werden</h1>
-        <p>Die Review-Daten (<code>review-data.js</code>) oder die Sprachdatei (<code>i18n.js</code>) wurden nicht oder unvollständig geladen.</p>
-        <p>Bitte die Seite über den lokalen Webserver öffnen und neu laden. Falls das Problem bestehen bleibt, das Review-Bundle erneut bereitstellen.</p>
-      </div>`;
-  }
-  throw new Error("Finanzmodell: Bootstrap abgebrochen – FINANCE_REVIEW_DATA oder FINANCE_I18N fehlt/unvollständig.");
+const app = document.querySelector("#app");
+
+function showBootstrapError(error) {
+  if (!app) return;
+  app.innerHTML = `
+    <div class="bootstrap-error" role="alert">
+      <h1>Daten konnten nicht geladen werden</h1>
+      <p>Die Masterdaten (<code>data/master/*</code>) oder die Sprachdatei (<code>i18n.js</code>) wurden nicht oder unvollständig geladen.</p>
+      <p>Bitte die Seite über den lokalen Webserver öffnen und neu laden. Falls das Problem bestehen bleibt, Datenbestand und Serverpfade prüfen.</p>
+      <p><code>${escapeHtml(error?.message || "Unbekannter Ladefehler")}</code></p>
+    </div>`;
 }
 
+async function bootstrap() {
+  try {
+    const loadedData = await loadFinanceData();
+    const loadedDictionaries = window.FINANCE_I18N;
+    if (!loadedData || !Array.isArray(loadedData.personen) || !Array.isArray(loadedData.konten) || !loadedDictionaries) {
+      throw new Error("FINANCE_I18N oder geladene Masterdaten fehlen/unvollstaendig.");
+    }
+    return { data: loadedData, dictionaries: loadedDictionaries };
+  } catch (error) {
+    showBootstrapError(error);
+    throw error;
+  }
+}
+
+const { data, dictionaries } = await bootstrap();
 data.regelzahlungen = data.regelzahlungen ?? [];
 
 const storageKeys = {
@@ -65,8 +79,6 @@ const state = {
   selectedVermoegenId: "",
   vermoegenDetailRailClosed: false,
 };
-
-const app = document.querySelector("#app");
 
 const personenById = new Map(data.personen.map((person) => [person.person_id, person]));
 const kontenById = new Map(data.konten.map((konto) => [konto.konto_id, konto]));

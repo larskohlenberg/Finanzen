@@ -96,3 +96,14 @@ test("transactions view has a local search over loaded transactions", () => {
   assert.match(i18n, /filterSearch:\s*"Suche"/);
   assert.match(i18n, /filterSearch:\s*"Search"/);
 });
+
+test("filter bar: search spans the full row and has exactly one clear control", () => {
+  assert.match(main, /filter-field-search/);
+  assert.match(css, /\.filter-field-search\s*{[^}]*grid-column:\s*1 \/ -1/s);
+  assert.match(css, /::-webkit-search-cancel-button\s*{[^}]*appearance:\s*none/s);
+});
+
+test("filter fields are flat: no per-field box inside the filter bar frame", () => {
+  assert.doesNotMatch(css, /\.filter-field\s*{[^}]*border:/s);
+  assert.doesNotMatch(css, /\.filter-field\s*{[^}]*background:/s);
+});

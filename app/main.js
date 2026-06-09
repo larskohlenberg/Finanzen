@@ -677,7 +677,7 @@ function renderFilterSelect({ name, label, options, type, placeholder, filters, 
           ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${filters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
         </select>`;
   return `
-    <div class="filter-field ${active ? "active" : ""}">
+    <div class="filter-field ${active ? "active" : ""} ${type === "search" ? "filter-field-search" : ""}">
       <label for="${escapeHtml(controlId)}">${escapeHtml(label)}</label>
       <div class="filter-control-row">
         ${control}

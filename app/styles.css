@@ -715,12 +715,12 @@ button.roadmap-card-link:focus-visible {
 .filter-grid {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px 12px;
 }
 
 .filter-actions {
-  min-height: 58px;
+  min-height: 36px;
   display: flex;
   align-items: end;
   justify-content: flex-end;
@@ -765,25 +765,24 @@ button.roadmap-card-link:focus-visible {
   outline: none;
 }
 
+/* Flache Filterfelder: die Filterleiste ist der einzige Rahmen, die Felder
+   selbst sind rahmenlos (kein Box-in-Box). Aktivzustand dezent am Control. */
 .filter-field {
   min-width: 0;
   display: grid;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
+  gap: 4px;
 }
 
-.filter-field.active {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-  background: var(--accent-soft);
+.filter-field-search {
+  grid-column: 1 / -1;
 }
 
 .filter-field label {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .filter-field select,
@@ -791,19 +790,42 @@ button.roadmap-card-link:focus-visible {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  height: 40px;
-  border: 1px solid var(--border-strong);
+  height: 36px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-tight);
   background: var(--surface);
   color: var(--text);
   padding: 0 10px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 500;
   text-overflow: ellipsis;
+}
+
+.filter-field select:hover,
+.filter-field input[type="search"]:hover {
+  border-color: var(--border-strong);
+}
+
+.filter-field select:focus-visible,
+.filter-field input[type="search"]:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.filter-field.active select,
+.filter-field.active input[type="search"] {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 
 .filter-field input[type="search"]::placeholder {
   color: var(--muted);
   font-weight: 400;
+}
+
+/* Nur ein Leeren-Weg: das native Such-✕ weicht dem eigenen Clear-Button. */
+.filter-field input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .filter-control-row {
@@ -835,9 +857,13 @@ button.roadmap-card-link:focus-visible {
   font-weight: 700;
 }
 
+/* Clear als ruhiger Ghost-Button neben dem Control */
 .filter-clear {
-  width: 34px;
+  width: 30px;
+  min-height: 30px;
   padding: 0;
+  border-color: transparent;
+  background: transparent;
 }
 
 .filter-reset {

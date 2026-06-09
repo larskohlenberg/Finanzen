@@ -50,3 +50,10 @@ test("detail rails have close controls", () => {
   assert.match(main, /data-action="close-detail-rail"/);
   assert.match(i18n, /closeDetails/);
 });
+
+test("account masterdata table renders account reference column", () => {
+  assert.match(i18n, /accountReference:\s*"Kontoreferenz"/);
+  assert.match(i18n, /accountReference:\s*"Account reference"/);
+  assert.match(main, /t\("labels\.accountReference"\)/);
+  assert.match(main, /konto\.kontoreferenz/);
+});

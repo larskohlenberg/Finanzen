@@ -437,6 +437,7 @@ function renderAccountTable() {
         <thead>
           <tr>
             <th>${escapeHtml(t("labels.account"))}</th>
+            <th>${escapeHtml(t("labels.accountReference"))}</th>
             <th>${escapeHtml(t("labels.owner"))}</th>
             <th>${escapeHtml(t("labels.type"))}</th>
             <th>${escapeHtml(t("labels.stand"))}</th>
@@ -470,6 +471,7 @@ function renderAccountRows(accounts) {
       return `
         <tr class="clickable" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
           <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
+          <td>${konto.kontoreferenz ? escapeHtml(konto.kontoreferenz) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
           <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
           <td>${latestDate ? escapeHtml(formatDate(latestDate)) : `<span class="muted">${escapeHtml(t("labels.noStand"))}</span>`}</td>

@@ -8,6 +8,7 @@ import {
   centsToDecimal,
   dayDiff,
   formatIban,
+  matchesQuery,
 } from "../app/tools/lib/text.mjs";
 
 test("normalizeWhitespace trimmt und kollabiert, ohne lowercase", () => {
@@ -51,6 +52,20 @@ test("formatIban laesst Nicht-IBANs unveraendert (Depotnummern, leere Werte)", (
   assert.equal(formatIban("Depot 4711"), "Depot 4711");
   assert.equal(formatIban(""), "");
   assert.equal(formatIban(null), "");
+});
+
+test("matchesQuery: jeder Suchbegriff muss vorkommen, case- und whitespace-tolerant", () => {
+  const felder = ["REWE Markt GmbH", "Dankeschoen  EINKAUF 123", null];
+  assert.equal(matchesQuery(felder, "rewe"), true);
+  assert.equal(matchesQuery(felder, "rewe einkauf"), true);
+  assert.equal(matchesQuery(felder, "  REWE   123 "), true);
+  assert.equal(matchesQuery(felder, "rewe tankstelle"), false);
+});
+
+test("matchesQuery: leere Suche matcht alles, leere Felder matchen nichts", () => {
+  assert.equal(matchesQuery(["abc"], ""), true);
+  assert.equal(matchesQuery(["abc"], null), true);
+  assert.equal(matchesQuery([null, undefined, ""], "x"), false);
 });
 
 test("dayDiff zaehlt Kalendertage", () => {

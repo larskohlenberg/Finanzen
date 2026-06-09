@@ -786,7 +786,8 @@ button.roadmap-card-link:focus-visible {
   font-weight: 750;
 }
 
-.filter-field select {
+.filter-field select,
+.filter-field input[type="search"] {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -800,6 +801,11 @@ button.roadmap-card-link:focus-visible {
   text-overflow: ellipsis;
 }
 
+.filter-field input[type="search"]::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 .filter-control-row {
   min-width: 0;
   display: flex;
@@ -807,7 +813,8 @@ button.roadmap-card-link:focus-visible {
   gap: 8px;
 }
 
-.filter-control-row select {
+.filter-control-row select,
+.filter-control-row input[type="search"] {
   flex: 1 1 auto;
 }
 

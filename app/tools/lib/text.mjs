@@ -32,6 +32,15 @@ export function formatIban(value) {
   return compact.replace(/(.{4})/g, "$1 ").trim();
 }
 
+// Lokale Freitextsuche: jeder whitespace-getrennte Suchbegriff muss in der
+// normalisierten Verkettung der Felder vorkommen (UND-Logik, case-insensitiv).
+export function matchesQuery(felder, query) {
+  const q = normalizeLoose(query);
+  if (!q) return true;
+  const heuhaufen = (felder ?? []).map((feld) => normalizeLoose(feld)).join(" ");
+  return q.split(" ").every((term) => heuhaufen.includes(term));
+}
+
 export function dayDiff(dateA, dateB) {
   const a = Date.parse(`${dateA}T00:00:00Z`);
   const b = Date.parse(`${dateB}T00:00:00Z`);

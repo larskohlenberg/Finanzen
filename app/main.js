@@ -1,6 +1,6 @@
 import { computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, defaultHorizonEnd, toCents, localTodayIso } from "./liquiditaet.mjs";
 import { loadFinanceData } from "./data-loader.mjs";
-import { formatIban } from "./tools/lib/text.mjs";
+import { formatIban, matchesQuery } from "./tools/lib/text.mjs";
 import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
 
@@ -61,6 +61,7 @@ const state = {
     status: "",
     category: "",
     transfer: "",
+    search: "",
   },
   transactionPage: 1,
   pageSize: 10,
@@ -477,6 +478,23 @@ function renderAccountRows(accounts) {
     .join("");
 }
 
+function transactionSearchFields(tx) {
+  return [
+    tx.gegenpartei,
+    tx.verwendungszweck,
+    tx.empfaenger,
+    tx.empfaenger_iban,
+    tx.transaktion_id,
+    tx.betrag,
+    String(tx.betrag ?? "").replace(".", ","),
+    kontenById.get(tx.konto_id)?.name,
+    tx.kategorie_id ? categoryName(tx.kategorie_id) : "",
+    tx.kundenreferenz,
+    tx.mandatsreferenz,
+    tx.bank_referenz,
+  ];
+}
+
 function filteredTransactions() {
   return data.transaktionen.filter((tx) => {
     if (state.transactionFilters.account && tx.konto_id !== state.transactionFilters.account) return false;
@@ -484,6 +502,7 @@ function filteredTransactions() {
     if (state.transactionFilters.category && tx.kategorie_id !== state.transactionFilters.category) return false;
     if (state.transactionFilters.transfer === "only" && !tx.ist_transfer) return false;
     if (state.transactionFilters.transfer === "without" && tx.ist_transfer) return false;
+    if (state.transactionFilters.search && !matchesQuery(transactionSearchFields(tx), state.transactionFilters.search)) return false;
     return true;
   }).sort((a, b) => b.buchungsdatum.localeCompare(a.buchungsdatum));
 }
@@ -583,6 +602,12 @@ function renderTransactionFilters() {
   return renderTableFilters({
     fields: [
       {
+        name: "search",
+        type: "search",
+        label: t("transactions.filterSearch"),
+        placeholder: t("transactions.searchPlaceholder"),
+      },
+      {
         name: "account",
         label: t("transactions.filterAccount"),
         options: [
@@ -643,16 +668,19 @@ function renderTableFilters({ fields, filters, filterAttr, clearAction, resetAct
   `;
 }
 
-function renderFilterSelect({ name, label, options, filters, filterAttr, clearAction }) {
+function renderFilterSelect({ name, label, options, type, placeholder, filters, filterAttr, clearAction }) {
   const active = Boolean(filters[name]);
   const controlId = `${filterAttr}-${name}`;
+  const control = type === "search"
+    ? `<input type="search" id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}" value="${escapeHtml(filters[name])}" placeholder="${escapeHtml(placeholder ?? "")}" autocomplete="off">`
+    : `<select id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}">
+          ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${filters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
+        </select>`;
   return `
     <div class="filter-field ${active ? "active" : ""}">
       <label for="${escapeHtml(controlId)}">${escapeHtml(label)}</label>
       <div class="filter-control-row">
-        <select id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}">
-          ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${filters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
-        </select>
+        ${control}
         ${active ? `<button class="filter-clear" data-action="${escapeHtml(clearAction)}" data-filter-name="${escapeHtml(name)}" aria-label="${escapeHtml(t("chrome.clearFilter"))}" title="${escapeHtml(t("chrome.clearFilter"))}">${iconSvg("clear")}</button>` : ""}
       </div>
     </div>
@@ -1482,6 +1510,16 @@ app.addEventListener("keydown", (event) => {
   el.click();
 });
 
+// Live-Suche: Textfilter wirken pro Tastendruck; Fokus/Cursor uebersteht das
+// Re-Render via captureFocus/restoreFocus (Selektor ueber die id des Inputs).
+app.addEventListener("input", (event) => {
+  const filter = event.target.closest("input[data-filter]");
+  if (!filter) return;
+  state.transactionFilters[filter.dataset.filter] = filter.value;
+  state.transactionPage = 1;
+  render();
+});
+
 app.addEventListener("change", (event) => {
   const control = event.target.closest("[data-control]");
   if (control?.dataset.control === "lang") {
@@ -1550,6 +1588,7 @@ function handleAction(element) {
     state.transactionFilters.account = "";
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
+    state.transactionFilters.search = "";
     state.transactionPage = 1;
     state.selectedTransactionId = openCategoryTransactions()[0]?.transaktion_id || state.selectedTransactionId;
     commitNavigation();
@@ -1569,6 +1608,7 @@ function handleAction(element) {
       status: "",
       category: "",
       transfer: "",
+      search: "",
     };
     state.transactionPage = 1;
     commitNavigation();
@@ -1580,6 +1620,7 @@ function handleAction(element) {
     state.transactionFilters.status = "";
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
+    state.transactionFilters.search = "";
     state.transactionPage = 1;
     state.selectedTransactionId = data.transaktionen.find((tx) => tx.konto_id === element.dataset.account)?.transaktion_id || "";
     commitNavigation();

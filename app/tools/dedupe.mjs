@@ -19,3 +19,12 @@ export function computeDedupeHash(entry) {
       ];
   return createHash("sha256").update(parts.join(SEP)).digest("hex");
 }
+
+// Zwei in allen Quellfeldern identische, aber real verschiedene Buchungen eines
+// Auszugs (z. B. referenzlose Ruecklaeufer) ergeben denselben computeDedupeHash.
+// Der Validator verlangt jedoch eindeutige dedupe_hashes. Fuer das n-te Vorkommen
+// (n >= 2) wird der Basis-Hash deterministisch zu einem weiterhin 64-stelligen
+// Hash disambiguiert. Buchungsinhalte bleiben unveraendert.
+export function disambiguateHash(baseHash, occurrence) {
+  return createHash("sha256").update(`${baseHash}${SEP}${occurrence}`).digest("hex");
+}

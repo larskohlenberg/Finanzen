@@ -60,6 +60,23 @@ test("ohne Regel-Treffer bleibt Kategorie offen", () => {
   assert.equal(Object.hasOwn(out.transaktionen[0], "kategorie_id"), false);
 });
 
+test("Regel-Treffer setzt kategorie_herkunft=regel", () => {
+  const out = runImport({
+    entries: [entry("KTO-001", "2026-05-20", "-42.80", "EDEKA Mitte", "Einkauf")],
+    konten, kategorien, kategorisierungsregeln: regeln, transaktionen: [], transfers: [],
+  });
+  assert.equal(out.transaktionen[0].kategorie_id, "KAT-003");
+  assert.equal(out.transaktionen[0].kategorie_herkunft, "regel");
+});
+
+test("ohne Regel-Treffer kein kategorie_herkunft", () => {
+  const out = runImport({
+    entries: [entry("KTO-001", "2026-05-20", "-9.99", "Unbekannt", "x")],
+    konten, kategorien, kategorisierungsregeln: regeln, transaktionen: [], transfers: [],
+  });
+  assert.equal(Object.hasOwn(out.transaktionen[0], "kategorie_herkunft"), false);
+});
+
 test("ueberspringt bereits vorhandene Buchung per Hash", () => {
   const first = runImport({
     entries: [entry("KTO-001", "2026-05-20", "-42.80", "EDEKA", "Einkauf")],

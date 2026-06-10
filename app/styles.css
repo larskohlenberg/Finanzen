@@ -288,6 +288,11 @@ button {
   padding: 8px 0 18px;
 }
 
+/* Mobile Bottom-Tab-Bar: nur im <=760px-Block sichtbar. */
+.tabbar {
+  display: none;
+}
+
 .work-status,
 .controls {
   display: flex;
@@ -1148,15 +1153,16 @@ button.roadmap-card-link:focus-visible {
 
 @media (max-width: 760px) {
   .main {
-    padding: 12px 12px 76px;
+    padding: 12px 12px calc(84px + env(safe-area-inset-bottom));
   }
 
+  /* Top-Bereich kompakt: eine Zeile Status-Chips (wischbar) + Schalter rechts.
+     Die Navigation wandert in die Bottom-Tab-Bar. */
   .topbar {
     min-height: auto;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
-    padding-bottom: 14px;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 12px;
   }
 
   .page-head {
@@ -1164,13 +1170,25 @@ button.roadmap-card-link:focus-visible {
     flex-direction: column;
   }
 
-  .controls,
   .work-status {
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .work-status strong {
+    display: none;
+  }
+
+  .work-status .chip {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   .controls {
-    justify-content: flex-end;
+    flex: 0 0 auto;
   }
 
   .control-select {
@@ -1182,34 +1200,102 @@ button.roadmap-card-link:focus-visible {
     min-width: 44px;
   }
 
-  .nav {
-    gap: 3px;
-  }
-
-  .nav-button {
-    flex: 0 0 44px;
-    width: 44px;
-    padding: 0;
-  }
-
-  .nav-label {
-    display: none;
-  }
-
   .sidebar {
+    position: static;
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto;
     align-items: stretch;
     gap: 8px;
+  }
+
+  .sidebar .nav {
+    display: none;
   }
 
   .brand {
     min-width: 0;
   }
 
-  .nav {
-    width: 100%;
-    justify-content: flex-start;
+  .tabbar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .tabbar-row {
+    display: flex;
+    gap: 4px;
+  }
+
+  .tabbar-button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 48px;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: var(--radius-tight);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .tabbar-button.active {
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .tabbar-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 650;
+  }
+
+  .tabbar-more-menu {
+    position: absolute;
+    right: 8px;
+    bottom: calc(100% + 8px);
+    display: grid;
+    gap: 2px;
+    min-width: 210px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  .tabbar-more-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--radius-tight);
+    background: none;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .tabbar-more-item.active {
+    color: var(--accent);
+    background: var(--accent-soft);
   }
 
   .kpi-grid,

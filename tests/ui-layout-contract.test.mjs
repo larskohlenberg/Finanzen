@@ -119,3 +119,12 @@ test("filter reset is a compact overlay that does not shift the filter grid", ()
 test("select filters clear via their all-option: clear button only on search field", () => {
   assert.match(main, /type === "search" && active/);
 });
+
+test("mobile navigation is a fixed bottom tab bar with a more menu", () => {
+  assert.match(main, /class="tabbar"/);
+  assert.match(main, /data-action="toggle-more-menu"/);
+  assert.match(css, /\.tabbar\s*{\s*display:\s*none/s);
+  assert.match(css, /\.tabbar\s*{[^}]*position:\s*fixed/s);
+  assert.match(css, /\.sidebar \.nav\s*{[^}]*display:\s*none/s);
+  assert.match(i18n, /more:\s*"Mehr"/);
+});

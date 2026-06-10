@@ -1153,8 +1153,11 @@ button.roadmap-card-link:focus-visible {
     margin-top: 16px;
   }
 
+  /* Gestapelt unter der Tabelle: Abstand, sonst klebt der Detail-Bereich
+     an der vorherigen Tabelle (.detail-panel statt .rail). */
   .detail-panel {
     position: static;
+    margin-top: 16px;
   }
 }
 

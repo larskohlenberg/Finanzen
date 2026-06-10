@@ -51,6 +51,10 @@ const navItems = [
   ["export", "nav.export", "export"],
 ];
 
+// Mobile Bottom-Tab-Bar: die vier Kernsichten als Tabs, der Rest im Mehr-Menü.
+// Liquidität bleibt Tab, weil sie die führende Geldsicht ist (ADR 0016).
+const TABBAR_VIEWS = ["overview", "transactions", "liquiditaet", "vermoegen"];
+
 const state = {
   view: "overview",
   lang: localStorage.getItem(storageKeys.lang) || "de",
@@ -68,6 +72,7 @@ const state = {
   selectedTransactionId: "",
   detailRailClosed: false,
   masterSection: "konten",
+  moreMenuOpen: false,
   liquiditaet: {
     granularitaet: "monat",
     bisDatum: defaultHorizonEnd(data.regelzahlungen, localTodayIso()),
@@ -300,6 +305,7 @@ function render() {
       ${renderTopbar()}
       ${renderView()}
     </main>
+    ${renderTabbar()}
   `;
   restoreScroll(scrollSnap);
   restoreFocus(focusSnap);
@@ -333,6 +339,40 @@ function renderSidebar() {
         <strong>${escapeHtml(t("chrome.releaseState"))}</strong>
       </div>
     </aside>
+  `;
+}
+
+function renderTabbar() {
+  const primary = navItems.filter(([view]) => TABBAR_VIEWS.includes(view));
+  const secondary = navItems.filter(([view]) => !TABBAR_VIEWS.includes(view));
+  const moreActive = secondary.some(([view]) => view === state.view);
+  return `
+    <nav class="tabbar" aria-label="${escapeHtml(t("chrome.mobileNav"))}">
+      ${state.moreMenuOpen ? `
+        <div class="tabbar-more-menu">
+          ${secondary
+            .map(([view, labelKey, icon]) => `
+              <button class="tabbar-more-item ${state.view === view ? "active" : ""}" data-view="${view}">
+                <span class="nav-icon">${iconSvg(icon)}</span>${escapeHtml(t(labelKey))}
+              </button>
+            `)
+            .join("")}
+        </div>` : ""}
+      <div class="tabbar-row">
+        ${primary
+          .map(([view, labelKey, icon]) => `
+            <button class="tabbar-button ${state.view === view ? "active" : ""}" data-view="${view}" aria-label="${escapeHtml(t(labelKey))}">
+              <span class="nav-icon">${iconSvg(icon)}</span>
+              <span class="tabbar-label">${escapeHtml(t(labelKey))}</span>
+            </button>
+          `)
+          .join("")}
+        <button class="tabbar-button ${moreActive ? "active" : ""}" data-action="toggle-more-menu" aria-expanded="${state.moreMenuOpen}" aria-label="${escapeHtml(t("chrome.more"))}">
+          <span class="nav-icon">${iconSvg("more")}</span>
+          <span class="tabbar-label">${escapeHtml(t("chrome.more"))}</span>
+        </button>
+      </div>
+    </nav>
   `;
 }
 
@@ -1449,6 +1489,7 @@ app.addEventListener("click", (event) => {
   const navButton = event.target.closest("[data-view]");
   if (navButton) {
     state.view = navButton.dataset.view;
+    state.moreMenuOpen = false;
     commitNavigation();
     return;
   }
@@ -1560,6 +1601,11 @@ app.addEventListener("change", (event) => {
 
 function handleAction(element) {
   const action = element.dataset.action;
+  if (action === "toggle-more-menu") {
+    state.moreMenuOpen = !state.moreMenuOpen;
+    render();
+    return;
+  }
   if (action === "toggle-sidebar") {
     state.sidebarCollapsed = !state.sidebarCollapsed;
     localStorage.setItem(storageKeys.sidebarCollapsed, String(state.sidebarCollapsed));

@@ -825,6 +825,23 @@ button.roadmap-card-link:focus-visible {
   appearance: none;
 }
 
+/* Das ✕ liegt optisch im Suchfeld: Row als Anker, Button an der rechten
+   Innenkante, Padding haelt den Text vom ✕ frei. */
+.filter-field-search .filter-control-row {
+  position: relative;
+}
+
+.filter-field-search input[type="search"] {
+  padding-right: 38px;
+}
+
+.filter-field-search .filter-clear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+}
+
 .filter-control-row {
   min-width: 0;
   display: flex;

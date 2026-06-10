@@ -26,9 +26,12 @@ test("transaction and vermoegen filters use the shared table filter renderer", (
   assert.match(main, /renderTableFilters\(\s*{[\s\S]*vermoegenFilters/s);
 });
 
-test("filter clear controls are inline and never absolutely positioned above fields", () => {
-  assert.match(css, /\.filter-clear/);
-  assert.doesNotMatch(css, /\.filter-clear\s*{[^}]*position:\s*absolute/s);
+test("search clear sits visually inside the search input, anchored to its own control row", () => {
+  // Frueher: ✕ schwebte absolut ueber fremden Feldern (Bug). Heute gewollt:
+  // Overlay an der rechten Innenkante des Suchfelds, verankert an der eigenen Row.
+  assert.match(css, /\.filter-field-search \.filter-control-row\s*{[^}]*position:\s*relative/s);
+  assert.match(css, /\.filter-field-search \.filter-clear\s*{[^}]*position:\s*absolute/s);
+  assert.match(css, /\.filter-field-search input\[type="search"\]\s*{[^}]*padding-right/s);
 });
 
 test("manual CRUD labels are not rendered as primary screen actions", () => {
@@ -65,4 +68,113 @@ test("liquiditaetsprognose keeps granularity controls and expandable rows", () =
   assert.match(main, /state\.liquiditaet\.granularitaet/);
   assert.match(css, /\.liquiditaet-detail \.row-toggle/);
   assert.match(i18n, /gran:\s*{\s*monat:/);
+});
+
+test("work status chip never claims validation passed unconditionally", () => {
+  // Der Browser validiert nicht (metadata.validation = "not-run-in-browser") —
+  // die UI darf keinen pauschalen Erfolgs-Chip rendern, sondern verweist auf den externen Lauf.
+  assert.doesNotMatch(main, /chrome\.validationPassed/);
+  assert.match(main, /chrome\.validationExternal/);
+  assert.match(i18n, /validationExternal:\s*"Validierung extern"/);
+  assert.match(i18n, /validationExternal:\s*"Validation external"/);
+});
+
+test("next action shows the live open-category count, not a hardcoded number", () => {
+  assert.doesNotMatch(i18n, /nextActionText:\s*"1 /);
+  assert.doesNotMatch(i18n, /nextActionText:\s*"Review 1 /);
+  // Beide Renderstellen (Topbar-Chip und Overview-Panel) müssen die echte Anzahl voranstellen.
+  const renders = main.match(/openCategoryTransactions\(\)\.length[^\n]*overview\.nextActionText/g) ?? [];
+  assert.equal(renders.length, 2);
+});
+
+test("IBAN fields render with grouped display format", () => {
+  assert.match(main, /formatIban\(konto\.kontoreferenz\)/);
+  assert.match(main, /formatIban\(tx\.empfaenger_iban\)/);
+});
+
+test("transactions view has a local search over loaded transactions", () => {
+  assert.match(main, /name:\s*"search"/);
+  assert.match(main, /matchesQuery\(/);
+  assert.match(main, /addEventListener\("input"/);
+  assert.match(i18n, /filterSearch:\s*"Suche"/);
+  assert.match(i18n, /filterSearch:\s*"Search"/);
+});
+
+test("filter bar: search spans the full row and has exactly one clear control", () => {
+  assert.match(main, /filter-field-search/);
+  assert.match(css, /\.filter-field-search\s*{[^}]*grid-column:\s*1 \/ -1/s);
+  assert.match(css, /::-webkit-search-cancel-button\s*{[^}]*appearance:\s*none/s);
+});
+
+test("filter fields are flat: no per-field box inside the filter bar frame", () => {
+  assert.doesNotMatch(css, /\.filter-field\s*{[^}]*border:/s);
+  assert.doesNotMatch(css, /\.filter-field\s*{[^}]*background:/s);
+});
+
+test("filter reset lives in a footer with an active-filter count, not a floating overlay", () => {
+  // Fester Platz statt absolutem Overlay: Fusszeile mit Trennlinie + Anzahl,
+  // damit klar wird, dass der Reset fuer alle Filter gilt.
+  assert.doesNotMatch(css, /\.filter-actions\s*{[^}]*position:\s*absolute/s);
+  assert.match(css, /\.filter-actions\s*{[^}]*border-top/s);
+  assert.match(main, /filter-active-count/);
+  assert.match(main, /Object\.values\(filters\)\.filter\(Boolean\)\.length/);
+  assert.match(i18n, /filterActiveOther:\s*"Filter aktiv"/);
+});
+
+test("select filters clear via their all-option: clear button only on search field", () => {
+  assert.match(main, /type === "search" && active/);
+});
+
+test("mobile navigation is a fixed bottom tab bar with a more menu", () => {
+  assert.match(main, /class="tabbar"/);
+  assert.match(main, /data-action="toggle-more-menu"/);
+  assert.match(css, /\.tabbar\s*{\s*display:\s*none/s);
+  assert.match(css, /\.tabbar\s*{[^}]*position:\s*fixed/s);
+  assert.match(css, /\.sidebar \.nav\s*{[^}]*display:\s*none/s);
+  assert.match(i18n, /more:\s*"Mehr"/);
+});
+
+test("collapsed sidebar hides the meta text instead of wrapping it in the narrow rail", () => {
+  assert.match(css, /\.sidebar-collapsed \.sidebar-meta\s*{\s*display:\s*none;\s*}/s);
+});
+
+test("uppercase eyebrow labels share one harmonized treatment", () => {
+  // th, Gruppenzeile, Filter-Label, Reset und Detail-Label nutzen eine
+  // gemeinsame Versalien-Behandlung, damit sie nicht wie verschiedene Schriften wirken.
+  const shared = css.match(/th,\s*\.group-row td,\s*\.filter-field label,\s*\.filter-reset,\s*\.detail-label\s*{([^}]*)}/s);
+  assert.ok(shared, "gemeinsame Eyebrow-Regel fehlt");
+  assert.match(shared[1], /text-transform:\s*uppercase/);
+  assert.match(shared[1], /letter-spacing:\s*0\.04em/);
+  assert.match(shared[1], /font-weight:\s*700/);
+  // die alte uneinheitliche 0.05em-Sperrung der Filter-Labels ist verschwunden
+  assert.doesNotMatch(css, /letter-spacing:\s*0\.05em/);
+});
+
+test("desktop nav order matches the mobile reading order", () => {
+  // Desktop-Sidebar und mobile Tab-Bar+Mehr-Menü leiten ihre Reihenfolge beide
+  // aus navItems ab — vermoegen steht vor regelzahlungen (analog zur Mobilseite).
+  const block = main.match(/const navItems = \[(.*?)\];/s)[1];
+  const order = [...block.matchAll(/\["(\w+)"/g)].map((m) => m[1]);
+  assert.deepEqual(order, [
+    "overview", "transactions", "liquiditaet", "vermoegen",
+    "regelzahlungen", "masterdata", "checks", "export",
+  ]);
+});
+
+test("stacked detail panel keeps spacing from the preceding content", () => {
+  // Unter dem Rail-Breakpoint stapelt sich der Detail-Bereich unter der Tabelle
+  // und braucht Abstand — er nutzt .detail-panel (nicht .rail).
+  assert.match(css, /\.detail-panel\s*{[^}]*margin-top/s);
+});
+
+test("scrollbar gutter is reserved so the top bar does not shift between views", () => {
+  // Seiten unterschiedlicher Hoehe blenden den Scrollbalken ein/aus; ohne
+  // reservierten Gutter springt das Layout (inkl. Top-Bar) horizontal.
+  assert.match(css, /scrollbar-gutter:\s*stable/);
+});
+
+test("stacked app-shell packs rows to the top so the topbar position is stable across views", () => {
+  // Bei min-height:100vh streckt das Grid sonst die Zeilen und schiebt je nach
+  // Inhaltshoehe Leerraum ueber die Topbar -> vertikales Springen beim Wechsel.
+  assert.match(css, /\.app-shell[^{]*{[^}]*align-content:\s*start/s);
 });

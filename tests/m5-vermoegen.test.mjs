@@ -157,6 +157,24 @@ test("computeVermoegenChecks: Reconciliation-Drift bei zwei belegten Kontoständ
   assert.ok(checks.some((c) => c.art === "reconciliation-drift" && c.entitaet_id === "KTO-001"));
 });
 
+test("computeVermoegenChecks prüft auch nicht-liquiditätsrelevante Konten (Anker + Reconciliation)", () => {
+  // Ein Sparkonto ohne liquiditaetsrelevant fließt über kontoWert ins Nettovermögen —
+  // fehlender Anker und Drift müssen dort genauso sichtbar werden.
+  const daten = vollDaten();
+  daten.konten.push(
+    { konto_id: "KTO-010", name: "Spar ohne Anker", kontotyp: "spar", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: false, status: "aktiv" },
+    { konto_id: "KTO-011", name: "Spar mit Drift", kontotyp: "spar", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: false, status: "aktiv" },
+  );
+  daten.zeitwerte.push(
+    { entitaet: "konto", entitaet_id: "KTO-011", feld: "kontostand", wert: "1000.00", standdatum: "2026-01-31", qualitaet: "belegt" },
+    { entitaet: "konto", entitaet_id: "KTO-011", feld: "kontostand", wert: "900.00", standdatum: "2026-02-28", qualitaet: "belegt" },
+  );
+  // keine Buchungen auf KTO-011 -> erwartet 1000.00, belegt 900.00 -> Drift
+  const checks = computeVermoegenChecks(daten, "2026-03-01");
+  assert.ok(checks.some((c) => c.art === "anker-fehlt" && c.entitaet_id === "KTO-010"));
+  assert.ok(checks.some((c) => c.art === "reconciliation-drift" && c.entitaet_id === "KTO-011"));
+});
+
 test("computeVermoegenChecks: geschätzter Kontostand ankert keine Reconciliation", () => {
   const daten = vollDaten();
   // Zweiter Stand ist nur geschätzt -> darf keine Drift erzeugen (ADR 0013: nur belegte Anker)

@@ -55,6 +55,32 @@ test("computeLiquiditaetIst berechnet Live-Saldo aus belegtem Anker plus Buchung
   ]);
 });
 
+test("computeLiquiditaetIst zaehlt Buchungen vor einem Anker im laufenden Monat nicht doppelt", () => {
+  // Anker 15.06. = 1000,00 enthaelt die Buchung vom 05.06. bereits.
+  // Der Monatsstart-Saldo muss rueckwaerts vom Anker gerechnet werden (1100,00),
+  // damit der Verlauf am Monatsende den KPI-Saldo trifft.
+  const data = {
+    konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", liquiditaetsrelevant: true, status: "aktiv" }],
+    zeitwerte: [
+      { entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "1000.00", standdatum: "2026-06-15", qualitaet: "belegt" },
+    ],
+    transaktionen: [
+      { konto_id: "KTO-001", buchungsdatum: "2026-06-05", betrag: "-100.00", ist_transfer: false },
+      { konto_id: "KTO-001", buchungsdatum: "2026-06-18", betrag: "-50.00", ist_transfer: false },
+    ],
+  };
+
+  const result = computeLiquiditaetIst(data, { today: "2026-06-20" });
+
+  assert.equal(result.saldo_cents, 95000);
+  assert.deepEqual(result.monatsverlauf.map((p) => ({ datum: p.datum, saldo_cents: p.saldo_cents, bewegung_cents: p.bewegung_cents })), [
+    { datum: "2026-06-01", saldo_cents: 110000, bewegung_cents: 0 },
+    { datum: "2026-06-05", saldo_cents: 100000, bewegung_cents: -10000 },
+    { datum: "2026-06-18", saldo_cents: 95000, bewegung_cents: -5000 },
+  ]);
+  assert.equal(result.monatsverlauf.at(-1).saldo_cents, result.saldo_cents);
+});
+
 test("computeLiquiditaetIst markiert fehlenden Anker statt Saldo zu raten", () => {
   const data = {
     konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", liquiditaetsrelevant: true, status: "aktiv" }],

@@ -1,5 +1,6 @@
 import { computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, defaultHorizonEnd, toCents, localTodayIso } from "./liquiditaet.mjs";
 import { loadFinanceData } from "./data-loader.mjs";
+import { formatIban, matchesQuery } from "./tools/lib/text.mjs";
 import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
 
@@ -39,16 +40,23 @@ const storageKeys = {
   sidebarCollapsed: "finance-m2-sidebar-collapsed",
 };
 
+// Reihenfolge gilt fuer Desktop-Sidebar UND mobile Tab-Bar/Mehr-Menue
+// (beide leiten sie hieraus ab). vermoegen vor regelzahlungen, damit die
+// Kernsichten der mobilen Tab-Bar zusammenhaengen.
 const navItems = [
   ["overview", "nav.overview", "overview"],
   ["transactions", "nav.transactions", "transactions"],
   ["liquiditaet", "nav.liquiditaet", "liquiditaet"],
-  ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
   ["vermoegen", "nav.vermoegen", "vermoegen"],
+  ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
   ["masterdata", "nav.masterdata", "masterdata"],
   ["checks", "nav.checks", "checks"],
   ["export", "nav.export", "export"],
 ];
+
+// Mobile Bottom-Tab-Bar: die vier Kernsichten als Tabs, der Rest im Mehr-Menü.
+// Liquidität bleibt Tab, weil sie die führende Geldsicht ist (ADR 0016).
+const TABBAR_VIEWS = ["overview", "transactions", "liquiditaet", "vermoegen"];
 
 const state = {
   view: "overview",
@@ -60,12 +68,14 @@ const state = {
     status: "",
     category: "",
     transfer: "",
+    search: "",
   },
   transactionPage: 1,
   pageSize: 10,
   selectedTransactionId: "",
   detailRailClosed: false,
   masterSection: "konten",
+  moreMenuOpen: false,
   liquiditaet: {
     granularitaet: "monat",
     bisDatum: defaultHorizonEnd(data.regelzahlungen, localTodayIso()),
@@ -105,14 +115,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function cents(decimalString) {
-  const raw = String(decimalString ?? "").trim();
-  if (raw === "") return 0;
-  const sign = raw.startsWith("-") ? -1 : 1;
-  const [euros = "0", frac = ""] = raw.replace("-", "").split(".");
-  const fracPadded = (frac + "00").slice(0, 2);
-  return sign * (Number(euros) * 100 + Number(fracPadded));
-}
+const cents = toCents;
 
 function formatMoney(amountInCents) {
   return new Intl.NumberFormat(state.lang === "de" ? "de-DE" : "en-US", {
@@ -305,6 +308,7 @@ function render() {
       ${renderTopbar()}
       ${renderView()}
     </main>
+    ${renderTabbar()}
   `;
   restoreScroll(scrollSnap);
   restoreFocus(focusSnap);
@@ -341,15 +345,49 @@ function renderSidebar() {
   `;
 }
 
+function renderTabbar() {
+  const primary = navItems.filter(([view]) => TABBAR_VIEWS.includes(view));
+  const secondary = navItems.filter(([view]) => !TABBAR_VIEWS.includes(view));
+  const moreActive = secondary.some(([view]) => view === state.view);
+  return `
+    <nav class="tabbar" aria-label="${escapeHtml(t("chrome.mobileNav"))}">
+      ${state.moreMenuOpen ? `
+        <div class="tabbar-more-menu">
+          ${secondary
+            .map(([view, labelKey, icon]) => `
+              <button class="tabbar-more-item ${state.view === view ? "active" : ""}" data-view="${view}">
+                <span class="nav-icon">${iconSvg(icon)}</span>${escapeHtml(t(labelKey))}
+              </button>
+            `)
+            .join("")}
+        </div>` : ""}
+      <div class="tabbar-row">
+        ${primary
+          .map(([view, labelKey, icon]) => `
+            <button class="tabbar-button ${state.view === view ? "active" : ""}" data-view="${view}" aria-label="${escapeHtml(t(labelKey))}">
+              <span class="nav-icon">${iconSvg(icon)}</span>
+              <span class="tabbar-label">${escapeHtml(t(labelKey))}</span>
+            </button>
+          `)
+          .join("")}
+        <button class="tabbar-button ${moreActive ? "active" : ""}" data-action="toggle-more-menu" aria-expanded="${state.moreMenuOpen}" aria-label="${escapeHtml(t("chrome.more"))}">
+          <span class="nav-icon">${iconSvg("more")}</span>
+          <span class="tabbar-label">${escapeHtml(t("chrome.more"))}</span>
+        </button>
+      </div>
+    </nav>
+  `;
+}
+
 function renderTopbar() {
   return `
     <header class="topbar">
       <div class="work-status">
         <strong>${escapeHtml(t("chrome.workStatus"))}</strong>
-        <span class="chip success">${iconSvg("success")}${escapeHtml(t("chrome.validationPassed"))}</span>
+        <span class="chip neutral" title="${escapeHtml(t("chrome.validationExternalHint"))}">${iconSvg("neutral")}${escapeHtml(t("chrome.validationExternal"))}</span>
         <button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
-        <button class="chip neutral linkish" data-action="next-action">${escapeHtml(t("chrome.nextAction"))}: ${escapeHtml(t("overview.nextActionText"))}</button>
+        <button class="chip neutral linkish" data-action="next-action">${escapeHtml(t("chrome.nextAction"))}: ${openCategoryTransactions().length} ${escapeHtml(t("overview.nextActionText"))}</button>
       </div>
       <div class="controls">
         <select class="control-select icon-select" data-control="lang" aria-label="${escapeHtml(t("chrome.language"))}" title="${escapeHtml(t("chrome.language"))}">
@@ -418,7 +456,7 @@ function renderOverview() {
       <aside class="rail overview-rail">
         <section class="panel panel-pad next-action">
           <h2 class="section-title">${escapeHtml(t("chrome.nextAction"))}</h2>
-          <button class="linkish" data-action="filter-open-category">${escapeHtml(t("overview.nextActionText"))}</button>
+          <button class="linkish" data-action="filter-open-category">${openCategoryTransactions().length} ${escapeHtml(t("overview.nextActionText"))}</button>
           <p class="page-lead">${escapeHtml(t("checks.categoryOpen.detail"))}</p>
         </section>
         <section class="panel panel-pad checks-rail">
@@ -471,7 +509,7 @@ function renderAccountRows(accounts) {
       return `
         <tr class="clickable" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
           <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
-          <td>${konto.kontoreferenz ? escapeHtml(konto.kontoreferenz) : `<span class="muted">—</span>`}</td>
+          <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
           <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
           <td>${latestDate ? escapeHtml(formatDate(latestDate)) : `<span class="muted">${escapeHtml(t("labels.noStand"))}</span>`}</td>
@@ -483,6 +521,23 @@ function renderAccountRows(accounts) {
     .join("");
 }
 
+function transactionSearchFields(tx) {
+  return [
+    tx.gegenpartei,
+    tx.verwendungszweck,
+    tx.empfaenger,
+    tx.empfaenger_iban,
+    tx.transaktion_id,
+    tx.betrag,
+    String(tx.betrag ?? "").replace(".", ","),
+    kontenById.get(tx.konto_id)?.name,
+    tx.kategorie_id ? categoryName(tx.kategorie_id) : "",
+    tx.kundenreferenz,
+    tx.mandatsreferenz,
+    tx.bank_referenz,
+  ];
+}
+
 function filteredTransactions() {
   return data.transaktionen.filter((tx) => {
     if (state.transactionFilters.account && tx.konto_id !== state.transactionFilters.account) return false;
@@ -490,6 +545,7 @@ function filteredTransactions() {
     if (state.transactionFilters.category && tx.kategorie_id !== state.transactionFilters.category) return false;
     if (state.transactionFilters.transfer === "only" && !tx.ist_transfer) return false;
     if (state.transactionFilters.transfer === "without" && tx.ist_transfer) return false;
+    if (state.transactionFilters.search && !matchesQuery(transactionSearchFields(tx), state.transactionFilters.search)) return false;
     return true;
   }).sort((a, b) => b.buchungsdatum.localeCompare(a.buchungsdatum));
 }
@@ -589,6 +645,12 @@ function renderTransactionFilters() {
   return renderTableFilters({
     fields: [
       {
+        name: "search",
+        type: "search",
+        label: t("transactions.filterSearch"),
+        placeholder: t("transactions.searchPlaceholder"),
+      },
+      {
         name: "account",
         label: t("transactions.filterAccount"),
         options: [
@@ -637,29 +699,36 @@ function hasActiveFilters(filters) {
 }
 
 function renderTableFilters({ fields, filters, filterAttr, clearAction, resetAction }) {
+  const activeCount = Object.values(filters).filter(Boolean).length;
+  const activeLabel = t(activeCount === 1 ? "chrome.filterActiveOne" : "chrome.filterActiveOther");
   return `
     <section class="filter-bar">
       <div class="filter-grid">
         ${fields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
       </div>
-      <div class="filter-actions">
-        ${hasActiveFilters(filters) ? `<button class="filter-reset" data-action="${escapeHtml(resetAction)}">${iconSvg("clear")}${escapeHtml(t("chrome.clearAllFilters"))}</button>` : ""}
-      </div>
+      ${activeCount > 0 ? `
+        <div class="filter-actions">
+          <span class="filter-active-count">${activeCount} ${escapeHtml(activeLabel)}</span>
+          <button class="filter-reset" data-action="${escapeHtml(resetAction)}">${iconSvg("clear")}${escapeHtml(t("chrome.clearAllFilters"))}</button>
+        </div>` : ""}
     </section>
   `;
 }
 
-function renderFilterSelect({ name, label, options, filters, filterAttr, clearAction }) {
+function renderFilterSelect({ name, label, options, type, placeholder, filters, filterAttr, clearAction }) {
   const active = Boolean(filters[name]);
   const controlId = `${filterAttr}-${name}`;
+  const control = type === "search"
+    ? `<input type="search" id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}" value="${escapeHtml(filters[name])}" placeholder="${escapeHtml(placeholder ?? "")}" autocomplete="off">`
+    : `<select id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}">
+          ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${filters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
+        </select>`;
   return `
-    <div class="filter-field ${active ? "active" : ""}">
+    <div class="filter-field ${active ? "active" : ""} ${type === "search" ? "filter-field-search" : ""}">
       <label for="${escapeHtml(controlId)}">${escapeHtml(label)}</label>
       <div class="filter-control-row">
-        <select id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}">
-          ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${filters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
-        </select>
-        ${active ? `<button class="filter-clear" data-action="${escapeHtml(clearAction)}" data-filter-name="${escapeHtml(name)}" aria-label="${escapeHtml(t("chrome.clearFilter"))}" title="${escapeHtml(t("chrome.clearFilter"))}">${iconSvg("clear")}</button>` : ""}
+        ${control}
+        ${type === "search" && active ? `<button class="filter-clear" data-action="${escapeHtml(clearAction)}" data-filter-name="${escapeHtml(name)}" aria-label="${escapeHtml(t("chrome.clearFilter"))}" title="${escapeHtml(t("chrome.clearFilter"))}">${iconSvg("clear")}</button>` : ""}
       </div>
     </div>
   `;
@@ -708,7 +777,7 @@ function renderTransactionDetail(tx) {
     ["transactions.transactionType", tx.transaktionstyp],
     ["transactions.customerReference", tx.kundenreferenz],
     ["transactions.recipient", tx.empfaenger],
-    ["transactions.recipientIban", tx.empfaenger_iban],
+    ["transactions.recipientIban", formatIban(tx.empfaenger_iban)],
     ["transactions.mandateReference", tx.mandatsreferenz],
     ["transactions.creditorId", tx.glaeubiger_id],
   ].filter(([, value]) => hasDetailValue(value));
@@ -1427,6 +1496,7 @@ app.addEventListener("click", (event) => {
   const navButton = event.target.closest("[data-view]");
   if (navButton) {
     state.view = navButton.dataset.view;
+    state.moreMenuOpen = false;
     commitNavigation();
     return;
   }
@@ -1488,6 +1558,16 @@ app.addEventListener("keydown", (event) => {
   el.click();
 });
 
+// Live-Suche: Textfilter wirken pro Tastendruck; Fokus/Cursor uebersteht das
+// Re-Render via captureFocus/restoreFocus (Selektor ueber die id des Inputs).
+app.addEventListener("input", (event) => {
+  const filter = event.target.closest("input[data-filter]");
+  if (!filter) return;
+  state.transactionFilters[filter.dataset.filter] = filter.value;
+  state.transactionPage = 1;
+  render();
+});
+
 app.addEventListener("change", (event) => {
   const control = event.target.closest("[data-control]");
   if (control?.dataset.control === "lang") {
@@ -1528,6 +1608,11 @@ app.addEventListener("change", (event) => {
 
 function handleAction(element) {
   const action = element.dataset.action;
+  if (action === "toggle-more-menu") {
+    state.moreMenuOpen = !state.moreMenuOpen;
+    render();
+    return;
+  }
   if (action === "toggle-sidebar") {
     state.sidebarCollapsed = !state.sidebarCollapsed;
     localStorage.setItem(storageKeys.sidebarCollapsed, String(state.sidebarCollapsed));
@@ -1556,6 +1641,7 @@ function handleAction(element) {
     state.transactionFilters.account = "";
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
+    state.transactionFilters.search = "";
     state.transactionPage = 1;
     state.selectedTransactionId = openCategoryTransactions()[0]?.transaktion_id || state.selectedTransactionId;
     commitNavigation();
@@ -1575,6 +1661,7 @@ function handleAction(element) {
       status: "",
       category: "",
       transfer: "",
+      search: "",
     };
     state.transactionPage = 1;
     commitNavigation();
@@ -1586,6 +1673,7 @@ function handleAction(element) {
     state.transactionFilters.status = "";
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
+    state.transactionFilters.search = "";
     state.transactionPage = 1;
     state.selectedTransactionId = data.transaktionen.find((tx) => tx.konto_id === element.dataset.account)?.transaktion_id || "";
     commitNavigation();

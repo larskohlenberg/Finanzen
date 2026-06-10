@@ -51,6 +51,13 @@
   box-sizing: border-box;
 }
 
+/* Scrollbalken-Platz immer reservieren: kurze Seiten (kein Scrollbalken) und
+   lange Seiten (Scrollbalken) haetten sonst unterschiedliche Breite, wodurch
+   die Top-Bar beim Ansichtswechsel horizontal springt. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   min-width: 0;

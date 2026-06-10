@@ -7,6 +7,8 @@ import {
   toCents,
   centsToDecimal,
   dayDiff,
+  formatIban,
+  matchesQuery,
 } from "../app/tools/lib/text.mjs";
 
 test("normalizeWhitespace trimmt und kollabiert, ohne lowercase", () => {
@@ -24,10 +26,46 @@ test("toCents wandelt Decimal-String in Cent-Integer", () => {
   assert.equal(toCents("0.00"), 0);
 });
 
+test("toCents ist robust gegen fehlende oder kurze Nachkommastellen", () => {
+  // Schema garantiert zwei Nachkommastellen — aber als einzige toCents-Implementierung
+  // (auch fuer UI-Anzeigewege) darf die Funktion bei Abweichungen nicht centfalsch rechnen.
+  assert.equal(toCents("1.5"), 150);
+  assert.equal(toCents("12"), 1200);
+  assert.equal(toCents(""), 0);
+  assert.equal(toCents(null), 0);
+});
+
 test("centsToDecimal wandelt zurueck mit zwei Nachkommastellen", () => {
   assert.equal(centsToDecimal(350000), "3500.00");
   assert.equal(centsToDecimal(-8245), "-82.45");
   assert.equal(centsToDecimal(5), "0.05");
+});
+
+test("formatIban gruppiert IBANs in 4er-Bloecke, nur Darstellung", () => {
+  assert.equal(formatIban("DE11110000000000000011"), "DE11 1100 0000 0000 0000 11");
+  // bereits gruppierte Eingabe wird neu gruppiert, nicht doppelt verlueckt
+  assert.equal(formatIban("DE11 1100 0000 0000 0000 11"), "DE11 1100 0000 0000 0000 11");
+});
+
+test("formatIban laesst Nicht-IBANs unveraendert (Depotnummern, leere Werte)", () => {
+  assert.equal(formatIban("4711000815"), "4711000815");
+  assert.equal(formatIban("Depot 4711"), "Depot 4711");
+  assert.equal(formatIban(""), "");
+  assert.equal(formatIban(null), "");
+});
+
+test("matchesQuery: jeder Suchbegriff muss vorkommen, case- und whitespace-tolerant", () => {
+  const felder = ["MusterladenB Markt GmbH", "Dankeschoen  EINKAUF 123", null];
+  assert.equal(matchesQuery(felder, "musterladenb"), true);
+  assert.equal(matchesQuery(felder, "musterladenb einkauf"), true);
+  assert.equal(matchesQuery(felder, "  MusterladenB   123 "), true);
+  assert.equal(matchesQuery(felder, "musterladenb tankstelle"), false);
+});
+
+test("matchesQuery: leere Suche matcht alles, leere Felder matchen nichts", () => {
+  assert.equal(matchesQuery(["abc"], ""), true);
+  assert.equal(matchesQuery(["abc"], null), true);
+  assert.equal(matchesQuery([null, undefined, ""], "x"), false);
 });
 
 test("dayDiff zaehlt Kalendertage", () => {

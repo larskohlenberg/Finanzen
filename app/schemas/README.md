@@ -14,6 +14,14 @@ Agenten und Betriebstools schreiben Daten nicht frei, sondern gegen stabile Sche
 
 Die Schemas sind Referenz fuer Import, Stammdatenpflege, Validierung und spaetere Backend-Logik.
 
+## Fuehrend ist der Validator, nicht diese Dateien
+
+Die maschinell ausgefuehrten Regeln leben in `tools/validator.mjs` (plus
+`tools/import-format.mjs` fuer das Importformat) — die JSON-Schema-Dateien hier
+werden von keinem Tool geladen. Sie sind lesbare Referenzdoku fuer Agenten und
+Menschen. Wer ein Feld ergaenzt, pflegt **beide** Stellen: zuerst den Validator
+(mit Test), dann die Schema-Datei hier nachziehen.
+
 ## Dateien
 
 | Datei | Inhalt |

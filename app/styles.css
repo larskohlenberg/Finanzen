@@ -51,6 +51,13 @@
   box-sizing: border-box;
 }
 
+/* Scrollbalken-Platz immer reservieren: kurze Seiten (kein Scrollbalken) und
+   lange Seiten (Scrollbalken) haetten sonst unterschiedliche Breite, wodurch
+   die Top-Bar beim Ansichtswechsel horizontal springt. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   min-width: 0;
@@ -221,11 +228,9 @@ button {
   font-size: 13px;
 }
 
+/* In der schmalen Schiene hat der Arbeitsstand-Text keinen Platz —
+   komplett ausblenden statt zweizeilig umzubrechen. */
 .sidebar-collapsed .sidebar-meta {
-  justify-items: center;
-}
-
-.sidebar-collapsed .sidebar-meta span {
   display: none;
 }
 
@@ -288,6 +293,11 @@ button {
   padding: 8px 0 18px;
 }
 
+/* Mobile Bottom-Tab-Bar: nur im <=760px-Block sichtbar. */
+.tabbar {
+  display: none;
+}
+
 .work-status,
 .controls {
   display: flex;
@@ -310,22 +320,21 @@ button {
   justify-content: flex-end;
 }
 
+/* Chip-Hoehe (26px) und Pill-Form, damit die Selects nicht aus der Statuszeile ragen. */
 .control-select {
-  min-width: 128px;
-  height: 40px;
-  padding: 0 10px;
+  height: 26px;
+  padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: var(--surface);
-  color: var(--text);
+  color: var(--muted);
   font-size: 13px;
 }
 
 .control-select.icon-select {
-  min-width: 54px;
-  width: 54px;
-  padding: 0 8px;
-  font-size: 16px;
+  min-width: 48px;
+  width: 48px;
+  padding: 0 6px;
   text-align: center;
 }
 
@@ -398,7 +407,6 @@ button {
 .icon-button,
 .sidebar-toggle,
 .nav-button,
-.control-select,
 .pager-button {
   border-radius: var(--radius);
 }
@@ -497,11 +505,22 @@ td {
   vertical-align: middle;
 }
 
+/* Einheitliche Versalien-Labels (Tabellenkopf, Gruppenzeile, Filter, Detail):
+   gleiche Behandlung, damit sie nicht wie verschiedene Schriftarten wirken.
+   Schriftgroesse bleibt kontextspezifisch. */
+th,
+.group-row td,
+.filter-field label,
+.filter-reset,
+.detail-label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
 th {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 750;
-  text-transform: uppercase;
 }
 
 tr:last-child td {
@@ -552,8 +571,6 @@ tbody tr.transaction-row:focus-within td {
   background: var(--surface-2);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
 }
 
 .amount {
@@ -702,10 +719,6 @@ button.roadmap-card-link:focus-visible {
 }
 
 .filter-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px;
   width: 100%;
   min-width: 0;
   padding: 12px;
@@ -717,16 +730,25 @@ button.roadmap-card-link:focus-visible {
 .filter-grid {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px 12px;
 }
 
+/* Reset bekommt eine eigene Fusszeile (Trennlinie darueber, rechtsbuendig)
+   mit Anzahl davor — fester Platz, klarer "gilt fuer alle"-Charakter. */
 .filter-actions {
-  min-height: 58px;
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.filter-active-count {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .pagination {
@@ -767,39 +789,81 @@ button.roadmap-card-link:focus-visible {
   outline: none;
 }
 
+/* Flache Filterfelder: die Filterleiste ist der einzige Rahmen, die Felder
+   selbst sind rahmenlos (kein Box-in-Box). Aktivzustand dezent am Control. */
 .filter-field {
   min-width: 0;
   display: grid;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
+  gap: 4px;
 }
 
-.filter-field.active {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-  background: var(--accent-soft);
+.filter-field-search {
+  grid-column: 1 / -1;
 }
 
 .filter-field label {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: 11px;
 }
 
-.filter-field select {
+.filter-field select,
+.filter-field input[type="search"] {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  height: 40px;
-  border: 1px solid var(--border-strong);
+  height: 36px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-tight);
   background: var(--surface);
   color: var(--text);
   padding: 0 10px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 500;
   text-overflow: ellipsis;
+}
+
+.filter-field select:hover,
+.filter-field input[type="search"]:hover {
+  border-color: var(--border-strong);
+}
+
+.filter-field select:focus-visible,
+.filter-field input[type="search"]:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.filter-field.active select,
+.filter-field.active input[type="search"] {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.filter-field input[type="search"]::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Nur ein Leeren-Weg: das native Such-✕ weicht dem eigenen Clear-Button. */
+.filter-field input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Das ✕ liegt optisch im Suchfeld: Row als Anker, Button an der rechten
+   Innenkante, Padding haelt den Text vom ✕ frei. */
+.filter-field-search .filter-control-row {
+  position: relative;
+}
+
+.filter-field-search input[type="search"] {
+  padding-right: 38px;
+}
+
+.filter-field-search .filter-clear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
 }
 
 .filter-control-row {
@@ -809,7 +873,8 @@ button.roadmap-card-link:focus-visible {
   gap: 8px;
 }
 
-.filter-control-row select {
+.filter-control-row select,
+.filter-control-row input[type="search"] {
   flex: 1 1 auto;
 }
 
@@ -830,13 +895,27 @@ button.roadmap-card-link:focus-visible {
   font-weight: 700;
 }
 
+/* Clear als ruhiger Ghost-Button neben dem Control */
 .filter-clear {
-  width: 34px;
+  width: 30px;
+  min-height: 30px;
   padding: 0;
+  border-color: transparent;
+  background: transparent;
 }
 
 .filter-reset {
-  padding: 0 10px;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-color: transparent;
+  background: transparent;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.filter-reset svg {
+  width: 13px;
+  height: 13px;
 }
 
 .filter-clear:hover,
@@ -909,8 +988,6 @@ button.roadmap-card-link:focus-visible {
 .detail-label {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 750;
-  text-transform: uppercase;
 }
 
 .detail-value {
@@ -1013,6 +1090,10 @@ button.roadmap-card-link:focus-visible {
   .app-shell,
   .app-shell.sidebar-collapsed {
     grid-template-columns: 1fr;
+    /* Einspaltig gestapelt: Zeilen oben packen. Sonst verteilt das Grid bei
+       min-height:100vh den Leerraum zwischen Sidebar- und Main-Zeile und
+       schiebt die Topbar je nach Inhaltshoehe nach unten (vertikales Springen). */
+    align-content: start;
   }
 
   .sidebar {
@@ -1083,22 +1164,26 @@ button.roadmap-card-link:focus-visible {
     margin-top: 16px;
   }
 
+  /* Gestapelt unter der Tabelle: Abstand, sonst klebt der Detail-Bereich
+     an der vorherigen Tabelle (.detail-panel statt .rail). */
   .detail-panel {
     position: static;
+    margin-top: 16px;
   }
 }
 
 @media (max-width: 760px) {
   .main {
-    padding: 12px 12px 76px;
+    padding: 12px 12px calc(84px + env(safe-area-inset-bottom));
   }
 
+  /* Top-Bereich kompakt: eine Zeile Status-Chips (wischbar) + Schalter rechts.
+     Die Navigation wandert in die Bottom-Tab-Bar. */
   .topbar {
     min-height: auto;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
-    padding-bottom: 14px;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 12px;
   }
 
   .page-head {
@@ -1106,13 +1191,25 @@ button.roadmap-card-link:focus-visible {
     flex-direction: column;
   }
 
-  .controls,
   .work-status {
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .work-status strong {
+    display: none;
+  }
+
+  .work-status .chip {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   .controls {
-    justify-content: flex-end;
+    flex: 0 0 auto;
   }
 
   .control-select {
@@ -1122,39 +1219,104 @@ button.roadmap-card-link:focus-visible {
   .control-select.icon-select {
     width: 44px;
     min-width: 44px;
-    height: 34px;
-    padding: 0 6px;
-    font-size: 15px;
-  }
-
-  .nav {
-    gap: 3px;
-  }
-
-  .nav-button {
-    flex: 0 0 44px;
-    width: 44px;
-    padding: 0;
-  }
-
-  .nav-label {
-    display: none;
   }
 
   .sidebar {
+    position: static;
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto;
     align-items: stretch;
     gap: 8px;
+  }
+
+  .sidebar .nav {
+    display: none;
   }
 
   .brand {
     min-width: 0;
   }
 
-  .nav {
-    width: 100%;
-    justify-content: flex-start;
+  .tabbar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .tabbar-row {
+    display: flex;
+    gap: 4px;
+  }
+
+  .tabbar-button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 48px;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: var(--radius-tight);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .tabbar-button.active {
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .tabbar-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 650;
+  }
+
+  .tabbar-more-menu {
+    position: absolute;
+    right: 8px;
+    bottom: calc(100% + 8px);
+    display: grid;
+    gap: 2px;
+    min-width: 210px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  .tabbar-more-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--radius-tight);
+    background: none;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .tabbar-more-item.active {
+    color: var(--accent);
+    background: var(--accent-soft);
   }
 
   .kpi-grid,
@@ -1165,16 +1327,6 @@ button.roadmap-card-link:focus-visible {
   .tile-grid,
   .roadmap-large {
     grid-template-columns: 1fr;
-  }
-
-  .filter-actions {
-    width: 100%;
-    min-height: auto;
-    justify-content: stretch;
-  }
-
-  .filter-reset {
-    width: 100%;
   }
 
   .filter-control-row {

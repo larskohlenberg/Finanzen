@@ -1,3 +1,5 @@
+import { localTodayIso } from "./liquiditaet.mjs";
+
 export async function loadJson(path) {
   const response = await fetch(path);
   if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
@@ -54,7 +56,7 @@ export async function loadFinanceData() {
     metadata: {
       bundleVersion: "live-master",
       label: "Live-Masterdaten",
-      generatedAt: new Date().toISOString().slice(0, 10),
+      generatedAt: localTodayIso(),
       validation: "not-run-in-browser",
     },
     personen,

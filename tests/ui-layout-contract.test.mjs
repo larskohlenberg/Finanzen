@@ -166,3 +166,9 @@ test("stacked detail panel keeps spacing from the preceding content", () => {
   // und braucht Abstand — er nutzt .detail-panel (nicht .rail).
   assert.match(css, /\.detail-panel\s*{[^}]*margin-top/s);
 });
+
+test("scrollbar gutter is reserved so the top bar does not shift between views", () => {
+  // Seiten unterschiedlicher Hoehe blenden den Scrollbalken ein/aus; ohne
+  // reservierten Gutter springt das Layout (inkl. Top-Bar) horizontal.
+  assert.match(css, /scrollbar-gutter:\s*stable/);
+});

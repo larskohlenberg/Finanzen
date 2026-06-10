@@ -498,11 +498,22 @@ td {
   vertical-align: middle;
 }
 
+/* Einheitliche Versalien-Labels (Tabellenkopf, Gruppenzeile, Filter, Detail):
+   gleiche Behandlung, damit sie nicht wie verschiedene Schriftarten wirken.
+   Schriftgroesse bleibt kontextspezifisch. */
+th,
+.group-row td,
+.filter-field label,
+.filter-reset,
+.detail-label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
 th {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 750;
-  text-transform: uppercase;
 }
 
 tr:last-child td {
@@ -553,8 +564,6 @@ tbody tr.transaction-row:focus-within td {
   background: var(--surface-2);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
 }
 
 .amount {
@@ -780,9 +789,6 @@ button.roadmap-card-link:focus-visible {
 .filter-field label {
   color: var(--muted);
   font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .filter-field select,
@@ -890,9 +896,6 @@ button.roadmap-card-link:focus-visible {
   background: transparent;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .filter-reset svg {
@@ -970,8 +973,6 @@ button.roadmap-card-link:focus-visible {
 .detail-label {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 750;
-  text-transform: uppercase;
 }
 
 .detail-value {

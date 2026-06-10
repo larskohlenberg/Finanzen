@@ -132,3 +132,15 @@ test("mobile navigation is a fixed bottom tab bar with a more menu", () => {
 test("collapsed sidebar hides the meta text instead of wrapping it in the narrow rail", () => {
   assert.match(css, /\.sidebar-collapsed \.sidebar-meta\s*{\s*display:\s*none;\s*}/s);
 });
+
+test("uppercase eyebrow labels share one harmonized treatment", () => {
+  // th, Gruppenzeile, Filter-Label, Reset und Detail-Label nutzen eine
+  // gemeinsame Versalien-Behandlung, damit sie nicht wie verschiedene Schriften wirken.
+  const shared = css.match(/th,\s*\.group-row td,\s*\.filter-field label,\s*\.filter-reset,\s*\.detail-label\s*{([^}]*)}/s);
+  assert.ok(shared, "gemeinsame Eyebrow-Regel fehlt");
+  assert.match(shared[1], /text-transform:\s*uppercase/);
+  assert.match(shared[1], /letter-spacing:\s*0\.04em/);
+  assert.match(shared[1], /font-weight:\s*700/);
+  // die alte uneinheitliche 0.05em-Sperrung der Filter-Labels ist verschwunden
+  assert.doesNotMatch(css, /letter-spacing:\s*0\.05em/);
+});

@@ -26,9 +26,12 @@ test("transaction and vermoegen filters use the shared table filter renderer", (
   assert.match(main, /renderTableFilters\(\s*{[\s\S]*vermoegenFilters/s);
 });
 
-test("filter clear controls are inline and never absolutely positioned above fields", () => {
-  assert.match(css, /\.filter-clear/);
-  assert.doesNotMatch(css, /\.filter-clear\s*{[^}]*position:\s*absolute/s);
+test("search clear sits visually inside the search input, anchored to its own control row", () => {
+  // Frueher: ✕ schwebte absolut ueber fremden Feldern (Bug). Heute gewollt:
+  // Overlay an der rechten Innenkante des Suchfelds, verankert an der eigenen Row.
+  assert.match(css, /\.filter-field-search \.filter-control-row\s*{[^}]*position:\s*relative/s);
+  assert.match(css, /\.filter-field-search \.filter-clear\s*{[^}]*position:\s*absolute/s);
+  assert.match(css, /\.filter-field-search input\[type="search"\]\s*{[^}]*padding-right/s);
 });
 
 test("manual CRUD labels are not rendered as primary screen actions", () => {

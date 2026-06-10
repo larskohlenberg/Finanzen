@@ -111,9 +111,14 @@ test("filter fields are flat: no per-field box inside the filter bar frame", () 
   assert.doesNotMatch(css, /\.filter-field\s*{[^}]*background:/s);
 });
 
-test("filter reset is a compact overlay that does not shift the filter grid", () => {
-  assert.match(css, /\.filter-bar\s*{[^}]*position:\s*relative/s);
-  assert.match(css, /\.filter-actions\s*{[^}]*position:\s*absolute/s);
+test("filter reset lives in a footer with an active-filter count, not a floating overlay", () => {
+  // Fester Platz statt absolutem Overlay: Fusszeile mit Trennlinie + Anzahl,
+  // damit klar wird, dass der Reset fuer alle Filter gilt.
+  assert.doesNotMatch(css, /\.filter-actions\s*{[^}]*position:\s*absolute/s);
+  assert.match(css, /\.filter-actions\s*{[^}]*border-top/s);
+  assert.match(main, /filter-active-count/);
+  assert.match(main, /Object\.values\(filters\)\.filter\(Boolean\)\.length/);
+  assert.match(i18n, /filterActiveOther:\s*"Filter aktiv"/);
 });
 
 test("select filters clear via their all-option: clear button only on search field", () => {

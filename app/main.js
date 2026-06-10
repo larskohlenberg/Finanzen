@@ -699,14 +699,18 @@ function hasActiveFilters(filters) {
 }
 
 function renderTableFilters({ fields, filters, filterAttr, clearAction, resetAction }) {
+  const activeCount = Object.values(filters).filter(Boolean).length;
+  const activeLabel = t(activeCount === 1 ? "chrome.filterActiveOne" : "chrome.filterActiveOther");
   return `
     <section class="filter-bar">
       <div class="filter-grid">
         ${fields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
       </div>
-      <div class="filter-actions">
-        ${hasActiveFilters(filters) ? `<button class="filter-reset" data-action="${escapeHtml(resetAction)}">${iconSvg("clear")}${escapeHtml(t("chrome.clearAllFilters"))}</button>` : ""}
-      </div>
+      ${activeCount > 0 ? `
+        <div class="filter-actions">
+          <span class="filter-active-count">${activeCount} ${escapeHtml(activeLabel)}</span>
+          <button class="filter-reset" data-action="${escapeHtml(resetAction)}">${iconSvg("clear")}${escapeHtml(t("chrome.clearAllFilters"))}</button>
+        </div>` : ""}
     </section>
   `;
 }

@@ -712,7 +712,6 @@ button.roadmap-card-link:focus-visible {
 }
 
 .filter-bar {
-  position: relative;
   width: 100%;
   min-width: 0;
   padding: 12px;
@@ -728,12 +727,21 @@ button.roadmap-card-link:focus-visible {
   gap: 10px 12px;
 }
 
-/* Reset als kompakter Chip im Label-Band oben rechts — absolut positioniert,
-   damit sein Erscheinen das Filter-Grid nicht verschiebt. */
+/* Reset bekommt eine eigene Fusszeile (Trennlinie darueber, rechtsbuendig)
+   mit Anzahl davor — fester Platz, klarer "gilt fuer alle"-Charakter. */
 .filter-actions {
-  position: absolute;
-  top: 8px;
-  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.filter-active-count {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .pagination {

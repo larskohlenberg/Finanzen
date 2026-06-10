@@ -221,11 +221,9 @@ button {
   font-size: 13px;
 }
 
+/* In der schmalen Schiene hat der Arbeitsstand-Text keinen Platz —
+   komplett ausblenden statt zweizeilig umzubrechen. */
 .sidebar-collapsed .sidebar-meta {
-  justify-items: center;
-}
-
-.sidebar-collapsed .sidebar-meta span {
   display: none;
 }
 

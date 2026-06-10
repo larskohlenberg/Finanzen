@@ -128,3 +128,7 @@ test("mobile navigation is a fixed bottom tab bar with a more menu", () => {
   assert.match(css, /\.sidebar \.nav\s*{[^}]*display:\s*none/s);
   assert.match(i18n, /more:\s*"Mehr"/);
 });
+
+test("collapsed sidebar hides the meta text instead of wrapping it in the narrow rail", () => {
+  assert.match(css, /\.sidebar-collapsed \.sidebar-meta\s*{\s*display:\s*none;\s*}/s);
+});

@@ -160,3 +160,9 @@ test("desktop nav order matches the mobile reading order", () => {
     "regelzahlungen", "masterdata", "checks", "export",
   ]);
 });
+
+test("stacked detail panel keeps spacing from the preceding content", () => {
+  // Unter dem Rail-Breakpoint stapelt sich der Detail-Bereich unter der Tabelle
+  // und braucht Abstand — er nutzt .detail-panel (nicht .rail).
+  assert.match(css, /\.detail-panel\s*{[^}]*margin-top/s);
+});

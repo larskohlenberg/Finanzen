@@ -1090,6 +1090,10 @@ button.roadmap-card-link:focus-visible {
   .app-shell,
   .app-shell.sidebar-collapsed {
     grid-template-columns: 1fr;
+    /* Einspaltig gestapelt: Zeilen oben packen. Sonst verteilt das Grid bei
+       min-height:100vh den Leerraum zwischen Sidebar- und Main-Zeile und
+       schiebt die Topbar je nach Inhaltshoehe nach unten (vertikales Springen). */
+    align-content: start;
   }
 
   .sidebar {

@@ -172,3 +172,9 @@ test("scrollbar gutter is reserved so the top bar does not shift between views",
   // reservierten Gutter springt das Layout (inkl. Top-Bar) horizontal.
   assert.match(css, /scrollbar-gutter:\s*stable/);
 });
+
+test("stacked app-shell packs rows to the top so the topbar position is stable across views", () => {
+  // Bei min-height:100vh streckt das Grid sonst die Zeilen und schiebt je nach
+  // Inhaltshoehe Leerraum ueber die Topbar -> vertikales Springen beim Wechsel.
+  assert.match(css, /\.app-shell[^{]*{[^}]*align-content:\s*start/s);
+});

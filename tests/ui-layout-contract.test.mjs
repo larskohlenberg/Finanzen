@@ -144,3 +144,14 @@ test("uppercase eyebrow labels share one harmonized treatment", () => {
   // die alte uneinheitliche 0.05em-Sperrung der Filter-Labels ist verschwunden
   assert.doesNotMatch(css, /letter-spacing:\s*0\.05em/);
 });
+
+test("desktop nav order matches the mobile reading order", () => {
+  // Desktop-Sidebar und mobile Tab-Bar+Mehr-Menü leiten ihre Reihenfolge beide
+  // aus navItems ab — vermoegen steht vor regelzahlungen (analog zur Mobilseite).
+  const block = main.match(/const navItems = \[(.*?)\];/s)[1];
+  const order = [...block.matchAll(/\["(\w+)"/g)].map((m) => m[1]);
+  assert.deepEqual(order, [
+    "overview", "transactions", "liquiditaet", "vermoegen",
+    "regelzahlungen", "masterdata", "checks", "export",
+  ]);
+});

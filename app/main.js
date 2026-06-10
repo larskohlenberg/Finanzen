@@ -40,12 +40,15 @@ const storageKeys = {
   sidebarCollapsed: "finance-m2-sidebar-collapsed",
 };
 
+// Reihenfolge gilt fuer Desktop-Sidebar UND mobile Tab-Bar/Mehr-Menue
+// (beide leiten sie hieraus ab). vermoegen vor regelzahlungen, damit die
+// Kernsichten der mobilen Tab-Bar zusammenhaengen.
 const navItems = [
   ["overview", "nav.overview", "overview"],
   ["transactions", "nav.transactions", "transactions"],
   ["liquiditaet", "nav.liquiditaet", "liquiditaet"],
-  ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
   ["vermoegen", "nav.vermoegen", "vermoegen"],
+  ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
   ["masterdata", "nav.masterdata", "masterdata"],
   ["checks", "nav.checks", "checks"],
   ["export", "nav.export", "export"],

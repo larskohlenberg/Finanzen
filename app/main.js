@@ -95,6 +95,8 @@ const state = {
   vermoegenSort: { key: "klasse", dir: "asc" },
   selectedVermoegenId: "",
   vermoegenDetailRailClosed: false,
+  vermoegenRailMode: "position",
+  vermoegenRailWide: false,
 };
 
 const personenById = new Map(data.personen.map((person) => [person.person_id, person]));
@@ -1257,6 +1259,20 @@ function positionKey(p) {
   return `${p.klasse}:${p.id}`;
 }
 
+function entityLabel(entitaet, entitaetId) {
+  if (entitaet === "konto") return kontenById.get(entitaetId)?.name || entitaetId;
+  if (entitaet === "immobilie") return data.immobilien?.find((i) => i.immobilie_id === entitaetId)?.bezeichnung || entitaetId;
+  if (entitaet === "vermoegenswert") return data.vermoegenswerte?.find((v) => v.vermoegenswert_id === entitaetId)?.bezeichnung || entitaetId;
+  if (entitaet === "darlehen") return data.darlehen?.find((d) => d.darlehen_id === entitaetId)?.bezeichnung || entitaetId;
+  return entitaetId;
+}
+
+function zeitwertLabel(zw) {
+  const fieldKey = `vermoegen.feld.${zw.feld}`;
+  const field = t(fieldKey) === fieldKey ? zw.feld : t(fieldKey);
+  return `${entityLabel(zw.entitaet, zw.entitaet_id)} · ${field}`;
+}
+
 function filterVermoegenPositions(positionen) {
   const f = state.vermoegenFilters;
   return positionen.filter((p) => {
@@ -1305,6 +1321,7 @@ function renderVermoegen() {
   let selected = visible.find((p) => positionKey(p) === state.selectedVermoegenId);
   if (!selected) selected = visible[0];
   if (selected) state.selectedVermoegenId = positionKey(selected);
+  const railWide = state.vermoegenRailWide;
 
   const rows = visible.map((p) => {
     const key = positionKey(p);
@@ -1320,7 +1337,7 @@ function renderVermoegen() {
 
   return `
     ${renderPageHead(t("vermoegen.title"), t("vermoegen.lead"))}
-    <div class="layout-with-rail ${state.vermoegenDetailRailClosed ? "rail-closed" : ""}">
+    <div class="layout-with-rail ${state.vermoegenDetailRailClosed ? "rail-closed" : ""} ${railWide && !state.vermoegenDetailRailClosed ? "rail-wide" : ""}">
       <div class="stack">
         <div class="tile-grid">
           <div class="tile tile-static">
@@ -1335,6 +1352,11 @@ function renderVermoegen() {
             <span class="chip neutral">${r.qualitaet.geschaetzt} ${escapeHtml(t("vermoegen.qualityGeschaetzt"))}</span>
             ${r.qualitaet.fehlend > 0 ? `<span class="chip review">${iconSvg("review")}${r.qualitaet.fehlend} ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : ""}
           </div>
+          <button class="tile ${state.vermoegenRailMode === "wertstaende" ? "active" : ""}" data-action="show-vermoegen-wertstaende">
+            <strong>${escapeHtml(t("vermoegen.wertstaende"))}</strong>
+            <div class="count">${escapeHtml(String(data.zeitwerte?.length ?? 0))}</div>
+            <span class="chip neutral">${escapeHtml(t("vermoegen.allWertstaende"))}</span>
+          </button>
         </div>
         <p class="page-lead">${escapeHtml(t("vermoegen.incompleteNote"))}</p>
         ${renderVermoegenFilters()}
@@ -1356,10 +1378,13 @@ function renderVermoegen() {
       ${state.vermoegenDetailRailClosed ? "" : `
         <aside class="panel panel-pad detail-panel">
           <div class="detail-head">
-            <h2 class="section-title">${escapeHtml(t("vermoegen.detailTitle"))}</h2>
-            <button class="icon-button" data-action="close-vermoegen-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
+            <h2 class="section-title">${escapeHtml(state.vermoegenRailMode === "wertstaende" ? t("vermoegen.wertstaende") : t("vermoegen.detailTitle"))}</h2>
+            <div class="detail-actions">
+              ${state.vermoegenRailMode === "wertstaende" ? `<button class="icon-button" data-action="toggle-vermoegen-rail-width" aria-label="${escapeHtml(railWide ? t("vermoegen.railNarrow") : t("vermoegen.railWide"))}" title="${escapeHtml(railWide ? t("vermoegen.railNarrow") : t("vermoegen.railWide"))}">${iconSvg(railWide ? "chevronRight" : "chevronLeft")}</button>` : ""}
+              <button class="icon-button" data-action="close-vermoegen-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
+            </div>
           </div>
-          ${selected ? renderVermoegenDetail(selected, today) : `<p>${escapeHtml(t("vermoegen.noSelection"))}</p>`}
+          ${state.vermoegenRailMode === "wertstaende" ? renderWertstaendeRail() : (selected ? renderVermoegenDetail(selected, today) : `<p>${escapeHtml(t("vermoegen.noSelection"))}</p>`)}
         </aside>
       `}
     </div>`;
@@ -1422,6 +1447,69 @@ function anteileHtml(eigentumsanteile, marktwertCents) {
   }).join("");
 }
 
+function zeitwerteForPosition(p) {
+  if (!p) return [];
+  const fieldsByKlasse = {
+    konto: ["kontostand", "depotwert"],
+    immobilie: ["marktwert"],
+    vermoegenswert: ["marktwert"],
+    darlehen: ["restschuld"],
+  };
+  const fields = fieldsByKlasse[p.klasse] ?? [];
+  return (data.zeitwerte ?? [])
+    .filter((zw) => zw.entitaet === p.klasse && zw.entitaet_id === p.id && fields.includes(zw.feld))
+    .sort((a, b) => b.standdatum.localeCompare(a.standdatum) || b.feld.localeCompare(a.feld));
+}
+
+function zeitwertQualityChip(zw) {
+  return qualitaetChip({ qualitaet: zw.qualitaet, fehlt: false });
+}
+
+function renderPositionWertstaende(p) {
+  const rows = zeitwerteForPosition(p);
+  if (!rows.length) {
+    return detailRow(t("vermoegen.wertstaende"), `<span class="muted">${escapeHtml(t("vermoegen.noWertstaende"))}</span>`);
+  }
+  const html = rows.slice(0, 5).map((zw) => `
+    <div class="wertstand-item">
+      <div><strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong> <span class="muted">${escapeHtml(formatDate(zw.standdatum))}</span></div>
+      <div>${zeitwertQualityChip(zw)}</div>
+      ${zw.quelle_hinweis ? `<div class="muted">${escapeHtml(zw.quelle_hinweis)}</div>` : ""}
+    </div>`).join("");
+  const more = rows.length > 5
+    ? `<button class="linkish" data-action="show-vermoegen-wertstaende">${escapeHtml(t("vermoegen.showAllWertstaende"))}</button>`
+    : "";
+  return detailRow(t("vermoegen.wertstaende"), `<div class="wertstand-list">${html}${more}</div>`);
+}
+
+function renderWertstaendeRail() {
+  const rows = (data.zeitwerte ?? [])
+    .slice()
+    .sort((a, b) => b.standdatum.localeCompare(a.standdatum) || zeitwertLabel(a).localeCompare(zeitwertLabel(b)))
+    .map((zw) => `
+      <tr>
+        <td>${escapeHtml(zeitwertLabel(zw))}<br><span class="muted">${escapeHtml(zw.entitaet_id)}</span></td>
+        <td>${escapeHtml(formatDate(zw.standdatum))}</td>
+        <td class="amount">${escapeHtml(formatMoney(cents(zw.wert)))}</td>
+        <td>${zeitwertQualityChip(zw)}</td>
+        <td>${zw.quelle_hinweis ? escapeHtml(zw.quelle_hinweis) : "—"}</td>
+      </tr>`).join("");
+  return `
+    <p class="page-lead">${escapeHtml(t("vermoegen.wertstaendeLead"))}</p>
+    <div class="table-wrap wertstaende-table">
+      <table>
+        <thead><tr>
+          <th>${escapeHtml(t("vermoegen.position"))}</th>
+          <th>${escapeHtml(t("vermoegen.stand"))}</th>
+          <th class="amount">${escapeHtml(t("vermoegen.wert"))}</th>
+          <th>${escapeHtml(t("vermoegen.qualitaetHead"))}</th>
+          <th>${escapeHtml(t("transactions.rawSource"))}</th>
+        </tr></thead>
+        <tbody>${rows || `<tr><td colspan="5" class="muted">${escapeHtml(t("vermoegen.noWertstaende"))}</td></tr>`}</tbody>
+      </table>
+    </div>`;
+}
+
 function renderVermoegenDetail(p, today) {
   const head = `
     <div class="detail-section">
@@ -1454,7 +1542,8 @@ function renderVermoegenDetail(p, today) {
         : detailRow(t("vermoegen.anker"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + buchungenHtml
       + detailRow(t("vermoegen.aktuellerSaldo"),
-          `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`);
+          `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`)
+      + renderPositionWertstaende(p);
   }
 
   if (p.klasse === "immobilie" || p.klasse === "vermoegenswert") {
@@ -1471,7 +1560,8 @@ function renderVermoegenDetail(p, today) {
         : detailRow(t("vermoegen.marktwert"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + (entity?.eigentumsanteile ? detailRow(t("vermoegen.eigentumsanteile"), anteileHtml(entity.eigentumsanteile, mwCents)) : "")
       + detailRow(t("vermoegen.anteiligerWert"),
-          p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`);
+          p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`)
+      + renderPositionWertstaende(p);
   }
 
   if (p.klasse === "darlehen") {
@@ -1494,7 +1584,8 @@ function renderVermoegenDetail(p, today) {
           `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(Math.abs(p.wert_cents)))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`)
       + (dar?.zinssatz ? detailRow(t("vermoegen.zinssatz"), `${escapeHtml(dar.zinssatz)} %`) : "")
       + (dar?.sollrate ? detailRow(t("vermoegen.rate"), `${escapeHtml(formatMoney(cents(dar.sollrate)))} / ${escapeHtml(rhythmusLabel(dar.rhythmus_einheit, dar.rhythmus_intervall))}`) : "")
-      + (verknuepft.length ? detailRow(t("vermoegen.verknuepft"), verknuepft.join(" · ")) : "");
+      + (verknuepft.length ? detailRow(t("vermoegen.verknuepft"), verknuepft.join(" · ")) : "")
+      + renderPositionWertstaende(p);
   }
 
   return head;
@@ -1918,6 +2009,12 @@ function handleAction(element) {
     commitNavigation();
     return;
   }
+  if (action === "toggle-vermoegen-rail-width") {
+    state.vermoegenRailWide = !state.vermoegenRailWide;
+    state.vermoegenDetailRailClosed = false;
+    commitNavigation();
+    return;
+  }
   if (action === "page-first" || action === "page-prev" || action === "page-next" || action === "page-last" || action === "page-jump") {
     state.view = "transactions";
     if (action === "page-first") state.transactionPage = 1;
@@ -1944,6 +2041,15 @@ function handleAction(element) {
   }
   if (action === "select-vermoegen") {
     state.selectedVermoegenId = element.dataset.vermoegen;
+    state.vermoegenRailMode = "position";
+    state.vermoegenRailWide = false;
+    state.vermoegenDetailRailClosed = false;
+    commitNavigation();
+    return;
+  }
+  if (action === "show-vermoegen-wertstaende") {
+    state.vermoegenRailMode = "wertstaende";
+    state.vermoegenRailWide = true;
     state.vermoegenDetailRailClosed = false;
     commitNavigation();
     return;
@@ -1967,6 +2073,8 @@ function handleAction(element) {
     state.view = "vermoegen";
     state.vermoegenFilters = { klasse: "", qualitaet: "" };
     state.selectedVermoegenId = `${element.dataset.vklasse}:${element.dataset.vid}`;
+    state.vermoegenRailMode = "position";
+    state.vermoegenRailWide = false;
     state.vermoegenDetailRailClosed = false;
     commitNavigation();
     return;
@@ -2009,6 +2117,9 @@ function snapshotState() {
     selectedTransactionId: state.selectedTransactionId,
     transactionPage: state.transactionPage,
     masterSection: state.masterSection,
+    selectedVermoegenId: state.selectedVermoegenId,
+    vermoegenRailMode: state.vermoegenRailMode,
+    vermoegenRailWide: state.vermoegenRailWide,
   };
 }
 
@@ -2019,6 +2130,9 @@ function restoreState(snapshot) {
   state.selectedTransactionId = snapshot.selectedTransactionId || "";
   state.transactionPage = snapshot.transactionPage || 1;
   state.masterSection = snapshot.masterSection || "konten";
+  state.selectedVermoegenId = snapshot.selectedVermoegenId || "";
+  state.vermoegenRailMode = snapshot.vermoegenRailMode || "position";
+  state.vermoegenRailWide = Boolean(snapshot.vermoegenRailWide);
 }
 
 // Neuer History-Eintrag nur bei echtem View-Wechsel. Zustandsaenderungen

@@ -54,6 +54,30 @@ test("detail rails have close controls", () => {
   assert.match(i18n, /closeDetails/);
 });
 
+test("vermoegen value states use the existing detail rail pattern, not tabs or modals", () => {
+  assert.match(main, /data-action="show-vermoegen-wertstaende"/);
+  assert.match(main, /data-action="toggle-vermoegen-rail-width"/);
+  assert.match(main, /state\.vermoegenRailMode === "wertstaende"/);
+  assert.match(main, /iconSvg\(railWide \? "chevronRight" : "chevronLeft"/);
+  assert.doesNotMatch(main, /iconSvg\(railWide \? "panelNarrow" : "panelWide"/);
+  assert.doesNotMatch(main, /data-action="toggle-vermoegen-rail-width"[^>]*>\$\{escapeHtml\(railWide \? t\("vermoegen\.railNarrow"\) : t\("vermoegen\.railWide"\)\)\}/);
+  assert.match(main, /renderWertstaendeRail/);
+  assert.match(main, /renderPositionWertstaende/);
+  assert.match(main, /vermoegenRailMode/);
+  assert.doesNotMatch(main, /vermoegen-tab/);
+  assert.doesNotMatch(main, /role="dialog"[\s\S]*wertstaende/);
+  assert.match(css, /\.layout-with-rail\.rail-wide/s);
+  assert.match(main, /<div class="detail-actions">[\s\S]*data-action="toggle-vermoegen-rail-width"[\s\S]*data-action="close-vermoegen-detail-rail"[\s\S]*<\/div>/);
+  assert.doesNotMatch(main, /rail-edge-toggle/);
+  assert.doesNotMatch(main, /has-edge-toggle/);
+  assert.doesNotMatch(css, /rail-edge-toggle/);
+  assert.doesNotMatch(css, /has-edge-toggle/);
+  assert.match(css, /\.detail-panel\s*{[^}]*max-height:\s*calc\(100vh - 36px\)/s);
+  assert.match(css, /\.detail-panel\s*{[^}]*overflow-y:\s*auto/s);
+  assert.match(i18n, /wertstaende:\s*"Wertstände"/);
+  assert.match(i18n, /allWertstaende:\s*"Alle Wertstände"/);
+});
+
 test("transaction detail key-value rows stack and wrap in the narrow rail", () => {
   assert.match(css, /\.detail-list-row\s*{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
   assert.match(css, /\.detail-list-label,\s*\.detail-list-value,\s*\.detail-value\s*{[^}]*overflow-wrap:\s*anywhere/s);

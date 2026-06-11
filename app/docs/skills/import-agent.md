@@ -18,7 +18,7 @@ Nutze ihn, wenn der Nutzer
 
 Nicht nutzen fuer:
 - Pflege von Stammdaten (Personen, Konten, Kategorien) — das ist Aufgabe des Stammdaten-Erfassungs-Agenten.
-- Aenderung von Kategorisierungsregeln — eigener Pflegeprozess; danach Import erneut laufen lassen.
+- Aenderung von Kategorisierungsregeln — eigener Pflegeprozess (Skill kategorisierungsregel-pflege); danach Nach-Kategorisierung ueber den Bestand laufen lassen, **nicht** Reimport (Reimport ueberspringt Bekanntes per Dedupe, siehe ADR 0017).
 - Manuelle Korrekturen an bereits importierten Transaktionen — direkte Datei-Edits mit Validator-Lauf.
 
 ## Kontext, den du kennen musst

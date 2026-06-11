@@ -374,6 +374,10 @@ button {
   align-items: start;
 }
 
+.layout-with-rail.rail-wide {
+  grid-template-columns: minmax(360px, 1fr) minmax(420px, 52vw);
+}
+
 .layout-with-rail.rail-closed {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -1045,6 +1049,8 @@ button.roadmap-card-link:focus-visible {
 .detail-panel {
   position: sticky;
   top: 18px;
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
 }
 
 .detail-panel.hidden {
@@ -1059,6 +1065,13 @@ button.roadmap-card-link:focus-visible {
   margin-bottom: 12px;
 }
 
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
 .detail-head .section-title {
   margin-bottom: 0;
 }
@@ -1071,6 +1084,37 @@ button.roadmap-card-link:focus-visible {
 .detail-section:first-child {
   border-top: 0;
   padding-top: 0;
+}
+
+.wertstand-list {
+  display: grid;
+  gap: 10px;
+}
+
+.wertstand-item {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.wertstand-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.wertstaende-table table {
+  min-width: 760px;
+}
+
+.wertstaende-table td {
+  vertical-align: top;
+}
+
+.wertstaende-table td:last-child {
+  max-width: 320px;
+  overflow-wrap: anywhere;
 }
 
 .detail-label {
@@ -1117,6 +1161,10 @@ button.roadmap-card-link:focus-visible {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
+}
+
+.layout-with-rail.rail-wide .tile-grid {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .tile {
@@ -1246,6 +1294,10 @@ button.roadmap-card-link:focus-visible {
   }
 
   .layout-with-rail {
+    display: block;
+  }
+
+  .layout-with-rail.rail-wide {
     display: block;
   }
 

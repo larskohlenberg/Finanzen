@@ -54,6 +54,12 @@ test("detail rails have close controls", () => {
   assert.match(i18n, /closeDetails/);
 });
 
+test("transaction detail key-value rows stack and wrap in the narrow rail", () => {
+  assert.match(css, /\.detail-list-row\s*{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.detail-list-label,\s*\.detail-list-value,\s*\.detail-value\s*{[^}]*overflow-wrap:\s*anywhere/s);
+  assert.match(css, /\.detail-list-label,\s*\.detail-list-value,\s*\.detail-value\s*{[^}]*min-width:\s*0/s);
+});
+
 test("account masterdata table renders account reference column", () => {
   assert.match(i18n, /accountReference:\s*"Kontoreferenz"/);
   assert.match(i18n, /accountReference:\s*"Account reference"/);
@@ -79,6 +85,14 @@ test("work status chip never claims validation passed unconditionally", () => {
   assert.match(i18n, /validationExternal:\s*"Validation external"/);
 });
 
+test("work status offers an explicit data reload action", () => {
+  assert.match(main, /data-action="reload-data"/);
+  assert.match(main, /url\.searchParams\.set\("_reload"/);
+  assert.match(main, /window\.location\.assign\(url\)/);
+  assert.match(i18n, /reloadData:\s*"Daten neu laden"/);
+  assert.match(i18n, /reloadData:\s*"Reload data"/);
+});
+
 test("next action shows the live open-category count, not a hardcoded number", () => {
   assert.doesNotMatch(i18n, /nextActionText:\s*"1 /);
   assert.doesNotMatch(i18n, /nextActionText:\s*"Review 1 /);
@@ -92,12 +106,75 @@ test("IBAN fields render with grouped display format", () => {
   assert.match(main, /formatIban\(tx\.empfaenger_iban\)/);
 });
 
+test("transaction detail labels counterparty IBAN by booking direction", () => {
+  assert.match(i18n, /senderIban:\s*"Sender-IBAN"/);
+  assert.match(i18n, /senderIban:\s*"Sender IBAN"/);
+  assert.match(main, /function transactionIbanLabel\(tx\)/);
+  assert.match(main, /tx\.transaktionstyp === "Eingang"/);
+  assert.match(main, /\[transactionIbanLabel\(tx\), formatIban\(tx\.empfaenger_iban\)\]/);
+});
+
 test("transactions view has a local search over loaded transactions", () => {
   assert.match(main, /name:\s*"search"/);
   assert.match(main, /matchesQuery\(/);
   assert.match(main, /addEventListener\("input"/);
   assert.match(i18n, /filterSearch:\s*"Suche"/);
   assert.match(i18n, /filterSearch:\s*"Search"/);
+});
+
+test("transactions view offers a booking-date period filter", () => {
+  assert.match(main, /timeMode:\s*"none"/);
+  assert.match(main, /function transactionMatchesTimeFilter\(tx\)/);
+  assert.match(main, /tx\.buchungsdatum/);
+  assert.match(main, /searchFields:\s*\[[\s\S]*name:\s*"search"/);
+  assert.match(main, /timeFields:\s*transactionTimeFilterFields\(\)/);
+  assert.match(main, /fields:\s*\[[\s\S]*name:\s*"account"[\s\S]*name:\s*"transfer"/);
+  assert.match(main, /filter-search-row/);
+  assert.match(main, /filter-time-row/);
+  assert.match(main, /filter-primary-row/);
+  assert.match(css, /\.filter-search-row\s*{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.filter-time-row\s*{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(140px,\s*180px\)\)/s);
+  assert.match(css, /\.filter-primary-row\s*{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(140px,\s*1fr\)\)/s);
+  assert.match(main, /transactionTimeFilterFields\(\)/);
+  assert.match(main, /name:\s*"timeMode"/);
+  assert.match(main, /name:\s*"dateFrom"/);
+  assert.match(main, /name:\s*"dateTo"/);
+  assert.match(main, /name:\s*"month"/);
+  assert.match(main, /options:\s*transactionMonthOptions\(\)/);
+  assert.doesNotMatch(main, /t\("transactions\.allMonths"\)/);
+  assert.doesNotMatch(i18n, /allMonths/);
+  assert.match(main, /state\.transactionFilters\.month = transactionMonthOptions\(\)\[0\]\?\.\[0\]/);
+  assert.match(main, /name:\s*"quarterYear"/);
+  assert.match(main, /options:\s*transactionYearOptions\(\)/);
+  assert.match(main, /name:\s*"quarter"/);
+  assert.match(main, /name:\s*"year"/);
+  assert.match(main, /function applyTransactionTimeModeDefaults\(mode\)/);
+  assert.match(main, /latestMonth/);
+  assert.match(main, /Math\.ceil\(Number\(latestMonth\.slice\(5, 7\)\) \/ 3\)/);
+  assert.match(main, /transactionFilterActiveCount\(\)/);
+  assert.match(i18n, /filterTime:\s*"Zeitraum"/);
+  assert.match(i18n, /timeModeRange:\s*"Von-Bis"/);
+  assert.match(i18n, /timeModeMonth:\s*"Monat"/);
+  assert.match(i18n, /timeModeQuarter:\s*"Quartal"/);
+  assert.match(i18n, /timeModeYear:\s*"Jahr"/);
+});
+
+test("transactions table supports page size selection and direct page jumps", () => {
+  assert.match(main, /function renderTransactionTableToolbar\(\)/);
+  assert.match(main, /data-filter="pageSize"/);
+  assert.match(main, /\["10", "10"\]/);
+  assert.match(main, /\["20", "20"\]/);
+  assert.match(main, /\["50", "50"\]/);
+  assert.match(main, /\["100", "100"\]/);
+  assert.match(main, /function paginationItems\(currentPage, pageCount\)/);
+  assert.match(main, /data-action="page-first"/);
+  assert.match(main, /data-action="page-last"/);
+  assert.match(main, /data-action="page-jump"/);
+  assert.match(main, /data-page=/);
+  assert.match(main, /state\.pageSize = Number\(filter\.value\)/);
+  assert.match(i18n, /rowsPerPage:\s*"Zeilen"/);
+  assert.match(i18n, /firstPage:\s*"Erste"/);
+  assert.match(i18n, /lastPage:\s*"Letzte"/);
 });
 
 test("filter bar: search spans the full row and has exactly one clear control", () => {

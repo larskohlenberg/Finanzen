@@ -90,6 +90,8 @@ Wenn die Rohquelle einen belegten Kontostand enthaelt, schlage konkret vor:
 2. Kontostand ignorieren und ohne Liquiditaetsanker importieren.
 3. Anderen belegten Ankerwert verwenden, falls der Nutzer einen besseren Belegwert nennt.
 
+**Reconciliation-Pflicht fuer Kopf-Kontostaende:** Ein Kontostand aus dem Kopf einer Umsatzliste (z. B. "Kontostand vom ...") darf nicht still als Zeitwert uebernommen werden. Pruefe zuerst, ob der Standdatum-Zeitpunkt durch die enthaltenen Buchungszeilen abgedeckt ist. Wenn der Kopf-Kontostand nach der letzten enthaltenen Buchung liegt oder sonst nicht mit den importierten Bewegungen reconciliert werden kann, frage explizit beim Nutzer nach, ob dieser Zeitanker trotz der Luecke gilt. Wenn bereits ein frueherer belegter Anker im Bestand oder im selben Auszug existiert, rechne den erwarteten Stand aus `Anker + importierte Buchungen bis Standdatum` nach und nenne die Differenz. Nur bei plausibler Reconciliation oder ausdruecklicher Nutzerbestaetigung als Zeitwert schreiben; sonst ignorieren und im Laufprotokoll als verworfenen/ungeklaerten Kopf-Kontostand dokumentieren.
+
 Nach Bestaetigung wird der Anker als Zeitwert erfasst:
 
 - `entitaet = "konto"`

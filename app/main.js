@@ -69,6 +69,13 @@ const state = {
     category: "",
     transfer: "",
     search: "",
+    timeMode: "none",
+    dateFrom: "",
+    dateTo: "",
+    month: "",
+    quarterYear: "",
+    quarter: "1",
+    year: "",
   },
   transactionPage: 1,
   pageSize: 10,
@@ -126,6 +133,11 @@ function formatMoney(amountInCents) {
 
 function formatDate(dateString) {
   return new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US").format(new Date(`${dateString}T00:00:00`));
+}
+
+function formatMonth(monthString) {
+  return new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "long", year: "numeric" })
+    .format(new Date(`${monthString}-01T00:00:00`));
 }
 
 function accountOwnerNames(konto) {
@@ -385,6 +397,7 @@ function renderTopbar() {
       <div class="work-status">
         <strong>${escapeHtml(t("chrome.workStatus"))}</strong>
         <span class="chip neutral" title="${escapeHtml(t("chrome.validationExternalHint"))}">${iconSvg("neutral")}${escapeHtml(t("chrome.validationExternal"))}</span>
+        <button class="chip neutral linkish" data-action="reload-data" aria-label="${escapeHtml(t("chrome.reloadData"))}" title="${escapeHtml(t("chrome.reloadData"))}">${iconSvg("regelzahlungen")}${escapeHtml(t("chrome.reloadData"))}</button>
         <button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
         <button class="chip neutral linkish" data-action="next-action">${escapeHtml(t("chrome.nextAction"))}: ${openCategoryTransactions().length} ${escapeHtml(t("overview.nextActionText"))}</button>
@@ -545,9 +558,34 @@ function filteredTransactions() {
     if (state.transactionFilters.category && tx.kategorie_id !== state.transactionFilters.category) return false;
     if (state.transactionFilters.transfer === "only" && !tx.ist_transfer) return false;
     if (state.transactionFilters.transfer === "without" && tx.ist_transfer) return false;
+    if (!transactionMatchesTimeFilter(tx)) return false;
     if (state.transactionFilters.search && !matchesQuery(transactionSearchFields(tx), state.transactionFilters.search)) return false;
     return true;
   }).sort((a, b) => b.buchungsdatum.localeCompare(a.buchungsdatum));
+}
+
+function transactionMatchesTimeFilter(tx) {
+  const date = tx.buchungsdatum;
+  const filters = state.transactionFilters;
+  if (!date || filters.timeMode === "none") return true;
+  if (filters.timeMode === "range") {
+    if (filters.dateFrom && date < filters.dateFrom) return false;
+    if (filters.dateTo && date > filters.dateTo) return false;
+    return true;
+  }
+  if (filters.timeMode === "month") {
+    return !filters.month || date.startsWith(filters.month);
+  }
+  if (filters.timeMode === "quarter") {
+    if (!filters.quarterYear) return true;
+    const month = Number(date.slice(5, 7));
+    const quarter = Math.ceil(month / 3);
+    return date.startsWith(`${filters.quarterYear}-`) && String(quarter) === filters.quarter;
+  }
+  if (filters.timeMode === "year") {
+    return !filters.year || date.startsWith(`${filters.year}-`);
+  }
+  return true;
 }
 
 function renderTransactions() {
@@ -577,6 +615,7 @@ function renderTransactions() {
         </section>
         ${renderTransactionFilters()}
         <section class="panel">
+          ${renderTransactionTableToolbar()}
           <div class="table-wrap">
             <table>
               <thead>
@@ -612,18 +651,52 @@ function renderTransactions() {
   `;
 }
 
+function renderTransactionTableToolbar() {
+  return `
+    <div class="table-toolbar">
+      <label class="table-page-size">
+        <span>${escapeHtml(t("transactions.rowsPerPage"))}</span>
+        <select data-filter="pageSize" aria-label="${escapeHtml(t("transactions.rowsPerPage"))}">
+          ${[["10", "10"], ["20", "20"], ["50", "50"], ["100", "100"]].map(([value, label]) => `<option value="${value}" ${String(state.pageSize) === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select>
+      </label>
+    </div>
+  `;
+}
+
 function renderPagination(totalRows, pageCount) {
   const from = totalRows === 0 ? 0 : (state.transactionPage - 1) * state.pageSize + 1;
   const to = Math.min(totalRows, state.transactionPage * state.pageSize);
+  const items = paginationItems(state.transactionPage, pageCount);
   return `
     <div class="pagination">
       <span>${escapeHtml(t("transactions.page"))} ${state.transactionPage} / ${pageCount} · ${from}-${to} ${escapeHtml(t("transactions.of"))} ${totalRows}</span>
       <div class="pagination-actions">
+        <button class="pager-button" data-action="page-first" ${state.transactionPage === 1 ? "disabled" : ""}>${escapeHtml(t("transactions.firstPage"))}</button>
         <button class="pager-button" data-action="page-prev" ${state.transactionPage === 1 ? "disabled" : ""}>${escapeHtml(t("transactions.previousPage"))}</button>
+        <div class="pagination-pages" aria-label="${escapeHtml(t("transactions.pageJumps"))}">
+          ${items.map((item) => item === "ellipsis"
+            ? `<span class="pagination-ellipsis">…</span>`
+            : `<button class="page-number ${item === state.transactionPage ? "active" : ""}" data-action="page-jump" data-page="${item}" ${item === state.transactionPage ? "aria-current=\"page\"" : ""}>${item}</button>`).join("")}
+        </div>
         <button class="pager-button" data-action="page-next" ${state.transactionPage === pageCount ? "disabled" : ""}>${escapeHtml(t("transactions.nextPage"))}</button>
+        <button class="pager-button" data-action="page-last" ${state.transactionPage === pageCount ? "disabled" : ""}>${escapeHtml(t("transactions.lastPage"))}</button>
       </div>
     </div>
   `;
+}
+
+function paginationItems(currentPage, pageCount) {
+  const pages = new Set([1, pageCount]);
+  for (let page = currentPage - 2; page <= currentPage + 2; page += 1) {
+    if (page >= 1 && page <= pageCount) pages.add(page);
+  }
+  const sorted = [...pages].sort((a, b) => a - b);
+  return sorted.flatMap((page, index) => {
+    if (index === 0) return [page];
+    const previous = sorted[index - 1];
+    return page - previous > 1 ? ["ellipsis", page] : [page];
+  });
 }
 
 function renderBreadcrumb(accountName) {
@@ -643,13 +716,16 @@ function renderBreadcrumb(accountName) {
 
 function renderTransactionFilters() {
   return renderTableFilters({
-    fields: [
+    searchFields: [
       {
         name: "search",
         type: "search",
         label: t("transactions.filterSearch"),
         placeholder: t("transactions.searchPlaceholder"),
       },
+    ],
+    timeFields: transactionTimeFilterFields(),
+    fields: [
       {
         name: "account",
         label: t("transactions.filterAccount"),
@@ -691,6 +767,7 @@ function renderTransactionFilters() {
     filterAttr: "filter",
     clearAction: "clear-transaction-filter",
     resetAction: "reset-transaction-filters",
+    activeCount: transactionFilterActiveCount(),
   });
 }
 
@@ -698,17 +775,129 @@ function hasActiveFilters(filters) {
   return Object.values(filters).some(Boolean);
 }
 
-function renderTableFilters({ fields, filters, filterAttr, clearAction, resetAction }) {
-  const activeCount = Object.values(filters).filter(Boolean).length;
-  const activeLabel = t(activeCount === 1 ? "chrome.filterActiveOne" : "chrome.filterActiveOther");
+function transactionTimeFilterFields() {
+  const filters = state.transactionFilters;
+  const fields = [
+    {
+      name: "timeMode",
+      label: t("transactions.filterTime"),
+      options: [
+        ["none", t("transactions.timeModeAll")],
+        ["range", t("transactions.timeModeRange")],
+        ["month", t("transactions.timeModeMonth")],
+        ["quarter", t("transactions.timeModeQuarter")],
+        ["year", t("transactions.timeModeYear")],
+      ],
+    },
+  ];
+  if (filters.timeMode === "range") {
+    fields.push(
+      { name: "dateFrom", type: "date", label: t("transactions.dateFrom") },
+      { name: "dateTo", type: "date", label: t("transactions.dateTo") },
+    );
+  }
+  if (filters.timeMode === "month") {
+    fields.push({
+      name: "month",
+      label: t("transactions.month"),
+      options: transactionMonthOptions(),
+    });
+  }
+  if (filters.timeMode === "quarter") {
+    fields.push(
+      {
+        name: "quarterYear",
+        label: t("transactions.year"),
+        options: transactionYearOptions(),
+      },
+      {
+        name: "quarter",
+        label: t("transactions.quarter"),
+        options: ["1", "2", "3", "4"].map((quarter) => [quarter, `Q${quarter}`]),
+      },
+    );
+  }
+  if (filters.timeMode === "year") {
+    fields.push({
+      name: "year",
+      label: t("transactions.year"),
+      options: transactionYearOptions(),
+    });
+  }
+  return fields;
+}
+
+function transactionMonthOptions() {
+  return distinctTransactionDateParts(0, 7).map((month) => [month, formatMonth(month)]);
+}
+
+function transactionYearOptions() {
+  return [
+    ["", t("transactions.allYears")],
+    ...distinctTransactionDateParts(0, 4).map((year) => [year, year]),
+  ];
+}
+
+function distinctTransactionDateParts(start, end) {
+  return [...new Set(data.transaktionen
+    .map((tx) => String(tx.buchungsdatum ?? "").slice(start, end))
+    .filter((value) => value.length === end - start))]
+    .sort((a, b) => b.localeCompare(a));
+}
+
+function applyTransactionTimeModeDefaults(mode) {
+  if (mode === "none") {
+    clearTransactionTimeFilter();
+    return;
+  }
+  if (mode === "month" && !state.transactionFilters.month) {
+    state.transactionFilters.month = transactionMonthOptions()[0]?.[0] || "";
+  }
+  if (mode === "quarter" && !state.transactionFilters.quarterYear) {
+    const latestMonth = distinctTransactionDateParts(0, 7)[0] || "";
+    state.transactionFilters.quarterYear = latestMonth.slice(0, 4) || transactionYearOptions()[1]?.[0] || "";
+    state.transactionFilters.quarter = latestMonth ? String(Math.ceil(Number(latestMonth.slice(5, 7)) / 3)) : "1";
+  }
+  if (mode === "year" && !state.transactionFilters.year) {
+    state.transactionFilters.year = transactionYearOptions()[1]?.[0] || "";
+  }
+}
+
+function transactionFilterActiveCount() {
+  const filters = state.transactionFilters;
+  const regular = ["account", "status", "category", "transfer", "search"].filter((name) => Boolean(filters[name])).length;
+  return regular + (transactionTimeFilterIsActive() ? 1 : 0);
+}
+
+function transactionTimeFilterIsActive() {
+  const filters = state.transactionFilters;
+  if (filters.timeMode === "range") return Boolean(filters.dateFrom || filters.dateTo);
+  if (filters.timeMode === "month") return Boolean(filters.month);
+  if (filters.timeMode === "quarter") return Boolean(filters.quarterYear);
+  if (filters.timeMode === "year") return Boolean(filters.year);
+  return false;
+}
+
+function renderTableFilters({ prefix = "", searchFields = [], timeFields = [], fields, filters, filterAttr, clearAction, resetAction, activeCount }) {
+  const effectiveActiveCount = activeCount ?? Object.values(filters).filter(Boolean).length;
+  const activeLabel = t(effectiveActiveCount === 1 ? "chrome.filterActiveOne" : "chrome.filterActiveOther");
   return `
     <section class="filter-bar">
-      <div class="filter-grid">
+      ${prefix}
+      ${searchFields.length ? `
+      <div class="filter-grid filter-search-row">
+        ${searchFields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
+      </div>` : ""}
+      ${timeFields.length ? `
+      <div class="filter-grid filter-time-row">
+        ${timeFields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
+      </div>` : ""}
+      <div class="filter-grid filter-primary-row">
         ${fields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
       </div>
-      ${activeCount > 0 ? `
+      ${effectiveActiveCount > 0 ? `
         <div class="filter-actions">
-          <span class="filter-active-count">${activeCount} ${escapeHtml(activeLabel)}</span>
+          <span class="filter-active-count">${effectiveActiveCount} ${escapeHtml(activeLabel)}</span>
           <button class="filter-reset" data-action="${escapeHtml(resetAction)}">${iconSvg("clear")}${escapeHtml(t("chrome.clearAllFilters"))}</button>
         </div>` : ""}
     </section>
@@ -718,11 +907,16 @@ function renderTableFilters({ fields, filters, filterAttr, clearAction, resetAct
 function renderFilterSelect({ name, label, options, type, placeholder, filters, filterAttr, clearAction }) {
   const active = Boolean(filters[name]);
   const controlId = `${filterAttr}-${name}`;
-  const control = type === "search"
-    ? `<input type="search" id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}" value="${escapeHtml(filters[name])}" placeholder="${escapeHtml(placeholder ?? "")}" autocomplete="off">`
-    : `<select id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}">
-          ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${filters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
-        </select>`;
+  let control = "";
+  if (type === "search") {
+    control = `<input type="search" id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}" value="${escapeHtml(filters[name])}" placeholder="${escapeHtml(placeholder ?? "")}" autocomplete="off">`;
+  } else if (type === "date") {
+    control = `<input type="date" id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}" value="${escapeHtml(filters[name])}">`;
+  } else {
+    control = `<select id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}">
+        ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${filters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
+      </select>`;
+  }
   return `
     <div class="filter-field ${active ? "active" : ""} ${type === "search" ? "filter-field-search" : ""}">
       <label for="${escapeHtml(controlId)}">${escapeHtml(label)}</label>
@@ -772,14 +966,14 @@ function renderTransactionDetail(tx) {
   const konto = kontenById.get(tx.konto_id);
   const paired = pairedTransferTransaction(tx);
   const bankDetails = [
-    ["transactions.bankReference", tx.bank_referenz],
-    ["transactions.valueDate", tx.wertstellungsdatum, "date"],
-    ["transactions.transactionType", tx.transaktionstyp],
-    ["transactions.customerReference", tx.kundenreferenz],
-    ["transactions.recipient", tx.empfaenger],
-    ["transactions.recipientIban", formatIban(tx.empfaenger_iban)],
-    ["transactions.mandateReference", tx.mandatsreferenz],
-    ["transactions.creditorId", tx.glaeubiger_id],
+    [t("transactions.bankReference"), tx.bank_referenz],
+    [t("transactions.valueDate"), tx.wertstellungsdatum, "date"],
+    [t("transactions.transactionType"), tx.transaktionstyp],
+    [t("transactions.customerReference"), tx.kundenreferenz],
+    [t("transactions.recipient"), tx.empfaenger],
+    [transactionIbanLabel(tx), formatIban(tx.empfaenger_iban)],
+    [t("transactions.mandateReference"), tx.mandatsreferenz],
+    [t("transactions.creditorId"), tx.glaeubiger_id],
   ].filter(([, value]) => hasDetailValue(value));
   return `
     <div class="detail-section">
@@ -811,7 +1005,7 @@ function renderTransactionDetail(tx) {
       <div class="detail-section">
         <div class="detail-label">${escapeHtml(t("transactions.bankDetails"))}</div>
         <div class="detail-list">
-          ${bankDetails.map(([labelKey, value, format]) => transactionDetailRow(t(labelKey), format === "date" ? formatDate(value) : value)).join("")}
+          ${bankDetails.map(([label, value, format]) => transactionDetailRow(label, format === "date" ? formatDate(value) : value)).join("")}
         </div>
       </div>
     ` : ""}
@@ -837,6 +1031,10 @@ function renderTransactionDetail(tx) {
 
 function hasDetailValue(value) {
   return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+function transactionIbanLabel(tx) {
+  return tx.transaktionstyp === "Eingang" ? t("transactions.senderIban") : t("transactions.recipientIban");
 }
 
 function transactionDetailRow(label, value) {
@@ -1591,7 +1789,17 @@ app.addEventListener("change", (event) => {
 
   const filter = event.target.closest("[data-filter]");
   if (filter) {
+    if (filter.dataset.filter === "pageSize") {
+      state.pageSize = Number(filter.value);
+      state.transactionPage = 1;
+      state.view = "transactions";
+      commitNavigation();
+      return;
+    }
     state.transactionFilters[filter.dataset.filter] = filter.value;
+    if (filter.dataset.filter === "timeMode") {
+      applyTransactionTimeModeDefaults(filter.value);
+    }
     state.view = "transactions";
     state.transactionPage = 1;
     commitNavigation();
@@ -1608,6 +1816,12 @@ app.addEventListener("change", (event) => {
 
 function handleAction(element) {
   const action = element.dataset.action;
+  if (action === "reload-data") {
+    const url = new URL(window.location.href);
+    url.searchParams.set("_reload", String(Date.now()));
+    window.location.assign(url);
+    return;
+  }
   if (action === "toggle-more-menu") {
     state.moreMenuOpen = !state.moreMenuOpen;
     render();
@@ -1642,6 +1856,7 @@ function handleAction(element) {
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
     state.transactionFilters.search = "";
+    clearTransactionTimeFilter();
     state.transactionPage = 1;
     state.selectedTransactionId = openCategoryTransactions()[0]?.transaktion_id || state.selectedTransactionId;
     commitNavigation();
@@ -1662,6 +1877,13 @@ function handleAction(element) {
       category: "",
       transfer: "",
       search: "",
+      timeMode: "none",
+      dateFrom: "",
+      dateTo: "",
+      month: "",
+      quarterYear: "",
+      quarter: "1",
+      year: "",
     };
     state.transactionPage = 1;
     commitNavigation();
@@ -1674,6 +1896,7 @@ function handleAction(element) {
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
     state.transactionFilters.search = "";
+    clearTransactionTimeFilter();
     state.transactionPage = 1;
     state.selectedTransactionId = data.transaktionen.find((tx) => tx.konto_id === element.dataset.account)?.transaktion_id || "";
     commitNavigation();
@@ -1695,9 +1918,13 @@ function handleAction(element) {
     commitNavigation();
     return;
   }
-  if (action === "page-prev" || action === "page-next") {
+  if (action === "page-first" || action === "page-prev" || action === "page-next" || action === "page-last" || action === "page-jump") {
     state.view = "transactions";
-    state.transactionPage += action === "page-next" ? 1 : -1;
+    if (action === "page-first") state.transactionPage = 1;
+    if (action === "page-prev") state.transactionPage -= 1;
+    if (action === "page-next") state.transactionPage += 1;
+    if (action === "page-last") state.transactionPage = Number.MAX_SAFE_INTEGER;
+    if (action === "page-jump") state.transactionPage = Number(element.dataset.page);
     commitNavigation();
     return;
   }
@@ -1763,6 +1990,16 @@ function handleAction(element) {
     }
     commitNavigation();
   }
+}
+
+function clearTransactionTimeFilter() {
+  state.transactionFilters.timeMode = "none";
+  state.transactionFilters.dateFrom = "";
+  state.transactionFilters.dateTo = "";
+  state.transactionFilters.month = "";
+  state.transactionFilters.quarterYear = "";
+  state.transactionFilters.quarter = "1";
+  state.transactionFilters.year = "";
 }
 
 function snapshotState() {

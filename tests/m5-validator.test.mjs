@@ -99,3 +99,33 @@ test("Regelzahlung mit kaputter darlehen_id ist Fehler", () => {
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((e) => e.includes("DAR-404")));
 });
+
+function basisMitTransaktion(herkunft) {
+  const data = basis();
+  data.kategorien.push({ kategorie_id: "KAT-001", name: "Lebensmittel", typ: "ausgabe", lebenshaltung_relevant: true, status: "aktiv" });
+  const tx = {
+    transaktion_id: "TXN-20260520-000001", dedupe_hash: "h1", rohquelle: "data/inbox/x.csv",
+    konto_id: "KTO-001", buchungsdatum: "2026-05-20", betrag: "-42.80",
+    gegenpartei: "EDEKA", verwendungszweck: "Einkauf",
+    kategorisierung_status: "vorgeschlagen", ist_transfer: false, kategorie_id: "KAT-001",
+  };
+  if (herkunft !== undefined) tx.kategorie_herkunft = herkunft;
+  data.transaktionen.push(tx);
+  return data;
+}
+
+test("Transaktion mit kategorie_herkunft=regel ist valide", () => {
+  const result = validateMasterData(basisMitTransaktion("regel"));
+  assert.equal(result.valid, true, JSON.stringify(result.errors));
+});
+
+test("Transaktion mit kategorie_herkunft=manuell ist valide", () => {
+  const result = validateMasterData(basisMitTransaktion("manuell"));
+  assert.equal(result.valid, true, JSON.stringify(result.errors));
+});
+
+test("Transaktion mit unbekanntem kategorie_herkunft ist Fehler", () => {
+  const result = validateMasterData(basisMitTransaktion("geraten"));
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((e) => e.includes("kategorie_herkunft")));
+});

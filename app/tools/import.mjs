@@ -91,7 +91,12 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
       kategorisierung_status: verdict.status,
       ist_transfer: false,
     };
-    if (verdict.kategorie_id) transaktion.kategorie_id = verdict.kategorie_id;
+    if (verdict.kategorie_id) {
+      transaktion.kategorie_id = verdict.kategorie_id;
+      // Erst-Kategorisierung leitet die Kategorie aus dem Regelwerk ab (ADR 0017):
+      // herkunfts-bewusst, damit die Nach-Kategorisierung nur Regel-Treffer neu bewertet.
+      transaktion.kategorie_herkunft = "regel";
+    }
     for (const field of optionalTransactionFields) {
       if (Object.hasOwn(entry, field)) transaktion[field] = entry[field];
     }

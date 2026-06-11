@@ -9,6 +9,10 @@ node_modules/
 **/.superpowers/
 *.pid
 
+# Python-Bytecode (z. B. vom lokalen serve_app.py)
+__pycache__/
+*.pyc
+
 # Lokale Tooling-/Agenten-Verzeichnisse
 .claude/
 .codex/

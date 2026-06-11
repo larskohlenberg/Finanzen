@@ -80,6 +80,10 @@ Kein separates Feld `cashflow_wirkung` an der Transaktion. Die Wirkung ergibt si
 
 Zustand einer Transaktion bezueglich ihrer Kategorie. Agent schreibt seinen Tipp direkt in `kategorie_id` und setzt `kategorisierung_status = vorgeschlagen`. Im Review-Flow geht der Nutzer Buchung fuer Buchung durch — bestaetigt (`status = bestaetigt`) oder korrigiert die Kategorie. Es gibt **keine** separate `vorschlaege.jsonl`-Datei und keine zweite Kategorie-Spalte fuer Vorschlaege. Ein Feld, ein Status.
 
+Die **Erst-Kategorisierung** geschieht beim Import (deterministischer Categorizer ueber die zu dem Zeitpunkt bestehenden Regeln). Werden Regeln erst *nach* dem Import angelegt oder geaendert, wirkt die **Nach-Kategorisierung**: derselbe deterministische Lauf, aber ueber den Bestand statt ueber den Import-Stream, angestossen ueber die Kategorisierungsregel-Pflege. Beide rufen dieselbe `categorize()`-Funktion — gleiche Eingabe, gleiches Ergebnis. Der Agent raet nie eine Kategorie und legt nie still eine Regel an; beides ist eigener Pflegeprozess.
+
+Orthogonal zum Status steht die **Herkunft** einer Kategorie (`kategorie_herkunft`): `regel` (vom Categorizer abgeleitet) oder `manuell` (vom Agenten auf ausdrueckliche Nutzer-Ansage gesetzt — es gibt keine UI-Bearbeitung, siehe ADR 0006). Die Herkunft entscheidet, ob die Nach-Kategorisierung einen Eintrag anfassen darf: `regel`-Eintraege werden neu bewertet, `manuell`-Eintraege und `abgelehnt` sind menschliche Akte und bleiben von Regellaeufen unangetastet. Details der Policy: siehe ADR zur Nach-Kategorisierung.
+
 Korrekturen sind in-place Updates — eine Kategorie aendern heisst: ueberschreiben. Die Git-History ist Spur genug; kein Audit-Log, keine Versionierung.
 
 ## Daten und Zeitstempel
@@ -196,7 +200,7 @@ Keine `quellen.json`. Wenn dasselbe PDF an mehreren Stellen referenziert wird, s
 
 ## Kategorisierungsregel
 
-Stammdatensatz in `data/master/kategorisierungsregeln.json`. Ordnet eingehenden Transaktionen anhand von Mustern (z. B. Substring in `gegenpartei` oder `verwendungszweck`, optional gefiltert auf `konto_id`) eine `kategorie_id` zu. Wird beim Import von einem deterministischen Tool ausgewertet — der Agent ruft das Tool, das Tool matcht, der Agent uebernimmt das Ergebnis.
+Stammdatensatz in `data/master/kategorisierungsregeln.json`. Ordnet eingehenden Transaktionen anhand von Mustern (z. B. Substring in `gegenpartei` oder `verwendungszweck`, optional gefiltert auf `konto_id`) eine `kategorie_id` zu. Wird beim Import (Erst-Kategorisierung) und bei Regelaenderungen ueber den Bestand (Nach-Kategorisierung, siehe ADR 0017) von einem deterministischen Tool ausgewertet — der Agent ruft das Tool, das Tool matcht, der Agent uebernimmt das Ergebnis.
 
 Bei Treffer setzt der Importer `kategorisierung_status = vorgeschlagen` und die `kategorie_id`. Bei Konflikt (zwei Regeln, unterschiedliche Kategorien) bleibt die Transaktion `offen` — Mehrdeutigkeit wird sichtbar gemacht, nicht stillschweigend per Reihenfolge entschieden.
 
@@ -225,3 +229,5 @@ Zwei Auspraegungen:
 - **Externer Transfer**: nur eine Seite ist eine Transaktion (z. B. Bargeldabhebung, die einer Person ausserhalb des Modells gegeben wird). Der Transfer-Datensatz hat genau eine `transaktion_id` plus `gegenseite_typ` (z. B. `bar`, `extern_familie`) und eine **Pflicht-Begruendung**.
 
 Pruefregel: jede Transaktion mit `ist_transfer = true` referenziert einen Transfer-Datensatz; der Transfer ist entweder paarweise vollstaendig ODER explizit als extern markiert. Bargeld-Ausgaben werden bewusst nicht als interne Transfers verfolgt — sie sind ein akzeptierter blinder Fleck.
+
+`ist_transfer` und `kategorie_id` sind **orthogonal**: ein Transfer darf zusaetzlich eine Kategorie tragen (z. B. ein Uebertrag aufs Sparkonto als `Sparen/Investieren`), und Kategorisierungsregeln duerfen Transfers treffen. Die Cashflow-Neutralitaet kommt allein aus `ist_transfer`, nicht daraus, eine Kategorie wegzulassen. Es gibt also keinen Grund, das Verregeln von Transfers zu unterlassen.

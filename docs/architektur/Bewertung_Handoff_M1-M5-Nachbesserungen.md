@@ -105,10 +105,15 @@ ADR 0009 akzeptiert den ungeschützten LAN-Betrieb explizit für den Ist-Zustand
 GET-only/Traversal-Schutz sind „spätestens beim LAN-Deployment" relevant — aktuell verfrüht.
 Wieder aufgreifen, sobald ein echtes Deployment ansteht.
 
-## „Bewusst NICHT übernehmen" (Handoff-Schluss) — ✅ geteilt
+## „Bewusst NICHT übernehmen" (Handoff-Schluss) — überwiegend geteilt
 
-Bruch-Anteile (Zähler/Nenner), Pagination, sprechende `TXN-…`-IDs, keine Bank-Parser: alle vier
-Einschätzungen teile ich uneingeschränkt — Runde 2 ist hier überlegen.
+Bruch-Anteile (Zähler/Nenner), Pagination, keine Bank-Parser: diese Einschätzungen teile ich
+uneingeschränkt — Runde 2 ist hier überlegen.
+
+**Nachtrag (Nutzerentscheid):** Bei den IDs wurde umgesteuert. Die sprechenden
+`TXN-YYYYMMDD-NNNNNN` waren zwar menschenlesbarer als die One-Shot-Hash-IDs, gaben aber Datum und
+laufende Nummer preis (auch in Deep-Link-URLs). Auf Wunsch jetzt **opake** `TXN-<uuid>`/`TRF-<uuid>`
+(UUID v4): unique, ohne Informationsgehalt. Bestand (2664 Transaktionen) und Fixtures migriert.
 
 ---
 

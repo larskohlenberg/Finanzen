@@ -1621,6 +1621,55 @@ button.roadmap-card-link:focus-visible {
   border-radius: var(--radius-tight);
 }
 
+/* SVG-Liniendiagramm (app/charts.mjs): theme-fähig über CSS-Variablen. */
+.diagramm-wrap {
+  margin: 0 0 14px;
+}
+
+.linien-diagramm {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.diagramm-flaeche {
+  fill: var(--accent-soft);
+  stroke: none;
+}
+
+.diagramm-linie {
+  stroke: var(--accent);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.diagramm-nulllinie {
+  stroke: var(--danger);
+  stroke-width: 1px;
+  stroke-dasharray: 4 3;
+  opacity: 0.7;
+}
+
+.diagramm-tiefpunkt {
+  fill: var(--accent-strong);
+}
+
+.diagramm-tiefpunkt.negativ {
+  fill: var(--danger);
+}
+
+.diagramm-label {
+  fill: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.diagramm-label.negativ {
+  fill: var(--danger);
+}
+
 /* In-App-Validierungsbanner: gleiche Logik wie das CLI, oben in jeder Ansicht. */
 .validation-banner {
   margin: 0 0 16px;

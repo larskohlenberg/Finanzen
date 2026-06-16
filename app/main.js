@@ -2,8 +2,9 @@ import { computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, defaultHorizon
 import { loadFinanceData } from "./data-loader.mjs";
 import { formatIban, matchesQuery } from "./tools/lib/text.mjs";
 import { iconSvg } from "./icons.js";
-import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
+import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents, restschuldHeute } from "./vermoegen.mjs";
 import { validateMasterData } from "./tools/validate-core.mjs";
+import { linienDiagramm } from "./charts.mjs";
 
 const app = document.querySelector("#app");
 
@@ -1086,6 +1087,25 @@ function heuteIso() {
   return localTodayIso();
 }
 
+// Saldo-Punktserie als Liniendiagramm (Beträge in Cent). Leere/zu kurze Serien
+// liefern nichts — die zugehörige Tabelle bleibt die Quelle der Wahrheit.
+function saldoLinie(punkte, ariaLabel) {
+  if (!punkte || punkte.length < 2) return "";
+  const svg = linienDiagramm(punkte, { formatWert: (cents) => formatMoney(cents), ariaLabel });
+  return svg ? `<div class="diagramm-wrap">${svg}</div>` : "";
+}
+
+// Prognose-Saldo je erwartetem Termin als flache Punktserie (Startsaldo + jeder Posten).
+function prognosePunkte(prognose) {
+  const punkte = [{ wert: prognose.start_saldo_cents }];
+  for (const periode of prognose.perioden) {
+    for (const monat of periode.monate) {
+      for (const posten of monat.posten) punkte.push({ wert: posten.saldo_cents });
+    }
+  }
+  return punkte;
+}
+
 function renderSaldoVerlauf(verlauf, emptyKey) {
   if (!verlauf.length) return `<p class="muted">${escapeHtml(t(emptyKey))}</p>`;
   return `
@@ -1151,6 +1171,7 @@ function renderLiquiditaet() {
     <p class="page-lead section-note">${escapeHtml(t("liquiditaet.incompleteNote"))}</p>
     <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(t("liquiditaet.ist"))} · ${escapeHtml(t("liquiditaet.monthlyTable"))}</h2>
+      ${saldoLinie(ist.monatsverlauf.map((p) => ({ wert: p.saldo_cents })), `${t("liquiditaet.balance")}: ${formatMoney(ist.monatsverlauf.at(0)?.saldo_cents ?? 0)} → ${formatMoney(ist.monatsverlauf.at(-1)?.saldo_cents ?? 0)}`)}
       ${renderSaldoVerlauf(ist.monatsverlauf, "liquiditaet.emptyIst")}
     </section>
     <section class="panel panel-pad section-spacing">
@@ -1161,6 +1182,7 @@ function renderLiquiditaet() {
           <input type="date" data-control="liquiditaet-bis" value="${escapeHtml(state.liquiditaet.bisDatum)}" />
         </label>
       </div>
+      ${saldoLinie(prognosePunkte(prognose), `${t("liquiditaet.prognose")}: ${formatMoney(prognose.start_saldo_cents)} → ${formatMoney(prognose.end_saldo_cents)}`)}
       ${renderLiquiditaetPrognoseDetail(prognose)}
     </section>
   `;
@@ -1633,6 +1655,7 @@ function renderVermoegenDetail(p, today) {
         : detailRow(t("vermoegen.anker"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + detailRow(t("vermoegen.restschuld"),
           `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(Math.abs(p.wert_cents)))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`)
+      + restschuldVerlaufRow(dar, today)
       + (dar?.zinssatz ? detailRow(t("vermoegen.zinssatz"), `${escapeHtml(dar.zinssatz)} %`) : "")
       + (dar?.sollrate ? detailRow(t("vermoegen.rate"), `${escapeHtml(formatMoney(cents(dar.sollrate)))} / ${escapeHtml(rhythmusLabel(dar.rhythmus_einheit, dar.rhythmus_intervall))}`) : "")
       + (verknuepft.length ? detailRow(t("vermoegen.verknuepft"), verknuepft.join(" · ")) : "")
@@ -1640,6 +1663,19 @@ function renderVermoegenDetail(p, today) {
   }
 
   return head;
+}
+
+// Restschuld-Verlauf seit Anker als Linie (Anker + je Ratentermin). Die Nulllinie
+// der Komponente zeigt den Weg zur Null (abbezahlt). Erst ab zwei Punkten.
+function restschuldVerlaufRow(dar, today) {
+  if (!dar) return "";
+  const r = restschuldHeute(dar, data.zeitwerte, today);
+  if (!r.punkte || r.punkte.length < 2) return "";
+  const svg = saldoLinie(
+    r.punkte.map((pt) => ({ wert: pt.wert_cents })),
+    `${t("vermoegen.restschuldVerlauf")}: ${formatMoney(r.punkte[0].wert_cents)} → ${formatMoney(r.punkte.at(-1).wert_cents)}`,
+  );
+  return svg ? detailRow(t("vermoegen.restschuldVerlauf"), svg) : "";
 }
 
 function rhythmusLabel(einheit, intervall) {

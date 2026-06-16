@@ -79,18 +79,18 @@ Begründung:
 1. **Monatsend-Klemmung — ☑️ bereits vorhanden UND getestet.** `addInterval` klemmt via `Math.min(d, lastDay)` ([liquiditaet.mjs:37](../../app/liquiditaet.mjs)); `occurrences` rechnet Anker × Intervall (driftfrei). Test „addInterval addiert Monate mit Monatsende-Clamping" existiert. Der Handoff-Testfall 31.01.→28.02.→31.03.→30.04. läuft korrekt.
 2. **Qualität in die Prognose — ❌/N.A.** Regelzahlungen haben kein Qualitätsfeld; das Modell trennt stattdessen `bestaetigt`/`vorgeschlagen`, und die Prognose schließt Vorschläge sichtbar aus (`vorschlaege_nicht_enthalten`). Das „geschätzte Regelzahlung"-Konzept der Referenz existiert hier nicht.
 3. **„Nächste Fälligkeit" je Regelzahlung — ✅ umgesetzt.** `naechsteFaelligkeit(rz, today)` in [liquiditaet.mjs](../../app/liquiditaet.mjs) (gleiche driftfreie Expansion + Monatsend-Klemmung wie `occurrences`, respektiert `aktiv_bis`); neue Spalte in der Regelzahlungs-Liste, abgelehnte/abgelaufene Einträge zeigen „—". Tests in `m4-liquiditaet`. Visuell verifiziert (u. a. Anker 31.01. → 30.06.).
-4. **Liquiditätsverlauf als Liniendiagramm — ⏭️** Die Punkteserie liegt bereits vor (`monatsverlauf`/`verlauf`); es fehlt nur die SVG-Komponente. Siehe §8.2.
+4. **Liquiditätsverlauf als Liniendiagramm — ✅ umgesetzt.** Ist-Saldo und Prognose-Saldo erscheinen als Linie (jeder erwartete Termin ein Punkt) über den jeweiligen Tabellen; die Nulllinie beantwortet „wann kippt es?". Komponente siehe §8.2.
 
 ## §7 Vermögen und Darlehen — ☑️/⏭️
 
-1. **Restschuld-Verlauf statt nur Stichtag — ⏭️** `restschuldHeute` iteriert die Fälligkeiten bereits; das `punkte`-Array zu exportieren ist billig — aber ohne Diagramm (§8.2) wäre es toter Code. Zusammen mit der Chart-Komponente sinnvoll.
+1. **Restschuld-Verlauf statt nur Stichtag — ✅ umgesetzt.** `restschuldHeute` liefert jetzt ein `punkte`-Array (Anker + je Ratentermin); die Darlehen-Detailansicht zeigt es als Linie (Weg zur Null = abbezahlt). Test in `m5-vermoegen` (Anker zuerst, monoton fallend, endet beim Stichtagswert). Visuell verifiziert (200.000 € → 0 über die Laufzeit).
 2. **Fehlender Marktwert = Position bleibt sichtbar — ☑️ bereits erfüllt** (anders modelliert): `computeNettovermoegen` pusht **jede** Position, fehlender Wert als `fehlt:true`, `wert_cents:0`, `qualitaet:null` ([vermoegen.mjs](../../app/vermoegen.mjs)). Keine Position verschwindet still. Der Worst-of-Badge (§2) macht das jetzt zusätzlich als Gesamtaussage sichtbar.
 3. **Bargeld als explizite Entscheidung — ☑️ bereits umgesetzt.** Kontotyp `bar` existiert und wird in Liquidität und Vermögen bewusst ignoriert; CONTEXT.md benennt den blinden Fleck. Die Guardrail-Formulierung ist eine **M6**-Aufgabe, hier verfrüht.
 
 ## §8 Review-UI — ⏭️ sinnvoll, eigener Schritt
 
 1. **Deep-Links (`#/transaktionen/…`) — ⏭️** Kein Hash-Routing vorhanden. Echte Lücke, aber primär M8-Vorbereitung (Checks verlinken auf Datensätze). Eigener, fokussierter Schritt im 2.164-Zeilen-`main.js`.
-2. **SVG-Liniendiagramm — ⏭️** Daten vorhanden, Komponente fehlt. Nice-to-have; die Tabellen beantworten „wie viel?" schon. Bündeln mit §6.4/§7.1.
+2. **SVG-Liniendiagramm — ✅ umgesetzt.** Wiederverwendbare, library-freie Komponente [charts.mjs](../../app/charts.mjs) (`linienDiagramm`), theme-fähig über CSS-Variablen, mit Nulllinie + Tiefpunkt-Markierung. Eingesetzt für Liquidität (§6.4) und Restschuld (§7.1). Unit-Tests in `charts.test.mjs`.
 3. **Validierungsfehler in der App (rotes Banner) — ✅ umgesetzt.** Die pure Validierungslogik liegt jetzt in [validate-core.mjs](../../app/tools/validate-core.mjs) (browserfähig, ohne Node-I/O); `validator.mjs` ist ein dünner Node-Wrapper (CLI + Datei-I/O). Beide nutzen **dieselbe** Logik. `main.js` validiert den geladenen Bestand einmal beim Laden; Erfolg → grüner Status-Chip, Fehler → rotes Banner mit Fehlerliste oben in jeder Ansicht + roter Chip. Das alte „Validierung extern"-Framing wurde abgelöst (Contract-Test entsprechend aktualisiert). Beide Pfade im Browser verifiziert.
 
 ## §9 `main.js` modularisieren — ⏭️ bewusst NICHT in diesem Branch
@@ -122,10 +122,11 @@ Einschätzungen teile ich uneingeschränkt — Runde 2 ist hier überlegen.
 | §8.3 | Pure Validierung in `validate-core.mjs`; In-App-Banner + Status-Chip (gleiche Logik wie CLI) |
 | §3-Bonus | Kategorisierungsregeln im Master-Validator (referenzielle Integrität + Schema) |
 | §6.3 | `naechsteFaelligkeit` + Spalte in der Regelzahlungs-Liste |
+| §8.2/§6.4/§7.1 | `charts.mjs` (SVG-Linie); Liquiditäts- + Restschuld-Verlauf als Diagramm |
 | Dev-Server | `serve_app.py` mit optionalem Port; `launch.json` nutzt no-cache-Server (stale ES-Module behoben) |
-| Tests | 157 grün; `validate:master` grün; UI verifiziert |
+| Tests | 163 grün; `validate:master` grün; UI verifiziert |
 
 **Verschoben (empfohlene Reihenfolge):**
-§8.2/§6.4/§7.1 Liniendiagramm + Verläufe → §8.1 Deep-Links → §9 `main.js`-Split.
+§8.1 Deep-Links → §9 `main.js`-Split.
 **Abgelehnt mit Begründung:** §3 `regex-ungueltig` (N.A.), §4 append-only, §5.1 alles-oder-nichts,
 §5.3 Auto-Anker, §10 Serverschutz (jetzt).

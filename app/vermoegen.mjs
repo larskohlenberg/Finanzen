@@ -48,13 +48,17 @@ export function restschuldHeute(darlehen, zeitwerte, today) {
   const rateCents = toCents(darlehen.sollrate);
   const zinssatzProzent = Number(darlehen.zinssatz); // % p.a., kein Cent-Wert
   const ppj = PERIODEN_PRO_JAHR[darlehen.rhythmus_einheit] / darlehen.rhythmus_intervall;
+  // Die Fortschreibung erzeugt die Zwischenstände ohnehin — als Verlauf festhalten
+  // (Anker + je Ratentermin), damit die UI nicht nur den Stichtagswert zeigt.
+  const punkte = [{ datum: anker.standdatum, wert_cents: rest }];
   for (const datum of faelligkeiten(darlehen, anker.standdatum, today)) {
     const zinsCents = Math.round((rest * zinssatzProzent) / 100 / ppj);
     const tilgung = rateCents - zinsCents;
     rest -= tilgung;
     if (rest < 0) rest = 0;
+    punkte.push({ datum, wert_cents: rest });
   }
-  return { wert_cents: rest, basis: "anker+tilgung", standdatum: anker.standdatum, qualitaet: anker.qualitaet };
+  return { wert_cents: rest, basis: "anker+tilgung", standdatum: anker.standdatum, qualitaet: anker.qualitaet, punkte };
 }
 
 // Fälligkeitstermine eines Darlehens strikt nach `nach` (exklusiv) bis `bis` (inklusiv).

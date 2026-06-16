@@ -42,6 +42,19 @@ test("computeNettovermoegen traegt worst-of als Gesamtqualitaet", () => {
   assert.equal(computeNettovermoegen(ohneMarktwert, "2026-03-15").qualitaet.gesamt, "offen");
 });
 
+test("restschuldHeute liefert den Verlauf seit Anker (Anker zuerst, monoton fallend)", () => {
+  const dar = vollDaten().darlehen[0];
+  const zw = vollDaten().zeitwerte;
+  const r = restschuldHeute(dar, zw, "2026-06-15");
+  assert.ok(Array.isArray(r.punkte) && r.punkte.length >= 2);
+  // Erster Punkt ist der Anker.
+  assert.equal(r.punkte[0].datum, "2026-01-31");
+  assert.equal(r.punkte[0].wert_cents, 20000000);
+  // Restschuld faellt monoton (Annuitaet) und endet beim Stichtagswert.
+  for (let i = 1; i < r.punkte.length; i++) assert.ok(r.punkte[i].wert_cents <= r.punkte[i - 1].wert_cents);
+  assert.equal(r.punkte.at(-1).wert_cents, r.wert_cents);
+});
+
 test("aktuellerZeitwert nimmt den jüngsten Eintrag pro (entitaet_id, feld)", () => {
   const zw = [
     { entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "1000.00", standdatum: "2026-01-31", qualitaet: "belegt" },

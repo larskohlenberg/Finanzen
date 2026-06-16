@@ -1,8 +1,26 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import test from "node:test";
 
-const main = readFileSync(new URL("../app/main.js", import.meta.url), "utf8");
+// Der App-Code ist modularisiert (main.js + runtime/komponenten/views/*). Die
+// Contract-Pruefungen gelten fuer den GESAMTEN UI-Code, nicht eine Datei — daher
+// alle App-JS-Module (ohne data/Belege) zu einem String zusammenfassen.
+function readAppJs(dir) {
+  let out = "";
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === "data" || entry.name === "Belege") continue;
+    if (entry.name === "i18n.js") continue; // Woerterbuch, separat als `i18n` geprueft
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out += readAppJs(full);
+    else if (/\.(mjs|js)$/.test(entry.name)) out += readFileSync(full, "utf8") + "\n";
+  }
+  return out;
+}
+
+const appDir = fileURLToPath(new URL("../app", import.meta.url));
+const main = readAppJs(appDir);
 const css = readFileSync(new URL("../app/styles.css", import.meta.url), "utf8");
 const i18n = readFileSync(new URL("../app/i18n.js", import.meta.url), "utf8");
 

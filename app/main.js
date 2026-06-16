@@ -1,140 +1,14 @@
-import { computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, defaultHorizonEnd, naechsteFaelligkeit, toCents, localTodayIso } from "./liquiditaet.mjs";
-import { loadFinanceData } from "./data-loader.mjs";
+import { computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, defaultHorizonEnd, naechsteFaelligkeit, localTodayIso } from "./liquiditaet.mjs";
 import { formatIban, matchesQuery } from "./tools/lib/text.mjs";
 import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents, restschuldHeute } from "./vermoegen.mjs";
-import { validateMasterData } from "./tools/validate-core.mjs";
 import { linienDiagramm } from "./charts.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
-
-const app = document.querySelector("#app");
-
-function showBootstrapError(error) {
-  if (!app) return;
-  app.innerHTML = `
-    <div class="bootstrap-error" role="alert">
-      <h1>Daten konnten nicht geladen werden</h1>
-      <p>Die Masterdaten (<code>data/master/*</code>) oder die Sprachdatei (<code>i18n.js</code>) wurden nicht oder unvollständig geladen.</p>
-      <p>Bitte die Seite über den lokalen Webserver öffnen und neu laden. Falls das Problem bestehen bleibt, Datenbestand und Serverpfade prüfen.</p>
-      <p><code>${escapeHtml(error?.message || "Unbekannter Ladefehler")}</code></p>
-    </div>`;
-}
-
-async function bootstrap() {
-  try {
-    const loadedData = await loadFinanceData();
-    const loadedDictionaries = window.FINANCE_I18N;
-    if (!loadedData || !Array.isArray(loadedData.personen) || !Array.isArray(loadedData.konten) || !loadedDictionaries) {
-      throw new Error("FINANCE_I18N oder geladene Masterdaten fehlen/unvollstaendig.");
-    }
-    return { data: loadedData, dictionaries: loadedDictionaries };
-  } catch (error) {
-    showBootstrapError(error);
-    throw error;
-  }
-}
-
-const { data, dictionaries } = await bootstrap();
-data.regelzahlungen = data.regelzahlungen ?? [];
-
-// "Das Tool prueft" gilt auch in der UI: dieselbe Validator-Logik wie das CLI
-// laeuft einmal beim Laden ueber den geladenen Bestand (Reload = voller Page-
-// Reload, also reicht einmal). Ergebnis treibt Status-Chip und Fehlerbanner.
-data.validation = validateMasterData(data);
-data.metadata = { ...data.metadata, validation: data.validation.valid ? "passed" : "failed" };
-
-const storageKeys = {
-  lang: "finance-m2-language",
-  theme: "finance-m2-theme",
-  sidebarCollapsed: "finance-m2-sidebar-collapsed",
-};
-
-// Reihenfolge gilt fuer Desktop-Sidebar UND mobile Tab-Bar/Mehr-Menue
-// (beide leiten sie hieraus ab). vermoegen vor regelzahlungen, damit die
-// Kernsichten der mobilen Tab-Bar zusammenhaengen.
-const navItems = [
-  ["overview", "nav.overview", "overview"],
-  ["transactions", "nav.transactions", "transactions"],
-  ["liquiditaet", "nav.liquiditaet", "liquiditaet"],
-  ["vermoegen", "nav.vermoegen", "vermoegen"],
-  ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
-  ["masterdata", "nav.masterdata", "masterdata"],
-  ["checks", "nav.checks", "checks"],
-  ["export", "nav.export", "export"],
-];
-
-// Mobile Bottom-Tab-Bar: die vier Kernsichten als Tabs, der Rest im Mehr-Menü.
-// Liquidität bleibt Tab, weil sie die führende Geldsicht ist (ADR 0016).
-const TABBAR_VIEWS = ["overview", "transactions", "liquiditaet", "vermoegen"];
-
-const state = {
-  view: "overview",
-  lang: localStorage.getItem(storageKeys.lang) || "de",
-  theme: localStorage.getItem(storageKeys.theme) || "system",
-  sidebarCollapsed: localStorage.getItem(storageKeys.sidebarCollapsed) === "true",
-  transactionFilters: {
-    account: "",
-    status: "",
-    category: "",
-    transfer: "",
-    search: "",
-    timeMode: "none",
-    dateFrom: "",
-    dateTo: "",
-    month: "",
-    quarterYear: "",
-    quarter: "1",
-    year: "",
-  },
-  transactionPage: 1,
-  pageSize: 10,
-  selectedTransactionId: "",
-  detailRailClosed: false,
-  masterSection: "konten",
-  selectedKonto: "",
-  moreMenuOpen: false,
-  liquiditaet: {
-    granularitaet: "monat",
-    bisDatum: defaultHorizonEnd(data.regelzahlungen, localTodayIso()),
-  },
-  liquiditaetExpanded: new Set(),
-  vermoegenFilters: {
-    klasse: "",
-    qualitaet: "",
-  },
-  vermoegenSort: { key: "klasse", dir: "asc" },
-  selectedVermoegenId: "",
-  vermoegenDetailRailClosed: false,
-  vermoegenRailMode: "position",
-  vermoegenRailWide: false,
-};
-
-const personenById = new Map(data.personen.map((person) => [person.person_id, person]));
-const kontenById = new Map(data.konten.map((konto) => [konto.konto_id, konto]));
-const kategorienById = new Map(data.kategorien.map((kategorie) => [kategorie.kategorie_id, kategorie]));
-const transaktionenById = new Map(data.transaktionen.map((transaktion) => [transaktion.transaktion_id, transaktion]));
-const transfersById = new Map(data.transfers.map((transfer) => [transfer.transfer_id, transfer]));
-
-function t(path) {
-  const parts = path.split(".");
-  let current = dictionaries[state.lang] || dictionaries.de;
-  for (const part of parts) {
-    current = current?.[part];
-  }
-  if (typeof current === "string") return current;
-  return path;
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-const cents = toCents;
+import {
+  app, data, state, storageKeys, navItems, TABBAR_VIEWS,
+  personenById, kontenById, kategorienById, transaktionenById, transfersById,
+  t, escapeHtml, cents,
+} from "./runtime.mjs";
 
 function formatMoney(amountInCents) {
   return new Intl.NumberFormat(state.lang === "de" ? "de-DE" : "en-US", {

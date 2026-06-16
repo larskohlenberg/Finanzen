@@ -1621,6 +1621,56 @@ button.roadmap-card-link:focus-visible {
   border-radius: var(--radius-tight);
 }
 
+/* In-App-Validierungsbanner: gleiche Logik wie das CLI, oben in jeder Ansicht. */
+.validation-banner {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--text);
+}
+
+.validation-banner:focus {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
+}
+
+.validation-banner-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--danger);
+  font-size: 15px;
+}
+
+.validation-banner-head svg {
+  width: 18px;
+  height: 18px;
+}
+
+.validation-banner-lead {
+  margin: 6px 0 10px;
+  color: var(--text);
+}
+
+.validation-banner-list {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 240px;
+  overflow-y: auto;
+  display: grid;
+  gap: 4px;
+}
+
+.validation-banner-list code {
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: var(--radius-tight);
+  font-size: 12px;
+}
+
 /* Nutzer mit prefers-reduced-motion: Transitions/Animationen praktisch aus. */
 @media (prefers-reduced-motion: reduce) {
   *,

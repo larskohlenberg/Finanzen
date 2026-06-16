@@ -3,6 +3,7 @@ import { loadFinanceData } from "./data-loader.mjs";
 import { formatIban, matchesQuery } from "./tools/lib/text.mjs";
 import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
+import { validateMasterData } from "./tools/validate-core.mjs";
 
 const app = document.querySelector("#app");
 
@@ -33,6 +34,12 @@ async function bootstrap() {
 
 const { data, dictionaries } = await bootstrap();
 data.regelzahlungen = data.regelzahlungen ?? [];
+
+// "Das Tool prueft" gilt auch in der UI: dieselbe Validator-Logik wie das CLI
+// laeuft einmal beim Laden ueber den geladenen Bestand (Reload = voller Page-
+// Reload, also reicht einmal). Ergebnis treibt Status-Chip und Fehlerbanner.
+data.validation = validateMasterData(data);
+data.metadata = { ...data.metadata, validation: data.validation.valid ? "passed" : "failed" };
 
 const storageKeys = {
   lang: "finance-m2-language",
@@ -320,6 +327,7 @@ function render() {
     ${renderSidebar()}
     <main class="main" id="main-content" tabindex="-1">
       ${renderTopbar()}
+      ${renderValidationBanner()}
       ${renderView()}
     </main>
     ${renderTabbar()}
@@ -398,7 +406,9 @@ function renderTopbar() {
     <header class="topbar">
       <div class="work-status">
         <strong>${escapeHtml(t("chrome.workStatus"))}</strong>
-        <span class="chip neutral" title="${escapeHtml(t("chrome.validationExternalHint"))}">${iconSvg("neutral")}${escapeHtml(t("chrome.validationExternal"))}</span>
+        ${data.validation?.valid
+          ? `<span class="chip success" title="${escapeHtml(t("chrome.validationPassedHint"))}">${iconSvg("success")}${escapeHtml(t("chrome.validationPassed"))}</span>`
+          : `<button class="chip danger linkish" data-action="show-validation" title="${escapeHtml(t("chrome.validationFailedHint"))}">${iconSvg("warning")}${data.validation?.errors.length ?? 0} ${escapeHtml(t("chrome.validationFailed"))}</button>`}
         <button class="chip neutral linkish" data-action="reload-data" aria-label="${escapeHtml(t("chrome.reloadData"))}" title="${escapeHtml(t("chrome.reloadData"))}">${iconSvg("regelzahlungen")}${escapeHtml(t("chrome.reloadData"))}</button>
         <button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
@@ -417,6 +427,30 @@ function renderTopbar() {
       </div>
     </header>
   `;
+}
+
+// Rotes Banner ueber jeder Ansicht, wenn der geladene Bestand den Datenvertrag
+// verletzt — gleiche Logik wie `npm run validate:master`. Sichtbar machen statt
+// still falsch rechnen. Liste gedeckelt, damit ein kaputter Bestand die UI nicht sprengt.
+function renderValidationBanner() {
+  const v = data.validation;
+  if (!v || v.valid) return "";
+  const MAX = 50;
+  const shown = v.errors.slice(0, MAX);
+  const rest = v.errors.length - shown.length;
+  return `
+    <section id="validation-banner" class="validation-banner" role="alert" tabindex="-1">
+      <div class="validation-banner-head">
+        ${iconSvg("warning")}
+        <strong>${escapeHtml(t("chrome.validationBannerTitle"))}</strong>
+        <span class="chip danger">${v.errors.length}</span>
+      </div>
+      <p class="validation-banner-lead">${escapeHtml(t("chrome.validationBannerLead"))}</p>
+      <ul class="validation-banner-list">
+        ${shown.map((e) => `<li><code>${escapeHtml(e)}</code></li>`).join("")}
+      </ul>
+      ${rest > 0 ? `<p class="muted">+${rest} ${escapeHtml(t("chrome.validationBannerMore"))}</p>` : ""}
+    </section>`;
 }
 
 function renderView() {
@@ -1942,6 +1976,14 @@ function handleAction(element) {
   if (action === "show-import-errors") {
     state.view = "checks";
     commitNavigation();
+    return;
+  }
+  if (action === "show-validation") {
+    const banner = document.getElementById("validation-banner");
+    if (banner) {
+      banner.scrollIntoView({ behavior: "smooth", block: "start" });
+      banner.focus();
+    }
     return;
   }
   if (action === "open-account-master") {

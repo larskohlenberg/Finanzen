@@ -48,3 +48,52 @@ test("Validator akzeptiert striktes Betragsformat weiterhin", async () => {
   const base = await loadMasterData();
   assert.equal(validateMasterData(base).valid, true);
 });
+
+function gueltigeRegel(base) {
+  return {
+    regel_id: "REG-001",
+    gegenpartei_pattern: "MusterladenB",
+    konto_id: base.konten[0].konto_id,
+    vorzeichen: "ausgabe",
+    kategorie_id: base.kategorien[0].kategorie_id,
+    status: "aktiv",
+    erstellt_am: "2026-06-16",
+  };
+}
+
+test("Validator akzeptiert gueltige Kategorisierungsregel", async () => {
+  const base = await loadMasterData();
+  const result = validateMasterData({ ...base, kategorisierungsregeln: [gueltigeRegel(base)] });
+  assert.equal(result.valid, true, result.errors.join("\n"));
+});
+
+test("Validator lehnt Regel mit nicht existierender kategorie_id ab", async () => {
+  const base = await loadMasterData();
+  const regel = { ...gueltigeRegel(base), kategorie_id: "KAT-999" };
+  const result = validateMasterData({ ...base, kategorisierungsregeln: [regel] });
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /kategorie_id.*KAT-999.*existiert nicht/);
+});
+
+test("Validator lehnt Regel mit nicht existierender konto_id ab", async () => {
+  const base = await loadMasterData();
+  const regel = { ...gueltigeRegel(base), konto_id: "KTO-999" };
+  const result = validateMasterData({ ...base, kategorisierungsregeln: [regel] });
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /konto_id.*KTO-999.*existiert nicht/);
+});
+
+test("Validator lehnt Regel mit Schemaverstoss ab", async () => {
+  const base = await loadMasterData();
+  for (const kaputt of [
+    { regel_id: "REGEL-1" },
+    { vorzeichen: "neutral" },
+    { status: "geloescht" },
+    { gegenpartei_pattern: "" },
+    { erstellt_am: "16.06.2026" },
+  ]) {
+    const regel = { ...gueltigeRegel(base), ...kaputt };
+    const result = validateMasterData({ ...base, kategorisierungsregeln: [regel] });
+    assert.equal(result.valid, false, `Regel ${JSON.stringify(kaputt)} haette abgelehnt werden muessen`);
+  }
+});

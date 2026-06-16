@@ -100,13 +100,15 @@ test("liquiditaetsprognose keeps granularity controls and expandable rows", () =
   assert.match(i18n, /gran:\s*{\s*monat:/);
 });
 
-test("work status chip never claims validation passed unconditionally", () => {
-  // Der Browser validiert nicht (metadata.validation = "not-run-in-browser") —
-  // die UI darf keinen pauschalen Erfolgs-Chip rendern, sondern verweist auf den externen Lauf.
-  assert.doesNotMatch(main, /chrome\.validationPassed/);
-  assert.match(main, /chrome\.validationExternal/);
-  assert.match(i18n, /validationExternal:\s*"Validierung extern"/);
-  assert.match(i18n, /validationExternal:\s*"Validation external"/);
+test("work status chip reflects real in-app validation, never an unconditional pass", () => {
+  // §8.3: Die App validiert jetzt selbst (gleiche Logik wie das CLI). Der Erfolgs-Chip
+  // ist an das echte Ergebnis gebunden, nie pauschal; bei Fehlern erscheint ein Banner.
+  // Das alte "Validierung extern"-Framing ist damit abgeloest.
+  assert.match(main, /data\.validation\?\.valid/);
+  assert.match(main, /chrome\.validationPassed/);
+  assert.match(main, /chrome\.validationFailed/);
+  assert.match(main, /renderValidationBanner\(\)/);
+  assert.doesNotMatch(main, /chrome\.validationExternal/);
 });
 
 test("work status offers an explicit data reload action", () => {

@@ -55,9 +55,11 @@ Prüfung gegen [validator.mjs](../../app/tools/validator.mjs):
 | `dedupe-doppelt` „je Konto" | ☑️ effektiv erfüllt: `dedupe_hash` ist global eindeutig **und** `konto_id` steckt im Hash ([dedupe.mjs:12](../../app/tools/dedupe.mjs)) — „je Konto" ist damit gegenstandslos |
 | `regex-ungueltig` | ❌ **nicht anwendbar**: der Categorizer nutzt Substring-Matching (`includes`), keine RegExp ([categorizer.mjs:8](../../app/tools/categorizer.mjs)). Es gibt keinen Regex zu kompilieren |
 
-Offene **echte** Kleinlücke (über das Handoff hinaus): `kategorisierungsregeln` werden vom
-Master-Validator gar nicht geladen/geprüft (referenzielle Integrität von `kategorie_id`/`konto_id`
-der Regeln). Als eigener kleiner Schritt vorgemerkt — nicht Teil dieses Branches.
+**Echte Kleinlücke (über das Handoff hinaus) — ✅ umgesetzt:** `kategorisierungsregeln` wurden
+vom Master-Validator gar nicht geladen/geprüft. Jetzt nimmt `validate-core.mjs` sie als optionale
+Collection auf (Feld-Schema + Cross-Check: `kategorie_id`/`konto_id` müssen existieren),
+`loadMasterData` lädt sie, Tests in `m1-validator` decken gültige Regel, fehlende Referenzen und
+Schemaverstöße ab. **Kein** „Regex kompiliert"-Check (Categorizer nutzt Substring-Matching).
 
 ## §4 Zeitwerte append-only vertraglich — ❌ nicht übernommen
 
@@ -89,7 +91,7 @@ Begründung:
 
 1. **Deep-Links (`#/transaktionen/…`) — ⏭️** Kein Hash-Routing vorhanden. Echte Lücke, aber primär M8-Vorbereitung (Checks verlinken auf Datensätze). Eigener, fokussierter Schritt im 2.164-Zeilen-`main.js`.
 2. **SVG-Liniendiagramm — ⏭️** Daten vorhanden, Komponente fehlt. Nice-to-have; die Tabellen beantworten „wie viel?" schon. Bündeln mit §6.4/§7.1.
-3. **Validierungsfehler in der App (rotes Banner) — ⏭️** Sinnvoll und billig im Prinzip („das Tool prüft" auch im Browser): Validator als ES-Modul importieren. Eigener Schritt, weil er den Datenlade-/Render-Pfad berührt.
+3. **Validierungsfehler in der App (rotes Banner) — ✅ umgesetzt.** Die pure Validierungslogik liegt jetzt in [validate-core.mjs](../../app/tools/validate-core.mjs) (browserfähig, ohne Node-I/O); `validator.mjs` ist ein dünner Node-Wrapper (CLI + Datei-I/O). Beide nutzen **dieselbe** Logik. `main.js` validiert den geladenen Bestand einmal beim Laden; Erfolg → grüner Status-Chip, Fehler → rotes Banner mit Fehlerliste oben in jeder Ansicht + roter Chip. Das alte „Validierung extern"-Framing wurde abgelöst (Contract-Test entsprechend aktualisiert). Beide Pfade im Browser verifiziert.
 
 ## §9 `main.js` modularisieren — ⏭️ bewusst NICHT in diesem Branch
 
@@ -117,9 +119,11 @@ Einschätzungen teile ich uneingeschränkt — Runde 2 ist hier überlegen.
 | §1 | `istGueltigerBetrag`; Validator + Importformat strikt; `-0.00`/führende Nullen abgelehnt |
 | §2 | `gesamtQualitaet` (worst-of) + Nettovermögens-Badge; **kein** Enum-Eingriff |
 | §5.2 | expliziter Byte-identisch-Idempotenztest |
-| Tests | +13 (151 grün); `validate:master` grün |
+| §8.3 | Pure Validierung in `validate-core.mjs`; In-App-Banner + Status-Chip (gleiche Logik wie CLI) |
+| §3-Bonus | Kategorisierungsregeln im Master-Validator (referenzielle Integrität + Schema) |
+| Tests | 155 grün; `validate:master` grün; beide UI-Pfade im Browser verifiziert |
 
-**Verschoben (empfohlene Reihenfolge):** §8.3 In-App-Validierung → §6.3 „Nächste Fälligkeit" →
+**Verschoben (empfohlene Reihenfolge):** §6.3 „Nächste Fälligkeit" →
 §8.2/§6.4/§7.1 Liniendiagramm + Verläufe → §8.1 Deep-Links → §9 `main.js`-Split.
 **Abgelehnt mit Begründung:** §3 `regex-ungueltig` (N.A.), §4 append-only, §5.1 alles-oder-nichts,
 §5.3 Auto-Anker, §10 Serverschutz (jetzt).

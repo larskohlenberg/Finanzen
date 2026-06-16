@@ -93,11 +93,18 @@ Begründung:
 2. **SVG-Liniendiagramm — ✅ umgesetzt.** Wiederverwendbare, library-freie Komponente [charts.mjs](../../app/charts.mjs) (`linienDiagramm`), theme-fähig über CSS-Variablen, mit Nulllinie + Tiefpunkt-Markierung. Eingesetzt für Liquidität (§6.4) und Restschuld (§7.1). Unit-Tests in `charts.test.mjs`.
 3. **Validierungsfehler in der App (rotes Banner) — ✅ umgesetzt.** Die pure Validierungslogik liegt jetzt in [validate-core.mjs](../../app/tools/validate-core.mjs) (browserfähig, ohne Node-I/O); `validator.mjs` ist ein dünner Node-Wrapper (CLI + Datei-I/O). Beide nutzen **dieselbe** Logik. `main.js` validiert den geladenen Bestand einmal beim Laden; Erfolg → grüner Status-Chip, Fehler → rotes Banner mit Fehlerliste oben in jeder Ansicht + roter Chip. Das alte „Validierung extern"-Framing wurde abgelöst (Contract-Test entsprechend aktualisiert). Beide Pfade im Browser verifiziert.
 
-## §9 `main.js` modularisieren — ⏭️ bewusst NICHT in diesem Branch
+## §9 `main.js` modularisieren — ✅ umgesetzt (eigener Branch `refactor/main-js-split`)
 
-2.164 Zeilen, der Schmerz ist real. Aber: ein reiner Großrefactor gehört **nicht** in denselben
-Branch wie Verhaltensänderungen — das macht das Review unzumutbar. Als eigener, durch
-`ui-layout-contract.test.mjs` abgesicherter Schritt vor M6 sinnvoll.
+Auf einem eigenen Branch (reiner Refactor, getrennt von den Verhaltensänderungen). `main.js`
+**2.306 → 689 Zeilen (−70%)**, je View ein Modul, plus geteiltes Fundament:
+- `runtime.mjs` (Bestand, Zustand, `t`, Maps, Bootstrap), `komponenten.mjs` (Formatierer, Chips,
+  Filter-/Tabellen-Bausteine, Konten-Tabelle), `selektoren.mjs` (Bestands-Ableitungen).
+- `views/`: uebersicht, transaktionen, liquiditaet, vermoegen, regelzahlungen, stammdaten, checks, export.
+- `main.js` ist jetzt Orchestrator: App-Shell, Event-Delegation, `handleAction`, History/Routing.
+
+Inkrementell in 7 verifizierten Commits; `ui-layout-contract.test.mjs` liest nun den gesamten
+App-JS-Code. 168 Tests grün; alle 8 Views + Deep-Link/Konto-Link/Sprachwechsel im Browser
+verifiziert, keine Konsolenfehler.
 
 ## §10 Zugriffsschutz Webserver — ❌ jetzt nicht
 
@@ -129,9 +136,10 @@ laufende Nummer preis (auch in Deep-Link-URLs). Auf Wunsch jetzt **opake** `TXN-
 | §6.3 | `naechsteFaelligkeit` + Spalte in der Regelzahlungs-Liste |
 | §8.2/§6.4/§7.1 | `charts.mjs` (SVG-Linie); Liquiditäts- + Restschuld-Verlauf als Diagramm |
 | §8.1 | `routing.mjs` (Hash-Routen); Transaktions-/Konto-Deeplinks, jede View adressierbar |
-| Dev-Server | `serve_app.py` mit optionalem Port; `launch.json` nutzt no-cache-Server (stale ES-Module behoben) |
-| Tests | 169 grün; `validate:master` grün; UI verifiziert |
+| §9 | `main.js` modularisiert (2.306 → 689 Z.); runtime/komponenten/selektoren + 8 View-Module (eigener Branch) |
+| Nachträge | Opake UUID-IDs (Nutzerwunsch); Konto-Link → Stammsatz; Dev-Server no-cache (`serve_app.py`/`launch.json`) |
+| Tests | 168 grün; `validate:master` grün; UI verifiziert |
 
-**Verschoben:** §9 `main.js`-Split (reiner Wartbarkeits-Refactor, eigener Branch).
+**Alle Handoff-Punkte sind damit erledigt oder begründet abgelehnt.**
 **Abgelehnt mit Begründung:** §3 `regex-ungueltig` (N.A.), §4 append-only, §5.1 alles-oder-nichts,
 §5.3 Auto-Anker, §10 Serverschutz (jetzt).

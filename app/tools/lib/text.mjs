@@ -17,6 +17,16 @@ export function toCents(decimalString) {
   return sign * (Number(euros) * 100 + Number((frac + "00").slice(0, 2)));
 }
 
+// Striktes Betragsformat fuer Validator und Import-Eingang: genau zwei
+// Nachkommastellen, keine fuehrenden Nullen (ausser "0"), kein "-0.00".
+// Bewusst strenger als toCents (das nachsichtig konvertiert): an der Daten-
+// grenze gilt "Luecke zeigen statt raten" — ein leerer/krummer Betrag ist ein
+// Fehler, nie still 0,00 EUR.
+const STRIKTER_BETRAG = /^-?(0|[1-9]\d*)\.\d{2}$/;
+export function istGueltigerBetrag(value) {
+  return typeof value === "string" && STRIKTER_BETRAG.test(value) && value !== "-0.00";
+}
+
 export function centsToDecimal(cents) {
   const sign = cents < 0 ? "-" : "";
   const abs = Math.abs(cents);

@@ -9,6 +9,7 @@ import {
   dayDiff,
   formatIban,
   matchesQuery,
+  istGueltigerBetrag,
 } from "../app/tools/lib/text.mjs";
 
 test("normalizeWhitespace trimmt und kollabiert, ohne lowercase", () => {
@@ -66,6 +67,25 @@ test("matchesQuery: leere Suche matcht alles, leere Felder matchen nichts", () =
   assert.equal(matchesQuery(["abc"], ""), true);
   assert.equal(matchesQuery(["abc"], null), true);
   assert.equal(matchesQuery([null, undefined, ""], "x"), false);
+});
+
+test("istGueltigerBetrag akzeptiert striktes Cent-Format", () => {
+  assert.equal(istGueltigerBetrag("0.00"), true);
+  assert.equal(istGueltigerBetrag("1.50"), true);
+  assert.equal(istGueltigerBetrag("-82.45"), true);
+  assert.equal(istGueltigerBetrag("3500.00"), true);
+});
+
+test("istGueltigerBetrag lehnt Luecken, krumme und mehrdeutige Werte ab", () => {
+  assert.equal(istGueltigerBetrag(""), false);      // fehlender Betrag ist Fehler, nie still 0
+  assert.equal(istGueltigerBetrag("1.5"), false);   // nur eine Nachkommastelle
+  assert.equal(istGueltigerBetrag("1,50"), false);  // Komma statt Punkt
+  assert.equal(istGueltigerBetrag("12"), false);    // keine Nachkommastellen
+  assert.equal(istGueltigerBetrag("01.50"), false); // fuehrende Null
+  assert.equal(istGueltigerBetrag("-0.00"), false); // negative Null
+  assert.equal(istGueltigerBetrag("abc"), false);
+  assert.equal(istGueltigerBetrag(null), false);
+  assert.equal(istGueltigerBetrag(150), false);     // kein String
 });
 
 test("dayDiff zaehlt Kalendertage", () => {

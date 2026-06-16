@@ -106,6 +106,23 @@ test("zeilenweise: kaputte Zeile blockiert saubere nicht", () => {
   assert.match(out.result.errors[0].detail, /unbekannt/);
 });
 
+test("Doppel-Import ist idempotent: 0 neu und Bestand byte-identisch", () => {
+  // Invariante, nicht nur Eigenschaft des Dedupe-Hashs: derselbe Import zweimal
+  // -> keine neuen Buchungen, alle als Duplikat erkannt, serialisierter Bestand
+  // exakt gleich (so wie import.mjs ihn nach data/master schreibt).
+  const entries = [
+    entry("KTO-001", "2026-05-20", "-42.80", "MusterladenA Mitte", "Einkauf"),
+    entry("KTO-001", "2026-05-21", "-9.99", "Unbekannt", "x"),
+  ];
+  const serialize = (txs) => txs.map((tx) => JSON.stringify(tx)).join("\n") + "\n";
+  const first = runImport({ entries, konten, kategorien, kategorisierungsregeln: regeln, transaktionen: [], transfers: [] });
+  const bestand = serialize(first.transaktionen);
+  const second = runImport({ entries, konten, kategorien, kategorisierungsregeln: regeln, transaktionen: first.transaktionen, transfers: first.transfers });
+  assert.equal(second.result.written.length, 0);
+  assert.equal(second.result.skipped_dedupe.length, entries.length);
+  assert.equal(serialize(second.transaktionen), bestand);
+});
+
 test("paart Transfer im selben Lauf", () => {
   const out = runImport({
     entries: [

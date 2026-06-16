@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { toCents } from "./lib/text.mjs";
+import { toCents, istGueltigerBetrag } from "./lib/text.mjs";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -57,7 +57,7 @@ const schemas = {
       rohquelle: { type: "string", minLength: 1 },
       konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
       buchungsdatum: { type: "string", format: "date" },
-      betrag: { type: "string", pattern: /^-?\d+\.\d{2}$/ },
+      betrag: { type: "string", money: true },
       gegenpartei: { type: "string" },
       verwendungszweck: { type: "string" },
       kategorisierung_status: { type: "string", enum: ["offen", "vorgeschlagen", "bestaetigt", "abgelehnt"] },
@@ -80,7 +80,7 @@ const schemas = {
     required: ["transfer_id", "betrag", "typ"],
     fields: {
       transfer_id: { type: "string", pattern: /^TRF-\d{8}-\d{3}$/ },
-      betrag: { type: "string", pattern: /^\d+\.\d{2}$/ },
+      betrag: { type: "string", money: true, nonNegative: true },
       typ: { type: "string", enum: ["intern", "extern"] },
       abgang_transaktion_id: { type: "string", pattern: /^TXN-\d{8}-\d{6}$/ },
       zugang_transaktion_id: { type: "string", pattern: /^TXN-\d{8}-\d{6}$/ },
@@ -94,7 +94,7 @@ const schemas = {
     fields: {
       regelzahlung_id: { type: "string", pattern: /^RZ-\d{3}$/ },
       bezeichnung: { type: "string", minLength: 1 },
-      betrag: { type: "string", pattern: /^-?\d+\.\d{2}$/ },
+      betrag: { type: "string", money: true },
       rhythmus_einheit: { type: "string", enum: ["tag", "woche", "monat", "jahr"] },
       rhythmus_intervall: { type: "number", integer: true, min: 1 },
       anker_datum: { type: "string", format: "date" },
@@ -116,7 +116,7 @@ const schemas = {
       status: { type: "string", enum: ["aktiv", "verkauft"] },
       adresse: { type: "string" },
       anschaffungsdatum: { type: "string", format: "date" },
-      anschaffungskosten: { type: "string", pattern: /^-?\d+\.\d{2}$/ },
+      anschaffungskosten: { type: "string", money: true, nonNegative: true },
       quelle_hinweis: { type: "string" },
       quelle_standdatum: { type: "string", format: "date" },
       aktiv_bis: { type: "string", format: "date" },
@@ -130,10 +130,10 @@ const schemas = {
       darlehen_id: { type: "string", pattern: /^DAR-\d{3}$/ },
       bezeichnung: { type: "string", minLength: 1 },
       status: { type: "string", enum: ["aktiv", "abgeloest"] },
-      anfangsbetrag: { type: "string", pattern: /^\d+\.\d{2}$/ },
+      anfangsbetrag: { type: "string", money: true, nonNegative: true },
       anfangsdatum: { type: "string", format: "date" },
       zinssatz: { type: "string", pattern: /^\d+\.\d{2,4}$/ },
-      sollrate: { type: "string", pattern: /^\d+\.\d{2}$/ },
+      sollrate: { type: "string", money: true, nonNegative: true },
       rhythmus_einheit: { type: "string", enum: ["tag", "woche", "monat", "jahr"] },
       rhythmus_intervall: { type: "number", integer: true, min: 1 },
       immobilie_id: { type: "string", pattern: /^IMM-\d{3}$/ },
@@ -167,7 +167,7 @@ const schemas = {
       entitaet: { type: "string", enum: ["konto", "immobilie", "vermoegenswert", "darlehen"] },
       entitaet_id: { type: "string", minLength: 1 },
       feld: { type: "string", enum: ["kontostand", "depotwert", "marktwert", "restschuld"] },
-      wert: { type: "string", pattern: /^-?\d+\.\d{2}$/ },
+      wert: { type: "string", money: true },
       standdatum: { type: "string", format: "date" },
       qualitaet: { type: "string", enum: ["belegt", "geschaetzt"] },
       quelle_hinweis: { type: "string" },
@@ -260,6 +260,12 @@ function validateField(path, value, rule, errors) {
   }
   if (rule.pattern && !rule.pattern.test(value)) {
     errors.push(`${path}: Format ungueltig`);
+  }
+  if (rule.money && !istGueltigerBetrag(value)) {
+    errors.push(`${path}: kein gueltiger Betrag (zwei Nachkommastellen, keine fuehrenden Nullen, kein -0.00)`);
+  }
+  if (rule.nonNegative && istGueltigerBetrag(value) && value.startsWith("-")) {
+    errors.push(`${path}: darf nicht negativ sein`);
   }
   if (rule.format === "date" && !isIsoDate(value)) {
     errors.push(`${path}: muss ISO-Datum YYYY-MM-DD sein`);

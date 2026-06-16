@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { aktuellerZeitwert, kontoWert, restschuldHeute, anteilWertCents, faelligkeiten, computeNettovermoegen, computeVermoegenChecks, STANDDATUM_SCHWELLEN } from "../app/vermoegen.mjs";
+import { aktuellerZeitwert, kontoWert, restschuldHeute, anteilWertCents, faelligkeiten, computeNettovermoegen, computeVermoegenChecks, gesamtQualitaet, STANDDATUM_SCHWELLEN } from "../app/vermoegen.mjs";
 
 function vollDaten() {
   return {
@@ -23,6 +23,24 @@ function vollDaten() {
     ],
   };
 }
+
+test("gesamtQualitaet aggregiert worst-of (belegt < geschaetzt < offen)", () => {
+  assert.equal(gesamtQualitaet([{ qualitaet: "belegt" }, { qualitaet: "belegt" }]), "belegt");
+  assert.equal(gesamtQualitaet([{ qualitaet: "belegt" }, { qualitaet: "geschaetzt" }]), "geschaetzt");
+  assert.equal(gesamtQualitaet([{ qualitaet: "geschaetzt" }, { fehlt: true }]), "offen");
+  assert.equal(gesamtQualitaet([{ qualitaet: "belegt" }, { qualitaet: null }]), "offen");
+  assert.equal(gesamtQualitaet([]), null);
+});
+
+test("computeNettovermoegen traegt worst-of als Gesamtqualitaet", () => {
+  // vollDaten enthaelt belegte und geschaetzte Staende, keine fehlenden -> geschaetzt.
+  const voll = computeNettovermoegen(vollDaten(), "2026-03-15");
+  assert.equal(voll.qualitaet.gesamt, "geschaetzt");
+  // Fehlt ein Marktwert, ist die Gesamtaussage offen, nicht still "vollstaendig".
+  const ohneMarktwert = vollDaten();
+  ohneMarktwert.zeitwerte = ohneMarktwert.zeitwerte.filter((z) => !(z.entitaet === "immobilie"));
+  assert.equal(computeNettovermoegen(ohneMarktwert, "2026-03-15").qualitaet.gesamt, "offen");
+});
 
 test("aktuellerZeitwert nimmt den jüngsten Eintrag pro (entitaet_id, feld)", () => {
   const zw = [

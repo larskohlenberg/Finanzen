@@ -1,5 +1,6 @@
 // app/tools/import-format.mjs
-const betragPattern = /^-?\d+\.\d{2}$/;
+import { istGueltigerBetrag } from "./lib/text.mjs";
+
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const optionalStringFields = [
   "bank_referenz",
@@ -32,8 +33,8 @@ export function validateImportEntry(entry, kontenIds) {
 
   if (typeof entry.betrag !== "string") {
     errors.push("betrag: Pflichtfeld fehlt");
-  } else if (!betragPattern.test(entry.betrag)) {
-    errors.push("betrag: Format ungueltig (erwartet -?\\d+.\\d{2})");
+  } else if (!istGueltigerBetrag(entry.betrag)) {
+    errors.push("betrag: kein gueltiger Betrag (zwei Nachkommastellen, keine fuehrenden Nullen, kein -0.00)");
   }
 
   if (typeof entry.gegenpartei !== "string") errors.push("gegenpartei: muss string sein");

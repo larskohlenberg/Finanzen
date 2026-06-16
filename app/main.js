@@ -1314,6 +1314,15 @@ function qualitaetChip(p) {
   return `<span class="chip ${p.qualitaet === "belegt" ? "success" : "neutral"}">${p.qualitaet === "belegt" ? iconSvg("success") : ""}${escapeHtml(t(`vermoegen.quality${p.qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`))}</span>`;
 }
 
+// Worst-of-Badge: traegt die schlechteste Qualitaet aller Positionen als eine
+// ehrliche Gesamtaussage (belegt < geschaetzt < offen). Quelle: vermoegen.mjs.
+function gesamtQualitaetChip(gesamt) {
+  if (!gesamt) return "";
+  const stil = { belegt: ["success", "success", "Belegt"], geschaetzt: ["neutral", null, "Geschaetzt"], offen: ["review", "review", "Offen"] };
+  const [cls, icon, wort] = stil[gesamt];
+  return `<span class="chip ${cls}">${icon ? iconSvg(icon) : ""}${escapeHtml(t("vermoegen.qualityOverall"))}: ${escapeHtml(t(`vermoegen.quality${wort}`))}</span>`;
+}
+
 function renderVermoegen() {
   const today = localTodayIso();
   const r = computeNettovermoegen(data, today);
@@ -1348,6 +1357,7 @@ function renderVermoegen() {
           <div class="tile tile-static">
             <strong>${escapeHtml(t("vermoegen.qualitaetTitle"))}</strong>
             <div class="count">${r.positionen.length}</div>
+            ${gesamtQualitaetChip(r.qualitaet.gesamt)}
             <span class="chip success">${iconSvg("success")}${r.qualitaet.belegt} ${escapeHtml(t("vermoegen.qualityBelegt"))}</span>
             <span class="chip neutral">${r.qualitaet.geschaetzt} ${escapeHtml(t("vermoegen.qualityGeschaetzt"))}</span>
             ${r.qualitaet.fehlend > 0 ? `<span class="chip review">${iconSvg("review")}${r.qualitaet.fehlend} ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : ""}

@@ -104,6 +104,20 @@ function hatDepotBewegungLetztenMonat(kontoId, transaktionen, today) {
   return (transaktionen ?? []).some((tx) => tx.konto_id === kontoId && tx.buchungsdatum > grenze && tx.buchungsdatum <= today);
 }
 
+// Worst-of-Aggregation: eine Kennzahl ist nur so gut wie ihre schwaechste
+// Eingabe. Dominanz belegt < geschaetzt < offen; eine fehlende Position (kein
+// Zeitwert) zaehlt als "offen". Bewusst abgeleitet statt als Enum-Wert: "offen"
+// ist die ABWESENHEIT eines Belegs, keine eigene Zeitwert-Zeile.
+const QUALITAET_RANG = { belegt: 0, geschaetzt: 1, offen: 2 };
+export function gesamtQualitaet(positionen) {
+  let schlechteste = null;
+  for (const p of positionen ?? []) {
+    const q = p.fehlt || !p.qualitaet ? "offen" : p.qualitaet;
+    if (schlechteste === null || QUALITAET_RANG[q] > QUALITAET_RANG[schlechteste]) schlechteste = q;
+  }
+  return schlechteste;
+}
+
 export function computeNettovermoegen(data, today) {
   const positionen = [];
   let aktiva = 0;
@@ -154,7 +168,7 @@ export function computeNettovermoegen(data, today) {
     passiva_cents: passiva,
     netto_cents: aktiva - passiva,
     positionen,
-    qualitaet: { belegt, geschaetzt, fehlend },
+    qualitaet: { belegt, geschaetzt, fehlend, gesamt: gesamtQualitaet(positionen) },
   };
 }
 

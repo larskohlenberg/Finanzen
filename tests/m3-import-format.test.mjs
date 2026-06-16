@@ -32,7 +32,9 @@ test("fehlender Betrag wird gemeldet", () => {
 });
 
 test("falsches Betragsformat wird gemeldet", () => {
-  assert.match(validateImportEntry({ ...valid, betrag: "42,80" }, kontenIds).join("\n"), /betrag.*Format/);
+  for (const krumm of ["42,80", "1.5", "01.50", "-0.00", ""]) {
+    assert.match(validateImportEntry({ ...valid, betrag: krumm }, kontenIds).join("\n"), /betrag.*gueltiger Betrag/);
+  }
 });
 
 test("unplausibles Datum wird gemeldet", () => {

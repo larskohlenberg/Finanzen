@@ -186,6 +186,8 @@ window.FINANCE_I18N = {
       qualityBelegt: "belegt",
       qualityGeschaetzt: "geschätzt",
       qualityFehlend: "fehlend",
+      qualityOverall: "Gesamt",
+      qualityOffen: "offen",
       incompleteNote: "Bargeld zählt nicht; geplante Sondertilgungen/Zukunft folgen in M6.",
       klasse: {
         konto: "Konto",
@@ -509,6 +511,8 @@ window.FINANCE_I18N = {
       qualityBelegt: "confirmed",
       qualityGeschaetzt: "estimated",
       qualityFehlend: "missing",
+      qualityOverall: "Overall",
+      qualityOffen: "open",
       incompleteNote: "Cash is excluded; planned special repayments/future items follow in M6.",
       klasse: {
         konto: "Account",

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { readFile } from "node:fs/promises";
 import { validateMasterData } from "../app/tools/validator.mjs";
 
@@ -32,3 +33,18 @@ assert.equal(invalidResult.valid, false);
 assert.match(invalidResult.errors.join("\n"), /konto_id.*existiert nicht/);
 assert.match(invalidResult.errors.join("\n"), /kategorie_id.*Pflicht/);
 assert.match(invalidResult.errors.join("\n"), /dedupe_hash.*doppelt/);
+
+test("Validator lehnt -0.00 und fuehrende Nullen als Betrag ab", async () => {
+  const base = await loadMasterData();
+  const tx = base.transaktionen[0];
+  for (const krumm of ["-0.00", "01.50", "1.5", ""]) {
+    const result = validateMasterData({ ...base, transaktionen: [{ ...tx, betrag: krumm }, ...base.transaktionen.slice(1)] });
+    assert.equal(result.valid, false, `Betrag ${JSON.stringify(krumm)} haette abgelehnt werden muessen`);
+    assert.match(result.errors.join("\n"), /betrag.*(gueltiger Betrag|Format)/);
+  }
+});
+
+test("Validator akzeptiert striktes Betragsformat weiterhin", async () => {
+  const base = await loadMasterData();
+  assert.equal(validateMasterData(base).valid, true);
+});

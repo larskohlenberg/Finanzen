@@ -56,7 +56,7 @@ Wirtschaftlicher Traeger einer Transaktion folgt dem **Konto**, nicht der Person
 
 ## Transaktions-ID und Deduplikation
 
-`transaktion_id` ist menschenlesbar und sequenziell: `TXN-YYYYMMDD-000001`. Zusaetzlich traegt jede Transaktion einen `dedupe_hash`. Beim Import prueft die Import-Pipeline, ob der Hash bereits existiert; wenn ja, wird der Datensatz uebersprungen.
+`transaktion_id` ist ein **opaker** Identifier ohne Informationsgehalt: `TXN-<uuid>` (UUID v4). Bewusst **kein** Datum und **keine** laufende Nummer im Identifier — er ist eindeutig, gibt aber nichts ueber Zeitpunkt oder Reihenfolge der Buchung preis (auch nicht in Deep-Link-URLs). `transfer_id` analog: `TRF-<uuid>`. Das Praefix bleibt nur als Typ-Kennung. Zusaetzlich traegt jede Transaktion einen `dedupe_hash`. Beim Import prueft die Import-Pipeline, ob der Hash bereits existiert; wenn ja, wird der Datensatz uebersprungen.
 
 Der Hash wird **zweistufig** gebildet (siehe ADR 0007):
 - Liefert die Bank eine eindeutige Buchungsnummer (`bank_referenz`, z. B. Ende-zu-Ende-ID), basiert der Hash **nur** auf `(konto_id, bank_referenz)`. Das ist die staerkste Eindeutigkeit und ueberlebt Umformatierungen des Verwendungszwecks zwischen zwei Exports.

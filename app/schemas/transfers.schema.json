@@ -8,11 +8,11 @@
     "additionalProperties": false,
     "required": ["transfer_id", "betrag", "typ"],
     "properties": {
-      "transfer_id": { "type": "string", "pattern": "^TRF-\\d{8}-\\d{3}$" },
+      "transfer_id": { "type": "string", "pattern": "^TRF-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
       "betrag": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
       "typ": { "type": "string", "enum": ["intern", "extern"] },
-      "abgang_transaktion_id": { "type": "string", "pattern": "^TXN-\\d{8}-\\d{6}$" },
-      "zugang_transaktion_id": { "type": "string", "pattern": "^TXN-\\d{8}-\\d{6}$" },
+      "abgang_transaktion_id": { "type": "string", "pattern": "^TXN-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+      "zugang_transaktion_id": { "type": "string", "pattern": "^TXN-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
       "gegenseite_typ": { "type": "string", "enum": ["bar", "extern_familie", "extern_sonstiges"] },
       "begruendung": { "type": "string", "minLength": 1 }
     }

@@ -1,19 +1,22 @@
 // app/tools/ids.mjs
-function nextSerial(prefix, existingIds, width) {
-  let max = 0;
-  for (const id of existingIds) {
-    if (id.startsWith(prefix)) {
-      const serial = Number(id.slice(prefix.length));
-      if (Number.isInteger(serial) && serial > max) max = serial;
-    }
-  }
-  return `${prefix}${String(max + 1).padStart(width, "0")}`;
+// Opake Identifier (UUID v4): unique, aber ohne Information ueber die Buchung.
+// Bewusst KEIN Datum/keine laufende Nummer im Identifier (kein Info-Leak, auch
+// nicht in URLs). Das Praefix bleibt nur als Typ-Kennung. Erzeugung gegen den
+// bekannten Bestand auf Kollision geprueft (bei v4 praktisch nie noetig).
+import { randomUUID } from "node:crypto";
+
+function uniqueId(prefix, existingIds) {
+  let id;
+  do {
+    id = `${prefix}${randomUUID()}`;
+  } while (existingIds.has(id));
+  return id;
 }
 
-export function nextTransaktionId(buchungsdatum, existingIds) {
-  return nextSerial(`TXN-${buchungsdatum.replaceAll("-", "")}-`, existingIds, 6);
+export function nextTransaktionId(existingIds) {
+  return uniqueId("TXN-", existingIds);
 }
 
-export function nextTransferId(buchungsdatum, existingIds) {
-  return nextSerial(`TRF-${buchungsdatum.replaceAll("-", "")}-`, existingIds, 3);
+export function nextTransferId(existingIds) {
+  return uniqueId("TRF-", existingIds);
 }

@@ -6,6 +6,9 @@
 import { toCents, istGueltigerBetrag } from "./lib/text.mjs";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+// Opake UUID-Identifier mit Typ-Praefix (kein Datum/keine laufende Nummer).
+const TXN_ID = /^TXN-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const TRF_ID = /^TRF-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const schemas = {
   personen: {
@@ -55,7 +58,7 @@ const schemas = {
       "ist_transfer",
     ],
     fields: {
-      transaktion_id: { type: "string", pattern: /^TXN-\d{8}-\d{6}$/ },
+      transaktion_id: { type: "string", pattern: TXN_ID },
       dedupe_hash: { type: "string", minLength: 1 },
       rohquelle: { type: "string", minLength: 1 },
       konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
@@ -75,18 +78,18 @@ const schemas = {
       empfaenger_iban: { type: "string" },
       mandatsreferenz: { type: "string" },
       glaeubiger_id: { type: "string" },
-      transfer_id: { type: "string", pattern: /^TRF-\d{8}-\d{3}$/ },
+      transfer_id: { type: "string", pattern: TRF_ID },
       bemerkung: { type: "string" },
     },
   },
   transfers: {
     required: ["transfer_id", "betrag", "typ"],
     fields: {
-      transfer_id: { type: "string", pattern: /^TRF-\d{8}-\d{3}$/ },
+      transfer_id: { type: "string", pattern: TRF_ID },
       betrag: { type: "string", money: true, nonNegative: true },
       typ: { type: "string", enum: ["intern", "extern"] },
-      abgang_transaktion_id: { type: "string", pattern: /^TXN-\d{8}-\d{6}$/ },
-      zugang_transaktion_id: { type: "string", pattern: /^TXN-\d{8}-\d{6}$/ },
+      abgang_transaktion_id: { type: "string", pattern: TXN_ID },
+      zugang_transaktion_id: { type: "string", pattern: TXN_ID },
       gegenseite_typ: { type: "string", enum: ["bar", "extern_familie", "extern_sonstiges"] },
       begruendung: { type: "string", minLength: 1 },
     },

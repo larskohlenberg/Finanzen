@@ -27,7 +27,7 @@ export function matchTransfers(transaktionen, existingTransfers) {
 
       const abgang = centsA < 0 ? a : b;
       const zugang = centsA < 0 ? b : a;
-      const transferId = nextTransferId(abgang.buchungsdatum, usedTransferIds);
+      const transferId = nextTransferId(usedTransferIds);
       usedTransferIds.add(transferId);
 
       transfers.push({

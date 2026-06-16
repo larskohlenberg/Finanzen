@@ -104,7 +104,7 @@ function basisMitTransaktion(herkunft) {
   const data = basis();
   data.kategorien.push({ kategorie_id: "KAT-001", name: "Lebensmittel", typ: "ausgabe", lebenshaltung_relevant: true, status: "aktiv" });
   const tx = {
-    transaktion_id: "TXN-20260520-000001", dedupe_hash: "h1", rohquelle: "data/inbox/x.csv",
+    transaktion_id: "TXN-4bacb864-48f3-444b-9523-0e32eb870e63", dedupe_hash: "h1", rohquelle: "data/inbox/x.csv",
     konto_id: "KTO-001", buchungsdatum: "2026-05-20", betrag: "-42.80",
     gegenpartei: "MusterladenA", verwendungszweck: "Einkauf",
     kategorisierung_status: "vorgeschlagen", ist_transfer: false, kategorie_id: "KAT-001",

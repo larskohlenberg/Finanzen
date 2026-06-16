@@ -75,7 +75,7 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
       result.disambiguated.push({ row, basis: basisHash, dedupe_hash });
     }
 
-    const transaktion_id = nextTransaktionId(entry.buchungsdatum, existingIds);
+    const transaktion_id = nextTransaktionId(existingIds);
     existingIds.add(transaktion_id);
     runHashes.add(dedupe_hash);
 

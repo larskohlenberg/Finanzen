@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { routeFromState, parseRoute } from "../app/routing.mjs";
 
 test("routeFromState adressiert die ausgewählte Transaktion", () => {
-  assert.equal(routeFromState({ view: "transactions", selectedTransactionId: "TXN-20260101-000001" }), "#/transaktionen/TXN-20260101-000001");
+  assert.equal(routeFromState({ view: "transactions", selectedTransactionId: "TXN-5347b957-b93e-4453-830d-81eae240aa51" }), "#/transaktionen/TXN-5347b957-b93e-4453-830d-81eae240aa51");
   assert.equal(routeFromState({ view: "transactions", selectedTransactionId: "" }), "#/transaktionen");
 });
 
@@ -20,7 +20,7 @@ test("routeFromState bildet reine Views auf Slugs ab", () => {
 });
 
 test("parseRoute liest Transaktions- und Konto-Deeplinks", () => {
-  assert.deepEqual(parseRoute("#/transaktionen/TXN-20260101-000001"), { view: "transactions", selectedTransactionId: "TXN-20260101-000001" });
+  assert.deepEqual(parseRoute("#/transaktionen/TXN-5347b957-b93e-4453-830d-81eae240aa51"), { view: "transactions", selectedTransactionId: "TXN-5347b957-b93e-4453-830d-81eae240aa51" });
   assert.deepEqual(parseRoute("#/konten/KTO-001"), { view: "masterdata", masterSection: "konten", selectedKonto: "KTO-001" });
   assert.deepEqual(parseRoute("#/vermoegen/darlehen:DAR-001"), { view: "vermoegen", selectedVermoegenId: "darlehen:DAR-001" });
 });
@@ -35,7 +35,7 @@ test("parseRoute liest reine Views und faellt sauber zurueck", () => {
 
 test("routeFromState und parseRoute sind für Deeplinks invers", () => {
   for (const state of [
-    { view: "transactions", selectedTransactionId: "TXN-20260101-000001" },
+    { view: "transactions", selectedTransactionId: "TXN-5347b957-b93e-4453-830d-81eae240aa51" },
     { view: "vermoegen", selectedVermoegenId: "konto:KTO-001" },
     { view: "liquiditaet" },
   ]) {

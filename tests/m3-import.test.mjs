@@ -24,7 +24,7 @@ test("schreibt gueltige Buchung mit Regel-Kategorie", () => {
   assert.equal(out.result.written.length, 1);
   assert.equal(out.transaktionen.length, 1);
   const tx = out.transaktionen[0];
-  assert.equal(tx.transaktion_id, "TXN-20260520-000001");
+  assert.match(tx.transaktion_id, /^TXN-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   assert.equal(tx.kategorie_id, "KAT-003");
   assert.equal(tx.kategorisierung_status, "vorgeschlagen");
   assert.equal(tx.ist_transfer, false);

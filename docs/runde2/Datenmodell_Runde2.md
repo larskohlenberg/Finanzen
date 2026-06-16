@@ -88,7 +88,7 @@ Kein `cashflow_wirkung`-Feld an der Kategorie noetig — der `typ` traegt die Ri
 
 Pflichtfelder:
 
-- `transaktion_id` (Format `TXN-YYYYMMDD-000001`)
+- `transaktion_id` (opak, Format `TXN-<uuid>` — kein Datum/keine Nummer)
 - `dedupe_hash` (siehe `CONTEXT.md > Transaktions-ID und Deduplikation`)
 - `rohquelle` (Pfad zur Import-Datei)
 - `konto_id`
@@ -112,7 +112,7 @@ Kein `cashflow_wirkung`-Feld (Vorzeichen + `ist_transfer` genuegen). Kein `waehr
 
 Pflichtfelder:
 
-- `transfer_id` (Format `TRF-YYYYMMDD-001`)
+- `transfer_id` (opak, Format `TRF-<uuid>`)
 - `betrag` (Decimal-String, positiv)
 - `typ` (`intern | extern`)
 
@@ -172,8 +172,8 @@ Mindestens diese Cross-Field-Regeln muessen im Validator stehen:
 PER-001                    Person
 KTO-001                    Konto
 KAT-001                    Kategorie
-TXN-YYYYMMDD-000001        Transaktion
-TRF-YYYYMMDD-001           Transfer
+TXN-<uuid>                 Transaktion (opak, kein Datum/Nummer)
+TRF-<uuid>                 Transfer (opak)
 REG-001                    Regelzahlung
 IMM-001                    Immobilie
 DAR-001                    Darlehen

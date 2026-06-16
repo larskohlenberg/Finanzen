@@ -59,6 +59,26 @@ export function occurrences(regelzahlung, today, horizonEnd) {
   return dates;
 }
 
+// Naechster erwarteter Termin einer Regelzahlung strikt nach `today`. Gleiche
+// Expansion wie `occurrences` (Anker x Intervall, Monatsend-Klemmung via
+// addInterval), bricht am ersten Treffer ab. Null, wenn die Regelzahlung vor dem
+// naechsten Termin endet (aktiv_bis ueberschritten). Grosser Review-Nutzen:
+// man sieht sofort, ob Rhythmus und Tag stimmen.
+export function naechsteFaelligkeit(regelzahlung, today) {
+  const ende = regelzahlung.aktiv_bis ?? null;
+  let step = 0;
+  let guard = 0;
+  let cur = regelzahlung.anker_datum;
+  while (guard < 100000) {
+    if (ende && cur > ende) return null;
+    if (cur > today) return cur;
+    step++;
+    cur = addInterval(regelzahlung.anker_datum, regelzahlung.rhythmus_einheit, regelzahlung.rhythmus_intervall * step);
+    guard++;
+  }
+  return null;
+}
+
 export function defaultHorizonEnd(regelzahlungen, today, fallbackMonate = 12) {
   let max = null;
   for (const rz of regelzahlungen ?? []) {

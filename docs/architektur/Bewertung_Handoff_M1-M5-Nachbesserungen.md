@@ -78,7 +78,7 @@ Begründung:
 
 1. **Monatsend-Klemmung — ☑️ bereits vorhanden UND getestet.** `addInterval` klemmt via `Math.min(d, lastDay)` ([liquiditaet.mjs:37](../../app/liquiditaet.mjs)); `occurrences` rechnet Anker × Intervall (driftfrei). Test „addInterval addiert Monate mit Monatsende-Clamping" existiert. Der Handoff-Testfall 31.01.→28.02.→31.03.→30.04. läuft korrekt.
 2. **Qualität in die Prognose — ❌/N.A.** Regelzahlungen haben kein Qualitätsfeld; das Modell trennt stattdessen `bestaetigt`/`vorgeschlagen`, und die Prognose schließt Vorschläge sichtbar aus (`vorschlaege_nicht_enthalten`). Das „geschätzte Regelzahlung"-Konzept der Referenz existiert hier nicht.
-3. **„Nächste Fälligkeit" je Regelzahlung — ⏭️** sinnvoll (Review-Nutzen), kleine UI-Ergänzung. Als Folgeschritt.
+3. **„Nächste Fälligkeit" je Regelzahlung — ✅ umgesetzt.** `naechsteFaelligkeit(rz, today)` in [liquiditaet.mjs](../../app/liquiditaet.mjs) (gleiche driftfreie Expansion + Monatsend-Klemmung wie `occurrences`, respektiert `aktiv_bis`); neue Spalte in der Regelzahlungs-Liste, abgelehnte/abgelaufene Einträge zeigen „—". Tests in `m4-liquiditaet`. Visuell verifiziert (u. a. Anker 31.01. → 30.06.).
 4. **Liquiditätsverlauf als Liniendiagramm — ⏭️** Die Punkteserie liegt bereits vor (`monatsverlauf`/`verlauf`); es fehlt nur die SVG-Komponente. Siehe §8.2.
 
 ## §7 Vermögen und Darlehen — ☑️/⏭️
@@ -121,9 +121,11 @@ Einschätzungen teile ich uneingeschränkt — Runde 2 ist hier überlegen.
 | §5.2 | expliziter Byte-identisch-Idempotenztest |
 | §8.3 | Pure Validierung in `validate-core.mjs`; In-App-Banner + Status-Chip (gleiche Logik wie CLI) |
 | §3-Bonus | Kategorisierungsregeln im Master-Validator (referenzielle Integrität + Schema) |
-| Tests | 155 grün; `validate:master` grün; beide UI-Pfade im Browser verifiziert |
+| §6.3 | `naechsteFaelligkeit` + Spalte in der Regelzahlungs-Liste |
+| Dev-Server | `serve_app.py` mit optionalem Port; `launch.json` nutzt no-cache-Server (stale ES-Module behoben) |
+| Tests | 157 grün; `validate:master` grün; UI verifiziert |
 
-**Verschoben (empfohlene Reihenfolge):** §6.3 „Nächste Fälligkeit" →
+**Verschoben (empfohlene Reihenfolge):**
 §8.2/§6.4/§7.1 Liniendiagramm + Verläufe → §8.1 Deep-Links → §9 `main.js`-Split.
 **Abgelehnt mit Begründung:** §3 `regex-ungueltig` (N.A.), §4 append-only, §5.1 alles-oder-nichts,
 §5.3 Auto-Anker, §10 Serverschutz (jetzt).

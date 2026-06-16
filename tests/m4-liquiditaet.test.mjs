@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   addInterval,
   occurrences,
+  naechsteFaelligkeit,
   computeLiquiditaetIst,
   computeLiquiditaetPrognose,
   computeLiquiditaetPrognoseDetail,
@@ -20,6 +21,20 @@ test("addInterval addiert Monate mit Monatsende-Clamping", () => {
 test("occurrences liefert nur Faelligkeiten nach heute bis Horizont", () => {
   const rz = { anker_datum: "2026-01-01", rhythmus_einheit: "monat", rhythmus_intervall: 1 };
   assert.deepEqual(occurrences(rz, "2026-02-01", "2026-04-01"), ["2026-03-01", "2026-04-01"]);
+});
+
+test("naechsteFaelligkeit liefert den naechsten Termin strikt nach heute", () => {
+  const rz = { anker_datum: "2026-01-01", rhythmus_einheit: "monat", rhythmus_intervall: 1 };
+  assert.equal(naechsteFaelligkeit(rz, "2026-02-15"), "2026-03-01");
+  // Anker in der Zukunft: der Anker selbst ist die naechste Faelligkeit.
+  assert.equal(naechsteFaelligkeit({ ...rz, anker_datum: "2026-07-01" }, "2026-06-16"), "2026-07-01");
+});
+
+test("naechsteFaelligkeit klemmt das Monatsende und beachtet aktiv_bis", () => {
+  const rz = { anker_datum: "2026-01-31", rhythmus_einheit: "monat", rhythmus_intervall: 1 };
+  assert.equal(naechsteFaelligkeit(rz, "2026-02-01"), "2026-02-28");
+  // aktiv_bis ueberschritten -> keine weitere Faelligkeit.
+  assert.equal(naechsteFaelligkeit({ ...rz, aktiv_bis: "2026-02-10" }, "2026-02-15"), null);
 });
 
 test("localTodayIso formatiert das lokale Datum ohne UTC-Verschiebung", () => {

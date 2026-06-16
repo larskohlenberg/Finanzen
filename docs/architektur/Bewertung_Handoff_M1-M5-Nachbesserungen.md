@@ -89,7 +89,7 @@ Begründung:
 
 ## §8 Review-UI — ⏭️ sinnvoll, eigener Schritt
 
-1. **Deep-Links (`#/transaktionen/…`) — ⏭️** Kein Hash-Routing vorhanden. Echte Lücke, aber primär M8-Vorbereitung (Checks verlinken auf Datensätze). Eigener, fokussierter Schritt im 2.164-Zeilen-`main.js`.
+1. **Deep-Links (`#/transaktionen/…`) — ✅ umgesetzt.** Pure Routing-Logik in [routing.mjs](../../app/routing.mjs) (`parseRoute`/`routeFromState`, unit-getestet, inkl. Invers-Test). `#/transaktionen/TXN-…` öffnet Transaktion (Filter-Reset + Seitensprung zur richtigen Seite), `#/konten/KTO-…` die Konto-Position im Vermögen-Detail; jede View hat einen Slug. Ein-/ausgehend verdrahtet (Klick aktualisiert die URL, `hashchange` für externe Links). Damit können M8-Checks/Laufprotokolle auf konkrete Datensätze verlinken. Alle vier Pfade im Browser verifiziert (Deep-Link traf Seite 187/267).
 2. **SVG-Liniendiagramm — ✅ umgesetzt.** Wiederverwendbare, library-freie Komponente [charts.mjs](../../app/charts.mjs) (`linienDiagramm`), theme-fähig über CSS-Variablen, mit Nulllinie + Tiefpunkt-Markierung. Eingesetzt für Liquidität (§6.4) und Restschuld (§7.1). Unit-Tests in `charts.test.mjs`.
 3. **Validierungsfehler in der App (rotes Banner) — ✅ umgesetzt.** Die pure Validierungslogik liegt jetzt in [validate-core.mjs](../../app/tools/validate-core.mjs) (browserfähig, ohne Node-I/O); `validator.mjs` ist ein dünner Node-Wrapper (CLI + Datei-I/O). Beide nutzen **dieselbe** Logik. `main.js` validiert den geladenen Bestand einmal beim Laden; Erfolg → grüner Status-Chip, Fehler → rotes Banner mit Fehlerliste oben in jeder Ansicht + roter Chip. Das alte „Validierung extern"-Framing wurde abgelöst (Contract-Test entsprechend aktualisiert). Beide Pfade im Browser verifiziert.
 
@@ -123,10 +123,10 @@ Einschätzungen teile ich uneingeschränkt — Runde 2 ist hier überlegen.
 | §3-Bonus | Kategorisierungsregeln im Master-Validator (referenzielle Integrität + Schema) |
 | §6.3 | `naechsteFaelligkeit` + Spalte in der Regelzahlungs-Liste |
 | §8.2/§6.4/§7.1 | `charts.mjs` (SVG-Linie); Liquiditäts- + Restschuld-Verlauf als Diagramm |
+| §8.1 | `routing.mjs` (Hash-Routen); Transaktions-/Konto-Deeplinks, jede View adressierbar |
 | Dev-Server | `serve_app.py` mit optionalem Port; `launch.json` nutzt no-cache-Server (stale ES-Module behoben) |
-| Tests | 163 grün; `validate:master` grün; UI verifiziert |
+| Tests | 169 grün; `validate:master` grün; UI verifiziert |
 
-**Verschoben (empfohlene Reihenfolge):**
-§8.1 Deep-Links → §9 `main.js`-Split.
+**Verschoben:** §9 `main.js`-Split (reiner Wartbarkeits-Refactor, eigener Branch).
 **Abgelehnt mit Begründung:** §3 `regex-ungueltig` (N.A.), §4 append-only, §5.1 alles-oder-nichts,
 §5.3 Auto-Anker, §10 Serverschutz (jetzt).

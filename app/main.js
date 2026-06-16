@@ -5,6 +5,7 @@ import { iconSvg } from "./icons.js";
 import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents, restschuldHeute } from "./vermoegen.mjs";
 import { validateMasterData } from "./tools/validate-core.mjs";
 import { linienDiagramm } from "./charts.mjs";
+import { routeFromState, parseRoute } from "./routing.mjs";
 
 const app = document.querySelector("#app");
 
@@ -2235,13 +2236,44 @@ function restoreState(snapshot) {
 // damit der Zurueck-Button nicht durch jeden Klick zugemuellt wird.
 let lastCommittedView = state.view;
 function commitNavigation() {
+  const route = routeFromState(state);
   if (state.view !== lastCommittedView) {
-    history.pushState(snapshotState(), "", "");
+    history.pushState(snapshotState(), "", route);
   } else {
-    history.replaceState(snapshotState(), "", "");
+    history.replaceState(snapshotState(), "", route);
   }
   lastCommittedView = state.view;
   render();
+}
+
+// Hash-Route auf den Zustand anwenden (Deep-Link von außen oder beim Laden).
+// Für adressierte Detailansichten Filter zurücksetzen, damit der verlinkte
+// Datensatz sichtbar ist, und bei Transaktionen auf die richtige Seite springen.
+function applyRoute(route) {
+  if (!route || !route.view) return;
+  state.view = route.view;
+  state.moreMenuOpen = false;
+  if (route.masterSection) state.masterSection = route.masterSection;
+
+  if (route.selectedTransactionId && transaktionenById.has(route.selectedTransactionId)) {
+    Object.assign(state.transactionFilters, {
+      account: "", status: "", category: "", transfer: "", search: "",
+      timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
+    });
+    state.selectedTransactionId = route.selectedTransactionId;
+    state.detailRailClosed = false;
+    const idx = filteredTransactions().findIndex((tx) => tx.transaktion_id === route.selectedTransactionId);
+    state.transactionPage = idx >= 0 ? Math.floor(idx / state.pageSize) + 1 : 1;
+  }
+
+  if (route.selectedVermoegenId) {
+    state.vermoegenFilters.klasse = "";
+    state.vermoegenFilters.qualitaet = "";
+    state.selectedVermoegenId = route.selectedVermoegenId;
+    state.vermoegenRailMode = "position";
+    state.vermoegenRailWide = false;
+    state.vermoegenDetailRailClosed = false;
+  }
 }
 
 window.addEventListener("popstate", (event) => {
@@ -2250,10 +2282,20 @@ window.addEventListener("popstate", (event) => {
   render();
 });
 
+// Direkt eingefügte/extern verlinkte Hash-Route (kein pushState von uns).
+window.addEventListener("hashchange", () => {
+  if (location.hash === routeFromState(state)) return; // selbst gesetzte Route ignorieren
+  applyRoute(parseRoute(location.hash));
+  lastCommittedView = state.view;
+  history.replaceState(snapshotState(), "", routeFromState(state));
+  render();
+});
 
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
   if (state.theme === "system") render();
 });
 
-history.replaceState(snapshotState(), "", "");
+applyRoute(parseRoute(location.hash));
+lastCommittedView = state.view;
+history.replaceState(snapshotState(), "", routeFromState(state));
 render();

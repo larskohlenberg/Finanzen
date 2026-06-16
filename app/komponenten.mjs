@@ -5,6 +5,8 @@ import { state, t, escapeHtml, personenById, kategorienById } from "./runtime.mj
 import { iconSvg } from "./icons.js";
 import { linienDiagramm } from "./charts.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
+import { formatIban } from "./tools/lib/text.mjs";
+import { accountBalance, overviewAccountStandDate, sortedOverviewAccounts } from "./selektoren.mjs";
 
 export function formatMoney(amountInCents) {
   return new Intl.NumberFormat(state.lang === "de" ? "de-DE" : "en-US", {
@@ -120,4 +122,57 @@ export function renderFilterSelect({ name, label, options, type, placeholder, fi
       </div>
     </div>
   `;
+}
+
+export function renderAccountTable() {
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>${escapeHtml(t("labels.account"))}</th>
+            <th>${escapeHtml(t("labels.accountReference"))}</th>
+            <th>${escapeHtml(t("labels.owner"))}</th>
+            <th>${escapeHtml(t("labels.type"))}</th>
+            <th>${escapeHtml(t("labels.stand"))}</th>
+            <th class="amount">${escapeHtml(t("labels.loadedBalance"))}</th>
+            <th>${escapeHtml(t("labels.status"))}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${renderAccountRows(sortedOverviewAccounts())}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+export function renderAccountRows(accounts) {
+  return accounts
+    .map((konto) => {
+      const isDepot = konto.kontotyp === "depot";
+      const latestDate = overviewAccountStandDate(konto);
+      const balanceCell = isDepot
+        ? `<span class="muted">—</span>`
+        : escapeHtml(formatMoney(accountBalance(konto.konto_id)));
+      const status = isDepot
+        ? t("labels.depotValueMissing")
+        : konto.kontoreferenz
+          ? t("labels.accountStatusMissing")
+          : t("labels.referenceMissing");
+      const chipClass = isDepot ? "neutral" : konto.kontoreferenz ? "neutral" : "review";
+      const chipIcon = isDepot || konto.kontoreferenz ? "neutral" : "review";
+      return `
+        <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
+          <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
+          <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
+          <td>${escapeHtml(accountOwnerNames(konto))}</td>
+          <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
+          <td>${latestDate ? escapeHtml(formatDate(latestDate)) : `<span class="muted">${escapeHtml(t("labels.noStand"))}</span>`}</td>
+          <td class="amount">${balanceCell}</td>
+          <td><span class="chip ${chipClass}">${iconSvg(chipIcon)}${escapeHtml(status)}</span></td>
+        </tr>
+      `;
+    })
+    .join("");
 }

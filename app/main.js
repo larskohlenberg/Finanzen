@@ -12,64 +12,10 @@ import {
   formatMoney, formatDate, formatMonth, accountOwnerNames, accountTypeLabel, categoryName,
   statusChip, renderPageHead, detailRow, heuteIso, saldoLinie, renderTableFilters, renderFilterSelect,
 } from "./komponenten.mjs";
-
-function reviewChecks() {
-  return data.checks.filter((check) => check.severity === "review");
-}
-
-function openCategoryTransactions() {
-  return data.transaktionen.filter((tx) => tx.kategorisierung_status === "offen");
-}
-
-function missingReferenceChecks() {
-  return data.checks.filter((check) => check.title_key === "checks.accountReferenceMissing.title");
-}
-
-function accountBalance(kontoId) {
-  return data.transaktionen
-    .filter((tx) => tx.konto_id === kontoId)
-    .reduce((sum, tx) => sum + cents(tx.betrag), 0);
-}
-
-function loadedTotalAccountsBalance() {
-  const accountIds = data.konten
-    .filter((konto) => konto.kontotyp !== "depot" && konto.liquiditaetsrelevant)
-    .map((konto) => konto.konto_id);
-  return data.transaktionen
-    .filter((tx) => accountIds.includes(tx.konto_id))
-    .reduce((sum, tx) => sum + cents(tx.betrag), 0);
-}
-
-function currentNettovermoegen() {
-  return computeNettovermoegen(data, localTodayIso());
-}
-
-function overviewAccountStandDate(konto) {
-  if (konto.kontotyp === "depot") {
-    return aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert")?.standdatum || "";
-  }
-  const latestBookingDate = data.transaktionen
-    .filter((tx) => tx.konto_id === konto.konto_id)
-    .reduce((latest, tx) => (String(tx.buchungsdatum ?? "") > latest ? String(tx.buchungsdatum ?? "") : latest), "");
-  return latestBookingDate || aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand")?.standdatum || "";
-}
-
-function overviewAccountRank(konto) {
-  if (konto.kontotyp === "giro") return 0;
-  if (konto.kontotyp === "tagesgeld") return 1;
-  if (konto.kontotyp === "depot") return 2;
-  return 3;
-}
-
-function sortedOverviewAccounts() {
-  return data.konten.slice().sort((a, b) => {
-    const rank = overviewAccountRank(a) - overviewAccountRank(b);
-    if (rank !== 0) return rank;
-    const dateCmp = overviewAccountStandDate(b).localeCompare(overviewAccountStandDate(a));
-    if (dateCmp !== 0) return dateCmp;
-    return a.name.localeCompare(b.name);
-  });
-}
+import {
+  openCategoryTransactions, missingReferenceChecks, accountBalance,
+  loadedTotalAccountsBalance, currentNettovermoegen, overviewAccountStandDate, sortedOverviewAccounts,
+} from "./selektoren.mjs";
 
 function applyTheme() {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;

@@ -91,6 +91,7 @@ const state = {
   selectedTransactionId: "",
   detailRailClosed: false,
   masterSection: "konten",
+  selectedKonto: "",
   moreMenuOpen: false,
   liquiditaet: {
     granularitaet: "monat",
@@ -558,7 +559,7 @@ function renderAccountRows(accounts) {
       const chipClass = isDepot ? "neutral" : konto.kontoreferenz ? "neutral" : "review";
       const chipIcon = isDepot || konto.kontoreferenz ? "neutral" : "review";
       return `
-        <tr class="clickable" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
+        <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
           <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
           <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
@@ -973,7 +974,7 @@ function renderTransactionRow(tx) {
   return `
     <tr class="transaction-row ${tx.transaktion_id === state.selectedTransactionId ? "selected" : ""} ${tx.kategorisierung_status === "offen" ? "open" : ""}">
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
-      <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button></td>
+      <td><button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button></td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.gegenpartei)}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
       <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
@@ -1026,7 +1027,7 @@ function renderTransactionDetail(tx) {
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("labels.account"))}</div>
       <div class="detail-value">
-        <button class="linkish" data-action="account-transactions" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button>
+        <button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button>
       </div>
     </div>
     <div class="detail-section">
@@ -2033,6 +2034,7 @@ function handleAction(element) {
   if (action === "open-account-master") {
     state.view = "masterdata";
     state.masterSection = "konten";
+    state.selectedKonto = element.dataset.account || "";
     commitNavigation();
     return;
   }
@@ -2213,6 +2215,7 @@ function snapshotState() {
     selectedTransactionId: state.selectedTransactionId,
     transactionPage: state.transactionPage,
     masterSection: state.masterSection,
+    selectedKonto: state.selectedKonto,
     selectedVermoegenId: state.selectedVermoegenId,
     vermoegenRailMode: state.vermoegenRailMode,
     vermoegenRailWide: state.vermoegenRailWide,
@@ -2226,6 +2229,7 @@ function restoreState(snapshot) {
   state.selectedTransactionId = snapshot.selectedTransactionId || "";
   state.transactionPage = snapshot.transactionPage || 1;
   state.masterSection = snapshot.masterSection || "konten";
+  state.selectedKonto = snapshot.selectedKonto || "";
   state.selectedVermoegenId = snapshot.selectedVermoegenId || "";
   state.vermoegenRailMode = snapshot.vermoegenRailMode || "position";
   state.vermoegenRailWide = Boolean(snapshot.vermoegenRailWide);
@@ -2254,6 +2258,7 @@ function applyRoute(route) {
   state.view = route.view;
   state.moreMenuOpen = false;
   if (route.masterSection) state.masterSection = route.masterSection;
+  if (route.selectedKonto) state.selectedKonto = route.selectedKonto;
 
   if (route.selectedTransactionId && transaktionenById.has(route.selectedTransactionId)) {
     Object.assign(state.transactionFilters, {

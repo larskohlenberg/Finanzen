@@ -7,8 +7,9 @@ test("routeFromState adressiert die ausgewählte Transaktion", () => {
   assert.equal(routeFromState({ view: "transactions", selectedTransactionId: "" }), "#/transaktionen");
 });
 
-test("routeFromState adressiert Konto über die Vermögens-Auswahl, andere Klassen unter vermoegen", () => {
-  assert.equal(routeFromState({ view: "vermoegen", selectedVermoegenId: "konto:KTO-001" }), "#/konten/KTO-001");
+test("routeFromState adressiert den Konto-Stammsatz und Vermögens-Positionen", () => {
+  assert.equal(routeFromState({ view: "masterdata", masterSection: "konten", selectedKonto: "KTO-001" }), "#/konten/KTO-001");
+  assert.equal(routeFromState({ view: "vermoegen", selectedVermoegenId: "konto:KTO-001" }), "#/vermoegen/konto:KTO-001");
   assert.equal(routeFromState({ view: "vermoegen", selectedVermoegenId: "darlehen:DAR-001" }), "#/vermoegen/darlehen:DAR-001");
 });
 
@@ -20,7 +21,7 @@ test("routeFromState bildet reine Views auf Slugs ab", () => {
 
 test("parseRoute liest Transaktions- und Konto-Deeplinks", () => {
   assert.deepEqual(parseRoute("#/transaktionen/TXN-20260101-000001"), { view: "transactions", selectedTransactionId: "TXN-20260101-000001" });
-  assert.deepEqual(parseRoute("#/konten/KTO-001"), { view: "vermoegen", selectedVermoegenId: "konto:KTO-001" });
+  assert.deepEqual(parseRoute("#/konten/KTO-001"), { view: "masterdata", masterSection: "konten", selectedKonto: "KTO-001" });
   assert.deepEqual(parseRoute("#/vermoegen/darlehen:DAR-001"), { view: "vermoegen", selectedVermoegenId: "darlehen:DAR-001" });
 });
 

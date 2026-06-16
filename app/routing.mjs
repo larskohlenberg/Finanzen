@@ -21,9 +21,12 @@ export function routeFromState(state) {
   if (state.view === "transactions" && state.selectedTransactionId) {
     return `#/transaktionen/${encodeURIComponent(state.selectedTransactionId)}`;
   }
+  // Konto-Stammsatz (Stammdaten -> Konten, angesteuerter Datensatz).
+  if (state.view === "masterdata" && state.masterSection === "konten" && state.selectedKonto) {
+    return `#/konten/${encodeURIComponent(state.selectedKonto)}`;
+  }
   if (state.view === "vermoegen" && state.selectedVermoegenId) {
     const [klasse, id] = state.selectedVermoegenId.split(":");
-    if (klasse === "konto" && id) return `#/konten/${encodeURIComponent(id)}`;
     if (klasse && id) return `#/vermoegen/${encodeURIComponent(klasse)}:${encodeURIComponent(id)}`;
   }
   return `#/${VIEW_SLUG[state.view] || state.view}`;
@@ -41,7 +44,9 @@ export function parseRoute(hash) {
     return tail ? { view: "transactions", selectedTransactionId: tail } : { view: "transactions" };
   }
   if (head === "konten") {
-    return tail ? { view: "vermoegen", selectedVermoegenId: `konto:${tail}` } : { view: "masterdata", masterSection: "konten" };
+    return tail
+      ? { view: "masterdata", masterSection: "konten", selectedKonto: tail }
+      : { view: "masterdata", masterSection: "konten" };
   }
   if (head === "vermoegen") {
     return tail ? { view: "vermoegen", selectedVermoegenId: tail } : { view: "vermoegen" };

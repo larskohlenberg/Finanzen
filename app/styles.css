@@ -1038,8 +1038,14 @@ button.roadmap-card-link:focus-visible {
   font-size: 20px;
 }
 
-.transaction-row.selected {
+.transaction-row.selected,
+tr.clickable.selected {
   background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
+}
+
+/* Per Deep-Link/Link angesteuerter Konto-Stammsatz: Akzentkante zur Orientierung. */
+tr.clickable.selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .transaction-row.open td:first-child {

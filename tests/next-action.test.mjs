@@ -54,6 +54,22 @@ test("next action priority returns validation before every other work item", () 
   assert.match(action.prompt, /app\/tools\/validator\.mjs/);
 });
 
+test("validation action does not inspect malformed lower-priority collections", () => {
+  let action;
+
+  assert.doesNotThrow(() => {
+    action = buildNextAgentAction(baseData({
+      validation: { valid: false, errors: ["kaputt"] },
+      transaktionen: {},
+      regelzahlungen: {},
+      zeitwerte: {},
+    }));
+  });
+
+  assert.equal(action.type, "validation-errors");
+  assert.equal(action.count, 1);
+});
+
 test("next action priority orders all supported action types", () => {
   const cases = [
     {
@@ -83,6 +99,34 @@ test("next action priority orders all supported action types", () => {
     const action = buildNextAgentAction(data, options);
     assert.equal(action.type, expected[0]);
     assert.equal(action.skillPath, expected[1]);
+  }
+});
+
+test("all action prompts omit forbidden root documentation patterns", () => {
+  const cases = [
+    baseData({ validation: { valid: false, errors: ["kaputt"] } }),
+    baseData({ importfehler: [{ reason: "parse" }] }),
+    baseData({ transaktionen: [{ kategorisierung_status: "offen" }] }),
+    baseData({ transaktionen: [{ kategorisierung_status: "vorgeschlagen" }] }),
+    baseData({ regelzahlungen: [{ status: "vorgeschlagen" }] }),
+    baseData(),
+  ];
+  const options = [
+    { vermoegenChecks: [] },
+    { vermoegenChecks: [] },
+    { vermoegenChecks: [] },
+    { vermoegenChecks: [] },
+    { vermoegenChecks: [] },
+    { vermoegenChecks: [{ art: "anker-fehlt", entitaet: "konto", entitaet_id: "KTO-1" }] },
+  ];
+
+  for (const [index, data] of cases.entries()) {
+    const action = buildNextAgentAction(data, options[index]);
+
+    assert.notEqual(action.prompt, "");
+    for (const pattern of forbiddenPromptPatterns) {
+      assert.doesNotMatch(action.prompt, pattern);
+    }
   }
 });
 

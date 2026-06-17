@@ -19,7 +19,7 @@ const SKILLS = {
 };
 
 function countBy(items, predicate) {
-  return (items ?? []).filter(predicate).length;
+  return Array.isArray(items) ? items.filter(predicate).length : 0;
 }
 
 function wealthChecksFor(data, options = {}) {
@@ -27,10 +27,25 @@ function wealthChecksFor(data, options = {}) {
   return computeVermoegenChecks(data, options.today || localTodayIso());
 }
 
+function validationErrorCount(data) {
+  return data.validation?.valid === false ? (data.validation?.errors?.length ?? 0) : 0;
+}
+
+function validationSummary(data) {
+  return {
+    validationErrors: validationErrorCount(data),
+    importErrors: Array.isArray(data.importfehler) ? data.importfehler.length : 0,
+    openCategories: countBy(data.transaktionen, (tx) => tx.kategorisierung_status === "offen"),
+    suggestedCategories: countBy(data.transaktionen, (tx) => tx.kategorisierung_status === "vorgeschlagen"),
+    suggestedRegularPayments: countBy(data.regelzahlungen, (rz) => rz.status === "vorgeschlagen"),
+    wealthChecks: 0,
+  };
+}
+
 export function buildStatusSummary(data, options = {}) {
   const checks = wealthChecksFor(data, options);
   return {
-    validationErrors: data.validation?.valid === false ? (data.validation?.errors?.length ?? 0) : 0,
+    validationErrors: validationErrorCount(data),
     importErrors: data.importfehler?.length ?? 0,
     openCategories: countBy(data.transaktionen, (tx) => tx.kategorisierung_status === "offen"),
     suggestedCategories: countBy(data.transaktionen, (tx) => tx.kategorisierung_status === "vorgeschlagen"),
@@ -79,10 +94,8 @@ function action(type, count, label, skillPath, summary, instructions, extraSkill
 }
 
 export function buildNextAgentAction(data, options = {}) {
-  const summary = buildStatusSummary(data, options);
-  const checks = wealthChecksFor(data, options);
-
-  if (summary.validationErrors > 0) {
+  if (validationErrorCount(data) > 0) {
+    const summary = validationSummary(data);
     return action(
       "validation-errors",
       summary.validationErrors,
@@ -92,6 +105,9 @@ export function buildNextAgentAction(data, options = {}) {
       "Pruefe `app/data/master/` mit `app/tools/validator.mjs`, lies die betroffenen `app/schemas/*`, erklaere die Fehlerursache und schlage die kleinste valide Korrektur vor.",
     );
   }
+
+  const summary = buildStatusSummary(data, options);
+  const checks = wealthChecksFor(data, options);
 
   if (summary.importErrors > 0) {
     return action(

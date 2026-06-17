@@ -50,8 +50,9 @@ test("next action priority returns validation before every other work item", () 
 
   assert.equal(action.type, "validation-errors");
   assert.equal(action.count, 1);
-  assert.equal(action.skillPath, "");
+  assert.equal(action.skillPath, "app/docs/skills/validierung-agent.md");
   assert.match(action.prompt, /app\/tools\/validator\.mjs/);
+  assert.match(action.prompt, /app\/docs\/skills\/validierung-agent\.md/);
 });
 
 test("validation action does not inspect malformed lower-priority collections", () => {

@@ -10,6 +10,7 @@ export const forbiddenPromptPatterns = [
 ];
 
 const SKILLS = {
+  validationErrors: "app/docs/skills/validierung-agent.md",
   importErrors: "app/docs/skills/import-agent.md",
   openCategories: "app/docs/skills/kategorisierungsregel-pflege.md",
   suggestedCategories: "app/docs/skills/kategorisierung-review.md",
@@ -100,7 +101,7 @@ export function buildNextAgentAction(data, options = {}) {
       "validation-errors",
       summary.validationErrors,
       "Validierungsfehler klaeren",
-      "",
+      SKILLS.validationErrors,
       summary,
       "Pruefe `app/data/master/` mit `app/tools/validator.mjs`, lies die betroffenen `app/schemas/*`, erklaere die Fehlerursache und schlage die kleinste valide Korrektur vor.",
     );

@@ -17,6 +17,8 @@ import {
 import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
 
+let nextActionCopiedTimer = null;
+
 function applyTheme() {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const theme = state.theme === "system" ? (systemDark ? "dark" : "light") : state.theme;
@@ -417,14 +419,20 @@ async function copyNextAgentPrompt() {
   if (!nextAction.prompt) return;
   try {
     await navigator.clipboard.writeText(nextAction.prompt);
+    if (nextActionCopiedTimer) clearTimeout(nextActionCopiedTimer);
     state.nextActionCopied = true;
     state.nextActionPromptFallback = "";
     render();
-    window.setTimeout(() => {
+    nextActionCopiedTimer = window.setTimeout(() => {
       state.nextActionCopied = false;
+      nextActionCopiedTimer = null;
       render();
     }, 1800);
   } catch {
+    if (nextActionCopiedTimer) {
+      clearTimeout(nextActionCopiedTimer);
+      nextActionCopiedTimer = null;
+    }
     state.nextActionCopied = false;
     state.nextActionPromptFallback = nextAction.prompt;
     render();

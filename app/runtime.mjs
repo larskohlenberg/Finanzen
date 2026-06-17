@@ -88,6 +88,7 @@ export const state = {
     quarter: "1",
     year: "",
   },
+  transactionSort: { key: "date", dir: "desc" },
   transactionPage: 1,
   pageSize: 10,
   selectedTransactionId: "",

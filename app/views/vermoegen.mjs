@@ -78,10 +78,10 @@ export function renderVermoegen() {
   const today = localTodayIso();
   const r = computeNettovermoegen(data, today);
   const visible = sortVermoegenPositions(filterVermoegenPositions(r.positionen));
-  let selected = visible.find((p) => positionKey(p) === state.selectedVermoegenId);
-  if (!selected) selected = visible[0];
-  if (selected) state.selectedVermoegenId = positionKey(selected);
+  const selected = state.selectedVermoegenId ? visible.find((p) => positionKey(p) === state.selectedVermoegenId) : undefined;
+  if (state.selectedVermoegenId && !selected) state.selectedVermoegenId = "";
   const railWide = state.vermoegenRailWide;
+  const detailRailOpen = !state.vermoegenDetailRailClosed && (state.vermoegenRailMode === "wertstaende" || Boolean(selected));
 
   const rows = visible.map((p) => {
     const key = positionKey(p);
@@ -97,7 +97,7 @@ export function renderVermoegen() {
 
   return `
     ${renderPageHead(t("vermoegen.title"), t("vermoegen.lead"))}
-    <div class="layout-with-rail ${state.vermoegenDetailRailClosed ? "rail-closed" : ""} ${railWide && !state.vermoegenDetailRailClosed ? "rail-wide" : ""}">
+    <div class="layout-with-rail ${detailRailOpen ? "" : "rail-closed"} ${railWide && detailRailOpen ? "rail-wide" : ""}">
       <div class="stack">
         <div class="tile-grid">
           <div class="tile tile-static">
@@ -120,7 +120,7 @@ export function renderVermoegen() {
           </button>
         </div>
         <p class="page-lead">${escapeHtml(t("vermoegen.incompleteNote"))}</p>
-        ${renderVermoegenFilters()}
+        ${renderVermoegenFilters(visible.length, r.positionen.length)}
         <section class="panel">
           <div class="table-wrap">
             <table>
@@ -136,7 +136,7 @@ export function renderVermoegen() {
           </div>
         </section>
       </div>
-      ${state.vermoegenDetailRailClosed ? "" : `
+      ${detailRailOpen ? `
         <aside class="panel panel-pad detail-panel">
           <div class="detail-head">
             <h2 class="section-title">${escapeHtml(state.vermoegenRailMode === "wertstaende" ? t("vermoegen.wertstaende") : t("vermoegen.detailTitle"))}</h2>
@@ -145,13 +145,13 @@ export function renderVermoegen() {
               <button class="icon-button" data-action="close-vermoegen-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
             </div>
           </div>
-          ${state.vermoegenRailMode === "wertstaende" ? renderWertstaendeRail() : (selected ? renderVermoegenDetail(selected, today) : `<p>${escapeHtml(t("vermoegen.noSelection"))}</p>`)}
+          ${state.vermoegenRailMode === "wertstaende" ? renderWertstaendeRail() : renderVermoegenDetail(selected, today)}
         </aside>
-      `}
+      ` : ""}
     </div>`;
 }
 
-function renderVermoegenFilters() {
+function renderVermoegenFilters(resultCount, totalCount) {
   return renderTableFilters({
     fields: [
       {
@@ -180,6 +180,8 @@ function renderVermoegenFilters() {
     filterAttr: "vermoegen-filter",
     clearAction: "clear-vermoegen-filter",
     resetAction: "reset-vermoegen-filters",
+    resultCount,
+    totalCount,
   });
 }
 
@@ -363,4 +365,3 @@ function rhythmusLabel(einheit, intervall) {
   const einheitText = e === `vermoegen.rhythmus.${einheit}` ? einheit : e;
   return Number(intervall) > 1 ? `${intervall} ${einheitText}` : einheitText;
 }
-

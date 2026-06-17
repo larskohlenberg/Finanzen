@@ -794,13 +794,26 @@ button.roadmap-card-link:focus-visible {
 .filter-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 10px;
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
 }
 
+.filter-reset-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 0 0 220px;
+}
+
+.filter-reset-group.is-disabled {
+  visibility: hidden;
+}
+
+.filter-result-count,
 .filter-active-count {
   color: var(--muted);
   font-size: 12px;
@@ -1048,11 +1061,16 @@ button.roadmap-card-link:focus-visible {
 
 .filter-clear:hover,
 .filter-clear:focus-visible,
-.filter-reset:hover,
-.filter-reset:focus-visible {
+.filter-reset:not(:disabled):hover,
+.filter-reset:not(:disabled):focus-visible {
   border-color: var(--accent);
   color: var(--text);
   outline: none;
+}
+
+.filter-reset:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .summary-strip {

@@ -261,6 +261,15 @@ test("filter reset lives in a footer with an active-filter count, not a floating
   assert.match(i18n, /filterActiveOther:\s*"Filter aktiv"/);
 });
 
+test("filter reset keeps its reserved footer slot when no filter is active", () => {
+  assert.match(main, /const resetDisabled = effectiveActiveCount === 0/);
+  assert.match(main, /class="filter-reset-group \$\{resetDisabled \? "is-disabled" : ""\}"/);
+  assert.match(main, /<button class="filter-reset" data-action="\$\{escapeHtml\(resetAction\)\}"\$\{resetDisabled \? " disabled" : ""\}>/);
+  assert.match(css, /\.filter-reset-group\s*{[^}]*flex:\s*0 0 220px/s);
+  assert.match(css, /\.filter-reset-group\.is-disabled\s*{[^}]*visibility:\s*hidden/s);
+  assert.match(css, /\.filter-reset:disabled/);
+});
+
 test("select filters clear via their all-option: clear button only on search field", () => {
   assert.match(main, /type === "search" && active/);
 });

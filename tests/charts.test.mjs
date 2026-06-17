@@ -35,6 +35,14 @@ test("linienDiagramm beschriftet ersten, letzten und Tiefpunkt ueber formatWert"
   assert.match(svg, /-0\.50 €/);   // Tiefpunkt
 });
 
+test("linienDiagramm dupliziert Endwert nicht als Tiefpunkt-Label", () => {
+  const svg = linienDiagramm(
+    [{ wert: 788786 }, { wert: 274577 }, { wert: 161353 }, { wert: 140559 }],
+    { formatWert: (n) => `${(n / 100).toFixed(2)} €` },
+  );
+  assert.equal(svg.match(/1405\.59 €/g)?.length, 1);
+});
+
 test("linienDiagramm escaped Sonderzeichen in Labels", () => {
   const svg = linienDiagramm([{ wert: 1 }, { wert: 2 }], { ariaLabel: '<x>&"' });
   assert.match(svg, /aria-label="&lt;x&gt;&amp;&quot;"/);

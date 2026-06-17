@@ -74,9 +74,11 @@ export function saldoLinie(punkte, ariaLabel) {
   return svg ? `<div class="diagramm-wrap">${svg}</div>` : "";
 }
 
-export function renderTableFilters({ prefix = "", searchFields = [], timeFields = [], fields, filters, filterAttr, clearAction, resetAction, activeCount }) {
+export function renderTableFilters({ prefix = "", searchFields = [], timeFields = [], fields, filters, filterAttr, clearAction, resetAction, activeCount, resultCount, totalCount }) {
   const effectiveActiveCount = activeCount ?? Object.values(filters).filter(Boolean).length;
   const activeLabel = t(effectiveActiveCount === 1 ? "chrome.filterActiveOne" : "chrome.filterActiveOther");
+  const hasResultCount = Number.isFinite(resultCount) && Number.isFinite(totalCount);
+  const resetDisabled = effectiveActiveCount === 0;
   return `
     <section class="filter-bar">
       ${prefix}
@@ -91,10 +93,13 @@ export function renderTableFilters({ prefix = "", searchFields = [], timeFields 
       <div class="filter-grid filter-primary-row">
         ${fields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
       </div>
-      ${effectiveActiveCount > 0 ? `
+      ${hasResultCount || effectiveActiveCount > 0 ? `
         <div class="filter-actions">
-          <span class="filter-active-count">${effectiveActiveCount} ${escapeHtml(activeLabel)}</span>
-          <button class="filter-reset" data-action="${escapeHtml(resetAction)}">${iconSvg("clear")}${escapeHtml(t("chrome.clearAllFilters"))}</button>
+          ${hasResultCount ? `<span class="filter-result-count">${escapeHtml(String(resultCount))} ${escapeHtml(t("chrome.of"))} ${escapeHtml(String(totalCount))} ${escapeHtml(t("chrome.hits"))}</span>` : ""}
+          <span class="filter-reset-group ${resetDisabled ? "is-disabled" : ""}">
+            <span class="filter-active-count">${effectiveActiveCount > 0 ? `${effectiveActiveCount} ${escapeHtml(activeLabel)}` : ""}</span>
+            <button class="filter-reset" data-action="${escapeHtml(resetAction)}"${resetDisabled ? " disabled" : ""}>${iconSvg("clear")}${escapeHtml(t("chrome.clearAllFilters"))}</button>
+          </span>
         </div>` : ""}
     </section>
   `;

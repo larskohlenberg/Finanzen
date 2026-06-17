@@ -29,7 +29,7 @@ function applyTheme() {
 const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
   "data-vermoegen", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
-  "data-vermoegen-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
+  "data-vermoegen-sort", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
 ];
 const SCROLL_SELECTORS = [".nav", ".table-wrap"];
 
@@ -328,6 +328,19 @@ app.addEventListener("click", (event) => {
     return;
   }
 
+  const transactionSort = event.target.closest("[data-transaction-sort]");
+  if (transactionSort) {
+    const key = transactionSort.dataset.transactionSort;
+    if (state.transactionSort.key === key) {
+      state.transactionSort.dir = state.transactionSort.dir === "asc" ? "desc" : "asc";
+    } else {
+      state.transactionSort = { key, dir: "asc" };
+    }
+    state.transactionPage = 1;
+    render();
+    return;
+  }
+
   const action = event.target.closest("[data-action]");
   if (action) {
     void handleAction(action);
@@ -344,7 +357,7 @@ app.addEventListener("click", (event) => {
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
-const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort]";
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-transaction-sort]";
 app.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
@@ -501,7 +514,8 @@ async function handleAction(element) {
     state.transactionFilters.search = "";
     clearTransactionTimeFilter();
     state.transactionPage = 1;
-    state.selectedTransactionId = openCategoryTransactions()[0]?.transaktion_id || state.selectedTransactionId;
+    state.selectedTransactionId = "";
+    state.detailRailClosed = false;
     commitNavigation();
     return;
   }
@@ -541,7 +555,8 @@ async function handleAction(element) {
     state.transactionFilters.search = "";
     clearTransactionTimeFilter();
     state.transactionPage = 1;
-    state.selectedTransactionId = data.transaktionen.find((tx) => tx.konto_id === element.dataset.account)?.transaktion_id || "";
+    state.selectedTransactionId = "";
+    state.detailRailClosed = false;
     commitNavigation();
     return;
   }

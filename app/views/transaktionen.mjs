@@ -24,7 +24,7 @@ function transactionSearchFields(tx) {
 }
 
 export function filteredTransactions() {
-  return data.transaktionen.filter((tx) => {
+  return sortTransactions(data.transaktionen.filter((tx) => {
     if (state.transactionFilters.account && tx.konto_id !== state.transactionFilters.account) return false;
     if (state.transactionFilters.status && tx.kategorisierung_status !== state.transactionFilters.status) return false;
     if (state.transactionFilters.category && tx.kategorie_id !== state.transactionFilters.category) return false;
@@ -33,7 +33,47 @@ export function filteredTransactions() {
     if (!transactionMatchesTimeFilter(tx)) return false;
     if (state.transactionFilters.search && !matchesQuery(transactionSearchFields(tx), state.transactionFilters.search)) return false;
     return true;
-  }).sort((a, b) => b.buchungsdatum.localeCompare(a.buchungsdatum));
+  }));
+}
+
+function sortTransactions(transaktionen) {
+  const { key, dir } = state.transactionSort;
+  const factor = dir === "asc" ? 1 : -1;
+  return transaktionen.slice().sort((a, b) => {
+    let cmp;
+    if (key === "amount") cmp = cents(a.betrag) - cents(b.betrag);
+    else if (key === "account") cmp = transactionAccountLabel(a).localeCompare(transactionAccountLabel(b));
+    else if (key === "counterparty") cmp = String(a.gegenpartei ?? "").localeCompare(String(b.gegenpartei ?? ""));
+    else if (key === "purpose") cmp = String(a.verwendungszweck ?? "").localeCompare(String(b.verwendungszweck ?? ""));
+    else if (key === "category") cmp = transactionCategoryLabel(a).localeCompare(transactionCategoryLabel(b));
+    else if (key === "status") cmp = statusRank(a.kategorisierung_status) - statusRank(b.kategorisierung_status);
+    else if (key === "transfer") cmp = Number(a.ist_transfer === true) - Number(b.ist_transfer === true);
+    else cmp = String(a.buchungsdatum ?? "").localeCompare(String(b.buchungsdatum ?? ""));
+    if (cmp === 0) cmp = String(a.buchungsdatum ?? "").localeCompare(String(b.buchungsdatum ?? ""));
+    if (cmp === 0) cmp = String(a.transaktion_id ?? "").localeCompare(String(b.transaktion_id ?? ""));
+    return cmp * factor;
+  });
+}
+
+function statusRank(status) {
+  return { offen: 0, vorgeschlagen: 1, bestaetigt: 2, abgelehnt: 3 }[status] ?? 4;
+}
+
+function transactionAccountLabel(tx) {
+  return kontenById.get(tx.konto_id)?.name || tx.konto_id || "";
+}
+
+function transactionCategoryLabel(tx) {
+  return tx.kategorie_id ? categoryName(tx.kategorie_id) : t("labels.noCategory");
+}
+
+function transactionSortIndicator(key) {
+  if (state.transactionSort.key !== key) return "";
+  return state.transactionSort.dir === "asc" ? " ▲" : " ▼";
+}
+
+function transactionSortHeader(key, labelKey, amount = false) {
+  return `<th${amount ? ' class="amount"' : ""}><button class="linkish sort-th" data-transaction-sort="${key}">${escapeHtml(t(labelKey))}${escapeHtml(transactionSortIndicator(key))}</button></th>`;
 }
 
 function transactionMatchesTimeFilter(tx) {
@@ -67,10 +107,9 @@ export function renderTransactions() {
   const pageStart = (state.transactionPage - 1) * state.pageSize;
   const rows = allRows.slice(pageStart, pageStart + state.pageSize);
   const inFilter = state.selectedTransactionId && allRows.some((tx) => tx.transaktion_id === state.selectedTransactionId);
-  if (!inFilter) {
-    state.selectedTransactionId = rows[0]?.transaktion_id || allRows[0]?.transaktion_id || "";
-  }
-  const selectedInFilter = transaktionenById.get(state.selectedTransactionId);
+  if (state.selectedTransactionId && !inFilter) state.selectedTransactionId = "";
+  const selectedInFilter = state.selectedTransactionId ? transaktionenById.get(state.selectedTransactionId) : undefined;
+  const detailRailOpen = !state.detailRailClosed && Boolean(selectedInFilter);
   const filterBalance = allRows.reduce((sum, tx) => sum + cents(tx.betrag), 0);
   const openCount = allRows.filter((tx) => tx.kategorisierung_status === "offen").length;
   const accountName = state.transactionFilters.account ? kontenById.get(state.transactionFilters.account)?.name : "";
@@ -78,28 +117,28 @@ export function renderTransactions() {
 
   return `
     ${renderPageHead(t("transactions.title"), "", breadcrumb)}
-    <div class="layout-with-rail ${state.detailRailClosed ? "rail-closed" : ""}">
+    <div class="layout-with-rail ${detailRailOpen ? "" : "rail-closed"}">
       <div class="stack">
         <section class="summary-strip">
           <div class="summary-cell"><span class="muted">${escapeHtml(t("transactions.hits"))}</span><strong>${allRows.length}</strong></div>
           <div class="summary-cell"><span class="muted">${escapeHtml(t("transactions.filteredBalance"))}</span><strong>${escapeHtml(formatMoney(filterBalance))}</strong></div>
           <div class="summary-cell"><span class="muted">${escapeHtml(t("chrome.categoryOpen"))}</span><strong>${openCount}</strong></div>
         </section>
-        ${renderTransactionFilters()}
+        ${renderTransactionFilters(allRows.length, data.transaktionen.length)}
         <section class="panel">
           ${renderTransactionTableToolbar()}
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>${escapeHtml(t("labels.date"))}</th>
-                  <th>${escapeHtml(t("labels.account"))}</th>
-                  <th>${escapeHtml(t("labels.counterparty"))}</th>
-                  <th>${escapeHtml(t("labels.purpose"))}</th>
-                  <th class="amount">${escapeHtml(t("labels.amount"))}</th>
-                  <th>${escapeHtml(t("labels.category"))}</th>
-                  <th>${escapeHtml(t("labels.status"))}</th>
-                  <th>${escapeHtml(t("labels.transfer"))}</th>
+                  ${transactionSortHeader("date", "labels.date")}
+                  ${transactionSortHeader("account", "labels.account")}
+                  ${transactionSortHeader("counterparty", "labels.counterparty")}
+                  ${transactionSortHeader("purpose", "labels.purpose")}
+                  ${transactionSortHeader("amount", "labels.amount", true)}
+                  ${transactionSortHeader("category", "labels.category")}
+                  ${transactionSortHeader("status", "labels.status")}
+                  ${transactionSortHeader("transfer", "labels.transfer")}
                 </tr>
               </thead>
               <tbody>
@@ -110,15 +149,15 @@ export function renderTransactions() {
           ${renderPagination(allRows.length, pageCount)}
         </section>
       </div>
-      ${state.detailRailClosed ? "" : `
+      ${detailRailOpen ? `
         <aside class="panel panel-pad detail-panel">
           <div class="detail-head">
             <h2 class="section-title">${escapeHtml(t("transactions.details"))}</h2>
             <button class="icon-button" data-action="close-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
           </div>
-          ${selectedInFilter ? renderTransactionDetail(selectedInFilter) : `<p>${escapeHtml(t("transactions.noSelection"))}</p>`}
+          ${renderTransactionDetail(selectedInFilter)}
         </aside>
-      `}
+      ` : ""}
     </div>
   `;
 }
@@ -186,7 +225,7 @@ function renderBreadcrumb(accountName) {
   `;
 }
 
-function renderTransactionFilters() {
+function renderTransactionFilters(resultCount, totalCount) {
   return renderTableFilters({
     searchFields: [
       {
@@ -240,6 +279,8 @@ function renderTransactionFilters() {
     clearAction: "clear-transaction-filter",
     resetAction: "reset-transaction-filters",
     activeCount: transactionFilterActiveCount(),
+    resultCount,
+    totalCount,
   });
 }
 
@@ -351,17 +392,15 @@ function transactionTimeFilterIsActive() {
 }
 
 function renderTransactionRow(tx) {
-  const konto = kontenById.get(tx.konto_id);
-  const category = tx.kategorie_id ? categoryName(tx.kategorie_id) : t("labels.noCategory");
   const selectAttrs = `data-action="select-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}"`;
   return `
     <tr class="transaction-row ${tx.transaktion_id === state.selectedTransactionId ? "selected" : ""} ${tx.kategorisierung_status === "offen" ? "open" : ""}">
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
-      <td><button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button></td>
+      <td><button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(transactionAccountLabel(tx))}</button></td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.gegenpartei)}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
       <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(category)}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${statusChip(tx.kategorisierung_status)}</td>
       ${renderTransferCell(tx)}
     </tr>

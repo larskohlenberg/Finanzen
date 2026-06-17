@@ -58,7 +58,9 @@ export function linienDiagramm(punkte, options = {}) {
   const letzter = punkte[punkte.length - 1].wert;
   const labelLinks = `<text x="${padLeft}" y="${(padTop - 4).toFixed(2)}" class="diagramm-label">${esc(formatWert(erster))}</text>`;
   const labelRechts = `<text x="${(padLeft + innerW).toFixed(2)}" y="${(padTop - 4).toFixed(2)}" text-anchor="end" class="diagramm-label">${esc(formatWert(letzter))}</text>`;
-  const labelTief = `<text x="${x(minIndex).toFixed(2)}" y="${(baseY + 16).toFixed(2)}" text-anchor="middle" class="diagramm-label ${minWert < 0 ? "negativ" : ""}">${esc(formatWert(minWert))}</text>`;
+  const labelTief = minIndex > 0 && minIndex < punkte.length - 1
+    ? `<text x="${x(minIndex).toFixed(2)}" y="${(baseY + 16).toFixed(2)}" text-anchor="middle" class="diagramm-label ${minWert < 0 ? "negativ" : ""}">${esc(formatWert(minWert))}</text>`
+    : "";
 
   return `<svg class="linien-diagramm" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(ariaLabel)}">
     <path d="${areaPath}" class="diagramm-flaeche" />

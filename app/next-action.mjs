@@ -19,7 +19,7 @@ const SKILLS = {
 };
 
 function countBy(items, predicate) {
-  return Array.isArray(items) ? items.filter(predicate).length : 0;
+  return Array.isArray(items) ? items.filter((item) => item != null && predicate(item)).length : 0;
 }
 
 function wealthChecksFor(data, options = {}) {

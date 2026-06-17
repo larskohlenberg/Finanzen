@@ -70,6 +70,21 @@ test("validation action does not inspect malformed lower-priority collections", 
   assert.equal(action.count, 1);
 });
 
+test("validation action does not inspect malformed lower-priority rows", () => {
+  let action;
+
+  assert.doesNotThrow(() => {
+    action = buildNextAgentAction(baseData({
+      validation: { valid: false, errors: ["kaputt"] },
+      transaktionen: [null],
+      regelzahlungen: [null],
+    }));
+  });
+
+  assert.equal(action.type, "validation-errors");
+  assert.equal(action.count, 1);
+});
+
 test("next action priority orders all supported action types", () => {
   const cases = [
     {

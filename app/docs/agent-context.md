@@ -31,7 +31,8 @@ Masterdaten. Schreibende Aenderungen laufen ueber Agenten und Betriebstools.
 
 ## Statuslogik
 
-Statuswerte sind entitaetsspezifisch. Fuer Transaktionen gilt:
+Statuswerte sind entitaetsspezifisch. Fuer `kategorisierung_status` an
+Transaktionen gilt:
 
 - `offen`: keine eindeutige Kategorie aus dem Regelwerk; kein `kategorie_id`.
 - `vorgeschlagen`: ein Tool oder Agentenprozess hat einen Vorschlag erzeugt; der
@@ -44,6 +45,27 @@ Fuer Regelzahlungen gilt analog:
 - `vorgeschlagen`: wartet auf Nutzerentscheidung und wirkt nicht auf die Prognose.
 - `bestaetigt`: wirkt auf die Liquiditaetsprognose.
 - `abgelehnt`: bewusst verworfen.
+
+## Transaktions-ID und Deduplikation
+
+`transaktion_id` ist eine opake ID im Format `TXN-<uuid>`. Sie enthaelt keine
+Datums-, Konto- oder Sequenzbedeutung.
+
+Jede Transaktion hat einen `dedupe_hash`. Wenn die Bank eine eindeutige
+`bank_referenz` liefert, basiert der Hash auf `(konto_id, bank_referenz)`. Fehlt
+`bank_referenz` oder ist sie nicht verwendbar, basiert der Hash auf `(konto_id,
+buchungsdatum, betrag, gegenpartei, verwendungszweck)`.
+
+Freitextfelder werden fuer den Hash nur leicht normalisiert: trimmen und
+Whitespace kollabieren. Keine Kleinschreibung, kein Entfernen von Sonderzeichen.
+
+`bank_referenz` wird nur als Schluessel genutzt, wenn sie im Importlauf dateiweit
+eindeutig ist. Andernfalls faellt der Import auf den Freitext-Hash zurueck und
+persistiert keine irrefuehrenden nicht-eindeutigen Referenzen als Schluesselmaterial.
+
+Dedupe prueft gegen den bestehenden Bestand, nicht innerhalb desselben Auszugs.
+Gleich aussehende Zeilen in einem amtlichen Auszug sind reale Buchungen und
+bekommen deterministisch disambiguierte Hashes.
 
 ## Kategorisierung und Herkunft
 
@@ -71,6 +93,7 @@ Wichtige Tools:
 
 - `tools/validator.mjs`: Masterdaten pruefen.
 - `tools/import.mjs`: normalisierte Buchungen importieren.
+- `tools/dedupe.mjs`: Transaktions-Dedupe-Hash bilden.
 - `tools/categorizer.mjs`: Kategorisierungsregeln anwenden.
 - `tools/recategorize.mjs`: Bestand nach Regelaenderungen neu bewerten.
 - `tools/transfer-matcher.mjs`: interne Transfers paaren.

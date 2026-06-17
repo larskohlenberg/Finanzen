@@ -2,7 +2,8 @@
 
 Aktuelle Betriebsanweisung fuer interviewgeführte, schema-getriebene Erfassung und Validierung von Stammdaten. Fachlich aus M5 entstanden; der Nutzer stößt an, der Agent führt.
 
-Alle Pfade in diesem Skill sind app-relativ: `data/...`, `Belege/...`, `schemas/...` und `tools/...` liegen unter dem App-Raum.
+Alle Pfade in diesem Skill sind app-relativ: `data/...`, `Belege/...`,
+`schemas/...`, `tools/...` und `docs/...` liegen unter dem App-Raum.
 
 ## Zweck
 

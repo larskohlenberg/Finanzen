@@ -2,7 +2,8 @@
 
 Aktuelle Betriebsanweisung fuer Erkennung, Vorschlag und Bestätigung wiederkehrender Zahlungen. Fachlich aus M4 entstanden.
 
-Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...` und `tools/...` liegen unter dem App-Raum.
+Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
+`tools/...` und `docs/...` liegen unter dem App-Raum.
 
 ## Session-Start-Pflicht
 

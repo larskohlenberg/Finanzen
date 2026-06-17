@@ -813,7 +813,11 @@ button.roadmap-card-link:focus-visible {
   visibility: hidden;
 }
 
-.filter-result-count,
+.filter-result-count {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .filter-active-count {
   color: var(--muted);
   font-size: 12px;

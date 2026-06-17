@@ -270,6 +270,11 @@ test("filter reset keeps its reserved footer slot when no filter is active", () 
   assert.match(css, /\.filter-reset:disabled/);
 });
 
+test("filter result count uses the same type size as table pagination", () => {
+  assert.match(css, /\.filter-result-count\s*{[^}]*font-size:\s*13px/s);
+  assert.match(css, /\.pagination\s*{[^}]*font-size:\s*13px/s);
+});
+
 test("select filters clear via their all-option: clear button only on search field", () => {
   assert.match(main, /type === "search" && active/);
 });

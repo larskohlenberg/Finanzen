@@ -137,12 +137,31 @@ test("work status offers an explicit data reload action", () => {
   assert.match(i18n, /reloadData:\s*"Reload data"/);
 });
 
-test("next action shows the live open-category count, not a hardcoded number", () => {
-  assert.doesNotMatch(i18n, /nextActionText:\s*"1 /);
-  assert.doesNotMatch(i18n, /nextActionText:\s*"Review 1 /);
-  // Beide Renderstellen (Topbar-Chip und Overview-Panel) müssen die echte Anzahl voranstellen.
-  const renders = main.match(/openCategoryTransactions\(\)\.length[^\n]*overview\.nextActionText/g) ?? [];
-  assert.equal(renders.length, 2);
+test("next action copies an agent prompt instead of duplicating open-category navigation", () => {
+  assert.match(main, /from "\.\/next-action\.mjs"/);
+  assert.match(main, /buildNextAgentAction\(data\)/);
+  assert.match(main, /data-action="copy-next-agent-prompt"/);
+  assert.match(main, /copyNextAgentPrompt\(\)/);
+  assert.match(main, /nextActionCopiedTimer/);
+  assert.match(main, /clearTimeout\(nextActionCopiedTimer\)/);
+  assert.match(main, /nextActionCopiedTimer = window\.setTimeout/);
+  assert.doesNotMatch(main, /action === "filter-open-category" \|\| action === "next-action"/);
+  assert.match(main, /renderPromptFallback\(\)/);
+  assert.match(i18n, /copyAgentPrompt:\s*"Agenten-Prompt kopieren"/);
+  assert.match(i18n, /agentPromptCopied:\s*"Prompt kopiert"/);
+});
+
+test("disabled next-action copy buttons do not look interactive", () => {
+  assert.match(css, /\.linkish:disabled/);
+  assert.match(css, /\.chip:disabled/);
+  assert.match(css, /:disabled\s*{[^}]*cursor:\s*(?:default|not-allowed)/s);
+  assert.match(css, /:disabled\s*{[^}]*opacity:/s);
+  assert.match(css, /:disabled:hover,\s*\n\s*\.linkish:disabled:focus-visible,\s*\n\s*\.chip:disabled:hover,\s*\n\s*\.chip:disabled:focus-visible\s*{[^}]*box-shadow:\s*none/s);
+});
+
+test("open-category chip remains the navigation entry for open transactions", () => {
+  assert.match(main, /data-action="filter-open-category"/);
+  assert.match(main, /openCategoryTransactions\(\)\.length[^\n]*chrome\.categoryOpen/);
 });
 
 test("IBAN fields render with grouped display format", () => {

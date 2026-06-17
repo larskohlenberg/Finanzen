@@ -2,10 +2,8 @@
 
 Aktuelle Betriebsanweisung fuer Importlaeufe. Fachlich aus M3 entstanden, inzwischen Teil des App-Datenraums.
 
-Es gibt zwei Wurzeln, halte sie auseinander:
-
-- **App-Datenraum** (`app/`): `data/...`, `Belege/...`, `schemas/...` und `tools/...` sind app-relativ und liegen darunter.
-- **Repo-Root** (eine Ebene ueber `app/`): die Projekt-Doku `CONTEXT.md` und `docs/adr/...` liegen hier — sie gehoeren bewusst **nicht** in den deploybaren Datenraum (ADR 0015). Pfade auf diese Doku sind in diesem Skill repo-root-relativ, nicht app-relativ.
+Alle Pfade in diesem Skill sind app-relativ: `data/...`, `Belege/...`,
+`schemas/...`, `tools/...` und `docs/...` liegen unter dem App-Raum.
 
 ## Wann diesen Skill nutzen
 
@@ -18,24 +16,18 @@ Nutze ihn, wenn der Nutzer
 
 Nicht nutzen fuer:
 - Pflege von Stammdaten (Personen, Konten, Kategorien) — das ist Aufgabe des Stammdaten-Erfassungs-Agenten.
-- Aenderung von Kategorisierungsregeln — eigener Pflegeprozess (Skill kategorisierungsregel-pflege); danach Nach-Kategorisierung ueber den Bestand laufen lassen, **nicht** Reimport (Reimport ueberspringt Bekanntes per Dedupe, siehe ADR 0017).
+- Aenderung von Kategorisierungsregeln — eigener Pflegeprozess (Skill kategorisierungsregel-pflege); danach Nach-Kategorisierung ueber den Bestand laufen lassen, nicht Reimport.
 - Manuelle Korrekturen an bereits importierten Transaktionen — direkte Datei-Edits mit Validator-Lauf.
 
 ## Kontext, den du kennen musst
 
 Vor jedem Import lesen:
 
-Im **Repo-Root** (nicht unter `app/`):
-
-1. `CONTEXT.md` — verbindliches Glossar. Insbesondere die Eintraege zu **Transaktion**, **Transaktions-ID und Deduplikation**, **Kategorisierung**, **Transfer**, **Inbox-Konvention**, **Standardisiertes Importformat**, **Kategorisierungsregel**.
-2. `docs/adr/0005-keine-bankspezifischen-parser.md` — du normalisierst selbst, es gibt keinen Parser.
-3. `docs/adr/0003-validator-als-deterministisches-tool.md` — du rufst den Validator, du fuehrst ihn nicht aus.
-
-Im **App-Datenraum** (`app/`):
-
-4. `schemas/` — Schemas fuer Transaktion, Transfer, ggf. Importformat.
-5. `data/master/konten.json` — fuer die Zuordnung Rohdatei → Konto via `kontoreferenz`.
-6. `data/master/kategorisierungsregeln.json` — Input fuer den Categorizer.
+1. `docs/agent-context.md` — gemeinsame Betriebsregeln fuer App-Raum, Validierung, Kategorisierung, Dedupe, Belege und Agentenprotokoll.
+2. `schemas/` — Schemas fuer Transaktion, Transfer, ggf. Importformat.
+3. `data/master/konten.json` — fuer die Zuordnung Rohdatei → Konto via `kontoreferenz`.
+4. `data/master/kategorisierungsregeln.json` — Input fuer den Categorizer.
+5. `tools/import.mjs`, `tools/validator.mjs`, `tools/dedupe.mjs`, `tools/categorizer.mjs`, `tools/transfer-matcher.mjs`.
 
 ## Eingaben, die du akzeptierst
 
@@ -110,7 +102,7 @@ Wenn die Rohquelle keinen belegten Kontostand enthaelt, darfst du keinen Anfangs
 2. **Konto zuordnen**: Erkenne das Konto, indem du die IBAN/Kontonummer der Rohdatei gegen die `kontoreferenz` in `data/master/konten.json` abgleichst (die Referenz ist bevorzugt die volle IBAN, ggf. nur Endziffern). Das ist eine Wiedererkennung durch dich, kein im Code erzwungener String-Abgleich — im finalen Eintrag traegst du die `konto_id`. Mehrdeutig (z. B. gleiche Endziffern bei maskierter Referenz)? Pruefen, ob `inhaber_person_ids` oder Banknamen die Mehrdeutigkeit aufloesen. Nicht eindeutig zuordbar → in `error/`. Steht das Konto noch **gar nicht** in `konten.json` (z. B. erster Import einer neuen Bank), nicht raten: dem Nutzer einen konkreten Konto-Eintrag (`konto_id`, `name`, `kontotyp`, `kontoreferenz`, `inhaber_person_ids`) **vorschlagen** und ihn erst nach **expliziter Bestaetigung** validiert anlegen. Erst danach importieren. Bei einem Initialimport pruefen, ob die Rohquelle einen belegten Kontostand enthaelt; dem Nutzer den erkannten Stand oder das Fehlen eines Standes mit Handlungsoptionen vorlegen.
 3. **Normalisieren**: Roheintraege ins **standardisierte Importformat** (siehe `schemas/`) ueberfuehren. Eine JSONL-Datei pro Lauf unter `data/inbox/standardized/`.
 4. **Validieren**: `tools/validator.mjs` (bzw. die Browser-faehige Bibliothek) auf das Standardformat anwenden. Fehlschlag → in `error/`.
-5. **Dedupe**: Fuer jede Buchung den `dedupe_hash` bilden (Felder siehe `CONTEXT.md`). Gegen `data/master/transaktionen.jsonl` (den **Bestand**) pruefen. Hash bekannt → ueberspringen. **Nicht** innerhalb desselben Auszugs deduplizieren — ein amtlicher Auszug enthaelt reale Buchungen; das Tool laesst gleich aussehende Zeilen stehen und disambiguiert in allen Quellfeldern identische automatisch (siehe ADR 0007, Praezisierung 2026-06-09). `bank_referenz` aus der Rohdatei roh mitgeben, wo die Bank eine liefert — die Pipeline nutzt sie nur als Schluessel, wenn sie **dateiweit eindeutig** ist, und faellt sonst auf den Freitext-Hash zurueck. Du musst die Eindeutigkeit nicht selbst herausfiltern.
+5. **Dedupe**: Fuer jede Buchung den `dedupe_hash` bilden (Felder siehe `docs/agent-context.md`). Gegen `data/master/transaktionen.jsonl` (den **Bestand**) pruefen. Hash bekannt → ueberspringen. **Nicht** innerhalb desselben Auszugs deduplizieren — ein amtlicher Auszug enthaelt reale Buchungen; das Tool laesst gleich aussehende Zeilen stehen und disambiguiert in allen Quellfeldern identische automatisch (zweistufiger Dedupe-Hash aus `docs/agent-context.md`). `bank_referenz` aus der Rohdatei roh mitgeben, wo die Bank eine liefert — die Pipeline nutzt sie nur als Schluessel, wenn sie **dateiweit eindeutig** ist, und faellt sonst auf den Freitext-Hash zurueck. Du musst die Eindeutigkeit nicht selbst herausfiltern.
 6. **Kategorisieren**: `tools/categorizer.mjs` aufrufen mit der Buchung und `kategorisierungsregeln.json`.
    - Eindeutiger Treffer → `kategorie_id` setzen, `kategorisierung_status = vorgeschlagen`.
    - Kein Treffer oder Konflikt → `kategorisierung_status = offen`, keine `kategorie_id`.
@@ -146,7 +138,7 @@ Ablage in `Belege/`:
 - Bei Unsicherheit (Konto, Datum, Betrag, Gegenpartei) lieber im Dialog fragen oder in `error/` legen — niemals raten.
 - Den Stand am Ende eines Laufs als kurze Zusammenfassung in den Chat schreiben (importiert: X, offen: Y, Fehler: Z).
 - Bei einem geklaerten Fehler aus `error/` die Datei zuruck nach `data/inbox/` schieben und den Lauf nochmal starten.
-- Beim ersten Import einer neuen Bank pruefen, ob `bank_referenz` (Buchungsnummer) ueber Re-Exports stabil bleibt. Wenn nicht: Feld weglassen, damit der Freitext-Hash greift (ADR 0007).
+- Beim ersten Import einer neuen Bank pruefen, ob `bank_referenz` (Buchungsnummer) ueber Re-Exports stabil bleibt. Wenn nicht: Feld weglassen, damit der Freitext-Hash greift (zweistufiger Dedupe-Hash aus `docs/agent-context.md`).
 
 ## Don'ts
 

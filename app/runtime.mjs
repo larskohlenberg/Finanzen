@@ -95,6 +95,8 @@ export const state = {
   masterSection: "konten",
   selectedKonto: "",
   moreMenuOpen: false,
+  nextActionCopied: false,
+  nextActionPromptFallback: "",
   liquiditaet: {
     granularitaet: "monat",
     bisDatum: defaultHorizonEnd(data.regelzahlungen, localTodayIso()),

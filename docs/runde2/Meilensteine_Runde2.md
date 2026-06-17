@@ -109,6 +109,22 @@ Exit-Kriterien:
 - Nettovermoegen ist berechnet, nicht manuell gepflegt.
 - Fehlende Quellen erzeugen sichtbare Checks.
 
+## Betriebliches Agenten-DoD ab M6
+
+Jeder Meilenstein ab M6, der neue Datenzustaende, Checks, Vorschlaege oder
+Agentenprozesse einfuehrt, muss zusaetzlich pruefen:
+
+- Muss `app/docs/agent-context.md` erweitert werden?
+- Muss ein vorhandener Skill angepasst oder ein neuer Skill unter `app/docs/skills/`
+  angelegt werden?
+- Muss das Next-Action-Mapping erweitert oder die Prioritaet angepasst werden?
+- Gibt es neue Schemas oder Tools, die der betroffene Skill referenzieren muss?
+- Bleiben alle App-Skills frei von Verweisen auf Root-Doku, ADRs und
+  Entwicklungsplaene?
+
+Diese Pruefung ist Teil des Exit-Kriteriums, weil die deploybare App im Betrieb nur
+den App-Raum voraussetzen darf.
+
 ## M6 - Szenarien und Arbeitsende-Fragen
 
 Ziel: Szenarien rechnen auf validierten Daten und expliziten Annahmen.

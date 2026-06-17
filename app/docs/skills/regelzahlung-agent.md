@@ -2,21 +2,23 @@
 
 Aktuelle Betriebsanweisung fuer Erkennung, Vorschlag und Bestätigung wiederkehrender Zahlungen. Fachlich aus M4 entstanden.
 
-Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...` und `tools/...` liegen unter dem App-Raum.
+Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
+`tools/...` und `docs/...` liegen unter dem App-Raum.
 
 ## Session-Start-Pflicht
 
 **Zu Beginn jeder Session** `data/master/regelzahlungen.json` auf `status = "vorgeschlagen"` prüfen und offene Vorschläge **aktiv** melden:
-„Es liegen N Regelzahlungsvorschläge zur Bestätigung vor: …". Die App schreibt keine Masterdaten (ADR 0006) — der Agent ist der Änderungskanal, also muss der Agent erinnern.
+„Es liegen N Regelzahlungsvorschläge zur Bestätigung vor: …". Die App schreibt keine Masterdaten — der Agent ist der Änderungskanal, also muss der Agent erinnern.
 
 ## Kontext, den du kennen musst
 
-- `CONTEXT.md`: Einträge **Regelzahlung**, **Liquiditaet**, **Cashflow-Ist**, **Cashflow-Prognose**, **Status und Lebenszyklus**.
-- `docs/adr/0010` (Erkennung = Agent-Urteil, Prognose = deterministisches Modul).
-- `docs/adr/0011` (Prognose regelzahlungsbasiert + Unvollständigkeit gekennzeichnet).
+- `docs/agent-context.md` — gemeinsame Regeln fuer App-Raum, Status, Validierung, Regelzahlungen und Prognosegrenzen.
+- `data/master/regelzahlungen.json`.
+- `data/master/transaktionen.jsonl`.
 - `schemas/regelzahlungen.schema.json`.
+- `tools/validator.mjs`.
 
-## Erkennen (Agent-Urteil, ADR 0010)
+## Erkennen (Agent-Urteil)
 
 Du erkennst Muster in `data/master/transaktionen.jsonl` mit Kontextwissen — kein Tool errät Regelmäßigkeit. Zyklus über `rhythmus_einheit ∈ {tag, woche, monat, jahr}` + `rhythmus_intervall` (monatlich = monat/1, quartalsweise = monat/3, 14-tägig = woche/2, jährlich = jahr/1). Erwartete Höhe als **vorzeichenbehafteter** Decimal-String (negativ = Ausgabe).
 

@@ -1,5 +1,6 @@
 import { defaultHorizonEnd } from "./liquiditaet.mjs";
 import { iconSvg } from "./icons.js";
+import { buildNextAgentAction } from "./next-action.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
 import { renderTransactions, filteredTransactions, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
@@ -15,6 +16,8 @@ import {
 } from "./runtime.mjs";
 import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
+
+let nextActionCopiedTimer = null;
 
 function applyTheme() {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -119,6 +122,7 @@ function render() {
     <main class="main" id="main-content" tabindex="-1">
       ${renderTopbar()}
       ${renderValidationBanner()}
+      ${renderPromptFallback()}
       ${renderView()}
     </main>
     ${renderTabbar()}
@@ -203,7 +207,7 @@ function renderTopbar() {
         <button class="chip neutral linkish" data-action="reload-data" aria-label="${escapeHtml(t("chrome.reloadData"))}" title="${escapeHtml(t("chrome.reloadData"))}">${iconSvg("regelzahlungen")}${escapeHtml(t("chrome.reloadData"))}</button>
         <button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
-        <button class="chip neutral linkish" data-action="next-action">${escapeHtml(t("chrome.nextAction"))}: ${openCategoryTransactions().length} ${escapeHtml(t("overview.nextActionText"))}</button>
+        ${renderNextActionButton()}
       </div>
       <div class="controls">
         <select class="control-select icon-select" data-control="lang" aria-label="${escapeHtml(t("chrome.language"))}" title="${escapeHtml(t("chrome.language"))}">
@@ -217,6 +221,30 @@ function renderTopbar() {
         </select>
       </div>
     </header>
+  `;
+}
+
+function renderNextActionButton() {
+  const nextAction = buildNextAgentAction(data);
+  const disabled = nextAction.type === "none" ? " disabled" : "";
+  const label = state.nextActionCopied ? t("chrome.agentPromptCopied") : t("chrome.copyAgentPrompt");
+  const detail = nextAction.type === "none" ? t("chrome.noAgentAction") : nextAction.label;
+  return `
+    <button class="chip neutral linkish next-action-copy" data-action="copy-next-agent-prompt"${disabled} title="${escapeHtml(detail)}">
+      ${iconSvg("copy")}${escapeHtml(label)} · ${escapeHtml(detail)}
+    </button>
+  `;
+}
+
+function renderPromptFallback() {
+  if (!state.nextActionPromptFallback) return "";
+  return `
+    <section class="prompt-fallback panel panel-pad" aria-labelledby="prompt-fallback-title">
+      <h2 class="section-title" id="prompt-fallback-title">${escapeHtml(t("chrome.agentPromptFallbackTitle"))}</h2>
+      <p class="page-lead">${escapeHtml(t("chrome.agentPromptFallbackLead"))}</p>
+      <textarea readonly rows="10">${escapeHtml(state.nextActionPromptFallback)}</textarea>
+      <button class="linkish" data-action="close-prompt-fallback">${escapeHtml(t("chrome.closeDetails"))}</button>
+    </section>
   `;
 }
 
@@ -302,7 +330,7 @@ app.addEventListener("click", (event) => {
 
   const action = event.target.closest("[data-action]");
   if (action) {
-    handleAction(action);
+    void handleAction(action);
     return;
   }
 
@@ -386,8 +414,42 @@ app.addEventListener("change", (event) => {
   }
 });
 
-function handleAction(element) {
+async function copyNextAgentPrompt() {
+  const nextAction = buildNextAgentAction(data);
+  if (!nextAction.prompt) return;
+  try {
+    await navigator.clipboard.writeText(nextAction.prompt);
+    if (nextActionCopiedTimer) clearTimeout(nextActionCopiedTimer);
+    state.nextActionCopied = true;
+    state.nextActionPromptFallback = "";
+    render();
+    nextActionCopiedTimer = window.setTimeout(() => {
+      state.nextActionCopied = false;
+      nextActionCopiedTimer = null;
+      render();
+    }, 1800);
+  } catch {
+    if (nextActionCopiedTimer) {
+      clearTimeout(nextActionCopiedTimer);
+      nextActionCopiedTimer = null;
+    }
+    state.nextActionCopied = false;
+    state.nextActionPromptFallback = nextAction.prompt;
+    render();
+  }
+}
+
+async function handleAction(element) {
   const action = element.dataset.action;
+  if (action === "copy-next-agent-prompt") {
+    await copyNextAgentPrompt();
+    return;
+  }
+  if (action === "close-prompt-fallback") {
+    state.nextActionPromptFallback = "";
+    render();
+    return;
+  }
   if (action === "reload-data") {
     const url = new URL(window.location.href);
     url.searchParams.set("_reload", String(Date.now()));
@@ -430,7 +492,7 @@ function handleAction(element) {
     commitNavigation();
     return;
   }
-  if (action === "filter-open-category" || action === "next-action") {
+  if (action === "filter-open-category") {
     state.view = "transactions";
     state.transactionFilters.status = "offen";
     state.transactionFilters.account = "";

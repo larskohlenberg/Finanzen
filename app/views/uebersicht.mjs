@@ -2,10 +2,12 @@
 // Übersicht: KPIs (Nettovermögen, geladene Salden) + Konten-Tabelle.
 import { data, t, escapeHtml } from "../runtime.mjs";
 import { formatMoney, renderPageHead, renderAccountTable } from "../komponenten.mjs";
-import { currentNettovermoegen, loadedTotalAccountsBalance, openCategoryTransactions } from "../selektoren.mjs";
+import { buildNextAgentAction } from "../next-action.mjs";
+import { currentNettovermoegen, loadedTotalAccountsBalance } from "../selektoren.mjs";
 import { renderCheckItems } from "./checks.mjs";
 
 export function renderOverview() {
+  const nextAction = buildNextAgentAction(data);
   return `
     ${renderPageHead(t("overview.title"), "")}
     <div class="layout-with-rail">
@@ -34,8 +36,8 @@ export function renderOverview() {
       <aside class="rail overview-rail">
         <section class="panel panel-pad next-action">
           <h2 class="section-title">${escapeHtml(t("chrome.nextAction"))}</h2>
-          <button class="linkish" data-action="filter-open-category">${openCategoryTransactions().length} ${escapeHtml(t("overview.nextActionText"))}</button>
-          <p class="page-lead">${escapeHtml(t("checks.categoryOpen.detail"))}</p>
+          <button class="linkish" data-action="copy-next-agent-prompt" ${nextAction.type === "none" ? "disabled" : ""}>${escapeHtml(nextAction.type === "none" ? t("chrome.noAgentAction") : nextAction.label)}</button>
+          <p class="page-lead">${escapeHtml(t("chrome.copyAgentPrompt"))}</p>
         </section>
         <section class="panel panel-pad checks-rail">
           <h2 class="section-title">${escapeHtml(t("overview.checksPreview"))}</h2>
@@ -45,4 +47,3 @@ export function renderOverview() {
     </div>
   `;
 }
-

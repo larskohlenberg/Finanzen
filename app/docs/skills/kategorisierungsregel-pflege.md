@@ -1,11 +1,9 @@
 # Skill: Kategorisierungsregel-Pflege
 
-Betriebsanweisung fuer das datengetriebene Anlegen, Aendern und Stilllegen von Kategorisierungsregeln und die anschliessende Nach-Kategorisierung des Bestands. Fachlich aus ADR 0017 entstanden; der Nutzer stoesst an, der Agent fuehrt — der Agent legt **nie still** eine Regel an und raet **nie** eine Kategorie.
+Betriebsanweisung fuer das datengetriebene Anlegen, Aendern und Stilllegen von Kategorisierungsregeln und die anschliessende Nach-Kategorisierung des Bestands. Der Nutzer stoesst an, der Agent fuehrt — der Agent legt **nie still** eine Regel an und raet **nie** eine Kategorie.
 
-Es gibt zwei Wurzeln, halte sie auseinander:
-
-- **App-Datenraum** (`app/`): `data/...`, `schemas/...`, `tools/...` sind app-relativ.
-- **Repo-Root** (eine Ebene ueber `app/`): `CONTEXT.md` und `docs/adr/...` liegen hier (ADR 0015). Pfade auf diese Doku sind repo-root-relativ.
+Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
+`tools/...` und `docs/...` liegen unter dem App-Raum.
 
 ## Wann diesen Skill nutzen
 
@@ -22,19 +20,19 @@ Nicht nutzen fuer:
 
 ## Kontext, den du kennen musst
 
-Im **Repo-Root**:
+1. `docs/agent-context.md` — gemeinsame Regeln fuer App-Raum, Kategorisierung, Herkunft, Nach-Kategorisierung und Validierung.
+2. `schemas/kategorisierungsregeln.schema.json` — verbindliche Struktur einer Regel.
+3. `data/master/kategorisierungsregeln.json` — der Regelbestand.
+4. `data/master/kategorien.json` — gueltige `kategorie_id` (Ziel jeder Regel).
+5. `tools/categorizer.mjs` (Matching) und `tools/recategorize.mjs` (Nach-Kategorisierung).
 
-1. `CONTEXT.md` — Eintraege **Kategorisierung** (Erst-/Nach-Kategorisierung, `kategorie_herkunft`), **Kategorisierungsregel**, **Transfer** (`ist_transfer` ⊥ `kategorie_id`).
-2. `docs/adr/0017-nach-kategorisierung-des-bestands-bei-regelaenderung.md` — die massgebliche Policy.
-3. `docs/adr/0003` (Validator/Tool deterministisch, Agent ruft) und `docs/adr/0010` (Erkennen = Agent-Urteil, Matchen = Tool).
-4. `docs/adr/0002` (bestaetigte Kategorie ist Fakt) und `docs/adr/0006` (App schreibt keine Masterdaten).
+## Zentrale Regeln
 
-Im **App-Datenraum** (`app/`):
-
-5. `schemas/kategorisierungsregeln.schema.json` — verbindliche Struktur einer Regel.
-6. `data/master/kategorisierungsregeln.json` — der Regelbestand.
-7. `data/master/kategorien.json` — gueltige `kategorie_id` (Ziel jeder Regel).
-8. `tools/categorizer.mjs` (Matching) und `tools/recategorize.mjs` (Nach-Kategorisierung).
+- Der Agent legt nie still eine Regel an und raet nie eine Kategorie.
+- Nach-Kategorisierung bewertet `offen` plus Eintraege mit `kategorie_herkunft = regel`.
+- `manuell` und `abgelehnt` bleiben unangetastet.
+- Widerspruch gegen eine bestaetigte Regel-Kategorie wird Wiedervorlage, nicht stilles Ueberschreiben.
+- Reimport ist keine Nach-Kategorisierung; bekannte Buchungen werden per Dedupe uebersprungen.
 
 ## Ablauf
 
@@ -46,14 +44,14 @@ Im **App-Datenraum** (`app/`):
    Eine Regel darf **auch ohne aktuellen Treffer** angelegt werden (wissensbasiert, z. B. fuer kuenftige Buchungen) — das ist erlaubt, solange der Nutzer es ausdruecklich will.
 3. **Bestaetigen lassen — Regel fuer Regel.** Keine Regel ohne explizites „ja". Keine Kategorie raten: ist die Zielkategorie unklar, fragen statt tippen.
 4. **Regel schreiben.** Neue `regel_id` als naechste freie `REG-NNN` (Bestand scannen, es gibt keinen ID-Helfer), `status = "aktiv"`, `erstellt_am` = heutiges Datum, optional `kommentar`. Struktur gegen `schemas/kategorisierungsregeln.schema.json` pruefen, dann an `data/master/kategorisierungsregeln.json` schreiben. Eine Regel **aendern** = denselben Satz ueberschreiben; eine Regel **stilllegen** = `status = "inaktiv"` (nicht loeschen, der Categorizer ignoriert Inaktive ohnehin).
-5. **Nach-Kategorisierung anstossen.** `node app/tools/recategorize.mjs` aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel`) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute liefert dasselbe Ergebnis (ADR 0017).
+5. **Nach-Kategorisierung anstossen.** `node tools/recategorize.mjs` aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel`) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung.
 6. **Bericht + Uebergabe.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`) und in `data/master/agent_log.jsonl` protokollieren. Dieser Skill **endet bei `vorgeschlagen`** — das Bestaetigen ist Sache von **kategorisierung-review**. Darauf aktiv hinweisen, wenn neue Vorschlaege oder Wiedervorlagen entstanden sind.
 
 ## Do's
 
 - **Read-only zuerst** — erst analysieren und vorschlagen, dann nach Bestaetigung schreiben.
 - **Nach Hebel priorisieren** — das groesste offene Bucket zuerst, nicht alphabetisch.
-- **Transfers ruhig verregeln** — `ist_transfer` und `kategorie_id` sind orthogonal (CONTEXT, ADR-Hinweis); ein Sparuebertrag darf zusaetzlich `Sparen/Investieren` tragen.
+- **Transfers ruhig verregeln** — `ist_transfer` und `kategorie_id` sind orthogonal; ein Sparuebertrag darf zusaetzlich `Sparen/Investieren` tragen.
 - **Validator vertrauen, aber pruefen** — `recategorize.mjs` ruft ihn; schlaegt er an, den Fehler klaeren, nicht uebergehen.
 - **Idempotenz nutzen** — der Lauf ist wiederholbar; ein zweiter Lauf ohne Regelaenderung aendert nichts.
 
@@ -61,7 +59,7 @@ Im **App-Datenraum** (`app/`):
 
 - **Keine Regel still anlegen.** Immer Vorschlag → explizite Bestaetigung. Auch wenn ein Muster „offensichtlich" ist.
 - **Keine Kategorie raten.** Unklare Zielkategorie → fragen oder offen lassen, nie eine `kategorie_id` erfinden.
-- **Nicht reimportieren, um nachzukategorisieren.** Der Reimport ueberspringt Bekanntes per Dedupe und ruehrt den Bestand nicht an (ADR 0017). Nach-Kategorisierung laeuft ausschliesslich ueber `recategorize.mjs`.
+- **Nicht reimportieren, um nachzukategorisieren.** Der Reimport ueberspringt Bekanntes per Dedupe und ruehrt den Bestand nicht an. Nach-Kategorisierung laeuft ausschliesslich ueber `recategorize.mjs`.
 - **Bestaetigt/manuell/abgelehnt nicht umbiegen.** Das Tool fasst sie nicht an, und du auch nicht — ein Widerspruch wird als **Wiedervorlage** sichtbar, nicht still ueberschrieben.
 - **Keine Kategorie direkt an Transaktionen schreiben.** Kategorien entstehen ueber Regeln (deterministisch) oder im Review (manuell), nicht hier von Hand.
 

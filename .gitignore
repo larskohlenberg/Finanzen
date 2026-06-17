@@ -17,6 +17,7 @@ __pycache__/
 .claude/
 .codex/
 .stitch/
+.worktrees/
 
 # Produktive App-Daten und Belege bleiben lokal.
 # Nur die Ordnerstruktur (.gitkeep) und strukturbeschreibende README.md

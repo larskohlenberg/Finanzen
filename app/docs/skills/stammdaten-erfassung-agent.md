@@ -16,12 +16,10 @@ Den Nutzer Schritt für Schritt durch die Erfassung beliebiger Stammdaten leiten
 
 ## Kontext, den du kennen musst
 
-- `CONTEXT.md`: Einträge **Konto**, **Immobilie**, **Darlehen**, **Nettovermögen**, **Weiterer Vermögenswert**, **Zeitwerte**, **Geladener Saldo und Kontostand**.
-- `docs/adr/0006` (Regelzahlungen nur via Agent-Dialog, App schreibt keine Masterdaten).
-- `docs/adr/0013` (belegter Anker + Reconciliation für berechenbare Werte).
-- `docs/adr/0014` (Nettovermögen als Haushaltssicht, anteilsgewichtet).
-- `docs/runde2/Meilensteine_Runde2.md` (fachlicher Ursprung M5 + vorgemerkte M6/M8-Punkte).
-- Das jeweilige `schemas/*.schema.json` und `tools/validator.mjs`.
+- `docs/agent-context.md` — gemeinsame Regeln fuer App-Raum, Validierung, Zeitwerte, belegte Anker, Reconciliation, Regelzahlungen und Agentenprotokoll.
+- Das jeweilige `schemas/*.schema.json`.
+- `tools/validator.mjs`.
+- `vermoegen.mjs` fuer Nettovermoegen- und Check-Berechnung.
 
 ## Ablauf
 
@@ -45,18 +43,18 @@ Den Nutzer Schritt für Schritt durch die Erfassung beliebiger Stammdaten leiten
 
 ## Do's
 
-- **Belegter, unabhängiger Anker** statt „Endstand minus Buchungen" (ADR 0013). Konto-Saldo und Darlehen-Restschuld werden aus belegtem Anker + Bewegungen berechnet, der Anker wird belegt, nicht abgeleitet.
+- **Belegter, unabhängiger Anker** statt „Endstand minus Buchungen" (belegter Anker und Reconciliation). Konto-Saldo und Darlehen-Restschuld werden aus belegtem Anker + Bewegungen berechnet, der Anker wird belegt, nicht abgeleitet.
 - **Brüche** für Eigentumsanteile (`{person_id, zaehler, nenner}`), Summe je Entität exakt 1.
 - **Geld als Decimal-String** mit zwei Nachkommastellen (`^-?\d+\.\d{2}$`), Zinssatz als `^\d+\.\d{2,4}$`.
-- Bei **neuem Darlehen aktiv die passende Raten-Regelzahlung vorschlagen** (`darlehen_id` setzen) — nur über den Regelzahlungs-Dialog (ADR 0006).
+- Bei **neuem Darlehen aktiv die passende Raten-Regelzahlung vorschlagen** (`darlehen_id` setzen) — nur über den Regelzahlungs-Dialog (App schreibt keine Masterdaten; Regelzahlungen laufen ueber Agenten-Dialog).
 - Depot als `kontotyp = depot` unter Konto, Wert über `depotwert`-Zeitwert (kein Anker+Buchungen). Bargeld zählt nicht.
 
 ## Don'ts
 
-- **Keine pro-Person-Aufteilung** des Nettovermögens (ADR 0014) — Haushaltssicht, anteilsgewichtet.
+- **Keine pro-Person-Aufteilung** des Nettovermögens (Nettovermoegen ist Haushaltssicht) — Haushaltssicht, anteilsgewichtet.
 - **Keine geplanten Sondertilgungen / Zukunftsprojektion** (→ M6).
 - **Keine Werte raten** — Unsicherheit als `geschaetzt` kennzeichnen oder offen lassen.
-- **Regelzahlungen nie hand-editieren**, nur via Agent-Dialog (ADR 0006).
+- **Regelzahlungen nie hand-editieren**, nur via Agent-Dialog (App schreibt keine Masterdaten; Regelzahlungen laufen ueber Agenten-Dialog).
 - **Haiku nicht** für die Wert-Übertragung einsetzen.
 
 ## Belege benennen und ablegen

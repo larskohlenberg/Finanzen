@@ -1,8 +1,9 @@
 # Skill: Kategorisierung-Review
 
-Betriebsanweisung fuer das Bestaetigen, Korrigieren und Ablehnen vorgeschlagener Kategorien — auf **Bucket-Granularitaet**, nicht Buchung fuer Buchung. Fachlich aus ADR 0017 entstanden; der Nutzer entscheidet, der Agent fuehrt und schreibt. Die App ist nur Anzeige (ADR 0006) — der Agent ist der einzige Aenderungskanal.
+Betriebsanweisung fuer das Bestaetigen, Korrigieren und Ablehnen vorgeschlagener Kategorien — auf **Bucket-Granularitaet**, nicht Buchung fuer Buchung. Der Nutzer entscheidet, der Agent fuehrt und schreibt. Die App ist nur Anzeige — der Agent ist der einzige Aenderungskanal.
 
-Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`, `tools/...` liegen unter dem App-Raum. `CONTEXT.md` und `docs/adr/...` liegen im Repo-Root (ADR 0015).
+Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
+`tools/...` und `docs/...` liegen unter dem App-Raum.
 
 ## Wann diesen Skill nutzen
 
@@ -22,9 +23,17 @@ Zu Beginn `data/master/transaktionen.jsonl` auf `kategorisierung_status = vorges
 
 ## Kontext, den du kennen musst
 
-- `CONTEXT.md` — Eintraege **Kategorisierung** (Status-Lebenszyklus `offen → vorgeschlagen → bestaetigt`/Korrektur, `kategorie_herkunft`), **Kategorisierungsregel**, **Transfer** (`ist_transfer` ⊥ `kategorie_id`).
-- `docs/adr/0017` (Nach-Kategorisierung, Herkunft, Wiedervorlage), `docs/adr/0002` (bestaetigte Kategorie ist Fakt), `docs/adr/0006` (App schreibt keine Masterdaten).
+- `docs/agent-context.md` — gemeinsame Regeln fuer Status, Herkunft, Kategorisierung, Validierung und Agentenprotokoll.
 - `schemas/transaktionen.schema.json` und `tools/validator.mjs`.
+- `data/master/transaktionen.jsonl`, `data/master/kategorien.json`, `data/master/agent_log.jsonl`.
+
+## Zentrale Regeln
+
+- Review bestaetigt, korrigiert oder lehnt bestehende `vorgeschlagen`-Eintraege ab.
+- Bulk-Bestaetigung einer Regel-Kategorie setzt `kategorisierung_status = bestaetigt` und belaesst `kategorie_herkunft = regel`.
+- Einzelkorrektur auf eine andere Zielkategorie setzt `kategorisierung_status = bestaetigt` und `kategorie_herkunft = manuell`.
+- Ablehnung entfernt `kategorie_id` und `kategorie_herkunft` und setzt `kategorisierung_status = abgelehnt`.
+- Keine Korrektur-Kategorie raten; die Zielkategorie nennt der Nutzer.
 
 ## Ablauf
 

@@ -342,6 +342,22 @@ function validateCrossFieldRules(data, errors) {
     }
   });
 
+  const regelIds = new Set((data.kategorisierungsregeln ?? []).map((r) => r.regel_id));
+  data.transaktionen?.forEach((tx) => {
+    if (!Object.hasOwn(tx, "matched_regeln")) return;
+    if (tx.kategorie_herkunft === "manuell") {
+      errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: nicht erlaubt bei manueller Herkunft`);
+    }
+    if (tx.kategorisierung_status === "abgelehnt") {
+      errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: nicht erlaubt bei abgelehnt`);
+    }
+    for (const id of tx.matched_regeln) {
+      if (!regelIds.has(id)) {
+        errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: ${id} existiert nicht`);
+      }
+    }
+  });
+
   data.transfers?.forEach((transfer) => validateTransfer(transfer, transaktionen, errors));
 
   data.regelzahlungen?.forEach((rz) => {

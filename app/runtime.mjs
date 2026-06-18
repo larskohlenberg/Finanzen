@@ -95,6 +95,7 @@ export const state = {
   detailRailClosed: false,
   masterSection: "konten",
   selectedKonto: "",
+  selectedRegel: "",
   moreMenuOpen: false,
   nextActionCopied: false,
   nextActionPromptFallback: "",

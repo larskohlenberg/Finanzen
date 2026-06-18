@@ -30,6 +30,7 @@ const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
   "data-vermoegen", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
   "data-vermoegen-sort", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
+  "data-rule",
 ];
 const SCROLL_SELECTORS = [".nav", ".table-wrap"];
 
@@ -347,9 +348,19 @@ app.addEventListener("click", (event) => {
     return;
   }
 
+  const ruleRow = event.target.closest("[data-rule]");
+  if (ruleRow) {
+    state.view = "masterdata";
+    state.masterSection = "regeln";
+    state.selectedRegel = ruleRow.dataset.rule;
+    commitNavigation();
+    return;
+  }
+
   const masterSection = event.target.closest("[data-master-section]");
   if (masterSection) {
     state.masterSection = masterSection.dataset.masterSection;
+    state.selectedRegel = "";
     commitNavigation();
   }
 });
@@ -357,7 +368,7 @@ app.addEventListener("click", (event) => {
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
-const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-transaction-sort]";
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-transaction-sort], [data-rule]";
 app.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
@@ -676,6 +687,7 @@ function snapshotState() {
     transactionPage: state.transactionPage,
     masterSection: state.masterSection,
     selectedKonto: state.selectedKonto,
+    selectedRegel: state.selectedRegel,
     selectedVermoegenId: state.selectedVermoegenId,
     vermoegenRailMode: state.vermoegenRailMode,
     vermoegenRailWide: state.vermoegenRailWide,
@@ -690,6 +702,7 @@ function restoreState(snapshot) {
   state.transactionPage = snapshot.transactionPage || 1;
   state.masterSection = snapshot.masterSection || "konten";
   state.selectedKonto = snapshot.selectedKonto || "";
+  state.selectedRegel = snapshot.selectedRegel || "";
   state.selectedVermoegenId = snapshot.selectedVermoegenId || "";
   state.vermoegenRailMode = snapshot.vermoegenRailMode || "position";
   state.vermoegenRailWide = Boolean(snapshot.vermoegenRailWide);
@@ -719,6 +732,7 @@ function applyRoute(route) {
   state.moreMenuOpen = false;
   if (route.masterSection) state.masterSection = route.masterSection;
   if (route.selectedKonto) state.selectedKonto = route.selectedKonto;
+  if (route.selectedRegel) state.selectedRegel = route.selectedRegel;
 
   if (route.selectedTransactionId && transaktionenById.has(route.selectedTransactionId)) {
     Object.assign(state.transactionFilters, {

@@ -61,6 +61,7 @@ Nicht nutzen fuer:
 - **Keine Kategorie raten.** Unklare Zielkategorie → fragen oder offen lassen, nie eine `kategorie_id` erfinden.
 - **Nicht reimportieren, um nachzukategorisieren.** Der Reimport ueberspringt Bekanntes per Dedupe und ruehrt den Bestand nicht an. Nach-Kategorisierung laeuft ausschliesslich ueber `recategorize.mjs`.
 - **Bestaetigt/manuell/abgelehnt nicht umbiegen.** Das Tool fasst sie nicht an, und du auch nicht — ein Widerspruch wird als **Wiedervorlage** sichtbar, nicht still ueberschrieben.
+- **Regel deckt eine `manuell`-Buchung mit gleicher Kategorie?** Dann ist die `manuell`-Markierung die Altlast (jemand hat Regel **und** `manuell` zugleich gesetzt). `recategorize.mjs` heilt das nicht (es laesst `manuell` in Ruhe). Solche Buchungen gezielt auf `kategorie_herkunft = regel` zuruecksetzen und `matched_regeln` stempeln — **nur**, wenn die treffende Regel **dieselbe** Kategorie liefert. Weicht die Nutzer-Kategorie ab, ist es eine bewusste Uebersteuerung und bleibt `manuell`.
 - **Keine Kategorie direkt an Transaktionen schreiben.** Kategorien entstehen ueber Regeln (deterministisch) oder im Review (manuell), nicht hier von Hand.
 
 ## Wann fragen, wann handeln

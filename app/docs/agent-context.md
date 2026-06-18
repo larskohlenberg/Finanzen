@@ -93,6 +93,14 @@ Bei Bestaetigung bleibt die Herkunft erhalten: `regel` bleibt `regel`, `agent`
 bleibt `agent`. Nur wenn der Nutzer eine andere Kategorie nennt oder direkt eine
 Kategorie diktiert, wird `kategorie_herkunft = manuell` gesetzt.
 
+**Regel und `manuell` schliessen sich aus.** Gibt es eine aktive Regel, die die
+Buchung trifft und **dieselbe** Kategorie liefert, ist die Herkunft `regel` (mit
+`matched_regeln`) — nicht `manuell`. Eine Buchung gleichzeitig per Regel abzudecken
+*und* `manuell` zu markieren ist ein Fehler: die Buchung zaehlte sonst nie zur Regel
+und die Regel erschiene faelschlich als „greift nie". `manuell` ist den Faellen
+vorbehalten, in denen die Nutzer-Kategorie **von jeder Regel abweicht** (bewusste
+Uebersteuerung) oder bewusst kein Regelfall entsteht.
+
 ### matched_regeln — Provenance-Feld
 
 Transaktionen koennen ein optionales Feld `matched_regeln: ["REG-…", …]` tragen.

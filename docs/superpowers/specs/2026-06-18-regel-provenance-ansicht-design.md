@@ -178,7 +178,18 @@ Erklärung. Konkret:
   umgeschrieben (eigene Plan-Phase). Die übrigen 146 sind bereits erklärend.
 - `docs/skills/kategorisierungsregel-pflege.md`: verlangt künftig eine
   Klartext-Erklärung im `kommentar` (kein Pattern-Restatement), besonders für
-  komplexe/Regex-Patterns.
+  komplexe/Regex-Patterns. Schritt 4 sagt heute „optional kommentar" → auf
+  **Pflicht** ändern. **Änderungsfall:** wird das Pattern angepasst, muss der
+  `kommentar` mitgezogen werden, damit er nicht das alte Muster erklärt.
+
+**Eintrittspunkte / Lifecycle.** Regeln werden ausschließlich vom Skill
+`kategorisierungsregel-pflege` geschrieben; `import-agent` und
+`kategorisierung-review` legen explizit **keine** Regeln an, sondern delegieren
+dorthin. Die Klartext-Pflicht muss deshalb **nur** im Pflege-Skill stehen (keine
+Duplizierung). `kommentar = required` im Schema/Validator ist der pfad-unabhängige
+Backstop: erzwingt *Vorhandensein* an jeder Schreibstelle; *Qualität* (Klartext)
+liegt beim Pflege-Skill. `import-agent.md` / `kategorisierung-review.md` brauchen
+für die Erklärbarkeit **keine** Änderung.
 
 ### Skill-Docs (Schreibverhalten der Agenten)
 

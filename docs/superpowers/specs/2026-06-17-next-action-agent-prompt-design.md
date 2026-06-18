@@ -3,6 +3,10 @@
 **Status:** Design freigegeben
 **Datum:** 2026-06-17
 
+**Hinweis:** Die Top-1-Funktion wurde am 2026-06-18 um ein Prompt-Menue fuer alle
+ableitbaren Agentenauftraege erweitert. Siehe
+`docs/superpowers/specs/2026-06-18-next-action-prompt-menu-design.md`.
+
 ## Problem
 
 Der Arbeitsstatus zeigt aktuell zwei Bedienelemente mit derselben Wirkung:

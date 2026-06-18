@@ -608,6 +608,13 @@ tbody tr.transaction-row:focus-within td {
   color: var(--muted);
 }
 
+.detail-sub {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
 .linkish {
   border: 0;
   padding: 0;

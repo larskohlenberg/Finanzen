@@ -128,6 +128,11 @@ window.FINANCE_I18N = {
       of: "von",
       previousPage: "Zurück",
       nextPage: "Weiter",
+      origin: "Quelle",
+      originManual: "Manuell",
+      originAgent: "Agent",
+      originRuleConflict: "offen – Regeln widersprechen sich",
+      originUnknown: "Regel (Quelle unbekannt)",
     },
     masterdata: {
       title: "Stammdaten",
@@ -475,6 +480,11 @@ window.FINANCE_I18N = {
       of: "of",
       previousPage: "Previous",
       nextPage: "Next",
+      origin: "Origin",
+      originManual: "Manual",
+      originAgent: "Agent",
+      originRuleConflict: "open – rules conflict",
+      originUnknown: "Rule (origin unknown)",
     },
     masterdata: {
       title: "Master Data",

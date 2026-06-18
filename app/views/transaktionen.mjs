@@ -423,6 +423,20 @@ function pairedTransferTransaction(tx) {
   return pairedId ? transaktionenById.get(pairedId) : undefined;
 }
 
+export function renderHerkunft(tx) {
+  if (tx.kategorie_herkunft === "manuell") return escapeHtml(t("transactions.originManual"));
+  if (tx.kategorie_herkunft === "agent") return escapeHtml(t("transactions.originAgent"));
+  const ids = tx.matched_regeln ?? [];
+  if (tx.kategorisierung_status === "offen" && ids.length) {
+    return `${escapeHtml(t("transactions.originRuleConflict"))} (${ids.map((id) => escapeHtml(id)).join(", ")})`;
+  }
+  if (tx.kategorie_herkunft === "regel" && ids.length) {
+    return ids.map((id) => `<button class="linkish" data-rule="${escapeHtml(id)}">${escapeHtml(id)}</button>`).join(", ");
+  }
+  if (tx.kategorie_herkunft === "regel") return escapeHtml(t("transactions.originUnknown"));
+  return "—";
+}
+
 function renderTransactionDetail(tx) {
   const konto = kontenById.get(tx.konto_id);
   const paired = pairedTransferTransaction(tx);
@@ -472,7 +486,7 @@ function renderTransactionDetail(tx) {
     ` : ""}
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("labels.category"))}</div>
-      <div class="detail-value">${escapeHtml(tx.kategorie_id ? categoryName(tx.kategorie_id) : t("labels.noCategory"))}<br>${statusChip(tx.kategorisierung_status)}</div>
+      <div class="detail-value">${escapeHtml(tx.kategorie_id ? categoryName(tx.kategorie_id) : t("labels.noCategory"))}<br>${statusChip(tx.kategorisierung_status)}<br><span class="detail-sub">${escapeHtml(t("transactions.origin"))}: ${renderHerkunft(tx)}</span></div>
     </div>
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("transactions.rawSource"))}</div>

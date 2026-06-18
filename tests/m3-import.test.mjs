@@ -123,6 +123,31 @@ test("Doppel-Import ist idempotent: 0 neu und Bestand byte-identisch", () => {
   assert.equal(serialize(second.transaktionen), bestand);
 });
 
+test("Import schreibt matched_regeln bei eindeutigem Regel-Treffer", () => {
+  const out = runImport({
+    entries: [entry("KTO-001", "2026-05-20", "-42.80", "MusterladenA Mitte", "Einkauf")],
+    konten, kategorien, kategorisierungsregeln: regeln, transaktionen: [], transfers: [],
+  });
+  const tx = out.transaktionen[0];
+  assert.deepEqual(tx.matched_regeln, ["REG-001"]);
+  assert.equal(tx.kategorie_herkunft, "regel");
+});
+
+test("Import schreibt matched_regeln auch bei Regel-Konflikt (offen)", () => {
+  const konflikRegeln = [
+    { regel_id: "REG-010", gegenpartei_pattern: "konflikt", kategorie_id: "KAT-003", status: "aktiv", erstellt_am: "2026-06-01" },
+    { regel_id: "REG-011", gegenpartei_pattern: "konflikt", kategorie_id: "KAT-011", status: "aktiv", erstellt_am: "2026-06-01" },
+  ];
+  const out = runImport({
+    entries: [entry("KTO-001", "2026-05-20", "-15.00", "Konflikt GmbH", "Rechnung")],
+    konten, kategorien, kategorisierungsregeln: konflikRegeln, transaktionen: [], transfers: [],
+  });
+  const tx = out.transaktionen[0];
+  assert.equal(tx.kategorisierung_status, "offen");
+  assert.equal(Object.hasOwn(tx, "kategorie_id"), false);
+  assert.deepEqual([...tx.matched_regeln].sort(), ["REG-010", "REG-011"]);
+});
+
 test("paart Transfer im selben Lauf", () => {
   const out = runImport({
     entries: [

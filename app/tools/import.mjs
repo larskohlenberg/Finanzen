@@ -97,6 +97,11 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
       // herkunfts-bewusst, damit die Nach-Kategorisierung nur Regel-Treffer neu bewertet.
       transaktion.kategorie_herkunft = "regel";
     }
+    // Regel-Provenance: alle treffenden Regeln merken (auch bei Konflikt ohne
+    // Kategorie), damit Wirkung und Konflikte ohne Live-Re-Derivation sichtbar sind.
+    if (verdict.matched_regeln.length) {
+      transaktion.matched_regeln = verdict.matched_regeln;
+    }
     for (const field of optionalTransactionFields) {
       if (Object.hasOwn(entry, field)) transaktion[field] = entry[field];
     }

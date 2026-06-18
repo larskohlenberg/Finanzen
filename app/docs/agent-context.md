@@ -93,6 +93,26 @@ Bei Bestaetigung bleibt die Herkunft erhalten: `regel` bleibt `regel`, `agent`
 bleibt `agent`. Nur wenn der Nutzer eine andere Kategorie nennt oder direkt eine
 Kategorie diktiert, wird `kategorie_herkunft = manuell` gesetzt.
 
+### matched_regeln — Provenance-Feld
+
+Transaktionen koennen ein optionales Feld `matched_regeln: ["REG-…", …]` tragen.
+Es enthaelt die IDs aller Regeln, die beim Kategorisierungslauf auf die Buchung
+gepasst haben. Das Feld wird **beim Import oder bei der Nach-Kategorisierung
+geschrieben**, nicht nachtraeglich aus dem aktuellen Regelwerk berechnet.
+
+**Invariante:**
+
+- `matched_regeln` ist **immer vorhanden** bei `kategorie_herkunft = regel`
+  (eindeutiger Treffer) und bei `kategorisierung_status = offen` mit
+  mindestens einem Treffer (Regelkonflikt: mehrere Regeln haben gepasst, aber
+  keine eindeutige Kategorie ergab sich).
+- Ein Konflikt ist **ableitbar** aus `status = offen` + nicht leerem
+  `matched_regeln`.
+- `matched_regeln` ist **niemals vorhanden** bei `kategorie_herkunft = manuell`,
+  `kategorie_herkunft = agent` oder `kategorisierung_status = abgelehnt`.
+- Die IDs in `matched_regeln` muessen in `data/master/kategorisierungsregeln.json`
+  existieren; der Validator prueft dies.
+
 Qualitaet von Agenten-Einzelvorschlaegen wird ueber strukturierte Zaehler im
 `agent_log.jsonl` beobachtet, nicht ueber ein Historienfeld an der Transaktion.
 Wenn ein Agenten-Vorschlag korrigiert wird, zaehlt der Review-Lauf diese

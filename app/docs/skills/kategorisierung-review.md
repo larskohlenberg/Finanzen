@@ -35,7 +35,10 @@ Zu Beginn `data/master/transaktionen.jsonl` auf `kategorisierung_status = vorges
 - Der Agent darf offene Einzelbuchungen eigenstaendig als `vorgeschlagen` mit `kategorie_herkunft = agent` vorbereiten; das ist Review-Vorbereitung, keine finale Fachentscheidung.
 - Bestaetigung eines Agenten-Einzelvorschlags setzt `kategorisierung_status = bestaetigt` und belaesst `kategorie_herkunft = agent`.
 - Einzelkorrektur auf eine andere Zielkategorie setzt `kategorisierung_status = bestaetigt` und `kategorie_herkunft = manuell`.
-- Ablehnung entfernt `kategorie_id` und `kategorie_herkunft` und setzt `kategorisierung_status = abgelehnt`.
+- Ablehnung entfernt `kategorie_id`, `kategorie_herkunft` **und `matched_regeln`** und setzt `kategorisierung_status = abgelehnt`.
+- Einzelkorrektur (`manuell`) entfernt ebenfalls `matched_regeln`, da die Kategorie nicht mehr aus einem Regelwerk stammt.
+- Bulk-Bestaetigung einer Regel-Kategorie belaesst `kategorie_herkunft = regel` **und das bestehende `matched_regeln`** unveraendert.
+- Bestaetigung eines Agenten-Einzelvorschlags belaesst `kategorie_herkunft = agent`; `matched_regeln` ist bei Agent-Vorschlaegen nie vorhanden und darf auch nach Bestaetigung nicht gesetzt werden.
 - Keine Korrektur-Kategorie raten; die Zielkategorie nennt der Nutzer.
 
 ## Ablauf
@@ -54,12 +57,12 @@ Zu Beginn `data/master/transaktionen.jsonl` auf `kategorisierung_status = vorges
 
 ## Herkunft richtig setzen — der entscheidende Punkt
 
-| Aktion | `status` | `kategorie_herkunft` | Wirkung beim naechsten Regel-Lauf |
-| --- | --- | --- | --- |
-| Bulk-Bestaetigen (Regel stimmt) | `bestaetigt` | `regel` | ein spaeteres Regel-Tuning, das widerspricht, kommt als **Wiedervorlage** — gewollt |
-| Agenten-Vorschlag bestaetigen | `bestaetigt` | `agent` | von Regellaeufen **unangetastet** |
-| Einzelkorrektur (andere Kategorie) | `bestaetigt` | `manuell` | von Regellaeufen **unangetastet** |
-| Ablehnen | `abgelehnt` | entfernt | von Regellaeufen **unangetastet** |
+| Aktion | `status` | `kategorie_herkunft` | `matched_regeln` | Wirkung beim naechsten Regel-Lauf |
+| --- | --- | --- | --- | --- |
+| Bulk-Bestaetigen (Regel stimmt) | `bestaetigt` | `regel` | **bleibt erhalten** | ein spaeteres Regel-Tuning, das widerspricht, kommt als **Wiedervorlage** — gewollt |
+| Agenten-Vorschlag bestaetigen | `bestaetigt` | `agent` | nie vorhanden | von Regellaeufen **unangetastet** |
+| Einzelkorrektur (andere Kategorie) | `bestaetigt` | `manuell` | **entfernen** | von Regellaeufen **unangetastet** |
+| Ablehnen | `abgelehnt` | entfernt | **entfernen** | von Regellaeufen **unangetastet** |
 
 Der Unterschied ist Absicht: `regel` haelt die Bestaetigung gegen ein spaeteres Regel-Tuning *ueberpruefbar*, `agent` erhaelt den Ursprung fuer spaetere Qualitaetsauswertungen, `manuell` zementiert eine bewusste Korrektur oder diktierte Ausnahme.
 

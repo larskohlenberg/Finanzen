@@ -104,8 +104,16 @@ Wenn die Rohquelle keinen belegten Kontostand enthaelt, darfst du keinen Anfangs
 4. **Validieren**: `tools/validator.mjs` (bzw. die Browser-faehige Bibliothek) auf das Standardformat anwenden. Fehlschlag → in `error/`.
 5. **Dedupe**: Fuer jede Buchung den `dedupe_hash` bilden (Felder siehe `docs/agent-context.md`). Gegen `data/master/transaktionen.jsonl` (den **Bestand**) pruefen. Hash bekannt → ueberspringen. **Nicht** innerhalb desselben Auszugs deduplizieren — ein amtlicher Auszug enthaelt reale Buchungen; das Tool laesst gleich aussehende Zeilen stehen und disambiguiert in allen Quellfeldern identische automatisch (zweistufiger Dedupe-Hash aus `docs/agent-context.md`). `bank_referenz` aus der Rohdatei roh mitgeben, wo die Bank eine liefert — die Pipeline nutzt sie nur als Schluessel, wenn sie **dateiweit eindeutig** ist, und faellt sonst auf den Freitext-Hash zurueck. Du musst die Eindeutigkeit nicht selbst herausfiltern.
 6. **Kategorisieren**: `tools/categorizer.mjs` aufrufen mit der Buchung und `kategorisierungsregeln.json`.
-   - Eindeutiger Treffer → `kategorie_id` setzen, `kategorisierung_status = vorgeschlagen`.
-   - Kein Treffer oder Konflikt → `kategorisierung_status = offen`, keine `kategorie_id`.
+   - Eindeutiger Treffer → `kategorie_id` setzen, `kategorisierung_status = vorgeschlagen`,
+     `kategorie_herkunft = regel`. `import.mjs` schreibt automatisch `matched_regeln`
+     mit der ID der treffenden Regel.
+   - Kein Treffer → `kategorisierung_status = offen`, keine `kategorie_id`, kein
+     `matched_regeln`.
+   - Konflikt (mehrere Regeln passen, keine eindeutige Kategorie) →
+     `kategorisierung_status = offen`, keine `kategorie_id`. `import.mjs` schreibt
+     `matched_regeln` mit den IDs aller passenden Regeln, damit der Konflikt
+     nachvollziehbar bleibt. Ein `offen`-Eintrag mit nicht leerem `matched_regeln`
+     ist ein Konflikt-Fall; das ist ein automatisches Ergebnis, kein manueller Schritt.
 7. **Schreiben**: Buchungen an `data/master/transaktionen.jsonl` anhaengen. Belegte Kontostaende als Zeitwerte an `data/master/zeitwerte.jsonl` anhaengen, sofern sie aus der Rohquelle extrahiert wurden und nicht bereits identisch vorhanden sind. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz.
 8. **Transfer-Match**: Nach dem Schreiben `tools/transfer-matcher.mjs` aufrufen. Kriterien fuer Auto-Match (alle vier zwingend):
    - Betrag exakt invers (cent-genau).

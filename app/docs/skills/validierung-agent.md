@@ -45,6 +45,28 @@ Nicht nutzen fuer:
    `data/master/agent_log.jsonl` mit Fehleranzahl, betroffenen Dateien/IDs,
    Korrekturart und Validator-Ergebnis schreiben.
 
+## Besondere Pruefregeln des Validators
+
+Der Validator prueft neben Schema-Konformitaet auch:
+
+- **`matched_regeln`-Invariante:** `matched_regeln` darf nur bei
+  `kategorie_herkunft = regel` oder bei `kategorisierung_status = offen` mit
+  Regelkonflikt vorhanden sein. Bei `kategorie_herkunft = manuell`,
+  `kategorie_herkunft = agent` und `kategorisierung_status = abgelehnt` ist das
+  Feld verboten. Der Validator meldet es als Fehler, wenn `matched_regeln` dort
+  trotzdem gesetzt ist.
+- **Referenzpruefung fuer `matched_regeln`:** Jede ID in `matched_regeln` muss
+  in `data/master/kategorisierungsregeln.json` als bekannte Regel existieren.
+  Unbekannte IDs sind ein Validierungsfehler.
+- **`kommentar`-Pflicht fuer Kategorisierungsregeln:** Jede Regel in
+  `kategorisierungsregeln.json` muss einen nicht-leeren `kommentar` haben. Regeln
+  ohne Kommentar (oder mit leerem String) schlagen die Validierung fehl.
+
+Wenn der Validator bei einer dieser drei Pruefregeln anschlaegt, erst verstehen,
+welche Transaktion oder Regel betroffen ist, dann die kleinstmoegliche Korrektur
+vorschlagen (Feld entfernen, ID korrigieren, Kommentar nachpflegen) und nach
+Nutzerbestaetigung schreiben.
+
 ## Do's
 
 - Validator-Befund als Quelle der Wahrheit verwenden.

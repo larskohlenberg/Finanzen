@@ -82,7 +82,7 @@ Zustand einer Transaktion bezueglich ihrer Kategorie. Agent schreibt seinen Tipp
 
 Die **Erst-Kategorisierung** geschieht beim Import (deterministischer Categorizer ueber die zu dem Zeitpunkt bestehenden Regeln). Werden Regeln erst *nach* dem Import angelegt oder geaendert, wirkt die **Nach-Kategorisierung**: derselbe deterministische Lauf, aber ueber den Bestand statt ueber den Import-Stream, angestossen ueber die Kategorisierungsregel-Pflege. Beide rufen dieselbe `categorize()`-Funktion — gleiche Eingabe, gleiches Ergebnis. Der Agent raet nie eine Kategorie und legt nie still eine Regel an; beides ist eigener Pflegeprozess.
 
-Orthogonal zum Status steht die **Herkunft** einer Kategorie (`kategorie_herkunft`): `regel` (vom Categorizer abgeleitet) oder `manuell` (vom Agenten auf ausdrueckliche Nutzer-Ansage gesetzt — es gibt keine UI-Bearbeitung, siehe ADR 0006). Die Herkunft entscheidet, ob die Nach-Kategorisierung einen Eintrag anfassen darf: `regel`-Eintraege werden neu bewertet, `manuell`-Eintraege und `abgelehnt` sind menschliche Akte und bleiben von Regellaeufen unangetastet. Details der Policy: siehe ADR zur Nach-Kategorisierung.
+Orthogonal zum Status steht die **Herkunft** einer Kategorie (`kategorie_herkunft`): `regel` (vom Categorizer abgeleitet), `agent` (plausibler Einzelvorschlag des Agenten ohne Regel) oder `manuell` (ausdrueckliche Nutzerentscheidung — es gibt keine UI-Bearbeitung, siehe ADR 0006). Die Herkunft bleibt bei Bestaetigung erhalten; nur eine Korrektur auf eine andere Kategorie wird `manuell`. Die Herkunft entscheidet, ob die Nach-Kategorisierung einen Eintrag anfassen darf: `regel`-Eintraege werden neu bewertet, `agent`-Einzelvorschlaege, `manuell`-Eintraege und `abgelehnt` bleiben von Regellaeufen unangetastet.
 
 Korrekturen sind in-place Updates — eine Kategorie aendern heisst: ueberschreiben. Die Git-History ist Spur genug; kein Audit-Log, keine Versionierung.
 
@@ -184,7 +184,7 @@ Eine `data/master/agent_log.jsonl`. Pro Lauf ein strukturierter Eintrag plus Fre
 {zeitpunkt, anlass, inputs[], anzahl_importiert, anzahl_offen, anzahl_fehler, notiz, betroffene_ids[]}
 ```
 
-Zweck: dem **naechsten Nutzer der App** (Mensch oder Agent in neuer Session) eine Uebergabe geben. Kein Compliance-Log. Strukturierte Zaehler fuer Dashboard, Freitext fuer Kontext.
+Zweck: dem **naechsten Nutzer der App** (Mensch oder Agent in neuer Session) eine Uebergabe geben. Kein Compliance-Log. Strukturierte Zaehler fuer Dashboard und spaetere Qualitaetsauswertungen, Freitext fuer Kontext. Fruehere Vorschlaege werden nicht als Historie an der Transaktion gespeichert.
 
 ## Inbox-Konvention
 

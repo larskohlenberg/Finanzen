@@ -31,44 +31,57 @@ Zu Beginn `data/master/transaktionen.jsonl` auf `kategorisierung_status = vorges
 
 - Review bestaetigt, korrigiert oder lehnt bestehende `vorgeschlagen`-Eintraege ab.
 - Bulk-Bestaetigung einer Regel-Kategorie setzt `kategorisierung_status = bestaetigt` und belaesst `kategorie_herkunft = regel`.
+- Agenten-Einzelvorschlaege haben `kategorie_herkunft = agent`; sie sind keine Regeln und werden nicht nachkategorisiert.
+- Der Agent darf offene Einzelbuchungen eigenstaendig als `vorgeschlagen` mit `kategorie_herkunft = agent` vorbereiten; das ist Review-Vorbereitung, keine finale Fachentscheidung.
+- Bestaetigung eines Agenten-Einzelvorschlags setzt `kategorisierung_status = bestaetigt` und belaesst `kategorie_herkunft = agent`.
 - Einzelkorrektur auf eine andere Zielkategorie setzt `kategorisierung_status = bestaetigt` und `kategorie_herkunft = manuell`.
 - Ablehnung entfernt `kategorie_id` und `kategorie_herkunft` und setzt `kategorisierung_status = abgelehnt`.
 - Keine Korrektur-Kategorie raten; die Zielkategorie nennt der Nutzer.
 
 ## Ablauf
 
-1. **Buckets bilden.** Lade die `vorgeschlagen`-Eintraege und gruppiere sie nach **vorgeschlagener `kategorie_id`** (und, wo unterscheidbar, nach der treffenden Regel). Pro Bucket zeigen: Zielkategorie, **Anzahl** und eine **Stichprobe** (z. B. 3–5 Buchungen mit `buchungsdatum`, `gegenpartei`, `betrag`, `verwendungszweck`). Wiedervorlagen (zuvor `bestaetigt`, jetzt anderer Vorschlag) als eigenes Bucket hervorheben — hier widerspricht eine Regel einer fruheren Entscheidung.
+1. **Buckets bilden.** Lade die `vorgeschlagen`-Eintraege und gruppiere sie nach **vorgeschlagener `kategorie_id`** und `kategorie_herkunft` (`regel` vs. `agent`; wo unterscheidbar zusaetzlich nach treffender Regel). Pro Bucket zeigen: Zielkategorie, **Anzahl** und eine **Stichprobe** (z. B. 3–5 Buchungen mit `buchungsdatum`, `gegenpartei`, `betrag`, `verwendungszweck`). Wiedervorlagen (zuvor `bestaetigt`, jetzt anderer Vorschlag) als eigenes Bucket hervorheben — hier widerspricht eine Regel einer fruheren Entscheidung.
+   Fuer Agenten-Einzelvorschlaege (`kategorie_herkunft = agent`) ist die sichtbare Stichprobe Pflicht und groesser: mindestens 10 Buchungen oder 20 % des Buckets, je nachdem was kleiner ist; bei Buckets ab 5 Buchungen aber nie weniger als 5, bei kleineren Buckets alle anzeigen. Zusammensetzung: hoechste Betraege, juengste Buchungen, aelteste Buchungen und auffaellige Gegenparteien. Jede gezeigte Stichprobenzeile wird durchnummeriert, damit der Nutzer im Chat gezielt korrigieren kann. Der Agent darf nicht nur berichten, dass er Stichproben genommen hat; er muss sie dem Nutzer vor einer Bulk-Entscheidung anzeigen.
 2. **Pro Bucket entscheiden lassen.** Drei Wege:
-   - **Bulk-Bestaetigen** — die Regel-Kategorie stimmt fuer das ganze Bucket: `kategorisierung_status = bestaetigt`, `kategorie_herkunft = regel` (bleibt `regel`).
+   - **Bulk-Bestaetigen** — die vorgeschlagene Kategorie stimmt fuer das ganze Bucket: `kategorisierung_status = bestaetigt`, `kategorie_herkunft` bleibt erhalten (`regel` bleibt `regel`, `agent` bleibt `agent`).
    - **Bulk-Ablehnen** — der Vorschlag ist falsch und die Buchungen sollen bewusst **unkategorisiert** bleiben: `kategorisierung_status = abgelehnt`, `kategorie_id` und `kategorie_herkunft` entfernen.
    - **Drill-down** — einzelne Buchungen ansehen und einzeln behandeln (gemischtes Bucket).
+   Bei Agenten-Buckets gilt: Wenn die sichtbare Stichprobe mindestens einen plausiblen Ausreisser enthaelt, kein Bulk. Dann Drill-down oder Bucket splitten. Bulk nur, wenn die Stichprobe konsistent wirkt.
 3. **Einzelkorrektur.** Setzt der Nutzer fuer eine Buchung (oder Teilmenge) eine **andere** Zielkategorie, ist das ein menschlicher Akt: `kategorie_id` = die genannte Kategorie, `kategorisierung_status = bestaetigt`, `kategorie_herkunft = manuell`. Die Zielkategorie nennt der Nutzer — **nie raten**. `manuell` schuetzt den Eintrag vor kuenftigen Regellaeufen.
-4. **Schreiben mit Validator.** Aenderungen in-place in `transaktionen.jsonl` (ein Objekt pro Zeile, nur die betroffenen Felder anfassen). **Vor** dem Schreiben die Review-Tabelle zeigen, **nach** dem Schreiben `tools/validator.mjs` laufen lassen.
-5. **Bericht.** Zaehler (bestaetigt, korrigiert, abgelehnt, offen verblieben) zusammenfassen und in `data/master/agent_log.jsonl` protokollieren.
+4. **Aehnliche Faelle suchen.** Nach jeder Einzelkorrektur read-only nach aehnlichen offenen oder agent-vorgeschlagenen Buchungen suchen. Wenn ein wiederkehrendes Muster erkennbar ist, einen konkreten Regel-Kandidaten mit Trefferzahl und Stichprobe vorschlagen. Keine Regel still anlegen; Regelanlage bleibt der bestaetigte Anschlussprozess ueber **kategorisierungsregel-pflege**.
+5. **Schreiben mit Validator.** Aenderungen in-place in `transaktionen.jsonl` (ein Objekt pro Zeile, nur die betroffenen Felder anfassen). **Vor** dem Schreiben die Review-Tabelle zeigen, **nach** dem Schreiben `tools/validator.mjs` laufen lassen.
+6. **Bericht.** Zaehler (bestaetigt, korrigiert, abgelehnt, offen verblieben) zusammenfassen und in `data/master/agent_log.jsonl` protokollieren. Wenn Agenten-Einzelvorschlaege (`kategorie_herkunft = agent`) betroffen sind, zusaetzlich `agent_bestaetigt`, `agent_korrigiert` und `agent_abgelehnt` zaehlen. Keine urspruengliche Agenten-Kategorie an der Transaktion speichern; der Log ist die Qualitaetsspur.
 
 ## Herkunft richtig setzen — der entscheidende Punkt
 
 | Aktion | `status` | `kategorie_herkunft` | Wirkung beim naechsten Regel-Lauf |
 | --- | --- | --- | --- |
 | Bulk-Bestaetigen (Regel stimmt) | `bestaetigt` | `regel` | ein spaeteres Regel-Tuning, das widerspricht, kommt als **Wiedervorlage** — gewollt |
+| Agenten-Vorschlag bestaetigen | `bestaetigt` | `agent` | von Regellaeufen **unangetastet** |
 | Einzelkorrektur (andere Kategorie) | `bestaetigt` | `manuell` | von Regellaeufen **unangetastet** |
 | Ablehnen | `abgelehnt` | entfernt | von Regellaeufen **unangetastet** |
 
-Der Unterschied ist Absicht: `regel` haelt die Bestaetigung gegen ein spaeteres Regel-Tuning *ueberpruefbar*, `manuell` zementiert eine bewusste Ausnahme.
+Der Unterschied ist Absicht: `regel` haelt die Bestaetigung gegen ein spaeteres Regel-Tuning *ueberpruefbar*, `agent` erhaelt den Ursprung fuer spaetere Qualitaetsauswertungen, `manuell` zementiert eine bewusste Korrektur oder diktierte Ausnahme.
 
 ## Do's
 
 - **Bucket-Uebersicht zuerst** — Anzahl + Stichprobe, bevor irgendetwas bestaetigt wird.
 - **Stichprobe vor jedem Bulk** — nie ein Bucket blind bulk-bestaetigen.
+- **Agenten-Stichproben anzeigen** — bei `kategorie_herkunft = agent` die groessere gemischte Stichprobe im Chat zeigen, nicht nur intern pruefen.
+- **Stichproben nummerieren** — jede sichtbare Stichprobenzeile mit stabiler Nummer in dieser Review-Runde versehen, damit der Nutzer per Nummer korrigieren kann.
+- **Agenten-Bulk nur bei konsistenter Stichprobe** — sobald ein plausibler Ausreisser sichtbar ist, Drill-down oder Bucket splitten.
+- **Korrekturen auswerten** — nach Nutzerkorrekturen aehnliche offene/agent-vorgeschlagene Buchungen suchen und Regel-Kandidaten vorschlagen.
 - **Wiedervorlagen sichtbar machen** — sie sind der Grund, warum `regel`-Bestaetigungen ueberpruefbar bleiben.
 - **Validator nach jedem Schreiben** (Tool prueft, Agent schreibt).
 
 ## Don'ts
 
 - **Keinen Vorschlag still bestaetigen** — Bestaetigung ist immer eine Nutzerentscheidung.
+- **Keine unsichtbare Stichprobe** — eine intern gelesene Stichprobe ersetzt nicht die Anzeige im Chat.
+- **Kein Agenten-Bulk trotz Ausreisser** — ein plausibler Ausreisser in der Stichprobe reicht, um Bulk zu stoppen.
 - **Keine Korrektur-Kategorie raten** — der Nutzer nennt die Zielkategorie; bei Unklarheit fragen.
 - **`manuell`/`abgelehnt`/`bestaetigt` aus fremden Prozessen nicht umbiegen** — diese sind menschliche Akte.
-- **Herkunft nicht verwechseln** — eine bestaetigte Regel-Kategorie bleibt `regel`; nur eine bewusst geaenderte Kategorie wird `manuell`. `manuell` zu setzen, wo der Nutzer nur „passt" sagt, verhindert faelschlich kuenftige Wiedervorlagen.
+- **Herkunft nicht verwechseln** — eine bestaetigte Regel-Kategorie bleibt `regel`, ein bestaetigter Agenten-Vorschlag bleibt `agent`; nur eine bewusst geaenderte Kategorie wird `manuell`. `manuell` zu setzen, wo der Nutzer nur „passt" sagt, zerstoert die spaetere Agenten-Qualitaetsauswertung.
 - **Keine Regeln anlegen** — das ist **kategorisierungsregel-pflege**.
 
 ## Wann fragen, wann handeln

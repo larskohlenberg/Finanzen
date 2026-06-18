@@ -69,17 +69,34 @@ bekommen deterministisch disambiguierte Hashes.
 
 ## Kategorisierung und Herkunft
 
-Eine Transaktion kann eine Kategorie aus zwei Herkuenften haben:
+Eine Transaktion kann eine Kategorie aus drei Herkuenften haben:
 
 - `kategorie_herkunft = regel`: Kategorie stammt aus dem deterministischen
   Regelwerk.
+- `kategorie_herkunft = agent`: Kategorie stammt aus einem plausiblen
+  Einzelvorschlag des Agenten ohne Regel.
 - `kategorie_herkunft = manuell`: Kategorie stammt aus einer ausdruecklichen
   Nutzerentscheidung im Agentendialog.
 
+Der Agent darf offene Einzelbuchungen eigenstaendig als `vorgeschlagen` mit
+`kategorie_herkunft = agent` vorbereiten. Das ist keine finale Fachentscheidung,
+sondern Review-Vorbereitung; Bestaetigung, Korrektur oder Ablehnung bleiben
+Nutzerentscheidung.
+
 Nach-Kategorisierung bewertet offene Transaktionen und regelbasierte Eintraege neu.
-Manuelle Kategorien und abgelehnte Vorschlaege bleiben unangetastet. Widerspricht ein
-neuer Regelstand einer bestaetigten regelbasierten Kategorie, wird die Transaktion
-als Wiedervorlage sichtbar gemacht statt still ueberschrieben.
+Agenten-Einzelvorschlaege, manuelle Kategorien und abgelehnte Vorschlaege bleiben
+unangetastet. Widerspricht ein neuer Regelstand einer bestaetigten regelbasierten
+Kategorie, wird die Transaktion als Wiedervorlage sichtbar gemacht statt still
+ueberschrieben.
+
+Bei Bestaetigung bleibt die Herkunft erhalten: `regel` bleibt `regel`, `agent`
+bleibt `agent`. Nur wenn der Nutzer eine andere Kategorie nennt oder direkt eine
+Kategorie diktiert, wird `kategorie_herkunft = manuell` gesetzt.
+
+Qualitaet von Agenten-Einzelvorschlaegen wird ueber strukturierte Zaehler im
+`agent_log.jsonl` beobachtet, nicht ueber ein Historienfeld an der Transaktion.
+Wenn ein Agenten-Vorschlag korrigiert wird, zaehlt der Review-Lauf diese
+Korrektur; die Transaktion selbst traegt danach nur den fachlichen Zielzustand.
 
 Nach-Kategorisierung laeuft ueber `tools/recategorize.mjs`. Reimport ist kein Mittel
 zur Nach-Kategorisierung, weil bekannte Buchungen per Dedupe uebersprungen werden.

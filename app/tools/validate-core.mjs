@@ -69,7 +69,7 @@ const schemas = {
       kategorisierung_status: { type: "string", enum: ["offen", "vorgeschlagen", "bestaetigt", "abgelehnt"] },
       ist_transfer: { type: "boolean" },
       kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
-      kategorie_herkunft: { type: "string", enum: ["regel", "manuell"] },
+      kategorie_herkunft: { type: "string", enum: ["regel", "agent", "manuell"] },
       matched_regeln: { type: "array", itemPattern: /^REG-\d{3}$/ },
       bank_referenz: { type: "string" },
       wertstellungsdatum: { type: "string", format: "date" },

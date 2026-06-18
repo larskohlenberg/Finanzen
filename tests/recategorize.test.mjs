@@ -48,7 +48,13 @@ test("offen ohne Treffer bleibt offen", () => {
 test("bestaetigt+regel mit gleicher Kategorie bleibt unveraendert", () => {
   const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel" });
   const out = recategorize({ transaktionen: [t], regeln });
-  assert.deepEqual(out.transaktionen[0], t);
+  const r = out.transaktionen[0];
+  // matched_regeln wird jetzt konsistent gestempelt — Kategorie und Status bleiben gleich.
+  assert.equal(r.kategorisierung_status, "bestaetigt");
+  assert.equal(r.kategorie_id, "KAT-003");
+  assert.equal(r.kategorie_herkunft, "regel");
+  assert.deepEqual(r.matched_regeln, ["REG-001"]);
+  // Nur der matched_regeln-Stempel aendert sich (fachlich unveraendert).
   assert.equal(out.report.unveraendert, 1);
 });
 
@@ -88,6 +94,13 @@ test("manuell wird nie angefasst, auch wenn eine Regel widerspricht", () => {
   assert.equal(out.report.uebersprungen, 1);
 });
 
+test("agenten-vorschlag wird nie von Regellaeufen angefasst", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "vorgeschlagen", kategorie_id: "KAT-099", kategorie_herkunft: "agent" });
+  const out = recategorize({ transaktionen: [t], regeln });
+  assert.deepEqual(out.transaktionen[0], t);
+  assert.equal(out.report.uebersprungen, 1);
+});
+
 test("abgelehnt wird nie angefasst", () => {
   const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "abgelehnt" });
   const out = recategorize({ transaktionen: [t], regeln });
@@ -111,6 +124,38 @@ test("erhaelt unbeteiligte Felder", () => {
   const out = recategorize({ transaktionen: [t], regeln });
   assert.equal(out.transaktionen[0].bank_referenz, "REF-1");
   assert.equal(out.transaktionen[0].bemerkung, "Notiz");
+});
+
+test("recategorize stempelt matched_regeln auf neu vorgeschlagene Buchung", () => {
+  const regeln = [{ regel_id: "REG-001", gegenpartei_pattern: "musterladenb", kategorie_id: "KAT-003", status: "aktiv" }];
+  const t = tx({ transaktion_id: "TXN-x", kategorisierung_status: "offen", gegenpartei: "MusterladenB Markt", verwendungszweck: "" });
+  const out = recategorize({ transaktionen: [t], regeln });
+  assert.deepEqual(out.transaktionen[0].matched_regeln, ["REG-001"]);
+});
+
+test("recategorize stempelt Konflikt-Regeln auf offene Buchung", () => {
+  const regeln = [
+    { regel_id: "REG-001", gegenpartei_pattern: "shop", kategorie_id: "KAT-003", status: "aktiv" },
+    { regel_id: "REG-002", gegenpartei_pattern: "shop", kategorie_id: "KAT-017", status: "aktiv" },
+  ];
+  const t = tx({ transaktion_id: "TXN-y", kategorisierung_status: "offen", gegenpartei: "Shop", verwendungszweck: "" });
+  const out = recategorize({ transaktionen: [t], regeln });
+  assert.equal(out.transaktionen[0].kategorisierung_status, "offen");
+  assert.deepEqual([...out.transaktionen[0].matched_regeln].sort(), ["REG-001", "REG-002"]);
+});
+
+test("recategorize laesst manuell unangetastet (kein matched_regeln)", () => {
+  const regeln = [{ regel_id: "REG-001", gegenpartei_pattern: "musterladenb", kategorie_id: "KAT-003", status: "aktiv" }];
+  const t = tx({ transaktion_id: "TXN-z", kategorisierung_status: "bestaetigt", kategorie_herkunft: "manuell", kategorie_id: "KAT-099", gegenpartei: "MusterladenB", verwendungszweck: "" });
+  const out = recategorize({ transaktionen: [t], regeln });
+  assert.equal(out.transaktionen[0].matched_regeln, undefined);
+});
+
+test("recategorize entfernt veraltete Quelle bei bestaetigt ohne aktuellen Treffer", () => {
+  const regeln = [];
+  const t = tx({ transaktion_id: "TXN-w", kategorisierung_status: "bestaetigt", kategorie_herkunft: "regel", kategorie_id: "KAT-003", matched_regeln: ["REG-001"], gegenpartei: "Alt", verwendungszweck: "" });
+  const out = recategorize({ transaktionen: [t], regeln });
+  assert.equal(out.transaktionen[0].matched_regeln, undefined);
 });
 
 test("ist idempotent: zweimal laufen liefert dasselbe Ergebnis", () => {

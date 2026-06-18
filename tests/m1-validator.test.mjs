@@ -83,6 +83,27 @@ test("Validator lehnt Regel mit nicht existierender konto_id ab", async () => {
   assert.match(result.errors.join("\n"), /konto_id.*KTO-999.*existiert nicht/);
 });
 
+test("Validator akzeptiert matched_regeln mit gueltigem Format", async () => {
+  const base = await loadMasterData();
+  const tx = base.transaktionen[0];
+  const result = validateMasterData({
+    ...base,
+    transaktionen: [{ ...tx, matched_regeln: ["REG-001", "REG-042"] }, ...base.transaktionen.slice(1)],
+  });
+  assert.equal(result.valid, true, result.errors.join("\n"));
+});
+
+test("Validator lehnt matched_regeln mit falschem Format ab", async () => {
+  const base = await loadMasterData();
+  const tx = base.transaktionen[0];
+  const result = validateMasterData({
+    ...base,
+    transaktionen: [{ ...tx, matched_regeln: ["REG-1"] }, ...base.transaktionen.slice(1)],
+  });
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /matched_regeln/);
+});
+
 test("Validator lehnt Regel mit Schemaverstoss ab", async () => {
   const base = await loadMasterData();
   for (const kaputt of [

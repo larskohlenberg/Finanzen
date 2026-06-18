@@ -33,6 +33,16 @@ test("parseRoute liest reine Views und faellt sauber zurueck", () => {
   assert.deepEqual(parseRoute("#/unsinn"), { view: "overview" });
 });
 
+test("parseRoute erkennt Regel-Detail", () => {
+  assert.deepEqual(parseRoute("#/regeln/REG-001"), { view: "masterdata", masterSection: "regeln", selectedRegel: "REG-001" });
+});
+test("parseRoute erkennt Regel-Liste", () => {
+  assert.deepEqual(parseRoute("#/regeln"), { view: "masterdata", masterSection: "regeln" });
+});
+test("routeFromState erzeugt Regel-Detail-Hash", () => {
+  assert.equal(routeFromState({ view: "masterdata", masterSection: "regeln", selectedRegel: "REG-001" }), "#/regeln/REG-001");
+});
+
 test("routeFromState und parseRoute sind für Deeplinks invers", () => {
   for (const state of [
     { view: "transactions", selectedTransactionId: "TXN-5347b957-b93e-4453-830d-81eae240aa51" },

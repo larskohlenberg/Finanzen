@@ -25,6 +25,10 @@ export function routeFromState(state) {
   if (state.view === "masterdata" && state.masterSection === "konten" && state.selectedKonto) {
     return `#/konten/${encodeURIComponent(state.selectedKonto)}`;
   }
+  // Regel-Stammsatz (Stammdaten -> Regeln, angesteuerter Datensatz).
+  if (state.view === "masterdata" && state.masterSection === "regeln" && state.selectedRegel) {
+    return `#/regeln/${encodeURIComponent(state.selectedRegel)}`;
+  }
   if (state.view === "vermoegen" && state.selectedVermoegenId) {
     const [klasse, id] = state.selectedVermoegenId.split(":");
     if (klasse && id) return `#/vermoegen/${encodeURIComponent(klasse)}:${encodeURIComponent(id)}`;
@@ -47,6 +51,11 @@ export function parseRoute(hash) {
     return tail
       ? { view: "masterdata", masterSection: "konten", selectedKonto: tail }
       : { view: "masterdata", masterSection: "konten" };
+  }
+  if (head === "regeln") {
+    return tail
+      ? { view: "masterdata", masterSection: "regeln", selectedRegel: tail }
+      : { view: "masterdata", masterSection: "regeln" };
   }
   if (head === "vermoegen") {
     return tail ? { view: "vermoegen", selectedVermoegenId: tail } : { view: "vermoegen" };

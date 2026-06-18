@@ -1,6 +1,6 @@
 import { defaultHorizonEnd } from "./liquiditaet.mjs";
 import { iconSvg } from "./icons.js";
-import { buildNextAgentAction } from "./next-action.mjs";
+import { buildNextAgentActions } from "./next-action.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
 import { renderTransactions, filteredTransactions, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
@@ -30,7 +30,7 @@ const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
   "data-vermoegen", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
   "data-vermoegen-sort", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
-  "data-rule",
+  "data-rule", "data-regel-sort", "data-next-action-type",
 ];
 const SCROLL_SELECTORS = [".nav", ".table-wrap"];
 
@@ -226,14 +226,32 @@ function renderTopbar() {
 }
 
 function renderNextActionButton() {
-  const nextAction = buildNextAgentAction(data);
+  const nextActionActions = buildNextAgentActions(data);
+  const nextAction = nextActionActions[0] ?? { type: "none", label: t("chrome.noAgentAction"), prompt: "" };
   const disabled = nextAction.type === "none" ? " disabled" : "";
   const label = state.nextActionCopied ? t("chrome.agentPromptCopied") : t("chrome.copyAgentPrompt");
   const detail = nextAction.type === "none" ? t("chrome.noAgentAction") : nextAction.label;
+  const hasMenu = nextActionActions.length > 1;
+  const menuOpen = hasMenu && state.nextActionMenuOpen;
   return `
-    <button class="chip neutral linkish next-action-copy" data-action="copy-next-agent-prompt"${disabled} title="${escapeHtml(detail)}">
-      ${iconSvg("copy")}${escapeHtml(label)} · ${escapeHtml(detail)}
-    </button>
+    <span class="next-action-control">
+      <button class="chip neutral linkish next-action-copy" data-action="copy-next-agent-prompt" data-next-action-type="${escapeHtml(nextAction.type)}"${disabled} title="${escapeHtml(detail)}">
+        ${iconSvg("copy")}${escapeHtml(label)} · ${escapeHtml(detail)}
+      </button>
+      ${hasMenu ? `
+        <button class="chip neutral linkish next-action-menu-toggle" data-action="toggle-next-action-menu" aria-expanded="${menuOpen}" title="${escapeHtml(t("chrome.nextAction"))}">
+          ${iconSvg("chevronDown")}
+        </button>
+        ${menuOpen ? `
+          <div class="next-action-menu" role="menu">
+            ${nextActionActions.map((candidate) => `
+              <button class="next-action-menu-item linkish" role="menuitem" data-action="copy-next-agent-prompt" data-next-action-type="${escapeHtml(candidate.type)}" title="${escapeHtml(candidate.label)}">
+                ${iconSvg("copy")}<span>${escapeHtml(candidate.count)} · ${escapeHtml(candidate.label)}</span>
+              </button>
+            `).join("")}
+          </div>` : ""}
+      ` : ""}
+    </span>
   `;
 }
 
@@ -342,6 +360,18 @@ app.addEventListener("click", (event) => {
     return;
   }
 
+  const regelSort = event.target.closest("[data-regel-sort]");
+  if (regelSort) {
+    const key = regelSort.dataset.regelSort;
+    if (state.regelSort && state.regelSort.key === key) {
+      state.regelSort = { key, dir: state.regelSort.dir === "asc" ? "desc" : "asc" };
+    } else {
+      state.regelSort = { key, dir: "asc" };
+    }
+    render();
+    return;
+  }
+
   const action = event.target.closest("[data-action]");
   if (action) {
     void handleAction(action);
@@ -361,6 +391,7 @@ app.addEventListener("click", (event) => {
   if (masterSection) {
     state.masterSection = masterSection.dataset.masterSection;
     state.selectedRegel = "";
+    state.regelRailWide = false;
     commitNavigation();
   }
 });
@@ -368,7 +399,7 @@ app.addEventListener("click", (event) => {
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
-const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-transaction-sort], [data-rule]";
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-transaction-sort], [data-regel-sort], [data-rule]";
 app.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
@@ -438,13 +469,15 @@ app.addEventListener("change", (event) => {
   }
 });
 
-async function copyNextAgentPrompt() {
-  const nextAction = buildNextAgentAction(data);
-  if (!nextAction.prompt) return;
+async function copyNextAgentPrompt(type = "") {
+  const nextActionActions = buildNextAgentActions(data);
+  const nextAction = nextActionActions.find((candidate) => candidate.type === type) ?? nextActionActions[0];
+  if (!nextAction?.prompt) return;
   try {
     await navigator.clipboard.writeText(nextAction.prompt);
     if (nextActionCopiedTimer) clearTimeout(nextActionCopiedTimer);
     state.nextActionCopied = true;
+    state.nextActionMenuOpen = false;
     state.nextActionPromptFallback = "";
     render();
     nextActionCopiedTimer = window.setTimeout(() => {
@@ -458,6 +491,7 @@ async function copyNextAgentPrompt() {
       nextActionCopiedTimer = null;
     }
     state.nextActionCopied = false;
+    state.nextActionMenuOpen = false;
     state.nextActionPromptFallback = nextAction.prompt;
     render();
   }
@@ -465,8 +499,13 @@ async function copyNextAgentPrompt() {
 
 async function handleAction(element) {
   const action = element.dataset.action;
+  if (action === "toggle-next-action-menu") {
+    state.nextActionMenuOpen = !state.nextActionMenuOpen;
+    render();
+    return;
+  }
   if (action === "copy-next-agent-prompt") {
-    await copyNextAgentPrompt();
+    await copyNextAgentPrompt(element.dataset.nextActionType);
     return;
   }
   if (action === "close-prompt-fallback") {
@@ -598,6 +637,17 @@ async function handleAction(element) {
   }
   if (action === "close-detail-rail") {
     state.detailRailClosed = true;
+    commitNavigation();
+    return;
+  }
+  if (action === "close-regel-rail") {
+    state.selectedRegel = "";
+    state.regelRailWide = false;
+    commitNavigation();
+    return;
+  }
+  if (action === "toggle-regel-rail-width") {
+    state.regelRailWide = !state.regelRailWide;
     commitNavigation();
     return;
   }

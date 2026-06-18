@@ -439,6 +439,50 @@ button {
   max-width: min(520px, 100%);
 }
 
+.next-action-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: min(640px, 100%);
+}
+
+.next-action-menu-toggle {
+  margin-left: -4px;
+  padding-inline: 6px;
+}
+
+.next-action-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: min(360px, 82vw);
+  max-width: min(520px, 88vw);
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.next-action-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.next-action-menu-item:hover,
+.next-action-menu-item:focus-visible {
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
 .hero-kpi {
   padding: 24px;
   display: grid;
@@ -1155,6 +1199,38 @@ tr.clickable.selected td:first-child {
 .detail-section:first-child {
   border-top: 0;
   padding-top: 0;
+}
+
+/* Eingebettete Treffer-Tabelle in der Regel-Rail: fixe Breite, Gegenpartei
+   bricht um – kein horizontales Scrollen in der schmalen Rail. */
+/* Treffer-Zelle der Regelliste: Zahl und "greift nie"-Chip in einer Zeile
+   nebeneinander, nicht untereinander. */
+.rule-hits-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.regel-tx-table {
+  width: 100%;
+  min-width: 0; /* hebt das globale table min-width: 720px auf – passt in die Rail */
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.regel-tx-table td {
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.regel-tx-table td.regel-tx-date {
+  width: 96px;
+  white-space: nowrap;
+  color: var(--muted);
 }
 
 .wertstand-list {

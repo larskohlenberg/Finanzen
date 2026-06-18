@@ -153,6 +153,8 @@ window.FINANCE_I18N = {
       ruleExamples: "Beispiele",
       ruleNote: "Notiz",
       ruleMatchedTx: "Getroffene Transaktionen",
+      railWide: "Breit",
+      railNarrow: "Schmal",
     },
     checksPage: {
       title: "Checks",
@@ -508,6 +510,8 @@ window.FINANCE_I18N = {
       ruleExamples: "Examples",
       ruleNote: "Note",
       ruleMatchedTx: "Matched transactions",
+      railWide: "Wide",
+      railNarrow: "Narrow",
     },
     checksPage: {
       title: "Checks",

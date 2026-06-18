@@ -99,6 +99,7 @@ export const state = {
   selectedRegel: "",
   moreMenuOpen: false,
   nextActionCopied: false,
+  nextActionMenuOpen: false,
   nextActionPromptFallback: "",
   liquiditaet: {
     granularitaet: "monat",

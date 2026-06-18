@@ -31,10 +31,11 @@ export function renderMasterdata() {
         <span class="chip success">${iconSvg("success")}${escapeHtml(t("masterdata.active"))}</span>
       </button>
     </div>
+    ${state.masterSection === "regeln" ? renderRegelSection() : `
     <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(sectionTitle())}</h2>
       ${renderMasterSection()}
-    </section>
+    </section>`}
   `;
 }
 
@@ -52,9 +53,6 @@ function renderMasterSection() {
   if (state.masterSection === "kategorien") {
     return renderSimpleTable([t("labels.category"), t("labels.type"), t("labels.status")], data.kategorien.map((category) => [category.name, category.typ, t(`status.${category.status}`)]));
   }
-  if (state.masterSection === "regeln") {
-    return state.selectedRegel ? renderRegelDetail(state.selectedRegel) : renderRegelListe();
-  }
   return renderAccountTable();
 }
 
@@ -69,45 +67,98 @@ function renderSimpleTable(headers, rows) {
   `;
 }
 
+function regelSortState() {
+  return state.regelSort && state.regelSort.key ? state.regelSort : { key: "id", dir: "asc" };
+}
+
+function regelSortIndicator(key) {
+  const s = regelSortState();
+  if (s.key !== key) return "";
+  return s.dir === "asc" ? " ▲" : " ▼";
+}
+
+function regelSortHeader(key, label) {
+  return `<th><button class="linkish sort-th" data-regel-sort="${key}">${escapeHtml(label)}${escapeHtml(regelSortIndicator(key))}</button></th>`;
+}
+
 function renderRegelListe() {
   const wirkung = regelWirkung();
-  const rows = data.kategorisierungsregeln.map((regel) => {
-    const treffer = wirkung.get(regel.regel_id)?.anzahl ?? 0;
-    const tot = treffer === 0 ? `<span class="chip review">${iconSvg("review")}${escapeHtml(t("masterdata.ruleDead"))}</span>` : "";
+  const treffer = (r) => wirkung.get(r.regel_id)?.anzahl ?? 0;
+  const s = regelSortState();
+  const factor = s.dir === "asc" ? 1 : -1;
+  const sorted = [...data.kategorisierungsregeln].sort((a, b) => {
+    let cmp = 0;
+    if (s.key === "treffer") cmp = treffer(a) - treffer(b);
+    else if (s.key === "status") cmp = String(a.status).localeCompare(String(b.status), "de");
+    else if (s.key === "bedingung") cmp = regelKlartext(a, categoryName).localeCompare(regelKlartext(b, categoryName), "de");
+    if (cmp === 0) cmp = a.regel_id.localeCompare(b.regel_id); // stabiler Tiebreak auf ID
+    return cmp * factor;
+  });
+  const rows = sorted.map((regel) => {
+    const n = treffer(regel);
+    const tot = n === 0 ? `<span class="chip review">${iconSvg("review")}${escapeHtml(t("masterdata.ruleDead"))}</span>` : "";
     return `
-      <tr class="rule-row linkish" data-rule="${escapeHtml(regel.regel_id)}" tabindex="0">
+      <tr class="rule-row linkish ${regel.regel_id === state.selectedRegel ? "selected" : ""}" data-rule="${escapeHtml(regel.regel_id)}" tabindex="0">
         <td>${escapeHtml(regel.regel_id)}</td>
         <td>${escapeHtml(regelKlartext(regel, categoryName))}</td>
         <td>${escapeHtml(t(`status.${regel.status}`))}</td>
-        <td>${treffer} ${tot}</td>
+        <td><span class="rule-hits-cell">${n}${tot}</span></td>
       </tr>`;
   }).join("");
   return `
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>${escapeHtml(t("labels.id"))}</th>
-          <th>${escapeHtml(t("masterdata.ruleCondition"))}</th>
-          <th>${escapeHtml(t("labels.status"))}</th>
-          <th>${escapeHtml(t("masterdata.ruleHits"))}</th>
+          ${regelSortHeader("id", t("labels.id"))}
+          ${regelSortHeader("bedingung", t("masterdata.ruleCondition"))}
+          ${regelSortHeader("status", t("labels.status"))}
+          ${regelSortHeader("treffer", t("masterdata.ruleHits"))}
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
 }
 
-function renderRegelDetail(regelId) {
-  const regel = data.kategorisierungsregeln.find((r) => r.regel_id === regelId);
-  if (!regel) return renderRegelListe();
-  const treffer = regelWirkung().get(regelId)?.transaktionen ?? [];
+// Regel-Bereich als layout-with-rail: Liste bleibt links stehen, das Detail
+// oeffnet als Seiten-Rail rechts (analog zum Transaktions-Detail), statt den
+// ganzen Bereich auszutauschen.
+function renderRegelSection() {
+  const regel = state.selectedRegel
+    ? data.kategorisierungsregeln.find((r) => r.regel_id === state.selectedRegel)
+    : null;
+  const railOpen = Boolean(regel);
+  const railWide = state.regelRailWide && railOpen;
+  return `
+    <div class="layout-with-rail ${railOpen ? "" : "rail-closed"} ${railWide ? "rail-wide" : ""} section-spacing">
+      <div class="stack">
+        <section class="panel panel-pad">
+          <h2 class="section-title">${escapeHtml(t("masterdata.rules"))}</h2>
+          ${renderRegelListe()}
+        </section>
+      </div>
+      ${railOpen ? `
+        <aside class="panel panel-pad detail-panel">
+          <div class="detail-head">
+            <h2 class="section-title">${escapeHtml(regel.regel_id)}</h2>
+            <div class="detail-actions">
+              <button class="icon-button" data-action="toggle-regel-rail-width" aria-label="${escapeHtml(state.regelRailWide ? t("masterdata.railNarrow") : t("masterdata.railWide"))}" title="${escapeHtml(state.regelRailWide ? t("masterdata.railNarrow") : t("masterdata.railWide"))}">${iconSvg(state.regelRailWide ? "chevronRight" : "chevronLeft")}</button>
+              <button class="icon-button" data-action="close-regel-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
+            </div>
+          </div>
+          ${renderRegelDetailBody(regel)}
+        </aside>` : ""}
+    </div>`;
+}
+
+function renderRegelDetailBody(regel) {
+  const treffer = regelWirkung().get(regel.regel_id)?.transaktionen ?? [];
   const beispiele = [...new Set(treffer.map((tx) => tx.gegenpartei).filter(Boolean))].slice(0, 5);
   const txRows = treffer.slice(0, 50).map((tx) => `
     <tr class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}" tabindex="0">
-      <td>${escapeHtml(tx.buchungsdatum || "")}</td>
+      <td class="regel-tx-date">${escapeHtml(tx.buchungsdatum || "")}</td>
       <td>${escapeHtml(tx.gegenpartei || "")}</td>
     </tr>`).join("");
   return `
-    <button class="linkish" data-master-section="regeln">← ${escapeHtml(t("masterdata.rules"))}</button>
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("masterdata.ruleCondition"))}</div>
       <div class="detail-value">${escapeHtml(regelKlartext(regel, categoryName))}</div>
@@ -122,7 +173,7 @@ function renderRegelDetail(regelId) {
     </div>` : ""}
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("masterdata.ruleMatchedTx"))} (${treffer.length})</div>
-      <div class="table-wrap"><table><tbody>${txRows}</tbody></table></div>
+      <table class="regel-tx-table"><tbody>${txRows}</tbody></table>
     </div>`;
 }
 

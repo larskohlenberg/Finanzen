@@ -139,9 +139,9 @@ test("work status offers an explicit data reload action", () => {
 
 test("next action copies an agent prompt instead of duplicating open-category navigation", () => {
   assert.match(main, /from "\.\/next-action\.mjs"/);
-  assert.match(main, /buildNextAgentAction\(data\)/);
+  assert.match(main, /buildNextAgentActions\(data\)/);
   assert.match(main, /data-action="copy-next-agent-prompt"/);
-  assert.match(main, /copyNextAgentPrompt\(\)/);
+  assert.match(main, /copyNextAgentPrompt\(element\.dataset\.nextActionType\)/);
   assert.match(main, /nextActionCopiedTimer/);
   assert.match(main, /clearTimeout\(nextActionCopiedTimer\)/);
   assert.match(main, /nextActionCopiedTimer = window\.setTimeout/);
@@ -149,6 +149,14 @@ test("next action copies an agent prompt instead of duplicating open-category na
   assert.match(main, /renderPromptFallback\(\)/);
   assert.match(i18n, /copyAgentPrompt:\s*"Agenten-Prompt kopieren"/);
   assert.match(i18n, /agentPromptCopied:\s*"Prompt kopiert"/);
+});
+
+test("next action prompt menu exposes every candidate as a copy target", () => {
+  assert.match(main, /data-action="toggle-next-action-menu"/);
+  assert.match(main, /data-next-action-type=/);
+  assert.match(main, /state\.nextActionMenuOpen/);
+  assert.match(main, /nextActionActions\.map/);
+  assert.match(css, /\.next-action-menu/);
 });
 
 test("disabled next-action copy buttons do not look interactive", () => {

@@ -58,6 +58,7 @@ function gueltigeRegel(base) {
     kategorie_id: base.kategorien[0].kategorie_id,
     status: "aktiv",
     erstellt_am: "2026-06-16",
+    kommentar: "MusterladenB-Einkauf automatisch als Lebensmittel kategorisieren",
   };
 }
 
@@ -89,8 +90,8 @@ test("Validator akzeptiert matched_regeln mit gueltigem Format", async () => {
   const result = validateMasterData({
     ...base,
     kategorisierungsregeln: [
-      { regel_id: "REG-001", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-01-01" },
-      { regel_id: "REG-042", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-01-01" },
+      { regel_id: "REG-001", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-01-01", kommentar: "Testregel A" },
+      { regel_id: "REG-042", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-01-01", kommentar: "Testregel B" },
     ],
     transaktionen: [{ ...tx, kategorie_herkunft: "regel", matched_regeln: ["REG-001", "REG-042"] }, ...base.transaktionen.slice(1)],
   });
@@ -128,6 +129,14 @@ test("matched_regeln muss auf existierende Regeln zeigen", async () => {
   const result = validateMasterData(data);
   assert.equal(result.valid, false);
   assert.match(result.errors.join("\n"), /REG-999.*existiert nicht/);
+});
+
+test("Regel ohne kommentar ist ungueltig", async () => {
+  const base = await loadMasterData();
+  const data = { ...base, kategorisierungsregeln: [{ regel_id: "REG-001", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-01-01" }] };
+  const result = validateMasterData(data);
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /kommentar/);
 });
 
 test("Validator lehnt Regel mit Schemaverstoss ab", async () => {

@@ -169,7 +169,7 @@ const schemas = {
   },
   kategorisierungsregeln: {
     optional: true,
-    required: ["regel_id", "kategorie_id", "status", "erstellt_am"],
+    required: ["regel_id", "kategorie_id", "status", "erstellt_am", "kommentar"],
     fields: {
       regel_id: { type: "string", pattern: /^REG-\d{3}$/ },
       gegenpartei_pattern: { type: "string", minLength: 1 },
@@ -179,7 +179,7 @@ const schemas = {
       kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
       status: { type: "string", enum: ["aktiv", "inaktiv"] },
       erstellt_am: { type: "string", format: "date" },
-      kommentar: { type: "string" },
+      kommentar: { type: "string", minLength: 1 },
     },
   },
   zeitwerte: {

@@ -4,7 +4,7 @@
   "type": "array",
   "items": {
     "type": "object",
-    "required": ["regel_id", "kategorie_id", "status", "erstellt_am"],
+    "required": ["regel_id", "kategorie_id", "status", "erstellt_am", "kommentar"],
     "additionalProperties": false,
     "properties": {
       "regel_id": { "type": "string", "pattern": "^REG-\\d{3}$" },
@@ -15,7 +15,7 @@
       "kategorie_id": { "type": "string", "pattern": "^KAT-\\d{3}$" },
       "status": { "type": "string", "enum": ["aktiv", "inaktiv"] },
       "erstellt_am": { "type": "string", "format": "date" },
-      "kommentar": { "type": "string" }
+      "kommentar": { "type": "string", "minLength": 1 }
     }
   }
 }

@@ -46,6 +46,7 @@ export async function loadFinanceData() {
     darlehen,
     vermoegenswerte,
     zeitwerte,
+    kategorisierungsregeln,
   ] = await Promise.all([
     loadJson("./data/master/personen.json", { refreshToken }),
     loadJson("./data/master/konten.json", { refreshToken }),
@@ -57,6 +58,7 @@ export async function loadFinanceData() {
     loadJson("./data/master/darlehen.json", { refreshToken }),
     loadJson("./data/master/vermoegenswerte.json", { refreshToken }),
     loadJsonl("./data/master/zeitwerte.jsonl", { refreshToken }),
+    loadJson("./data/master/kategorisierungsregeln.json", { refreshToken }),
   ]);
 
   return {
@@ -76,6 +78,7 @@ export async function loadFinanceData() {
     darlehen,
     vermoegenswerte,
     zeitwerte,
+    kategorisierungsregeln,
     checks: [],
     importfehler: [],
   };

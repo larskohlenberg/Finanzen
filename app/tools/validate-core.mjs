@@ -348,6 +348,9 @@ function validateCrossFieldRules(data, errors) {
     if (tx.kategorie_herkunft === "manuell") {
       errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: nicht erlaubt bei manueller Herkunft`);
     }
+    if (tx.kategorie_herkunft === "agent") {
+      errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: nicht erlaubt bei Agenten-Herkunft`);
+    }
     if (tx.kategorisierung_status === "abgelehnt") {
       errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: nicht erlaubt bei abgelehnt`);
     }

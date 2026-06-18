@@ -121,6 +121,18 @@ test("matched_regeln auf manueller Buchung ist ungueltig", async () => {
   assert.match(result.errors.join("\n"), /matched_regeln.*manueller Herkunft/);
 });
 
+test("matched_regeln auf agent-Buchung ist ungueltig", async () => {
+  const data = await loadMasterData();
+  const tx = data.transaktionen[0];
+  tx.kategorie_herkunft = "agent";
+  tx.kategorie_id = "KAT-001";
+  tx.kategorisierung_status = "vorgeschlagen";
+  tx.matched_regeln = ["REG-001"];
+  const result = validateMasterData(data);
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /matched_regeln.*Agenten-Herkunft/);
+});
+
 test("matched_regeln muss auf existierende Regeln zeigen", async () => {
   const data = await loadMasterData();
   data.kategorisierungsregeln = [{ regel_id: "REG-001", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-01-01", kommentar: "x" }];

@@ -36,6 +36,27 @@ export function categoryName(categoryId) {
   return kategorienById.get(categoryId)?.name || t("labels.noCategory");
 }
 
+// Deterministische Klartext-Erklaerung einer Regel aus ihren Feldern. Macht die
+// Match-Semantik ("enthaelt", Gross-/Kleinschreibung egal) explizit, damit z.B.
+// "amzn.mktp" nicht als Regex missverstanden wird. Reine Ableitung, kein Feld.
+export function regelKlartext(regel, kategorieAufloesen = categoryName) {
+  const teile = [];
+  if (regel.gegenpartei_pattern) teile.push(`die Gegenpartei den Text »${regel.gegenpartei_pattern}« enthält`);
+  if (regel.verwendungszweck_pattern) teile.push(`der Verwendungszweck den Text »${regel.verwendungszweck_pattern}« enthält`);
+  if (regel.konto_id) teile.push(`die Buchung auf Konto ${regel.konto_id} liegt`);
+  if (regel.vorzeichen === "ausgabe") teile.push(`es eine Ausgabe ist`);
+  if (regel.vorzeichen === "einnahme") teile.push(`es eine Einnahme ist`);
+  const bedingung = teile.length ? teile.join(" und ") : "die Buchung passt";
+  return `Bucht auf ${kategorieAufloesen(regel.kategorie_id)}, wenn ${bedingung} (Groß-/Kleinschreibung egal).`;
+}
+
+export function herkunftLabel(tx) {
+  if (tx.kategorie_herkunft === "regel") return "Regel";
+  if (tx.kategorie_herkunft === "agent") return "Agent";
+  if (tx.kategorie_herkunft === "manuell") return "Manuell";
+  return "—";
+}
+
 export function statusChip(status) {
   const className = status === "offen" ? "review" : status === "bestaetigt" ? "success" : "neutral";
   const icon = status === "offen" ? "review" : status === "bestaetigt" ? "success" : "neutral";

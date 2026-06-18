@@ -23,6 +23,11 @@ function transactionSearchFields(tx) {
   ];
 }
 
+export function matchesOriginFilter(tx, origin) {
+  if (!origin) return true;
+  return (tx.kategorie_herkunft || "") === origin;
+}
+
 export function filteredTransactions() {
   return sortTransactions(data.transaktionen.filter((tx) => {
     if (state.transactionFilters.account && tx.konto_id !== state.transactionFilters.account) return false;
@@ -30,6 +35,7 @@ export function filteredTransactions() {
     if (state.transactionFilters.category && tx.kategorie_id !== state.transactionFilters.category) return false;
     if (state.transactionFilters.transfer === "only" && !tx.ist_transfer) return false;
     if (state.transactionFilters.transfer === "without" && tx.ist_transfer) return false;
+    if (!matchesOriginFilter(tx, state.transactionFilters.origin)) return false;
     if (!transactionMatchesTimeFilter(tx)) return false;
     if (state.transactionFilters.search && !matchesQuery(transactionSearchFields(tx), state.transactionFilters.search)) return false;
     return true;
@@ -273,6 +279,16 @@ function renderTransactionFilters(resultCount, totalCount) {
         ["without", t("transactions.withoutTransfers")],
         ],
       },
+      {
+        name: "origin",
+        label: t("transactions.filterOrigin"),
+        options: [
+        ["", t("transactions.allOrigins")],
+        ["regel", t("transactions.originRule")],
+        ["agent", t("transactions.originAgent")],
+        ["manuell", t("transactions.originManual")],
+        ],
+      },
     ],
     filters: state.transactionFilters,
     filterAttr: "filter",
@@ -378,7 +394,7 @@ export function applyTransactionTimeModeDefaults(mode) {
 
 function transactionFilterActiveCount() {
   const filters = state.transactionFilters;
-  const regular = ["account", "status", "category", "transfer", "search"].filter((name) => Boolean(filters[name])).length;
+  const regular = ["account", "status", "category", "transfer", "origin", "search"].filter((name) => Boolean(filters[name])).length;
   return regular + (transactionTimeFilterIsActive() ? 1 : 0);
 }
 
@@ -400,7 +416,7 @@ function renderTransactionRow(tx) {
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.gegenpartei)}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
       <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${tx.kategorie_herkunft === "manuell" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originManual"))}">M</span>` : ""}${tx.kategorie_herkunft === "agent" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originAgent"))}">A</span>` : ""}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${statusChip(tx.kategorisierung_status)}</td>
       ${renderTransferCell(tx)}
     </tr>

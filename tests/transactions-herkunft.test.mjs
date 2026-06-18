@@ -17,7 +17,7 @@ globalThis.fetch = async (path) => {
 };
 await import("../app/i18n.js");
 
-const { renderHerkunft } = await import("../app/views/transaktionen.mjs");
+const { renderHerkunft, matchesOriginFilter } = await import("../app/views/transaktionen.mjs");
 
 // renderHerkunft(tx) is a pure string function — no DOM, no data access needed.
 
@@ -83,4 +83,11 @@ test("renderHerkunft: no herkunft and no matched_regeln returns dash", () => {
   };
   const html = renderHerkunft(tx);
   assert.equal(html, "—");
+});
+
+test("Herkunft-Filter matcht regel/agent/manuell", () => {
+  assert.equal(matchesOriginFilter({ kategorie_herkunft: "manuell" }, "manuell"), true);
+  assert.equal(matchesOriginFilter({ kategorie_herkunft: "regel" }, "manuell"), false);
+  assert.equal(matchesOriginFilter({ kategorie_herkunft: "agent" }, "agent"), true);
+  assert.equal(matchesOriginFilter({ kategorie_herkunft: "regel" }, ""), true); // empty filter = all
 });

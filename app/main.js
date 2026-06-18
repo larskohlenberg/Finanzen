@@ -544,6 +544,7 @@ async function handleAction(element) {
       status: "",
       category: "",
       transfer: "",
+      origin: "",
       search: "",
       timeMode: "none",
       dateFrom: "",

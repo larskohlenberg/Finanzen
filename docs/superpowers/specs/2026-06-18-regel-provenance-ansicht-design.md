@@ -27,6 +27,8 @@ heute weggeworfen: `categorize()` berechnet `matched_regeln`, aber weder
   (Regel→Transaktion und Transaktion→Regel).
 - Herkunft (`regel` / `manuell`) auf der Oberfläche sichtbar machen.
 - Regel-Konflikte (mehrere Regeln widersprechen sich) sichtbar machen.
+- Regeln **verständlich** anzeigen, nicht technokratisch: ein User muss begreifen,
+  was eine Regel tut, ohne das Pattern lesen/interpretieren zu können.
 
 ## Kern-Entscheidung: Provenance speichern statt live nachrechnen
 
@@ -144,6 +146,40 @@ Konto/Transaktion) und `masterSection === "regeln"`.
 - Konflikt-offene Sätze: „offen – Regeln widersprechen sich
   (REG-x →KAT-A vs REG-y →KAT-B)".
 
+### Verständlichkeit: Regeln erklärbar machen
+
+Patterns sind heute reine Substrings (`includes()` nach `normalizeLoose` =
+Kleinschreibung + Whitespace-Normalisierung; der Punkt in `amzn.mktp` ist
+**literal**, kein Regex). Roh angezeigt sind sie für den User unverständlich und
+werden fälschlich als Regex gelesen. Drei Schichten machen jede Regel begreifbar:
+
+1. **Klartext-Bedingung (deterministisch, abgeleitet, kein gespeichertes Feld).**
+   View-Helfer `regelKlartext(regel)` in `komponenten.mjs` erzeugt einen Satz aus
+   den Regel-Feldern, z.B.: „Bucht auf **Lebensmittel**, wenn die **Gegenpartei**
+   den Text »musterladenb« enthält (Groß-/Kleinschreibung egal)." Ergänzt um
+   `verwendungszweck_pattern` („… und der Verwendungszweck »…« enthält"),
+   `konto_id` („… nur auf Konto X"), `vorzeichen` („… und es eine Ausgabe ist").
+   Macht die Match-Semantik (`enthält`) explizit → kein Regex-Missverständnis.
+   Kategorie wird als Name aufgelöst, nicht als `KAT-NNN`.
+2. **Echte Beispiele aus dem Bestand.** Aus `regelWirkung()`: einige distinkte
+   getroffene Gegenparteien zeigen (z.B. „Trifft u.a.: AMZN Mktp DE, AMZN Mktp US").
+   Stärkste Erklärung — macht aus `amzn.mktp` sichtbar „Amazon Marketplace".
+3. **Notiz (`kommentar`).** Menschlicher Zusatz, prominent angezeigt.
+
+**`kommentar` wird Pflicht und Klartext.** Eine Regel, die man nicht erklären kann,
+darf nicht existieren — besonders bei künftigem Regex, wo Schicht 1 ein beliebiges
+Muster nicht mehr in Prosa fassen kann; dann tragen `kommentar` + Beispiele die
+Erklärung. Konkret:
+
+- `schemas/kategorisierungsregeln.schema.json` + `tools/validate-core.mjs`:
+  `kommentar` als `required` (nicht-leer).
+- **Bereinigung:** 64 von 210 Kommentaren sind technokratisch
+  (`„Inhalts-Regel (abgeleitet): X -> KAT-NNN"`) und werden auf Klartext
+  umgeschrieben (eigene Plan-Phase). Die übrigen 146 sind bereits erklärend.
+- `docs/skills/kategorisierungsregel-pflege.md`: verlangt künftig eine
+  Klartext-Erklärung im `kommentar` (kein Pattern-Restatement), besonders für
+  komplexe/Regex-Patterns.
+
 ### Skill-Docs (Schreibverhalten der Agenten)
 
 Die Agenten schreiben diese Felder, daher müssen die Docs mitgezogen werden:
@@ -153,7 +189,7 @@ Die Agenten schreiben diese Felder, daher müssen die Docs mitgezogen werden:
 | `docs/agent-context.md` | `matched_regeln` + Invariante zentral definieren (single source of truth). |
 | `docs/skills/import-agent.md` | `matched_regeln` bei Treffer **und** Konflikt mitschreiben. |
 | `docs/skills/kategorisierung-review.md` | **Kritisch:** Einzelkorrektur (`manuell`) und Ablehnung (`abgelehnt`) entfernen `matched_regeln`; Bulk-Bestätigen (bleibt `regel`) behält es. |
-| `docs/skills/kategorisierungsregel-pflege.md` | Notiz: `recategorize.mjs` stempelt jetzt `matched_regeln`; Probelauf kann Trefferregeln aus dem Feld zeigen. |
+| `docs/skills/kategorisierungsregel-pflege.md` | Notiz: `recategorize.mjs` stempelt jetzt `matched_regeln`; Probelauf kann Trefferregeln aus dem Feld zeigen. **Plus:** jede neue/geänderte Regel braucht einen Klartext-`kommentar` (kein Pattern-Restatement). |
 | `docs/skills/validierung-agent.md` | Validator akzeptiert das Feld; optionale Konsistenzregel. |
 
 **Unangetastet:** `categorizer.mjs`, `dedupe.mjs`, `transfer-matcher.mjs`,
@@ -167,7 +203,8 @@ Regel-Link.
 
 Dokumentiert die Modell-Entscheidung: Provenance gespeichert statt live (Skalierung
 + manuelle Entscheidungen), Konflikt-Sichtbarkeit, Count aggregiert statt
-persistiert, Backfill über einmaligen Recompute.
+persistiert, Backfill über einmaligen Recompute, sowie das Erklärbarkeits-Prinzip
+(Klartext + Beispiele statt roher Patterns, `kommentar` als Pflicht).
 
 ## Nicht im Scope (YAGNI)
 
@@ -189,3 +226,8 @@ persistiert, Backfill über einmaligen Recompute.
    Konflikt den Widerspruch.
 6. Manuelle Kategorisierung ist in Tabelle und Detail erkennbar.
 7. Die fünf genannten Skill-Docs sind konsistent mit dem neuen Schreibverhalten.
+8. Jede Regel wird verständlich angezeigt: Klartext-Bedingung (aufgelöste
+   Kategorie, „enthält"-Semantik) + Beispiel-Gegenparteien + Notiz; rohe
+   Patterns sind nicht die primäre Darstellung.
+9. `kommentar` ist Pflicht (Schema + Validator); die 64 technokratischen
+   Auto-Kommentare sind auf Klartext umgeschrieben.

@@ -578,6 +578,24 @@ async function handleAction(element) {
     commitNavigation();
     return;
   }
+  if (action === "open-transaction") {
+    // Aus einer anderen Ansicht (z. B. Regel-Detail) eine konkrete Buchung
+    // oeffnen: alle Filter leeren, damit die Zielbuchung sicher im gefilterten
+    // Bestand liegt und das Detail-Rail sie zeigt.
+    state.view = "transactions";
+    state.transactionFilters.account = "";
+    state.transactionFilters.status = "";
+    state.transactionFilters.category = "";
+    state.transactionFilters.transfer = "";
+    state.transactionFilters.search = "";
+    state.transactionFilters.origin = "";
+    clearTransactionTimeFilter();
+    state.transactionPage = 1;
+    state.selectedTransactionId = element.dataset.transaction;
+    state.detailRailClosed = false;
+    commitNavigation();
+    return;
+  }
   if (action === "close-detail-rail") {
     state.detailRailClosed = true;
     commitNavigation();

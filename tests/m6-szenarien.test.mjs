@@ -120,3 +120,42 @@ test("Sachwert-Erbschaft (betrag=0 + neue_position): Nettovermögen steigt", () 
   assert.equal(letzte.sachwerte_cents, 5000000);
   assert.equal(letzte.netto_cents, 100000 + 5000000);
 });
+
+test("cash-realismus: geschätzter Plan deutlich unter Ist", () => {
+  const data = { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    kategorien: [{ kategorie_id: "KAT-003", name: "Lebensmittel", typ: "ausgabe", lebenshaltung_relevant: true, status: "aktiv" }],
+    transaktionen: [
+      { konto_id: "KTO-001", buchungsdatum: "2026-03-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-04-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-05-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" }],
+    darlehen: [], immobilien: [], vermoegenswerte: [], zeitwerte: [],
+    regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "Lebensmittel-Plan", betrag: "-500.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt", qualitaet: "geschaetzt", kategorie_id: "KAT-003", erstellt_am: "2026-06-01" }] };
+  const r = rechneSzenario(data, sz([], "2027-06-30"), "2026-06-22");
+  assert.ok(r.warnungen.some((w) => w.code === "cash-realismus"));
+});
+
+test("kategorie-ungeplant: materielles Ist ohne Regelzahlung", () => {
+  const data = { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    kategorien: [{ kategorie_id: "KAT-003", name: "Lebensmittel", typ: "ausgabe", lebenshaltung_relevant: true, status: "aktiv" }],
+    transaktionen: [
+      { konto_id: "KTO-001", buchungsdatum: "2026-03-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-04-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-05-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" }],
+    darlehen: [], immobilien: [], vermoegenswerte: [], zeitwerte: [], regelzahlungen: [] };
+  const r = rechneSzenario(data, sz([], "2027-06-30"), "2026-06-22");
+  assert.ok(r.warnungen.some((w) => w.code === "kategorie-ungeplant"));
+});
+
+test("belegt-Regelzahlung löst KEINE cash-realismus-Warnung aus", () => {
+  const data = { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    kategorien: [{ kategorie_id: "KAT-001", name: "Wohnen", typ: "ausgabe", lebenshaltung_relevant: true, status: "aktiv" }],
+    transaktionen: [
+      { konto_id: "KTO-001", buchungsdatum: "2026-03-15", betrag: "-1200.00", ist_transfer: false, kategorie_id: "KAT-001", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-04-15", betrag: "-1200.00", ist_transfer: false, kategorie_id: "KAT-001", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-05-15", betrag: "-1200.00", ist_transfer: false, kategorie_id: "KAT-001", kategorisierung_status: "bestaetigt" }],
+    darlehen: [], immobilien: [], vermoegenswerte: [], zeitwerte: [],
+    regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "Miete", betrag: "-1200.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt", qualitaet: "belegt", kategorie_id: "KAT-001", erstellt_am: "2026-06-01" }] };
+  const r = rechneSzenario(data, sz([], "2027-06-30"), "2026-06-22");
+  assert.ok(!r.warnungen.some((w) => w.code === "cash-realismus"));
+  assert.ok(!r.warnungen.some((w) => w.code === "kategorie-ungeplant"));
+});

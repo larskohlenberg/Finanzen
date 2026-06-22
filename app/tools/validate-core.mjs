@@ -116,6 +116,20 @@ const schemas = {
       bemerkung: { type: "string" },
     },
   },
+  szenarien: {
+    optional: true,
+    required: ["szenario_id", "name", "status", "stand", "reichweite_bis", "erstellt_am", "annahmen"],
+    fields: {
+      szenario_id: { type: "string", pattern: /^SZN-\d{3}$/ },
+      name: { type: "string", minLength: 1 },
+      beschreibung: { type: "string" },
+      status: { type: "string", enum: ["entwurf", "bestaetigt", "verworfen"] },
+      stand: { type: "string", format: "date" },
+      reichweite_bis: { type: "string", format: "date" },
+      erstellt_am: { type: "string", format: "date" },
+      annahmen: { type: "array" },
+    },
+  },
   immobilien: {
     optional: true,
     required: ["immobilie_id", "bezeichnung", "eigentumsanteile", "status"],
@@ -409,6 +423,8 @@ function validateCrossFieldRules(data, errors) {
       errors.push(`regelzahlungen.${rz.regelzahlung_id}.darlehen_id: ${rz.darlehen_id} existiert nicht`);
     }
   });
+
+  validateSzenarien(data, errors);
 }
 
 function validateTransfer(transfer, transaktionen, errors) {
@@ -443,6 +459,88 @@ function validateTransfer(transfer, transaktionen, errors) {
     }
     if (!transfer.begruendung) {
       errors.push(`${prefix}.begruendung: Pflicht bei externem Transfer`);
+    }
+  }
+}
+
+function validateSzenarien(data, errors) {
+  // Nur AKTIVE Zielpositionen sind gültige Gegenbuchungs-Ziele (Spec).
+  const darlehenIds = new Set((data.darlehen ?? []).filter((d) => d.status !== "abgeloest").map((d) => d.darlehen_id));
+  const depotIds = new Set((data.konten ?? []).filter((k) => k.kontotyp === "depot" && k.status !== "geschlossen").map((k) => k.konto_id));
+  const immoIds = new Set((data.immobilien ?? []).filter((i) => i.status !== "verkauft").map((i) => i.immobilie_id));
+  const vmwIds = new Set((data.vermoegenswerte ?? []).filter((v) => v.status !== "veraeussert").map((v) => v.vermoegenswert_id));
+  const rzIds = new Set((data.regelzahlungen ?? []).map((r) => r.regelzahlung_id));
+  const idMengen = { darlehen: darlehenIds, depot: depotIds, immobilie: immoIds, vermoegenswert: vmwIds };
+
+  for (const sz of data.szenarien ?? []) {
+    const p = `szenarien.${sz.szenario_id}`;
+    if (sz.reichweite_bis < sz.stand) errors.push(`${p}: reichweite_bis liegt vor stand`);
+
+    const gesehen = new Set();
+    const verkauft = new Set(); // ziel_typ:ziel_id, gegen Doppelverkauf
+    for (const a of sz.annahmen ?? []) {
+      const ap = `${p}.${a.annahme_id ?? "?"}`;
+      if (!a.annahme_id) errors.push(`${ap}: annahme_id fehlt`);
+      else if (gesehen.has(a.annahme_id)) errors.push(`${ap}: annahme_id doppelt`);
+      gesehen.add(a.annahme_id);
+
+      if (!["einmalzahlung", "regelzahlung-neu", "regelzahlung-aenderung"].includes(a.art)) {
+        errors.push(`${ap}: art unbekannt`);
+        continue;
+      }
+      if (!["belegt", "geschaetzt", "offen"].includes(a.qualitaet)) errors.push(`${ap}: qualitaet ungueltig`);
+
+      if (a.art === "regelzahlung-aenderung") {
+        if (!rzIds.has(a.regelzahlung_id)) errors.push(`${ap}: regelzahlung_id ${a.regelzahlung_id} existiert nicht`);
+        if (!isIsoDate(a.ab)) errors.push(`${ap}: ab fehlt/ungueltig`);
+        if (!["beenden", "betrag-aendern"].includes(a.aktion)) errors.push(`${ap}: aktion ungueltig`);
+        if (a.aktion === "betrag-aendern" && !istGueltigerBetrag(a.betrag)) errors.push(`${ap}: betrag-aendern braucht gueltigen betrag`);
+        if (a.gegenbuchung) errors.push(`${ap}: regelzahlung-aenderung darf keine gegenbuchung haben`);
+        continue;
+      }
+
+      // Art-spezifische Pflichtfelder
+      if (a.art === "einmalzahlung") {
+        if (!isIsoDate(a.datum)) errors.push(`${ap}: datum fehlt/ungueltig`);
+        if (typeof a.betrag !== "string" || !istGueltigerBetrag(a.betrag)) errors.push(`${ap}: betrag fehlt/ungueltig`);
+      } else if (a.art === "regelzahlung-neu") {
+        if (!isIsoDate(a.ab)) errors.push(`${ap}: ab fehlt/ungueltig`);
+        if (typeof a.betrag !== "string" || !istGueltigerBetrag(a.betrag)) errors.push(`${ap}: betrag fehlt/ungueltig`);
+        if (!["tag", "woche", "monat", "jahr"].includes(a.rhythmus_einheit)) errors.push(`${ap}: rhythmus_einheit ungueltig`);
+        if (!Number.isInteger(a.rhythmus_intervall) || a.rhythmus_intervall < 1) errors.push(`${ap}: rhythmus_intervall ungueltig`);
+      }
+
+      // einmalzahlung | regelzahlung-neu: Cash-Bein + optionale gegenbuchung
+      const hatBetrag = typeof a.betrag === "string" && istGueltigerBetrag(a.betrag) && a.betrag !== "0.00";
+      if (a.art === "einmalzahlung" && !hatBetrag && !a.gegenbuchung) {
+        errors.push(`${ap}: einmalzahlung ohne Betrag und ohne gegenbuchung ist wirkungslos`);
+      }
+
+      if (a.gegenbuchung) {
+        const g = a.gegenbuchung;
+        const hatZiel = !!g.ziel_id, hatNeu = !!g.neue_position;
+        if (hatZiel === hatNeu) errors.push(`${ap}: gegenbuchung braucht genau eines von ziel_id / neue_position`);
+        if (!idMengen[g.ziel_typ]) errors.push(`${ap}: gegenbuchung.ziel_typ ungueltig`);
+        if (a.art === "regelzahlung-neu") {
+          if (!["darlehen", "depot"].includes(g.ziel_typ)) errors.push(`${ap}: wiederkehrende gegenbuchung nur fuer darlehen|depot`);
+          if (hatNeu) errors.push(`${ap}: wiederkehrende gegenbuchung braucht bestehende ziel_id`);
+        }
+        if (hatZiel && idMengen[g.ziel_typ] && !idMengen[g.ziel_typ].has(g.ziel_id)) {
+          errors.push(`${ap}: gegenbuchung.ziel_id ${g.ziel_id} existiert nicht in ${g.ziel_typ}`);
+        }
+        if (g.ziel_typ === "depot" && hatZiel && !depotIds.has(g.ziel_id)) {
+          errors.push(`${ap}: depot-gegenbuchung verlangt ein Konto mit kontotyp=Depot`);
+        }
+        if (hatNeu && (!g.neue_position.bezeichnung || !istGueltigerBetrag(g.neue_position.wert))) {
+          errors.push(`${ap}: neue_position braucht bezeichnung und gueltigen wert`);
+        }
+        // Doppelverkauf/-abbau bestehender Sachwert-Positionen
+        if (hatZiel && (g.ziel_typ === "immobilie" || g.ziel_typ === "vermoegenswert")) {
+          const key = `${g.ziel_typ}:${g.ziel_id}`;
+          if (verkauft.has(key)) errors.push(`${ap}: Position ${g.ziel_id} wird im Szenario mehrfach abgebaut`);
+          verkauft.add(key);
+        }
+      }
     }
   }
 }

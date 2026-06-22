@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Szenario",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["szenario_id", "name", "status", "stand", "reichweite_bis", "erstellt_am", "annahmen"],
+    "additionalProperties": false,
+    "properties": {
+      "szenario_id": { "type": "string", "pattern": "^SZN-\\d{3}$" },
+      "name": { "type": "string", "minLength": 1 },
+      "beschreibung": { "type": "string" },
+      "status": { "type": "string", "enum": ["entwurf", "bestaetigt", "verworfen"] },
+      "stand": { "type": "string", "format": "date" },
+      "reichweite_bis": { "type": "string", "format": "date" },
+      "erstellt_am": { "type": "string", "format": "date" },
+      "annahmen": { "type": "array" }
+    }
+  }
+}

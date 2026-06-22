@@ -1,7 +1,7 @@
 // app/szenarien.mjs — deterministische, reine Szenario-Engine (browser- & node-fähig).
 // Keine Node-I/O. Rechnet ab Rechenstichtag `today` (nicht `stand`).
 import { occurrences, addInterval, monatVon, toCents } from "./liquiditaet.mjs";
-import { faelligkeiten, aktuellerZeitwert } from "./vermoegen.mjs";
+import { faelligkeiten, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
 
 const PPJ = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 
@@ -106,6 +106,47 @@ function sammleDepotGegenbuchungen(szenario, rzs, today, horizon) {
   return ereignisse;
 }
 
+// Startwerte aktiver Sachwert-Positionen (anteilsgewichteter Marktwert ≤ today, eingefroren).
+// Positionen ohne Zeitwert tragen 0 und gelten als "offen" für die Qualität.
+function sachwertStartwerte(data, today) {
+  const werte = new Map(); // `${typ}:${id}` -> cents
+  const qualitaeten = [];
+  for (const imm of data.immobilien ?? []) {
+    if (imm.status === "verkauft") continue;
+    const zw = aktuellerZeitwert(data.zeitwerte, "immobilie", imm.immobilie_id, "marktwert", today);
+    werte.set(`immobilie:${imm.immobilie_id}`, zw ? anteilWertCents(toCents(zw.wert), imm.eigentumsanteile) : 0);
+    qualitaeten.push(zw ? zw.qualitaet : "offen");
+  }
+  for (const v of data.vermoegenswerte ?? []) {
+    if (v.status === "veraeussert") continue;
+    const zw = aktuellerZeitwert(data.zeitwerte, "vermoegenswert", v.vermoegenswert_id, "marktwert", today);
+    werte.set(`vermoegenswert:${v.vermoegenswert_id}`, zw ? anteilWertCents(toCents(zw.wert), v.eigentumsanteile) : 0);
+    qualitaeten.push(zw ? zw.qualitaet : "offen");
+  }
+  return { werte, qualitaeten };
+}
+
+// Gegenbuchung(immobilie|vermoegenswert): Abbau (ziel_id, bestehende Position verkauft/
+// verschenkt) oder Aufbau (neue_position, gekauft/geerbt). Cash = toCents(betrag) in beiden
+// Fällen (Verschenken/Erbschaft haben betrag="0.00", das ergibt automatisch ein Null-Cash-Bein).
+function sammleSachwertGegenbuchungen(szenario, today, horizon) {
+  const ereignisse = [];
+  for (const a of szenario.annahmen ?? []) {
+    if (a.art !== "einmalzahlung") continue;
+    const g = a.gegenbuchung;
+    if (!g || (g.ziel_typ !== "immobilie" && g.ziel_typ !== "vermoegenswert")) continue;
+    if (!(a.datum > today && a.datum <= horizon)) continue;
+    const cash_cents = toCents(a.betrag);
+    if (g.ziel_id) {
+      ereignisse.push({ datum: a.datum, abbau_key: `${g.ziel_typ}:${g.ziel_id}`, cash_cents });
+    } else if (g.neue_position) {
+      ereignisse.push({ datum: a.datum, aufbau_cents: toCents(g.neue_position.wert), cash_cents });
+    }
+  }
+  ereignisse.sort((x, y) => x.datum.localeCompare(y.datum));
+  return ereignisse;
+}
+
 // Chronologischer Merge von Ratenterminen und Sondertilgungen je Darlehen. Liefert effektive
 // (geklemmte) Beträge: eine Sondertilgung kann nie mehr abtragen als die aktuelle Restschuld.
 function restschuldProjektion(darlehen, zeitwerte, today, horizon, sondertilgungen) {
@@ -193,6 +234,22 @@ export function rechneSzenario(data, szenario, today) {
     }
   }
 
+  // Sachwert-Gegenbuchungen (Immobilie/Vermögenswert): Abbau (Verkauf/Verschenken) oder
+  // Aufbau (Kauf/Erbschaft). Startwerte zum Stichtag eingefroren, keine realen Marktwert-
+  // Updates nach diesem Punkt fließen ein.
+  const { werte: sachwertStart, qualitaeten: sachwertQualitaeten } = sachwertStartwerte(data, today);
+  const sachwertDeltas = []; // { datum, delta_cents }
+  const sachwertCash = [];
+  for (const e of sammleSachwertGegenbuchungen(szenario, today, horizon)) {
+    if (e.abbau_key) {
+      const wert = sachwertStart.get(e.abbau_key) ?? 0;
+      sachwertDeltas.push({ datum: e.datum, delta_cents: -wert });
+    } else {
+      sachwertDeltas.push({ datum: e.datum, delta_cents: e.aufbau_cents });
+    }
+    sachwertCash.push({ datum: e.datum, cents: e.cash_cents });
+  }
+
   // Cash-Ereignisse je Datum sammeln. Generisches Cash-Bein NUR für Annahmen OHNE
   // gegenbuchung — gegenbuchung-Annahmen buchen ihr (effektives) Cash hier separat
   // (Sondertilgungen unten; Depot/Sachwerte folgen in Task 6/7).
@@ -205,6 +262,7 @@ export function rechneSzenario(data, szenario, today) {
     for (const eff of proj.effektive) ereignisse.push({ datum: eff.datum, cents: -eff.effektiv_cents });
   }
   for (const e of depotCashEreignisse) ereignisse.push(e);
+  for (const e of sachwertCash) ereignisse.push(e);
   const startDatum = (a) => (a.art === "einmalzahlung" ? a.datum : a.ab);
   for (const a of szenario.annahmen ?? []) {
     const d = startDatum(a);
@@ -237,7 +295,10 @@ export function rechneSzenario(data, szenario, today) {
       for (const r of depotReihe.get(k.konto_id)) { if (r.datum < monatsEnde) val = r.wert_cents; else break; }
       depotGesamt += val;
     }
-    punkte.push({ monat: cur, liquide_cents: lauf, depot_cents: depotGesamt, restschuld_cents: restschuld, sachwerte_cents: 0, netto_cents: lauf + depotGesamt - restschuld });
+    let sachwerteGesamt = 0;
+    for (const v of sachwertStart.values()) sachwerteGesamt += v;
+    for (const d of sachwertDeltas) { if (d.datum < monatsEnde) sachwerteGesamt += d.delta_cents; }
+    punkte.push({ monat: cur, liquide_cents: lauf, depot_cents: depotGesamt, restschuld_cents: restschuld, sachwerte_cents: sachwerteGesamt, netto_cents: lauf + depotGesamt + sachwerteGesamt - restschuld });
     cur = monatVon(addInterval(`${cur}-01`, "monat", 1));
   }
 
@@ -247,6 +308,7 @@ export function rechneSzenario(data, szenario, today) {
     ...(szenario.annahmen ?? []).map((a) => a.qualitaet),
     ...rzs.filter((rz) => occurrences(rz, today, horizon).length).map((rz) => rz.qualitaet),
     ...[...restschuldNachDarlehen.values()].filter((p) => p.hatZeitwert).map((p) => p.qualitaet),
+    ...sachwertQualitaeten,
   ]);
   if (punkte.length && punkte[0].liquide_cents < 0) warnungen.push({ code: "liquiditaet-negativ", text: `Liquidität bereits im ersten Monat negativ`, datum: punkte[0].monat });
   return { punkte, qualitaet, warnungen };

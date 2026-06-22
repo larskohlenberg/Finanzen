@@ -91,3 +91,32 @@ test("gegenbuchung(depot) Verkauf: Liquidität +, Depot −, depot-vorbehalt", (
   assert.equal(letzte.depot_cents, 2500000 - 1000000);
   assert.ok(r.warnungen.some((w) => w.code === "depot-vorbehalt"));
 });
+
+test("Immobilien-Verkauf: Position fällt ab Datum raus, Liquidität +, neutral", () => {
+  const data = { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    transaktionen: [], darlehen: [], vermoegenswerte: [],
+    immobilien: [{ immobilie_id: "IMM-001", bezeichnung: "EFH", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }], status: "aktiv" }],
+    zeitwerte: [
+      { entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "1000.00", standdatum: "2026-06-22", qualitaet: "belegt" },
+      { entitaet: "immobilie", entitaet_id: "IMM-001", feld: "marktwert", wert: "400000.00", standdatum: "2026-06-22", qualitaet: "geschaetzt" }],
+    regelzahlungen: [] };
+  const vorher = rechneSzenario(data, sz([], "2027-01-31"), "2026-06-22").punkte[0].netto_cents;
+  const r = rechneSzenario(data, sz([{ annahme_id: "A1", art: "einmalzahlung", qualitaet: "geschaetzt", datum: "2026-09-01", betrag: "400000.00", gegenbuchung: { ziel_typ: "immobilie", ziel_id: "IMM-001" } }], "2027-01-31"), "2026-06-22");
+  assert.equal(r.punkte.find((p) => p.monat === "2026-08").sachwerte_cents, 40000000);
+  assert.equal(r.punkte.find((p) => p.monat === "2026-09").sachwerte_cents, 0);
+  const letzte = r.punkte[r.punkte.length - 1];
+  assert.equal(letzte.sachwerte_cents, 0);
+  assert.equal(letzte.liquide_cents, 100000 + 40000000);
+  assert.equal(letzte.netto_cents, vorher);
+});
+
+test("Sachwert-Erbschaft (betrag=0 + neue_position): Nettovermögen steigt", () => {
+  const data = { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    transaktionen: [], darlehen: [], immobilien: [], vermoegenswerte: [],
+    zeitwerte: [{ entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "1000.00", standdatum: "2026-06-22", qualitaet: "belegt" }],
+    regelzahlungen: [] };
+  const r = rechneSzenario(data, sz([{ annahme_id: "A1", art: "einmalzahlung", qualitaet: "geschaetzt", datum: "2026-09-01", betrag: "0.00", gegenbuchung: { ziel_typ: "vermoegenswert", neue_position: { bezeichnung: "Erbe Gold", wert: "50000.00" } } }], "2027-01-31"), "2026-06-22");
+  const letzte = r.punkte[r.punkte.length - 1];
+  assert.equal(letzte.sachwerte_cents, 5000000);
+  assert.equal(letzte.netto_cents, 100000 + 5000000);
+});

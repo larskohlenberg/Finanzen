@@ -107,6 +107,9 @@ function doneAction() {
   };
 }
 
+// Szenario-Entwuerfe (data.szenarien, status="entwurf") erzeugen bewusst KEINE
+// Next-Action: Szenarien sind Pull (Nutzer oeffnet die Ansicht aktiv), keine
+// Push-Benachrichtigung wie Validierungsfehler oder offene Kategorien.
 export function buildNextAgentActions(data, options = {}) {
   if (validationErrorCount(data) > 0) {
     const summary = validationSummary(data);

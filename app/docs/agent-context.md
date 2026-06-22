@@ -163,6 +163,25 @@ Szenarien werden nicht als bestaetigte Regelzahlungen modelliert.
 Bekannte Stufenaenderungen werden als zwei Regelzahlungen modelliert: die alte mit
 `aktiv_bis`, die neue mit eigenem `anker_datum`.
 
+## Szenarien
+
+Szenarien buendeln explizite Annahmen zu einer Was-waere-wenn-Sicht (Liquiditaet,
+Restschuld, Nettovermoegen) gegenueber dem validierten Bestand. Sie liegen in
+`data/master/szenarien.json`, Annahmen sind eingebettet. Eine Annahme ist
+`einmalzahlung`, `regelzahlung-neu` oder `regelzahlung-aenderung`, je mit
+`qualitaet ∈ {belegt, geschaetzt, offen}`.
+
+Eine `gegenbuchung` koppelt das Cash-Bein einer Annahme an eine zweite Bilanzposition
+(`ziel_typ ∈ darlehen|depot|immobilie|vermoegenswert`) und deckt fuenf Wirk-Faelle ab:
+Kauf, Verkauf, Sondertilgung, Erbschaft, Schenkung. Sondertilgungen und
+Depot-Verkaeufe werden effektiv (geklemmt) gerechnet — die Engine kann nie mehr
+abtragen oder verkaufen, als die Position hergibt.
+
+Die Engine `szenarien.mjs` ist deterministisch und rechnet live ab dem
+Rechenstichtag (nicht ab `stand`); die App schreibt keine Masterdaten — Szenarien
+und Annahmen entstehen ausschliesslich ueber den Agenten. Siehe Skill
+`szenarien-annahmen` fuer den Erstellungsprozess.
+
 ## Belege
 
 Belege werden sprechend benannt und unter `Belege/` abgelegt. Datenfelder wie

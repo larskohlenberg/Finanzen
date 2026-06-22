@@ -226,3 +226,11 @@ test("loan-without-rate check prompt also names regelzahlung skill", () => {
   assert.match(action.prompt, /docs\/skills\/stammdaten-erfassung-agent\.md/);
   assert.match(action.prompt, /docs\/skills\/regelzahlung-agent\.md/);
 });
+
+test("ein Szenario-Entwurf erzeugt keine Next-Action (Pull, nicht Push)", () => {
+  const data = baseData({
+    szenarien: [{ szenario_id: "SZN-001", name: "Test", status: "entwurf", stand: "2026-06-01", reichweite_bis: "2026-12-31", erstellt_am: "2026-06-01", annahmen: [] }],
+  });
+  assert.deepEqual(buildNextAgentActions(data, { vermoegenChecks: [] }), []);
+  assert.equal(buildNextAgentAction(data, { vermoegenChecks: [] }).type, "none");
+});

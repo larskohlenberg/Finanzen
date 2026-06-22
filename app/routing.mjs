@@ -10,6 +10,7 @@ const VIEW_SLUG = {
   liquiditaet: "liquiditaet",
   vermoegen: "vermoegen",
   regelzahlungen: "regelzahlungen",
+  szenarien: "szenarien",
   masterdata: "stammdaten",
   checks: "checks",
   export: "export",
@@ -32,6 +33,9 @@ export function routeFromState(state) {
   if (state.view === "vermoegen" && state.selectedVermoegenId) {
     const [klasse, id] = state.selectedVermoegenId.split(":");
     if (klasse && id) return `#/vermoegen/${encodeURIComponent(klasse)}:${encodeURIComponent(id)}`;
+  }
+  if (state.view === "szenarien" && state.selectedSzenarioId) {
+    return `#/szenarien/${encodeURIComponent(state.selectedSzenarioId)}`;
   }
   return `#/${VIEW_SLUG[state.view] || state.view}`;
 }
@@ -59,6 +63,9 @@ export function parseRoute(hash) {
   }
   if (head === "vermoegen") {
     return tail ? { view: "vermoegen", selectedVermoegenId: tail } : { view: "vermoegen" };
+  }
+  if (head === "szenarien") {
+    return tail ? { view: "szenarien", selectedSzenarioId: tail } : { view: "szenarien" };
   }
   if (SLUG_VIEW[head]) return { view: SLUG_VIEW[head] };
   return { view: "overview" };

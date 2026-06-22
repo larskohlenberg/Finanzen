@@ -38,6 +38,7 @@ const bootstrapped = await bootstrap();
 export const data = bootstrapped.data;
 export const dictionaries = bootstrapped.dictionaries;
 data.regelzahlungen = data.regelzahlungen ?? [];
+data.szenarien = data.szenarien ?? [];
 
 // "Das Tool prueft" gilt auch in der UI: dieselbe Validator-Logik wie das CLI
 // laeuft einmal beim Laden ueber den geladenen Bestand (Reload = voller Page-
@@ -60,6 +61,7 @@ export const navItems = [
   ["liquiditaet", "nav.liquiditaet", "liquiditaet"],
   ["vermoegen", "nav.vermoegen", "vermoegen"],
   ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
+  ["szenarien", "nav.szenarien", "szenarien"],
   ["masterdata", "nav.masterdata", "masterdata"],
   ["checks", "nav.checks", "checks"],
   ["export", "nav.export", "export"],
@@ -115,6 +117,7 @@ export const state = {
   vermoegenDetailRailClosed: false,
   vermoegenRailMode: "position",
   vermoegenRailWide: false,
+  selectedSzenarioId: "",
 };
 
 export const personenById = new Map(data.personen.map((person) => [person.person_id, person]));

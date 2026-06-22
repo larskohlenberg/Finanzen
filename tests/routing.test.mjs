@@ -47,9 +47,20 @@ test("routeFromState und parseRoute sind für Deeplinks invers", () => {
   for (const state of [
     { view: "transactions", selectedTransactionId: "TXN-5347b957-b93e-4453-830d-81eae240aa51" },
     { view: "vermoegen", selectedVermoegenId: "konto:KTO-001" },
+    { view: "szenarien", selectedSzenarioId: "SZN-001" },
     { view: "liquiditaet" },
   ]) {
     const parsed = parseRoute(routeFromState(state));
     assert.equal(parsed.view, state.view);
   }
+});
+
+test("routeFromState adressiert das ausgewaehlte Szenario", () => {
+  assert.equal(routeFromState({ view: "szenarien", selectedSzenarioId: "SZN-001" }), "#/szenarien/SZN-001");
+  assert.equal(routeFromState({ view: "szenarien", selectedSzenarioId: "" }), "#/szenarien");
+});
+
+test("parseRoute liest Szenario-Deeplinks", () => {
+  assert.deepEqual(parseRoute("#/szenarien/SZN-001"), { view: "szenarien", selectedSzenarioId: "SZN-001" });
+  assert.deepEqual(parseRoute("#/szenarien"), { view: "szenarien" });
 });

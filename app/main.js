@@ -3,6 +3,7 @@ import { iconSvg } from "./icons.js";
 import { buildNextAgentActions } from "./next-action.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
+import { renderSzenarien } from "./views/szenarien.mjs";
 import { renderTransactions, filteredTransactions, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
 import { renderRegelzahlungen } from "./views/regelzahlungen.mjs";
@@ -28,7 +29,7 @@ function applyTheme() {
 
 const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
-  "data-vermoegen", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
+  "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
   "data-vermoegen-sort", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
   "data-rule", "data-regel-sort", "data-next-action-type",
 ];
@@ -296,6 +297,7 @@ function renderView() {
   if (state.view === "liquiditaet") return renderLiquiditaet();
   if (state.view === "regelzahlungen") return renderRegelzahlungen();
   if (state.view === "vermoegen") return renderVermoegen();
+  if (state.view === "szenarien") return renderSzenarien();
   if (state.view === "masterdata") return renderMasterdata();
   if (state.view === "checks") return renderChecks();
   if (state.view === "export") return renderExport();
@@ -694,6 +696,16 @@ async function handleAction(element) {
     commitNavigation();
     return;
   }
+  if (action === "select-szenario") {
+    state.selectedSzenarioId = element.dataset.szenario;
+    commitNavigation();
+    return;
+  }
+  if (action === "back-to-szenarien") {
+    state.selectedSzenarioId = "";
+    commitNavigation();
+    return;
+  }
   if (action === "show-vermoegen-wertstaende") {
     state.vermoegenRailMode = "wertstaende";
     state.vermoegenRailWide = true;
@@ -758,6 +770,7 @@ function snapshotState() {
     selectedKonto: state.selectedKonto,
     selectedRegel: state.selectedRegel,
     selectedVermoegenId: state.selectedVermoegenId,
+    selectedSzenarioId: state.selectedSzenarioId,
     vermoegenRailMode: state.vermoegenRailMode,
     vermoegenRailWide: state.vermoegenRailWide,
   };
@@ -773,6 +786,7 @@ function restoreState(snapshot) {
   state.selectedKonto = snapshot.selectedKonto || "";
   state.selectedRegel = snapshot.selectedRegel || "";
   state.selectedVermoegenId = snapshot.selectedVermoegenId || "";
+  state.selectedSzenarioId = snapshot.selectedSzenarioId || "";
   state.vermoegenRailMode = snapshot.vermoegenRailMode || "position";
   state.vermoegenRailWide = Boolean(snapshot.vermoegenRailWide);
 }
@@ -821,6 +835,9 @@ function applyRoute(route) {
     state.vermoegenRailMode = "position";
     state.vermoegenRailWide = false;
     state.vermoegenDetailRailClosed = false;
+  }
+  if (route.selectedSzenarioId) {
+    state.selectedSzenarioId = route.selectedSzenarioId;
   }
 }
 

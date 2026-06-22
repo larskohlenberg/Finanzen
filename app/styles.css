@@ -1800,6 +1800,10 @@ tr.clickable.selected td:first-child {
   stroke-linecap: round;
 }
 
+.amount-negativ {
+  color: var(--danger);
+}
+
 .diagramm-nulllinie {
   stroke: var(--danger);
   stroke-width: 1px;

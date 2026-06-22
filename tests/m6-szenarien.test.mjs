@@ -49,3 +49,29 @@ test("regelzahlung-aenderung beenden stoppt die Regelzahlung", () => {
   // Juli + August = 2 x -500 = -1000
   assert.equal(r.punkte[r.punkte.length - 1].liquide_cents, 100000 - 100000);
 });
+
+function dataMitDarlehen() {
+  return { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    transaktionen: [], immobilien: [], vermoegenswerte: [],
+    zeitwerte: [
+      { entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "100000.00", standdatum: "2026-06-22", qualitaet: "belegt" },
+      { entitaet: "darlehen", entitaet_id: "DAR-001", feld: "restschuld", wert: "10000.00", standdatum: "2026-06-22", qualitaet: "belegt" },
+    ],
+    darlehen: [{ darlehen_id: "DAR-001", bezeichnung: "Rest", status: "aktiv", anfangsbetrag: "10000.00", anfangsdatum: "2026-06-22", zinssatz: "0.00", sollrate: "1000.00", rhythmus_einheit: "monat", rhythmus_intervall: 1 }],
+    regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "Darlehensrate", betrag: "-1000.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-06-22", status: "bestaetigt", qualitaet: "belegt", darlehen_id: "DAR-001", erstellt_am: "2026-06-01" }] };
+}
+
+test("Sondertilgung: Restschuld Ende Juli exakt 400_000, Cash konsistent", () => {
+  const data = dataMitDarlehen();
+  const r = rechneSzenario(data, sz([{ annahme_id: "A1", art: "einmalzahlung", qualitaet: "belegt", datum: "2026-07-15", betrag: "-5000.00", gegenbuchung: { ziel_typ: "darlehen", ziel_id: "DAR-001" } }], "2026-09-30"), "2026-06-22");
+  assert.equal(r.punkte.find((p) => p.monat === "2026-07").restschuld_cents, 400000);
+  assert.equal(r.punkte[r.punkte.length - 1].liquide_cents, 9200000);
+});
+
+test("Volltilgung via Sondertilgung stoppt die Sollrate (Cash exakt)", () => {
+  const data = dataMitDarlehen();
+  const r = rechneSzenario(data, sz([{ annahme_id: "A1", art: "einmalzahlung", qualitaet: "belegt", datum: "2026-07-15", betrag: "-10000.00", gegenbuchung: { ziel_typ: "darlehen", ziel_id: "DAR-001" } }], "2026-12-31"), "2026-06-22");
+  const letzte = r.punkte[r.punkte.length - 1];
+  assert.equal(letzte.restschuld_cents, 0);
+  assert.equal(letzte.liquide_cents, 9000000);
+});

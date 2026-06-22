@@ -706,6 +706,12 @@ async function handleAction(element) {
     commitNavigation();
     return;
   }
+  if (action === "open-szenario") {
+    state.view = "szenarien";
+    state.selectedSzenarioId = element.dataset.szenario;
+    commitNavigation();
+    return;
+  }
   if (action === "show-vermoegen-wertstaende") {
     state.vermoegenRailMode = "wertstaende";
     state.vermoegenRailWide = true;

@@ -65,6 +65,43 @@ function qualitaetChip(p) {
   return `<span class="chip ${p.qualitaet === "belegt" ? "success" : "neutral"}">${p.qualitaet === "belegt" ? iconSvg("success") : ""}${escapeHtml(t(`vermoegen.quality${p.qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`))}</span>`;
 }
 
+// Read-only Rückverweis: Szenarien, die eine Sondertilgung auf dieses Darlehen
+// planen. Hat KEINEN Einfluss auf restschuldHeute/p.wert_cents — rein informativ.
+function sondertilgungsRueckverweise(darlehenId) {
+  const treffer = [];
+  for (const sz of data.szenarien ?? []) {
+    for (const a of sz.annahmen ?? []) {
+      if (a.gegenbuchung?.ziel_typ === "darlehen" && a.gegenbuchung.ziel_id === darlehenId) {
+        treffer.push({ szenario_id: sz.szenario_id, name: sz.name, status: sz.status, qualitaet: a.qualitaet });
+      }
+    }
+  }
+  return treffer;
+}
+
+function annahmeQualitaetChip(q) {
+  const stil = { belegt: ["success", "success", "Belegt"], geschaetzt: ["neutral", "", "Geschaetzt"], offen: ["review", "review", "Offen"] };
+  const [cls, icon, wort] = stil[q] ?? stil.offen;
+  return `<span class="chip ${cls}">${icon ? iconSvg(icon) : ""}${escapeHtml(t(`szenarien.quality${wort}`))}</span>`;
+}
+
+function szenarioStatusChip(status) {
+  const stil = { entwurf: "neutral", bestaetigt: "success", verworfen: "review" };
+  return `<span class="chip ${stil[status] ?? "neutral"}">${escapeHtml(t(`szenarien.status.${status}`))}</span>`;
+}
+
+function sondertilgungenRow(darlehenId) {
+  const treffer = sondertilgungsRueckverweise(darlehenId);
+  if (!treffer.length) return "";
+  const rows = treffer.map((tr) => `
+    <div class="rail-item">
+      <button class="linkish" data-action="open-szenario" data-szenario="${escapeHtml(tr.szenario_id)}">${escapeHtml(tr.name)}</button>
+      ${szenarioStatusChip(tr.status)}
+      ${annahmeQualitaetChip(tr.qualitaet)}
+    </div>`).join("");
+  return detailRow(t("vermoegen.sondertilgungenTitle"), `<div class="rail-list">${rows}</div><p class="muted">${escapeHtml(t("vermoegen.sondertilgungenHinweis"))}</p>`);
+}
+
 // Worst-of-Badge: traegt die schlechteste Qualitaet aller Positionen als eine
 // ehrliche Gesamtaussage (belegt < geschaetzt < offen). Quelle: vermoegen.mjs.
 function gesamtQualitaetChip(gesamt) {
@@ -338,6 +375,7 @@ function renderVermoegenDetail(p, today) {
       + detailRow(t("vermoegen.restschuld"),
           `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(Math.abs(p.wert_cents)))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`)
       + restschuldVerlaufRow(dar, today)
+      + sondertilgungenRow(p.id)
       + (dar?.zinssatz ? detailRow(t("vermoegen.zinssatz"), `${escapeHtml(dar.zinssatz)} %`) : "")
       + (dar?.sollrate ? detailRow(t("vermoegen.rate"), `${escapeHtml(formatMoney(cents(dar.sollrate)))} / ${escapeHtml(rhythmusLabel(dar.rhythmus_einheit, dar.rhythmus_intervall))}`) : "")
       + (verknuepft.length ? detailRow(t("vermoegen.verknuepft"), verknuepft.join(" · ")) : "")

@@ -254,6 +254,8 @@ window.FINANCE_I18N = {
       zinssatz: "Zinssatz",
       rate: "Rate",
       verknuepft: "Verknüpft",
+      sondertilgungenTitle: "In Szenarien geplante Sondertilgungen",
+      sondertilgungenHinweis: "Wirkt sich hier nicht aus (zukunftsgerichtet).",
       adresse: "Adresse",
       externerAnteil: "Externer Miteigentümer",
       feld: {
@@ -647,6 +649,8 @@ window.FINANCE_I18N = {
       zinssatz: "Interest rate",
       rate: "Installment",
       verknuepft: "Linked",
+      sondertilgungenTitle: "Planned extra repayments in scenarios",
+      sondertilgungenHinweis: "Has no effect here (forward-looking only).",
       adresse: "Address",
       externerAnteil: "External co-owner",
       feld: {

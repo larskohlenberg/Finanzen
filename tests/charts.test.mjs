@@ -48,3 +48,20 @@ test("linienDiagramm escaped Sonderzeichen in Labels", () => {
   assert.match(svg, /aria-label="&lt;x&gt;&amp;&quot;"/);
   assert.doesNotMatch(svg, /aria-label="<x>/);
 });
+
+test("linienDiagramm zeichnet eine gestrichelte Vergleichslinie, wenn vergleich gegeben ist", () => {
+  const svg = linienDiagramm([{ wert: 100 }, { wert: 200 }], { vergleich: [{ wert: 50 }, { wert: 150 }] });
+  assert.match(svg, /diagramm-linie-vergleich/);
+  const vergleichPoints = svg.match(/<polyline points="([^"]+)" class="diagramm-linie-vergleich"/)[1].trim().split(/\s+/);
+  assert.equal(vergleichPoints.length, 2);
+});
+
+test("linienDiagramm ignoriert vergleich mit abweichender Länge", () => {
+  const svg = linienDiagramm([{ wert: 100 }, { wert: 200 }], { vergleich: [{ wert: 50 }] });
+  assert.doesNotMatch(svg, /diagramm-linie-vergleich/);
+});
+
+test("linienDiagramm ohne vergleich verhält sich wie zuvor (kein vergleich-Element)", () => {
+  const svg = linienDiagramm([{ wert: 100 }, { wert: 200 }, { wert: 50 }]);
+  assert.doesNotMatch(svg, /diagramm-linie-vergleich/);
+});

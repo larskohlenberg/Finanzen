@@ -1792,6 +1792,14 @@ tr.clickable.selected td:first-child {
   stroke-linecap: round;
 }
 
+.diagramm-linie-vergleich {
+  stroke: var(--muted);
+  stroke-width: 2px;
+  stroke-dasharray: 5 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
 .diagramm-nulllinie {
   stroke: var(--danger);
   stroke-width: 1px;

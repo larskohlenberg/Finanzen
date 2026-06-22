@@ -9,6 +9,8 @@ function esc(value) {
 }
 
 // punkte: [{ wert: number, label?: string }]
+// vergleich (optional): zweite Serie gleicher Länge — gestrichelt, ohne Fläche/Tiefpunkt/
+// Labels, dient nur dem visuellen Abgleich (z.B. Szenario vs. Basis).
 export function linienDiagramm(punkte, options = {}) {
   const {
     width = 640,
@@ -19,16 +21,18 @@ export function linienDiagramm(punkte, options = {}) {
     padBottom = 24,
     formatWert = (n) => String(n),
     ariaLabel = "",
+    vergleich = null,
   } = options;
 
   // Unter zwei Punkten gibt es keine Linie — der Aufrufer zeigt Tabelle/Leerhinweis.
   if (!Array.isArray(punkte) || punkte.length < 2) return "";
 
+  const vergleichWerte = Array.isArray(vergleich) && vergleich.length === punkte.length ? vergleich.map((p) => p.wert) : null;
   const werte = punkte.map((p) => p.wert);
   // Nulllinie immer in den Wertebereich aufnehmen: so ist der Abstand zur 0
   // (und ein Vorzeichenwechsel) sichtbar — der eigentliche Zweck der Kurve.
-  let minW = Math.min(0, ...werte);
-  let maxW = Math.max(0, ...werte);
+  let minW = Math.min(0, ...werte, ...(vergleichWerte ?? []));
+  let maxW = Math.max(0, ...werte, ...(vergleichWerte ?? []));
   if (minW === maxW) maxW = minW + 1; // flache Serie: keine Division durch 0
 
   const innerW = width - padLeft - padRight;
@@ -62,9 +66,14 @@ export function linienDiagramm(punkte, options = {}) {
     ? `<text x="${x(minIndex).toFixed(2)}" y="${(baseY + 16).toFixed(2)}" text-anchor="middle" class="diagramm-label ${minWert < 0 ? "negativ" : ""}">${esc(formatWert(minWert))}</text>`
     : "";
 
+  const vergleichLinie = vergleichWerte
+    ? `<polyline points="${vergleichWerte.map((w, i) => `${x(i).toFixed(2)},${y(w).toFixed(2)}`).join(" ")}" class="diagramm-linie-vergleich" fill="none" vector-effect="non-scaling-stroke" />`
+    : "";
+
   return `<svg class="linien-diagramm" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(ariaLabel)}">
     <path d="${areaPath}" class="diagramm-flaeche" />
     ${nulllinie}
+    ${vergleichLinie}
     <polyline points="${linePoints}" class="diagramm-linie" fill="none" vector-effect="non-scaling-stroke" />
     ${tiefpunkt}
     ${labelLinks}${labelRechts}${labelTief}

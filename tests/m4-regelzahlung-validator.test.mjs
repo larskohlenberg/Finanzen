@@ -54,3 +54,16 @@ test("nicht-ganzzahliges rhythmus_intervall ist ungueltig", () => {
   assert.equal(result.valid, false);
   assert.match(result.errors.join("\n"), /rhythmus_intervall: muss eine Ganzzahl sein/);
 });
+
+test("Regelzahlung mit qualitaet=geschaetzt und quelle_hinweis ist valide", () => {
+  const data = { ...base(), regelzahlungen: [rz({ qualitaet: "geschaetzt", quelle_hinweis: "Vertrag.pdf" })] };
+  const result = validateMasterData(data);
+  assert.equal(result.valid, true, result.errors.join("\n"));
+});
+
+test("Regelzahlung mit unbekannter qualitaet ist Fehler", () => {
+  const data = { ...base(), regelzahlungen: [rz({ qualitaet: "vielleicht" })] };
+  const result = validateMasterData(data);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((e) => e.includes("qualitaet")));
+});

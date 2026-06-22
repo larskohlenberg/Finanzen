@@ -75,3 +75,19 @@ test("Volltilgung via Sondertilgung stoppt die Sollrate (Cash exakt)", () => {
   assert.equal(letzte.restschuld_cents, 0);
   assert.equal(letzte.liquide_cents, 9000000);
 });
+
+test("gegenbuchung(depot) Verkauf: Liquidität +, Depot −, depot-vorbehalt", () => {
+  const data = { konten: [
+      { konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" },
+      { konto_id: "KTO-006", name: "Depot", kontotyp: "depot", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    transaktionen: [], darlehen: [], immobilien: [], vermoegenswerte: [],
+    zeitwerte: [
+      { entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "1000.00", standdatum: "2026-06-22", qualitaet: "belegt" },
+      { entitaet: "konto", entitaet_id: "KTO-006", feld: "depotwert", wert: "25000.00", standdatum: "2026-06-22", qualitaet: "belegt" }],
+    regelzahlungen: [] };
+  const r = rechneSzenario(data, sz([{ annahme_id: "A1", art: "einmalzahlung", qualitaet: "geschaetzt", datum: "2026-08-01", betrag: "10000.00", gegenbuchung: { ziel_typ: "depot", ziel_id: "KTO-006" } }], "2026-12-31"), "2026-06-22");
+  const letzte = r.punkte[r.punkte.length - 1];
+  assert.equal(letzte.liquide_cents, 100000 + 1000000);
+  assert.equal(letzte.depot_cents, 2500000 - 1000000);
+  assert.ok(r.warnungen.some((w) => w.code === "depot-vorbehalt"));
+});

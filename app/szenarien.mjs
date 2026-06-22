@@ -1,7 +1,7 @@
 // app/szenarien.mjs — deterministische, reine Szenario-Engine (browser- & node-fähig).
 // Keine Node-I/O. Rechnet ab Rechenstichtag `today` (nicht `stand`).
 import { occurrences, addInterval, monatVon, toCents } from "./liquiditaet.mjs";
-import { faelligkeiten } from "./vermoegen.mjs";
+import { faelligkeiten, aktuellerZeitwert } from "./vermoegen.mjs";
 
 const PPJ = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 
@@ -81,6 +81,31 @@ function sammleSondertilgungen(szenario, rzs, today, horizon) {
   return ereignisse;
 }
 
+function depotKonten(data) {
+  return (data.konten ?? []).filter((k) => k.kontotyp === "depot");
+}
+
+// Gegenbuchung(depot)-Cash-Ereignisse: Verkauf (cash_cents > 0) senkt Depotwert,
+// Kauf/Sparplan (cash_cents < 0) erhöht ihn. Aus einmalzahlung und aus
+// regelzahlung-neu-Klonen (_gegenbuchung.ziel_typ === "depot"), je occurrences-Termin.
+function sammleDepotGegenbuchungen(szenario, rzs, today, horizon) {
+  const ereignisse = [];
+  for (const a of szenario.annahmen ?? []) {
+    if (a.art !== "einmalzahlung") continue;
+    if (a.gegenbuchung?.ziel_typ !== "depot") continue;
+    if (!(a.datum > today && a.datum <= horizon)) continue;
+    ereignisse.push({ annahme_id: a.annahme_id, ziel_id: a.gegenbuchung.ziel_id, datum: a.datum, cash_cents: toCents(a.betrag) });
+  }
+  for (const rz of rzs) {
+    if (rz._gegenbuchung?.ziel_typ !== "depot") continue;
+    for (const datum of occurrences(rz, today, horizon)) {
+      ereignisse.push({ annahme_id: `${rz.regelzahlung_id}@${datum}`, ziel_id: rz._gegenbuchung.ziel_id, datum, cash_cents: toCents(rz.betrag) });
+    }
+  }
+  ereignisse.sort((x, y) => x.datum.localeCompare(y.datum));
+  return ereignisse;
+}
+
 // Chronologischer Merge von Ratenterminen und Sondertilgungen je Darlehen. Liefert effektive
 // (geklemmte) Beträge: eine Sondertilgung kann nie mehr abtragen als die aktuelle Restschuld.
 function restschuldProjektion(darlehen, zeitwerte, today, horizon, sondertilgungen) {
@@ -138,6 +163,36 @@ export function rechneSzenario(data, szenario, today) {
     }
   }
 
+  // Depot-Gegenbuchungen: chronologisch verarbeiten, damit Klemmung (Verkauf >
+  // verfügbarer Wert) den tatsächlichen Lauf-Wert respektiert.
+  const depotKontoListe = depotKonten(data);
+  const depotStart = new Map();
+  for (const k of depotKontoListe) {
+    const zw = aktuellerZeitwert(data.zeitwerte, "konto", k.konto_id, "depotwert", today);
+    depotStart.set(k.konto_id, zw ? toCents(zw.wert) : 0);
+  }
+  const depotReihe = new Map();
+  for (const k of depotKontoListe) depotReihe.set(k.konto_id, []);
+  const depotLauf = new Map(depotStart);
+  const depotCashEreignisse = [];
+  for (const g of sammleDepotGegenbuchungen(szenario, rzs, today, horizon)) {
+    if (!depotLauf.has(g.ziel_id)) continue;
+    const vorhanden = depotLauf.get(g.ziel_id);
+    let eff = g.cash_cents;
+    if (g.cash_cents > 0) {
+      eff = Math.min(g.cash_cents, vorhanden);
+      if (eff < g.cash_cents) warnungen.push({ code: "depot-ueberzogen", text: `Verkauf übersteigt verfügbaren Depotwert (${g.annahme_id})`, datum: g.datum });
+    }
+    depotLauf.set(g.ziel_id, vorhanden - eff);
+    depotReihe.get(g.ziel_id).push({ datum: g.datum, wert_cents: depotLauf.get(g.ziel_id) });
+    depotCashEreignisse.push({ datum: g.datum, cents: eff });
+  }
+  for (const a of szenario.annahmen ?? []) {
+    if (a.gegenbuchung?.ziel_typ === "depot") {
+      warnungen.push({ code: "depot-vorbehalt", text: a.gegenbuchung.vorbehalt ?? `Gegenbuchung auf Depot ${a.gegenbuchung.ziel_id} ist ein Vorbehalt, kein Garant`, datum: undefined });
+    }
+  }
+
   // Cash-Ereignisse je Datum sammeln. Generisches Cash-Bein NUR für Annahmen OHNE
   // gegenbuchung — gegenbuchung-Annahmen buchen ihr (effektives) Cash hier separat
   // (Sondertilgungen unten; Depot/Sachwerte folgen in Task 6/7).
@@ -149,6 +204,7 @@ export function rechneSzenario(data, szenario, today) {
   for (const proj of restschuldNachDarlehen.values()) {
     for (const eff of proj.effektive) ereignisse.push({ datum: eff.datum, cents: -eff.effektiv_cents });
   }
+  for (const e of depotCashEreignisse) ereignisse.push(e);
   const startDatum = (a) => (a.art === "einmalzahlung" ? a.datum : a.ab);
   for (const a of szenario.annahmen ?? []) {
     const d = startDatum(a);
@@ -175,7 +231,13 @@ export function rechneSzenario(data, szenario, today) {
       for (const r of proj.reihe) { if (r.datum < monatsEnde) rest = r.rest_cents; else break; }
       restschuld += rest;
     }
-    punkte.push({ monat: cur, liquide_cents: lauf, depot_cents: 0, restschuld_cents: restschuld, sachwerte_cents: 0, netto_cents: lauf - restschuld });
+    let depotGesamt = 0;
+    for (const k of depotKontoListe) {
+      let val = depotStart.get(k.konto_id);
+      for (const r of depotReihe.get(k.konto_id)) { if (r.datum < monatsEnde) val = r.wert_cents; else break; }
+      depotGesamt += val;
+    }
+    punkte.push({ monat: cur, liquide_cents: lauf, depot_cents: depotGesamt, restschuld_cents: restschuld, sachwerte_cents: 0, netto_cents: lauf + depotGesamt - restschuld });
     cur = monatVon(addInterval(`${cur}-01`, "monat", 1));
   }
 

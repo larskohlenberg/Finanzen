@@ -8,10 +8,11 @@ import { toCents, addInterval } from "./liquiditaet.mjs";
 
 const PERIODEN_PRO_JAHR = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 
-export function aktuellerZeitwert(zeitwerte, entitaet, entitaetId, feld) {
+export function aktuellerZeitwert(zeitwerte, entitaet, entitaetId, feld, bis = null) {
   let best = null;
   for (const zw of zeitwerte ?? []) {
     if (zw.entitaet !== entitaet || zw.entitaet_id !== entitaetId || zw.feld !== feld) continue;
+    if (bis && zw.standdatum > bis) continue;
     if (best === null || zw.standdatum > best.standdatum) best = zw;
   }
   return best;

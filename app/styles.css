@@ -1913,3 +1913,25 @@ tr.clickable.selected td:first-child {
     scroll-behavior: auto !important;
   }
 }
+
+/* Fehlergrenze: ersetzt einen kaputten View bzw. zeigt einen Aktionsfehler. */
+.error-panel {
+  border: 1px solid var(--color-danger, #c0392b);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  background: color-mix(in srgb, var(--color-danger, #c0392b) 8%, transparent);
+}
+.error-panel strong {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+.error-panel pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85em;
+  margin: 0.5rem 0 0;
+}
+.error-banner-dismiss {
+  margin-top: 0.5rem;
+}

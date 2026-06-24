@@ -13,6 +13,11 @@ window.FINANCE_I18N = {
       checks: "Checks",
       export: "Export",
     },
+    error: {
+      viewTitle: "Dieser Bereich konnte nicht geladen werden.",
+      detailsToggle: "Technische Details",
+      dismiss: "Schließen",
+    },
     chrome: {
       workStatus: "Arbeitsstatus",
       validationPassed: "Validierung: bestanden",
@@ -422,6 +427,11 @@ window.FINANCE_I18N = {
       masterdata: "Master Data",
       checks: "Checks",
       export: "Export",
+    },
+    error: {
+      viewTitle: "This section could not be loaded.",
+      detailsToggle: "Technical details",
+      dismiss: "Dismiss",
     },
     chrome: {
       workStatus: "Work Status",

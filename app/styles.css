@@ -1916,11 +1916,13 @@ tr.clickable.selected td:first-child {
 
 /* Fehlergrenze: ersetzt einen kaputten View bzw. zeigt einen Aktionsfehler. */
 .error-panel {
-  border: 1px solid var(--color-danger, #c0392b);
-  border-radius: 8px;
-  padding: 1rem;
-  margin: 1rem 0;
-  background: color-mix(in srgb, var(--color-danger, #c0392b) 8%, transparent);
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--text);
 }
 .error-panel strong {
   display: block;

@@ -17,6 +17,7 @@ import {
 } from "./runtime.mjs";
 import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
+import { renderErrorPanel, safeRender, guard } from "./error.mjs";
 
 let nextActionCopiedTimer = null;
 
@@ -124,8 +125,9 @@ function render() {
     <main class="main" id="main-content" tabindex="-1">
       ${renderTopbar()}
       ${renderValidationBanner()}
+      ${renderUiErrorBanner()}
       ${renderPromptFallback()}
-      ${renderView()}
+      ${safeRender(renderView, "view:" + state.view)}
     </main>
     ${renderTabbar()}
   `;
@@ -300,6 +302,28 @@ function renderValidationBanner() {
     </section>`;
 }
 
+// Aktions-Grenze: ein in einem Handler geworfener Fehler wird als schliessbares
+// Banner sichtbar, statt nur in der Konsole zu landen.
+function setUiError(error, kontext = "aktion") {
+  state.uiError = {
+    message: error?.message ?? String(error ?? ""),
+    stack: error?.stack ?? "",
+    kontext,
+  };
+  render();
+}
+
+function renderUiErrorBanner() {
+  if (!state.uiError) return "";
+  return `
+    <div class="error-banner">
+      ${renderErrorPanel(state.uiError, state.uiError.kontext)}
+      <button class="chip neutral linkish error-banner-dismiss" data-error-dismiss>
+        ${escapeHtml(t("error.dismiss"))}
+      </button>
+    </div>`;
+}
+
 function renderView() {
   if (state.view === "transactions") return renderTransactions();
   if (state.view === "liquiditaet") return renderLiquiditaet();
@@ -312,7 +336,14 @@ function renderView() {
   return renderOverview();
 }
 
-app.addEventListener("click", (event) => {
+app.addEventListener("click", guard((event) => {
+  const errorDismiss = event.target.closest("[data-error-dismiss]");
+  if (errorDismiss) {
+    state.uiError = null;
+    render();
+    return;
+  }
+
   const transferCell = event.target.closest(".transfer-link-cell");
   if (transferCell) {
     event.stopPropagation();
@@ -404,13 +435,13 @@ app.addEventListener("click", (event) => {
     state.regelRailWide = false;
     commitNavigation();
   }
-});
+}, setUiError));
 
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
 const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-transaction-sort], [data-regel-sort], [data-rule]";
-app.addEventListener("keydown", (event) => {
+app.addEventListener("keydown", guard((event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
   if (!el || typeof el.matches !== "function") return;
@@ -419,19 +450,19 @@ app.addEventListener("keydown", (event) => {
   if (!el.matches(KEY_ACTIVATION_SELECTOR)) return;
   event.preventDefault();
   el.click();
-});
+}, setUiError));
 
 // Live-Suche: Textfilter wirken pro Tastendruck; Fokus/Cursor uebersteht das
 // Re-Render via captureFocus/restoreFocus (Selektor ueber die id des Inputs).
-app.addEventListener("input", (event) => {
+app.addEventListener("input", guard((event) => {
   const filter = event.target.closest("input[data-filter]");
   if (!filter) return;
   state.transactionFilters[filter.dataset.filter] = filter.value;
   state.transactionPage = 1;
   render();
-});
+}, setUiError));
 
-app.addEventListener("change", (event) => {
+app.addEventListener("change", guard((event) => {
   const control = event.target.closest("[data-control]");
   if (control?.dataset.control === "data-mode") {
     state.dataMode = control.value === "demo" ? "demo" : "live";
@@ -485,7 +516,7 @@ app.addEventListener("change", (event) => {
     state.view = "vermoegen";
     render();
   }
-});
+}, setUiError));
 
 async function copyNextAgentPrompt(type = "") {
   const nextActionActions = buildNextAgentActions(data);
@@ -818,6 +849,7 @@ function restoreState(snapshot) {
 // damit der Zurueck-Button nicht durch jeden Klick zugemuellt wird.
 let lastCommittedView = state.view;
 function commitNavigation() {
+  state.uiError = null;
   const route = routeFromState(state);
   if (state.view !== lastCommittedView) {
     history.pushState(snapshotState(), "", route);

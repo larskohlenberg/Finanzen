@@ -76,6 +76,7 @@ export const TABBAR_VIEWS = ["overview", "transactions", "liquiditaet", "vermoeg
 
 export const state = {
   view: "overview",
+  uiError: null,
   lang: localStorage.getItem(storageKeys.lang) || "de",
   theme: localStorage.getItem(storageKeys.theme) || "system",
   dataMode: normalizeDataMode(data.metadata?.dataMode),

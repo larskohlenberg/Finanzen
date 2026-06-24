@@ -2,7 +2,7 @@
 // Regelzahlungs-Liste inkl. "Nächste Fälligkeit" je Eintrag.
 import { data, t, escapeHtml } from "../runtime.mjs";
 import { formatMoney, formatDate, statusChip, renderPageHead } from "../komponenten.mjs";
-import { naechsteFaelligkeit, localTodayIso } from "../liquiditaet.mjs";
+import { naechsteFaelligkeit, localTodayIso, toCents } from "../liquiditaet.mjs";
 
 function formatRhythmus(einheit, intervall) {
   const key = intervall === 1 ? "eins" : "mehr";

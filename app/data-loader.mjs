@@ -1,5 +1,24 @@
 import { localTodayIso } from "./liquiditaet.mjs";
 
+export const dataModes = {
+  live: {
+    key: "live",
+    basePath: "./data/master",
+    bundleVersion: "live-master",
+    label: "Live-Masterdaten",
+  },
+  demo: {
+    key: "demo",
+    basePath: "./data/demo",
+    bundleVersion: "demo",
+    label: "Demodaten",
+  },
+};
+
+export function normalizeDataMode(value) {
+  return value === dataModes.demo.key ? dataModes.demo.key : dataModes.live.key;
+}
+
 function withRefreshToken(path, refreshToken) {
   if (!refreshToken) return path;
   const separator = path.includes("?") ? "&" : "?";
@@ -33,7 +52,9 @@ export function parseJsonl(text, path = "JSONL") {
     });
 }
 
-export async function loadFinanceData() {
+export async function loadFinanceData(options = {}) {
+  const mode = dataModes[normalizeDataMode(options.dataMode)];
+  const path = (filename) => `${mode.basePath}/${filename}`;
   const refreshToken = String(Date.now());
   const [
     personen,
@@ -49,24 +70,25 @@ export async function loadFinanceData() {
     zeitwerte,
     kategorisierungsregeln,
   ] = await Promise.all([
-    loadJson("./data/master/personen.json", { refreshToken }),
-    loadJson("./data/master/konten.json", { refreshToken }),
-    loadJson("./data/master/kategorien.json", { refreshToken }),
-    loadJsonl("./data/master/transaktionen.jsonl", { refreshToken }),
-    loadJson("./data/master/transfers.json", { refreshToken }),
-    loadJson("./data/master/regelzahlungen.json", { refreshToken }),
-    loadJson("./data/master/szenarien.json", { refreshToken }),
-    loadJson("./data/master/immobilien.json", { refreshToken }),
-    loadJson("./data/master/darlehen.json", { refreshToken }),
-    loadJson("./data/master/vermoegenswerte.json", { refreshToken }),
-    loadJsonl("./data/master/zeitwerte.jsonl", { refreshToken }),
-    loadJson("./data/master/kategorisierungsregeln.json", { refreshToken }),
+    loadJson(path("personen.json"), { refreshToken }),
+    loadJson(path("konten.json"), { refreshToken }),
+    loadJson(path("kategorien.json"), { refreshToken }),
+    loadJsonl(path("transaktionen.jsonl"), { refreshToken }),
+    loadJson(path("transfers.json"), { refreshToken }),
+    loadJson(path("regelzahlungen.json"), { refreshToken }),
+    loadJson(path("szenarien.json"), { refreshToken }),
+    loadJson(path("immobilien.json"), { refreshToken }),
+    loadJson(path("darlehen.json"), { refreshToken }),
+    loadJson(path("vermoegenswerte.json"), { refreshToken }),
+    loadJsonl(path("zeitwerte.jsonl"), { refreshToken }),
+    loadJson(path("kategorisierungsregeln.json"), { refreshToken }),
   ]);
 
   return {
     metadata: {
-      bundleVersion: "live-master",
-      label: "Live-Masterdaten",
+      bundleVersion: mode.bundleVersion,
+      label: mode.label,
+      dataMode: mode.key,
       generatedAt: localTodayIso(),
       validation: "not-run-in-browser",
     },

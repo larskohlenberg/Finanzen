@@ -1,0 +1,758 @@
+[
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000001",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000000d",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000000e"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000002",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000000f",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000010"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000003",
+    "betrag": "393.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000011",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000012"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000004",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000020",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000021"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000005",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000022",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000023"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000006",
+    "betrag": "412.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000024",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000025"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000007",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000033",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000034"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000008",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000035",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000036"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000009",
+    "betrag": "261.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000037",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000038"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000000a",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000046",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000047"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000000b",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000048",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000049"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000000c",
+    "betrag": "280.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000004a",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000004b"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000000d",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000058",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000059"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000000e",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000005a",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000005b"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000000f",
+    "betrag": "299.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000005c",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000005d"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000010",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000006b",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000006c"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000011",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000006d",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000006e"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000012",
+    "betrag": "318.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000006f",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000070"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000013",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000007e",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000007f"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000014",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000080",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000081"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000015",
+    "betrag": "310.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000082",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000083"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000016",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000090",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000091"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000017",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000092",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000093"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000018",
+    "betrag": "329.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000094",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000095"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000019",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000a2",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000a3"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000001a",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000a4",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000a5"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000001b",
+    "betrag": "348.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000a6",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000a7"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000001c",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000b5",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000b6"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000001d",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000b7",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000b8"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000001e",
+    "betrag": "367.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000b9",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000ba"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000001f",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000c8",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000c9"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000020",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000ca",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000cb"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000021",
+    "betrag": "386.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000cc",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000cd"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000022",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000da",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000db"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000023",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000dc",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000dd"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000024",
+    "betrag": "405.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000de",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000df"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000025",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000ed",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000ee"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000026",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000ef",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000f0"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000027",
+    "betrag": "424.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000f1",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000000f2"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000028",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000100",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000101"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000029",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000102",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000103"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000002a",
+    "betrag": "273.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000104",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000105"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000002b",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000113",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000114"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000002c",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000115",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000116"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000002d",
+    "betrag": "292.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000117",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000118"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000002e",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000126",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000127"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000002f",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000128",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000129"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000030",
+    "betrag": "311.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000012a",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000012b"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000031",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000138",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000139"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000032",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000013a",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000013b"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000033",
+    "betrag": "330.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000013c",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000013d"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000034",
+    "betrag": "450.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000014b",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000014c"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000035",
+    "betrag": "100.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000014d",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000014e"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000036",
+    "betrag": "349.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000014f",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000150"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000037",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000015e",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000015f"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000038",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000160",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000161"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000039",
+    "betrag": "341.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000162",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000163"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000003a",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000170",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000171"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000003b",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000172",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000173"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000003c",
+    "betrag": "360.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000174",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000175"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000003d",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000182",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000183"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000003e",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000184",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000185"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000003f",
+    "betrag": "379.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000186",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000187"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000040",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000195",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000196"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000041",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000197",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000198"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000042",
+    "betrag": "398.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000199",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000019a"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000043",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001a8",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001a9"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000044",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001aa",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001ab"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000045",
+    "betrag": "417.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001ac",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001ad"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000046",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001ba",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001bb"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000047",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001bc",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001bd"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000048",
+    "betrag": "266.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001be",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001bf"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000049",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001cd",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001ce"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000004a",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001cf",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001d0"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000004b",
+    "betrag": "285.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001d1",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001d2"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000004c",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001e0",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001e1"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000004d",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001e2",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001e3"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000004e",
+    "betrag": "304.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001e4",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001e5"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000004f",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001f3",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001f4"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000050",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001f5",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001f6"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000051",
+    "betrag": "323.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001f7",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-0000000001f8"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000052",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000206",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000207"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000053",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000208",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000209"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000054",
+    "betrag": "342.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000020a",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000020b"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000055",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000218",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000219"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000056",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000021a",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000021b"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000057",
+    "betrag": "361.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000021c",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000021d"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000058",
+    "betrag": "550.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000022b",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000022c"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000059",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000022d",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000022e"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000005a",
+    "betrag": "380.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000022f",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000230"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000005b",
+    "betrag": "600.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000023e",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000023f"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000005c",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000240",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000241"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000005d",
+    "betrag": "372.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000242",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000243"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000005e",
+    "betrag": "600.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000250",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000251"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000005f",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000252",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000253"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000060",
+    "betrag": "391.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000254",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000255"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000061",
+    "betrag": "600.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000262",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000263"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000062",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000264",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000265"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000063",
+    "betrag": "410.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000266",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000267"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000064",
+    "betrag": "600.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000275",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000276"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000065",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000277",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000278"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000066",
+    "betrag": "429.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000279",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000027a"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000067",
+    "betrag": "600.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000288",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-000000000289"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000068",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000028a",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000028b"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-000000000069",
+    "betrag": "278.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000028c",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000028d"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000006a",
+    "betrag": "600.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000029a",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000029b"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000006b",
+    "betrag": "150.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000029c",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000029d"
+  },
+  {
+    "transfer_id": "TRF-10000000-0000-4000-8000-00000000006c",
+    "betrag": "297.00",
+    "typ": "intern",
+    "abgang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000029e",
+    "zugang_transaktion_id": "TXN-00000000-0000-4000-8000-00000000029f"
+  }
+]

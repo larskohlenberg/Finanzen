@@ -14,16 +14,16 @@ Nutze ihn, wenn der Nutzer
 
 Nicht nutzen fuer:
 - Vertraglich feststehende oder bereits eingetretene wiederkehrende Zahlungen — das ist Aufgabe des Regelzahlungs-Agenten (Skill `regelzahlung-agent`).
-- Einmaleffekte, die bereits Fakt sind (nicht hypothetisch) — gehoeren in `data/master/regelzahlungen.json` bzw. eine kuenftige Buchung, nicht in ein Szenario.
+- Einmaleffekte, die bereits Fakt sind (nicht hypothetisch) — gehoeren in `DATENROOT/regelzahlungen.json` bzw. eine kuenftige Buchung, nicht in ein Szenario.
 
 ## Kontext, den du kennen musst
 
 Vor jeder Szenario-Aenderung lesen:
 
 1. `docs/agent-context.md` — gemeinsame Betriebsregeln fuer App-Raum, Status, Validierung und Szenarien.
-2. `data/master/szenarien.json` — bestehende Szenarien.
+2. `DATENROOT/szenarien.json` — bestehende Szenarien.
 3. `schemas/szenarien.schema.json` — formale Form von Szenario und Annahme.
-4. `data/master/regelzahlungen.json` — fuer `regelzahlung-aenderung`-Annahmen (Ziel muss existieren) und fuer die `qualitaet`-Konvention (`belegt|geschaetzt`).
+4. `DATENROOT/regelzahlungen.json` — fuer `regelzahlung-aenderung`-Annahmen (Ziel muss existieren) und fuer die `qualitaet`-Konvention (`belegt|geschaetzt`).
 5. `tools/validator.mjs` — prueft Szenario-Annahmen inklusive `gegenbuchung` (bespoke Cross-Field-Pruefung, keine generische Schema-Validierung).
 
 ## Prozess
@@ -64,7 +64,7 @@ Vor jeder Szenario-Aenderung lesen:
 
 | Pfad | Zweck |
 | --- | --- |
-| `data/master/szenarien.json` | Szenario- und Annahmen-Stammdaten |
+| `DATENROOT/szenarien.json` | Szenario- und Annahmen-Stammdaten |
 | `schemas/szenarien.schema.json` | Schema-Referenz |
 | `szenarien.mjs` | Deterministische Szenario-Engine (`rechneSzenario`/`computeSzenario`), nur Anzeige |
 | `tools/validator.mjs` | Validator inkl. Szenario-Cross-Field-Pruefung (vor jedem Schreiben) |

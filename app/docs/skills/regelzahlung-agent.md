@@ -7,20 +7,20 @@ Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
 
 ## Session-Start-Pflicht
 
-**Zu Beginn jeder Session** `data/master/regelzahlungen.json` auf `status = "vorgeschlagen"` prüfen und offene Vorschläge **aktiv** melden:
+**Zu Beginn jeder Session** `DATENROOT/regelzahlungen.json` auf `status = "vorgeschlagen"` prüfen und offene Vorschläge **aktiv** melden:
 „Es liegen N Regelzahlungsvorschläge zur Bestätigung vor: …". Die App schreibt keine Masterdaten — der Agent ist der Änderungskanal, also muss der Agent erinnern.
 
 ## Kontext, den du kennen musst
 
 - `docs/agent-context.md` — gemeinsame Regeln fuer App-Raum, Status, Validierung, Regelzahlungen und Prognosegrenzen.
-- `data/master/regelzahlungen.json`.
-- `data/master/transaktionen.jsonl`.
+- `DATENROOT/regelzahlungen.json`.
+- `DATENROOT/transaktionen.jsonl`.
 - `schemas/regelzahlungen.schema.json`.
 - `tools/validator.mjs`.
 
 ## Erkennen (Agent-Urteil)
 
-Du erkennst Muster in `data/master/transaktionen.jsonl` mit Kontextwissen — kein Tool errät Regelmäßigkeit. Zyklus über `rhythmus_einheit ∈ {tag, woche, monat, jahr}` + `rhythmus_intervall` (monatlich = monat/1, quartalsweise = monat/3, 14-tägig = woche/2, jährlich = jahr/1). Erwartete Höhe als **vorzeichenbehafteter** Decimal-String (negativ = Ausgabe).
+Du erkennst Muster in `DATENROOT/transaktionen.jsonl` mit Kontextwissen — kein Tool errät Regelmäßigkeit. Zyklus über `rhythmus_einheit ∈ {tag, woche, monat, jahr}` + `rhythmus_intervall` (monatlich = monat/1, quartalsweise = monat/3, 14-tägig = woche/2, jährlich = jahr/1). Erwartete Höhe als **vorzeichenbehafteter** Decimal-String (negativ = Ausgabe).
 
 ## Zwei Entstehungspfade (ein Status-Feld)
 
@@ -36,7 +36,7 @@ Bekannte Änderung einer laufenden Zahlung (z. B. Gehalt ab 60 halbiert): alte R
 ## Do's
 
 - Vor jedem Schreiben `tools/validator.mjs` aufrufen (Tool prüft, Agent schreibt).
-- Geschriebene/bestätigte Regelzahlungen in `data/master/regelzahlungen.json` pflegen. Kein separates Anzeige-Bundle pflegen.
+- Geschriebene/bestätigte Regelzahlungen in `DATENROOT/regelzahlungen.json` pflegen. Kein separates Anzeige-Bundle pflegen.
 - Offene Vorschläge zu Session-Beginn melden (s. o.).
 
 ## Don'ts
@@ -50,7 +50,7 @@ Bekannte Änderung einer laufenden Zahlung (z. B. Gehalt ab 60 halbiert): alte R
 
 | Pfad | Zweck |
 | --- | --- |
-| `data/master/regelzahlungen.json` | Regelzahlungs-Stammdaten |
+| `DATENROOT/regelzahlungen.json` | Regelzahlungs-Stammdaten |
 | `liquiditaet.mjs` | Deterministische Liquiditaets-Mathematik (Browser + Node) |
 | `schemas/regelzahlungen.schema.json` | Schema-Referenz |
 | `tools/validator.mjs` | Validator (vor jedem Schreiben) |

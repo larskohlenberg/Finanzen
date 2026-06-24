@@ -26,6 +26,8 @@ app/data/**
 !app/data/**/
 !app/data/**/.gitkeep
 !app/data/**/README.md
+# Demodaten sind absichtlich fiktiv und werden fuer Vorfuehrungen versioniert.
+!app/data/demo/**
 app/Belege/**
 !app/Belege/**/
 !app/Belege/**/.gitkeep

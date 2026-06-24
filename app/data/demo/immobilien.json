@@ -1,0 +1,3 @@
+[
+  { "immobilie_id": "IMM-001", "bezeichnung": "Eigentumswohnung Hannover", "eigentumsanteile": [{ "person_id": "PER-001", "zaehler": 1, "nenner": 2 }, { "person_id": "PER-002", "zaehler": 1, "nenner": 2 }], "status": "aktiv", "adresse": "Demoallee 12, 301xx Hannover", "anschaffungsdatum": "2021-09-01", "anschaffungskosten": "315000.00", "quelle_hinweis": "Demo-Kaufvertrag", "quelle_standdatum": "2026-06-01" }
+]

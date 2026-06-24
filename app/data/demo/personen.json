@@ -1,0 +1,6 @@
+[
+  { "person_id": "PER-001", "name": "Lena Schneider", "status": "aktiv" },
+  { "person_id": "PER-002", "name": "Martin Schneider", "status": "aktiv" },
+  { "person_id": "PER-003", "name": "Emma Schneider", "status": "aktiv" },
+  { "person_id": "PER-004", "name": "Noah Schneider", "status": "aktiv" }
+]

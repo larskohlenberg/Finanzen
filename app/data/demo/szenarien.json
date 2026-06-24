@@ -1,0 +1,43 @@
+[
+  {
+    "szenario_id": "SZN-001",
+    "name": "Teilzeit ab 2027",
+    "beschreibung": "Martin reduziert auf 80 Prozent; zusaetzlich wird ein kleiner Nachhilfe-Puffer eingeplant.",
+    "status": "entwurf",
+    "stand": "2026-06-22",
+    "reichweite_bis": "2028-12-31",
+    "erstellt_am": "2026-06-22",
+    "annahmen": [
+      { "annahme_id": "A-001", "art": "regelzahlung-aenderung", "qualitaet": "geschaetzt", "regelzahlung_id": "RZ-002", "ab": "2027-01-01", "aktion": "betrag-aendern", "betrag": "1800.00" },
+      { "annahme_id": "A-002", "art": "regelzahlung-neu", "qualitaet": "geschaetzt", "name": "Nachhilfe-Puffer", "betrag": "-120.00", "rhythmus_einheit": "monat", "rhythmus_intervall": 1, "ab": "2027-02-01", "bis": "2028-07-31" },
+      { "annahme_id": "A-003", "art": "einmalzahlung", "qualitaet": "geschaetzt", "datum": "2027-05-15", "betrag": "900.00" }
+    ]
+  },
+  {
+    "szenario_id": "SZN-002",
+    "name": "Sondertilgung aus Ruecklage",
+    "beschreibung": "Ein Teil der Ruecklage wird fuer eine Sondertilgung eingesetzt; die Liquiditaet sinkt, die Restschuld faellt.",
+    "status": "entwurf",
+    "stand": "2026-06-22",
+    "reichweite_bis": "2029-12-31",
+    "erstellt_am": "2026-06-22",
+    "annahmen": [
+      { "annahme_id": "A-001", "art": "einmalzahlung", "qualitaet": "belegt", "datum": "2026-12-15", "betrag": "-5000.00", "gegenbuchung": { "ziel_typ": "darlehen", "ziel_id": "DAR-001" } },
+      { "annahme_id": "A-002", "art": "einmalzahlung", "qualitaet": "geschaetzt", "datum": "2026-11-01", "betrag": "3000.00", "gegenbuchung": { "ziel_typ": "depot", "ziel_id": "KTO-004", "vorbehalt": "Depotverkauf ist steuerlich und marktabhaengig; Demowert ist nur eine Planannahme." } }
+    ]
+  },
+  {
+    "szenario_id": "SZN-003",
+    "name": "Auto 2028 ersetzen",
+    "beschreibung": "Das gebrauchte Familienauto wird verkauft und durch ein neueres Auto ersetzt.",
+    "status": "entwurf",
+    "stand": "2026-06-22",
+    "reichweite_bis": "2029-12-31",
+    "erstellt_am": "2026-06-22",
+    "annahmen": [
+      { "annahme_id": "A-001", "art": "einmalzahlung", "qualitaet": "geschaetzt", "datum": "2028-04-01", "betrag": "9000.00", "gegenbuchung": { "ziel_typ": "vermoegenswert", "ziel_id": "VMW-001" } },
+      { "annahme_id": "A-002", "art": "einmalzahlung", "qualitaet": "geschaetzt", "datum": "2028-04-15", "betrag": "-16500.00", "gegenbuchung": { "ziel_typ": "vermoegenswert", "neue_position": { "bezeichnung": "Neueres Familienauto", "wert": "16500.00" } } },
+      { "annahme_id": "A-003", "art": "regelzahlung-neu", "qualitaet": "geschaetzt", "name": "Hoehere Kfz-Ruecklage", "betrag": "-80.00", "rhythmus_einheit": "monat", "rhythmus_intervall": 1, "ab": "2028-05-01" }
+    ]
+  }
+]

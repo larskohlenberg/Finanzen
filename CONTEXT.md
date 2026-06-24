@@ -32,7 +32,7 @@ Bewerteter Besitz, der weder Konto/Depot noch Immobilie ist — z. B. Edelmetall
 
 ## Darlehen
 
-Eine verzinste Verbindlichkeit mit Tilgung (privat: Annuitaetendarlehen). Stammdaten: Anfangsbetrag, Anfangsdatum, Nominalzins, Sollrate, Rhythmus (`{einheit, intervall}` wie bei der Regelzahlung), optional Bezug zu Immobilie und zum belastenden Konto. Die **Restschuld** ist kein gepflegter Wert, sondern wird aus einem belegten Anker + Tilgung berechnet (siehe ADR 0013). Endfaelliges und 0%-Darlehen sind Sonderwerte derselben Struktur (kein eigenes Typ-Feld). Geht mit der Restschuld als Passivum ins Nettovermoegen ein. Status: `aktiv | abgeloest`.
+Eine verzinste Verbindlichkeit mit Tilgung (privat: Annuitaetendarlehen). Stammdaten: Anfangsbetrag, Anfangsdatum, Nominalzins, Sollrate, Rhythmus (`{einheit, intervall}` wie bei der Regelzahlung), optional Bezug zu Immobilie und zum belastenden Konto. Optionale Vertragsdaten wie `zinsbindung_bis`, `laufzeit_bis` und `restschuld_laufzeitende` duerfen dokumentiert werden; sie ersetzen keinen Restschuld-Anker. Die **Restschuld** ist kein gepflegter laufender Wert, sondern wird aus einem belegten Anker + Tilgung berechnet (siehe ADR 0013). Endfaelliges und 0%-Darlehen sind Sonderwerte derselben Struktur (kein eigenes Typ-Feld). Geht mit der Restschuld als Passivum ins Nettovermoegen ein. Status: `aktiv | abgeloest`.
 
 ## Nettovermoegen
 

@@ -1,0 +1,34 @@
+[
+  {
+    "darlehen_id": "DAR-001",
+    "bezeichnung": "Wohnungsdarlehen",
+    "status": "aktiv",
+    "anfangsbetrag": "245000.00",
+    "anfangsdatum": "2021-09-01",
+    "zinssatz": "2.15",
+    "sollrate": "1180.00",
+    "rhythmus_einheit": "monat",
+    "rhythmus_intervall": 1,
+    "laufzeit_bis": "2046-08-31",
+    "restschuld_laufzeitende": "0.00",
+    "immobilie_id": "IMM-001",
+    "zinsbindung_bis": "2031-08-31",
+    "quelle_hinweis": "Demo-Darlehensauszug",
+    "quelle_standdatum": "2026-06-01"
+  },
+  {
+    "darlehen_id": "DAR-002",
+    "bezeichnung": "Autokredit",
+    "status": "aktiv",
+    "anfangsbetrag": "16000.00",
+    "anfangsdatum": "2024-03-15",
+    "zinssatz": "4.20",
+    "sollrate": "265.00",
+    "rhythmus_einheit": "monat",
+    "rhythmus_intervall": 1,
+    "laufzeit_bis": "2029-02-15",
+    "restschuld_laufzeitende": "0.00",
+    "quelle_hinweis": "Demo-Kreditvertrag",
+    "quelle_standdatum": "2026-06-01"
+  }
+]

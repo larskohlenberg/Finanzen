@@ -162,6 +162,32 @@ test("prompts use app-relative documentation paths for Hermes agents", () => {
   assert.doesNotMatch(action.prompt, /app\/(?:data|schemas|tools)\//);
 });
 
+test("agent prompts expose the active data root for live data", () => {
+  const action = buildNextAgentAction(baseData({
+    metadata: { dataMode: "live" },
+    transaktionen: [{ kategorisierung_status: "offen" }],
+  }), { vermoegenChecks: [] });
+
+  assert.match(action.prompt, /DATENMODUS: live/);
+  assert.match(action.prompt, /DATENROOT: data\/master/);
+  assert.match(action.prompt, /node tools\/validator\.mjs data\/master/);
+});
+
+test("agent prompts expose demo data root and avoid master write targets in demo mode", () => {
+  const action = buildNextAgentAction(baseData({
+    metadata: { dataMode: "demo" },
+    transaktionen: [{ kategorisierung_status: "offen" }],
+  }), { vermoegenChecks: [] });
+
+  assert.match(action.prompt, /DATENMODUS: demo/);
+  assert.match(action.prompt, /DATENROOT: data\/demo/);
+  assert.match(action.prompt, /node tools\/validator\.mjs data\/demo/);
+  assert.doesNotMatch(action.prompt, /data\/master\/transaktionen\.jsonl/);
+  assert.doesNotMatch(action.prompt, /data\/master\/kategorisierungsregeln\.json/);
+  assert.doesNotMatch(action.prompt, /data\/master\/agent_log\.jsonl/);
+  assert.doesNotMatch(action.prompt, /node tools\/validator\.mjs data\/master/);
+});
+
 test("all action prompts omit forbidden root documentation patterns", () => {
   const cases = [
     baseData({ validation: { valid: false, errors: ["kaputt"] } }),

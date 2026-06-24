@@ -43,6 +43,14 @@ function validationSummary(data) {
   };
 }
 
+function promptDataContext(data) {
+  const dataMode = data.metadata?.dataMode === "demo" ? "demo" : "live";
+  return {
+    dataMode,
+    dataRoot: dataMode === "demo" ? "data/demo" : "data/master",
+  };
+}
+
 export function buildStatusSummary(data, options = {}) {
   const checks = wealthChecksFor(data, options);
   return {
@@ -66,7 +74,7 @@ function summaryLines(summary) {
   ].join("\n");
 }
 
-function basePrompt({ title, count, summary, skillPath, extraSkillPaths = [], instructions }) {
+function basePrompt({ title, count, summary, skillPath, extraSkillPaths = [], instructions, dataContext }) {
   const skillLines = [skillPath, ...extraSkillPaths]
     .filter(Boolean)
     .map((path) => `- ${path}`)
@@ -76,6 +84,10 @@ function basePrompt({ title, count, summary, skillPath, extraSkillPaths = [], in
     "Bitte bearbeite die naechste Aktion aus der Finanzmodell-App.",
     "",
     "Alle Pfade in diesem Prompt sind app-relativ.",
+    "",
+    "Verbindlicher Datenmodus:",
+    `- DATENMODUS: ${dataContext.dataMode}`,
+    `- DATENROOT: ${dataContext.dataRoot}`,
     "",
     "Lies zuerst `docs/agent-context.md`.",
     skillBlock.trim(),
@@ -87,12 +99,12 @@ function basePrompt({ title, count, summary, skillPath, extraSkillPaths = [], in
     "",
     instructions,
     "",
-    "Arbeite im App-Raum. Analysiere zuerst read-only, frage vor fachlichen Schreibentscheidungen nach meiner Bestaetigung, nutze die vorgesehenen Tools und Validatoren, und fasse das Ergebnis am Ende mit Zaehlern zusammen.",
+    `Arbeite im App-Raum. Analysiere zuerst read-only, pruefe vor jedem Schreibzugriff, dass der Zielpfad unter DATENROOT liegt, fuehre nach Schreiblaeufen \`node tools/validator.mjs ${dataContext.dataRoot}\` aus, frage vor fachlichen Schreibentscheidungen nach meiner Bestaetigung, nutze die vorgesehenen Tools und Validatoren, und fasse das Ergebnis am Ende mit Zaehlern zusammen.`,
   ].filter(Boolean).join("\n");
 }
 
-function action(type, count, label, skillPath, summary, instructions, extraSkillPaths = []) {
-  const prompt = basePrompt({ title: label, count, summary, skillPath, extraSkillPaths, instructions });
+function action(type, count, label, skillPath, summary, instructions, extraSkillPaths = [], dataContext = promptDataContext({})) {
+  const prompt = basePrompt({ title: label, count, summary, skillPath, extraSkillPaths, instructions, dataContext });
   return { type, count, label, skillPath, extraSkillPaths, prompt };
 }
 
@@ -111,6 +123,9 @@ function doneAction() {
 // Next-Action: Szenarien sind Pull (Nutzer oeffnet die Ansicht aktiv), keine
 // Push-Benachrichtigung wie Validierungsfehler oder offene Kategorien.
 export function buildNextAgentActions(data, options = {}) {
+  const dataContext = promptDataContext(data);
+  const dataPath = (relativePath = "") => relativePath ? `${dataContext.dataRoot}/${relativePath}` : `${dataContext.dataRoot}/`;
+
   if (validationErrorCount(data) > 0) {
     const summary = validationSummary(data);
     return [action(
@@ -119,7 +134,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Validierungsfehler klaeren",
       SKILLS.validationErrors,
       summary,
-      "Pruefe `data/master/` mit `tools/validator.mjs`, lies die betroffenen `schemas/*`, erklaere die Fehlerursache und schlage die kleinste valide Korrektur vor.",
+      `Pruefe \`${dataPath()}\` mit \`node tools/validator.mjs ${dataContext.dataRoot}\`, lies die betroffenen \`schemas/*\`, erklaere die Fehlerursache und schlage die kleinste valide Korrektur vor.`,
+      [],
+      dataContext,
     )];
   }
 
@@ -134,7 +151,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Importfehler klaeren",
       SKILLS.importErrors,
       summary,
-      "Sichte die Fehler unter `data/inbox/error/`, klaere Ursache und Konto-/Formatfragen, und fuehre den Importprozess nach Bestaetigung erneut gemaess Skill aus.",
+      `Sichte die Fehler unter \`data/inbox/error/\`, klaere Ursache und Konto-/Formatfragen, und fuehre den Importprozess nach Bestaetigung erneut gemaess Skill gegen \`${dataPath()}\` aus.`,
+      [],
+      dataContext,
     ));
   }
 
@@ -145,7 +164,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Vorgeschlagene Kategorien reviewen",
       SKILLS.suggestedCategories,
       summary,
-      "Bilde Buckets fuer `kategorisierung_status = vorgeschlagen`, zeige Stichproben und fuehre Bestaetigung, Korrektur oder Ablehnung erst nach meiner Entscheidung aus.",
+      `Bilde Buckets in \`${dataPath("transaktionen.jsonl")}\` fuer \`kategorisierung_status = vorgeschlagen\`, zeige Stichproben und fuehre Bestaetigung, Korrektur oder Ablehnung erst nach meiner Entscheidung aus.`,
+      [],
+      dataContext,
     ));
   }
 
@@ -156,7 +177,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Regelzahlungsvorschlaege reviewen",
       SKILLS.suggestedRegularPayments,
       summary,
-      "Pruefe `data/master/regelzahlungen.json` auf `status = vorgeschlagen`, stelle die Vorschlaege zur Entscheidung vor und schreibe nur bestaetigte Entscheidungen.",
+      `Pruefe \`${dataPath("regelzahlungen.json")}\` auf \`status = vorgeschlagen\`, stelle die Vorschlaege zur Entscheidung vor und schreibe nur bestaetigte Entscheidungen.`,
+      [],
+      dataContext,
     ));
   }
 
@@ -167,7 +190,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Offene Kategorien verregeln",
       SKILLS.openCategories,
       summary,
-      `Analysiere ${summary.openCategories} offene Kategorien in \`data/master/transaktionen.jsonl\` fuer \`kategorisierung_status = offen\`, bilde Buckets nach Hebel, schlage Regeln vor, schreibe keine Regel ohne Bestaetigung und starte danach die Nach-Kategorisierung.`,
+      `Analysiere ${summary.openCategories} offene Kategorien in \`${dataPath("transaktionen.jsonl")}\` fuer \`kategorisierung_status = offen\`, bilde Buckets nach Hebel, schlage Regeln vor, schreibe keine Regel ohne Bestaetigung und starte danach die Nach-Kategorisierung gegen \`${dataPath()}\`.`,
+      [],
+      dataContext,
     ));
   }
 
@@ -179,8 +204,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Vermoegens-/Liquiditaetschecks klaeren",
       SKILLS.wealthChecks,
       summary,
-      "Pruefe die sichtbaren Vermoegens- und Liquiditaetschecks, erfasse fehlende belegte Werte oder klaere Reconciliation-Abweichungen mit Belegen und Validatorlauf.",
+      `Pruefe die sichtbaren Vermoegens- und Liquiditaetschecks in \`${dataPath()}\`, erfasse fehlende belegte Werte oder klaere Reconciliation-Abweichungen mit Belegen und Validatorlauf.`,
       extra,
+      dataContext,
     ));
   }
 

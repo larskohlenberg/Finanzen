@@ -25,8 +25,8 @@ Vor jedem Import lesen:
 
 1. `docs/agent-context.md` — gemeinsame Betriebsregeln fuer App-Raum, Validierung, Kategorisierung, Dedupe, Belege und Agentenprotokoll.
 2. `schemas/` — Schemas fuer Transaktion, Transfer, ggf. Importformat.
-3. `data/master/konten.json` — fuer die Zuordnung Rohdatei → Konto via `kontoreferenz`.
-4. `data/master/kategorisierungsregeln.json` — Input fuer den Categorizer.
+3. `DATENROOT/konten.json` — fuer die Zuordnung Rohdatei → Konto via `kontoreferenz`.
+4. `DATENROOT/kategorisierungsregeln.json` — Input fuer den Categorizer.
 5. `tools/import.mjs`, `tools/validator.mjs`, `tools/dedupe.mjs`, `tools/categorizer.mjs`, `tools/transfer-matcher.mjs`.
 
 ## Eingaben, die du akzeptierst
@@ -99,10 +99,10 @@ Wenn die Rohquelle keinen belegten Kontostand enthaelt, darfst du keinen Anfangs
 ## Prozessablauf pro Importlauf
 
 1. **Rohdatei sichten**: Welches Format? Welche Bank? Welches Konto? Wenn das aus der Datei nicht hervorgeht (z. B. weil die CSV keine IBAN-Spalte hat), beim Nutzer nachfragen.
-2. **Konto zuordnen**: Erkenne das Konto, indem du die IBAN/Kontonummer der Rohdatei gegen die `kontoreferenz` in `data/master/konten.json` abgleichst (die Referenz ist bevorzugt die volle IBAN, ggf. nur Endziffern). Das ist eine Wiedererkennung durch dich, kein im Code erzwungener String-Abgleich — im finalen Eintrag traegst du die `konto_id`. Mehrdeutig (z. B. gleiche Endziffern bei maskierter Referenz)? Pruefen, ob `inhaber_person_ids` oder Banknamen die Mehrdeutigkeit aufloesen. Nicht eindeutig zuordbar → in `error/`. Steht das Konto noch **gar nicht** in `konten.json` (z. B. erster Import einer neuen Bank), nicht raten: dem Nutzer einen konkreten Konto-Eintrag (`konto_id`, `name`, `kontotyp`, `kontoreferenz`, `inhaber_person_ids`) **vorschlagen** und ihn erst nach **expliziter Bestaetigung** validiert anlegen. Erst danach importieren. Bei einem Initialimport pruefen, ob die Rohquelle einen belegten Kontostand enthaelt; dem Nutzer den erkannten Stand oder das Fehlen eines Standes mit Handlungsoptionen vorlegen.
+2. **Konto zuordnen**: Erkenne das Konto, indem du die IBAN/Kontonummer der Rohdatei gegen die `kontoreferenz` in `DATENROOT/konten.json` abgleichst (die Referenz ist bevorzugt die volle IBAN, ggf. nur Endziffern). Das ist eine Wiedererkennung durch dich, kein im Code erzwungener String-Abgleich — im finalen Eintrag traegst du die `konto_id`. Mehrdeutig (z. B. gleiche Endziffern bei maskierter Referenz)? Pruefen, ob `inhaber_person_ids` oder Banknamen die Mehrdeutigkeit aufloesen. Nicht eindeutig zuordbar → in `error/`. Steht das Konto noch **gar nicht** in `konten.json` (z. B. erster Import einer neuen Bank), nicht raten: dem Nutzer einen konkreten Konto-Eintrag (`konto_id`, `name`, `kontotyp`, `kontoreferenz`, `inhaber_person_ids`) **vorschlagen** und ihn erst nach **expliziter Bestaetigung** validiert anlegen. Erst danach importieren. Bei einem Initialimport pruefen, ob die Rohquelle einen belegten Kontostand enthaelt; dem Nutzer den erkannten Stand oder das Fehlen eines Standes mit Handlungsoptionen vorlegen.
 3. **Normalisieren**: Roheintraege ins **standardisierte Importformat** (siehe `schemas/`) ueberfuehren. Eine JSONL-Datei pro Lauf unter `data/inbox/standardized/`.
 4. **Validieren**: `tools/validator.mjs` (bzw. die Browser-faehige Bibliothek) auf das Standardformat anwenden. Fehlschlag → in `error/`.
-5. **Dedupe**: Fuer jede Buchung den `dedupe_hash` bilden (Felder siehe `docs/agent-context.md`). Gegen `data/master/transaktionen.jsonl` (den **Bestand**) pruefen. Hash bekannt → ueberspringen. **Nicht** innerhalb desselben Auszugs deduplizieren — ein amtlicher Auszug enthaelt reale Buchungen; das Tool laesst gleich aussehende Zeilen stehen und disambiguiert in allen Quellfeldern identische automatisch (zweistufiger Dedupe-Hash aus `docs/agent-context.md`). `bank_referenz` aus der Rohdatei roh mitgeben, wo die Bank eine liefert — die Pipeline nutzt sie nur als Schluessel, wenn sie **dateiweit eindeutig** ist, und faellt sonst auf den Freitext-Hash zurueck. Du musst die Eindeutigkeit nicht selbst herausfiltern.
+5. **Dedupe**: Fuer jede Buchung den `dedupe_hash` bilden (Felder siehe `docs/agent-context.md`). Gegen `DATENROOT/transaktionen.jsonl` (den **Bestand**) pruefen. Hash bekannt → ueberspringen. **Nicht** innerhalb desselben Auszugs deduplizieren — ein amtlicher Auszug enthaelt reale Buchungen; das Tool laesst gleich aussehende Zeilen stehen und disambiguiert in allen Quellfeldern identische automatisch (zweistufiger Dedupe-Hash aus `docs/agent-context.md`). `bank_referenz` aus der Rohdatei roh mitgeben, wo die Bank eine liefert — die Pipeline nutzt sie nur als Schluessel, wenn sie **dateiweit eindeutig** ist, und faellt sonst auf den Freitext-Hash zurueck. Du musst die Eindeutigkeit nicht selbst herausfiltern.
 6. **Kategorisieren**: `tools/categorizer.mjs` aufrufen mit der Buchung und `kategorisierungsregeln.json`.
    - Eindeutiger Treffer → `kategorie_id` setzen, `kategorisierung_status = vorgeschlagen`,
      `kategorie_herkunft = regel`. `import.mjs` schreibt automatisch `matched_regeln`
@@ -114,7 +114,7 @@ Wenn die Rohquelle keinen belegten Kontostand enthaelt, darfst du keinen Anfangs
      `matched_regeln` mit den IDs aller passenden Regeln, damit der Konflikt
      nachvollziehbar bleibt. Ein `offen`-Eintrag mit nicht leerem `matched_regeln`
      ist ein Konflikt-Fall; das ist ein automatisches Ergebnis, kein manueller Schritt.
-7. **Schreiben**: Buchungen an `data/master/transaktionen.jsonl` anhaengen. Belegte Kontostaende als Zeitwerte an `data/master/zeitwerte.jsonl` anhaengen, sofern sie aus der Rohquelle extrahiert wurden und nicht bereits identisch vorhanden sind. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz.
+7. **Schreiben**: Buchungen an `DATENROOT/transaktionen.jsonl` anhaengen. Belegte Kontostaende als Zeitwerte an `DATENROOT/zeitwerte.jsonl` anhaengen, sofern sie aus der Rohquelle extrahiert wurden und nicht bereits identisch vorhanden sind. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz. Beim CLI-Import den Root explizit uebergeben: `node tools/import.mjs <standardisierte-datei.jsonl> DATENROOT`.
 8. **Transfer-Match**: Nach dem Schreiben `tools/transfer-matcher.mjs` aufrufen. Kriterien fuer Auto-Match (alle vier zwingend):
    - Betrag exakt invers (cent-genau).
    - Beide Konten liegen im Modell.
@@ -123,7 +123,7 @@ Wenn die Rohquelle keinen belegten Kontostand enthaelt, darfst du keinen Anfangs
    Bei Match: Transfer-Datensatz anlegen, `ist_transfer = true` auf beiden Seiten, `transfer_id` setzen.
    Externe Transfers (Bargeld, Familie) erkennt das Tool nicht — die markiert der Nutzer im Dialog.
 9. **Beleg sprechend umbenennen und ablegen** (siehe Abschnitt unten): Rohbeleg in `Belege/` einsortieren, **niemals** den Scan-/Mail-Originalnamen behalten. Zwischen-JSONL verwerfen. Bei Fehler: nach `data/inbox/error/` plus strukturierte Begleitdatei.
-10. **Agent-Lauf protokollieren**: Eintrag in `data/master/agent_log.jsonl` mit Zaehlern (importiert, offen, Fehler), betroffene IDs, kurze Notiz. `rohquelle` jeder Buchung zeigt auf den **finalen Beleg-Pfad** in `Belege/`.
+10. **Agent-Lauf protokollieren**: Eintrag in `DATENROOT/agent_log.jsonl` mit Zaehlern (importiert, offen, Fehler), betroffene IDs, kurze Notiz. `rohquelle` jeder Buchung zeigt auf den **finalen Beleg-Pfad** in `Belege/`.
 
 ## Belege benennen und ablegen
 
@@ -181,11 +181,11 @@ Ablage in `Belege/`:
 | `data/inbox/standardized/` | Normalisierte Zwischenform |
 | `data/inbox/processed/` | Erfolgreich verarbeitete Rohdateien |
 | `data/inbox/error/` | Fehlgeschlagene Importe + Begleitdatei |
-| `data/master/transaktionen.jsonl` | Finale Transaktionen |
-| `data/master/transfers.json` | Transfer-Paarungen |
-| `data/master/konten.json` | Konten-Stammdaten (fuer Zuordnung) |
-| `data/master/kategorisierungsregeln.json` | Regeln fuer Categorizer |
-| `data/master/agent_log.jsonl` | Lauf-Protokoll fuer Uebergabe |
+| `DATENROOT/transaktionen.jsonl` | Finale Transaktionen |
+| `DATENROOT/transfers.json` | Transfer-Paarungen |
+| `DATENROOT/konten.json` | Konten-Stammdaten (fuer Zuordnung) |
+| `DATENROOT/kategorisierungsregeln.json` | Regeln fuer Categorizer |
+| `DATENROOT/agent_log.jsonl` | Lauf-Protokoll fuer Uebergabe |
 | `schemas/` | JSON Schemas zur Validierung |
 | `tools/validator.mjs` | Deterministischer Validator |
 | `tools/import.mjs` | Import-Pipeline `runImport` + CLI |

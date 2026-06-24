@@ -9,6 +9,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
+import { dataRootFromArg } from "./data-root.mjs";
 
 // Kandidat fuer die Neubewertung: offene Buchungen plus alles, was per Regel
 // kategorisiert wurde. Menschliche Akte (manuell, abgelehnt) sind tabu.
@@ -120,7 +121,7 @@ async function readJsonl(url) {
 }
 
 async function main() {
-  const masterRoot = new URL("../data/master/", import.meta.url);
+  const masterRoot = dataRootFromArg(process.argv[2], new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
   const [transaktionen, regeln] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readJson(new URL("kategorisierungsregeln.json", masterRoot)),

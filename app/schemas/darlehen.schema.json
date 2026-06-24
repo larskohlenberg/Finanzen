@@ -16,6 +16,8 @@
       "sollrate": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
       "rhythmus_einheit": { "type": "string", "enum": ["tag", "woche", "monat", "jahr"] },
       "rhythmus_intervall": { "type": "integer", "minimum": 1 },
+      "laufzeit_bis": { "type": "string", "format": "date" },
+      "restschuld_laufzeitende": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
       "immobilie_id": { "type": "string", "pattern": "^IMM-\\d{3}$" },
       "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
       "zinsbindung_bis": { "type": "string", "format": "date" },

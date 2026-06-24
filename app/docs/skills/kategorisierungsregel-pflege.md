@@ -22,8 +22,8 @@ Nicht nutzen fuer:
 
 1. `docs/agent-context.md` — gemeinsame Regeln fuer App-Raum, Kategorisierung, Herkunft, Nach-Kategorisierung und Validierung.
 2. `schemas/kategorisierungsregeln.schema.json` — verbindliche Struktur einer Regel.
-3. `data/master/kategorisierungsregeln.json` — der Regelbestand.
-4. `data/master/kategorien.json` — gueltige `kategorie_id` (Ziel jeder Regel).
+3. `DATENROOT/kategorisierungsregeln.json` — der Regelbestand.
+4. `DATENROOT/kategorien.json` — gueltige `kategorie_id` (Ziel jeder Regel).
 5. `tools/categorizer.mjs` (Matching) und `tools/recategorize.mjs` (Nach-Kategorisierung).
 
 ## Zentrale Regeln
@@ -36,16 +36,16 @@ Nicht nutzen fuer:
 
 ## Ablauf
 
-1. **Read-only-Analyse des Offen-Stapels.** Lade `data/master/transaktionen.jsonl` und betrachte `kategorisierung_status = offen` (sowie Regel-**Konflikte**, die der Categorizer offen laesst). Gruppiere nach wiederkehrenden Mustern in `gegenpartei`/`verwendungszweck`. **Ranking nach Hebel:** wie viele offene Buchungen ein Muster traefe × wie eindeutig es ist. So entsteht eine Liste „groesster Effekt zuerst". Nichts schreiben in diesem Schritt.
+1. **Read-only-Analyse des Offen-Stapels.** Lade `DATENROOT/transaktionen.jsonl` und betrachte `kategorisierung_status = offen` (sowie Regel-**Konflikte**, die der Categorizer offen laesst). Gruppiere nach wiederkehrenden Mustern in `gegenpartei`/`verwendungszweck`. **Ranking nach Hebel:** wie viele offene Buchungen ein Muster traefe × wie eindeutig es ist. So entsteht eine Liste „groesster Effekt zuerst". Nichts schreiben in diesem Schritt.
 2. **Regel(n) vorschlagen.** Pro Muster eine konkrete Regel formulieren:
    - `gegenpartei_pattern` und/oder `verwendungszweck_pattern` (Substring, lose normalisiert), optional gefiltert auf `konto_id` und `vorzeichen` (`einnahme`/`ausgabe`),
    - genau eine `kategorie_id` (muss in `kategorien.json` existieren),
    - dem Nutzer die **Stichprobe** zeigen: welche offenen Buchungen die Regel jetzt traefe (Probelauf ueber `categorize()`), und falls sinnvoll auch die, die sie *nicht* trifft.
    Eine Regel darf **auch ohne aktuellen Treffer** angelegt werden (wissensbasiert, z. B. fuer kuenftige Buchungen) — das ist erlaubt, solange der Nutzer es ausdruecklich will.
 3. **Bestaetigen lassen — Regel fuer Regel.** Keine Regel ohne explizites „ja". Keine Kategorie raten: ist die Zielkategorie unklar, fragen statt tippen.
-4. **Regel schreiben.** Neue `regel_id` als naechste freie `REG-NNN` (Bestand scannen, es gibt keinen ID-Helfer), `status = "aktiv"`, `erstellt_am` = heutiges Datum. `kommentar` ist **Pflichtfeld** — er muss eine echte Erklaerung in normaler Sprache enthalten, **nicht** nur das Muster wiederholen. Beispiel: „Monatlicher Dauerauftrag Sparen auf Tagesgeldkonto" ist korrekt; „Muster: TAGESGELD" ist nicht ausreichend. Dieser Kommentar erscheint dem Nutzer als Erklaerung und muss auch bei komplexen Mustern verstaendlich sein. Struktur gegen `schemas/kategorisierungsregeln.schema.json` pruefen, dann an `data/master/kategorisierungsregeln.json` schreiben. Eine Regel **aendern** = denselben Satz ueberschreiben; dabei `kommentar` pruefen und aktualisieren, falls das Muster sich aendert und die Erklaerung nicht mehr passt. Eine Regel **stilllegen** = `status = "inaktiv"` (nicht loeschen, der Categorizer ignoriert Inaktive ohnehin).
-5. **Nach-Kategorisierung anstossen.** `node tools/recategorize.mjs` aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel`) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs. Der Probelauf (Schritt 2, `categorize()`) kann dir bereits zeigen, welche Regeln fuer die Stichprobe matchen — nutze das, um Konflikte zwischen Regeln fruehzeitig zu erkennen.
-6. **Bericht + Uebergabe.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`) und in `data/master/agent_log.jsonl` protokollieren. Dieser Skill **endet bei `vorgeschlagen`** — das Bestaetigen ist Sache von **kategorisierung-review**. Darauf aktiv hinweisen, wenn neue Vorschlaege oder Wiedervorlagen entstanden sind.
+4. **Regel schreiben.** Neue `regel_id` als naechste freie `REG-NNN` (Bestand scannen, es gibt keinen ID-Helfer), `status = "aktiv"`, `erstellt_am` = heutiges Datum. `kommentar` ist **Pflichtfeld** — er muss eine echte Erklaerung in normaler Sprache enthalten, **nicht** nur das Muster wiederholen. Beispiel: „Monatlicher Dauerauftrag Sparen auf Tagesgeldkonto" ist korrekt; „Muster: TAGESGELD" ist nicht ausreichend. Dieser Kommentar erscheint dem Nutzer als Erklaerung und muss auch bei komplexen Mustern verstaendlich sein. Struktur gegen `schemas/kategorisierungsregeln.schema.json` pruefen, dann an `DATENROOT/kategorisierungsregeln.json` schreiben. Eine Regel **aendern** = denselben Satz ueberschreiben; dabei `kommentar` pruefen und aktualisieren, falls das Muster sich aendert und die Erklaerung nicht mehr passt. Eine Regel **stilllegen** = `status = "inaktiv"` (nicht loeschen, der Categorizer ignoriert Inaktive ohnehin).
+5. **Nach-Kategorisierung anstossen.** `node tools/recategorize.mjs DATENROOT` aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel`) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator fuer `DATENROOT` und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs. Der Probelauf (Schritt 2, `categorize()`) kann dir bereits zeigen, welche Regeln fuer die Stichprobe matchen — nutze das, um Konflikte zwischen Regeln fruehzeitig zu erkennen.
+6. **Bericht + Uebergabe.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`) und in `DATENROOT/agent_log.jsonl` protokollieren. Dieser Skill **endet bei `vorgeschlagen`** — das Bestaetigen ist Sache von **kategorisierung-review**. Darauf aktiv hinweisen, wenn neue Vorschlaege oder Wiedervorlagen entstanden sind.
 
 ## Do's
 
@@ -82,10 +82,10 @@ Nicht nutzen fuer:
 
 | Pfad | Zweck |
 | --- | --- |
-| `data/master/kategorisierungsregeln.json` | Regelbestand (dieser Skill pflegt ihn) |
-| `data/master/transaktionen.jsonl` | Bestand, den die Nach-Kategorisierung neu bewertet |
-| `data/master/kategorien.json` | Gueltige Ziel-`kategorie_id` |
-| `data/master/agent_log.jsonl` | Lauf-Protokoll fuer die Uebergabe |
+| `DATENROOT/kategorisierungsregeln.json` | Regelbestand (dieser Skill pflegt ihn) |
+| `DATENROOT/transaktionen.jsonl` | Bestand, den die Nach-Kategorisierung neu bewertet |
+| `DATENROOT/kategorien.json` | Gueltige Ziel-`kategorie_id` |
+| `DATENROOT/agent_log.jsonl` | Lauf-Protokoll fuer die Uebergabe |
 | `schemas/kategorisierungsregeln.schema.json` | Struktur-Referenz einer Regel |
 | `tools/categorizer.mjs` | Deterministisches Matching (Probelauf + Recompute) |
 | `tools/recategorize.mjs` | Nach-Kategorisierung (Recompute + Validator + Bericht) |

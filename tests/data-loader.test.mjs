@@ -93,3 +93,64 @@ test("loadFinanceData liefert kategorisierungsregeln", async (t) => {
   assert.equal(data.kategorisierungsregeln.length, 1);
   assert.equal(data.kategorisierungsregeln[0].id, "R-001");
 });
+
+test("loadFinanceData kann Demodaten statt Masterdaten laden", async (t) => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  globalThis.fetch = async (path) => {
+    calls.push(path);
+    const filename = path.split("/").pop().split("?")[0];
+    if (filename.endsWith(".jsonl")) {
+      return {
+        ok: true,
+        text: async () => "",
+      };
+    }
+    return {
+      ok: true,
+      json: async () => [],
+    };
+  };
+
+  const data = await loadFinanceData({ dataMode: "demo" });
+
+  assert.ok(calls.length > 0);
+  assert.ok(calls.every((path) => path.startsWith("./data/demo/")), "every request should target app/data/demo");
+  assert.equal(data.metadata.bundleVersion, "demo");
+  assert.equal(data.metadata.label, "Demodaten");
+  assert.equal(data.metadata.dataMode, "demo");
+});
+
+test("loadFinanceData nutzt standardmaessig Live-Masterdaten", async (t) => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  globalThis.fetch = async (path) => {
+    calls.push(path);
+    const filename = path.split("/").pop().split("?")[0];
+    if (filename.endsWith(".jsonl")) {
+      return {
+        ok: true,
+        text: async () => "",
+      };
+    }
+    return {
+      ok: true,
+      json: async () => [],
+    };
+  };
+
+  const data = await loadFinanceData();
+
+  assert.ok(calls.length > 0);
+  assert.ok(calls.every((path) => path.startsWith("./data/master/")), "default requests should target app/data/master");
+  assert.equal(data.metadata.bundleVersion, "live-master");
+  assert.equal(data.metadata.dataMode, "live");
+});

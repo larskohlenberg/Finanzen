@@ -3,11 +3,12 @@
 // abgeleitete Nachschlage-Maps. main.js (Orchestrierung) und die View-Module
 // importieren von hier — so teilen sie EINE Zustands-/Datenquelle (Objekte per
 // Referenz). Bewusst ohne DOM-Render-Logik (die liegt in main.js/views/).
-import { loadFinanceData } from "./data-loader.mjs";
+import { loadFinanceData, normalizeDataMode } from "./data-loader.mjs";
 import { validateMasterData } from "./tools/validate-core.mjs";
 import { defaultHorizonEnd, localTodayIso, toCents } from "./liquiditaet.mjs";
 
 export const app = document.querySelector("#app");
+const DATA_MODE_STORAGE_KEY = "finance-m2-data-mode";
 
 function showBootstrapError(error) {
   if (!app) return;
@@ -22,7 +23,8 @@ function showBootstrapError(error) {
 
 async function bootstrap() {
   try {
-    const loadedData = await loadFinanceData();
+    const dataMode = normalizeDataMode(localStorage.getItem(DATA_MODE_STORAGE_KEY));
+    const loadedData = await loadFinanceData({ dataMode });
     const loadedDictionaries = window.FINANCE_I18N;
     if (!loadedData || !Array.isArray(loadedData.personen) || !Array.isArray(loadedData.konten) || !loadedDictionaries) {
       throw new Error("FINANCE_I18N oder geladene Masterdaten fehlen/unvollstaendig.");
@@ -49,6 +51,7 @@ data.metadata = { ...data.metadata, validation: data.validation.valid ? "passed"
 export const storageKeys = {
   lang: "finance-m2-language",
   theme: "finance-m2-theme",
+  dataMode: DATA_MODE_STORAGE_KEY,
   sidebarCollapsed: "finance-m2-sidebar-collapsed",
 };
 
@@ -75,6 +78,7 @@ export const state = {
   view: "overview",
   lang: localStorage.getItem(storageKeys.lang) || "de",
   theme: localStorage.getItem(storageKeys.theme) || "system",
+  dataMode: normalizeDataMode(data.metadata?.dataMode),
   sidebarCollapsed: localStorage.getItem(storageKeys.sidebarCollapsed) === "true",
   transactionFilters: {
     account: "",

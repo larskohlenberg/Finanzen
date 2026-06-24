@@ -19,13 +19,13 @@ Nicht nutzen fuer:
 
 ## Einstieg: Vorschlaege aktiv melden
 
-Zu Beginn `data/master/transaktionen.jsonl` auf `kategorisierung_status = vorgeschlagen` pruefen und **aktiv** melden: „Es liegen N Buchungen zur Bestaetigung vor, gruppiert in M Buckets." Die App erinnert nicht — der Agent muss es tun.
+Zu Beginn `DATENROOT/transaktionen.jsonl` auf `kategorisierung_status = vorgeschlagen` pruefen und **aktiv** melden: „Es liegen N Buchungen zur Bestaetigung vor, gruppiert in M Buckets." Die App erinnert nicht — der Agent muss es tun.
 
 ## Kontext, den du kennen musst
 
 - `docs/agent-context.md` — gemeinsame Regeln fuer Status, Herkunft, Kategorisierung, Validierung und Agentenprotokoll.
 - `schemas/transaktionen.schema.json` und `tools/validator.mjs`.
-- `data/master/transaktionen.jsonl`, `data/master/kategorien.json`, `data/master/agent_log.jsonl`.
+- `DATENROOT/transaktionen.jsonl`, `DATENROOT/kategorien.json`, `DATENROOT/agent_log.jsonl`.
 
 ## Zentrale Regeln
 
@@ -53,7 +53,7 @@ Zu Beginn `data/master/transaktionen.jsonl` auf `kategorisierung_status = vorges
 3. **Einzelkorrektur.** Setzt der Nutzer fuer eine Buchung (oder Teilmenge) eine **andere** Zielkategorie, ist das ein menschlicher Akt: `kategorie_id` = die genannte Kategorie, `kategorisierung_status = bestaetigt`, `kategorie_herkunft = manuell`. Die Zielkategorie nennt der Nutzer — **nie raten**. `manuell` schuetzt den Eintrag vor kuenftigen Regellaeufen. **Aber nur fuer Einzelfaelle:** Soll aus der Korrektur eine **Regel** werden (gleiches Muster, gleiche Kategorie, vgl. Schritt 4), dann die Buchung **nicht** auf `manuell` setzen — Regel ueber **kategorisierungsregel-pflege** anlegen und Nach-Kategorisierung laufen lassen; die Buchung wird dann `kategorie_herkunft = regel` und zaehlt zur Regel. Regel **und** `manuell` auf derselben Buchung widersprechen sich.
 4. **Aehnliche Faelle suchen.** Nach jeder Einzelkorrektur read-only nach aehnlichen offenen oder agent-vorgeschlagenen Buchungen suchen. Wenn ein wiederkehrendes Muster erkennbar ist, einen konkreten Regel-Kandidaten mit Trefferzahl und Stichprobe vorschlagen. Keine Regel still anlegen; Regelanlage bleibt der bestaetigte Anschlussprozess ueber **kategorisierungsregel-pflege**.
 5. **Schreiben mit Validator.** Aenderungen in-place in `transaktionen.jsonl` (ein Objekt pro Zeile, nur die betroffenen Felder anfassen). **Vor** dem Schreiben die Review-Tabelle zeigen, **nach** dem Schreiben `tools/validator.mjs` laufen lassen.
-6. **Bericht.** Zaehler (bestaetigt, korrigiert, abgelehnt, offen verblieben) zusammenfassen und in `data/master/agent_log.jsonl` protokollieren. Wenn Agenten-Einzelvorschlaege (`kategorie_herkunft = agent`) betroffen sind, zusaetzlich `agent_bestaetigt`, `agent_korrigiert` und `agent_abgelehnt` zaehlen. Keine urspruengliche Agenten-Kategorie an der Transaktion speichern; der Log ist die Qualitaetsspur.
+6. **Bericht.** Zaehler (bestaetigt, korrigiert, abgelehnt, offen verblieben) zusammenfassen und in `DATENROOT/agent_log.jsonl` protokollieren. Wenn Agenten-Einzelvorschlaege (`kategorie_herkunft = agent`) betroffen sind, zusaetzlich `agent_bestaetigt`, `agent_korrigiert` und `agent_abgelehnt` zaehlen. Keine urspruengliche Agenten-Kategorie an der Transaktion speichern; der Log ist die Qualitaetsspur.
 
 ## Herkunft richtig setzen — der entscheidende Punkt
 
@@ -105,9 +105,9 @@ Der Unterschied ist Absicht: `regel` haelt die Bestaetigung gegen ein spaeteres 
 
 | Pfad | Zweck |
 | --- | --- |
-| `data/master/transaktionen.jsonl` | Bestand (dieser Skill aendert `status`/`kategorie_id`/`kategorie_herkunft`) |
-| `data/master/kategorien.json` | Gueltige Ziel-`kategorie_id` fuer Korrekturen |
-| `data/master/agent_log.jsonl` | Lauf-Protokoll fuer die Uebergabe |
+| `DATENROOT/transaktionen.jsonl` | Bestand (dieser Skill aendert `status`/`kategorie_id`/`kategorie_herkunft`) |
+| `DATENROOT/kategorien.json` | Gueltige Ziel-`kategorie_id` fuer Korrekturen |
+| `DATENROOT/agent_log.jsonl` | Lauf-Protokoll fuer die Uebergabe |
 | `schemas/transaktionen.schema.json` | Struktur-Referenz |
 | `tools/validator.mjs` | Validator (nach jedem Schreiben) |
 

@@ -376,8 +376,13 @@ function renderVermoegenDetail(p, today) {
           `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(Math.abs(p.wert_cents)))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`)
       + restschuldVerlaufRow(dar, today)
       + sondertilgungenRow(p.id)
+      + (dar?.anfangsdatum ? detailRow(t("vermoegen.aufgenommenAm"), escapeHtml(formatDate(dar.anfangsdatum))) : "")
+      + (dar?.anfangsbetrag ? detailRow(t("vermoegen.anfangsbetrag"), escapeHtml(formatMoney(cents(dar.anfangsbetrag)))) : "")
+      + (dar?.laufzeit_bis ? detailRow(t("vermoegen.laufzeit"), `${escapeHtml(laufzeitText(dar.anfangsdatum, dar.laufzeit_bis))}<br><span class="muted">${escapeHtml(t("vermoegen.bis"))} ${escapeHtml(formatDate(dar.laufzeit_bis))}</span>`) : "")
       + (dar?.zinssatz ? detailRow(t("vermoegen.zinssatz"), `${escapeHtml(dar.zinssatz)} %`) : "")
+      + (dar?.zinsbindung_bis ? detailRow(t("vermoegen.zinsbindungBis"), escapeHtml(formatDate(dar.zinsbindung_bis))) : "")
       + (dar?.sollrate ? detailRow(t("vermoegen.rate"), `${escapeHtml(formatMoney(cents(dar.sollrate)))} / ${escapeHtml(rhythmusLabel(dar.rhythmus_einheit, dar.rhythmus_intervall))}`) : "")
+      + (dar?.restschuld_laufzeitende ? detailRow(t("vermoegen.restschuldLaufzeitende"), escapeHtml(formatMoney(cents(dar.restschuld_laufzeitende)))) : "")
       + (verknuepft.length ? detailRow(t("vermoegen.verknuepft"), verknuepft.join(" · ")) : "")
       + renderPositionWertstaende(p);
   }
@@ -402,4 +407,17 @@ function rhythmusLabel(einheit, intervall) {
   const e = t(`vermoegen.rhythmus.${einheit}`);
   const einheitText = e === `vermoegen.rhythmus.${einheit}` ? einheit : e;
   return Number(intervall) > 1 ? `${intervall} ${einheitText}` : einheitText;
+}
+
+function laufzeitText(von, bis) {
+  if (!von || !bis) return "";
+  const [vy, vm, vd] = von.split("-").map(Number);
+  const [by, bm, bd] = bis.split("-").map(Number);
+  let monate = (by - vy) * 12 + (bm - vm);
+  if (bd < vd) monate -= 1;
+  const jahre = Math.floor(monate / 12);
+  const restMonate = monate % 12;
+  if (jahre > 0 && restMonate > 0) return `${jahre} ${t("vermoegen.jahre")} ${restMonate} ${t("vermoegen.monate")}`;
+  if (jahre > 0) return `${jahre} ${t("vermoegen.jahre")}`;
+  return `${Math.max(0, restMonate)} ${t("vermoegen.monate")}`;
 }

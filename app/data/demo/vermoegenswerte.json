@@ -1,0 +1,5 @@
+[
+  { "vermoegenswert_id": "VMW-001", "typ": "sonstiges", "bezeichnung": "Familienauto gebraucht", "eigentumsanteile": [{ "person_id": "PER-001", "zaehler": 1, "nenner": 2 }, { "person_id": "PER-002", "zaehler": 1, "nenner": 2 }], "status": "aktiv", "quelle_hinweis": "Demo-Schwacke-Schaetzung", "quelle_standdatum": "2026-06-01" },
+  { "vermoegenswert_id": "VMW-002", "typ": "beteiligung", "bezeichnung": "Genossenschaftsanteile Wohnen", "eigentumsanteile": [{ "person_id": "PER-001", "zaehler": 1, "nenner": 2 }, { "person_id": "PER-002", "zaehler": 1, "nenner": 2 }], "status": "aktiv", "quelle_hinweis": "Demo-Mitgliedsbescheinigung", "quelle_standdatum": "2026-06-01" },
+  { "vermoegenswert_id": "VMW-003", "typ": "sonstiges", "bezeichnung": "Fahrraeder und Haushaltsgeraete", "eigentumsanteile": [{ "person_id": "PER-001", "zaehler": 1, "nenner": 2 }, { "person_id": "PER-002", "zaehler": 1, "nenner": 2 }], "status": "aktiv", "quelle_hinweis": "Demo-Hausrat-Schaetzung", "quelle_standdatum": "2026-06-01" }
+]

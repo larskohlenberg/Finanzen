@@ -338,6 +338,12 @@ button {
   text-align: center;
 }
 
+.control-select.mode-select {
+  min-width: 82px;
+  font-weight: 700;
+  color: var(--text);
+}
+
 .page-head {
   display: flex;
   justify-content: space-between;
@@ -737,6 +743,18 @@ button.mini-kpi.linkish {
 .chip.neutral {
   background: var(--surface-2);
   color: var(--muted);
+}
+
+.chip.demo {
+  border-color: color-mix(in srgb, #2f75a8 42%, var(--border));
+  background: color-mix(in srgb, #dff0ff 76%, var(--surface));
+  color: #1e5d88;
+}
+
+:root[data-theme="dark"] .chip.demo {
+  border-color: color-mix(in srgb, #7fc3f0 45%, var(--border));
+  background: color-mix(in srgb, #14354a 78%, var(--surface));
+  color: #9fd4f7;
 }
 
 .rail {
@@ -1513,6 +1531,11 @@ tr.clickable.selected td:first-child {
   .control-select.icon-select {
     width: 44px;
     min-width: 44px;
+  }
+
+  .control-select.mode-select {
+    min-width: 68px;
+    width: 68px;
   }
 
   .sidebar {

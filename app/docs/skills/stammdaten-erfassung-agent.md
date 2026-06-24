@@ -48,6 +48,7 @@ Den Nutzer Schritt für Schritt durch die Erfassung beliebiger Stammdaten leiten
 - **Brüche** für Eigentumsanteile (`{person_id, zaehler, nenner}`), Summe je Entität exakt 1.
 - **Geld als Decimal-String** mit zwei Nachkommastellen (`^-?\d+\.\d{2}$`), Zinssatz als `^\d+\.\d{2,4}$`.
 - Bei **neuem Darlehen aktiv die passende Raten-Regelzahlung vorschlagen** (`darlehen_id` setzen) — nur über den Regelzahlungs-Dialog (App schreibt keine Masterdaten; Regelzahlungen laufen ueber Agenten-Dialog).
+- Bei **Darlehen Vertragsdaten erfassen**, wenn belegt vorhanden: `zinsbindung_bis`, `laufzeit_bis`, `restschuld_laufzeitende`. Diese Felder ersetzen keinen belegten Restschuld-Anker in `zeitwerte.jsonl`.
 - Depot als `kontotyp = depot` unter Konto, Wert über `depotwert`-Zeitwert (kein Anker+Buchungen). Bargeld zählt nicht.
 
 ## Don'ts
@@ -72,5 +73,5 @@ Ablage in `Belege/`: Kontoauszuege unter `Belege/Kontoauszuege/<Konto>/`; sonsti
 | --- | --- |
 | `schemas/*.schema.json` | Referenz-Schemas je Entität |
 | `tools/validator.mjs` | Ausführbare Validierung (Struktur + Cross-Field) |
-| `data/master/*.json` / `*.jsonl` | Stammdaten (inkl. `zeitwerte.jsonl`) |
+| `DATENROOT/*.json` / `*.jsonl` | Stammdaten (inkl. `zeitwerte.jsonl`) |
 | `vermoegen.mjs` | Nettovermögen- und Check-Berechnung |

@@ -45,3 +45,13 @@ test("every app skill points to the app agent context", () => {
     assert.match(text, /docs\/agent-context\.md/, `${file} must reference docs/agent-context.md`);
   }
 });
+
+test("agent context requires an explicit data mode and data root before writes", () => {
+  const text = readFileSync(join(docsDir, "agent-context.md"), "utf8");
+
+  assert.match(text, /DATENMODUS/);
+  assert.match(text, /DATENROOT/);
+  assert.match(text, /data\/master/);
+  assert.match(text, /data\/demo/);
+  assert.match(text, /Abbruch/);
+});

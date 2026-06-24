@@ -24,11 +24,11 @@ Nicht nutzen fuer:
    Nutzerbestaetigung und Agentenprotokoll.
 2. `tools/validator.mjs` - deterministischer Masterdaten-Validator.
 3. `schemas/` - Datenvertraege der betroffenen Dateien.
-4. Die in der Fehlermeldung genannten Dateien unter `data/master/`.
+4. Die in der Fehlermeldung genannten Dateien unter `DATENROOT/`.
 
 ## Ablauf
 
-1. **Validator ausfuehren.** Starte `node tools/validator.mjs data/master` aus
+1. **Validator ausfuehren.** Starte `node tools/validator.mjs DATENROOT` aus
    dem App-Raum und uebernimm die Fehler nicht aus der UI ungeprueft.
 2. **Fehler gruppieren.** Ordne Fehler nach Datei, Schemafeld und Ursache
    (Format, Pflichtfeld, Referenz, Cross-Field-Regel).
@@ -39,10 +39,10 @@ Nicht nutzen fuer:
    Datum, Belegbezug) erst Nutzerbestaetigung einholen.
 5. **Nach Bestaetigung schreiben.** Aendere nur die betroffenen Felder oder
    Datensaetze. Keine grossflaechige Normalisierung und keine unrelated cleanup.
-6. **Erneut validieren.** `node tools/validator.mjs data/master` muss nach der
+6. **Erneut validieren.** `node tools/validator.mjs DATENROOT` muss nach der
    Aenderung erfolgreich laufen.
 7. **Protokollieren.** Bei schreibender Korrektur einen Eintrag in
-   `data/master/agent_log.jsonl` mit Fehleranzahl, betroffenen Dateien/IDs,
+   `DATENROOT/agent_log.jsonl` mit Fehleranzahl, betroffenen Dateien/IDs,
    Korrekturart und Validator-Ergebnis schreiben.
 
 ## Besondere Pruefregeln des Validators
@@ -56,7 +56,7 @@ Der Validator prueft neben Schema-Konformitaet auch:
   Feld verboten. Der Validator meldet es als Fehler, wenn `matched_regeln` dort
   trotzdem gesetzt ist.
 - **Referenzpruefung fuer `matched_regeln`:** Jede ID in `matched_regeln` muss
-  in `data/master/kategorisierungsregeln.json` als bekannte Regel existieren.
+  in `DATENROOT/kategorisierungsregeln.json` als bekannte Regel existieren.
   Unbekannte IDs sind ein Validierungsfehler.
 - **`kommentar`-Pflicht fuer Kategorisierungsregeln:** Jede Regel in
   `kategorisierungsregeln.json` muss einen nicht-leeren `kommentar` haben. Regeln
@@ -89,7 +89,7 @@ Nutzerbestaetigung schreiben.
 
 | Pfad | Zweck |
 | --- | --- |
-| `data/master/` | Masterdatenbestand |
+| `DATENROOT/` | Masterdatenbestand |
 | `schemas/` | JSON-Schemas und Datenvertraege |
 | `tools/validator.mjs` | Masterdaten-Validator |
-| `data/master/agent_log.jsonl` | Lauf-Protokoll fuer schreibende Korrekturen |
+| `DATENROOT/agent_log.jsonl` | Lauf-Protokoll fuer schreibende Korrekturen |

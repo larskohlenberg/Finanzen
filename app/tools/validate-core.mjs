@@ -160,6 +160,8 @@ const schemas = {
       sollrate: { type: "string", money: true, nonNegative: true },
       rhythmus_einheit: { type: "string", enum: ["tag", "woche", "monat", "jahr"] },
       rhythmus_intervall: { type: "number", integer: true, min: 1 },
+      laufzeit_bis: { type: "string", format: "date" },
+      restschuld_laufzeitende: { type: "string", money: true, nonNegative: true },
       immobilie_id: { type: "string", pattern: /^IMM-\d{3}$/ },
       konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
       zinsbindung_bis: { type: "string", format: "date" },
@@ -405,6 +407,9 @@ function validateCrossFieldRules(data, errors) {
     }
     if (dar.aktiv_bis && dar.anfangsdatum && dar.aktiv_bis < dar.anfangsdatum) {
       errors.push(`darlehen.${dar.darlehen_id}.aktiv_bis: liegt vor anfangsdatum`);
+    }
+    if (dar.laufzeit_bis && dar.anfangsdatum && dar.laufzeit_bis < dar.anfangsdatum) {
+      errors.push(`darlehen.${dar.darlehen_id}.laufzeit_bis: liegt vor anfangsdatum`);
     }
   });
 

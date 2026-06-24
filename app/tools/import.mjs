@@ -7,6 +7,7 @@ import { computeDedupeHash, disambiguateHash } from "./dedupe.mjs";
 import { categorize } from "./categorizer.mjs";
 import { matchTransfers } from "./transfer-matcher.mjs";
 import { nextTransaktionId } from "./ids.mjs";
+import { dataRootFromArg } from "./data-root.mjs";
 
 const optionalTransactionFields = [
   "wertstellungsdatum",
@@ -130,11 +131,11 @@ async function readJsonl(url) {
 async function main() {
   const inputPath = process.argv[2];
   if (!inputPath) {
-    console.error("Aufruf: node app/tools/import.mjs <pfad-zur-standardisierten.jsonl>");
+    console.error("Aufruf: node app/tools/import.mjs <pfad-zur-standardisierten.jsonl> [datenroot]");
     process.exitCode = 1;
     return;
   }
-  const masterRoot = new URL("../data/master/", import.meta.url);
+  const masterRoot = dataRootFromArg(process.argv[3], new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
   const [konten, kategorien, transaktionen, transfers, kategorisierungsregeln] = await Promise.all([
     readJson(new URL("konten.json", masterRoot)),
     readJson(new URL("kategorien.json", masterRoot)),

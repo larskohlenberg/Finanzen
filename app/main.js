@@ -199,10 +199,14 @@ function renderTabbar() {
 }
 
 function renderTopbar() {
+  const demoActive = state.dataMode === "demo";
   return `
     <header class="topbar">
       <div class="work-status">
         <strong>${escapeHtml(t("chrome.workStatus"))}</strong>
+        <span class="chip ${demoActive ? "demo" : "neutral"}" title="${escapeHtml(demoActive ? t("chrome.demoDataHint") : t("chrome.liveDataHint"))}">
+          ${iconSvg("masterdata")}${escapeHtml(demoActive ? t("chrome.demoData") : t("chrome.liveData"))}
+        </span>
         ${data.validation?.valid
           ? `<span class="chip success" title="${escapeHtml(t("chrome.validationPassedHint"))}">${iconSvg("success")}${escapeHtml(t("chrome.validationPassed"))}</span>`
           : `<button class="chip danger linkish" data-action="show-validation" title="${escapeHtml(t("chrome.validationFailedHint"))}">${iconSvg("warning")}${data.validation?.errors.length ?? 0} ${escapeHtml(t("chrome.validationFailed"))}</button>`}
@@ -212,6 +216,10 @@ function renderTopbar() {
         ${renderNextActionButton()}
       </div>
       <div class="controls">
+        <select class="control-select mode-select" data-control="data-mode" aria-label="${escapeHtml(t("chrome.dataMode"))}" title="${escapeHtml(t("chrome.dataMode"))}">
+          <option value="live" ${state.dataMode === "live" ? "selected" : ""}>${escapeHtml(t("chrome.liveDataShort"))}</option>
+          <option value="demo" ${state.dataMode === "demo" ? "selected" : ""}>${escapeHtml(t("chrome.demoDataShort"))}</option>
+        </select>
         <select class="control-select icon-select" data-control="lang" aria-label="${escapeHtml(t("chrome.language"))}" title="${escapeHtml(t("chrome.language"))}">
           <option value="de" ${state.lang === "de" ? "selected" : ""}>🇩🇪</option>
           <option value="en" ${state.lang === "en" ? "selected" : ""}>🇬🇧</option>
@@ -425,6 +433,14 @@ app.addEventListener("input", (event) => {
 
 app.addEventListener("change", (event) => {
   const control = event.target.closest("[data-control]");
+  if (control?.dataset.control === "data-mode") {
+    state.dataMode = control.value === "demo" ? "demo" : "live";
+    localStorage.setItem(storageKeys.dataMode, state.dataMode);
+    const url = new URL(window.location.href);
+    url.searchParams.set("_reload", String(Date.now()));
+    window.location.assign(url);
+    return;
+  }
   if (control?.dataset.control === "lang") {
     state.lang = control.value;
     localStorage.setItem(storageKeys.lang, state.lang);

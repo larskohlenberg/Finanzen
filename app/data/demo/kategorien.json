@@ -1,0 +1,14 @@
+[
+  { "kategorie_id": "KAT-001", "name": "Gehalt", "typ": "einnahme", "lebenshaltung_relevant": false, "status": "aktiv" },
+  { "kategorie_id": "KAT-002", "name": "Kindergeld", "typ": "einnahme", "lebenshaltung_relevant": false, "status": "aktiv" },
+  { "kategorie_id": "KAT-003", "name": "Wohnen & Energie", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
+  { "kategorie_id": "KAT-004", "name": "Lebensmittel", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
+  { "kategorie_id": "KAT-005", "name": "Mobilitaet", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
+  { "kategorie_id": "KAT-006", "name": "Kinder & Bildung", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
+  { "kategorie_id": "KAT-007", "name": "Versicherungen", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
+  { "kategorie_id": "KAT-008", "name": "Freizeit & Urlaub", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
+  { "kategorie_id": "KAT-009", "name": "Sparen & Umbuchung", "typ": "neutral", "lebenshaltung_relevant": false, "status": "aktiv" },
+  { "kategorie_id": "KAT-010", "name": "Gesundheit", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
+  { "kategorie_id": "KAT-011", "name": "Sonstiges", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
+  { "kategorie_id": "KAT-012", "name": "Kreditrate", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" }
+]

@@ -1,0 +1,8 @@
+[
+  { "konto_id": "KTO-001", "name": "Gemeinschaftsgiro", "kontotyp": "giro", "kontoreferenz": "DE** **42", "inhaber_person_ids": ["PER-001", "PER-002"], "liquiditaetsrelevant": true, "status": "aktiv" },
+  { "konto_id": "KTO-002", "name": "Tagesgeld Ruecklage", "kontotyp": "tagesgeld", "kontoreferenz": "TG-8842", "inhaber_person_ids": ["PER-001", "PER-002"], "liquiditaetsrelevant": true, "status": "aktiv" },
+  { "konto_id": "KTO-003", "name": "Kreditkarte Familie", "kontotyp": "kreditkarte", "kontoreferenz": "Visa **1930", "inhaber_person_ids": ["PER-001", "PER-002"], "liquiditaetsrelevant": true, "status": "aktiv" },
+  { "konto_id": "KTO-004", "name": "ETF-Depot", "kontotyp": "depot", "kontoreferenz": "Depot **7711", "inhaber_person_ids": ["PER-001", "PER-002"], "liquiditaetsrelevant": true, "status": "aktiv" },
+  { "konto_id": "KTO-005", "name": "Kinder-Sparkonto", "kontotyp": "spar", "kontoreferenz": "SP-2204", "inhaber_person_ids": ["PER-003", "PER-004"], "liquiditaetsrelevant": true, "status": "aktiv" },
+  { "konto_id": "KTO-006", "name": "Haushaltskasse", "kontotyp": "bar", "kontoreferenz": "Bar", "inhaber_person_ids": ["PER-001", "PER-002"], "liquiditaetsrelevant": false, "status": "aktiv" }
+]

@@ -5,6 +5,7 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { validateMasterData } from "./validate-core.mjs";
+import { dataRootFromArg } from "./data-root.mjs";
 
 export { validateMasterData };
 
@@ -56,7 +57,7 @@ export async function loadMasterData(root = new URL("../data/master/", import.me
 }
 
 async function main() {
-  const root = process.argv[2] ? new URL(`${process.argv[2].replace(/\/?$/, "/")}`, `file://${process.cwd()}/`) : undefined;
+  const root = dataRootFromArg(process.argv[2], undefined, new URL("../", import.meta.url));
   const result = validateMasterData(await loadMasterData(root));
   if (result.valid) {
     console.log("Master data validation passed");

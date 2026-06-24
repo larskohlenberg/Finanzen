@@ -7,7 +7,7 @@ Gemeinsame Betriebsgrundlage fuer Agentenarbeit im deploybaren App-Raum.
 Der fuehrende Betriebsraum ist `app/`. Alle produktiven Pfade in Agenten-Skills
 sind app-relativ:
 
-- `data/master/...` fuer Masterdaten.
+- `DATENROOT/...` fuer den aktiven Datenbestand.
 - `data/inbox/...` fuer Import-Eingang, Zwischenstaende, verarbeitete Dateien und Fehler.
 - `schemas/...` fuer Datenvertraege.
 - `tools/...` fuer deterministische Betriebstools.
@@ -16,6 +16,24 @@ sind app-relativ:
 
 Die App liest Daten, validiert und zeigt Arbeitsstaende. Sie schreibt keine
 Masterdaten. Schreibende Aenderungen laufen ueber Agenten und Betriebstools.
+
+## Datenmodus-Startcheck
+
+Vor jeder Agentenarbeit muss der aktive Datenmodus ausdruecklich feststehen:
+
+- `DATENMODUS: live` bedeutet `DATENROOT = data/master`.
+- `DATENMODUS: demo` bedeutet `DATENROOT = data/demo`.
+
+Der Wert kommt aus dem App-Prompt oder aus einer ausdruecklichen Nutzeranweisung.
+Fehlt `DATENMODUS` oder `DATENROOT`, gilt **Abbruch statt Raten**: keine Analyse mit
+Schreibabsicht, kein Tool mit Default-Pfad, keine Datei-Aenderung. Der Agent fragt
+dann zuerst nach, ob er auf Echtdaten (`data/master`) oder Demodaten (`data/demo`)
+arbeiten soll.
+
+Vor jedem Schreibzugriff prueft der Agent den Zielpfad sichtbar gegen `DATENROOT`.
+Ein Schreibziel ausserhalb von `DATENROOT` ist ein Fehler und wird nicht ausgefuehrt.
+Wenn eine Skill-Anweisung feste Datenpfade nennt, ist immer der aktive `DATENROOT`
+massgeblich.
 
 ## Arbeitsprinzipien
 
@@ -26,7 +44,7 @@ Masterdaten. Schreibende Aenderungen laufen ueber Agenten und Betriebstools.
   dem Nutzer als Vorschlag vorgelegt.
 - Nutzerentscheidungen und Agentenvorschlaege bleiben getrennt.
 - Nach jedem schreibenden Lauf wird der Validator ausgefuehrt.
-- Jeder schreibende Lauf wird in `data/master/agent_log.jsonl` mit Zaehlern,
+- Jeder schreibende Lauf wird in `DATENROOT/agent_log.jsonl` mit Zaehlern,
   betroffenen IDs und kurzer Notiz protokolliert.
 
 ## Statuslogik
@@ -118,7 +136,7 @@ geschrieben**, nicht nachtraeglich aus dem aktuellen Regelwerk berechnet.
   `matched_regeln`.
 - `matched_regeln` ist **niemals vorhanden** bei `kategorie_herkunft = manuell`,
   `kategorie_herkunft = agent` oder `kategorisierung_status = abgelehnt`.
-- Die IDs in `matched_regeln` muessen in `data/master/kategorisierungsregeln.json`
+- Die IDs in `matched_regeln` muessen in `DATENROOT/kategorisierungsregeln.json`
   existieren; der Validator prueft dies.
 
 Qualitaet von Agenten-Einzelvorschlaegen wird ueber strukturierte Zaehler im
@@ -146,13 +164,18 @@ Wichtige Tools:
 ## Zeitwerte, Anker und Reconciliation
 
 Zeitveraenderliche, beleg- oder schaetzbasierte Werte leben in
-`data/master/zeitwerte.jsonl`. Beispiele sind Kontostand, Depotwert, Marktwert und
+`DATENROOT/zeitwerte.jsonl`. Beispiele sind Kontostand, Depotwert, Marktwert und
 Restschuld.
 
 Konto-Salden und Darlehen-Restschulden brauchen belegte Ankerpunkte, wenn die
 Historie nicht vollstaendig garantiert ist. Laufende Werte werden aus Anker plus
 Bewegungen oder Tilgung berechnet. Aufeinanderfolgende belegte Staende werden
 reconciled; Abweichungen werden als Checks sichtbar und nicht still korrigiert.
+
+Darlehen duerfen zusaetzlich Vertragsdaten wie `zinsbindung_bis`, `laufzeit_bis`
+und `restschuld_laufzeitende` enthalten. Diese Felder dokumentieren Vertrag bzw.
+Erwartung am Laufzeitende; sie sind kein Ersatz fuer den belegten Restschuld-Anker
+in `DATENROOT/zeitwerte.jsonl`.
 
 ## Regelzahlungen und Prognose
 
@@ -167,7 +190,7 @@ Bekannte Stufenaenderungen werden als zwei Regelzahlungen modelliert: die alte m
 
 Szenarien buendeln explizite Annahmen zu einer Was-waere-wenn-Sicht (Liquiditaet,
 Restschuld, Nettovermoegen) gegenueber dem validierten Bestand. Sie liegen in
-`data/master/szenarien.json`, Annahmen sind eingebettet. Eine Annahme ist
+`DATENROOT/szenarien.json`, Annahmen sind eingebettet. Eine Annahme ist
 `einmalzahlung`, `regelzahlung-neu` oder `regelzahlung-aenderung`, je mit
 `qualitaet ∈ {belegt, geschaetzt, offen}`.
 

@@ -29,15 +29,15 @@ export function safeRender(fn, kontext) {
   }
 }
 
-// Aktions-Grenze: umhuellt einen Event-Handler; bei Fehler onError(error) statt
-// stillem Abbruch.
-export function guard(fn, onError) {
+// Aktions-Grenze: umhuellt einen Event-Handler; bei Fehler onError(error, kontext)
+// statt stillem Abbruch.
+export function guard(fn, onError, kontext) {
   return (...args) => {
     try {
       return fn(...args);
     } catch (error) {
       console.error(error);
-      onError(error);
+      onError(error, kontext);
     }
   };
 }

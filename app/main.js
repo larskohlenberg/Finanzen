@@ -435,7 +435,7 @@ app.addEventListener("click", guard((event) => {
     state.regelRailWide = false;
     commitNavigation();
   }
-}, setUiError));
+}, setUiError, "click"));
 
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
@@ -450,7 +450,7 @@ app.addEventListener("keydown", guard((event) => {
   if (!el.matches(KEY_ACTIVATION_SELECTOR)) return;
   event.preventDefault();
   el.click();
-}, setUiError));
+}, setUiError, "keydown"));
 
 // Live-Suche: Textfilter wirken pro Tastendruck; Fokus/Cursor uebersteht das
 // Re-Render via captureFocus/restoreFocus (Selektor ueber die id des Inputs).
@@ -460,7 +460,7 @@ app.addEventListener("input", guard((event) => {
   state.transactionFilters[filter.dataset.filter] = filter.value;
   state.transactionPage = 1;
   render();
-}, setUiError));
+}, setUiError, "input"));
 
 app.addEventListener("change", guard((event) => {
   const control = event.target.closest("[data-control]");
@@ -516,7 +516,7 @@ app.addEventListener("change", guard((event) => {
     state.view = "vermoegen";
     render();
   }
-}, setUiError));
+}, setUiError, "change"));
 
 async function copyNextAgentPrompt(type = "") {
   const nextActionActions = buildNextAgentActions(data);

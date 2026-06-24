@@ -55,3 +55,14 @@ test("guard reicht Rueckgabewert und Argumente bei Erfolg durch", () => {
   const wrapped = guard((a, b) => a + b, () => {});
   assert.equal(wrapped(2, 3), 5);
 });
+
+test("guard reicht den kontext als zweites Argument an onError weiter", () => {
+  let capturedKontext = null;
+  const wrapped = guard(() => {
+    throw new Error("x");
+  }, (_err, kontext) => {
+    capturedKontext = kontext;
+  }, "click");
+  wrapped({ type: "click" });
+  assert.equal(capturedKontext, "click");
+});

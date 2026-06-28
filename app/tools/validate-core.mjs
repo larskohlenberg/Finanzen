@@ -225,9 +225,9 @@ const schemas = {
     optional: true,
     required: ["entitaet", "entitaet_id", "feld", "wert", "standdatum", "qualitaet"],
     fields: {
-      entitaet: { type: "string", enum: ["konto", "immobilie", "vermoegenswert", "darlehen"] },
+      entitaet: { type: "string", enum: ["konto", "immobilie", "vermoegenswert", "darlehen", "vorsorge"] },
       entitaet_id: { type: "string", minLength: 1 },
-      feld: { type: "string", enum: ["kontostand", "depotwert", "marktwert", "restschuld"] },
+      feld: { type: "string", enum: ["kontostand", "depotwert", "marktwert", "restschuld", "rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung"] },
       wert: { type: "string", money: true },
       standdatum: { type: "string", format: "date" },
       qualitaet: { type: "string", enum: ["belegt", "geschaetzt"] },
@@ -414,6 +414,7 @@ function validateCrossFieldRules(data, errors) {
   const immobilien = byId(data.immobilien, "immobilie_id");
   const darlehen = byId(data.darlehen, "darlehen_id");
   const vermoegenswerte = byId(data.vermoegenswerte, "vermoegenswert_id");
+  const vorsorge = byId(data.vorsorge, "vorsorge_id");
 
   data.immobilien?.forEach((imm) => pruefeAnteile(`immobilien.${imm.immobilie_id}`, imm.eigentumsanteile, personen, errors));
   data.vermoegenswerte?.forEach((vmw) => pruefeAnteile(`vermoegenswerte.${vmw.vermoegenswert_id}`, vmw.eigentumsanteile, personen, errors));
@@ -434,7 +435,7 @@ function validateCrossFieldRules(data, errors) {
   });
 
   const zeitwertEntitaeten = {
-    konto: konten, immobilie: immobilien, vermoegenswert: vermoegenswerte, darlehen,
+    konto: konten, immobilie: immobilien, vermoegenswert: vermoegenswerte, darlehen, vorsorge,
   };
   data.zeitwerte?.forEach((zw, i) => {
     const map = zeitwertEntitaeten[zw.entitaet];

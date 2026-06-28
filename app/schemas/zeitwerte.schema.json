@@ -5,9 +5,9 @@
   "required": ["entitaet", "entitaet_id", "feld", "wert", "standdatum", "qualitaet"],
   "additionalProperties": false,
   "properties": {
-    "entitaet": { "type": "string", "enum": ["konto", "immobilie", "vermoegenswert", "darlehen"] },
+    "entitaet": { "type": "string", "enum": ["konto", "immobilie", "vermoegenswert", "darlehen", "vorsorge"] },
     "entitaet_id": { "type": "string", "minLength": 1 },
-    "feld": { "type": "string", "enum": ["kontostand", "depotwert", "marktwert", "restschuld"] },
+    "feld": { "type": "string", "enum": ["kontostand", "depotwert", "marktwert", "restschuld", "rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung"] },
     "wert": { "type": "string", "pattern": "^-?\\d+\\.\\d{2}$" },
     "standdatum": { "type": "string", "format": "date" },
     "qualitaet": { "type": "string", "enum": ["belegt", "geschaetzt"] },

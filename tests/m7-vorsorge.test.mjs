@@ -37,3 +37,19 @@ test("kapitalbildend muss boolean sein", () => {
   const data = basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "riester", name: "X", person_id: "PER-001", status: "aktiv", kapitalbildend: "ja" }] });
   assert.ok(validateMasterData(data).errors.some((e) => e.includes("kapitalbildend")));
 });
+
+test("vorsorge-Zeitwert mit rueckkaufswert ist valide", () => {
+  const data = basis({
+    vorsorge: [{ vorsorge_id: "VS-001", art: "riester", name: "R", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
+    zeitwerte: [{ entitaet: "vorsorge", entitaet_id: "VS-001", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" }],
+  });
+  assert.deepEqual(validateMasterData(data).errors, []);
+});
+
+test("vorsorge-Zeitwert auf unbekannte vorsorge_id ist Fehler", () => {
+  const data = basis({
+    vorsorge: [],
+    zeitwerte: [{ entitaet: "vorsorge", entitaet_id: "VS-999", feld: "erwartete_rente", wert: "1480.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" }],
+  });
+  assert.ok(validateMasterData(data).errors.some((e) => e.includes("VS-999")));
+});

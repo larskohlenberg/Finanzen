@@ -69,3 +69,22 @@ test("Regelzahlung mit unbekannter vorsorge_id ist Fehler", () => {
   });
   assert.ok(validateMasterData(data).errors.some((e) => e.includes("VS-404")));
 });
+
+test("Vorsorge mit unbekannter person_id ist Fehler", () => {
+  const data = basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "riester", name: "R", person_id: "PER-999", status: "aktiv", kapitalbildend: true }] });
+  assert.ok(validateMasterData(data).errors.some((e) => e.includes("PER-999")));
+});
+
+test("ersetzt_vorsorge_id muss auf existierende Vorsorge zeigen", () => {
+  const data = basis({ vorsorge: [{ vorsorge_id: "VS-002", art: "schutzversicherung", name: "KFZ neu", person_id: "PER-001", status: "aktiv", kapitalbildend: false, ersetzt_vorsorge_id: "VS-001" }] });
+  assert.ok(validateMasterData(data).errors.some((e) => e.includes("ersetzt_vorsorge_id")));
+});
+
+test("vorsorge-leistung-Annahme mit unbekannter vorsorge_id ist Fehler", () => {
+  const data = basis({
+    vorsorge: [],
+    szenarien: [{ szenario_id: "SZN-001", name: "Ruhestand", status: "entwurf", stand: "2026-06-28", reichweite_bis: "2050-12-31", erstellt_am: "2026-06-28",
+      annahmen: [{ annahme_id: "A1", art: "vorsorge-leistung", vorsorge_id: "VS-777", arm: "rente", ab: "2042-01-01" }] }],
+  });
+  assert.ok(validateMasterData(data).errors.some((e) => e.includes("VS-777")));
+});

@@ -454,6 +454,19 @@ function validateCrossFieldRules(data, errors) {
     }
   });
 
+  data.vorsorge?.forEach((vs) => {
+    if (!personen.has(vs.person_id)) {
+      errors.push(`vorsorge.${vs.vorsorge_id}.person_id: ${vs.person_id} existiert nicht`);
+    }
+    if (vs.ersetzt_vorsorge_id) {
+      if (vs.ersetzt_vorsorge_id === vs.vorsorge_id) {
+        errors.push(`vorsorge.${vs.vorsorge_id}.ersetzt_vorsorge_id: darf nicht auf sich selbst zeigen`);
+      } else if (!vorsorge.has(vs.ersetzt_vorsorge_id)) {
+        errors.push(`vorsorge.${vs.vorsorge_id}.ersetzt_vorsorge_id: ${vs.ersetzt_vorsorge_id} existiert nicht`);
+      }
+    }
+  });
+
   validateSzenarien(data, errors);
 }
 
@@ -500,6 +513,7 @@ function validateSzenarien(data, errors) {
   const immoIds = new Set((data.immobilien ?? []).filter((i) => i.status !== "verkauft").map((i) => i.immobilie_id));
   const vmwIds = new Set((data.vermoegenswerte ?? []).filter((v) => v.status !== "veraeussert").map((v) => v.vermoegenswert_id));
   const rzIds = new Set((data.regelzahlungen ?? []).map((r) => r.regelzahlung_id));
+  const vorsorgeIds = new Set((data.vorsorge ?? []).map((v) => v.vorsorge_id));
   const idMengen = { darlehen: darlehenIds, depot: depotIds, immobilie: immoIds, vermoegenswert: vmwIds };
 
   for (const sz of data.szenarien ?? []) {
@@ -514,7 +528,7 @@ function validateSzenarien(data, errors) {
       else if (gesehen.has(a.annahme_id)) errors.push(`${ap}: annahme_id doppelt`);
       gesehen.add(a.annahme_id);
 
-      if (!["einmalzahlung", "regelzahlung-neu", "regelzahlung-aenderung"].includes(a.art)) {
+      if (!["einmalzahlung", "regelzahlung-neu", "regelzahlung-aenderung", "vorsorge-leistung"].includes(a.art)) {
         errors.push(`${ap}: art unbekannt`);
         continue;
       }
@@ -526,6 +540,14 @@ function validateSzenarien(data, errors) {
         if (!["beenden", "betrag-aendern"].includes(a.aktion)) errors.push(`${ap}: aktion ungueltig`);
         if (a.aktion === "betrag-aendern" && !istGueltigerBetrag(a.betrag)) errors.push(`${ap}: betrag-aendern braucht gueltigen betrag`);
         if (a.gegenbuchung) errors.push(`${ap}: regelzahlung-aenderung darf keine gegenbuchung haben`);
+        continue;
+      }
+
+      if (a.art === "vorsorge-leistung") {
+        if (!vorsorgeIds.has(a.vorsorge_id)) errors.push(`${ap}: vorsorge_id ${a.vorsorge_id} existiert nicht`);
+        if (!["rente", "kapital"].includes(a.arm)) errors.push(`${ap}: arm ungueltig (rente|kapital)`);
+        if (!isIsoDate(a.ab)) errors.push(`${ap}: ab fehlt/ungueltig`);
+        if (a.gegenbuchung) errors.push(`${ap}: vorsorge-leistung darf keine gegenbuchung haben (wird zur Rechenzeit erzeugt)`);
         continue;
       }
 

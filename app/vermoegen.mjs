@@ -159,6 +159,16 @@ export function computeNettovermoegen(data, today) {
     positionen.push({ klasse: "vermoegenswert", id: vmw.vermoegenswert_id, name: vmw.bezeichnung, wert_cents: cents, basis: "marktwert", qualitaet: mw.qualitaet, standdatum: mw.standdatum, fehlt: false });
   }
 
+  for (const vs of data.vorsorge ?? []) {
+    if (!vs.kapitalbildend) continue;
+    const rw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "rueckkaufswert");
+    if (!rw) { fehlend++; positionen.push({ klasse: "vorsorge", id: vs.vorsorge_id, name: vs.name, wert_cents: 0, basis: "rueckkaufswert-fehlt", qualitaet: null, standdatum: null, fehlt: true }); continue; }
+    const cents = toCents(rw.wert);
+    aktiva += cents;
+    if (rw.qualitaet === "belegt") belegt++; else if (rw.qualitaet === "geschaetzt") geschaetzt++;
+    positionen.push({ klasse: "vorsorge", id: vs.vorsorge_id, name: vs.name, wert_cents: cents, basis: "rueckkaufswert", qualitaet: rw.qualitaet, standdatum: rw.standdatum, fehlt: false });
+  }
+
   for (const dar of data.darlehen ?? []) {
     if (dar.status === "abgeloest") continue;
     const r = restschuldHeute(dar, data.zeitwerte, today);

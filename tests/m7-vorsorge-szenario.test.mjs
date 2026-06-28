@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rechneSzenario } from "../app/szenarien.mjs";
+import { rechneSzenario, expandVorsorgeLeistungen } from "../app/szenarien.mjs";
 
 const TODAY = "2026-06-28";
 
@@ -79,4 +79,54 @@ test("ungepruefte Anwartschaft zieht Szenario-Qualitaet auf offen", () => {
     annahmen: [{ annahme_id: "A1", art: "vorsorge-leistung", vorsorge_id: "VS-006", arm: "rente", ab: "2026-07-01" }] };
   const r = rechneSzenario(data, szn, TODAY);
   assert.equal(r.qualitaet, "offen");
+});
+
+// --- expandVorsorgeLeistungen: direkte Unit-Tests der bislang nur indirekt gedeckten Zweige ---
+
+test("expand: arm kapital bei !kapitalbildend -> einmalzahlung OHNE gegenbuchung", () => {
+  const data = baseData({
+    vorsorge: [{ vorsorge_id: "VS-005", art: "lebensversicherung", name: "Risiko-LV", person_id: "PER-002", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-01-01" }],
+  });
+  data.zeitwerte.push({ entitaet: "vorsorge", entitaet_id: "VS-005", feld: "erwartete_kapitalleistung", wert: "200000.00", standdatum: "2026-01-01", qualitaet: "belegt" });
+  const szn = { annahmen: [{ annahme_id: "A1", art: "vorsorge-leistung", vorsorge_id: "VS-005", arm: "kapital", ab: "2028-03-15" }] };
+  const { szenario, warnungen } = expandVorsorgeLeistungen(data, szn, TODAY);
+  assert.equal(warnungen.length, 0);
+  assert.equal(szenario.annahmen.length, 1); // kein ~abbau, da nicht kapitalbildend
+  const a = szenario.annahmen[0];
+  assert.equal(a.art, "einmalzahlung");
+  assert.equal(a.betrag, "200000.00");
+  assert.equal(a.gegenbuchung, undefined); // kein Rueckkaufswert-Abbau ohne Bilanz-Bein
+});
+
+test("expand: arm rente reicht explizites bis durch", () => {
+  const data = baseData({
+    vorsorge: [{ vorsorge_id: "VS-006", art: "betriebsrente", name: "bAV Lena", person_id: "PER-001", status: "geplant", kapitalbildend: false, geprueft_am: "2026-01-01" }],
+  });
+  data.zeitwerte.push({ entitaet: "vorsorge", entitaet_id: "VS-006", feld: "erwartete_rente", wert: "240.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" });
+  const szn = { annahmen: [{ annahme_id: "A1", art: "vorsorge-leistung", vorsorge_id: "VS-006", arm: "rente", ab: "2028-04-01", bis: "2035-07-31" }] };
+  const { szenario } = expandVorsorgeLeistungen(data, szn, TODAY);
+  assert.equal(szenario.annahmen.length, 1); // nicht kapitalbildend -> kein ~abbau
+  const a = szenario.annahmen[0];
+  assert.equal(a.art, "regelzahlung-neu");
+  assert.equal(a.ab, "2028-04-01");
+  assert.equal(a.bis, "2035-07-31");
+});
+
+test("expand: unbekannte vorsorge_id erzeugt warnung vorsorge-unbekannt und keine annahme", () => {
+  const data = baseData({ vorsorge: [] });
+  const szn = { annahmen: [{ annahme_id: "A1", art: "vorsorge-leistung", vorsorge_id: "VS-999", arm: "rente", ab: "2028-04-01" }] };
+  const { szenario, warnungen } = expandVorsorgeLeistungen(data, szn, TODAY);
+  assert.equal(szenario.annahmen.length, 0);
+  assert.ok(warnungen.some((w) => w.code === "vorsorge-unbekannt"));
+});
+
+test("expand: fehlender zeitwert erzeugt warnung vorsorge-leistung-ohne-wert und keine annahme", () => {
+  const data = baseData({
+    vorsorge: [{ vorsorge_id: "VS-006", art: "betriebsrente", name: "bAV", person_id: "PER-001", status: "geplant", kapitalbildend: false, geprueft_am: "2026-01-01" }],
+  });
+  // kein erwartete_rente-Zeitwert fuer VS-006 angehaengt
+  const szn = { annahmen: [{ annahme_id: "A1", art: "vorsorge-leistung", vorsorge_id: "VS-006", arm: "rente", ab: "2028-04-01" }] };
+  const { szenario, warnungen } = expandVorsorgeLeistungen(data, szn, TODAY);
+  assert.equal(szenario.annahmen.length, 0);
+  assert.ok(warnungen.some((w) => w.code === "vorsorge-leistung-ohne-wert"));
 });

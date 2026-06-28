@@ -46,7 +46,9 @@ test("Vorsorge-Liste rendert Rueckkaufswert und ungeprueft-Badge", () => {
     { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" },
     { entitaet: "vorsorge", entitaet_id: "VS-006", feld: "erwartete_rente", wert: "240.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },
   ];
-  data.regelzahlungen = [];
+  data.regelzahlungen = [
+    { regelzahlung_id: "RZ-014", bezeichnung: "Riester-Beitrag Lena", betrag: "-162.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt", erstellt_am: "2026-01-01", vorsorge_id: "VS-003" },
+  ];
   data.personen = [{ person_id: "PER-001", name: "Lena", status: "aktiv" }];
   data.konten = [];
   data.kategorien = [];
@@ -62,4 +64,11 @@ test("Vorsorge-Liste rendert Rueckkaufswert und ungeprueft-Badge", () => {
   assert.match(html, /Riester Lena/, "Contract name must appear in the list");
   assert.match(html, /9\.100/, "Rueckkaufswert must be rendered as money (9.100)");
   assert.match(html, /ungeprüft/, "Ungeprueft badge label must appear");
+  assert.match(html, /kapitalbildend/, "kapitalbildend badge must appear");
+  assert.match(html, /Riester-Beitrag Lena/, "Linked Beitrag-Regelzahlung must be listed");
+  assert.match(html, /nicht im Vermögen/, "Anwartschaft label must mark non-wealth income leg");
+  assert.match(html, /nicht als sichere Zukunftswerte/, "Always-visible ungeprueft hint box must render");
+  // M-1: status chips localize via status.* i18n keys (not raw enum)
+  assert.match(html, /Aktiv/, "Status 'aktiv' must localize to 'Aktiv'");
+  assert.match(html, /Geplant/, "Status 'geplant' must localize to 'Geplant' (was raw 'geplant' before status.* keys existed)");
 });

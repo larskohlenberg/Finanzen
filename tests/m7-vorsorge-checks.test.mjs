@@ -61,3 +61,32 @@ test("vorsorge-wechsel schweigt bei vergangenem Ende", () => {
   }, TODAY);
   assert.ok(!checks.some((c) => c.art === "vorsorge-wechsel"));
 });
+
+test("vorsorge-wechsel warnt bei Deckungsluecke (Nachfolger schliesst nicht lueckenlos an)", () => {
+  const checks = computeVermoegenChecks({ ...base,
+    vorsorge: [
+      { vorsorge_id: "VS-007", art: "schutzversicherung", name: "KFZ-HV alt", person_id: "PER-001", status: "gekuendigt", kapitalbildend: false, geprueft_am: "2026-01-01" },
+      { vorsorge_id: "VS-008", art: "schutzversicherung", name: "KFZ-HV neu", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-01-01", ersetzt_vorsorge_id: "VS-007" },
+    ],
+    regelzahlungen: [
+      { regelzahlung_id: "RZ-014", bezeichnung: "KFZ alt", betrag: "-92.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2025-01-01", aktiv_bis: "2026-12-31", status: "bestaetigt", erstellt_am: "2025-01-01", vorsorge_id: "VS-007" },
+      // Nachfolger beginnt erst 2027-03-01 -> Luecke nach ende+1Tag (2027-01-01)
+      { regelzahlung_id: "RZ-015", bezeichnung: "KFZ neu", betrag: "-88.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2027-03-01", status: "bestaetigt", erstellt_am: "2026-12-01", vorsorge_id: "VS-008" },
+    ],
+  }, TODAY);
+  assert.ok(checks.some((c) => c.art === "vorsorge-wechsel" && c.entitaet_id === "VS-007" && /Deckungsl/.test(c.text)));
+});
+
+test("vorsorge-wechsel warnt wenn Nachfolger gar keinen Beitrag traegt", () => {
+  const checks = computeVermoegenChecks({ ...base,
+    vorsorge: [
+      { vorsorge_id: "VS-007", art: "schutzversicherung", name: "KFZ-HV alt", person_id: "PER-001", status: "gekuendigt", kapitalbildend: false, geprueft_am: "2026-01-01" },
+      { vorsorge_id: "VS-008", art: "schutzversicherung", name: "KFZ-HV neu", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-01-01", ersetzt_vorsorge_id: "VS-007" },
+    ],
+    regelzahlungen: [
+      { regelzahlung_id: "RZ-014", bezeichnung: "KFZ alt", betrag: "-92.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2025-01-01", aktiv_bis: "2026-12-31", status: "bestaetigt", erstellt_am: "2025-01-01", vorsorge_id: "VS-007" },
+      // VS-008 hat keine Beitrags-Regelzahlung
+    ],
+  }, TODAY);
+  assert.ok(checks.some((c) => c.art === "vorsorge-wechsel" && c.entitaet_id === "VS-007"));
+});

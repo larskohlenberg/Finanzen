@@ -143,7 +143,7 @@ function sammleSachwertGegenbuchungen(szenario, today, horizon) {
   for (const a of szenario.annahmen ?? []) {
     if (a.art !== "einmalzahlung") continue;
     const g = a.gegenbuchung;
-    if (!g || (g.ziel_typ !== "immobilie" && g.ziel_typ !== "vermoegenswert")) continue;
+    if (!g || (g.ziel_typ !== "immobilie" && g.ziel_typ !== "vermoegenswert" && g.ziel_typ !== "vorsorge")) continue;
     if (!(a.datum > today && a.datum <= horizon)) continue;
     const cash_cents = toCents(a.betrag);
     if (g.ziel_id) {

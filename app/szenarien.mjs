@@ -125,6 +125,13 @@ function sachwertStartwerte(data, today) {
     werte.set(`vermoegenswert:${v.vermoegenswert_id}`, zw ? anteilWertCents(toCents(zw.wert), v.eigentumsanteile) : 0);
     qualitaeten.push(zw ? zw.qualitaet : "offen");
   }
+  for (const vs of data.vorsorge ?? []) {
+    if (!vs.kapitalbildend) continue;
+    if (vs.status === "beendet" || vs.status === "gekuendigt") continue;
+    const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "rueckkaufswert", today);
+    werte.set(`vorsorge:${vs.vorsorge_id}`, zw ? toCents(zw.wert) : 0);
+    qualitaeten.push(zw ? zw.qualitaet : "offen");
+  }
   return { werte, qualitaeten };
 }
 

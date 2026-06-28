@@ -191,9 +191,42 @@ function restschuldProjektion(darlehen, zeitwerte, today, horizon, sondertilgung
   return { reihe, abbezahlt_am, qualitaet: best.qualitaet, effektive, start_cents: startCents, hatZeitwert: true };
 }
 
+// vorsorge-leistung-Annahmen in vorhandene Primitive aufloesen: Arm 'rente' -> unbefristete
+// regelzahlung-neu (lebenslanges Einkommen) + bei kapitalbildenden Vertraegen ein 0-Cash-
+// einmalzahlung-Abbau des Rueckkaufswerts (Verrentung); Arm 'kapital' -> einmalzahlung
+// (Kapitalzufluss) + Abbau bei kapitalbildend. Qualitaet: ungeprueft -> offen.
+export function expandVorsorgeLeistungen(data, szenario, today) {
+  const annahmen = [];
+  const warnungen = [];
+  for (const a of szenario.annahmen ?? []) {
+    if (a.art !== "vorsorge-leistung") { annahmen.push(a); continue; }
+    const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === a.vorsorge_id);
+    if (!vs) { warnungen.push({ code: "vorsorge-unbekannt", text: `Annahme ${a.annahme_id} verweist auf unbekannte Vorsorge ${a.vorsorge_id}` }); continue; }
+    const feld = a.arm === "kapital" ? "erwartete_kapitalleistung" : "erwartete_rente";
+    const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", a.vorsorge_id, feld, today);
+    if (!zw) { warnungen.push({ code: "vorsorge-leistung-ohne-wert", text: `Vorsorge ${a.vorsorge_id} hat keinen ${feld}-Zeitwert` }); continue; }
+    const qualitaet = vs.geprueft_am ? (zw.qualitaet ?? "offen") : "offen";
+    if (a.arm === "kapital") {
+      annahmen.push({ annahme_id: a.annahme_id, art: "einmalzahlung", datum: a.ab, betrag: zw.wert, qualitaet,
+        gegenbuchung: vs.kapitalbildend ? { ziel_typ: "vorsorge", ziel_id: vs.vorsorge_id } : undefined });
+    } else {
+      annahmen.push({ annahme_id: a.annahme_id, art: "regelzahlung-neu", name: vs.name, betrag: zw.wert, qualitaet,
+        rhythmus_einheit: "monat", rhythmus_intervall: 1, ab: a.ab, bis: a.bis });
+      if (vs.kapitalbildend) {
+        annahmen.push({ annahme_id: `${a.annahme_id}~abbau`, art: "einmalzahlung", datum: a.ab, betrag: "0.00", qualitaet,
+          gegenbuchung: { ziel_typ: "vorsorge", ziel_id: vs.vorsorge_id } });
+      }
+    }
+  }
+  return { szenario: { ...szenario, annahmen }, warnungen };
+}
+
 export function rechneSzenario(data, szenario, today) {
   const horizon = szenario.reichweite_bis;
   const warnungen = [];
+  const { szenario: szenarioExpandiert, warnungen: vw } = expandVorsorgeLeistungen(data, szenario, today);
+  szenario = szenarioExpandiert;
+  warnungen.push(...vw);
   const { rzs, warnungen: mw } = modifizierteRegelzahlungen(data, szenario);
   warnungen.push(...mw);
 

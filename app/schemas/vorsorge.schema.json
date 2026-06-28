@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vorsorge",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["vorsorge_id", "art", "name", "person_id", "status", "kapitalbildend"],
+    "additionalProperties": false,
+    "properties": {
+      "vorsorge_id": { "type": "string", "pattern": "^VS-\\d{3}$" },
+      "art": { "type": "string", "enum": ["lebensversicherung", "rentenversicherung", "gesetzliche-rente", "betriebsrente", "riester", "ruerup", "schutzversicherung", "sonstig"] },
+      "name": { "type": "string", "minLength": 1 },
+      "person_id": { "type": "string", "pattern": "^PER-\\d{3}$" },
+      "status": { "type": "string", "enum": ["aktiv", "gekuendigt", "ruhend", "geplant", "laufend", "beendet"] },
+      "kapitalbildend": { "type": "boolean" },
+      "kapitalwahl": { "type": "string", "enum": ["offen", "monatsrente", "kapital"] },
+      "geprueft_am": { "type": "string", "format": "date" },
+      "leistung_beginn": { "type": "string", "format": "date" },
+      "ersetzt_vorsorge_id": { "type": "string", "pattern": "^VS-\\d{3}$" },
+      "aktiv_bis": { "type": "string", "format": "date" },
+      "quelle_hinweis": { "type": "string" },
+      "quelle_standdatum": { "type": "string", "format": "date" },
+      "bemerkung": { "type": "string" }
+    }
+  }
+}

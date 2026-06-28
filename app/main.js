@@ -3,6 +3,7 @@ import { iconSvg } from "./icons.js";
 import { buildNextAgentActions } from "./next-action.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
+import { renderVorsorge } from "./views/vorsorge.mjs";
 import { renderSzenarien } from "./views/szenarien.mjs";
 import { renderTransactions, filteredTransactions, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
@@ -329,6 +330,7 @@ function renderView() {
   if (state.view === "liquiditaet") return renderLiquiditaet();
   if (state.view === "regelzahlungen") return renderRegelzahlungen();
   if (state.view === "vermoegen") return renderVermoegen();
+  if (state.view === "vorsorge") return renderVorsorge();
   if (state.view === "szenarien") return renderSzenarien();
   if (state.view === "masterdata") return renderMasterdata();
   if (state.view === "checks") return renderChecks();

@@ -745,6 +745,18 @@ button.mini-kpi.linkish {
   color: var(--muted);
 }
 
+.chip.kapitalbildend {
+  border-color: color-mix(in srgb, var(--success) 38%, var(--border));
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.chip.ungeprueft {
+  border-color: color-mix(in srgb, var(--review) 38%, var(--border));
+  background: var(--review-soft);
+  color: var(--review);
+}
+
 .chip.demo {
   border-color: color-mix(in srgb, #2f75a8 42%, var(--border));
   background: color-mix(in srgb, #dff0ff 76%, var(--surface));
@@ -772,6 +784,24 @@ button.mini-kpi.linkish {
 
 .overview-rail .next-action {
   min-height: 100%;
+}
+
+.vorsorge-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vorsorge-hint p,
+.vorsorge-meta {
+  margin: 0;
+}
+
+.vorsorge-status,
+.vorsorge-beitraege,
+.vorsorge-meta {
+  display: grid;
+  gap: 6px;
 }
 
 .rail-list {

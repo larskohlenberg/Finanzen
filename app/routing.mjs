@@ -9,6 +9,7 @@ const VIEW_SLUG = {
   transactions: "transaktionen",
   liquiditaet: "liquiditaet",
   vermoegen: "vermoegen",
+  vorsorge: "vorsorge",
   regelzahlungen: "regelzahlungen",
   szenarien: "szenarien",
   masterdata: "stammdaten",
@@ -63,6 +64,9 @@ export function parseRoute(hash) {
   }
   if (head === "vermoegen") {
     return tail ? { view: "vermoegen", selectedVermoegenId: tail } : { view: "vermoegen" };
+  }
+  if (head === "vorsorge") {
+    return { view: "vorsorge" };
   }
   if (head === "szenarien") {
     return tail ? { view: "szenarien", selectedSzenarioId: tail } : { view: "szenarien" };

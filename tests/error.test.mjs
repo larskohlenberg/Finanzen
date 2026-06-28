@@ -18,6 +18,17 @@ await import("../app/i18n.js");
 
 const { renderErrorPanel, safeRender, guard } = await import("../app/error.mjs");
 
+function withCapturedConsoleError(fn) {
+  const original = console.error;
+  const calls = [];
+  console.error = (...args) => calls.push(args);
+  try {
+    return { result: fn(), calls };
+  } finally {
+    console.error = original;
+  }
+}
+
 test("renderErrorPanel zeigt Meldung und Stacktrace im aufklappbaren Block", () => {
   const error = new Error("toCents is not defined");
   error.stack = "Error: toCents is not defined\n    at renderRegelzahlungen";
@@ -33,11 +44,12 @@ test("safeRender reicht das HTML bei Erfolg unveraendert durch", () => {
 });
 
 test("safeRender liefert das Fehler-Panel statt zu werfen", () => {
-  const html = safeRender(() => {
+  const { result: html, calls } = withCapturedConsoleError(() => safeRender(() => {
     throw new Error("boom");
-  }, "view:test");
+  }, "view:test"));
   assert.match(html, /<details>/);
   assert.match(html, /boom/);
+  assert.equal(calls.length, 1);
 });
 
 test("guard ruft onError mit dem Fehler auf und wirft nicht weiter", () => {
@@ -47,8 +59,11 @@ test("guard ruft onError mit dem Fehler auf und wirft nicht weiter", () => {
   }, (err) => {
     captured = err;
   });
-  assert.doesNotThrow(() => wrapped({ type: "click" }));
+  const { calls } = withCapturedConsoleError(() => {
+    assert.doesNotThrow(() => wrapped({ type: "click" }));
+  });
   assert.equal(captured?.message, "klick kaputt");
+  assert.equal(calls.length, 1);
 });
 
 test("guard reicht Rueckgabewert und Argumente bei Erfolg durch", () => {
@@ -63,6 +78,7 @@ test("guard reicht den kontext als zweites Argument an onError weiter", () => {
   }, (_err, kontext) => {
     capturedKontext = kontext;
   }, "click");
-  wrapped({ type: "click" });
+  const { calls } = withCapturedConsoleError(() => wrapped({ type: "click" }));
   assert.equal(capturedKontext, "click");
+  assert.equal(calls.length, 1);
 });

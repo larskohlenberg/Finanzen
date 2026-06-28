@@ -253,6 +253,17 @@ test("loan-without-rate check prompt also names regelzahlung skill", () => {
   assert.match(action.prompt, /docs\/skills\/regelzahlung-agent\.md/);
 });
 
+test("vorsorge check prompt also names vorsorge skill", () => {
+  const action = buildNextAgentAction(baseData(), {
+    vermoegenChecks: [{ art: "vorsorge-ungeprueft", entitaet: "vorsorge", entitaet_id: "VS-1" }],
+  });
+
+  assert.equal(action.type, "wealth-checks");
+  assert.match(action.prompt, /docs\/skills\/stammdaten-erfassung-agent\.md/);
+  assert.match(action.prompt, /docs\/skills\/vorsorge-erfassung-agent\.md/);
+  assert.deepEqual(action.extraSkillPaths, ["docs/skills/vorsorge-erfassung-agent.md"]);
+});
+
 test("ein Szenario-Entwurf erzeugt keine Next-Action (Pull, nicht Push)", () => {
   const data = baseData({
     szenarien: [{ szenario_id: "SZN-001", name: "Test", status: "entwurf", stand: "2026-06-01", reichweite_bis: "2026-12-31", erstellt_am: "2026-06-01", annahmen: [] }],

@@ -17,7 +17,10 @@ const SKILLS = {
   suggestedRegularPayments: "docs/skills/regelzahlung-agent.md",
   wealthChecks: "docs/skills/stammdaten-erfassung-agent.md",
   regularPayments: "docs/skills/regelzahlung-agent.md",
+  vorsorge: "docs/skills/vorsorge-erfassung-agent.md",
 };
+
+const VORSORGE_CHECK_ARTS = new Set(["vorsorge-ungeprueft", "vorsorge-wiedervorlage", "vorsorge-wechsel"]);
 
 function countBy(items, predicate) {
   return Array.isArray(items) ? items.filter((item) => item != null && predicate(item)).length : 0;
@@ -197,7 +200,10 @@ export function buildNextAgentActions(data, options = {}) {
   }
 
   if (summary.wealthChecks > 0) {
-    const extra = checks.some((check) => check.art === "darlehen-ohne-regelzahlung") ? [SKILLS.regularPayments] : [];
+    const extra = [
+      ...(checks.some((check) => check.art === "darlehen-ohne-regelzahlung") ? [SKILLS.regularPayments] : []),
+      ...(checks.some((check) => VORSORGE_CHECK_ARTS.has(check.art)) ? [SKILLS.vorsorge] : []),
+    ];
     actions.push(action(
       "wealth-checks",
       summary.wealthChecks,

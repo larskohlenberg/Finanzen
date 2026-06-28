@@ -186,6 +186,46 @@ Szenarien werden nicht als bestaetigte Regelzahlungen modelliert.
 Bekannte Stufenaenderungen werden als zwei Regelzahlungen modelliert: die alte mit
 `aktiv_bis`, die neue mit eigenem `anker_datum`.
 
+## Vorsorge
+
+Vorsorgeansprueche liegen in `DATENROOT/vorsorge.json` und folgen
+`schemas/vorsorge.schema.json`. `art` ist der fachliche Diskriminator, z. B.
+`gesetzliche-rente`, `betriebsrente`, `riester`, `rentenversicherung`,
+`lebensversicherung` oder `schutzversicherung`. `kapitalbildend = true` bedeutet:
+der aktuelle `rueckkaufswert` fliesst als Aktivum ins Nettovermoegen. Nicht
+kapitalbildende Ansprueche sind Anwartschaften oder Schutzvertraege und erzeugen
+ohne Szenario keine Bilanzposition.
+
+Zeitwerte zu Vorsorge stehen in `DATENROOT/zeitwerte.jsonl` mit
+`entitaet = "vorsorge"` und Feldern aus `schemas/zeitwerte.schema.json`:
+
+- `rueckkaufswert`: aktueller verwertbarer Wert kapitalbildender Vorsorge.
+- `erwartete_rente`: erwartete monatliche Leistung, als Netto-Wert oder klar
+  gekennzeichnete Netto-Schaetzung.
+- `erwartete_kapitalleistung`: erwartete einmalige Kapitalleistung.
+
+Laufende Beitraege werden einseitig von `DATENROOT/regelzahlungen.json` aus
+verknuepft: `Regelzahlung.vorsorge_id` zeigt auf `vorsorge.vorsorge_id`. Die
+Vorsorge-Entitaet traegt keine Rueckliste ihrer Beitraege. Reine
+Schutzversicherungen haben normalerweise nur diesen Beitrags-Link und keinen
+Rueckkaufswert.
+
+In Szenarien wird die Annahme-Art `vorsorge-leistung` verwendet. Sie verweist auf
+`vorsorge_id` und einen Arm (`rente` oder `kapital`). `szenarien.mjs` loest diese
+Annahme zur Rechenzeit in vorhandene Primitive auf: Rente wird zu
+`regelzahlung-neu`, Kapitalleistung zu `einmalzahlung`; bei kapitalbildender
+Vorsorge wird der Rueckkaufswert ueber eine Gegenbuchung abgebaut. Fehlt
+`geprueft_am`, deckelt die Engine die Qualitaet auf `offen`.
+
+Vorsorge-Checks werden von `vermoegen.mjs` geliefert und in den
+Vermoegens-/Liquiditaetschecks sichtbar:
+
+- `vorsorge-ungeprueft`: kein `geprueft_am`; der Anspruch darf nicht still als
+  sicherer Zukunftswert gelten.
+- `vorsorge-wiedervorlage`: Pruefung oder juengster Vorsorge-Zeitwert ist zu alt.
+- `vorsorge-wechsel`: ein Beitragsende liegt im Wechselhorizont und ein
+  Nachfolger fehlt oder schliesst nicht lueckenlos an.
+
 ## Szenarien
 
 Szenarien buendeln explizite Annahmen zu einer Was-waere-wenn-Sicht (Liquiditaet,

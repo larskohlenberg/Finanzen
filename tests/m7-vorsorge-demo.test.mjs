@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { validateMasterData } from "../app/tools/validate-core.mjs";
+import { loadMasterData } from "../app/tools/validator.mjs";
 import { computeSzenario } from "../app/szenarien.mjs";
 
 function ladeDemo() {
@@ -34,4 +35,11 @@ test("Todesfall-Szenario SZN-005 rechnet ohne Wertfehler", () => {
   const szn = data.szenarien.find((s) => s.szenario_id === "SZN-005");
   const { szenario } = computeSzenario(data, szn, "2026-06-22");
   assert.ok(szenario.punkte.length > 0);
+});
+
+test("CLI-Loader (loadMasterData) traegt die vorsorge-Collection", async () => {
+  // sonst ueberspringt `npm run validate:master` alle Vorsorge-Pruefungen,
+  // sobald der reale Bestand in app/data/master/vorsorge.json liegt.
+  const master = await loadMasterData();
+  assert.ok(Array.isArray(master.vorsorge), "vorsorge muss als Liste geladen werden, nicht undefined");
 });

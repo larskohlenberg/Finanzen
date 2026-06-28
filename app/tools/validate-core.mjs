@@ -109,6 +109,7 @@ const schemas = {
       status: { type: "string", enum: ["vorgeschlagen", "bestaetigt", "abgelehnt"] },
       kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
       darlehen_id: { type: "string", pattern: /^DAR-\d{3}$/ },
+      vorsorge_id: { type: "string", pattern: /^VS-\d{3}$/ },
       erstellt_am: { type: "string", format: "date" },
       qualitaet: { type: "string", enum: ["belegt", "geschaetzt"] },
       quelle_hinweis: { type: "string" },
@@ -447,6 +448,9 @@ function validateCrossFieldRules(data, errors) {
   data.regelzahlungen?.forEach((rz) => {
     if (rz.darlehen_id && !darlehen.has(rz.darlehen_id)) {
       errors.push(`regelzahlungen.${rz.regelzahlung_id}.darlehen_id: ${rz.darlehen_id} existiert nicht`);
+    }
+    if (rz.vorsorge_id && !vorsorge.has(rz.vorsorge_id)) {
+      errors.push(`regelzahlungen.${rz.regelzahlung_id}.vorsorge_id: ${rz.vorsorge_id} existiert nicht`);
     }
   });
 

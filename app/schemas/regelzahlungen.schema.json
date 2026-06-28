@@ -17,6 +17,7 @@
       "status": { "type": "string", "enum": ["vorgeschlagen", "bestaetigt", "abgelehnt"] },
       "kategorie_id": { "type": "string", "pattern": "^KAT-\\d{3}$" },
       "darlehen_id": { "type": "string", "pattern": "^DAR-\\d{3}$" },
+      "vorsorge_id": { "type": "string", "pattern": "^VS-\\d{3}$" },
       "erstellt_am": { "type": "string", "format": "date" },
       "qualitaet": { "type": "string", "enum": ["belegt", "geschaetzt"] },
       "quelle_hinweis": { "type": "string" },

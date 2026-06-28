@@ -89,6 +89,7 @@ export function anteilWertCents(marktwertCents, eigentumsanteile) {
 
 export const STANDDATUM_SCHWELLEN = {
   immobilie: 12,
+  vorsorge: 12,
   vermoegenswert_edelmetall: 6,
   vermoegenswert_beteiligung: 12,
   vermoegenswert_sonstiges: 12,
@@ -254,6 +255,25 @@ export function computeVermoegenChecks(data, today) {
     if (!anker) checks.push({ art: "anker-fehlt", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: kein belegter Restschuldstand` });
     const hatRate = (data.regelzahlungen ?? []).some((rz) => rz.darlehen_id === dar.darlehen_id && rz.status === "bestaetigt");
     if (!hatRate) checks.push({ art: "darlehen-ohne-regelzahlung", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: Rate nicht in der Liquiditätsprognose — Regelzahlung anlegen?` });
+  }
+
+  for (const vs of data.vorsorge ?? []) {
+    if (vs.status === "beendet" || vs.status === "gekuendigt") continue;
+    if (!vs.geprueft_am) {
+      checks.push({ art: "vorsorge-ungeprueft", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: ungeprüfter Anspruch — darf nicht als sicherer Zukunftswert gelten` });
+      continue;
+    }
+
+    const felder = ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung"];
+    let juengstes = vs.geprueft_am;
+    for (const feld of felder) {
+      const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld);
+      if (zw && zw.standdatum > juengstes) juengstes = zw.standdatum;
+    }
+
+    if (monateZwischen(juengstes, today) >= STANDDATUM_SCHWELLEN.vorsorge) {
+      checks.push({ art: "vorsorge-wiedervorlage", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: letzte Prüfung/Mitteilung vom ${juengstes} älter als ${STANDDATUM_SCHWELLEN.vorsorge} Monate — Werte verifizieren (z. B. Gesetzesänderung)` });
+    }
   }
 
   return checks;

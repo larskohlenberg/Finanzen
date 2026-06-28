@@ -33,3 +33,16 @@
 {"entitaet":"vermoegenswert","entitaet_id":"VMW-001","feld":"marktwert","wert":"14200.00","standdatum":"2026-06-01","qualitaet":"geschaetzt","quelle_hinweis":"Demo-Fahrzeugbewertung"}
 {"entitaet":"vermoegenswert","entitaet_id":"VMW-002","feld":"marktwert","wert":"1800.00","standdatum":"2026-06-01","qualitaet":"belegt","quelle_hinweis":"Demo-Bescheinigung"}
 {"entitaet":"vermoegenswert","entitaet_id":"VMW-003","feld":"marktwert","wert":"2200.00","standdatum":"2026-06-01","qualitaet":"geschaetzt","quelle_hinweis":"Demo-Hausratliste"}
+{"entitaet":"vorsorge","entitaet_id":"VS-001","feld":"erwartete_rente","wert":"1380.00","standdatum":"2025-01-15","qualitaet":"geschaetzt","quelle_hinweis":"Renteninformation 2025 (netto geschätzt)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-001","feld":"erwartete_rente","wert":"1450.00","standdatum":"2026-01-20","qualitaet":"geschaetzt","quelle_hinweis":"Renteninformation 2026 (netto geschätzt)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-002","feld":"erwartete_rente","wert":"1180.00","standdatum":"2026-01-20","qualitaet":"geschaetzt","quelle_hinweis":"Renteninformation 2026 (netto geschätzt)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-003","feld":"rueckkaufswert","wert":"8200.00","standdatum":"2025-01-10","qualitaet":"belegt","quelle_hinweis":"Standmitteilung 01/2025"}
+{"entitaet":"vorsorge","entitaet_id":"VS-003","feld":"rueckkaufswert","wert":"9100.00","standdatum":"2026-02-01","qualitaet":"belegt","quelle_hinweis":"Standmitteilung 01/2026"}
+{"entitaet":"vorsorge","entitaet_id":"VS-003","feld":"erwartete_rente","wert":"115.00","standdatum":"2026-02-01","qualitaet":"geschaetzt","quelle_hinweis":"Standmitteilung 01/2026 (netto geschätzt)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-003","feld":"erwartete_kapitalleistung","wert":"24000.00","standdatum":"2026-02-01","qualitaet":"geschaetzt","quelle_hinweis":"Hochrechnung Standmitteilung 01/2026"}
+{"entitaet":"vorsorge","entitaet_id":"VS-004","feld":"rueckkaufswert","wert":"21800.00","standdatum":"2025-02-01","qualitaet":"belegt","quelle_hinweis":"Vertragsstand 2024"}
+{"entitaet":"vorsorge","entitaet_id":"VS-004","feld":"rueckkaufswert","wert":"23400.00","standdatum":"2026-02-01","qualitaet":"belegt","quelle_hinweis":"Vertragsstand 2025"}
+{"entitaet":"vorsorge","entitaet_id":"VS-004","feld":"erwartete_rente","wert":"95.00","standdatum":"2026-02-01","qualitaet":"geschaetzt","quelle_hinweis":"Vertragsstand 2025 (netto geschätzt)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-004","feld":"erwartete_kapitalleistung","wert":"31000.00","standdatum":"2026-02-01","qualitaet":"geschaetzt","quelle_hinweis":"Vertragsstand 2025"}
+{"entitaet":"vorsorge","entitaet_id":"VS-005","feld":"erwartete_kapitalleistung","wert":"200000.00","standdatum":"2026-02-01","qualitaet":"belegt","quelle_hinweis":"Police Risiko-LV (Todesfallsumme)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-006","feld":"erwartete_rente","wert":"240.00","standdatum":"2023-06-01","qualitaet":"geschaetzt","quelle_hinweis":"Alte Hochrechnung — ungeprüft"}

@@ -39,5 +39,27 @@
       { "annahme_id": "A-002", "art": "einmalzahlung", "qualitaet": "geschaetzt", "datum": "2028-04-15", "betrag": "-16500.00", "gegenbuchung": { "ziel_typ": "vermoegenswert", "neue_position": { "bezeichnung": "Neueres Familienauto", "wert": "16500.00" } } },
       { "annahme_id": "A-003", "art": "regelzahlung-neu", "qualitaet": "geschaetzt", "name": "Hoehere Kfz-Ruecklage", "betrag": "-80.00", "rhythmus_einheit": "monat", "rhythmus_intervall": 1, "ab": "2028-05-01" }
     ]
+  },
+  {
+    "szenario_id": "SZN-004", "name": "Ruhestand Lena ab 2042", "status": "entwurf",
+    "stand": "2026-06-22", "reichweite_bis": "2048-12-31", "erstellt_am": "2026-06-22",
+    "beschreibung": "Lena geht 2042 in Rente: Gehalt endet, gesetzliche Rente + Riester (Verrentung) beginnen.",
+    "annahmen": [
+      { "annahme_id": "A1", "art": "regelzahlung-aenderung", "regelzahlung_id": "RZ-001", "aktion": "beenden", "ab": "2042-08-01", "qualitaet": "geschaetzt", "begruendung": "Renteneintritt Lena 2042" },
+      { "annahme_id": "A2", "art": "vorsorge-leistung", "vorsorge_id": "VS-001", "arm": "rente", "ab": "2042-08-01", "qualitaet": "geschaetzt", "begruendung": "Gesetzliche Rente Lena, netto aus Renteninfo 2026" },
+      { "annahme_id": "A3", "art": "vorsorge-leistung", "vorsorge_id": "VS-003", "arm": "rente", "ab": "2042-08-01", "qualitaet": "geschaetzt", "begruendung": "Riester-Verrentung; Rückkaufswert wird zu Rentenbeginn abgebaut" }
+    ]
+  },
+  {
+    "szenario_id": "SZN-005", "name": "Todesfall Martin 2028", "status": "entwurf",
+    "stand": "2026-06-22", "reichweite_bis": "2040-12-31", "erstellt_am": "2026-06-22",
+    "beschreibung": "Hypothese: Martin verstirbt 2028. Sein Gehalt endet, Risiko-LV zahlt Kapital, Lena erhält Witwenrente, die Kinder Waisenrente.",
+    "annahmen": [
+      { "annahme_id": "A1", "art": "regelzahlung-aenderung", "regelzahlung_id": "RZ-002", "aktion": "beenden", "ab": "2028-03-01", "qualitaet": "geschaetzt", "begruendung": "Wegfall Erwerbseinkommen Martin" },
+      { "annahme_id": "A2", "art": "vorsorge-leistung", "vorsorge_id": "VS-005", "arm": "kapital", "ab": "2028-03-15", "qualitaet": "belegt", "begruendung": "Todesfallleistung Risiko-LV (200.000) an die Hinterbliebenen" },
+      { "annahme_id": "A3", "art": "regelzahlung-neu", "name": "Witwenrente Lena", "betrag": "640.00", "qualitaet": "geschaetzt", "rhythmus_einheit": "monat", "rhythmus_intervall": 1, "ab": "2028-04-01", "begruendung": "Große Witwenrente ~55% der Anwartschaft Martin, netto geschätzt" },
+      { "annahme_id": "A4", "art": "regelzahlung-neu", "name": "Waisenrente Emma", "betrag": "230.00", "qualitaet": "geschaetzt", "rhythmus_einheit": "monat", "rhythmus_intervall": 1, "ab": "2028-04-01", "bis": "2035-07-31", "begruendung": "Halbwaisenrente bis 18 (bzw. 27 in Ausbildung)" },
+      { "annahme_id": "A5", "art": "regelzahlung-neu", "name": "Waisenrente Noah", "betrag": "230.00", "qualitaet": "geschaetzt", "rhythmus_einheit": "monat", "rhythmus_intervall": 1, "ab": "2028-04-01", "bis": "2037-09-30", "begruendung": "Halbwaisenrente bis 18" }
+    ]
   }
 ]

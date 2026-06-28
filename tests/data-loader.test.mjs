@@ -68,6 +68,7 @@ test("loadFinanceData liefert kategorisierungsregeln", async (t) => {
     "immobilien.json": [],
     "darlehen.json": [],
     "vermoegenswerte.json": [],
+    "vorsorge.json": [{ vorsorge_id: "VS-001" }],
     "kategorisierungsregeln.json": [{ id: "R-001", name: "Test-Regel" }],
   };
 
@@ -92,6 +93,34 @@ test("loadFinanceData liefert kategorisierungsregeln", async (t) => {
   assert.ok(Array.isArray(data.kategorisierungsregeln), "kategorisierungsregeln should be an array");
   assert.equal(data.kategorisierungsregeln.length, 1);
   assert.equal(data.kategorisierungsregeln[0].id, "R-001");
+  assert.deepEqual(data.vorsorge, [{ vorsorge_id: "VS-001" }]);
+});
+
+test("loadFinanceData nutzt leere Vorsorge-Liste wenn optionale Datei fehlt", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  globalThis.fetch = async (path) => {
+    const filename = path.split("/").pop().split("?")[0];
+    if (filename === "vorsorge.json") {
+      return { ok: false, status: 404 };
+    }
+    if (filename.endsWith(".jsonl")) {
+      return {
+        ok: true,
+        text: async () => "",
+      };
+    }
+    return {
+      ok: true,
+      json: async () => [],
+    };
+  };
+
+  const data = await loadFinanceData();
+  assert.deepEqual(data.vorsorge, []);
 });
 
 test("loadFinanceData kann Demodaten statt Masterdaten laden", async (t) => {

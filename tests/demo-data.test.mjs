@@ -26,6 +26,7 @@ function demoData() {
     immobilien: readJson("app/data/demo/immobilien.json"),
     darlehen: readJson("app/data/demo/darlehen.json"),
     vermoegenswerte: readJson("app/data/demo/vermoegenswerte.json"),
+    vorsorge: readJson("app/data/demo/vorsorge.json"),
     zeitwerte: readJsonl("app/data/demo/zeitwerte.jsonl"),
     kategorisierungsregeln: readJson("app/data/demo/kategorisierungsregeln.json"),
   };

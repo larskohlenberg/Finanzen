@@ -31,6 +31,15 @@ export async function loadJson(path, options = {}) {
   return response.json();
 }
 
+async function loadJsonOptional(path, fallback, options = {}) {
+  const response = await fetch(withRefreshToken(path, options.refreshToken), { cache: "no-store" });
+  if (!response.ok) {
+    if (response.status === 404) return fallback;
+    throw new Error(`${path}: HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function loadJsonl(path, options = {}) {
   const response = await fetch(withRefreshToken(path, options.refreshToken), { cache: "no-store" });
   if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
@@ -67,6 +76,7 @@ export async function loadFinanceData(options = {}) {
     immobilien,
     darlehen,
     vermoegenswerte,
+    vorsorge,
     zeitwerte,
     kategorisierungsregeln,
   ] = await Promise.all([
@@ -80,6 +90,7 @@ export async function loadFinanceData(options = {}) {
     loadJson(path("immobilien.json"), { refreshToken }),
     loadJson(path("darlehen.json"), { refreshToken }),
     loadJson(path("vermoegenswerte.json"), { refreshToken }),
+    loadJsonOptional(path("vorsorge.json"), [], { refreshToken }),
     loadJsonl(path("zeitwerte.jsonl"), { refreshToken }),
     loadJson(path("kategorisierungsregeln.json"), { refreshToken }),
   ]);
@@ -102,6 +113,7 @@ export async function loadFinanceData(options = {}) {
     immobilien,
     darlehen,
     vermoegenswerte,
+    vorsorge,
     zeitwerte,
     kategorisierungsregeln,
     checks: [],

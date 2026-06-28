@@ -276,5 +276,31 @@ export function computeVermoegenChecks(data, today) {
     }
   }
 
+  const wechselHorizont = addInterval(today, "monat", 24);
+  for (const vs of data.vorsorge ?? []) {
+    let ende = null;
+    for (const rz of data.regelzahlungen ?? []) {
+      if (rz.vorsorge_id !== vs.vorsorge_id || !rz.aktiv_bis) continue;
+      if (rz.aktiv_bis > today && rz.aktiv_bis <= wechselHorizont) {
+        if (!ende || rz.aktiv_bis > ende) ende = rz.aktiv_bis;
+      }
+    }
+    if (!ende) continue;
+
+    const nachfolger = (data.vorsorge ?? []).find((v) => v.vorsorge_id !== vs.vorsorge_id && v.ersetzt_vorsorge_id === vs.vorsorge_id);
+    if (!nachfolger) {
+      checks.push({ art: "vorsorge-wechsel", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: Beitrag endet ${ende}, keine Nachfolge erkennbar — Wechsel oder bewusste Kündigung?` });
+      continue;
+    }
+
+    const nachBeitragStart = (data.regelzahlungen ?? [])
+      .filter((rz) => rz.vorsorge_id === nachfolger.vorsorge_id)
+      .map((rz) => rz.anker_datum)
+      .sort()[0];
+    if (!nachBeitragStart || nachBeitragStart > addInterval(ende, "tag", 1)) {
+      checks.push({ art: "vorsorge-wechsel", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: Deckungslücke — alt endet ${ende}, Nachfolge ${nachfolger.name} beginnt ${nachBeitragStart ?? "ohne Beitrag"}` });
+    }
+  }
+
   return checks;
 }

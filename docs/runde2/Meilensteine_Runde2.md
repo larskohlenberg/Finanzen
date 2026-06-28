@@ -166,8 +166,8 @@ Ziel: Schutz-, Vorsorge- und Renteninformationen werden quellenbasiert erfasst u
 
 Exit-Kriterien:
 
-- Versicherungen und Renten haben eigene Schemas.
-- Laufende Beitraege sind mit Regelzahlungen verknuepfbar.
+- Versicherungen und Renten werden in **einer** `vorsorge`-Entitaet mit `art`-Diskriminator und bis zu zwei Beinen (Rueckkaufswert / erwartete Leistung) erfasst — die urspruengliche Formulierung „eigene Schemas" ist im M7-Grilling bewusst entschaerft (ADR 0021).
+- Laufende Beitraege sind mit Regelzahlungen verknuepfbar (einseitig: `Regelzahlung.vorsorge_id`).
 - Spaetere Leistungen sind als Rente, Kapitalleistung oder Ereignis modellierbar.
 - Ungepruefte Ansprueche wirken nicht still als sichere Zukunftswerte.
 

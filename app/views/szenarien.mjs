@@ -50,6 +50,11 @@ function annahmeInhalt(a) {
       : `${escapeHtml(t("szenarien.aktionBetragAendern"))}: ${escapeHtml(formatMoney(cents(a.betrag)))}`;
     return `${escapeHtml(a.regelzahlung_id)} · ${escapeHtml(t("szenarien.ab"))} ${escapeHtml(formatDate(a.ab))} · ${aktion}`;
   }
+  if (a.art === "vorsorge-leistung") {
+    const arm = t(`szenarien.arm.${a.arm}`);
+    const armText = arm === `szenarien.arm.${a.arm}` ? a.arm : arm;
+    return `${escapeHtml(a.vorsorge_id)} · ${escapeHtml(armText)} · ${escapeHtml(t("szenarien.ab"))} ${escapeHtml(formatDate(a.ab))}`;
+  }
   return "—";
 }
 

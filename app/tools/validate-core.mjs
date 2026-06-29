@@ -438,10 +438,22 @@ function validateCrossFieldRules(data, errors) {
   const zeitwertEntitaeten = {
     konto: konten, immobilie: immobilien, vermoegenswert: vermoegenswerte, darlehen, vorsorge,
   };
+  // Welche zeitwerte.feld-Werte je Entitaet fachlich zulaessig sind (Schema-Enum ist global).
+  const erlaubteFelder = {
+    konto: ["kontostand", "depotwert"],
+    immobilie: ["marktwert"],
+    vermoegenswert: ["marktwert"],
+    darlehen: ["restschuld"],
+    vorsorge: ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung"],
+  };
   data.zeitwerte?.forEach((zw, i) => {
     const map = zeitwertEntitaeten[zw.entitaet];
     if (map && !map.has(zw.entitaet_id)) {
       errors.push(`zeitwerte[${i}].entitaet_id: ${zw.entitaet_id} existiert nicht (${zw.entitaet})`);
+    }
+    const felder = erlaubteFelder[zw.entitaet];
+    if (felder && !felder.includes(zw.feld)) {
+      errors.push(`zeitwerte[${i}].feld: ${zw.feld} ist fuer ${zw.entitaet} nicht zulaessig (erlaubt: ${felder.join("|")})`);
     }
   });
 
@@ -454,9 +466,14 @@ function validateCrossFieldRules(data, errors) {
     }
   });
 
+  // Arten ohne Rueckkaufswert koennen nie kapitalbildend sein.
+  const nieKapitalbildend = new Set(["gesetzliche-rente", "schutzversicherung"]);
   data.vorsorge?.forEach((vs) => {
     if (!personen.has(vs.person_id)) {
       errors.push(`vorsorge.${vs.vorsorge_id}.person_id: ${vs.person_id} existiert nicht`);
+    }
+    if (vs.kapitalbildend === true && nieKapitalbildend.has(vs.art)) {
+      errors.push(`vorsorge.${vs.vorsorge_id}.kapitalbildend: ${vs.art} hat keinen Rueckkaufswert und kann nicht kapitalbildend sein`);
     }
     if (vs.ersetzt_vorsorge_id) {
       if (vs.ersetzt_vorsorge_id === vs.vorsorge_id) {
@@ -514,7 +531,7 @@ function validateSzenarien(data, errors) {
   const vmwIds = new Set((data.vermoegenswerte ?? []).filter((v) => v.status !== "veraeussert").map((v) => v.vermoegenswert_id));
   const rzIds = new Set((data.regelzahlungen ?? []).map((r) => r.regelzahlung_id));
   const vorsorgeIds = new Set((data.vorsorge ?? []).map((v) => v.vorsorge_id));
-  const idMengen = { darlehen: darlehenIds, depot: depotIds, immobilie: immoIds, vermoegenswert: vmwIds };
+  const idMengen = { darlehen: darlehenIds, depot: depotIds, immobilie: immoIds, vermoegenswert: vmwIds, vorsorge: vorsorgeIds };
 
   for (const sz of data.szenarien ?? []) {
     const p = `szenarien.${sz.szenario_id}`;
@@ -586,8 +603,8 @@ function validateSzenarien(data, errors) {
         if (hatNeu && (!g.neue_position.bezeichnung || !istGueltigerBetrag(g.neue_position.wert))) {
           errors.push(`${ap}: neue_position braucht bezeichnung und gueltigen wert`);
         }
-        // Doppelverkauf/-abbau bestehender Sachwert-Positionen
-        if (hatZiel && (g.ziel_typ === "immobilie" || g.ziel_typ === "vermoegenswert")) {
+        // Doppelverkauf/-abbau bestehender Sachwert-/Vorsorge-Positionen
+        if (hatZiel && (g.ziel_typ === "immobilie" || g.ziel_typ === "vermoegenswert" || g.ziel_typ === "vorsorge")) {
           const key = `${g.ziel_typ}:${g.ziel_id}`;
           if (verkauft.has(key)) errors.push(`${ap}: Position ${g.ziel_id} wird im Szenario mehrfach abgebaut`);
           verkauft.add(key);

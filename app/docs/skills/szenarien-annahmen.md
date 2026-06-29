@@ -1,6 +1,6 @@
 # Skill: Szenarien-Annahmen
 
-Aktuelle Betriebsanweisung fuer das Anlegen und Pflegen von Szenarien und ihren Annahmen. Fachlich aus M6 entstanden.
+Aktuelle Betriebsanweisung fuer das Anlegen und Pflegen von Szenarien und ihren Annahmen. Fachlich aus M6 entstanden, in M7 um Vorsorge-Leistungen (Renteneintritt, Kapital-/Todesfallleistung) erweitert.
 
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...` und `docs/...` liegen unter dem App-Raum.
 
@@ -9,6 +9,7 @@ Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...` und `docs
 Nutze ihn, wenn der Nutzer
 
 - eine Was-waere-wenn-Frage stellt (Sondertilgung, Verkauf, Kauf, Erbschaft, Schenkung, hypothetische Gehalts- oder Ausgabenaenderung),
+- ein Vorsorge-Szenario durchspielt (Renteneintritt: gesetzliche Rente + Verrentung kapitalbildender Vertraege; Todesfall: Risiko-/Kapitalleistung, Witwen-/Waisenrente),
 - ein bestehendes Szenario anlegen, aendern, bestaetigen oder verwerfen will,
 - nach der Auswirkung einer hypothetischen Annahme auf Liquiditaet, Restschuld oder Nettovermoegen fragt.
 
@@ -24,7 +25,8 @@ Vor jeder Szenario-Aenderung lesen:
 2. `DATENROOT/szenarien.json` — bestehende Szenarien.
 3. `schemas/szenarien.schema.json` — formale Form von Szenario und Annahme.
 4. `DATENROOT/regelzahlungen.json` — fuer `regelzahlung-aenderung`-Annahmen (Ziel muss existieren) und fuer die `qualitaet`-Konvention (`belegt|geschaetzt`).
-5. `tools/validator.mjs` — prueft Szenario-Annahmen inklusive `gegenbuchung` (bespoke Cross-Field-Pruefung, keine generische Schema-Validierung).
+5. `DATENROOT/vorsorge.json` — fuer `vorsorge-leistung`-Annahmen (`vorsorge_id` muss existieren) und die zugehoerigen Zeitwerte (`erwartete_rente`, `erwartete_kapitalleistung`, `rueckkaufswert`) in `DATENROOT/zeitwerte.jsonl`.
+6. `tools/validator.mjs` — prueft Szenario-Annahmen inklusive `gegenbuchung` (bespoke Cross-Field-Pruefung, keine generische Schema-Validierung).
 
 ## Prozess
 
@@ -41,7 +43,8 @@ Vor jeder Szenario-Aenderung lesen:
 - `einmalzahlung`: einmaliges Cash-Ereignis an einem Datum, optional mit `gegenbuchung`.
 - `regelzahlung-neu`: neue wiederkehrende Zahlung im Szenario, optional mit `gegenbuchung` (nur `ziel_typ ∈ {darlehen, depot}`, nur bestehende `ziel_id`).
 - `regelzahlung-aenderung`: aendert eine bestehende Regelzahlung im Bestand nur innerhalb des Szenarios (`aktion: beenden|betrag-aendern`), keine `gegenbuchung`.
-- `gegenbuchung`: koppelt das Cash-Bein an eine zweite Bilanzposition (`ziel_typ ∈ darlehen|depot|immobilie|vermoegenswert`), entweder bestehende `ziel_id` oder neue `neue_position {bezeichnung, wert}`. Deckt Kauf, Verkauf, Sondertilgung, Erbschaft und Schenkung ab — bei Erbschaft/Schenkung ist eines der beiden Beine `"0.00"`.
+- `vorsorge-leistung`: aktiviert die Leistung einer Vorsorge (`vorsorge_id` + `arm ∈ {rente, kapital}` + `ab`-Datum), keine eigene `gegenbuchung` (die Engine erzeugt sie zur Rechenzeit). `arm: rente` wird zu einer `regelzahlung-neu` aus dem `erwartete_rente`-Zeitwert, `arm: kapital` zu einer `einmalzahlung` aus `erwartete_kapitalleistung`; bei kapitalbildender Vorsorge wird der `rueckkaufswert` per Gegenbuchung abgebaut. Fehlt `geprueft_am` auf der Vorsorge, deckelt die Engine die Qualitaet auf `offen`.
+- `gegenbuchung`: koppelt das Cash-Bein an eine zweite Bilanzposition (`ziel_typ ∈ darlehen|depot|immobilie|vermoegenswert|vorsorge`), entweder bestehende `ziel_id` oder neue `neue_position {bezeichnung, wert}`. Deckt Kauf, Verkauf, Sondertilgung, Erbschaft, Schenkung und Vorsorge-Abbau ab — bei Erbschaft/Schenkung ist eines der beiden Beine `"0.00"`. Den `vorsorge`-Abbau setzt in der Regel die Engine selbst aus `vorsorge-leistung`; eine Position darf pro Szenario nur einmal abgebaut werden.
 
 `qualitaet` ist Pflicht pro Annahme (`belegt|geschaetzt|offen`) und faengt die Unsicherheit auf Annahme-Ebene ein, getrennt von der vertraglichen `qualitaet` einer Regelzahlung.
 
@@ -65,6 +68,7 @@ Vor jeder Szenario-Aenderung lesen:
 | Pfad | Zweck |
 | --- | --- |
 | `DATENROOT/szenarien.json` | Szenario- und Annahmen-Stammdaten |
+| `DATENROOT/vorsorge.json` | Vorsorge-Stammdaten (Ziel von `vorsorge-leistung`/`gegenbuchung(vorsorge)`) |
 | `schemas/szenarien.schema.json` | Schema-Referenz |
 | `szenarien.mjs` | Deterministische Szenario-Engine (`rechneSzenario`/`computeSzenario`), nur Anzeige |
 | `tools/validator.mjs` | Validator inkl. Szenario-Cross-Field-Pruefung (vor jedem Schreiben) |

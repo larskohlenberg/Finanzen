@@ -231,14 +231,19 @@ Vermoegens-/Liquiditaetschecks sichtbar:
 Szenarien buendeln explizite Annahmen zu einer Was-waere-wenn-Sicht (Liquiditaet,
 Restschuld, Nettovermoegen) gegenueber dem validierten Bestand. Sie liegen in
 `DATENROOT/szenarien.json`, Annahmen sind eingebettet. Eine Annahme ist
-`einmalzahlung`, `regelzahlung-neu` oder `regelzahlung-aenderung`, je mit
-`qualitaet ∈ {belegt, geschaetzt, offen}`.
+`einmalzahlung`, `regelzahlung-neu`, `regelzahlung-aenderung` oder
+`vorsorge-leistung`, je mit `qualitaet ∈ {belegt, geschaetzt, offen}`. Die
+Annahme-Art `vorsorge-leistung` (M7) verweist auf eine `vorsorge_id` und einen
+`arm ∈ {rente, kapital}` und wird zur Rechenzeit in die Primitive aufgeloest
+(siehe Vorsorge-Abschnitt); fehlt `geprueft_am`, deckelt die Engine die Qualitaet
+auf `offen`.
 
 Eine `gegenbuchung` koppelt das Cash-Bein einer Annahme an eine zweite Bilanzposition
-(`ziel_typ ∈ darlehen|depot|immobilie|vermoegenswert`) und deckt fuenf Wirk-Faelle ab:
-Kauf, Verkauf, Sondertilgung, Erbschaft, Schenkung. Sondertilgungen und
-Depot-Verkaeufe werden effektiv (geklemmt) gerechnet — die Engine kann nie mehr
-abtragen oder verkaufen, als die Position hergibt.
+(`ziel_typ ∈ darlehen|depot|immobilie|vermoegenswert|vorsorge`) und deckt die
+Wirk-Faelle Kauf, Verkauf, Sondertilgung, Erbschaft, Schenkung und Vorsorge-Abbau
+ab. Sondertilgungen und Depot-Verkaeufe werden effektiv (geklemmt) gerechnet — die
+Engine kann nie mehr abtragen oder verkaufen, als die Position hergibt; eine
+Position wird pro Szenario nur einmal abgebaut.
 
 Die Engine `szenarien.mjs` ist deterministisch und rechnet live ab dem
 Rechenstichtag (nicht ab `stand`); die App schreibt keine Masterdaten — Szenarien

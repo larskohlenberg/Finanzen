@@ -88,3 +88,66 @@ test("vorsorge-leistung-Annahme mit unbekannter vorsorge_id ist Fehler", () => {
   });
   assert.ok(validateMasterData(data).errors.some((e) => e.includes("VS-777")));
 });
+
+// --- Review-Fixes ---
+
+test("gegenbuchung(vorsorge) mit existierender vorsorge_id ist valide", () => {
+  const data = basis({
+    vorsorge: [{ vorsorge_id: "VS-003", art: "lebensversicherung", name: "LV", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
+    szenarien: [{ szenario_id: "SZN-001", name: "Kapital", status: "entwurf", stand: "2026-06-28", reichweite_bis: "2030-12-31", erstellt_am: "2026-06-28",
+      annahmen: [{ annahme_id: "A1", art: "einmalzahlung", qualitaet: "belegt", datum: "2027-01-15", betrag: "9100.00", gegenbuchung: { ziel_typ: "vorsorge", ziel_id: "VS-003" } }] }],
+  });
+  assert.deepEqual(validateMasterData(data).errors, []);
+});
+
+test("gegenbuchung(vorsorge) mit unbekannter ziel_id ist Fehler", () => {
+  const data = basis({
+    vorsorge: [{ vorsorge_id: "VS-003", art: "lebensversicherung", name: "LV", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
+    szenarien: [{ szenario_id: "SZN-001", name: "Kapital", status: "entwurf", stand: "2026-06-28", reichweite_bis: "2030-12-31", erstellt_am: "2026-06-28",
+      annahmen: [{ annahme_id: "A1", art: "einmalzahlung", qualitaet: "belegt", datum: "2027-01-15", betrag: "9100.00", gegenbuchung: { ziel_typ: "vorsorge", ziel_id: "VS-404" } }] }],
+  });
+  assert.ok(validateMasterData(data).errors.some((e) => e.includes("VS-404")));
+});
+
+test("doppelter Abbau derselben Vorsorge im Szenario ist Fehler", () => {
+  const data = basis({
+    vorsorge: [{ vorsorge_id: "VS-003", art: "lebensversicherung", name: "LV", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
+    szenarien: [{ szenario_id: "SZN-001", name: "Kapital", status: "entwurf", stand: "2026-06-28", reichweite_bis: "2030-12-31", erstellt_am: "2026-06-28",
+      annahmen: [
+        { annahme_id: "A1", art: "einmalzahlung", qualitaet: "belegt", datum: "2027-01-15", betrag: "9100.00", gegenbuchung: { ziel_typ: "vorsorge", ziel_id: "VS-003" } },
+        { annahme_id: "A2", art: "einmalzahlung", qualitaet: "belegt", datum: "2028-01-15", betrag: "9100.00", gegenbuchung: { ziel_typ: "vorsorge", ziel_id: "VS-003" } },
+      ] }],
+  });
+  assert.ok(validateMasterData(data).errors.some((e) => e.includes("mehrfach abgebaut")));
+});
+
+test("gesetzliche-rente darf nicht kapitalbildend sein", () => {
+  const data = basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "gesetzliche-rente", name: "GRV Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true }] });
+  assert.ok(validateMasterData(data).errors.some((e) => e.includes("kapitalbildend")));
+});
+
+test("schutzversicherung darf nicht kapitalbildend sein", () => {
+  const data = basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "schutzversicherung", name: "Risiko-LV", person_id: "PER-001", status: "aktiv", kapitalbildend: true }] });
+  assert.ok(validateMasterData(data).errors.some((e) => e.includes("kapitalbildend")));
+});
+
+test("kapitalbildende Riester bleibt valide (Negativliste trifft nicht)", () => {
+  const data = basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: true }] });
+  assert.deepEqual(validateMasterData(data).errors, []);
+});
+
+test("zeitwert-feld muss zur Entitaet passen (konto.rueckkaufswert ist Fehler)", () => {
+  const data = basis({
+    konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    zeitwerte: [{ entitaet: "konto", entitaet_id: "KTO-001", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" }],
+  });
+  assert.ok(validateMasterData(data).errors.some((e) => e.includes("feld")));
+});
+
+test("zeitwert-feld passend zur Entitaet ist valide (konto.kontostand)", () => {
+  const data = basis({
+    konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    zeitwerte: [{ entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "4850.00", standdatum: "2026-01-01", qualitaet: "belegt" }],
+  });
+  assert.deepEqual(validateMasterData(data).errors, []);
+});

@@ -7,7 +7,7 @@
   "properties": {
     "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
     "buchungsdatum": { "type": "string", "format": "date" },
-    "betrag": { "type": "string", "pattern": "^-?\\d+\\.\\d{2}$" },
+    "betrag": { "type": "string", "pattern": "^(?!-0\\.00$)-?(0|[1-9]\\d*)\\.\\d{2}$" },
     "gegenpartei": { "type": "string" },
     "verwendungszweck": { "type": "string" },
     "bank_referenz": { "type": "string" },

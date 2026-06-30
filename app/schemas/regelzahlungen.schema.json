@@ -9,7 +9,7 @@
     "properties": {
       "regelzahlung_id": { "type": "string", "pattern": "^RZ-\\d{3}$" },
       "bezeichnung": { "type": "string", "minLength": 1 },
-      "betrag": { "type": "string", "pattern": "^-?\\d+\\.\\d{2}$" },
+      "betrag": { "type": "string", "pattern": "^(?!-0\\.00$)-?(0|[1-9]\\d*)\\.\\d{2}$" },
       "rhythmus_einheit": { "type": "string", "enum": ["tag", "woche", "monat", "jahr"] },
       "rhythmus_intervall": { "type": "integer", "minimum": 1 },
       "anker_datum": { "type": "string", "format": "date" },

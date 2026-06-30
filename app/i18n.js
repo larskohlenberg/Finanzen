@@ -327,6 +327,9 @@ window.FINANCE_I18N = {
         "reconciliation-drift": "Abgleich-Differenz",
         "bewertung-veraltet": "Bewertung veraltet",
         "darlehen-ohne-regelzahlung": "Darlehen ohne Rate",
+        "vorsorge-ungeprueft": "Vorsorge ungeprüft",
+        "vorsorge-wiedervorlage": "Vorsorge-Wiedervorlage",
+        "vorsorge-wechsel": "Vorsorge-Wechsel prüfen",
       },
     },
     szenarien: {
@@ -403,8 +406,11 @@ window.FINANCE_I18N = {
     },
     accountTypes: {
       giro: "Giro",
+      spar: "Sparkonto",
       tagesgeld: "Tagesgeld",
       depot: "Depot",
+      kreditkarte: "Kreditkarte",
+      bar: "Bar",
     },
     status: {
       offen: "Kategorie offen",
@@ -764,6 +770,9 @@ window.FINANCE_I18N = {
         "reconciliation-drift": "Reconciliation drift",
         "bewertung-veraltet": "Valuation outdated",
         "darlehen-ohne-regelzahlung": "Loan without installment",
+        "vorsorge-ungeprueft": "Pension unverified",
+        "vorsorge-wiedervorlage": "Pension follow-up",
+        "vorsorge-wechsel": "Pension switch check",
       },
     },
     szenarien: {
@@ -840,8 +849,11 @@ window.FINANCE_I18N = {
     },
     accountTypes: {
       giro: "Checking",
+      spar: "Savings account",
       tagesgeld: "Savings",
       depot: "Depot",
+      kreditkarte: "Credit card",
+      bar: "Cash",
     },
     status: {
       offen: "Category open",

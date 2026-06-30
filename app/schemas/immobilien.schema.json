@@ -26,7 +26,7 @@
       "status": { "type": "string", "enum": ["aktiv", "verkauft"] },
       "adresse": { "type": "string" },
       "anschaffungsdatum": { "type": "string", "format": "date" },
-      "anschaffungskosten": { "type": "string", "pattern": "^-?\\d+\\.\\d{2}$" },
+      "anschaffungskosten": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.\\d{2}$" },
       "quelle_hinweis": { "type": "string" },
       "quelle_standdatum": { "type": "string", "format": "date" },
       "aktiv_bis": { "type": "string", "format": "date" },

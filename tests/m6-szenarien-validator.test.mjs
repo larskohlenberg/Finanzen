@@ -58,6 +58,14 @@ test("regelzahlung-neu mit gegenbuchung(immobilie) ist Fehler", () => {
   assert.ok(validateMasterData(data).errors.some((e) => e.includes("wiederkehrend")));
 });
 
+test("regelzahlung-neu mit ungueltigem bis oder bis vor ab ist Fehler", () => {
+  const ungueltigesBis = basis([{ annahme_id: "A1", art: "regelzahlung-neu", qualitaet: "geschaetzt", ab: "2027-01-01", bis: "2027-02-31", betrag: "-100.00", rhythmus_einheit: "monat", rhythmus_intervall: 1 }]);
+  assert.ok(validateMasterData(ungueltigesBis).errors.some((e) => e.includes("bis fehlt/ungueltig")));
+
+  const vorAb = basis([{ annahme_id: "A1", art: "regelzahlung-neu", qualitaet: "geschaetzt", ab: "2027-01-01", bis: "2026-12-31", betrag: "-100.00", rhythmus_einheit: "monat", rhythmus_intervall: 1 }]);
+  assert.ok(validateMasterData(vorAb).errors.some((e) => e.includes("bis liegt vor ab")));
+});
+
 test("einmalzahlung ohne Betrag und ohne gegenbuchung ist Fehler", () => {
   const data = basis([{ annahme_id: "A1", art: "einmalzahlung", qualitaet: "geschaetzt", datum: "2027-01-01", betrag: "0.00" }]);
   assert.ok(validateMasterData(data).errors.some((e) => e.includes("wirkungslos")));

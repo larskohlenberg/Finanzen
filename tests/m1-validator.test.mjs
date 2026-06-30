@@ -49,6 +49,39 @@ test("Validator akzeptiert striktes Betragsformat weiterhin", async () => {
   assert.equal(validateMasterData(base).valid, true);
 });
 
+test("Validator lehnt doppelte Primaer-IDs je Collection ab", async () => {
+  const base = await loadMasterData();
+  const tx = base.transaktionen[0];
+  const result = validateMasterData({
+    ...base,
+    konten: [{ ...base.konten[0], name: "Doppeltes Testkonto" }, ...base.konten],
+    transaktionen: [
+      { ...tx, dedupe_hash: "fixture-hash-2" },
+      ...base.transaktionen,
+    ],
+  });
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /konto_id.*KTO-001.*doppelt/);
+  assert.match(result.errors.join("\n"), /transaktion_id.*TXN-4bacb864-48f3-444b-9523-0e32eb870e63.*doppelt/);
+});
+
+test("Validator erzwingt Kategorisierungsstatus-Matrix", async () => {
+  const base = await loadMasterData();
+  const tx = base.transaktionen[0];
+  const vorgeschlagenOhneKategorie = { ...tx, dedupe_hash: "status-matrix-1", kategorisierung_status: "vorgeschlagen" };
+  delete vorgeschlagenOhneKategorie.kategorie_id;
+  const offenMitKategorie = { ...tx, dedupe_hash: "status-matrix-2", kategorisierung_status: "offen" };
+  const result = validateMasterData({
+    ...base,
+    transaktionen: [vorgeschlagenOhneKategorie, offenMitKategorie],
+  });
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /vorgeschlagen.*kategorie_id/);
+  assert.match(result.errors.join("\n"), /offen.*kategorie_id/);
+});
+
 function gueltigeRegel(base) {
   return {
     regel_id: "REG-001",
@@ -90,8 +123,8 @@ test("Validator akzeptiert matched_regeln mit gueltigem Format", async () => {
   const result = validateMasterData({
     ...base,
     kategorisierungsregeln: [
-      { regel_id: "REG-001", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-01-01", kommentar: "Testregel A" },
-      { regel_id: "REG-042", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-01-01", kommentar: "Testregel B" },
+      { regel_id: "REG-001", gegenpartei_pattern: "Fixture", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-01-01", kommentar: "Testregel A" },
+      { regel_id: "REG-042", verwendungszweck_pattern: "income", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-01-01", kommentar: "Testregel B" },
     ],
     transaktionen: [{ ...tx, kategorie_herkunft: "regel", matched_regeln: ["REG-001", "REG-042"] }, ...base.transaktionen.slice(1)],
   });

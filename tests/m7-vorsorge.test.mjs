@@ -57,7 +57,7 @@ test("vorsorge-Zeitwert auf unbekannte vorsorge_id ist Fehler", () => {
 test("Regelzahlung mit gueltiger vorsorge_id ist valide", () => {
   const data = basis({
     vorsorge: [{ vorsorge_id: "VS-001", art: "schutzversicherung", name: "KFZ", person_id: "PER-001", status: "aktiv", kapitalbildend: false }],
-    regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "KFZ-Beitrag", betrag: "-92.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt", erstellt_am: "2026-01-01", vorsorge_id: "VS-001" }],
+    regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "KFZ-Beitrag", betrag: "-92.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt", erstellt_am: "2026-01-01", qualitaet: "belegt", vorsorge_id: "VS-001" }],
   });
   assert.deepEqual(validateMasterData(data).errors, []);
 });

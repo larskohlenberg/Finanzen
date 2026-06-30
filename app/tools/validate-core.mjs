@@ -97,7 +97,7 @@ const schemas = {
   },
   regelzahlungen: {
     optional: true,
-    required: ["regelzahlung_id", "bezeichnung", "betrag", "rhythmus_einheit", "rhythmus_intervall", "anker_datum", "status", "erstellt_am"],
+    required: ["regelzahlung_id", "bezeichnung", "betrag", "rhythmus_einheit", "rhythmus_intervall", "anker_datum", "status", "erstellt_am", "qualitaet"],
     fields: {
       regelzahlung_id: { type: "string", pattern: /^RZ-\d{3}$/ },
       bezeichnung: { type: "string", minLength: 1 },
@@ -280,6 +280,26 @@ function validateCollection(collectionName, collection, schema, errors) {
       validateField(`${path}.${field}`, item[field], schema.fields[field], errors);
     }
   });
+
+  const idField = primaryIdField(schema);
+  if (idField) {
+    const seen = new Map();
+    collection.forEach((item, index) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return;
+      const id = item[idField];
+      if (typeof id !== "string") return;
+      const path = `${collectionName}[${index}].${idField}`;
+      if (seen.has(id)) {
+        errors.push(`${path}: ${id} doppelt mit ${seen.get(id)}`);
+      } else {
+        seen.set(id, `${collectionName}[${index}]`);
+      }
+    });
+  }
+}
+
+function primaryIdField(schema) {
+  return schema.required.find((field) => field.endsWith("_id") && schema.fields[field]?.pattern);
 }
 
 function validateField(path, value, rule, errors) {
@@ -354,8 +374,11 @@ function validateCrossFieldRules(data, errors) {
     if (!konten.has(transaktion.konto_id)) {
       errors.push(`transaktionen.${transaktion.transaktion_id}.konto_id: ${transaktion.konto_id} existiert nicht`);
     }
-    if (transaktion.kategorisierung_status === "bestaetigt" && !transaktion.kategorie_id) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.kategorie_id: Pflicht bei bestaetigter Kategorisierung`);
+    if (["vorgeschlagen", "bestaetigt"].includes(transaktion.kategorisierung_status) && !transaktion.kategorie_id) {
+      errors.push(`transaktionen.${transaktion.transaktion_id}.kategorie_id: Pflicht bei ${transaktion.kategorisierung_status}; ${transaktion.kategorisierung_status} braucht kategorie_id`);
+    }
+    if (transaktion.kategorisierung_status === "offen" && transaktion.kategorie_id) {
+      errors.push(`transaktionen.${transaktion.transaktion_id}.kategorie_id: offen darf keine kategorie_id tragen`);
     }
     if (transaktion.kategorie_id && !kategorien.has(transaktion.kategorie_id)) {
       errors.push(`transaktionen.${transaktion.transaktion_id}.kategorie_id: ${transaktion.kategorie_id} existiert nicht`);
@@ -379,6 +402,9 @@ function validateCrossFieldRules(data, errors) {
     }
     if (regel.konto_id && !konten.has(regel.konto_id)) {
       errors.push(`kategorisierungsregeln.${regel.regel_id}.konto_id: ${regel.konto_id} existiert nicht`);
+    }
+    if (regel.status === "aktiv" && !regel.gegenpartei_pattern && !regel.verwendungszweck_pattern) {
+      errors.push(`kategorisierungsregeln.${regel.regel_id}: aktive Regel braucht gegenpartei_pattern oder verwendungszweck_pattern`);
     }
   });
 
@@ -497,9 +523,18 @@ function validateTransfer(transfer, transaktionen, errors) {
       errors.push(`${prefix}: interner Transfer braucht abgang_transaktion_id und zugang_transaktion_id`);
       return;
     }
+    if (transfer.abgang_transaktion_id === transfer.zugang_transaktion_id) {
+      errors.push(`${prefix}: abgang_transaktion_id und zugang_transaktion_id muessen unterschiedliche Transaktionen sein`);
+    }
     if (!abgang || !zugang) {
-      errors.push(`${prefix}: referenzierte Transaktionen existieren nicht`);
+      if (!abgang) errors.push(`${prefix}.abgang_transaktion_id: referenzierte Transaktion ${transfer.abgang_transaktion_id} existiert nicht`);
+      if (!zugang) errors.push(`${prefix}.zugang_transaktion_id: referenzierte Transaktion ${transfer.zugang_transaktion_id} existiert nicht`);
       return;
+    }
+    validateTransferReference(prefix, "abgang_transaktion_id", transfer, abgang, errors);
+    validateTransferReference(prefix, "zugang_transaktion_id", transfer, zugang, errors);
+    if (abgang.konto_id === zugang.konto_id) {
+      errors.push(`${prefix}: interner Transfer braucht unterschiedliche Konten`);
     }
     if (toCents(abgang.betrag) + toCents(zugang.betrag) !== 0) {
       errors.push(`${prefix}: Betraege sind nicht gegenlaeufig und betragsgleich`);
@@ -514,12 +549,31 @@ function validateTransfer(transfer, transaktionen, errors) {
     if (referenceCount !== 1) {
       errors.push(`${prefix}: externer Transfer braucht genau eine Transaktion`);
     }
+    if (referenceCount === 1) {
+      const referenceField = transfer.abgang_transaktion_id ? "abgang_transaktion_id" : "zugang_transaktion_id";
+      const referenceId = transfer[referenceField];
+      const reference = transaktionen.get(referenceId);
+      if (!reference) {
+        errors.push(`${prefix}.${referenceField}: referenzierte Transaktion ${referenceId} existiert nicht`);
+      } else {
+        validateTransferReference(prefix, referenceField, transfer, reference, errors);
+      }
+    }
     if (!transfer.gegenseite_typ) {
       errors.push(`${prefix}.gegenseite_typ: Pflicht bei externem Transfer`);
     }
     if (!transfer.begruendung) {
       errors.push(`${prefix}.begruendung: Pflicht bei externem Transfer`);
     }
+  }
+}
+
+function validateTransferReference(prefix, field, transfer, transaktion, errors) {
+  if (transaktion.ist_transfer !== true) {
+    errors.push(`${prefix}.${field}: ${transaktion.transaktion_id} ist nicht als ist_transfer markiert`);
+  }
+  if (transaktion.transfer_id !== transfer.transfer_id) {
+    errors.push(`${prefix}.${field}: ${transaktion.transaktion_id} transfer_id-Rueckverweis fehlt/zeigt nicht auf ${transfer.transfer_id}`);
   }
 }
 
@@ -574,6 +628,13 @@ function validateSzenarien(data, errors) {
         if (typeof a.betrag !== "string" || !istGueltigerBetrag(a.betrag)) errors.push(`${ap}: betrag fehlt/ungueltig`);
       } else if (a.art === "regelzahlung-neu") {
         if (!isIsoDate(a.ab)) errors.push(`${ap}: ab fehlt/ungueltig`);
+        if (a.bis !== undefined) {
+          if (!isIsoDate(a.bis)) {
+            errors.push(`${ap}: bis fehlt/ungueltig`);
+          } else if (isIsoDate(a.ab) && a.bis < a.ab) {
+            errors.push(`${ap}: bis liegt vor ab`);
+          }
+        }
         if (typeof a.betrag !== "string" || !istGueltigerBetrag(a.betrag)) errors.push(`${ap}: betrag fehlt/ungueltig`);
         if (!["tag", "woche", "monat", "jahr"].includes(a.rhythmus_einheit)) errors.push(`${ap}: rhythmus_einheit ungueltig`);
         if (!Number.isInteger(a.rhythmus_intervall) || a.rhythmus_intervall < 1) errors.push(`${ap}: rhythmus_intervall ungueltig`);

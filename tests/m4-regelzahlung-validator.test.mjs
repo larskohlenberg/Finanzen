@@ -13,7 +13,7 @@ function base() {
 }
 
 function rz(extra = {}) {
-  return { regelzahlung_id: "RZ-001", bezeichnung: "Gehalt", betrag: "3500.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-30", status: "bestaetigt", kategorie_id: "KAT-001", erstellt_am: "2026-06-02", ...extra };
+  return { regelzahlung_id: "RZ-001", bezeichnung: "Gehalt", betrag: "3500.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-30", status: "bestaetigt", kategorie_id: "KAT-001", erstellt_am: "2026-06-02", qualitaet: "belegt", ...extra };
 }
 
 test("gueltige Regelzahlung passiert den Validator", () => {
@@ -59,6 +59,15 @@ test("Regelzahlung mit qualitaet=geschaetzt und quelle_hinweis ist valide", () =
   const data = { ...base(), regelzahlungen: [rz({ qualitaet: "geschaetzt", quelle_hinweis: "Vertrag.pdf" })] };
   const result = validateMasterData(data);
   assert.equal(result.valid, true, result.errors.join("\n"));
+});
+
+test("bestaetigte Regelzahlung ohne qualitaet ist Fehler", () => {
+  const ohneQualitaet = rz();
+  delete ohneQualitaet.qualitaet;
+  const data = { ...base(), regelzahlungen: [ohneQualitaet] };
+  const result = validateMasterData(data);
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /qualitaet.*Pflichtfeld fehlt/);
 });
 
 test("Regelzahlung mit unbekannter qualitaet ist Fehler", () => {

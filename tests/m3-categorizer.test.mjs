@@ -16,6 +16,18 @@ test("eindeutiger Treffer ergibt vorgeschlagen", () => {
   assert.deepEqual(r, { kategorie_id: "KAT-003", status: "vorgeschlagen", conflict: false, matched_regeln: ["REG-001"] });
 });
 
+test("Pipe-Alternation matcht jeden Teil als Substring", () => {
+  const altRegeln = [{ regel_id: "REG-ALT", gegenpartei_pattern: "MusterladenB|MusterladenC|MusterladenA", kategorie_id: "KAT-004", status: "aktiv" }];
+  const r = categorize({ gegenpartei: "MusterladenC Nord", verwendungszweck: "Wocheneinkauf", betrag: "-77.00", konto_id: "KTO-001" }, altRegeln);
+  assert.deepEqual(r, { kategorie_id: "KAT-004", status: "vorgeschlagen", conflict: false, matched_regeln: ["REG-ALT"] });
+});
+
+test("Pattern ohne Pipe bleibt normaler lose normalisierter Substring", () => {
+  const einfacheRegeln = [{ regel_id: "REG-SUB", gegenpartei_pattern: "MusterladenA Mitte", kategorie_id: "KAT-003", status: "aktiv" }];
+  const r = categorize({ gegenpartei: "Kartenzahlung MusterladenA Mitte Hannover", verwendungszweck: "Einkauf", betrag: "-42.80", konto_id: "KTO-001" }, einfacheRegeln);
+  assert.deepEqual(r, { kategorie_id: "KAT-003", status: "vorgeschlagen", conflict: false, matched_regeln: ["REG-SUB"] });
+});
+
 test("kein Treffer ergibt offen", () => {
   const r = categorize({ gegenpartei: "Unbekannt", verwendungszweck: "x", betrag: "-1.00", konto_id: "KTO-001" }, regeln);
   assert.deepEqual(r, { kategorie_id: null, status: "offen", conflict: false, matched_regeln: [] });

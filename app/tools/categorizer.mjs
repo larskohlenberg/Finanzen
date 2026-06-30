@@ -1,15 +1,22 @@
 // app/tools/categorizer.mjs
 import { normalizeLoose, toCents } from "./lib/text.mjs";
 
+function patternMatches(value, pattern) {
+  // Pipe ist eine schlichte Alternation aus lose normalisierten Substrings,
+  // kein regulaerer Ausdruck; Patterns ohne Pipe behalten die alte includes-Logik.
+  if (!String(pattern).includes("|")) return value.includes(normalizeLoose(pattern));
+  return String(pattern).split("|").some((teil) => value.includes(normalizeLoose(teil)));
+}
+
 function matchesRule(buchung, regel) {
   const gegenpartei = normalizeLoose(buchung.gegenpartei);
   const verwendungszweck = normalizeLoose(buchung.verwendungszweck);
 
   if (regel.gegenpartei_pattern) {
-    if (!gegenpartei.includes(normalizeLoose(regel.gegenpartei_pattern))) return false;
+    if (!patternMatches(gegenpartei, regel.gegenpartei_pattern)) return false;
   }
   if (regel.verwendungszweck_pattern) {
-    if (!verwendungszweck.includes(normalizeLoose(regel.verwendungszweck_pattern))) return false;
+    if (!patternMatches(verwendungszweck, regel.verwendungszweck_pattern)) return false;
   }
   if (!regel.gegenpartei_pattern && !regel.verwendungszweck_pattern) return false;
   if (regel.konto_id && regel.konto_id !== buchung.konto_id) return false;

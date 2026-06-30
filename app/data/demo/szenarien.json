@@ -45,7 +45,6 @@
     "stand": "2026-06-22", "reichweite_bis": "2048-12-31", "erstellt_am": "2026-06-22",
     "beschreibung": "Lena geht 2042 in Rente: Gehalt endet, gesetzliche Rente + Riester (Verrentung) beginnen.",
     "annahmen": [
-      { "annahme_id": "A1", "art": "regelzahlung-aenderung", "regelzahlung_id": "RZ-001", "aktion": "beenden", "ab": "2042-08-01", "qualitaet": "geschaetzt", "begruendung": "Renteneintritt Lena 2042" },
       { "annahme_id": "A2", "art": "vorsorge-leistung", "vorsorge_id": "VS-001", "arm": "rente", "ab": "2042-08-01", "qualitaet": "geschaetzt", "begruendung": "Gesetzliche Rente Lena, netto aus Renteninfo 2026" },
       { "annahme_id": "A3", "art": "vorsorge-leistung", "vorsorge_id": "VS-003", "arm": "rente", "ab": "2042-08-01", "qualitaet": "geschaetzt", "begruendung": "Riester-Verrentung; Rückkaufswert wird zu Rentenbeginn abgebaut" }
     ]

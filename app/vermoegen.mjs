@@ -82,9 +82,9 @@ export function anteilWertCents(marktwertCents, eigentumsanteile) {
   let summe = 0;
   for (const a of eigentumsanteile ?? []) {
     if (a.extern === true || !a.person_id) continue;
-    summe += Math.round((marktwertCents * a.zaehler) / a.nenner);
+    summe += (marktwertCents * a.zaehler) / a.nenner;
   }
-  return summe;
+  return Math.round(summe);
 }
 
 export const STANDDATUM_SCHWELLEN = {

@@ -3,7 +3,7 @@
 import { data, t, escapeHtml } from "../runtime.mjs";
 import { formatMoney, renderPageHead, renderAccountTable } from "../komponenten.mjs";
 import { buildNextAgentAction } from "../next-action.mjs";
-import { currentNettovermoegen, loadedTotalAccountsBalance } from "../selektoren.mjs";
+import { currentNettovermoegen, loadedTotalAccountsBalance, overviewCheckPreviewItems } from "../selektoren.mjs";
 import { renderCheckItems } from "./checks.mjs";
 
 export function renderOverview() {
@@ -41,7 +41,7 @@ export function renderOverview() {
         </section>
         <section class="panel panel-pad checks-rail">
           <h2 class="section-title">${escapeHtml(t("overview.checksPreview"))}</h2>
-          <div class="rail-list">${renderCheckItems(data.checks.slice(0, 4))}</div>
+          <div class="rail-list">${renderCheckItems(overviewCheckPreviewItems())}</div>
         </section>
       </aside>
     </div>

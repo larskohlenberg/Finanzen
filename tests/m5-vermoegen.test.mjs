@@ -138,6 +138,19 @@ test("anteilWertCents ignoriert Anteil ohne person_id auch ohne extern-Flag", ()
   assert.equal(cents, 4500000);
 });
 
+test("anteilWertCents rundet erst nach der Summe aller gültigen Anteile", () => {
+  assert.equal(anteilWertCents(100, [
+    { person_id: "PER-001", zaehler: 1, nenner: 3 },
+    { person_id: "PER-002", zaehler: 1, nenner: 3 },
+    { person_id: "PER-003", zaehler: 1, nenner: 3 },
+  ]), 100);
+
+  assert.equal(anteilWertCents(101, [
+    { person_id: "PER-001", zaehler: 1, nenner: 2 },
+    { person_id: "PER-002", zaehler: 1, nenner: 2 },
+  ]), 101);
+});
+
 test("faelligkeiten: Termin genau auf bis ist inklusiv, Anker exklusiv", () => {
   const dar = { anfangsdatum: "2020-01-31", rhythmus_einheit: "monat", rhythmus_intervall: 1 };
   // nach = 2026-01-31 (Anker, exklusiv), bis = 2026-02-28 (geclampter Termin, inklusiv)

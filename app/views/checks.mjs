@@ -3,8 +3,7 @@
 import { data, t, escapeHtml, cents, transaktionenById, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, renderPageHead } from "../komponenten.mjs";
-import { computeVermoegenChecks } from "../vermoegen.mjs";
-import { localTodayIso } from "../liquiditaet.mjs";
+import { currentVermoegenChecks } from "../selektoren.mjs";
 
 function transferChecks() {
   return (data.transfers || []).map((transfer) => {
@@ -23,7 +22,7 @@ function transferChecks() {
 
 export function renderChecks() {
   const transferResults = transferChecks();
-  const m5 = computeVermoegenChecks(data, localTodayIso());
+  const m5 = currentVermoegenChecks();
   const groups = [
     [t("checksPage.validation"), data.checks.filter((check) => check.scope === "datenstand")],
     [t("checksPage.categories"), data.checks.filter((check) => check.scope === "transaktion")],
@@ -94,13 +93,16 @@ export function renderChecks() {
 
 export function renderCheckItems(checks) {
   return checks.map((check) => {
-    const title = t(check.title_key);
-    const detail = t(check.detail_key);
+    const title = check.title ?? t(check.title_key);
+    const detail = check.detail ?? t(check.detail_key);
     const affected = check.entity_id ? affectedLabel(check) : data.metadata.label;
+    const buttonAttrs = check.scope === "vermoegen"
+      ? `data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(check.entitaet || "")}" data-vid="${escapeHtml(check.entity_id || "")}"`
+      : `data-action="open-entity" data-scope="${escapeHtml(check.scope)}" data-entity="${escapeHtml(check.entity_id || "")}"`;
     return `
       <div class="rail-item">
         <span class="chip ${check.severity === "success" ? "success" : "review"}">${check.severity === "success" ? iconSvg("success") : iconSvg("review")}${escapeHtml(title)}</span>
-        <button class="linkish" data-action="open-entity" data-scope="${escapeHtml(check.scope)}" data-entity="${escapeHtml(check.entity_id || "")}">${escapeHtml(affected)}</button>
+        <button class="linkish" ${buttonAttrs}>${escapeHtml(affected)}</button>
         <span class="muted">${escapeHtml(detail)}</span>
       </div>
     `;
@@ -108,6 +110,7 @@ export function renderCheckItems(checks) {
 }
 
 function affectedLabel(check) {
+  if (check.scope === "vermoegen") return check.entity_id;
   if (check.scope === "konto") return kontenById.get(check.entity_id)?.name || check.entity_id;
   if (check.scope === "transaktion") {
     const tx = transaktionenById.get(check.entity_id);
@@ -115,4 +118,3 @@ function affectedLabel(check) {
   }
   return check.entity_id;
 }
-

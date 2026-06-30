@@ -3,11 +3,41 @@
 // kein DOM). Liegen getrennt von den Render-Funktionen, damit mehrere Views und
 // die Topbar dieselbe Logik teilen.
 import { data, cents } from "./runtime.mjs";
-import { computeNettovermoegen, aktuellerZeitwert } from "./vermoegen.mjs";
+import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert } from "./vermoegen.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
 
 export function reviewChecks() {
   return data.checks.filter((check) => check.severity === "review");
+}
+
+export function currentVermoegenChecks() {
+  return computeVermoegenChecks(data, localTodayIso());
+}
+
+export function vermoegenCheckItem(check) {
+  return {
+    scope: "vermoegen",
+    severity: "review",
+    title_key: `vermoegen.checkArt.${check.art}`,
+    detail: check.text,
+    entity_id: check.entitaet_id,
+    entitaet: check.entitaet,
+  };
+}
+
+export function currentCheckItems() {
+  return [
+    ...data.checks,
+    ...currentVermoegenChecks().map(vermoegenCheckItem),
+  ];
+}
+
+export function overviewCheckPreviewItems(limit = 4) {
+  const checks = currentCheckItems();
+  return [
+    ...checks.filter((check) => check.severity === "review"),
+    ...checks.filter((check) => check.severity !== "review"),
+  ].slice(0, limit);
 }
 
 export function openCategoryTransactions() {

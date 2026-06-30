@@ -1,6 +1,6 @@
 // app/views/checks.mjs
 // Prüfungen: Transfer-Checks + Vermögens-Checks.
-import { data, t, escapeHtml, cents } from "../runtime.mjs";
+import { data, t, escapeHtml, cents, transaktionenById, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, renderPageHead } from "../komponenten.mjs";
 import { computeVermoegenChecks } from "../vermoegen.mjs";

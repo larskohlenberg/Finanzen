@@ -29,8 +29,8 @@ function checkArts() {
     vermoegenswerte: [{ vermoegenswert_id: "VMW-001", bezeichnung: "Gold ohne Wert", typ: "edelmetall", status: "aktiv" }],
     darlehen: [{ darlehen_id: "DAR-001", bezeichnung: "Darlehen ohne Rate", status: "aktiv" }],
     vorsorge: [
-      { vorsorge_id: "VS-001", art: "betriebsrente", name: "Ungeprueft", person_id: "PER-001", status: "aktiv", kapitalbildend: false },
-      { vorsorge_id: "VS-002", art: "gesetzliche-rente", name: "Wiedervorlage", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2024-01-01" },
+      { vorsorge_id: "VS-001", art: "betriebsrente", name: "Ungeprueft", person_id: "PER-001", status: "geplant", kapitalbildend: false },
+      { vorsorge_id: "VS-002", art: "gesetzliche-rente", name: "Wiedervorlage", person_id: "PER-001", status: "geplant", kapitalbildend: false, geprueft_am: "2024-01-01" },
       { vorsorge_id: "VS-003", art: "schutzversicherung", name: "Wechsel", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-01-01" },
     ],
     regelzahlungen: [

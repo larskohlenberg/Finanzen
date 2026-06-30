@@ -122,7 +122,7 @@ test("doppelter Abbau derselben Vorsorge im Szenario ist Fehler", () => {
 });
 
 test("gesetzliche-rente darf nicht kapitalbildend sein", () => {
-  const data = basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "gesetzliche-rente", name: "GRV Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true }] });
+  const data = basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "gesetzliche-rente", name: "GRV Lena", person_id: "PER-001", status: "geplant", kapitalbildend: true }] });
   assert.ok(validateMasterData(data).errors.some((e) => e.includes("kapitalbildend")));
 });
 
@@ -133,6 +133,33 @@ test("schutzversicherung darf nicht kapitalbildend sein", () => {
 
 test("kapitalbildende Riester bleibt valide (Negativliste trifft nicht)", () => {
   const data = basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: true }] });
+  assert.deepEqual(validateMasterData(data).errors, []);
+});
+
+test("Vorsorge-Status muss zu eingeschraenkter art passen", () => {
+  const gesetzlicheRente = basis({
+    vorsorge: [{ vorsorge_id: "VS-001", art: "gesetzliche-rente", name: "GRV", person_id: "PER-001", status: "aktiv", kapitalbildend: false }],
+  });
+  const lebensversicherung = basis({
+    vorsorge: [{ vorsorge_id: "VS-002", art: "lebensversicherung", name: "LV", person_id: "PER-001", status: "laufend", kapitalbildend: true }],
+  });
+
+  assert.ok(validateMasterData(gesetzlicheRente).errors.includes(
+    "vorsorge.VS-001.status: status aktiv passt nicht zu art gesetzliche-rente; erlaubt: geplant|laufend|beendet",
+  ));
+  assert.ok(validateMasterData(lebensversicherung).errors.includes(
+    "vorsorge.VS-002.status: status laufend passt nicht zu art lebensversicherung; erlaubt: aktiv|gekuendigt|ruhend",
+  ));
+});
+
+test("Hybrid-Vorsorgearten erlauben beide Statusfamilien", () => {
+  const data = basis({
+    vorsorge: [
+      { vorsorge_id: "VS-001", art: "riester", name: "Riester aktiv", person_id: "PER-001", status: "aktiv", kapitalbildend: true },
+      { vorsorge_id: "VS-002", art: "riester", name: "Riester laufend", person_id: "PER-001", status: "laufend", kapitalbildend: true },
+    ],
+  });
+
   assert.deepEqual(validateMasterData(data).errors, []);
 });
 

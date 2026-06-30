@@ -237,6 +237,29 @@ const schemas = {
   },
 };
 
+const vorsorgeArtEnum = schemas.vorsorge.fields.art.enum;
+const vorsorgeStatusEnum = schemas.vorsorge.fields.status.enum;
+const vorsorgeArt = Object.freeze(Object.fromEntries(vorsorgeArtEnum.map((art) => [art, art])));
+const vorsorgeStatus = Object.freeze(Object.fromEntries(vorsorgeStatusEnum.map((status) => [status, status])));
+
+const vorsorgeStatusRente = Object.freeze([
+  vorsorgeStatus.geplant,
+  vorsorgeStatus.laufend,
+  vorsorgeStatus.beendet,
+]);
+const vorsorgeStatusVertrag = Object.freeze([
+  vorsorgeStatus.aktiv,
+  vorsorgeStatus.gekuendigt,
+  vorsorgeStatus.ruhend,
+]);
+
+const erlaubteVorsorgeStatusJeArt = new Map([
+  [vorsorgeArt["gesetzliche-rente"], vorsorgeStatusRente],
+  [vorsorgeArt.betriebsrente, vorsorgeStatusRente],
+  [vorsorgeArt.lebensversicherung, vorsorgeStatusVertrag],
+  [vorsorgeArt.schutzversicherung, vorsorgeStatusVertrag],
+]);
+
 export function validateMasterData(data) {
   const errors = [];
 
@@ -352,6 +375,15 @@ function validateField(path, value, rule, errors) {
   if (rule.format === "date" && !isIsoDate(value)) {
     errors.push(`${path}: muss ISO-Datum YYYY-MM-DD sein`);
   }
+}
+
+function validateVorsorgeStatusJeArt(vs, errors) {
+  if (typeof vs.art !== "string" || typeof vs.status !== "string") return;
+
+  const erlaubteStatus = erlaubteVorsorgeStatusJeArt.get(vs.art);
+  if (!erlaubteStatus || erlaubteStatus.includes(vs.status)) return;
+
+  errors.push(`vorsorge.${vs.vorsorge_id}.status: status ${vs.status} passt nicht zu art ${vs.art}; erlaubt: ${erlaubteStatus.join("|")}`);
 }
 
 function validateCrossFieldRules(data, errors) {
@@ -501,6 +533,7 @@ function validateCrossFieldRules(data, errors) {
     if (vs.kapitalbildend === true && nieKapitalbildend.has(vs.art)) {
       errors.push(`vorsorge.${vs.vorsorge_id}.kapitalbildend: ${vs.art} hat keinen Rueckkaufswert und kann nicht kapitalbildend sein`);
     }
+    validateVorsorgeStatusJeArt(vs, errors);
     if (vs.ersetzt_vorsorge_id) {
       if (vs.ersetzt_vorsorge_id === vs.vorsorge_id) {
         errors.push(`vorsorge.${vs.vorsorge_id}.ersetzt_vorsorge_id: darf nicht auf sich selbst zeigen`);

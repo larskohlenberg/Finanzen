@@ -31,7 +31,7 @@ function setBasis() {
 
 test("Szenario-Detail rendert vorsorge-leistung (Renten-Arm) statt Platzhalter", () => {
   setBasis();
-  data.vorsorge = [{ vorsorge_id: "VS-001", art: "gesetzliche-rente", name: "GRV Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-01-15" }];
+  data.vorsorge = [{ vorsorge_id: "VS-001", art: "gesetzliche-rente", name: "GRV Lena", person_id: "PER-001", status: "geplant", kapitalbildend: false, geprueft_am: "2026-01-15" }];
   data.zeitwerte = [
     { entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "5000.00", standdatum: "2026-06-01", qualitaet: "belegt" },
     { entitaet: "vorsorge", entitaet_id: "VS-001", feld: "erwartete_rente", wert: "1480.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },

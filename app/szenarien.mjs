@@ -39,7 +39,7 @@ export function modifizierteRegelzahlungen(data, szenario) {
     const ziel = rzs.find((r) => r.regelzahlung_id === ae.regelzahlung_id);
     if (!ziel) { warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung auf unbekannte Regelzahlung ${ae.regelzahlung_id}` }); continue; }
     const vortag = addInterval(ae.ab, "tag", -1);
-    if (vortag < ziel.anker_datum) { warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung ${ae.annahme_id} liegt vor dem Anker der Regelzahlung` }); continue; }
+    if (ae.ab < ziel.anker_datum) { warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung ${ae.annahme_id} liegt vor dem Anker der Regelzahlung` }); continue; }
     if (ziel.aktiv_bis && ziel.aktiv_bis < ae.ab) { warnungen.push({ code: "aenderung-wirkungslos", text: `Regelzahlung ${ae.regelzahlung_id} ist vor ${ae.ab} bereits abgelaufen` }); continue; }
     if (ae.aktion === "beenden") {
       ziel.aktiv_bis = ziel.aktiv_bis && ziel.aktiv_bis < vortag ? ziel.aktiv_bis : vortag;
@@ -51,7 +51,8 @@ export function modifizierteRegelzahlungen(data, szenario) {
   }
   for (const n of neue) {
     rzs.push({ regelzahlung_id: n.annahme_id, bezeichnung: n.name ?? "Szenario-Zahlung", betrag: n.betrag, qualitaet: n.qualitaet,
-      rhythmus_einheit: n.rhythmus_einheit, rhythmus_intervall: n.rhythmus_intervall, anker_datum: n.ab, aktiv_bis: n.bis, status: "bestaetigt", _gegenbuchung: n.gegenbuchung });
+      rhythmus_einheit: n.rhythmus_einheit, rhythmus_intervall: n.rhythmus_intervall, anker_datum: n.ab, aktiv_bis: n.bis, status: "bestaetigt",
+      kategorie_id: n.kategorie_id, _gegenbuchung: n.gegenbuchung });
   }
   return { rzs, warnungen };
 }
@@ -353,7 +354,7 @@ export function rechneSzenario(data, szenario, today) {
     ...sachwertQualitaeten,
   ]);
   if (punkte.length && punkte[0].liquide_cents < 0) warnungen.push({ code: "liquiditaet-negativ", text: `Liquidität bereits im ersten Monat negativ`, datum: punkte[0].monat });
-  warnungen.push(...guardrailWarnungen(data, today));
+  warnungen.push(...guardrailWarnungen(data, today, rzs));
   return { punkte, qualitaet, warnungen };
 }
 
@@ -373,11 +374,11 @@ function letzteDreiVolleMonate(today) {
   return monate;
 }
 
-// Cash-Realismus-Guardrail: vergleicht den BESTAND (bestätigte Regelzahlungen + Ist-
-// Transaktionen), NICHT die Szenario-Annahmen. 'cash-realismus', wenn eine geschätzte
+// Cash-Realismus-Guardrail: vergleicht die effektiven Regelzahlungen mit Ist-
+// Transaktionen. 'cash-realismus', wenn eine geschätzte
 // Regelzahlung deutlich unter dem Ist-Durchschnitt der letzten 3 Monate liegt;
 // 'kategorie-ungeplant', wenn materielles Ist keine Regelzahlung referenziert.
-export function guardrailWarnungen(data, today) {
+export function guardrailWarnungen(data, today, regelzahlungen = data.regelzahlungen ?? []) {
   const warnungen = [];
   const monate = letzteDreiVolleMonate(today);
   const vonMonat = `${monate[0]}-01`;
@@ -396,7 +397,7 @@ export function guardrailWarnungen(data, today) {
 
   const horizon12 = addInterval(today, "monat", 12);
   const planNachKategorie = new Map();
-  for (const rz of data.regelzahlungen ?? []) {
+  for (const rz of regelzahlungen ?? []) {
     if (rz.status !== "bestaetigt" || rz.qualitaet !== "geschaetzt" || !rz.kategorie_id) continue;
     const termine = occurrences(rz, today, horizon12);
     if (!termine.length) continue;
@@ -412,7 +413,7 @@ export function guardrailWarnungen(data, today) {
     }
   }
 
-  const geplanteKategorien = new Set((data.regelzahlungen ?? []).filter((rz) => rz.status === "bestaetigt" && rz.kategorie_id).map((rz) => rz.kategorie_id));
+  const geplanteKategorien = new Set((regelzahlungen ?? []).filter((rz) => rz.status === "bestaetigt" && rz.kategorie_id).map((rz) => rz.kategorie_id));
   for (const [kat, ist] of istNachKategorie) {
     if (ist > MATERIALITAET_MONAT_CENTS && !geplanteKategorien.has(kat)) {
       warnungen.push({ code: "kategorie-ungeplant", text: `Kategorie ${kat} hat materielles Ist (${(ist / 100).toFixed(2)}/Monat), aber keine geplante Regelzahlung` });

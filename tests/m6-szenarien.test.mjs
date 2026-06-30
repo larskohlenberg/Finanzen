@@ -50,6 +50,13 @@ test("regelzahlung-aenderung beenden stoppt die Regelzahlung", () => {
   assert.equal(r.punkte[r.punkte.length - 1].liquide_cents, 100000 - 100000);
 });
 
+test("regelzahlung-aenderung betrag-aendern am Anker wirkt ab erstem Termin", () => {
+  const data = dataMitRz([{ regelzahlung_id: "RZ-001", bezeichnung: "Miete", betrag: "-500.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-22", status: "bestaetigt", qualitaet: "belegt", erstellt_am: "2026-06-01" }]);
+  const r = rechneSzenario(data, sz([{ annahme_id: "A1", art: "regelzahlung-aenderung", qualitaet: "geschaetzt", regelzahlung_id: "RZ-001", ab: "2026-07-22", aktion: "betrag-aendern", betrag: "-700.00" }]), "2026-06-22");
+  assert.equal(r.punkte[r.punkte.length - 1].liquide_cents, 100000 - 6 * 70000);
+  assert.ok(!r.warnungen.some((w) => w.code === "aenderung-wirkungslos"));
+});
+
 function dataMitDarlehen() {
   return { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
     transaktionen: [], immobilien: [], vermoegenswerte: [],
@@ -144,6 +151,21 @@ test("kategorie-ungeplant: materielles Ist ohne Regelzahlung", () => {
     darlehen: [], immobilien: [], vermoegenswerte: [], zeitwerte: [], regelzahlungen: [] };
   const r = rechneSzenario(data, sz([], "2027-06-30"), "2026-06-22");
   assert.ok(r.warnungen.some((w) => w.code === "kategorie-ungeplant"));
+});
+
+test("regelzahlung-neu mit Kategorie wirkt in Guardrails als geplant", () => {
+  const data = { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    kategorien: [{ kategorie_id: "KAT-003", name: "Lebensmittel", typ: "ausgabe", lebenshaltung_relevant: true, status: "aktiv" }],
+    transaktionen: [
+      { konto_id: "KTO-001", buchungsdatum: "2026-03-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-04-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-05-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" }],
+    darlehen: [], immobilien: [], vermoegenswerte: [], zeitwerte: [],
+    regelzahlungen: [] };
+  const annahmen = [{ annahme_id: "A1", art: "regelzahlung-neu", name: "Lebensmittel-Plan", qualitaet: "geschaetzt", ab: "2026-07-01", betrag: "-800.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, kategorie_id: "KAT-003" }];
+  const r = rechneSzenario(data, sz(annahmen, "2027-06-30"), "2026-06-22");
+  assert.ok(!r.warnungen.some((w) => w.code === "cash-realismus"));
+  assert.ok(!r.warnungen.some((w) => w.code === "kategorie-ungeplant"));
 });
 
 test("belegt-Regelzahlung löst KEINE cash-realismus-Warnung aus", () => {

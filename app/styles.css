@@ -554,6 +554,13 @@ button {
   font-size: 17px;
 }
 
+/* Unter-Überschrift innerhalb eines Panels: braucht Oberabstand, damit sie sich
+   klar vom Block darüber absetzt (section-title hat nur margin-bottom). */
+.section-subtitle {
+  margin-top: 22px;
+  font-size: 15px;
+}
+
 .table-wrap {
   width: 100%;
   max-width: 100%;
@@ -1890,7 +1897,8 @@ tr.clickable.selected td:first-child {
 
 .diagramm-achse-label {
   fill: var(--muted);
-  font-size: 11px;
+  /* font-size kommt als SVG-Attribut (User-Units), damit die Schrift mit dem
+     Diagramm skaliert und die Label-Abstandsrechnung breitenunabhaengig stimmt. */
 }
 
 /* Diagramm-Hover-Overlay (app/diagramm-hover.mjs): liegt in document.body und

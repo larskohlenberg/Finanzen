@@ -25,7 +25,7 @@ export function linienDiagramm(punkte, options = {}) {
   const {
     width = 640,
     height = zeitModus ? 240 : 180,
-    padLeft = zeitModus ? 64 : 10,
+    padLeft = zeitModus ? 14 : 10,
     padRight = 10,
     padTop = zeitModus ? 34 : 14,
     padBottom = zeitModus ? 44 : 24,
@@ -93,12 +93,15 @@ export function linienDiagramm(punkte, options = {}) {
     }
     // Nach X-Position sortieren, damit Überlappungsprüfung von links nach rechts läuft.
     const sortiert = [...kandidaten].sort((a, b) => a - b);
-    const minAbstand = 42; // px, kompakte Quartalslabelbreite ("Q1 26") mit Luft
-    // Endpunkte tragen den vollen Monatsnamen und ragen ins Diagramm: der Start
-    // ("Juli 2026", links verankert) ragt nach rechts, das Ende ("Dezember 2048",
-    // rechts verankert) ragt weiter nach links — daher asymmetrische Freihaltung.
-    const startAbstand = 60;
-    const endAbstand = 108;
+    // Achsen-/Legendenschrift in USER-UNITS (font-size-Attribut, kein CSS-px): sie
+    // skaliert mit dem SVG, damit die Abstandsrechnung breitenunabhaengig stimmt.
+    const achseFont = 13;
+    const charBreite = achseFont * 0.62; // grobe Zeichenbreite in User-Units
+    // Freihaltung aus der tatsaechlichen Labelbreite: Endpunkte tragen den vollen
+    // Monatsnamen ("Dezember 2048") und ragen ins Diagramm, Quartalsmarken sind kompakt.
+    const minAbstand = 6 * charBreite;
+    const startAbstand = (formatMonat(monatVon(0)) || "").length * charBreite + 8;
+    const endAbstand = (formatMonat(monatVon(letzterI)) || "").length * charBreite + 8;
     const pflicht = new Set([0, letzterI]);
     const gesetzt = [0, letzterI];
     for (const i of sortiert) {
@@ -121,12 +124,14 @@ export function linienDiagramm(punkte, options = {}) {
       .map((i) => {
         const anchor = i === 0 ? "start" : i === letzterI ? "end" : "middle";
         const label = i === 0 || i === letzterI ? formatMonat(monatVon(i)) : quartalKurz(monatVon(i));
-        return `<text x="${x(i).toFixed(2)}" y="${(baseY + 16).toFixed(2)}" text-anchor="${anchor}" class="diagramm-achse-label">${esc(label)}</text>`;
+        return `<text x="${x(i).toFixed(2)}" y="${(baseY + 16).toFixed(2)}" text-anchor="${anchor}" font-size="${achseFont}" class="diagramm-achse-label">${esc(label)}</text>`;
       })
       .join("");
 
-    // Y-Achse: max oben, min unten, 0 dort wo sie liegt. Labels linksbündig im padLeft.
-    const yLabelX = (padLeft - 6).toFixed(2);
+    // Y-Achse: max oben, min unten, 0 dort wo sie liegt. Labels linksbündig INNERHALB
+    // der Plotflaeche, knapp an der jeweiligen Linie — so ragt eine breite Zahl
+    // ("594.493,00 €") nie ueber den linken Rahmen (SVG skaliert, Schrift ist px-fix).
+    const yLabelX = (padLeft + 4).toFixed(2);
     const yTicks = [
       { w: maxW, cls: "diagramm-achse-label" },
       { w: minW, cls: "diagramm-achse-label" },
@@ -135,9 +140,8 @@ export function linienDiagramm(punkte, options = {}) {
     const yLabels = yTicks
       .map(({ w, cls }) => {
         const yy = y(w);
-        // vertikal zentriert an der Tick-Höhe halten, Randfälle leicht einrücken
-        const dy = w === maxW ? 4 : w === minW ? -1 : 3;
-        return `<text x="${yLabelX}" y="${(yy + dy).toFixed(2)}" text-anchor="end" class="${cls}">${esc(formatWert(w))}</text>`;
+        const dy = w === maxW ? 13 : -6; // max: unter die Oberkante; min/0: ueber die Linie
+        return `<text x="${yLabelX}" y="${(yy + dy).toFixed(2)}" text-anchor="start" font-size="${achseFont}" class="${cls}">${esc(formatWert(w))}</text>`;
       })
       .join("");
 
@@ -153,12 +157,12 @@ export function linienDiagramm(punkte, options = {}) {
       ? (() => {
           const ly = (12).toFixed(2); // eigenes Oberband, klar ueber dem Y-Maxwert
           const x1 = (padLeft).toFixed(2);
-          const x2 = (padLeft + 90).toFixed(2);
+          const x2 = (padLeft + 130).toFixed(2);
           return `<g class="diagramm-legende">` +
             `<line x1="${x1}" y1="${ly}" x2="${(padLeft + 16).toFixed(2)}" y2="${ly}" class="diagramm-linie" vector-effect="non-scaling-stroke" />` +
-            `<text x="${(padLeft + 20).toFixed(2)}" y="${(Number(ly) + 4).toFixed(2)}" class="diagramm-achse-label">${esc(szenarioLabel)}</text>` +
-            `<line x1="${x2}" y1="${ly}" x2="${(padLeft + 106).toFixed(2)}" y2="${ly}" class="diagramm-linie-vergleich" vector-effect="non-scaling-stroke" />` +
-            `<text x="${(padLeft + 110).toFixed(2)}" y="${(Number(ly) + 4).toFixed(2)}" class="diagramm-achse-label">${esc(basisLabel)}</text>` +
+            `<text x="${(padLeft + 20).toFixed(2)}" y="${(Number(ly) + 4).toFixed(2)}" font-size="${achseFont}" class="diagramm-achse-label">${esc(szenarioLabel)}</text>` +
+            `<line x1="${x2}" y1="${ly}" x2="${(padLeft + 146).toFixed(2)}" y2="${ly}" class="diagramm-linie-vergleich" vector-effect="non-scaling-stroke" />` +
+            `<text x="${(padLeft + 150).toFixed(2)}" y="${(Number(ly) + 4).toFixed(2)}" font-size="${achseFont}" class="diagramm-achse-label">${esc(basisLabel)}</text>` +
             `</g>`;
         })()
       : "";

@@ -326,7 +326,7 @@ function renderObjektwirkungen(r) {
 
   if (!items.length) return "";
   return `
-    <h3 class="section-title">${escapeHtml(t("szenarien.objektwirkungTitle"))}</h3>
+    <h3 class="section-title section-subtitle">${escapeHtml(t("szenarien.objektwirkungTitle"))}</h3>
     <div class="rail-list section-spacing">${items.join("")}</div>`;
 }
 
@@ -373,7 +373,7 @@ function renderRechengrundlage(szenario, r, endeMonat) {
   return `
     <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(t("szenarien.rechengrundlageTitle"))}</h2>
-      <h3 class="section-title">${escapeHtml(t("szenarien.abweichungenTitle"))}</h3>
+      <h3 class="section-title section-subtitle">${escapeHtml(t("szenarien.abweichungenTitle"))}</h3>
       <p class="muted">${escapeHtml(t("szenarien.abweichungenLead"))}</p>
       ${abweichungen}
       ${renderObjektwirkungen(r)}

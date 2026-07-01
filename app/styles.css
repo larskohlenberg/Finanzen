@@ -1917,19 +1917,25 @@ tr.clickable.selected td:first-child {
 
 .diagramm-hover-punkt {
   position: absolute;
-  width: 9px;
-  height: 9px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  border: 2px solid var(--surface);
+  border: 2.5px solid var(--surface);
   transform: translate(-50%, -50%);
 }
 
+/* Szenario: gefüllter Punkt mit farbigem Halo (Ring-Lücke via surface-Border),
+   dadurch in Light- und Dark-Mode klar sichtbar. */
 .diagramm-hover-punkt.szenario {
-  background: var(--accent);
+  background: var(--accent-strong);
+  box-shadow: 0 0 0 2px var(--accent-strong);
 }
 
+/* Basis: hohler Ring — visuell vom gefüllten Szenario-Punkt unterscheidbar. */
 .diagramm-hover-punkt.basis {
-  background: var(--muted);
+  background: var(--surface);
+  border-color: var(--muted);
+  box-shadow: 0 0 0 2px var(--muted);
 }
 
 .diagramm-hover-punkt[hidden] {

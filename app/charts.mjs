@@ -27,7 +27,7 @@ export function linienDiagramm(punkte, options = {}) {
     height = zeitModus ? 240 : 180,
     padLeft = zeitModus ? 64 : 10,
     padRight = 10,
-    padTop = zeitModus ? 22 : 14,
+    padTop = zeitModus ? 34 : 14,
     padBottom = zeitModus ? 44 : 24,
     formatWert = (n) => String(n),
     formatMonat = (m) => String(m ?? ""),
@@ -93,18 +93,21 @@ export function linienDiagramm(punkte, options = {}) {
     }
     // Nach X-Position sortieren, damit Überlappungsprüfung von links nach rechts läuft.
     const sortiert = [...kandidaten].sort((a, b) => a - b);
-    const minAbstand = 42; // px, grob eine kompakte Quartalslabelbreite ("Q1 26") mit Luft
-    const endpunktAbstand = 72; // px, die Endpunkte tragen den vollen Monatsnamen ("Dezember 2029")
-    // Beide Endpunkte ZUERST reservieren, damit Quartalsmarken auch gegen den
-    // letzten Endpunkt geprüft werden (sonst überlappt die letzte Marke das Endlabel).
+    const minAbstand = 42; // px, kompakte Quartalslabelbreite ("Q1 26") mit Luft
+    // Endpunkte tragen den vollen Monatsnamen und ragen ins Diagramm: der Start
+    // ("Juli 2026", links verankert) ragt nach rechts, das Ende ("Dezember 2048",
+    // rechts verankert) ragt weiter nach links — daher asymmetrische Freihaltung.
+    const startAbstand = 60;
+    const endAbstand = 108;
     const pflicht = new Set([0, letzterI]);
     const gesetzt = [0, letzterI];
     for (const i of sortiert) {
       if (pflicht.has(i)) continue;
       const px = x(i);
-      const zuNahEndpunkt = gesetzt.some((gi) => pflicht.has(gi) && Math.abs(x(gi) - px) < endpunktAbstand);
+      const zuNahStart = px - x(0) < startAbstand;
+      const zuNahEnde = x(letzterI) - px < endAbstand;
       const zuNahMitte = gesetzt.some((gi) => !pflicht.has(gi) && Math.abs(x(gi) - px) < minAbstand);
-      if (!zuNahEndpunkt && !zuNahMitte) gesetzt.push(i);
+      if (!zuNahStart && !zuNahEnde && !zuNahMitte) gesetzt.push(i);
     }
     gesetzt.sort((a, b) => a - b);
     // Endpunkte lesbar (formatMonat), Quartals-Zwischenmarken kompakt ("Q3 27"),
@@ -148,7 +151,7 @@ export function linienDiagramm(punkte, options = {}) {
     // Legende nur bei vergleich: durchgezogen = Szenario, gestrichelt = Basis.
     const legende = vergleichWerte
       ? (() => {
-          const ly = (padTop - 10).toFixed(2);
+          const ly = (12).toFixed(2); // eigenes Oberband, klar ueber dem Y-Maxwert
           const x1 = (padLeft).toFixed(2);
           const x2 = (padLeft + 90).toFixed(2);
           return `<g class="diagramm-legende">` +

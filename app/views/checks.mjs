@@ -2,8 +2,34 @@
 // Prüfungen: Transfer-Checks + Vermögens-Checks.
 import { data, t, escapeHtml, cents, transaktionenById, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, renderPageHead } from "../komponenten.mjs";
+import { formatMoney, categoryName, renderPageHead } from "../komponenten.mjs";
 import { currentVermoegenChecks } from "../selektoren.mjs";
+import { guardrailWarnungen } from "../szenarien.mjs";
+import { localTodayIso } from "../liquiditaet.mjs";
+
+// Prognose-Realismus-Guardrails (Cash-Realismus, ungeplante Kategorien): hängen
+// an den Stammdaten, nicht an einem Szenario — deshalb hier zuhause, nicht auf
+// der Szenarioseite. Menschenlesbarer Satz aus den strukturierten Feldern.
+function guardrailItem(g) {
+  const titel = t(`szenarien.warnCode.${g.code}.titel`);
+  const kat = g.kategorie_id ? categoryName(g.kategorie_id) : "";
+  let detail = g.text;
+  if (g.code === "cash-realismus") {
+    detail = t("checksPage.cashRealismusText")
+      .replace("{kategorie}", kat)
+      .replace("{plan}", formatMoney(g.plan_cents))
+      .replace("{ist}", formatMoney(g.ist_cents));
+  } else if (g.code === "kategorie-ungeplant") {
+    detail = t("checksPage.kategorieUngeplantText")
+      .replace("{kategorie}", kat)
+      .replace("{ist}", formatMoney(g.ist_cents));
+  }
+  return `
+    <div class="rail-item">
+      <span class="chip review">${iconSvg("review")}${escapeHtml(titel)}</span>
+      <span>${escapeHtml(detail)}</span>
+    </div>`;
+}
 
 function transferChecks() {
   return (data.transfers || []).map((transfer) => {
@@ -23,12 +49,14 @@ function transferChecks() {
 export function renderChecks() {
   const transferResults = transferChecks();
   const m5 = currentVermoegenChecks();
+  const guardrails = guardrailWarnungen(data, localTodayIso());
   const groups = [
     [t("checksPage.validation"), data.checks.filter((check) => check.scope === "datenstand")],
     [t("checksPage.categories"), data.checks.filter((check) => check.scope === "transaktion")],
     [t("checksPage.accountReferences"), data.checks.filter((check) => check.scope === "konto")],
     [t("checksPage.transfers"), transferResults.map((tc) => ({ severity: tc.ok ? "success" : "review" }))],
     [t("nav.vermoegen"), m5.map(() => ({ severity: "review" }))],
+    [t("checksPage.prognoseRealismus"), guardrails.map(() => ({ severity: "review" }))],
   ];
   return `
     ${renderPageHead(t("checksPage.title"), t("checksPage.lead"))}
@@ -88,6 +116,11 @@ export function renderChecks() {
         </div>
       </section>
     ` : ""}
+    <section class="panel panel-pad section-spacing">
+      <h2 class="section-title">${escapeHtml(t("checksPage.prognoseRealismus"))}</h2>
+      <p class="page-lead">${escapeHtml(t("checksPage.prognoseRealismusLead"))}</p>
+      ${guardrails.length ? `<div class="rail-list">${guardrails.map(guardrailItem).join("")}</div>` : `<p class="muted">${escapeHtml(t("checksPage.prognoseRealismusOk"))}</p>`}
+    </section>
   `;
 }
 

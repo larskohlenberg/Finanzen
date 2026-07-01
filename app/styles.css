@@ -1882,6 +1882,92 @@ tr.clickable.selected td:first-child {
   fill: var(--danger);
 }
 
+/* Zeit-Modus-Achsen (charts.mjs). */
+.diagramm-achse {
+  stroke: var(--border);
+  stroke-width: 1px;
+}
+
+.diagramm-achse-label {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+/* Diagramm-Hover-Overlay (app/diagramm-hover.mjs): liegt in document.body und
+   positioniert sich in Dokumentkoordinaten ueber dem gehoverten SVG. Flach,
+   ohne Schatten (Haus-Stil). */
+.diagramm-hover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.diagramm-hover[hidden] {
+  display: none;
+}
+
+.diagramm-hover-linie {
+  position: absolute;
+  width: 0;
+  border-left: 1px dashed var(--border-strong);
+  transform: translateX(-50%);
+}
+
+.diagramm-hover-punkt {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  transform: translate(-50%, -50%);
+}
+
+.diagramm-hover-punkt.szenario {
+  background: var(--accent);
+}
+
+.diagramm-hover-punkt.basis {
+  background: var(--muted);
+}
+
+.diagramm-hover-punkt[hidden] {
+  display: none;
+}
+
+.diagramm-hover-box {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 6px 9px;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.diagramm-hover-monat {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.diagramm-hover-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 0;
+  border-top: 2px solid var(--accent);
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.diagramm-hover-swatch.basis {
+  border-top-style: dashed;
+  border-top-color: var(--muted);
+}
+
 /* In-App-Validierungsbanner: gleiche Logik wie das CLI, oben in jeder Ansicht. */
 .validation-banner {
   margin: 0 0 16px;

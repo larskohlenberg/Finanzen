@@ -19,6 +19,7 @@ import {
 import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
+import { bindDiagrammHover } from "./diagramm-hover.mjs";
 
 let nextActionCopiedTimer = null;
 
@@ -520,6 +521,9 @@ app.addEventListener("change", guard((event) => {
   }
 }, setUiError, "change"));
 
+// Diagramm-Hover: delegierter pointermove-Handler auf dem App-Container.
+bindDiagrammHover(app);
+
 async function copyNextAgentPrompt(type = "") {
   const nextActionActions = buildNextAgentActions(data);
   const nextAction = nextActionActions.find((candidate) => candidate.type === type) ?? nextActionActions[0];
@@ -746,18 +750,47 @@ async function handleAction(element) {
     return;
   }
   if (action === "select-szenario") {
+    // Klick auf ein Szenario oeffnet das Uebersichts-Rail (Liste bleibt), nicht die Vollansicht.
     state.selectedSzenarioId = element.dataset.szenario;
+    state.szenarioDetailRailClosed = false;
+    state.szenarioVollansicht = false;
+    state.szenarioBasisExpanded = false;
+    commitNavigation();
+    return;
+  }
+  if (action === "close-szenario-rail") {
+    state.szenarioDetailRailClosed = true;
+    commitNavigation();
+    return;
+  }
+  if (action === "open-szenario-vollansicht") {
+    state.szenarioVollansicht = true;
+    commitNavigation();
+    return;
+  }
+  if (action === "toggle-szenario-basis") {
+    state.szenarioBasisExpanded = !state.szenarioBasisExpanded;
     commitNavigation();
     return;
   }
   if (action === "back-to-szenarien") {
-    state.selectedSzenarioId = "";
+    // Aus der Vollansicht zurueck zu Liste + Rail (Auswahl bleibt erhalten).
+    state.szenarioVollansicht = false;
     commitNavigation();
     return;
   }
   if (action === "open-szenario") {
     state.view = "szenarien";
     state.selectedSzenarioId = element.dataset.szenario;
+    state.szenarioDetailRailClosed = false;
+    state.szenarioVollansicht = false;
+    commitNavigation();
+    return;
+  }
+  if (action === "open-regelzahlung") {
+    // Querlink aus der Szenario-Rechengrundlage auf die konkrete Regelzahlung.
+    state.view = "regelzahlungen";
+    state.selectedRegelzahlungId = element.dataset.regelzahlung || "";
     commitNavigation();
     return;
   }

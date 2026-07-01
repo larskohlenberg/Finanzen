@@ -38,6 +38,10 @@ export function routeFromState(state) {
   if (state.view === "szenarien" && state.selectedSzenarioId) {
     return `#/szenarien/${encodeURIComponent(state.selectedSzenarioId)}`;
   }
+  // Regelzahlung als adressierbares Ziel (Querlink aus der Szenario-Rechengrundlage).
+  if (state.view === "regelzahlungen" && state.selectedRegelzahlungId) {
+    return `#/regelzahlungen/${encodeURIComponent(state.selectedRegelzahlungId)}`;
+  }
   return `#/${VIEW_SLUG[state.view] || state.view}`;
 }
 
@@ -70,6 +74,9 @@ export function parseRoute(hash) {
   }
   if (head === "szenarien") {
     return tail ? { view: "szenarien", selectedSzenarioId: tail } : { view: "szenarien" };
+  }
+  if (head === "regelzahlungen") {
+    return tail ? { view: "regelzahlungen", selectedRegelzahlungId: tail } : { view: "regelzahlungen" };
   }
   if (SLUG_VIEW[head]) return { view: SLUG_VIEW[head] };
   return { view: "overview" };

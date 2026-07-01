@@ -124,6 +124,10 @@ export const state = {
   vermoegenRailMode: "position",
   vermoegenRailWide: false,
   selectedSzenarioId: "",
+  szenarioDetailRailClosed: false,
+  szenarioVollansicht: false,
+  szenarioBasisExpanded: false,
+  selectedRegelzahlungId: "",
 };
 
 export const personenById = new Map(data.personen.map((person) => [person.person_id, person]));

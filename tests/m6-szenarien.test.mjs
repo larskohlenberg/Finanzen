@@ -15,7 +15,7 @@ test("aktuellerZeitwert ohne bis nimmt den neuesten", () => {
   assert.equal(aktuellerZeitwert(ZW, "immobilie", "IMM-001", "marktwert").wert, "999999.00");
 });
 
-import { rechneSzenario } from "../app/szenarien.mjs";
+import { rechneSzenario, guardrailWarnungen } from "../app/szenarien.mjs";
 
 function dataMitRz(rz = []) {
   return { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
@@ -137,8 +137,8 @@ test("cash-realismus: geschätzter Plan deutlich unter Ist", () => {
       { konto_id: "KTO-001", buchungsdatum: "2026-05-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" }],
     darlehen: [], immobilien: [], vermoegenswerte: [], zeitwerte: [],
     regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "Lebensmittel-Plan", betrag: "-500.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt", qualitaet: "geschaetzt", kategorie_id: "KAT-003", erstellt_am: "2026-06-01" }] };
-  const r = rechneSzenario(data, sz([], "2027-06-30"), "2026-06-22");
-  assert.ok(r.warnungen.some((w) => w.code === "cash-realismus"));
+  const w = guardrailWarnungen(data, "2026-06-22");
+  assert.ok(w.some((x) => x.code === "cash-realismus"));
 });
 
 test("kategorie-ungeplant: materielles Ist ohne Regelzahlung", () => {
@@ -149,8 +149,8 @@ test("kategorie-ungeplant: materielles Ist ohne Regelzahlung", () => {
       { konto_id: "KTO-001", buchungsdatum: "2026-04-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
       { konto_id: "KTO-001", buchungsdatum: "2026-05-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" }],
     darlehen: [], immobilien: [], vermoegenswerte: [], zeitwerte: [], regelzahlungen: [] };
-  const r = rechneSzenario(data, sz([], "2027-06-30"), "2026-06-22");
-  assert.ok(r.warnungen.some((w) => w.code === "kategorie-ungeplant"));
+  const w = guardrailWarnungen(data, "2026-06-22");
+  assert.ok(w.some((x) => x.code === "kategorie-ungeplant"));
 });
 
 test("regelzahlung-neu mit Kategorie wirkt in Guardrails als geplant", () => {

@@ -41,6 +41,7 @@ test("Szenario-Detail rendert vorsorge-leistung (Renten-Arm) statt Platzhalter",
     annahmen: [{ annahme_id: "A2", art: "vorsorge-leistung", vorsorge_id: "VS-001", arm: "rente", ab: "2042-08-01", qualitaet: "geschaetzt", begruendung: "Gesetzliche Rente Lena" }],
   }];
   state.selectedSzenarioId = "SZN-004";
+  state.szenarioVollansicht = true; // Annahmen/Rechengrundlage leben in der Vollansicht
 
   const html = renderSzenarien();
   assert.match(html, /Vorsorgeleistung/, "Annahme-Art muss lokalisiert erscheinen");
@@ -61,6 +62,7 @@ test("Szenario-Detail rendert vorsorge-leistung (Kapital-Arm)", () => {
     annahmen: [{ annahme_id: "A2", art: "vorsorge-leistung", vorsorge_id: "VS-005", arm: "kapital", ab: "2028-03-15", qualitaet: "belegt", begruendung: "Todesfallleistung" }],
   }];
   state.selectedSzenarioId = "SZN-005";
+  state.szenarioVollansicht = true; // Annahmen/Rechengrundlage leben in der Vollansicht
 
   const html = renderSzenarien();
   assert.match(html, /Vorsorgeleistung/);

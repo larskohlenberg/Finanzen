@@ -148,13 +148,21 @@ function sammleSachwertGegenbuchungen(szenario, today, horizon) {
     if (!(a.datum > today && a.datum <= horizon)) continue;
     const cash_cents = toCents(a.betrag);
     if (g.ziel_id) {
-      ereignisse.push({ datum: a.datum, abbau_key: `${g.ziel_typ}:${g.ziel_id}`, cash_cents });
+      ereignisse.push({ datum: a.datum, abbau_key: `${g.ziel_typ}:${g.ziel_id}`, ziel_typ: g.ziel_typ, ziel_id: g.ziel_id, cash_cents });
     } else if (g.neue_position) {
-      ereignisse.push({ datum: a.datum, aufbau_cents: toCents(g.neue_position.wert), cash_cents });
+      ereignisse.push({ datum: a.datum, aufbau_cents: toCents(g.neue_position.wert), ziel_typ: g.ziel_typ, ziel_id: null, neue_bezeichnung: g.neue_position.bezeichnung, cash_cents });
     }
   }
   ereignisse.sort((x, y) => x.datum.localeCompare(y.datum));
   return ereignisse;
+}
+
+// Bezeichnung einer Sachwert-/Vorsorge-Position aus den Stammdaten auflösen.
+function sachwertBezeichnung(data, ziel_typ, ziel_id) {
+  if (ziel_typ === "immobilie") return (data.immobilien ?? []).find((i) => i.immobilie_id === ziel_id)?.bezeichnung ?? ziel_id;
+  if (ziel_typ === "vermoegenswert") return (data.vermoegenswerte ?? []).find((v) => v.vermoegenswert_id === ziel_id)?.bezeichnung ?? ziel_id;
+  if (ziel_typ === "vorsorge") return (data.vorsorge ?? []).find((v) => v.vorsorge_id === ziel_id)?.name ?? ziel_id;
+  return ziel_id;
 }
 
 // Chronologischer Merge von Ratenterminen und Sondertilgungen je Darlehen. Liefert effektive
@@ -283,12 +291,21 @@ export function rechneSzenario(data, szenario, today) {
   const { werte: sachwertStart, qualitaeten: sachwertQualitaeten } = sachwertStartwerte(data, today);
   const sachwertDeltas = []; // { datum, delta_cents }
   const sachwertCash = [];
+  const sachwertwirkungen = []; // { ziel_typ, ziel_id, bezeichnung, art, datum, wert_cents }
+  const vorsorgewirkungen = []; // { vorsorge_id, bezeichnung, datum, rueckkaufswert_cents }
   for (const e of sammleSachwertGegenbuchungen(szenario, today, horizon)) {
     if (e.abbau_key) {
       const wert = sachwertStart.get(e.abbau_key) ?? 0;
       sachwertDeltas.push({ datum: e.datum, delta_cents: -wert });
+      const bezeichnung = sachwertBezeichnung(data, e.ziel_typ, e.ziel_id);
+      if (e.ziel_typ === "vorsorge") {
+        vorsorgewirkungen.push({ vorsorge_id: e.ziel_id, bezeichnung, datum: e.datum, rueckkaufswert_cents: wert });
+      } else {
+        sachwertwirkungen.push({ ziel_typ: e.ziel_typ, ziel_id: e.ziel_id, bezeichnung, art: "abbau", datum: e.datum, wert_cents: wert });
+      }
     } else {
       sachwertDeltas.push({ datum: e.datum, delta_cents: e.aufbau_cents });
+      sachwertwirkungen.push({ ziel_typ: e.ziel_typ, ziel_id: null, bezeichnung: e.neue_bezeichnung, art: "aufbau", datum: e.datum, wert_cents: e.aufbau_cents });
     }
     sachwertCash.push({ datum: e.datum, cents: e.cash_cents });
   }
@@ -354,8 +371,30 @@ export function rechneSzenario(data, szenario, today) {
     ...sachwertQualitaeten,
   ]);
   if (punkte.length && punkte[0].liquide_cents < 0) warnungen.push({ code: "liquiditaet-negativ", text: `Liquidität bereits im ersten Monat negativ`, datum: punkte[0].monat });
-  warnungen.push(...guardrailWarnungen(data, today, rzs));
-  return { punkte, qualitaet, warnungen };
+
+  // Bestätigte Bestands-Regelzahlungen (nicht szenario-neu) mit mindestens einem Termin im
+  // Zeitraum — für die Herleitungs-Sicht der Views.
+  const basisRegelzahlungen = (data.regelzahlungen ?? [])
+    .filter((r) => r.status === "bestaetigt" && occurrences(r, today, horizon).length)
+    .map((r) => ({ regelzahlung_id: r.regelzahlung_id, bezeichnung: r.bezeichnung, betrag: r.betrag,
+      rhythmus_einheit: r.rhythmus_einheit, rhythmus_intervall: r.rhythmus_intervall,
+      aktiv_bis: r.aktiv_bis ?? null, kategorie_id: r.kategorie_id ?? null, qualitaet: r.qualitaet }));
+
+  const darlehen = [...restschuldNachDarlehen.entries()].map(([darlehen_id, p]) => {
+    let ende = p.start_cents;
+    for (const r of p.reihe) { if (r.datum <= horizon) ende = r.rest_cents; else break; }
+    return { darlehen_id, bezeichnung: (data.darlehen ?? []).find((d) => d.darlehen_id === darlehen_id)?.bezeichnung ?? darlehen_id,
+      start_cents: p.start_cents, ende_cents: ende, abbezahlt_am: p.abbezahlt_am ?? null, qualitaet: p.qualitaet, hatZeitwert: p.hatZeitwert };
+  });
+
+  const depots = depotKontoListe.map((k) => {
+    const reihe = depotReihe.get(k.konto_id) ?? [];
+    let ende = depotStart.get(k.konto_id);
+    for (const r of reihe) { if (r.datum <= horizon) ende = r.wert_cents; else break; }
+    return { konto_id: k.konto_id, bezeichnung: k.name, start_cents: depotStart.get(k.konto_id), ende_cents: ende };
+  });
+
+  return { punkte, qualitaet, warnungen, basisRegelzahlungen, darlehen, depots, sachwertwirkungen, vorsorgewirkungen };
 }
 
 export function computeSzenario(data, szenario, today) {
@@ -409,14 +448,14 @@ export function guardrailWarnungen(data, today, regelzahlungen = data.regelzahlu
   for (const [kat, plan] of planNachKategorie) {
     const ist = istNachKategorie.get(kat) ?? 0;
     if (plan < GUARDRAIL_SCHWELLE * ist) {
-      warnungen.push({ code: "cash-realismus", text: `Geplante Ausgaben für ${kat} (${(plan / 100).toFixed(2)}/Monat) liegen deutlich unter dem Ist-Durchschnitt (${(ist / 100).toFixed(2)}/Monat)` });
+      warnungen.push({ code: "cash-realismus", kategorie_id: kat, plan_cents: plan, ist_cents: ist, text: `Geplante Ausgaben für ${kat} (${(plan / 100).toFixed(2)}/Monat) liegen deutlich unter dem Ist-Durchschnitt (${(ist / 100).toFixed(2)}/Monat)` });
     }
   }
 
   const geplanteKategorien = new Set((regelzahlungen ?? []).filter((rz) => rz.status === "bestaetigt" && rz.kategorie_id).map((rz) => rz.kategorie_id));
   for (const [kat, ist] of istNachKategorie) {
     if (ist > MATERIALITAET_MONAT_CENTS && !geplanteKategorien.has(kat)) {
-      warnungen.push({ code: "kategorie-ungeplant", text: `Kategorie ${kat} hat materielles Ist (${(ist / 100).toFixed(2)}/Monat), aber keine geplante Regelzahlung` });
+      warnungen.push({ code: "kategorie-ungeplant", kategorie_id: kat, ist_cents: ist, text: `Kategorie ${kat} hat materielles Ist (${(ist / 100).toFixed(2)}/Monat), aber keine geplante Regelzahlung` });
     }
   }
   return warnungen;

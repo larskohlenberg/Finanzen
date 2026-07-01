@@ -1,6 +1,6 @@
 // app/views/regelzahlungen.mjs
 // Regelzahlungs-Liste inkl. "Nächste Fälligkeit" je Eintrag.
-import { data, t, escapeHtml } from "../runtime.mjs";
+import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { formatMoney, formatDate, statusChip, renderPageHead } from "../komponenten.mjs";
 import { naechsteFaelligkeit, localTodayIso, toCents } from "../liquiditaet.mjs";
 
@@ -14,8 +14,9 @@ export function renderRegelzahlungen() {
   const rows = data.regelzahlungen.map((rz) => {
     // Abgelehnte Regelzahlungen haben keine erwartete Zukunft; sonst der naechste Termin.
     const naechste = rz.status === "abgelehnt" ? null : naechsteFaelligkeit(rz, today);
+    const angesteuert = rz.regelzahlung_id === state.selectedRegelzahlungId;
     return `
-    <tr>
+    <tr id="regelzahlung-${escapeHtml(rz.regelzahlung_id)}" class="${angesteuert ? "selected" : ""}">
       <td>${escapeHtml(rz.bezeichnung)}</td>
       <td class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</td>
       <td>${escapeHtml(formatRhythmus(rz.rhythmus_einheit, rz.rhythmus_intervall))}</td>

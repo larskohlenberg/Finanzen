@@ -46,6 +46,29 @@ test("every app skill points to the app agent context", () => {
   }
 });
 
+// Einmal-Migrationen haben zwar eine CLI, sollen aber von einem Agenten gerade
+// NICHT von sich aus aufgerufen werden — sie stehen darum bewusst nicht im
+// Betriebskontext.
+const nichtFuerAgenten = new Set(["migrate-ids-uuid.mjs"]);
+
+test("every tool with a CLI entry point is listed in the agent context", () => {
+  // Wer eine CLI hat, ist agentenbedienbar — dann muss der Agent das Tool auch
+  // finden koennen, ohne app/tools/ zu durchsuchen. Ohne diesen Guard rottet
+  // die Tool-Liste beim naechsten neuen Tool still.
+  const toolsDir = join(repoRoot, "app", "tools");
+  const context = readFileSync(join(docsDir, "agent-context.md"), "utf8");
+
+  const cliTools = readdirSync(toolsDir)
+    .filter((name) => name.endsWith(".mjs"))
+    .filter((name) => readFileSync(join(toolsDir, name), "utf8").includes("process.argv[1] === fileURLToPath"))
+    .filter((name) => !nichtFuerAgenten.has(name));
+
+  assert.ok(cliTools.length > 0, "Testvoraussetzung: es gibt ueberhaupt CLI-Tools");
+  for (const tool of cliTools) {
+    assert.match(context, new RegExp(tool.replaceAll(".", "\\.")), `tools/${tool} hat eine CLI, steht aber nicht in docs/agent-context.md`);
+  }
+});
+
 test("agent context requires an explicit data mode and data root before writes", () => {
   const text = readFileSync(join(docsDir, "agent-context.md"), "utf8");
 

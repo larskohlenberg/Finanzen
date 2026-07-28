@@ -49,6 +49,15 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
 2. **Beleg sichten:** Police, Standmitteilung, Renteninformation,
    Versicherungsrechnung oder Kuendigungs-/Wechselbeleg lesen und den finalen
    `Belege/...`-Pfad als `quelle_hinweis` vorbereiten.
+
+   Liegen die PDFs in `data/inbox/`, zuerst **einmal** `npm run inbox:schreiben`
+   fahren: der Lauf legt zu jedem PDF einen Textvorlauf (`pdftotext -layout`)
+   unter `data/inbox/standardized/<name>.txt` ab. Danach den **Text** lesen statt
+   des PDF-Binaers — bei einem Stapel Policen ist das der Unterschied zwischen
+   einer Sitzung und mehreren. Der Lauf schreibt dabei **keine** Vorsorgedaten;
+   er zerlegt nichts und deutet nichts. Bleibt eine Zahl im Text unklar oder
+   zweideutig (Tabellen, Fussnoten, schlechter Scan), das Original-PDF oeffnen —
+   der Textvorlauf ist eine Lesehilfe, kein Ersatz fuer den Beleg.
 3. **Vorsorge-Entitaet vorschlagen:** `vorsorge_id`, `art`, `name`, `person_id`,
    `status`, `kapitalbildend`, optional `kapitalwahl`, `leistung_beginn`,
    `aktiv_bis`, `ersetzt_vorsorge_id`, `quelle_standdatum` und `bemerkung`.

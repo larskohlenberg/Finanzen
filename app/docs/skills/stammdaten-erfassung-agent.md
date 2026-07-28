@@ -32,7 +32,29 @@ Den Nutzer Schritt für Schritt durch die Erfassung beliebiger Stammdaten leiten
    - `tools/validator.mjs` laufen lassen (Tool prüft, Agent schreibt),
    - Nutzer bestätigt **Wert für Wert**.
 3. **Nach jedem Block: Checks anzeigen** — fehlende Bewertung, Reconciliation-Drift, Σ der Eigentumsanteile, Darlehen ohne Raten-Regelzahlung.
-4. **Abschluss:** `agent_log.jsonl`-Eintrag schreiben und die **Nettovermögen-Aufschlüsselung** zum Gegenlesen zeigen.
+4. **Bei einem neuen Konto: Import-Profil anschliessen** (siehe unten).
+5. **Abschluss:** `agent_log.jsonl`-Eintrag schreiben und die **Nettovermögen-Aufschlüsselung** zum Gegenlesen zeigen.
+
+## Neues Konto: das Import-Profil gehört dazu
+
+Ein Konto anzulegen ist erst dann fertig, wenn auch der Weg steht, wie Umsätze
+dieses Kontos hineinkommen. Direkt nach dem bestätigten Konto-Eintrag:
+
+1. Fragen, ob es einen **CSV-Umsatzexport** der Bank gibt (nicht nur PDF-Auszüge).
+2. Wenn ja: gemeinsam mit dem Nutzer **einmalig** ein Profil unter
+   `data/import-profile/<profil_id>.json` anlegen — Vertrag ist
+   `schemas/importprofil.schema.json`. Danach ist jeder weitere Export dieser Bank
+   ein Tool-Aufruf (`npm run inbox`) statt Handarbeit.
+3. `dateimuster` so scharf fassen, dass genau **ein** Profil auf die Datei passt;
+   zwei Treffer brechen den Inbox-Lauf bewusst ab.
+4. **Nie raten:** Gibt es für ein Feld keine verlässliche Spalte, bleibt es leer
+   (`{"konstante": ""}`). Eine falsche Gegenpartei ist schlimmer als eine fehlende.
+5. `bank_referenz` nur mappen, wenn die Bank sie je Buchung stabil und eindeutig
+   vergibt — sonst weglassen, damit der Freitext-Hash greift.
+
+Danach `npm run inbox` als **Vorschau** fahren und dem Nutzer zeigen, wie viele
+Buchungen gelesen würden, bevor irgendetwas geschrieben wird. Details stehen im
+Skill **import-agent**.
 
 ## Verifikation (fünf Schichten)
 
@@ -75,3 +97,13 @@ Ablage in `Belege/`: Kontoauszuege unter `Belege/Kontoauszuege/<Konto>/`; sonsti
 | `tools/validator.mjs` | Ausführbare Validierung (Struktur + Cross-Field) |
 | `DATENROOT/*.json` / `*.jsonl` | Stammdaten (inkl. `zeitwerte.jsonl`) |
 | `vermoegen.mjs` | Nettovermögen- und Check-Berechnung |
+| `schemas/importprofil.schema.json` | Vertrag für das Import-Profil eines neuen Kontos |
+| `data/import-profile/` | Bank-Profile (nicht versioniert; README erklärt die Regeln) |
+
+## Verwandte Skills und Anschlussprozesse
+
+- **import-agent** — spielt Umsätze des neu angelegten Kontos ein; braucht das
+  Import-Profil aus Schritt 4.
+- **kategorisierungsregel-pflege** — legt fehlende Kategorien-Regeln an, nachdem
+  die ersten Buchungen des neuen Kontos offen hereingekommen sind.
+- **vorsorge-erfassung-agent** — für Policen, Standmitteilungen und Renteninfos.

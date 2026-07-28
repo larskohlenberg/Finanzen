@@ -36,7 +36,34 @@ Nicht nutzen fuer:
 
 ## Ablauf
 
-1. **Read-only-Analyse des Offen-Stapels.** Lade `DATENROOT/transaktionen.jsonl` und betrachte `kategorisierung_status = offen` (sowie Regel-**Konflikte**, die der Categorizer offen laesst). Gruppiere nach wiederkehrenden Mustern in `gegenpartei`/`verwendungszweck`. **Ranking nach Hebel:** wie viele offene Buchungen ein Muster traefe × wie eindeutig es ist. So entsteht eine Liste „groesster Effekt zuerst". Nichts schreiben in diesem Schritt.
+1. **Read-only-Analyse des Offen-Stapels — mit dem Tool, nicht von Hand.**
+
+   ```
+   node tools/regel-vorschlag.mjs DATENROOT
+   ```
+
+   `regel-vorschlag.mjs` buendelt alle `offen`-Buchungen nach lose normalisierter
+   `gegenpartei`, sortiert nach Abdeckung und liefert je Cluster Trefferzahl,
+   Summe und drei Beispiele mit Verwendungszweck. Das **ersetzt** das manuelle
+   Gruppieren: den Bestand nicht zeilenweise in den Kontext laden, nur um zu
+   zaehlen. `--min=` setzt die Cluster-Mindestgroesse, `--json` gibt die
+   Rohstruktur, `--limit=` verlaengert den Bericht.
+
+   Zwei Dinge aus dem Bericht sind fuer dich entscheidend:
+   - **Reihenfolge = Hebel.** Oben steht der groesste Effekt. Genau so vorgehen.
+   - **`[Regelkonflikt]`-Marker.** Dieser Cluster ist nicht offen, weil eine Regel
+     fehlt, sondern weil **mehrere** Regeln mit verschiedenen Kategorien passen.
+     Das braucht **Reparatur** einer bestehenden Regel (Muster schaerfen, eine
+     stilllegen), **keine** zusaetzliche Regel — eine weitere Regel verschaerft
+     den Konflikt nur.
+
+   Das Tool schlaegt bewusst **keine Kategorie** vor; es liefert Muster und
+   Abdeckung, die Fachentscheidung bleibt beim Nutzer. Nichts schreiben in
+   diesem Schritt.
+
+   Fuer Buchungen, die ohne Regel bleiben sollen (echte Einzelfaelle — im Bericht
+   als `Einzelfaelle` gezaehlt), ist nicht dieser Skill zustaendig, sondern
+   **kategorisierung-review** mit `tools/confirm.mjs`.
 2. **Regel(n) vorschlagen.** Pro Muster eine konkrete Regel formulieren:
    - `gegenpartei_pattern` und/oder `verwendungszweck_pattern` (Substring, lose normalisiert), optional gefiltert auf `konto_id` und `vorzeichen` (`einnahme`/`ausgabe`),
    - genau eine `kategorie_id` (muss in `kategorien.json` existieren),
@@ -74,7 +101,7 @@ Nicht nutzen fuer:
 
 **Selbstaendig handeln:**
 
-- Read-only-Analyse und Ranking des Offen-Stapels.
+- Read-only-Analyse und Ranking des Offen-Stapels (`regel-vorschlag.mjs`).
 - Probelauf (`categorize()`), um die Trefferliste einer vorgeschlagenen Regel zu zeigen.
 - `recategorize.mjs` nach bestaetigter Regelaenderung und der anschliessende Validator-Lauf.
 
@@ -87,6 +114,7 @@ Nicht nutzen fuer:
 | `DATENROOT/kategorien.json` | Gueltige Ziel-`kategorie_id` |
 | `DATENROOT/agent_log.jsonl` | Lauf-Protokoll fuer die Uebergabe |
 | `schemas/kategorisierungsregeln.schema.json` | Struktur-Referenz einer Regel |
+| `tools/regel-vorschlag.mjs` | Offen-Stapel zu Regelkandidaten buendeln (Schritt 1) |
 | `tools/categorizer.mjs` | Deterministisches Matching (Probelauf + Recompute) |
 | `tools/recategorize.mjs` | Nach-Kategorisierung (Recompute + Validator + Bericht) |
 | `tools/validator.mjs` | Validator (von `recategorize.mjs` gerufen) |

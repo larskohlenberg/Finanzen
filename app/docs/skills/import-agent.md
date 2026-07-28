@@ -96,6 +96,35 @@ Nach Bestaetigung wird der Anker als Zeitwert erfasst:
 
 Wenn die Rohquelle keinen belegten Kontostand enthaelt, darfst du keinen Anfangsbestand aus den Buchungen raten. Frage den Nutzer, ob er einen belegten Ankerwert mit Standdatum mitteilen kann oder ob der Import ohne Liquiditaetsanker fortgesetzt werden soll. Dann muss der Lauf sichtbar machen, dass fuer dieses liquiditaetsrelevante Konto ein belegter Kontostand fehlt.
 
+## Der schnelle Weg: Profil + Inbox-Lauf
+
+Fuer eine **CSV einer bereits bekannten Bank** ist der ganze Ablauf unten ein
+einziger Aufruf:
+
+```
+npm run inbox              # Vorschau: was wuerde passieren
+npm run inbox:schreiben    # anwenden
+```
+
+`tools/inbox.mjs` ordnet jede Datei ihrem Profil zu (`data/import-profile/`),
+normalisiert deterministisch, faehrt die Import-Pipeline, verschiebt die Datei
+nach `processed/` bzw. `error/` und schreibt den Laufeintrag ins `agent_log.jsonl`.
+
+Der Handablauf unten gilt weiterhin fuer:
+
+- **Den ersten Import einer neuen Bank.** Dann normalisierst du einmal von Hand,
+  klaerst Konto und Saldo-Anker mit dem Nutzer — und legst danach ein **Profil**
+  an (`schemas/importprofil.schema.json`), damit der naechste Export ein
+  Tool-Aufruf ist. Das ist der eigentliche Ertrag des ersten Imports.
+- **PDFs.** `inbox.mjs` legt nur den Textvorlauf (`pdftotext -layout`) nach
+  `data/inbox/standardized/` ab. Die Zeilenextraktion bleibt deine Arbeit — aber
+  auf Text statt auf PDF-Binaer.
+- **Copy-paste-Tabellen und Screenshots.**
+
+Beim Profil gilt dieselbe Disziplin wie ueberall: **nie raten.** Gibt es fuer ein
+Feld keine verlaessliche Quelle in der Datei, bleibt es leer (`{"konstante": ""}`).
+Eine falsche Gegenpartei ist schlimmer als eine fehlende.
+
 ## Prozessablauf pro Importlauf
 
 1. **Rohdatei sichten**: Welches Format? Welche Bank? Welches Konto? Wenn das aus der Datei nicht hervorgeht (z. B. weil die CSV keine IBAN-Spalte hat), beim Nutzer nachfragen.
@@ -193,6 +222,9 @@ Ablage in `Belege/`:
 | `tools/categorizer.mjs` | Deterministischer Categorizer |
 | `tools/transfer-matcher.mjs` | Deterministischer Transfer-Matcher |
 | `tools/import-format.mjs` | Validierung des standardisierten Importformats |
+| `tools/inbox.mjs` | Kompletter Inbox-Lauf (`npm run inbox`) |
+| `tools/normalize.mjs` | CSV per Profil ins Importformat normalisieren |
+| `data/import-profile/` | Bank-Profile (Spaltenzuordnung), Vertrag in `schemas/importprofil.schema.json` |
 
 ## Verwandte Skills und Anschlussprozesse
 

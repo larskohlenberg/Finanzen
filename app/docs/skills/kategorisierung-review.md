@@ -52,7 +52,17 @@ Zu Beginn `DATENROOT/transaktionen.jsonl` auf `kategorisierung_status = vorgesch
    Bei Agenten-Buckets gilt: Wenn die sichtbare Stichprobe mindestens einen plausiblen Ausreisser enthaelt, kein Bulk. Dann Drill-down oder Bucket splitten. Bulk nur, wenn die Stichprobe konsistent wirkt.
 3. **Einzelkorrektur.** Setzt der Nutzer fuer eine Buchung (oder Teilmenge) eine **andere** Zielkategorie, ist das ein menschlicher Akt: `kategorie_id` = die genannte Kategorie, `kategorisierung_status = bestaetigt`, `kategorie_herkunft = manuell`. Die Zielkategorie nennt der Nutzer — **nie raten**. `manuell` schuetzt den Eintrag vor kuenftigen Regellaeufen. **Aber nur fuer Einzelfaelle:** Soll aus der Korrektur eine **Regel** werden (gleiches Muster, gleiche Kategorie, vgl. Schritt 4), dann die Buchung **nicht** auf `manuell` setzen — Regel ueber **kategorisierungsregel-pflege** anlegen und Nach-Kategorisierung laufen lassen; die Buchung wird dann `kategorie_herkunft = regel` und zaehlt zur Regel. Regel **und** `manuell` auf derselben Buchung widersprechen sich.
 4. **Aehnliche Faelle suchen.** Nach jeder Einzelkorrektur read-only nach aehnlichen offenen oder agent-vorgeschlagenen Buchungen suchen. Wenn ein wiederkehrendes Muster erkennbar ist, einen konkreten Regel-Kandidaten mit Trefferzahl und Stichprobe vorschlagen. Keine Regel still anlegen; Regelanlage bleibt der bestaetigte Anschlussprozess ueber **kategorisierungsregel-pflege**.
-5. **Schreiben mit Validator.** Aenderungen in-place in `transaktionen.jsonl` (ein Objekt pro Zeile, nur die betroffenen Felder anfassen). **Vor** dem Schreiben die Review-Tabelle zeigen, **nach** dem Schreiben `tools/validator.mjs` laufen lassen.
+5. **Schreiben mit Validator.** Aenderungen laufen ueber `tools/confirm.mjs` — nicht per Hand-Edit an `transaktionen.jsonl`. **Vor** dem Schreiben die Review-Tabelle zeigen; das Tool validiert nach dem Schreiben selbst.
+
+   ```
+   node app/tools/confirm.mjs --aktion=bestaetigen --status=vorgeschlagen DATENROOT
+   node app/tools/confirm.mjs --aktion=kategorie --kategorie=KAT-007 --gegenpartei="MAX MUSTERMANN" DATENROOT --schreiben
+   ```
+
+   Ohne `--schreiben` ist der Lauf eine Vorschau. Das Tool setzt die Herkunft
+   nach der Tabelle unten automatisch — inklusive der `regel`-vs-`manuell`-Regel.
+   Entschiedene Buchungen (`bestaetigt`/`abgelehnt`) ueberspringt es; eine
+   bewusste Korrektur braucht `--auch-entschiedene`.
 6. **Bericht.** Zaehler (bestaetigt, korrigiert, abgelehnt, offen verblieben) zusammenfassen und in `DATENROOT/agent_log.jsonl` protokollieren. Wenn Agenten-Einzelvorschlaege (`kategorie_herkunft = agent`) betroffen sind, zusaetzlich `agent_bestaetigt`, `agent_korrigiert` und `agent_abgelehnt` zaehlen. Keine urspruengliche Agenten-Kategorie an der Transaktion speichern; der Log ist die Qualitaetsspur.
 
 ## Herkunft richtig setzen — der entscheidende Punkt
@@ -74,6 +84,7 @@ Der Unterschied ist Absicht: `regel` haelt die Bestaetigung gegen ein spaeteres 
 - **Stichproben nummerieren** — jede sichtbare Stichprobenzeile mit stabiler Nummer in dieser Review-Runde versehen, damit der Nutzer per Nummer korrigieren kann.
 - **Agenten-Bulk nur bei konsistenter Stichprobe** — sobald ein plausibler Ausreisser sichtbar ist, Drill-down oder Bucket splitten.
 - **Korrekturen auswerten** — nach Nutzerkorrekturen aehnliche offene/agent-vorgeschlagene Buchungen suchen und Regel-Kandidaten vorschlagen.
+- **Mit `tools/regel-vorschlag.mjs` starten, nicht mit der Einzelliste** — es buendelt den offenen Rueckstand nach Gegenpartei und sortiert nach Abdeckung. Ein Cluster mit 30 Buchungen ist eine Entscheidung, keine dreissig. Ein als `[Regelkonflikt]` markierter Cluster braucht **Regel-Reparatur** (kategorisierungsregel-pflege), keine zusaetzliche Regel.
 - **Wiedervorlagen sichtbar machen** — sie sind der Grund, warum `regel`-Bestaetigungen ueberpruefbar bleiben.
 - **Validator nach jedem Schreiben** (Tool prueft, Agent schreibt).
 

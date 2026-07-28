@@ -155,11 +155,45 @@ Strukturregeln frei zu interpretieren.
 Wichtige Tools:
 
 - `tools/validator.mjs`: Masterdaten pruefen.
+- `tools/inbox.mjs`: kompletter Inbox-Lauf (Profil zuordnen, CSV normalisieren,
+  importieren, Datei verschieben, protokollieren). `npm run inbox` ist die Vorschau.
+- `tools/normalize.mjs`: CSV per Bank-Profil ins Importformat normalisieren.
 - `tools/import.mjs`: normalisierte Buchungen importieren.
+- `tools/confirm.mjs`: Kategorie-Entscheidungen auf einen gefilterten Schnitt anwenden.
+- `tools/regel-vorschlag.mjs`: offenen Rueckstand zu Regelkandidaten buendeln.
 - `tools/dedupe.mjs`: Transaktions-Dedupe-Hash bilden.
 - `tools/categorizer.mjs`: Kategorisierungsregeln anwenden.
 - `tools/recategorize.mjs`: Bestand nach Regelaenderungen neu bewerten.
 - `tools/transfer-matcher.mjs`: interne Transfers paaren.
+
+### Vorschau ist Default
+
+`inbox.mjs` und `confirm.mjs` schreiben **nur** mit `--schreiben`. Ohne das Flag
+laufen sie vollstaendig durch und berichten, was passieren wuerde — nichts wird
+geschrieben und nichts verschoben. Ein zu breiter Filter ist damit ein Ausdruck
+auf der Konsole, kein Datenverlust. Beide Tools sind idempotent: derselbe Lauf
+ein zweites Mal aendert nichts.
+
+### Wer darf welche Entscheidung anfassen
+
+- **Automatische Laeufe** (`import.mjs`, `recategorize.mjs`) fassen `bestaetigt`,
+  `abgelehnt` und `manuell` nie an.
+- **`confirm.mjs`** ist der menschliche Kanal und darf eine fruehere Entscheidung
+  korrigieren — aber nur mit ausdruecklichem `--auch-entschiedene`. Ohne das Flag
+  ueberspringt es entschiedene Buchungen und zaehlt sie als `uebersprungen`.
+
+### Import-Profile
+
+Eine Bank-CSV wird ueber ein Profil in `data/import-profile/<profil_id>.json`
+(Vertrag: `schemas/importprofil.schema.json`) deterministisch normalisiert. Der
+Agent legt das Profil **einmal** beim ersten Import einer Bank an; danach ist der
+Import ein Tool-Aufruf. Das ist kein bankspezifischer Parser im Sinn von ADR 0005
+— es entsteht kein Code pro Bank, und ein Spaltenwechsel bricht den Lauf sichtbar
+ab ("Spalte X nicht in der Datei") statt Werte still falsch zuzuordnen.
+
+PDFs werden **nicht** automatisch in Buchungen zerlegt. `inbox.mjs` legt einen
+deterministischen Textvorlauf (`pdftotext -layout`) nach
+`data/inbox/standardized/` ab; die Zeilenextraktion bleibt Agentenarbeit.
 
 ## Zeitwerte, Anker und Reconciliation
 

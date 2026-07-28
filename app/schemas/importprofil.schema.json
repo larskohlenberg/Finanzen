@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "importprofil.schema.json",
+  "title": "Import-Profil",
+  "description": "Deklarative Spaltenzuordnung fuer eine Bank-CSV. Liegt unter data/import-profile/<profil_id>.json (nicht versioniert, weil es Konto-Referenzen traegt). Der Agent legt ein Profil EINMAL beim ersten Import einer Bank an; danach normalisiert tools/normalize.mjs deterministisch. Aendert die Bank ihre Spalten, bricht der Lauf sichtbar ab (fehlende Spalte) statt Werte falsch zuzuordnen — vgl. ADR 0005.",
+  "type": "object",
+  "required": ["profil_id", "quelle", "dateimuster", "konto_id", "kopfzeile", "datumsformat", "dezimal", "felder"],
+  "additionalProperties": false,
+  "properties": {
+    "profil_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "bezeichnung": { "type": "string" },
+    "quelle": { "type": "string", "enum": ["csv"] },
+    "dateimuster": { "type": "string", "description": "Regex auf den Dateinamen. Muss so scharf sein, dass genau ein Profil trifft — zwei Treffer sind ein Fehler, keine Reihenfolge-Entscheidung." },
+    "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
+    "trennzeichen": { "type": "string", "default": ";" },
+    "kopfzeile": { "type": "string", "description": "Text, an dem die Kopfzeile erkannt wird; alles davor ist Vorspann." },
+    "datumsformat": { "type": "string", "enum": ["DD.MM.YYYY", "DD/MM/YYYY", "YYYY-MM-DD"] },
+    "dezimal": { "type": "string", "enum": [",", "."] },
+    "beleg_ziel": { "type": "string", "description": "App-relativer Zielordner der abgelegten Rohdatei; speist rohquelle." },
+    "felder": {
+      "type": "object",
+      "description": "Zielfeld des Importformats -> Herkunft. Jede Herkunft ist entweder {spalte}, {spalte, muster, gruppe} (Regex-Auszug) oder {konstante}. betrag zusaetzlich {soll, haben} fuer Banken mit getrennten Spalten.",
+      "required": ["buchungsdatum", "betrag"],
+      "properties": {
+        "buchungsdatum": { "$ref": "#/$defs/herkunft" },
+        "wertstellungsdatum": { "$ref": "#/$defs/herkunft" },
+        "betrag": {
+          "oneOf": [
+            { "$ref": "#/$defs/herkunft" },
+            { "type": "object", "required": ["soll", "haben"], "additionalProperties": false, "properties": { "soll": { "type": "string" }, "haben": { "type": "string" } } }
+          ]
+        },
+        "gegenpartei": { "$ref": "#/$defs/herkunft" },
+        "verwendungszweck": { "$ref": "#/$defs/herkunft" },
+        "transaktionstyp": { "$ref": "#/$defs/herkunft" },
+        "kundenreferenz": { "$ref": "#/$defs/herkunft" },
+        "empfaenger": { "$ref": "#/$defs/herkunft" },
+        "empfaenger_iban": { "$ref": "#/$defs/herkunft" },
+        "mandatsreferenz": { "$ref": "#/$defs/herkunft" },
+        "glaeubiger_id": { "$ref": "#/$defs/herkunft" },
+        "bank_referenz": { "$ref": "#/$defs/herkunft" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "herkunft": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "spalte": { "type": "string" },
+        "muster": { "type": "string", "description": "Regex auf den Spaltenwert. Kein Treffer heisst leer — nie raten." },
+        "gruppe": { "type": "integer", "minimum": 1, "default": 1 },
+        "konstante": { "type": "string" }
+      }
+    }
+  }
+}

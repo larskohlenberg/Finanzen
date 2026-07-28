@@ -7,6 +7,9 @@
     "test": "node --test tests/*.test.mjs",
     "validate:fixtures": "node app/tools/validator.mjs tests/fixtures/master-valid",
     "validate:master": "node app/tools/validator.mjs app/data/master",
-    "validate:m1": "npm run validate:master"
+    "validate:m1": "npm run validate:master",
+    "inbox": "node app/tools/inbox.mjs app/data/master",
+    "inbox:schreiben": "node app/tools/inbox.mjs app/data/master --schreiben",
+    "regelvorschlaege": "node app/tools/regel-vorschlag.mjs app/data/master"
   }
 }

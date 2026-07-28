@@ -164,11 +164,30 @@ Wichtige Tools:
 - `tools/dedupe.mjs`: Transaktions-Dedupe-Hash bilden.
 - `tools/categorizer.mjs`: Kategorisierungsregeln anwenden.
 - `tools/recategorize.mjs`: Bestand nach Regelaenderungen neu bewerten.
-- `tools/transfer-matcher.mjs`: interne Transfers paaren.
+- `tools/transfer-matcher.mjs`: interne Transfers paaren — als Lauf ueber den
+  **Bestand** (`npm run transfers`), nicht nur waehrend eines Imports. Nach einem
+  neu angelegten Konto nachziehen, sonst bleiben dessen Gegenbuchungen ungepaart.
+
+### Auto-Match von Transfers: zwei Wege
+
+Ein Paar entsteht automatisch bei invertiertem Betrag **und** beiden Konten im
+Modell **und** Datumsdifferenz ≤ 3 Tage **und** *einem* der beiden folgenden
+Signale:
+
+1. `verwendungszweck` nach Normalisierung identisch, **oder**
+2. `empfaenger_iban` der einen Seite ist die `kontoreferenz` des Gegenkontos.
+
+Weg 2 ist noetig, weil zwei Banken denselben Uebertrag unterschiedlich betexten
+(die eine haengt Name/BIC/IBAN an, die andere schreibt nur „Uebertrag") — dann
+kann Weg 1 systematisch nie greifen. Die IBAN-Kopplung ist strukturell und damit
+das staerkere Signal.
+
+Externe Transfers (Bargeld, Familie, Konten ausserhalb des Modells) erkennt das
+Tool bewusst nicht — die markiert der Nutzer im Dialog.
 
 ### Vorschau ist Default
 
-`inbox.mjs` und `confirm.mjs` schreiben **nur** mit `--schreiben`. Ohne das Flag
+`inbox.mjs`, `confirm.mjs` und `transfer-matcher.mjs` schreiben **nur** mit `--schreiben`. Ohne das Flag
 laufen sie vollstaendig durch und berichten, was passieren wuerde — nichts wird
 geschrieben und nichts verschoben. Ein zu breiter Filter ist damit ein Ausdruck
 auf der Konsole, kein Datenverlust. Beide Tools sind idempotent: derselbe Lauf

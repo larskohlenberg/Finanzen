@@ -114,7 +114,7 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
     result.written.push({ transaktion_id, kategorisierung_status: verdict.status });
   });
 
-  const transferOutcome = matchTransfers(working, transfers);
+  const transferOutcome = matchTransfers(working, transfers, konten);
   result.transfers_matched = transferOutcome.matched;
 
   return { result, transaktionen: working, transfers: transferOutcome.transfers };

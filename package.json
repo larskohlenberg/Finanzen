@@ -10,6 +10,8 @@
     "validate:m1": "npm run validate:master",
     "inbox": "node app/tools/inbox.mjs app/data/master",
     "inbox:schreiben": "node app/tools/inbox.mjs app/data/master --schreiben",
-    "regelvorschlaege": "node app/tools/regel-vorschlag.mjs app/data/master"
+    "regelvorschlaege": "node app/tools/regel-vorschlag.mjs app/data/master",
+    "transfers": "node app/tools/transfer-matcher.mjs app/data/master",
+    "transfers:schreiben": "node app/tools/transfer-matcher.mjs app/data/master --schreiben"
   }
 }

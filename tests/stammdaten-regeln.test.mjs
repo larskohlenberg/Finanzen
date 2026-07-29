@@ -21,6 +21,48 @@ const stammdatenView = await import("../app/views/stammdaten.mjs");
 const { data, state } = runtime;
 const { renderMasterdata } = stammdatenView;
 
+test("Konten-Stammdaten zeigen die Konto-ID", () => {
+  const personId = data.personen[0]?.person_id ?? "PER-001";
+  data.konten = [
+    {
+      konto_id: "KTO-SICHTBAR",
+      name: "Testkonto",
+      kontotyp: "giro",
+      inhaber_person_ids: [personId],
+      liquiditaetsrelevant: true,
+      status: "aktiv",
+    },
+  ];
+  data.transaktionen = [];
+  data.zeitwerte = [];
+  state.view = "masterdata";
+  state.masterSection = "konten";
+
+  const html = renderMasterdata();
+
+  assert.match(html, /<th>ID<\/th>/);
+  assert.match(html, /<td>KTO-SICHTBAR<\/td>/);
+});
+
+test("Kategorien-Stammdaten zeigen die Kategorie-ID", () => {
+  data.kategorien = [
+    {
+      kategorie_id: "KAT-SICHTBAR",
+      name: "Testkategorie",
+      typ: "ausgabe",
+      lebenshaltung_relevant: true,
+      status: "aktiv",
+    },
+  ];
+  state.view = "masterdata";
+  state.masterSection = "kategorien";
+
+  const html = renderMasterdata();
+
+  assert.match(html, /<th>ID<\/th>/);
+  assert.match(html, /<td>KAT-SICHTBAR<\/td>/);
+});
+
 test("Regelliste zeigt REG-001 und Trefferanzahl 1", () => {
   data.kategorisierungsregeln = [
     {

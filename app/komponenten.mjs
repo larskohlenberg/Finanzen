@@ -150,12 +150,13 @@ export function renderFilterSelect({ name, label, options, type, placeholder, fi
   `;
 }
 
-export function renderAccountTable() {
+export function renderAccountTable({ showId = false } = {}) {
   return `
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
+            ${showId ? `<th>${escapeHtml(t("labels.id"))}</th>` : ""}
             <th>${escapeHtml(t("labels.account"))}</th>
             <th>${escapeHtml(t("labels.accountReference"))}</th>
             <th>${escapeHtml(t("labels.owner"))}</th>
@@ -166,14 +167,14 @@ export function renderAccountTable() {
           </tr>
         </thead>
         <tbody>
-          ${renderAccountRows(sortedOverviewAccounts())}
+          ${renderAccountRows(sortedOverviewAccounts(), { showId })}
         </tbody>
       </table>
     </div>
   `;
 }
 
-export function renderAccountRows(accounts) {
+export function renderAccountRows(accounts, { showId = false } = {}) {
   return accounts
     .map((konto) => {
       const isDepot = konto.kontotyp === "depot";
@@ -190,6 +191,7 @@ export function renderAccountRows(accounts) {
       const chipIcon = isDepot || konto.kontoreferenz ? "neutral" : "review";
       return `
         <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
+          ${showId ? `<td>${escapeHtml(konto.konto_id)}</td>` : ""}
           <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
           <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>

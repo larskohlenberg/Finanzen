@@ -51,9 +51,12 @@ function renderMasterSection() {
     return renderSimpleTable([t("masterdata.people"), t("labels.status")], data.personen.map((person) => [person.name, t(`status.${person.status}`)]));
   }
   if (state.masterSection === "kategorien") {
-    return renderSimpleTable([t("labels.category"), t("labels.type"), t("labels.status")], data.kategorien.map((category) => [category.name, category.typ, t(`status.${category.status}`)]));
+    return renderSimpleTable(
+      [t("labels.id"), t("labels.category"), t("labels.type"), t("labels.status")],
+      data.kategorien.map((category) => [category.kategorie_id, category.name, category.typ, t(`status.${category.status}`)]),
+    );
   }
-  return renderAccountTable();
+  return renderAccountTable({ showId: true });
 }
 
 function renderSimpleTable(headers, rows) {
@@ -176,4 +179,3 @@ function renderRegelDetailBody(regel) {
       <table class="regel-tx-table"><tbody>${txRows}</tbody></table>
     </div>`;
 }
-

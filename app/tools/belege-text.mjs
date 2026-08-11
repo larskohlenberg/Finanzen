@@ -64,7 +64,7 @@ export function planAufraeumen({ zwillinge, staging }) {
   const pfadNachHash = new Map();
   for (const zwilling of [...zwillinge].sort(nachPfad)) {
     if (zwilling.hash && !pfadNachHash.has(zwilling.hash)) {
-      pfadNachHash.set(zwilling.hash, nfc(zwilling.pfad));
+      pfadNachHash.set(zwilling.hash, zwilling.pfad);
     }
   }
 

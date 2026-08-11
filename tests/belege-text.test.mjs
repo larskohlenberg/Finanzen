@@ -161,3 +161,20 @@ test("liefert eine stabile, sortierte Reihenfolge", () => {
   });
   assert.deepEqual(plan.offen.map((eintrag) => eintrag.ort), ["a.txt", "b.txt", "c.txt"]);
 });
+
+test("Hash-Treffer kommt mit original NFD-Pfad im Grund zurück", () => {
+  // macOS liefert Dateinamen in NFD. Der Pfad sollte im grund unveraendert
+  // bleiben, auch wenn er ein Umlaut in NFD-Zerlegung enthaelt. Nur der Hash
+  // ist ein Vergleichsschluessel und wird normalisiert.
+  const nfc = "Belege/2025/Sonstiges/Grundstück.txt".normalize("NFC");
+  const nfd = nfc.normalize("NFD");
+  assert.notEqual(nfc, nfd, "Testvoraussetzung: die Normalformen unterscheiden sich");
+
+  const plan = planAufraeumen({
+    zwillinge: [{ pfad: nfd, hash: "treffer123" }],
+    staging: [{ name: "Grundstueck-staging.txt", hash: "treffer123", zeichen: 5000 }],
+  });
+  assert.equal(plan.loeschen.length, 1);
+  assert.equal(plan.loeschen[0].grund, `Hash-Treffer: ${nfd}`, "grund sollte original NFD-Pfad enthalten, nicht NFC-normalisiert");
+  assert.equal(plan.offen.length, 0);
+});

@@ -19,7 +19,7 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const vorsorgeView = await import("../app/views/vorsorge.mjs");
 const { data, state, personenById } = runtime;
-const { renderVorsorge, vorsorgeRows, setVorsorgeFilter, resetVorsorgeFilters, toggleVorsorgeSort } = vorsorgeView;
+const { renderVorsorge, vorsorgeRows, gebuchteBeitraege, setVorsorgeFilter, resetVorsorgeFilters, toggleVorsorgeSort } = vorsorgeView;
 
 function saveVorsorgeFixture() {
   return {
@@ -221,55 +221,100 @@ test("Vorsorge-Sortierung setzt fehlende Anzeigewerte in beide Richtungen ans En
 });
 
 test("ausgewählte Vorsorge zeigt vollständige Detail-Rail", () => {
-  data.personen = [{ person_id: "PER-001", name: "Lena" }];
-  personenById.set("PER-001", data.personen[0]);
-  data.vorsorge = [
-    { vorsorge_id: "VS-002", art: "riester", name: "Riester alt", person_id: "PER-001", status: "gekuendigt", kapitalbildend: true },
-    {
-      vorsorge_id: "VS-003",
-      art: "riester",
-      name: "Riester Lena",
-      person_id: "PER-001",
-      status: "aktiv",
-      kapitalbildend: true,
-      kapitalwahl: "offen",
-      geprueft_am: "2026-01-15",
-      leistung_beginn: "2042-08-01",
-      ersetzt_vorsorge_id: "VS-002",
-      quelle_hinweis: "Standmitteilung 2026",
-      quelle_standdatum: "2026-01-01",
-      bemerkung: "Kapitalwahl offen",
-    },
-    { vorsorge_id: "VS-004", art: "riester", name: "Riester Nachfolger", person_id: "PER-001", status: "geplant", kapitalbildend: true, ersetzt_vorsorge_id: "VS-003" },
-  ];
-  data.zeitwerte = [
-    { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" },
-    { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "erwartete_rente", wert: "240.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },
-    { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "erwartete_kapitalleistung", wert: "31000.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },
-  ];
-  data.regelzahlungen = [{ regelzahlung_id: "RZ-014", bezeichnung: "Riester-Beitrag", betrag: "-162.00", vorsorge_id: "VS-003" }];
-  data.transaktionen = [];
-  state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
-  state.selectedVorsorgeId = "VS-003";
-  const html = renderVorsorge();
+  const saved = saveVorsorgeFixture();
+  try {
+    data.personen = [{ person_id: "PER-001", name: "Lena" }];
+    personenById.set("PER-001", data.personen[0]);
+    data.vorsorge = [
+      { vorsorge_id: "VS-002", art: "riester", name: "Riester alt", person_id: "PER-001", status: "gekuendigt", kapitalbildend: true },
+      {
+        vorsorge_id: "VS-003",
+        art: "riester",
+        name: "Riester Lena",
+        person_id: "PER-001",
+        status: "aktiv",
+        kapitalbildend: true,
+        kapitalwahl: "offen",
+        geprueft_am: "2026-01-15",
+        leistung_beginn: "2042-08-01",
+        ersetzt_vorsorge_id: "VS-002",
+        quelle_hinweis: "Standmitteilung 2026",
+        quelle_standdatum: "2026-01-01",
+        bemerkung: "Kapitalwahl offen",
+      },
+      { vorsorge_id: "VS-004", art: "riester", name: "Riester Nachfolger", person_id: "PER-001", status: "geplant", kapitalbildend: true, ersetzt_vorsorge_id: "VS-003" },
+    ];
+    data.zeitwerte = [
+      { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" },
+      { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "erwartete_rente", wert: "240.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },
+      { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "erwartete_kapitalleistung", wert: "31000.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },
+    ];
+    data.regelzahlungen = [{ regelzahlung_id: "RZ-014", bezeichnung: "Riester-Beitrag", betrag: "-162.00", vorsorge_id: "VS-003" }];
+    data.transaktionen = [];
+    state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
+    state.selectedVorsorgeId = "VS-003";
+    const html = renderVorsorge();
 
-  assert.match(html, /layout-with-rail/);
-  assert.match(html, /detail-panel/);
-  assert.match(html, /data-action="close-vorsorge-rail"/);
-  assert.match(html, /VS-003/);
-  assert.match(html, /Standmitteilung 2026/);
-  assert.match(html, /Kapitalwahl offen/);
-  assert.match(html, /Riester-Beitrag/);
-  assert.match(html, /Rückkaufswert/);
-  assert.match(html, /Erwartete Rente/);
-  assert.match(html, /Riester alt/);
-  assert.match(html, /Riester Nachfolger/);
+    assert.match(html, /layout-with-rail/);
+    assert.match(html, /detail-panel/);
+    assert.match(html, /data-action="close-vorsorge-rail"/);
+    assert.match(html, /VS-003/);
+    assert.match(html, /Standmitteilung 2026/);
+    assert.match(html, /Kapitalwahl offen/);
+    assert.match(html, /Riester-Beitrag/);
+    assert.match(html, /Rückkaufswert/);
+    assert.match(html, /Erwartete Rente/);
+    assert.match(html, /Riester alt/);
+    assert.match(html, /Riester Nachfolger/);
+  } finally {
+    restoreVorsorgeFixture(saved);
+  }
+});
+
+test("Vorsorge-Rail zeigt nur die fünf neuesten explizit verknüpften Beiträge", () => {
+  const saved = saveVorsorgeFixture();
+  try {
+    data.personen = [{ person_id: "PER-001", name: "Lena" }];
+    personenById.set("PER-001", data.personen[0]);
+    data.vorsorge = [{ vorsorge_id: "VS-003", art: "riester", name: "Riester Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true }];
+    data.zeitwerte = [];
+    data.regelzahlungen = [
+      { regelzahlung_id: "RZ-001", bezeichnung: "Alt", betrag: "-10.00", vorsorge_id: "VS-003" },
+      { regelzahlung_id: "RZ-002", bezeichnung: "Neu", betrag: "-20.00", vorsorge_id: "VS-003" },
+      { regelzahlung_id: "RZ-999", bezeichnung: "Fremd", betrag: "-70.00", vorsorge_id: "VS-999" },
+    ];
+    data.transaktionen = [
+      { transaktion_id: "TXN-1", regelzahlung_id: "RZ-001", buchungsdatum: "2026-01-01", betrag: "-10.00", gegenpartei: "A" },
+      { transaktion_id: "TXN-2", regelzahlung_id: "RZ-001", buchungsdatum: "2026-02-01", betrag: "-20.00", gegenpartei: "B" },
+      { transaktion_id: "TXN-3", regelzahlung_id: "RZ-002", buchungsdatum: "2026-03-01", betrag: "-30.00", gegenpartei: "C" },
+      { transaktion_id: "TXN-4", regelzahlung_id: "RZ-002", buchungsdatum: "2026-04-01", betrag: "-40.00", gegenpartei: "D" },
+      { transaktion_id: "TXN-5", regelzahlung_id: "RZ-002", buchungsdatum: "2026-05-01", betrag: "-50.00", gegenpartei: "E" },
+      { transaktion_id: "TXN-6", regelzahlung_id: "RZ-002", buchungsdatum: "2026-06-01", betrag: "-60.00", gegenpartei: "F" },
+      { transaktion_id: "TXN-X", regelzahlung_id: "RZ-999", buchungsdatum: "2026-07-01", betrag: "-70.00", gegenpartei: "X" },
+    ];
+    state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
+    state.selectedVorsorgeId = "VS-003";
+
+    assert.deepEqual(gebuchteBeitraege("VS-003").map((tx) => tx.transaktion_id), ["TXN-6", "TXN-5", "TXN-4", "TXN-3", "TXN-2"]);
+    const html = renderVorsorge();
+    assert.equal((html.match(/data-action="open-transaction"/g) ?? []).length, 5);
+    assert.doesNotMatch(html, /TXN-1|TXN-X/);
+  } finally {
+    restoreVorsorgeFixture(saved);
+  }
 });
 
 test("ausgefilterte oder unbekannte Vorsorge öffnet keine Rail", () => {
-  state.selectedVorsorgeId = "VS-999";
-  assert.doesNotMatch(renderVorsorge(), /detail-panel/);
-  state.selectedVorsorgeId = "VS-003";
-  state.vorsorgeFilters.search = "kein Treffer";
-  assert.doesNotMatch(renderVorsorge(), /detail-panel/);
+  const saved = saveVorsorgeFixture();
+  try {
+    data.vorsorge = [{ vorsorge_id: "VS-003", art: "riester", name: "Riester Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true }];
+    state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
+    state.selectedVorsorgeId = "VS-999";
+    assert.doesNotMatch(renderVorsorge(), /detail-panel/);
+    state.selectedVorsorgeId = "VS-003";
+    state.vorsorgeFilters.search = "kein Treffer";
+    assert.doesNotMatch(renderVorsorge(), /detail-panel/);
+  } finally {
+    restoreVorsorgeFixture(saved);
+  }
 });

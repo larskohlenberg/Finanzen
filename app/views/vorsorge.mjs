@@ -105,6 +105,20 @@ export function vorsorgeRows() {
   return sortVorsorge(rows);
 }
 
+export function gebuchteBeitraege(vorsorgeId) {
+  const regelzahlungIds = new Set(
+    (data.regelzahlungen ?? [])
+      .filter((rz) => rz.vorsorge_id === vorsorgeId)
+      .map((rz) => rz.regelzahlung_id),
+  );
+  return (data.transaktionen ?? [])
+    .filter((tx) => regelzahlungIds.has(tx.regelzahlung_id))
+    .slice()
+    .sort((a, b) => String(b.buchungsdatum).localeCompare(String(a.buchungsdatum))
+      || String(b.transaktion_id).localeCompare(String(a.transaktion_id)))
+    .slice(0, 5);
+}
+
 function statusChip(vs) {
   const className = vs.status === "aktiv" ? "success" : vs.status === "gekuendigt" || vs.status === "beendet" ? "review" : "neutral";
   return `<span class="chip ${className}">${escapeHtml(statusLabel(vs.status))}</span>`;
@@ -269,6 +283,7 @@ export function renderVorsorge() {
 
 export function renderVorsorgeDetail(vs) {
   const beitraege = (data.regelzahlungen ?? []).filter((rz) => rz.vorsorge_id === vs.vorsorge_id);
+  const gebuchte = gebuchteBeitraege(vs.vorsorge_id);
   const zeitwerte = aktuelleVorsorgeZeitwerte(vs.vorsorge_id);
   const nachfolger = (data.vorsorge ?? []).find((candidate) => candidate.ersetzt_vorsorge_id === vs.vorsorge_id);
   const vorgaenger = vs.ersetzt_vorsorge_id
@@ -287,6 +302,7 @@ export function renderVorsorgeDetail(vs) {
     ${renderVorsorgeQuelle(vs)}
     ${vs.bemerkung ? detailRow(t("vorsorge.bemerkung"), escapeHtml(vs.bemerkung)) : ""}
     ${renderErwarteteBeitraege(beitraege)}
+    ${renderGebuchteBeitraege(gebuchte)}
   `;
 }
 
@@ -346,4 +362,13 @@ function renderErwarteteBeitraege(beitraege) {
       <span>${escapeHtml(formatMoney(cents(rz.betrag)))}</span>
     </div>`).join("");
   return detailRow(t("vorsorge.erwarteteBeitraege"), `<div class="rail-list">${rows}</div>`);
+}
+
+function renderGebuchteBeitraege(beitraege) {
+  if (!beitraege.length) return "";
+  const rows = beitraege.map((tx) => `
+    <div class="rail-item">
+      <button class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum))} · ${escapeHtml(tx.gegenpartei)} · ${escapeHtml(formatMoney(cents(tx.betrag)))}</button>
+    </div>`).join("");
+  return detailRow(t("vorsorge.gebuchteBeitraege"), `<div class="rail-list">${rows}</div>`);
 }

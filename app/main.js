@@ -724,6 +724,13 @@ async function handleAction(element) {
     commitNavigation();
     return;
   }
+  if (action === "open-vorsorge") {
+    state.view = "vorsorge";
+    resetVorsorgeFilters();
+    state.selectedVorsorgeId = element.dataset.vorsorge || "";
+    commitNavigation();
+    return;
+  }
   if (action === "close-detail-rail") {
     state.detailRailClosed = true;
     commitNavigation();

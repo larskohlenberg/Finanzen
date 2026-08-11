@@ -3,7 +3,7 @@ import { iconSvg } from "./icons.js";
 import { buildNextAgentActions } from "./next-action.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
-import { renderVorsorge } from "./views/vorsorge.mjs";
+import { renderVorsorge, setVorsorgeFilter, resetVorsorgeFilters, toggleVorsorgeSort } from "./views/vorsorge.mjs";
 import { renderSzenarien } from "./views/szenarien.mjs";
 import { renderTransactions, filteredTransactions, transactionPageForId, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
@@ -33,7 +33,7 @@ function applyTheme() {
 const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
   "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
-  "data-vermoegen-sort", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
+  "data-vermoegen-sort", "data-vorsorge-sort", "data-vorsorge-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
   "data-rule", "data-regel-sort", "data-next-action-type",
 ];
 const SCROLL_SELECTORS = [".nav", ".table-wrap"];
@@ -391,6 +391,13 @@ app.addEventListener("click", guard((event) => {
     return;
   }
 
+  const vorsorgeSort = event.target.closest("[data-vorsorge-sort]");
+  if (vorsorgeSort) {
+    toggleVorsorgeSort(vorsorgeSort.dataset.vorsorgeSort);
+    render();
+    return;
+  }
+
   const transactionSort = event.target.closest("[data-transaction-sort]");
   if (transactionSort) {
     const key = transactionSort.dataset.transactionSort;
@@ -444,7 +451,7 @@ app.addEventListener("click", guard((event) => {
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
-const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-transaction-sort], [data-regel-sort], [data-rule]";
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-vorsorge-sort], [data-transaction-sort], [data-regel-sort], [data-rule]";
 app.addEventListener("keydown", guard((event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
@@ -459,6 +466,12 @@ app.addEventListener("keydown", guard((event) => {
 // Live-Suche: Textfilter wirken pro Tastendruck; Fokus/Cursor uebersteht das
 // Re-Render via captureFocus/restoreFocus (Selektor ueber die id des Inputs).
 app.addEventListener("input", guard((event) => {
+  const vorsorgeFilter = event.target.closest("input[data-vorsorge-filter]");
+  if (vorsorgeFilter) {
+    setVorsorgeFilter(vorsorgeFilter.dataset.vorsorgeFilter, vorsorgeFilter.value);
+    render();
+    return;
+  }
   const filter = event.target.closest("input[data-filter]");
   if (!filter) return;
   state.transactionFilters[filter.dataset.filter] = filter.value;
@@ -518,6 +531,14 @@ app.addEventListener("change", guard((event) => {
   if (vermoegenFilter) {
     state.vermoegenFilters[vermoegenFilter.dataset.vermoegenFilter] = vermoegenFilter.value;
     state.view = "vermoegen";
+    render();
+    return;
+  }
+
+  const vorsorgeFilter = event.target.closest("[data-vorsorge-filter]");
+  if (vorsorgeFilter) {
+    setVorsorgeFilter(vorsorgeFilter.dataset.vorsorgeFilter, vorsorgeFilter.value);
+    state.view = "vorsorge";
     render();
   }
 }, setUiError, "change"));
@@ -821,6 +842,16 @@ async function handleAction(element) {
       state.vermoegenFilters[element.dataset.filterName] = "";
       commitNavigation();
     }
+    return;
+  }
+  if (action === "clear-vorsorge-filter") {
+    setVorsorgeFilter(element.dataset.filterName, "");
+    render();
+    return;
+  }
+  if (action === "reset-vorsorge-filters") {
+    resetVorsorgeFilters();
+    render();
     return;
   }
   if (action === "reset-vermoegen-filters") {

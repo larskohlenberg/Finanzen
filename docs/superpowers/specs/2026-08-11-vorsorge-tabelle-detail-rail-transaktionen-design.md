@@ -87,12 +87,16 @@ Die Rail zeigt:
 - **Gebuchte Beiträge** als die fünf neuesten explizit verknüpften
   Transaktionen mit Buchungsdatum, Gegenpartei und Betrag.
 
-Jede gebuchte Beitragszeile öffnet die vorhandene Transaktionsdetailansicht.
-Eine Aktion **Alle Transaktionen anzeigen** wechselt zur Transaktionsansicht
-und setzt einen sichtbaren Vorsorgefilter. Dieser Filter wird zur Laufzeit über
-`Transaktion.regelzahlung_id → Regelzahlung.vorsorge_id` ausgewertet und erfasst
-dadurch auch mehrere aufeinanderfolgende Beitrags-Regelzahlungen desselben
-Vertrags.
+Jede gebuchte Beitragszeile öffnet die vorhandene Transaktionsdetailansicht. In
+dieser Transaktions-Rail erscheint eine zusätzliche Detailzeile **Vorsorge** mit
+ID und Name des abgeleiteten Vertrags. Der Eintrag ist anklickbar und öffnet
+`#/vorsorge/<vorsorge_id>`. Die Anzeige wird zur Laufzeit über
+`Transaktion.regelzahlung_id → Regelzahlung.vorsorge_id` abgeleitet; eine
+Transaktion ohne vollständigen Pfad zeigt keinen Vorsorgebezug.
+
+Die Transaktionstabelle erhält weder eine zusätzliche Vorsorgespalte noch einen
+Vorsorgefilter. Die fünf direkten Buchungslinks in der Vorsorge-Rail sind für
+diesen Umfang der Einstieg in die zugehörigen Transaktionen.
 
 ## Datenvertrag und Datenfluss
 
@@ -108,20 +112,17 @@ Vorsorge erläutern die explizite Zuordnung und lassen das Feld bei Unsicherheit
 weg. In diesem Umfang gibt es keine heuristische Bestandsmigration und keinen
 vollständigen Plan-Ist-Abgleich.
 
-Die Transaktionsansicht erweitert `transactionFilters` um `vorsorge`. Der Filter
-ist in der Filterleiste sichtbar, wird von Zurücksetzen, Deep-Link-Aufrufen und
-vorhandenen Navigationsaktionen konsistent behandelt und kann aus der
-Vorsorge-Rail vorbelegt werden.
-
 ## Komponenten und Zustände
 
 - `runtime.mjs`: `vorsorgeFilters`, `vorsorgeSort`, `selectedVorsorgeId` und
-  zusätzlicher Transaktionsfilter `vorsorge`.
+  die bestehenden Auswahlzustände der Transaktionsansicht.
 - `views/vorsorge.mjs`: reine Filter-/Sortierableitung, Tabellenmarkup,
   Detail-Rail und Beitragsableitung.
-- `views/transaktionen.mjs`: abgeleiteter Vorsorgefilter und Filteroptionen.
+- `views/transaktionen.mjs`: abgeleitete, anklickbare Vorsorgezeile in der
+  Transaktions-Rail.
 - `main.js`: Filter-, Sortier-, Auswahl-, Schließ- und Navigationsaktionen sowie
-  Fokuswiederherstellung für die neuen Bedienelemente.
+  Fokuswiederherstellung für die neuen Bedienelemente und Navigation von der
+  Transaktion zur Vorsorge.
 - `routing.mjs`: Zustand und Parse-Logik für `#/vorsorge/<id>`.
 - `i18n.js`: deutsche und englische Texte für Filter, Spalten, Rail-Sektionen,
   Leerzustände und Aktionen.
@@ -157,9 +158,10 @@ Die Umsetzung folgt Test-Driven Development und deckt mindestens ab:
 6. Die Rail zeigt Quellen und Bemerkung getrennt sowie erwartete und gebuchte
    Beiträge. Nur explizit über die Regelzahlung zugeordnete Transaktionen
    erscheinen; die neuesten fünf werden absteigend angezeigt.
-7. Einzelne Buchungslinks öffnen die vorhandenen Transaktionsdetails. **Alle
-   Transaktionen anzeigen** setzt den sichtbaren Vorsorgefilter und berücksichtigt
-   mehrere Beitrags-Regelzahlungen desselben Vertrags.
+7. Einzelne Buchungslinks öffnen die vorhandenen Transaktionsdetails. Dort wird
+   ID und Name der abgeleiteten Vorsorge anklickbar angezeigt; der Klick öffnet
+   die zugehörige Vorsorge-Rail. Die Transaktionstabelle erhält weder neue
+   Spalte noch neuen Filter.
 8. Deutsche und englische Texte sind vollständig; Masterdatenvalidierung,
    gesamte Testsuite und ein Browser-Klickpfad bleiben grün.
 
@@ -169,4 +171,5 @@ Die Umsetzung folgt Test-Driven Development und deckt mindestens ab:
 - Aufteilung einer Buchung auf mehrere Regelzahlungen oder Vorsorgeverträge;
 - App-seitiges Bearbeiten von Vorsorge, Regelzahlungen oder Transaktionen;
 - ein vollständiger Plan-Ist-Abgleich mit Toleranzen und Erfüllungsstatus;
+- eine Vorsorgespalte oder ein Vorsorgefilter in der Transaktionstabelle;
 - Pagination der kleinen Vorsorgetabelle.

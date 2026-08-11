@@ -92,6 +92,12 @@ Diese Buchung erfüllt genau diese erwartete Regelzahlung. Die Zuordnung wird nu
 nach Beleg- oder Nutzerklärung gesetzt; bei Unsicherheit bleibt das Feld weg.
 Ein Vorsorgebezug wird über `Transaktion → Regelzahlung → Vorsorge` abgeleitet.
 
+A posted transaction may optionally carry `regelzahlung_id`. This means that the
+transaction fulfils exactly that expected recurring payment. Set the assignment
+only from documentation or a user decision; leave the field unset when uncertain.
+Derive a retirement-provision relationship through
+`Transaktion → Regelzahlung → Vorsorge` only.
+
 Eine Transaktion kann eine Kategorie aus drei Herkuenften haben:
 
 - `kategorie_herkunft = regel`: Kategorie stammt aus dem deterministischen

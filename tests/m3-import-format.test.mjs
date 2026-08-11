@@ -77,6 +77,17 @@ test("Importformat lehnt eine unbekannte regelzahlung_id ab", () => {
   );
 });
 
+test("Regelzahlungsfehler enthalten deutsche und englische Hinweise", () => {
+  assert.match(
+    validateImportEntry({ ...valid, regelzahlung_id: "RZ-99" }, kontenIds, regelzahlungIds).join("\n"),
+    /regelzahlung_id.*Format ungueltig.*invalid format/,
+  );
+  assert.match(
+    validateImportEntry({ ...valid, regelzahlung_id: "RZ-999" }, kontenIds, regelzahlungIds).join("\n"),
+    /regelzahlung_id.*RZ-999.*unbekannt.*unknown/,
+  );
+});
+
 test("JSON-Datenverträge erlauben die Regelzahlungsreferenz", () => {
   for (const name of ["importformat", "transaktionen"]) {
     const schema = JSON.parse(readFileSync(new URL(`../app/schemas/${name}.schema.json`, import.meta.url), "utf8"));

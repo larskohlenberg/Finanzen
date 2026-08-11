@@ -69,6 +69,8 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
    im Regelzahlungs-Dialog mit Nutzerentscheidung vorbereiten.
    Bereits eindeutig geklärte Beitragsbuchungen tragen die `regelzahlung_id` der
    zugehörigen Beitrags-Regelzahlung. Keine `vorsorge_id` an Transaktionen ergänzen.
+   Contribution bookings already clarified unambiguously carry the `regelzahlung_id`
+   of their contribution recurring payment. Do not add `vorsorge_id` to transactions.
 6. **Review vor Schreiben:** `geprueft_am` erst setzen, nachdem der Nutzer die
    Vorsorge-Entitaet und alle relevanten Werte fachlich gegengelesen hat.
 7. **Validieren:** vor jedem Schreiben `tools/validator.mjs DATENROOT` laufen

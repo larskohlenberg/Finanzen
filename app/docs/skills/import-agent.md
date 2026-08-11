@@ -146,6 +146,9 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
    Ist aus Beleg oder Nutzerentscheidung eindeutig, welche Regelzahlung die Buchung
    erfüllt, `regelzahlung_id` im standardisierten Eintrag setzen. Nie allein aus
    Betragsgleichheit oder ähnlicher Gegenpartei zuordnen.
+   When documentation or a user decision identifies unambiguously which recurring
+   payment the booking fulfils, set `regelzahlung_id` in the standardized entry.
+   Never infer the assignment from an equal amount or a similar counterparty alone.
 7. **Schreiben**: Buchungen an `DATENROOT/transaktionen.jsonl` anhaengen. Belegte Kontostaende als Zeitwerte an `DATENROOT/zeitwerte.jsonl` anhaengen, sofern sie aus der Rohquelle extrahiert wurden und nicht bereits identisch vorhanden sind. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz. Beim CLI-Import den Root explizit uebergeben: `node tools/import.mjs <standardisierte-datei.jsonl> DATENROOT`.
 8. **Transfer-Match**: Nach dem Schreiben `tools/transfer-matcher.mjs` aufrufen. Kriterien fuer Auto-Match (alle vier zwingend):
    - Betrag exakt invers (cent-genau).

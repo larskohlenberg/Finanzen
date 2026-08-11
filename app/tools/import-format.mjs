@@ -57,9 +57,9 @@ export function validateImportEntry(entry, kontenIds, regelzahlungIds = new Set(
 
   if (Object.hasOwn(entry, "regelzahlung_id")) {
     if (typeof entry.regelzahlung_id !== "string" || !regelzahlungPattern.test(entry.regelzahlung_id)) {
-      errors.push("regelzahlung_id: Format ungueltig");
+      errors.push("regelzahlung_id: Format ungueltig (invalid format)");
     } else if (!regelzahlungIds.has(entry.regelzahlung_id)) {
-      errors.push(`regelzahlung_id: ${entry.regelzahlung_id} unbekannt`);
+      errors.push(`regelzahlung_id: ${entry.regelzahlung_id} unbekannt (unknown)`);
     }
   }
 

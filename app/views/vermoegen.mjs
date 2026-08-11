@@ -199,6 +199,7 @@ function renderVermoegenFilters(resultCount, totalCount) {
         ["konto", t("vermoegen.klasse.konto")],
         ["immobilie", t("vermoegen.klasse.immobilie")],
         ["vermoegenswert", t("vermoegen.klasse.vermoegenswert")],
+        ["vorsorge", t("vermoegen.klasse.vorsorge")],
         ["darlehen", t("vermoegen.klasse.darlehen")],
         ],
       },

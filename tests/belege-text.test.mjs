@@ -1,7 +1,18 @@
 // tests/belege-text.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { planZwillinge, planAufraeumen, istLeer, seitenZahl, markerText, MARKER_KOPF, GELESEN_KOPF } from "../app/tools/belege-text.mjs";
+import { mkdtemp, mkdir, copyFile, readFile, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { createHash } from "node:crypto";
+import { planZwillinge, planAufraeumen, istLeer, seitenZahl, markerText, MARKER_KOPF, GELESEN_KOPF, extrahiere, main } from "../app/tools/belege-text.mjs";
+
+const execFileAsync = promisify(execFile);
+const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
+const PROBE_PDF = new URL("./fixtures/textzwilling-probe.pdf", import.meta.url);
 
 test("PDF ohne Zwilling steht im Erzeugungsplan", () => {
   const plan = planZwillinge({ belege: [{ pfad: "Belege/2025/Rente/a.pdf" }] });
@@ -198,4 +209,68 @@ test("seitenZahl zaehlt Form-Feeds — pdftotext setzt einen pro Seite", () => {
 test("markerText schreibt die vereinbarte Kopfzeile", () => {
   assert.equal(markerText(2), "# Kein Textlayer — Bildscan, 2 Seiten. Inhalt nur im PDF.\n");
   assert.ok(markerText(2).startsWith(MARKER_KOPF), "der Marker muss von planZwillinge wiedererkannt werden");
+});
+
+test("extrahiere (stdout) liefert exakt die Bytes, die pdftotext auch in eine Datei schreiben wuerde", async () => {
+  // Das ist die eigentliche Voraussetzung fuer den Hash-Abgleich in planAufraeumen:
+  // inbox.mjs erzeugt den Staging-Vorlauf per Datei-Ausgabe, belege-text.mjs den
+  // Zwilling per Stdout + JS-String-Umweg. Weichen die Bytes irgendwo ab (BOM,
+  // Zeilenende, Encoding), findet der Hash-Abgleich nie mehr einen Treffer —
+  // und das faellt niemandem auf, weil "kein Treffer" wie "noch nicht abgelegt" aussieht.
+  const viaStdout = await extrahiere(PROBE_PDF);
+
+  const tempDir = await mkdtemp(join(tmpdir(), "belege-text-roundtrip-"));
+  try {
+    const outFile = join(tempDir, "out.txt");
+    await execFileAsync("pdftotext", ["-layout", fileURLToPath(PROBE_PDF), outFile]);
+    const viaDatei = await readFile(outFile);
+
+    assert.equal(
+      sha256(Buffer.from(viaStdout, "utf8")),
+      sha256(viaDatei),
+      "Stdout-Extrakt (nach utf8-Hin-und-Rueckwandlung) und Datei-Ausgabe muessen denselben Hash ergeben"
+    );
+
+    // Ohne diese Zusicherung koennte der Test auch dann gruen bleiben, wenn
+    // beide Seiten identisch kaputt sind (z.B. beide liefern nur "?" statt Umlaute).
+    assert.match(viaStdout, /[äöüßÄÖÜ]/, "das Extrakt muss die Umlaute der Fixture enthalten");
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("main() erzeugt den Zwilling und raeumt Staging ausschliesslich im injizierten Tempverzeichnis auf", async () => {
+  const wurzel = await mkdtemp(join(tmpdir(), "belege-text-main-"));
+  const wurzelUrl = pathToFileURL(`${wurzel}/`);
+  const belegeRoot = new URL("Belege/", wurzelUrl);
+  const stagingRoot = new URL("standardized/", wurzelUrl);
+
+  await mkdir(fileURLToPath(belegeRoot), { recursive: true });
+  await mkdir(fileURLToPath(stagingRoot), { recursive: true });
+  await copyFile(fileURLToPath(PROBE_PDF), fileURLToPath(new URL("probe.pdf", belegeRoot)));
+
+  const erwarteterText = await extrahiere(PROBE_PDF);
+
+  // Ein Staging-Vorlauf, dessen Inhalt exakt dem kuenftigen Zwilling entspricht...
+  await writeFile(new URL("passend.txt", stagingRoot), erwarteterText, "utf8");
+  // ...und einer ohne jeden Treffer, der deshalb liegen bleiben muss.
+  await writeFile(new URL("unpassend.txt", stagingRoot), "Voellig anderer Inhalt ohne Treffer.", "utf8");
+
+  const originalLog = console.log;
+  console.log = () => {};
+  try {
+    const bericht = await main({ belegeRoot, stagingRoot, schreiben: true });
+
+    const zwilling = await readFile(new URL("probe.txt", belegeRoot));
+    assert.equal(zwilling.toString("utf8"), erwarteterText, "der Zwilling muss byte-identisch zum Extrakt sein");
+
+    assert.deepEqual(bericht.geloescht.map((e) => e.name), ["passend.txt"]);
+    assert.deepEqual(bericht.offen.map((e) => e.ort), ["unpassend.txt"]);
+
+    await assert.rejects(readFile(new URL("passend.txt", stagingRoot)), "passend.txt muss geloescht sein");
+    await assert.doesNotReject(readFile(new URL("unpassend.txt", stagingRoot)), "unpassend.txt darf nicht angetastet werden");
+  } finally {
+    console.log = originalLog;
+    await rm(wurzel, { recursive: true, force: true });
+  }
 });

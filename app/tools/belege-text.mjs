@@ -114,12 +114,15 @@ export function markerText(seiten) {
   return `${MARKER_KOPF} — Bildscan, ${seiten} Seiten. Inhalt nur im PDF.\n`;
 }
 
-const BELEGE = new URL("../Belege/", import.meta.url);
-const STAGING = new URL("../data/inbox/standardized/", import.meta.url);
+// Default-Wurzeln fuer den normalen CLI-Lauf. Tests injizieren stattdessen
+// Tempverzeichnisse ueber die main()-Parameter, damit main() nie das echte
+// Belege-Archiv anfassen kann.
+const BELEGE_STANDARD = new URL("../Belege/", import.meta.url);
+const STAGING_STANDARD = new URL("../data/inbox/standardized/", import.meta.url);
 
 const hashVon = (inhalt) => createHash("sha256").update(inhalt).digest("hex");
 const ersteZeile = (text) => text.split("\n", 1)[0];
-const urlUnterBelege = (pfad) => new URL(pfad.split("/").slice(1).map(encodeURIComponent).join("/"), BELEGE);
+const urlUnterBelege = (pfad, belegeRoot) => new URL(pfad.split("/").slice(1).map(encodeURIComponent).join("/"), belegeRoot);
 
 async function dateienUnter(ordner, praefix) {
   const eintraege = await readdir(ordner, { withFileTypes: true });
@@ -136,37 +139,38 @@ async function dateienUnter(ordner, praefix) {
   return gefunden;
 }
 
-async function ladeBelege() {
+async function ladeBelege(belegeRoot) {
   let pfade;
   try {
-    pfade = await dateienUnter(BELEGE, "Belege/");
+    pfade = await dateienUnter(belegeRoot, "Belege/");
   } catch {
     return [];
   }
   return Promise.all(pfade.map(async (pfad) => {
     if (!istTxt(pfad)) return { pfad };
-    const inhalt = await readFile(urlUnterBelege(pfad));
+    const inhalt = await readFile(urlUnterBelege(pfad, belegeRoot));
     return { pfad, hash: hashVon(inhalt), kopf: ersteZeile(inhalt.toString("utf8")) };
   }));
 }
 
-async function ladeStaging() {
+async function ladeStaging(stagingRoot) {
   let namen;
   try {
-    namen = (await readdir(STAGING)).filter((name) => istTxt(name) && !name.startsWith("."));
+    namen = (await readdir(stagingRoot)).filter((name) => istTxt(name) && !name.startsWith("."));
   } catch {
     return [];
   }
   return Promise.all(namen.sort().map(async (name) => {
-    const inhalt = await readFile(new URL(encodeURIComponent(name), STAGING));
+    const inhalt = await readFile(new URL(encodeURIComponent(name), stagingRoot));
     return { name, hash: hashVon(inhalt), zeichen: inhalt.toString("utf8").replace(/\s/g, "").length };
   }));
 }
 
 // `pdftotext … -` schreibt nach stdout und liefert dabei exakt dieselben Bytes
 // wie die Dateiausgabe. Deshalb kein Temp-File — und der Hash bleibt mit den
-// vorhandenen Textvorlaeufen vergleichbar.
-async function extrahiere(pdfUrl) {
+// vorhandenen Textvorlaeufen vergleichbar. Siehe tests/belege-text.test.mjs,
+// das genau diese Behauptung gegen echtes pdftotext verifiziert.
+export async function extrahiere(pdfUrl) {
   const { stdout } = await execFileAsync("pdftotext", ["-layout", fileURLToPath(pdfUrl), "-"], {
     maxBuffer: 64 * 1024 * 1024,
     encoding: "utf8",
@@ -174,9 +178,12 @@ async function extrahiere(pdfUrl) {
   return stdout;
 }
 
-async function main() {
-  const schreiben = process.argv.slice(2).includes("--schreiben");
-  const belege = await ladeBelege();
+export async function main({
+  belegeRoot = BELEGE_STANDARD,
+  stagingRoot = STAGING_STANDARD,
+  schreiben = process.argv.slice(2).includes("--schreiben"),
+} = {}) {
+  const belege = await ladeBelege(belegeRoot);
   const { erzeugen, offen: offeneBelege } = planZwillinge({ belege });
 
   const bericht = {
@@ -196,24 +203,24 @@ async function main() {
   for (const auftrag of erzeugen) {
     let text;
     try {
-      text = await extrahiere(urlUnterBelege(auftrag.pdf));
+      text = await extrahiere(urlUnterBelege(auftrag.pdf, belegeRoot));
     } catch (error) {
       bericht.fehler.push({ ort: auftrag.pdf, grund: error.message });
       continue;
     }
     const bildscan = istLeer(text);
     const inhalt = bildscan ? markerText(seitenZahl(text)) : text;
-    if (schreiben) await writeFile(urlUnterBelege(auftrag.ziel), inhalt);
+    if (schreiben) await writeFile(urlUnterBelege(auftrag.ziel, belegeRoot), inhalt);
     neueZwillinge.push({ pfad: auftrag.ziel, hash: hashVon(Buffer.from(inhalt, "utf8")) });
     bericht.erzeugt.push({ ort: auftrag.ziel, art: bildscan ? "marker" : "text" });
     if (bildscan) bericht.offen.push({ ort: auftrag.ziel, grund: "OCR ausstehend" });
   }
 
   const zwillinge = [...belege.filter((datei) => istTxt(datei.pfad)), ...neueZwillinge];
-  const { loeschen, offen: offenesStaging } = planAufraeumen({ zwillinge, staging: await ladeStaging() });
+  const { loeschen, offen: offenesStaging } = planAufraeumen({ zwillinge, staging: await ladeStaging(stagingRoot) });
 
   for (const auftrag of loeschen) {
-    if (schreiben) await rm(new URL(encodeURIComponent(auftrag.name), STAGING), { force: true });
+    if (schreiben) await rm(new URL(encodeURIComponent(auftrag.name), stagingRoot), { force: true });
     bericht.geloescht.push(auftrag);
   }
 
@@ -221,6 +228,7 @@ async function main() {
   console.log(JSON.stringify(bericht, null, 2));
 
   if (!schreiben) console.log("\nVorschau — nichts erzeugt, nichts geloescht. Mit --schreiben anwenden.");
+  return bericht;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

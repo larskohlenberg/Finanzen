@@ -9,6 +9,10 @@
 // `data/inbox/standardized/`; die Zeilenextraktion bleibt Agentenarbeit
 // (ADR 0005). Der Gewinn ist trotzdem gross: der Agent liest Text statt
 // PDF-Binaer, wiederholbar und pruefbar.
+//
+// `standardized/` ist Durchgangsstation, kein Archiv. Der dauerhafte
+// Textzwilling entsteht neben dem Beleg unter `Belege/` — siehe
+// `belege-text.mjs`, das den Vorlauf danach wieder abraeumt.
 import { readFile, writeFile, readdir, rename, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
@@ -109,7 +113,7 @@ async function main() {
         await mkdir(new URL("standardized/", inboxRoot), { recursive: true });
         await pdfText(quelle, new URL(`standardized/${encodeURIComponent(zielName)}`, inboxRoot));
       }
-      bericht.laeufe.push({ datei: auftrag.datei, art: "pdf-text", ziel: `data/inbox/standardized/${zielName}`, hinweis: "Zeilenextraktion durch den Agenten" });
+      bericht.laeufe.push({ datei: auftrag.datei, art: "pdf-text", ziel: `data/inbox/standardized/${zielName}`, hinweis: "Zeilenextraktion durch den Agenten; Textzwilling danach ueber belege-text.mjs" });
       continue;
     }
 

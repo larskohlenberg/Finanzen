@@ -216,6 +216,8 @@ ab ("Spalte X nicht in der Datei") statt Werte still falsch zuzuordnen.
 PDFs werden **nicht** automatisch in Buchungen zerlegt. `inbox.mjs` legt einen
 deterministischen Textvorlauf (`pdftotext -layout`) nach
 `data/inbox/standardized/` ab; die Zeilenextraktion bleibt Agentenarbeit.
+`standardized/` ist dabei Durchgangsstation, kein Archiv — der dauerhafte
+Textzwilling entsteht neben dem Beleg, siehe Abschnitt „Belege".
 
 ## Zeitwerte, Anker und Reconciliation
 
@@ -334,3 +336,24 @@ und Annahmen entstehen ausschliesslich ueber den Agenten. Siehe Skill
 
 Belege werden sprechend benannt und unter `Belege/` abgelegt. Datenfelder wie
 `rohquelle` und `quelle_hinweis` zeigen auf den finalen App-relativen Belegpfad.
+
+Jedes PDF unter `Belege/` hat einen **Textzwilling**: gleicher Ordner, gleicher
+Basisname, Endung `.txt`. Der Zwilling macht das Archiv durchsuchbar, ohne PDFs
+zu oeffnen. Er ist rohes `pdftotext -layout`-Ergebnis, wird nie von Hand
+gepflegt und ist jederzeit aus dem Beleg wiederherstellbar. `tools/belege-text.mjs`
+erzeugt fehlende Zwillinge und raeumt danach `data/inbox/standardized/` ab
+(`npm run belege:text` fuer die Vorschau, `belege:text:schreiben` zum Anwenden).
+CSVs unter `Belege/` bekommen keinen Zwilling, sie sind bereits Text.
+
+Ein Zwilling ist nie stumm leer. Hat ein PDF keine Textebene, traegt sein
+Zwilling die Kopfzeile `# Kein Textlayer — Bildscan, <N> Seiten. Inhalt nur im
+PDF.` und erscheint bei jedem Lauf als „OCR ausstehend". Ein leerer Zwilling
+waere schlimmer als gar keiner: Die Suche faende nichts, und ein fehlender
+Treffer ist von „das Dokument existiert nicht" nicht zu unterscheiden.
+
+Bildscans liest der **Agent beim Import** — er sieht das Dokument dort ohnehin
+an, um Kategorie und Namen zu bestimmen. Er schreibt den Zwilling dann selbst,
+mit der Kopfzeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`,
+damit die Herkunft in der Datei ablesbar bleibt. Normale Zwillinge tragen
+**keine** Kopfzeile: Sie muessen byte-identisch zum Textvorlauf bleiben, sonst
+findet das Aufraeumen sie nicht wieder.

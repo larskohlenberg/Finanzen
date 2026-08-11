@@ -58,6 +58,13 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
    er zerlegt nichts und deutet nichts. Bleibt eine Zahl im Text unklar oder
    zweideutig (Tabellen, Fussnoten, schlechter Scan), das Original-PDF oeffnen —
    der Textvorlauf ist eine Lesehilfe, kein Ersatz fuer den Beleg.
+
+   Ist der Vorlauf **leer**, hat das PDF keine Textebene. Dann die Seiten des
+   PDF selbst lesen und beim Ablegen den Textzwilling von Hand schreiben, erste
+   Zeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`
+
+   Nach dem Ablegen des Belegs `npm run belege:text:schreiben` fahren: Das legt
+   den Textzwilling neben den Beleg und raeumt `standardized/` ab.
 3. **Vorsorge-Entitaet vorschlagen:** `vorsorge_id`, `art`, `name`, `person_id`,
    `status`, `kapitalbildend`, optional `kapitalwahl`, `leistung_beginn`,
    `aktiv_bis`, `ersetzt_vorsorge_id`, `quelle_standdatum` und `bemerkung`.

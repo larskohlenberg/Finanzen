@@ -89,6 +89,11 @@ Schema: `<Entitaet/Konto>_<Quelle/Gesellschaft>_<Belegart>_<Datum oder Zeitraum>
 
 Ablage in `Belege/`: Kontoauszuege unter `Belege/Kontoauszuege/<Konto>/`; sonstige Belege nach bestehender `Belege/<Jahr>/<Kategorie>`-Struktur. `quelle_hinweis`/`rohquelle` zeigen auf den finalen Beleg-Pfad.
 
+Nach dem Ablegen `npm run belege:text:schreiben` fahren — jedes PDF unter
+`Belege/` braucht seinen Textzwilling. Hat der Beleg keine Textebene (leerer
+Textvorlauf), die Seiten selbst lesen und den Zwilling von Hand schreiben,
+erste Zeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`
+
 ## Wo was liegt
 
 | Pfad | Zweck |

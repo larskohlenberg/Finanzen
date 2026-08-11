@@ -118,7 +118,8 @@ Der Handablauf unten gilt weiterhin fuer:
   Tool-Aufruf ist. Das ist der eigentliche Ertrag des ersten Imports.
 - **PDFs.** `inbox.mjs` legt nur den Textvorlauf (`pdftotext -layout`) nach
   `data/inbox/standardized/` ab. Die Zeilenextraktion bleibt deine Arbeit — aber
-  auf Text statt auf PDF-Binaer.
+  auf Text statt auf PDF-Binaer. Ist der Vorlauf **leer**, ist das Dokument ein
+  Bildscan: dann die PDF-Seiten selbst lesen (siehe Schritt 9).
 - **Copy-paste-Tabellen und Screenshots.**
 
 Beim Profil gilt dieselbe Disziplin wie ueberall: **nie raten.** Gibt es fuer ein
@@ -151,7 +152,7 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
    - `verwendungszweck` nach Normalisierung (trim, Whitespace kollabieren, lowercase) identisch.
    Bei Match: Transfer-Datensatz anlegen, `ist_transfer = true` auf beiden Seiten, `transfer_id` setzen.
    Externe Transfers (Bargeld, Familie) erkennt das Tool nicht — die markiert der Nutzer im Dialog.
-9. **Beleg sprechend umbenennen und ablegen** (siehe Abschnitt unten): Rohbeleg in `Belege/` einsortieren, **niemals** den Scan-/Mail-Originalnamen behalten. Zwischen-JSONL verwerfen. Bei Fehler: nach `data/inbox/error/` plus strukturierte Begleitdatei.
+9. **Beleg sprechend umbenennen und ablegen** (siehe Abschnitt unten): Rohbeleg in `Belege/` einsortieren, **niemals** den Scan-/Mail-Originalnamen behalten. Danach `npm run belege:text:schreiben` — das legt den Textzwilling neben den Beleg und raeumt den Vorlauf in `standardized/` ab. War der Vorlauf leer (Bildscan), schreibst du den Zwilling selbst: `<Belegname>.txt` neben das PDF, erste Zeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`, darunter der gelesene Text. Zwischen-JSONL verwerfen. Bei Fehler: nach `data/inbox/error/` plus strukturierte Begleitdatei.
 10. **Agent-Lauf protokollieren**: Eintrag in `DATENROOT/agent_log.jsonl` mit Zaehlern (importiert, offen, Fehler), betroffene IDs, kurze Notiz. `rohquelle` jeder Buchung zeigt auf den **finalen Beleg-Pfad** in `Belege/`.
 
 ## Belege benennen und ablegen
@@ -168,6 +169,11 @@ Beispiele:
 Ablage in `Belege/`:
 - **Kontoauszuege**: `Belege/Kontoauszuege/<Konto>/` (Serie je Konto, jahresuebergreifend).
 - **Sonstige Belege**: nach bestehender `Belege/<Jahr>/<Kategorie>`-Struktur (Immobilien, Rente, Versicherungen, Sonstiges, Steuern, Depots, Kredite).
+
+Zu jedem abgelegten PDF gehoert ein **Textzwilling** mit gleichem Basisname und
+Endung `.txt` im selben Ordner. `npm run belege:text` zeigt die Vorschau,
+`npm run belege:text:schreiben` wendet sie an. Der Lauf ist idempotent und
+ueberschreibt nie einen vorhandenen Zwilling.
 
 ## Do's
 
@@ -207,7 +213,7 @@ Ablage in `Belege/`:
 | Pfad | Zweck |
 | --- | --- |
 | `data/inbox/` | Rohdateien zum Verarbeiten |
-| `data/inbox/standardized/` | Normalisierte Zwischenform |
+| `data/inbox/standardized/` | Normalisierte Zwischenform, Durchgangsstation |
 | `data/inbox/processed/` | Erfolgreich verarbeitete Rohdateien |
 | `data/inbox/error/` | Fehlgeschlagene Importe + Begleitdatei |
 | `DATENROOT/transaktionen.jsonl` | Finale Transaktionen |

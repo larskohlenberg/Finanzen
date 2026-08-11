@@ -191,3 +191,130 @@ test("open-vorsorge setzt Auswahl zurück, leert Filter und navigiert zum Vorsor
   assert.equal(navigation.title, "");
   assert.equal(navigation.hash, "#/vorsorge/VS-003");
 });
+
+test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zur Vorsorge-Rail zurück", () => {
+  const vorsorgeId = "VS-RUNDWEG";
+  const regelzahlungId = "RZ-RUNDWEG";
+  const transactionId = "TX-RUNDWEG";
+  const transaction = {
+    transaktion_id: transactionId,
+    dedupe_hash: "vorsorge-rundweg-fixture",
+    rohquelle: "tests/transfer-target-pagination.test.mjs",
+    konto_id: TARGET_ACCOUNT_ID,
+    buchungsdatum: "2026-06-15",
+    betrag: "-162.00",
+    gegenpartei: "MusterversicherungA Rundweg",
+    verwendungszweck: "Riester-Beitrag Rundweg",
+    kategorisierung_status: "bestaetigt",
+    ist_transfer: false,
+    kategorie_herkunft: "manuell",
+    regelzahlung_id: regelzahlungId,
+  };
+  const saved = {
+    transaktionen: data.transaktionen,
+    regelzahlungen: data.regelzahlungen,
+    vorsorge: data.vorsorge,
+    view: state.view,
+    transactionFilters: state.transactionFilters,
+    transactionPage: state.transactionPage,
+    selectedTransactionId: state.selectedTransactionId,
+    detailRailClosed: state.detailRailClosed,
+    vorsorgeFilters: state.vorsorgeFilters,
+    selectedVorsorgeId: state.selectedVorsorgeId,
+    transactionMapEntry: transaktionenById.get(transactionId),
+  };
+
+  try {
+    data.transaktionen = [transaction];
+    data.regelzahlungen = [{
+      regelzahlung_id: regelzahlungId,
+      bezeichnung: "Riester-Beitrag Rundweg",
+      betrag: "-162.00",
+      vorsorge_id: vorsorgeId,
+    }];
+    data.vorsorge = [{
+      vorsorge_id: vorsorgeId,
+      art: "riester",
+      name: "Riester Rundweg",
+      person_id: data.personen[0].person_id,
+      status: "aktiv",
+      kapitalbildend: true,
+      bemerkung: "Rundweg-Bemerkung",
+    }];
+    transaktionenById.set(transactionId, transaction);
+    resetTransactionState();
+    state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
+    historyCalls.length = 0;
+
+    clickAction({ action: "open-vorsorge", vorsorge: vorsorgeId });
+
+    assert.equal(state.view, "vorsorge");
+    assert.equal(state.selectedVorsorgeId, vorsorgeId);
+    assert.equal(location.hash, `#/vorsorge/${vorsorgeId}`);
+    assert.ok(app.innerHTML.includes("detail-panel"));
+    assert.ok(app.innerHTML.includes(`data-action="open-transaction" data-transaction="${transactionId}"`));
+    assert.ok(app.innerHTML.includes("MusterversicherungA Rundweg"));
+
+    state.transactionFilters = {
+      ...state.transactionFilters,
+      account: "KTO-ALT",
+      status: "offen",
+      category: "KAT-ALT",
+      transfer: "ja",
+      origin: "regel",
+      search: "ausgefiltert",
+      timeMode: "month",
+      month: "2025-01",
+    };
+    clickAction({ action: "open-transaction", transaction: transactionId });
+
+    assert.equal(state.view, "transactions");
+    assert.equal(state.selectedTransactionId, transactionId);
+    assert.equal(state.detailRailClosed, false);
+    assert.equal(location.hash, `#/transaktionen/${transactionId}`);
+    assert.deepEqual(state.transactionFilters, {
+      account: "",
+      status: "",
+      category: "",
+      transfer: "",
+      origin: "",
+      search: "",
+      timeMode: "none",
+      dateFrom: "",
+      dateTo: "",
+      month: "",
+      quarterYear: "",
+      quarter: "1",
+      year: "",
+    });
+    assert.ok(app.innerHTML.includes("transaction-row selected"));
+    assert.ok(app.innerHTML.includes(`data-transaction="${transactionId}"`));
+    assert.ok(app.innerHTML.includes("MusterversicherungA Rundweg"));
+    assert.ok(app.innerHTML.includes(`data-action="open-vorsorge" data-vorsorge="${vorsorgeId}"`));
+
+    state.vorsorgeFilters = { search: "unsichtbar", art: "ruerup", person: "PER-X", status: "geplant", pruefstatus: "ungeprueft" };
+    state.selectedVorsorgeId = "VS-ALT";
+    clickAction({ action: "open-vorsorge", vorsorge: vorsorgeId });
+
+    assert.equal(state.view, "vorsorge");
+    assert.deepEqual(state.vorsorgeFilters, { search: "", art: "", person: "", status: "", pruefstatus: "" });
+    assert.equal(state.selectedVorsorgeId, vorsorgeId);
+    assert.equal(location.hash, `#/vorsorge/${vorsorgeId}`);
+    assert.ok(app.innerHTML.includes("detail-panel"));
+    assert.ok(app.innerHTML.includes("Riester Rundweg"));
+    assert.ok(app.innerHTML.includes(`data-action="open-transaction" data-transaction="${transactionId}"`));
+  } finally {
+    data.transaktionen = saved.transaktionen;
+    data.regelzahlungen = saved.regelzahlungen;
+    data.vorsorge = saved.vorsorge;
+    state.view = saved.view;
+    state.transactionFilters = saved.transactionFilters;
+    state.transactionPage = saved.transactionPage;
+    state.selectedTransactionId = saved.selectedTransactionId;
+    state.detailRailClosed = saved.detailRailClosed;
+    state.vorsorgeFilters = saved.vorsorgeFilters;
+    state.selectedVorsorgeId = saved.selectedVorsorgeId;
+    if (saved.transactionMapEntry === undefined) transaktionenById.delete(transactionId);
+    else transaktionenById.set(transactionId, saved.transactionMapEntry);
+  }
+});

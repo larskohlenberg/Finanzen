@@ -302,7 +302,7 @@ function renderWertstaendeRail() {
     </div>`;
 }
 
-function renderVermoegenDetail(p, today) {
+export function renderVermoegenDetail(p, today) {
   const head = `
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t(`vermoegen.klasse.${p.klasse}`))}</div>

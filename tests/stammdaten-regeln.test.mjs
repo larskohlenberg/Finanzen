@@ -18,7 +18,7 @@ await import("../app/i18n.js");
 
 const runtime = await import("../app/runtime.mjs");
 const stammdatenView = await import("../app/views/stammdaten.mjs");
-const { data, state } = runtime;
+const { data, state, kontenById } = runtime;
 const { renderMasterdata } = stammdatenView;
 
 test("Konten-Stammdaten zeigen die Konto-ID", () => {
@@ -42,6 +42,70 @@ test("Konten-Stammdaten zeigen die Konto-ID", () => {
 
   assert.match(html, /<th>ID<\/th>/);
   assert.match(html, /<td>KTO-SICHTBAR<\/td>/);
+  assert.match(html, /data-action="select-master-account" data-account="KTO-SICHTBAR"/);
+});
+
+test("Konten-Stammdaten öffnen Details mit Ankern und eigener Transaktionsaktion", () => {
+  const kontoId = "KTO-DETAIL";
+  const personId = data.personen[0]?.person_id ?? "PER-001";
+  const konto = {
+    konto_id: kontoId,
+    name: "Detailkonto",
+    kontotyp: "giro",
+    inhaber_person_ids: [personId],
+    liquiditaetsrelevant: true,
+    status: "aktiv",
+  };
+  const original = {
+    konten: data.konten,
+    transaktionen: data.transaktionen,
+    zeitwerte: data.zeitwerte,
+    lang: state.lang,
+    selectedKonto: state.selectedKonto,
+  };
+  const originalMapEntry = kontenById.get(kontoId);
+
+  try {
+    data.konten = [konto];
+    data.transaktionen = [{
+      transaktion_id: "TXN-DETAIL",
+      konto_id: kontoId,
+      buchungsdatum: "2026-06-15",
+      betrag: "25.00",
+      kategorisierung_status: "bestaetigt",
+      ist_transfer: false,
+    }];
+    data.zeitwerte = [
+      { entitaet: "konto", entitaet_id: kontoId, feld: "kontostand", wert: "900.00", standdatum: "2026-05-31", qualitaet: "belegt" },
+      { entitaet: "konto", entitaet_id: kontoId, feld: "kontostand", wert: "1000.00", standdatum: "2026-06-10", qualitaet: "belegt" },
+    ];
+    kontenById.set(kontoId, konto);
+    state.lang = "de";
+    state.view = "masterdata";
+    state.masterSection = "konten";
+    state.selectedKonto = kontoId;
+
+    const html = renderMasterdata();
+
+    assert.match(html, /layout-with-rail/);
+    assert.match(html, /detail-panel/);
+    assert.match(html, /data-action="close-account-rail"/);
+    assert.match(html, /Belegter Anker/);
+    assert.match(html, /Buchungen seit Anker/);
+    assert.match(html, /Aktueller Saldo/);
+    assert.equal((html.match(/class="wertstand-item"/g) ?? []).length, 2);
+    assert.equal((html.match(/data-action="account-transactions"/g) ?? []).length, 1);
+    assert.match(html, /data-action="account-transactions" data-account="KTO-DETAIL"/);
+    assert.match(html, /Transaktionen anzeigen/);
+  } finally {
+    data.konten = original.konten;
+    data.transaktionen = original.transaktionen;
+    data.zeitwerte = original.zeitwerte;
+    state.lang = original.lang;
+    state.selectedKonto = original.selectedKonto;
+    if (originalMapEntry) kontenById.set(kontoId, originalMapEntry);
+    else kontenById.delete(kontoId);
+  }
 });
 
 test("Kategorien-Stammdaten zeigen die Kategorie-ID", () => {

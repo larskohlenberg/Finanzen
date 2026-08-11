@@ -150,7 +150,7 @@ export function renderFilterSelect({ name, label, options, type, placeholder, fi
   `;
 }
 
-export function renderAccountTable({ showId = false } = {}) {
+export function renderAccountTable({ showId = false, rowAction = "account-transactions" } = {}) {
   return `
     <div class="table-wrap">
       <table>
@@ -167,14 +167,14 @@ export function renderAccountTable({ showId = false } = {}) {
           </tr>
         </thead>
         <tbody>
-          ${renderAccountRows(sortedOverviewAccounts(), { showId })}
+          ${renderAccountRows(sortedOverviewAccounts(), { showId, rowAction })}
         </tbody>
       </table>
     </div>
   `;
 }
 
-export function renderAccountRows(accounts, { showId = false } = {}) {
+export function renderAccountRows(accounts, { showId = false, rowAction = "account-transactions" } = {}) {
   return accounts
     .map((konto) => {
       const isDepot = konto.kontotyp === "depot";
@@ -189,10 +189,13 @@ export function renderAccountRows(accounts, { showId = false } = {}) {
           : t("labels.referenceMissing");
       const chipClass = isDepot ? "neutral" : konto.kontoreferenz ? "neutral" : "review";
       const chipIcon = isDepot || konto.kontoreferenz ? "neutral" : "review";
+      const selectableAttrs = rowAction === "select-master-account"
+        ? ` tabindex="0" role="button" aria-label="${escapeHtml(konto.name)}"`
+        : "";
       return `
-        <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">
+        <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}"${selectableAttrs}>
           ${showId ? `<td>${escapeHtml(konto.konto_id)}</td>` : ""}
-          <td><button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
+          <td><button class="linkish" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
           <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
           <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>

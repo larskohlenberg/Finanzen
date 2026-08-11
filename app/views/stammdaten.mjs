@@ -4,6 +4,9 @@ import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { renderPageHead, renderAccountTable, regelKlartext, categoryName } from "../komponenten.mjs";
 import { missingReferenceChecks, regelWirkung } from "../selektoren.mjs";
+import { localTodayIso } from "../liquiditaet.mjs";
+import { kontoWert } from "../vermoegen.mjs";
+import { renderVermoegenDetail } from "./vermoegen.mjs";
 
 export function renderMasterdata() {
   const missingRefs = missingReferenceChecks().length;
@@ -31,7 +34,7 @@ export function renderMasterdata() {
         <span class="chip success">${iconSvg("success")}${escapeHtml(t("masterdata.active"))}</span>
       </button>
     </div>
-    ${state.masterSection === "regeln" ? renderRegelSection() : `
+    ${state.masterSection === "regeln" ? renderRegelSection() : state.masterSection === "konten" ? renderKontoSection() : `
     <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(sectionTitle())}</h2>
       ${renderMasterSection()}
@@ -56,7 +59,49 @@ function renderMasterSection() {
       data.kategorien.map((category) => [category.kategorie_id, category.name, category.typ, t(`status.${category.status}`)]),
     );
   }
-  return renderAccountTable({ showId: true });
+  return "";
+}
+
+function kontoPosition(konto, today) {
+  const wert = kontoWert(konto, data.zeitwerte, data.transaktionen, today);
+  return {
+    klasse: "konto",
+    id: konto.konto_id,
+    name: konto.name,
+    wert_cents: wert.wert_cents ?? 0,
+    basis: wert.basis,
+    qualitaet: wert.qualitaet,
+    standdatum: wert.standdatum,
+    fehlt: wert.wert_cents === null,
+  };
+}
+
+function renderKontoSection() {
+  const konto = state.selectedKonto
+    ? data.konten.find((item) => item.konto_id === state.selectedKonto)
+    : null;
+  const railOpen = Boolean(konto);
+  const today = localTodayIso();
+  return `
+    <div class="layout-with-rail ${railOpen ? "" : "rail-closed"} section-spacing">
+      <div class="stack">
+        <section class="panel panel-pad">
+          <h2 class="section-title">${escapeHtml(t("masterdata.accounts"))}</h2>
+          ${renderAccountTable({ showId: true, rowAction: "select-master-account" })}
+        </section>
+      </div>
+      ${railOpen ? `
+        <aside class="panel panel-pad detail-panel">
+          <div class="detail-head">
+            <h2 class="section-title">${escapeHtml(t("vermoegen.detailTitle"))}</h2>
+            <button class="icon-button" data-action="close-account-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
+          </div>
+          ${renderVermoegenDetail(kontoPosition(konto, today), today)}
+          <div class="detail-section">
+            <button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(t("masterdata.showTransactions"))}</button>
+          </div>
+        </aside>` : ""}
+    </div>`;
 }
 
 function renderSimpleTable(headers, rows) {

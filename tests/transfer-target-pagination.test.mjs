@@ -216,7 +216,9 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     vorsorge: data.vorsorge,
     view: state.view,
     transactionFilters: state.transactionFilters,
+    transactionSort: state.transactionSort,
     transactionPage: state.transactionPage,
+    pageSize: state.pageSize,
     selectedTransactionId: state.selectedTransactionId,
     detailRailClosed: state.detailRailClosed,
     vorsorgeFilters: state.vorsorgeFilters,
@@ -309,7 +311,9 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     data.vorsorge = saved.vorsorge;
     state.view = saved.view;
     state.transactionFilters = saved.transactionFilters;
+    state.transactionSort = saved.transactionSort;
     state.transactionPage = saved.transactionPage;
+    state.pageSize = saved.pageSize;
     state.selectedTransactionId = saved.selectedTransactionId;
     state.detailRailClosed = saved.detailRailClosed;
     state.vorsorgeFilters = saved.vorsorgeFilters;

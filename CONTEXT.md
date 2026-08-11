@@ -76,6 +76,8 @@ Banken liefern Auszuege in unterschiedlichen Formaten — die Normalisierung in 
 
 Kein separates Feld `cashflow_wirkung` an der Transaktion. Die Wirkung ergibt sich aus dem Vorzeichen des `betrag`-Feldes plus dem Flag `ist_transfer` (Transfers sind cashflow-neutral). Die Kategorie steuert die fachliche Klassifikation, nicht das Vorzeichen.
 
+Eine Transaktion kann ueber `regelzahlung_id` genau **eine** erwartete **Regelzahlung** erfuellen; eine Regelzahlung kann ueber die Zeit von vielen Transaktionen erfuellt werden. Die Zuordnung ist explizit und wird nicht aus Betrag, Gegenpartei oder Rhythmus geraten. Bei einem Vorsorgebeitrag ergibt sich der Vertrag mittelbar aus `Transaktion → Regelzahlung → Vorsorge`; die Transaktion traegt deshalb keine zusaetzliche `vorsorge_id`. Eine einzelne Kontobuchung darf hoechstens einem Vorsorgevertrag zugeordnet sein.
+
 ## Kategorisierung
 
 Zustand einer Transaktion bezueglich ihrer Kategorie. Agent schreibt seinen Tipp direkt in `kategorie_id` und setzt `kategorisierung_status = vorgeschlagen`. Im Review-Flow geht der Nutzer Buchung fuer Buchung durch — bestaetigt (`status = bestaetigt`) oder korrigiert die Kategorie. Es gibt **keine** separate `vorschlaege.jsonl`-Datei und keine zweite Kategorie-Spalte fuer Vorschlaege. Ein Feld, ein Status.

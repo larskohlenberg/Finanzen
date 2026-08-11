@@ -225,6 +225,30 @@ Historie nicht vollstaendig garantiert ist. Laufende Werte werden aus Anker plus
 Bewegungen oder Tilgung berechnet. Aufeinanderfolgende belegte Staende werden
 reconciled; Abweichungen werden als Checks sichtbar und nicht still korrigiert.
 
+### Startzustandsbuchungen — bewusst KAT-012, kein Review-Fall
+
+Wo die Importhistorie erst nach dem Kontoleben beginnt, traegt eine technische
+Eroeffnungsbuchung die Differenz, damit „Summe aller Buchungen ab null" den
+belegten Anker trifft. Es gibt aktuell zwei:
+
+| Konto | Datum | Betrag | Herleitung |
+| --- | --- | ---: | --- |
+| KTO-001 | 2024-01-01 | +1.234,56 | rueckgerechnet aus belegtem Stand 2024-12-30 minus Bewegungssumme |
+| KTO-002 | 2023-01-01 | +2.345,67 | direkt belegt aus Auszug 2023-01 (Stand 31.12.2022) |
+
+Beide sind **`bestaetigt` unter `KAT-012` „Noch zu klaeren"** — Nutzerentscheidung
+am 2026-08-11, ausdruecklich so gewollt. Fachlich sind sie weder Einnahme noch
+Ausgabe, sondern ein Bilanz-Startpunkt.
+
+**Bekannte Nebenwirkung, bewusst in Kauf genommen:** `KAT-012` hat
+`typ = ausgabe`; die positiven Betraege mindern daher jede Ausgabensumme, die
+stumpf ueber die Kategorie laeuft (zusammen +3.580,23). Auswertungen der
+Ausgabenseite muessen `transaktionstyp = "Startzustand"` ausschliessen.
+
+Ein Agent soll das **nicht erneut als Kategorisierungsfehler melden** und die
+Buchungen nicht umkategorisieren. Sie sind an `transaktionstyp = "Startzustand"`
+und `gegenpartei = "Muster-Gegenpartei-001"` erkennbar.
+
 Darlehen duerfen zusaetzlich Vertragsdaten wie `zinsbindung_bis`, `laufzeit_bis`
 und `restschuld_laufzeitende` enthalten. Diese Felder dokumentieren Vertrag bzw.
 Erwartung am Laufzeitende; sie sind kein Ersatz fuer den belegten Restschuld-Anker

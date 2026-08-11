@@ -38,8 +38,10 @@ ausnahmsweise schon vor dem Inbox-Lauf umbenannt worden waren — also gerade
 nicht so, wie der Ablauf beschrieben ist.
 
 Drei Textvorläufe sind 2 bis 3 Byte groß
-(`2025_MusterversicherungA_Testversicherung_Vertrag_A_*`). Bei diesen PDFs findet
-`pdftotext` keine Textebene. Der Lauf meldet das heute nicht.
+(`2025_MusterversicherungA_Testversicherung_Vertrag_A_*`). Diese PDFs sind reine
+Bildscans — ein JPEG pro Seite, 144 dpi, Graustufen — und haben keine Textebene.
+Eine Prüfung aller 84 Belege zeigt, dass es genau diese drei sind. Der Lauf
+meldet das heute nicht.
 
 ## Entscheidung
 
@@ -81,6 +83,9 @@ Der Ablauf für einen neuen Beleg:
 Schritt 5 ist der einzige neue Handgriff. Er ist idempotent und darf beliebig
 oft laufen.
 
+Ist der Textvorlauf aus Schritt 2 leer, ist das Dokument ein Bildscan. Dann
+weicht der Ablauf ab Schritt 3 ab, siehe „Belege ohne Textebene".
+
 ## Technisches Design
 
 ### Neues Werkzeug `app/tools/belege-text.mjs`
@@ -88,12 +93,23 @@ oft laufen.
 Ein Lauf mit zwei Aufgaben.
 
 **Erzeugen.** Rekursiv über `Belege/`. Jedes PDF ohne `.txt`-Geschwister bekommt
-einen über `pdftotext -layout`. Vorhandene Zwillinge werden nicht angefasst.
+einen über `pdftotext -layout`. Liefert die Extraktion keinen Text, entsteht
+stattdessen ein Marker-Zwilling (siehe „Belege ohne Textebene").
+
+**Vorhandene Zwillinge werden nie überschrieben.** Ein Zwilling, den der Agent
+aus einem Bildscan geschrieben hat, würde sonst beim nächsten Lauf durch ein
+leeres `pdftotext`-Ergebnis ersetzt — stille Datenvernichtung durch ein
+Werkzeug, das sich für idempotent hält.
 
 **Aufräumen.** Für jede `.txt` in `data/inbox/standardized/` wird der SHA-256
 gebildet und gegen die Hashes der Zwillinge unter `Belege/` gehalten. Bei
 Treffer wird die Datei in `standardized/` gelöscht, sonst bleibt sie liegen und
 erscheint im Bericht.
+
+Ein **leerer** Textvorlauf wird immer gelöscht, unabhängig von Hash-Treffern.
+Er trägt per Definition keine Information, findet als Bildscan-Extrakt ohnehin
+nie einen Partner und ist über `inbox.mjs` in einer Sekunde wiederhergestellt.
+Ohne diese Regel bliebe er dauerhaft als vermeintlich offener Punkt liegen.
 
 Das Werkzeug braucht keinen Datenroot. `Belege/` existiert genau einmal,
 unabhängig von `master` und `demo`.
@@ -122,16 +138,20 @@ Eingaben ein, ruft die Planung und führt sie aus.
 
 ### Bericht
 
-Der Bericht macht zwei heute stumme Zustände sichtbar:
+Der Bericht macht drei heute stumme Zustände sichtbar:
 
 | Befund | Meldung |
 | --- | --- |
-| Extrakt praktisch leer | Scan ohne Textebene, Zwilling bleibt leer |
+| Extraktion ohne Text | Bildscan, Marker-Zwilling geschrieben |
+| Marker-Zwilling vorhanden | OCR ausstehend |
 | Textvorlauf ohne Hash-Treffer | Beleg noch nicht abgelegt |
 
-„Praktisch leer" heißt: der Extrakt enthält nach Entfernen von Leerraum und
-Seitenumbrüchen keine Zeichen. Der leere Zwilling wird trotzdem geschrieben,
-damit die Invariante hält und der Befund bei jedem Lauf sichtbar bleibt.
+„Ohne Text" heißt: der Extrakt enthält nach Entfernen von Leerraum und
+Seitenumbrüchen keine Zeichen.
+
+„OCR ausstehend" wird bei **jedem** Lauf neu gemeldet, solange der Marker steht.
+Der Bericht führt damit eine stehende Restliste der Belege, deren Inhalt noch
+nicht im Archiv durchsuchbar ist.
 
 ### Änderung an `inbox.mjs`
 
@@ -143,32 +163,107 @@ Geändert werden nur der Dateikopf-Kommentar und der `hinweis` im Bericht: Sie
 benennen `standardized/` als Durchgangsstation und verweisen für den dauerhaften
 Zwilling auf `belege-text.mjs`. Es entfällt kein Verhalten.
 
+## Belege ohne Textebene
+
+Drei der 84 Belege sind reine Bildscans: ein JPEG pro Seite, 144 dpi,
+Graustufen, kein Textlayer. Es sind die drei MusterversicherungA-Belege zur privaten
+Krankenversicherung der Kinder, zusammen sieben Seiten. Das ist eine Eigenschaft
+dieses Absenders, keine Ausnahme — es werden weiter etwa drei Dokumente pro Jahr
+nachkommen.
+
+### Warum ein leerer Zwilling nicht genügt
+
+Der Zwilling existiert, damit das Belegarchiv durchsuchbar ist, ohne PDFs zu
+öffnen. Ein leerer Zwilling liefert bei `grep -r "Beitragsanpassung" Belege/`
+keinen Treffer — und ein fehlender Treffer ist nicht von „das Dokument existiert
+nicht" zu unterscheiden. Die Suche lügt dann, statt zu schweigen. Ein Zwilling
+ist deshalb nie stumm leer.
+
+### Drei Zwillingsformen
+
+| Form | Kopfzeile | Herkunft |
+| --- | --- | --- |
+| Normal | keine | rohes `pdftotext -layout` |
+| Marker | `# Kein Textlayer — Bildscan, <N> Seiten. Inhalt nur im PDF.` | `belege-text.mjs` |
+| Gelesen | `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.` | Agent beim Import |
+
+Die Kopfzeile steht **nur** auf den beiden Sonderformen. Normale Zwillinge
+bleiben rohes `pdftotext`-Ergebnis ohne jede Zutat, sonst wären sie nie mehr
+byte-identisch mit ihrem Textvorlauf und die Hash-Paarung beim Aufräumen —
+die Grundlage des ganzen Entwurfs — wäre gebrochen.
+
+### OCR durch den Agenten beim Import
+
+Der Agent liest den Beleg beim Import ohnehin, um Kategorie und sprechenden
+Namen zu bestimmen. Bei einem Bildscan liest er statt der leeren TXT die
+PDF-Seiten selbst und schreibt den Zwilling im selben Arbeitsschritt. Die
+Texterfassung kostet damit nichts zusätzlich, und es entsteht keine Lücke, die
+später nachgeholt werden müsste.
+
+Der Ablauf ab Schritt 3:
+
+3. Der Textvorlauf ist leer — das ist das Signal „Bildscan". Der Agent öffnet
+   die PDF-Seiten und liest sie.
+4. Er legt das PDF sprechend benannt unter `Belege/` ab und schreibt den
+   Zwilling mit der Kopfzeile `# Vom Agenten aus dem Bildscan gelesen, <Datum>.`
+   daneben.
+5. `npm run belege:text:schreiben` findet einen vorhandenen Zwilling, lässt ihn
+   unberührt und löscht den leeren Textvorlauf.
+
+Der Zwilling ist in dieser Form nicht deterministisch reproduzierbar. Genau
+deshalb trägt er die Kopfzeile: Seine Herkunft ist in der Datei selbst
+abzulesen, nicht nur im Protokoll.
+
+Die Marker-Form entsteht damit nur noch, wenn ein PDF ohne diesen Ablauf ins
+Archiv gelangt — bei der Migration der drei bereits abgelegten MusterversicherungA-Belege
+und beim Einsortieren von Hand.
+
+### Kein eigenes OCR-Werkzeug
+
+Weder `ocrmypdf` noch `tesseract` sind installiert; ein Einbau zöge rund ein
+Gigabyte Abhängigkeiten für drei Dokumente pro Jahr nach sich, und tesseract ist
+bei 144 dpi Graustufen grenzwertig. Der Agent liest diese Scans besser. Sollte
+das Aufkommen steigen, ist `ocrmypdf` ein späterer, kleiner Schritt: Es brennt
+eine Textebene ins PDF, danach greift die normale Pipeline unverändert. Die
+Invariante und das Zwillingsformat ändern sich dadurch nicht — die Entscheidung
+ist umkehrbar.
+
 ## Migration des Bestands
 
-Kein Sonderweg. Der erste `belege:text:schreiben`-Lauf erledigt sie:
+Kein Sonderweg. Der erste `belege:text:schreiben`-Lauf erledigt sie. Unter
+`Belege/` liegt heute **kein einziger** Zwilling, es werden also alle 84
+erzeugt: 81 normale und 3 Marker für die MusterversicherungA-Bildscans.
 
-- 42 fehlende Zwillinge werden unter `Belege/` erzeugt.
-- Die 41 verwaisten `Kontoauszug-4711000815-*.txt` und
-  `Rentenauskunft Altersrente.txt` werden per Hash-Treffer gelöscht.
-- Die 42 bereits namensgleichen Textvorläufe werden ebenfalls per Hash-Treffer
-  gelöscht, da ihre Zwillinge unter `Belege/` liegen.
+Gelöscht werden anschließend 84 der 86 Textvorläufe:
+
+- 39 namensgleiche mit Hash-Treffer,
+- 42 verwaiste mit Hash-Treffer — die 41 `Kontoauszug-4711000815-*.txt` und
+  `Rentenauskunft Altersrente.txt`,
+- 3 leere, die zu den MusterversicherungA-Bildscans gehören, über die Leer-Regel.
 
 Zuerst wird die Vorschau gelesen, dann geschrieben.
 
-Endzustand: 84 Zwillinge unter `Belege/`, 84 gelöschte Textvorläufe, 2
+Endzustand: 84 Zwillinge unter `Belege/`, davon 3 mit Marker, und 2
 verbleibende Dateien in `standardized/`. `Kontoauszug.txt` und
 `Umsatzanzeige - MusterbankB.txt` bleiben liegen, weil ihre PDFs noch
 unverarbeitet in `data/inbox/` stecken und es deshalb keinen Hash-Treffer gibt.
 Das ist das gewünschte Verhalten und erscheint als offener Punkt im Bericht.
+
+Die drei MusterversicherungA-Belege werden danach einmalig nachgezogen: Der Agent liest die
+sieben Seiten und ersetzt die Marker durch gelesene Zwillinge. Bis dahin steht
+„OCR ausstehend" in jedem Bericht.
 
 ## Fehler- und Randfälle
 
 - **`pdftotext` fehlt oder bricht ab.** Die betroffene Datei wird als Fehler im
   Bericht geführt, der Lauf macht mit den übrigen weiter. Ohne Zwilling wird
   nichts in `standardized/` gelöscht, es geht also nichts verloren.
-- **PDF ohne Textebene.** Zwilling wird als leere Datei geschrieben und im
-  Bericht gemeldet. Kein OCR.
-- **Textvorlauf ohne Hash-Treffer.** Bleibt liegen, erscheint im Bericht.
+- **PDF ohne Textebene.** Marker-Zwilling wird geschrieben, „OCR ausstehend"
+  gemeldet. Kein automatisches OCR.
+- **Vorhandener Zwilling.** Wird nie überschrieben, auch nicht, wenn eine
+  Neuextraktion mehr Text ergäbe. Ein gelesener Zwilling ist sonst verloren.
+- **Textvorlauf ohne Hash-Treffer.** Bleibt liegen, erscheint im Bericht —
+  außer er ist leer, dann wird er gelöscht.
 - **Zwilling ohne PDF** (etwa nach Umbenennen des Belegs von Hand). Wird im
   Bericht als verwaist gemeldet, aber nicht gelöscht.
 - **Dateinamen in NFD.** `Belege/` und `standardized/` werden wie in
@@ -181,7 +276,8 @@ Das ist das gewünschte Verhalten und erscheint als offener Punkt im Bericht.
   präzisiert.
 - `app/docs/skills/import-agent.md`, `vorsorge-erfassung-agent.md` und
   `stammdaten-erfassung-agent.md`: Der Schritt „Beleg ablegen" erhält den
-  `belege:text`-Lauf.
+  `belege:text`-Lauf und die Bildscan-Abzweigung — leerer Textvorlauf heißt
+  PDF-Seiten lesen und den Zwilling mit Kopfzeile selbst schreiben.
 
 Die App-Dokumentation verweist wie bisher nicht auf Dateien außerhalb von `app/`
 (geprüft durch `tests/agent-docs.test.mjs`).
@@ -198,14 +294,17 @@ Fälle:
 - CSV unter `Belege/` wird ignoriert.
 - Textvorlauf mit Hash-Treffer steht in `loeschen`.
 - Textvorlauf ohne Hash-Treffer steht in `offen`.
-- Leerer Extrakt wird als Scan ohne Textebene gemeldet.
+- Leerer Textvorlauf steht in `loeschen`, auch ohne Hash-Treffer.
+- PDF ohne Text ergibt einen Marker-Zwilling, nicht eine leere Datei.
+- Vorhandener Marker-Zwilling steht in `offen` mit „OCR ausstehend".
+- Vom Agenten gelesener Zwilling steht weder in `erzeugen` noch in `offen`.
 - Zwilling ohne zugehöriges PDF steht in `offen`, nicht in `loeschen`.
 - Namen in NFD und NFC paaren korrekt.
 
 ## Bewusst nicht enthalten
 
-- **Kein OCR** für Scans ohne Textebene. Der Befund wird gemeldet; ob die drei
-  MusterversicherungA-Belege OCR bekommen, ist eine eigene Entscheidung.
+- **Kein automatisches OCR** und keine OCR-Abhängigkeit im Repo. Bildscans
+  liest der Agent beim Import, siehe „Belege ohne Textebene".
 - **Keine laufende Konsistenzprüfung** vorhandener Zwillinge gegen ihr PDF.
   Belege im Archiv ändern sich nicht.
 - **Kein Eintrag in `agent_log.jsonl`.** Der Lauf berührt keine Modelldaten.

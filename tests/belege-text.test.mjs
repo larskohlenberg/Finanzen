@@ -41,7 +41,7 @@ test("vom Agenten gelesener Zwilling gilt als erledigt", () => {
   const plan = planZwillinge({
     belege: [
       { pfad: "Belege/2025/Versicherungen/scan.pdf" },
-      { pfad: "Belege/2025/Versicherungen/scan.txt", hash: "ccc", kopf: `${GELESEN_KOPF} 2026-08-11.` },
+      { pfad: "Belege/2025/Versicherungen/scan.txt", hash: "ccc", kopf: `${GELESEN_KOPF}, 2026-08-11.` },
     ],
   });
   assert.deepEqual(plan.erzeugen, []);

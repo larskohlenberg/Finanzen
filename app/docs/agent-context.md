@@ -339,10 +339,12 @@ Belege werden sprechend benannt und unter `Belege/` abgelegt. Datenfelder wie
 
 Jedes PDF unter `Belege/` hat einen **Textzwilling**: gleicher Ordner, gleicher
 Basisname, Endung `.txt`. Der Zwilling macht das Archiv durchsuchbar, ohne PDFs
-zu oeffnen. Er ist rohes `pdftotext -layout`-Ergebnis, wird nie von Hand
-gepflegt und ist jederzeit aus dem Beleg wiederherstellbar. `tools/belege-text.mjs`
-erzeugt fehlende Zwillinge und raeumt danach `data/inbox/standardized/` ab
-(`npm run belege:text` fuer die Vorschau, `belege:text:schreiben` zum Anwenden).
+zu oeffnen. Der Normalfall ist rohes `pdftotext -layout`-Ergebnis: nicht von
+Hand gepflegt und jederzeit aus dem Beleg wiederherstellbar. Nur Bildscans
+weichen davon ab, siehe unten. `tools/belege-text.mjs` erzeugt fehlende
+Zwillinge und raeumt danach `data/inbox/standardized/` ab
+(`npm run belege:text` fuer die Vorschau, `npm run belege:text:schreiben` zum
+Anwenden).
 CSVs unter `Belege/` bekommen keinen Zwilling, sie sind bereits Text.
 
 Ein Zwilling ist nie stumm leer. Hat ein PDF keine Textebene, traegt sein

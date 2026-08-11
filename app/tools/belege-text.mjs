@@ -56,11 +56,10 @@ export function planZwillinge({ belege }) {
 }
 
 export function planAufraeumen({ zwillinge, staging }) {
-  // Erstelle eine Map, die Inhalts-Hashes auf Belege-Pfade abbildet.
-  // Ein Hash kann mehrmals vorkommen, aber wir speichern den erstesten Treffer
-  // (sortiert nach Pfad fuer Determinismus). Dies ermoeglicht die Pairing ueber
-  // Inhalts-Hash statt Dateinamen — die Archive benennen Belege beim Ablegen um,
-  // aber der Inhalt driftet nicht auseinander.
+  // Gepaart wird ueber den Inhalts-Hash, nicht ueber den Dateinamen: Der Agent
+  // benennt Belege beim Ablegen sprechend um, Namen driften also systematisch
+  // auseinander — Inhalte tun das nicht. Bei mehreren Zwillingen mit gleichem
+  // Hash gewinnt der pfad-kleinste, damit der Lauf reproduzierbar bleibt.
   const pfadNachHash = new Map();
   for (const zwilling of [...zwillinge].sort(nachPfad)) {
     if (zwilling.hash && !pfadNachHash.has(zwilling.hash)) {

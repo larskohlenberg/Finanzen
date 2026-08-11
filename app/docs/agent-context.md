@@ -87,6 +87,11 @@ bekommen deterministisch disambiguierte Hashes.
 
 ## Kategorisierung und Herkunft
 
+Eine tatsächliche Buchung kann optional `regelzahlung_id` tragen. Das bedeutet:
+Diese Buchung erfüllt genau diese erwartete Regelzahlung. Die Zuordnung wird nur
+nach Beleg- oder Nutzerklärung gesetzt; bei Unsicherheit bleibt das Feld weg.
+Ein Vorsorgebezug wird über `Transaktion → Regelzahlung → Vorsorge` abgeleitet.
+
 Eine Transaktion kann eine Kategorie aus drei Herkuenften haben:
 
 - `kategorie_herkunft = regel`: Kategorie stammt aus dem deterministischen

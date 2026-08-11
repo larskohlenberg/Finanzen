@@ -143,6 +143,9 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
      `matched_regeln` mit den IDs aller passenden Regeln, damit der Konflikt
      nachvollziehbar bleibt. Ein `offen`-Eintrag mit nicht leerem `matched_regeln`
      ist ein Konflikt-Fall; das ist ein automatisches Ergebnis, kein manueller Schritt.
+   Ist aus Beleg oder Nutzerentscheidung eindeutig, welche Regelzahlung die Buchung
+   erfüllt, `regelzahlung_id` im standardisierten Eintrag setzen. Nie allein aus
+   Betragsgleichheit oder ähnlicher Gegenpartei zuordnen.
 7. **Schreiben**: Buchungen an `DATENROOT/transaktionen.jsonl` anhaengen. Belegte Kontostaende als Zeitwerte an `DATENROOT/zeitwerte.jsonl` anhaengen, sofern sie aus der Rohquelle extrahiert wurden und nicht bereits identisch vorhanden sind. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz. Beim CLI-Import den Root explizit uebergeben: `node tools/import.mjs <standardisierte-datei.jsonl> DATENROOT`.
 8. **Transfer-Match**: Nach dem Schreiben `tools/transfer-matcher.mjs` aufrufen. Kriterien fuer Auto-Match (alle vier zwingend):
    - Betrag exakt invers (cent-genau).

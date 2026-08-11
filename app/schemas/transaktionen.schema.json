@@ -40,6 +40,7 @@
       "empfaenger_iban": { "type": "string" },
       "mandatsreferenz": { "type": "string" },
       "glaeubiger_id": { "type": "string" },
+      "regelzahlung_id": { "type": "string", "pattern": "^RZ-\\d{3}$" },
       "transfer_id": { "type": "string", "pattern": "^TRF-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
       "bemerkung": { "type": "string" }
     }

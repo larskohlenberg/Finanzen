@@ -79,6 +79,7 @@ const schemas = {
       empfaenger_iban: { type: "string" },
       mandatsreferenz: { type: "string" },
       glaeubiger_id: { type: "string" },
+      regelzahlung_id: { type: "string", pattern: /^RZ-\d{3}$/ },
       transfer_id: { type: "string", pattern: TRF_ID },
       bemerkung: { type: "string" },
     },
@@ -392,6 +393,7 @@ function validateCrossFieldRules(data, errors) {
   const kategorien = byId(data.kategorien, "kategorie_id");
   const transaktionen = byId(data.transaktionen, "transaktion_id");
   const transfers = byId(data.transfers, "transfer_id");
+  const regelzahlungen = byId(data.regelzahlungen, "regelzahlung_id");
 
   data.konten?.forEach((konto) => {
     konto.inhaber_person_ids?.forEach((personId) => {
@@ -420,6 +422,9 @@ function validateCrossFieldRules(data, errors) {
     }
     if (transaktion.transfer_id && !transfers.has(transaktion.transfer_id)) {
       errors.push(`transaktionen.${transaktion.transaktion_id}.transfer_id: ${transaktion.transfer_id} existiert nicht`);
+    }
+    if (transaktion.regelzahlung_id && !regelzahlungen.has(transaktion.regelzahlung_id)) {
+      errors.push(`transaktionen.${transaktion.transaktion_id}.regelzahlung_id: ${transaktion.regelzahlung_id} existiert nicht`);
     }
     if (dedupeHashes.has(transaktion.dedupe_hash)) {
       errors.push(`transaktionen.${transaktion.transaktion_id}.dedupe_hash: doppelt mit ${dedupeHashes.get(transaktion.dedupe_hash)}`);

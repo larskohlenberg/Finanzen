@@ -67,6 +67,8 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
 5. **Beitraege verknuepfen:** laufende Beitraege als Regelzahlungen mit
    `vorsorge_id` pflegen. Bestehende Regelzahlungen nicht direkt umdeuten, sondern
    im Regelzahlungs-Dialog mit Nutzerentscheidung vorbereiten.
+   Bereits eindeutig geklärte Beitragsbuchungen tragen die `regelzahlung_id` der
+   zugehörigen Beitrags-Regelzahlung. Keine `vorsorge_id` an Transaktionen ergänzen.
 6. **Review vor Schreiben:** `geprueft_am` erst setzen, nachdem der Nutzer die
    Vorsorge-Entitaet und alle relevanten Werte fachlich gegengelesen hat.
 7. **Validieren:** vor jedem Schreiben `tools/validator.mjs DATENROOT` laufen

@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validateMasterData } from "../app/tools/validate-core.mjs";
 
+const TXN_BEITRAG = "TXN-11111111-1111-4111-8111-111111111111";
+
 function basis(extra = {}) {
   return {
     personen: [{ person_id: "PER-001", name: "Lena", status: "aktiv" }],
@@ -12,6 +14,40 @@ function basis(extra = {}) {
     ...extra,
   };
 }
+
+function beitragsTransaktion(extra = {}) {
+  return {
+    transaktion_id: TXN_BEITRAG,
+    dedupe_hash: "hash-vorsorge-beitrag",
+    rohquelle: "Belege/2026/Versicherungen/beitrag.csv",
+    konto_id: "KTO-001",
+    buchungsdatum: "2026-06-15",
+    betrag: "-162.00",
+    gegenpartei: "MusterversicherungA",
+    verwendungszweck: "Riester Beitrag",
+    kategorisierung_status: "offen",
+    ist_transfer: false,
+    ...extra,
+  };
+}
+
+test("Transaktion darf eine existierende Regelzahlung erfüllen", () => {
+  const result = validateMasterData(basis({
+    konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "Riester", betrag: "-162.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt", erstellt_am: "2026-01-01", qualitaet: "belegt" }],
+    transaktionen: [beitragsTransaktion({ regelzahlung_id: "RZ-001" })],
+  }));
+  assert.deepEqual(result.errors, []);
+});
+
+test("Transaktion darf keine unbekannte Regelzahlung referenzieren", () => {
+  const result = validateMasterData(basis({
+    konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    regelzahlungen: [],
+    transaktionen: [beitragsTransaktion({ regelzahlung_id: "RZ-999" })],
+  }));
+  assert.match(result.errors.join("\n"), /regelzahlung_id.*RZ-999.*existiert nicht/);
+});
 
 test("valide Vorsorge (kapitalbildende Riester) besteht", () => {
   const data = basis({

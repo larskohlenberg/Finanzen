@@ -434,6 +434,7 @@ app.addEventListener("click", guard((event) => {
   const masterSection = event.target.closest("[data-master-section]");
   if (masterSection) {
     state.masterSection = masterSection.dataset.masterSection;
+    state.selectedKonto = "";
     state.selectedRegel = "";
     state.regelRailWide = false;
     commitNavigation();
@@ -607,6 +608,18 @@ async function handleAction(element) {
     state.view = "masterdata";
     state.masterSection = "konten";
     state.selectedKonto = element.dataset.account || "";
+    commitNavigation();
+    return;
+  }
+  if (action === "select-master-account") {
+    state.view = "masterdata";
+    state.masterSection = "konten";
+    state.selectedKonto = element.dataset.account || "";
+    commitNavigation();
+    return;
+  }
+  if (action === "close-account-rail") {
+    state.selectedKonto = "";
     commitNavigation();
     return;
   }

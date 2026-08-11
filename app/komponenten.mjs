@@ -192,10 +192,13 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
       const selectableAttrs = rowAction === "select-master-account"
         ? ` tabindex="0" role="button" aria-label="${escapeHtml(konto.name)}"`
         : "";
+      const accountName = rowAction === "select-master-account"
+        ? `<span class="linkish">${escapeHtml(konto.name)}</span>`
+        : `<button class="linkish" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button>`;
       return `
         <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}"${selectableAttrs}>
           ${showId ? `<td>${escapeHtml(konto.konto_id)}</td>` : ""}
-          <td><button class="linkish" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button></td>
+          <td>${accountName}</td>
           <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
           <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>

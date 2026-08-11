@@ -109,6 +109,16 @@ test("account masterdata table renders account reference column", () => {
   assert.match(main, /konto\.kontoreferenz/);
 });
 
+test("account masterdata uses a selectable detail rail with a separate transaction action", () => {
+  assert.match(main, /action === "select-master-account"/);
+  assert.match(main, /state\.selectedKonto = element\.dataset\.account/);
+  assert.match(main, /action === "close-account-rail"/);
+  assert.match(main, /state\.selectedKonto = ""/);
+  assert.match(main, /data-action="account-transactions"/);
+  assert.match(i18n, /showTransactions:\s*"Transaktionen anzeigen"/);
+  assert.match(i18n, /showTransactions:\s*"Show transactions"/);
+});
+
 test("liquiditaetsprognose keeps granularity controls and expandable rows", () => {
   assert.match(main, /data-liquiditaet-gran/);
   assert.match(main, /data-liquiditaet-toggle/);

@@ -23,6 +23,9 @@ export function routeFromState(state) {
   if (state.view === "transactions" && state.selectedTransactionId) {
     return `#/transaktionen/${encodeURIComponent(state.selectedTransactionId)}`;
   }
+  if (state.view === "vorsorge" && state.selectedVorsorgeId) {
+    return `#/vorsorge/${encodeURIComponent(state.selectedVorsorgeId)}`;
+  }
   // Konto-Stammsatz (Stammdaten -> Konten, angesteuerter Datensatz).
   if (state.view === "masterdata" && state.masterSection === "konten" && state.selectedKonto) {
     return `#/konten/${encodeURIComponent(state.selectedKonto)}`;
@@ -70,7 +73,7 @@ export function parseRoute(hash) {
     return tail ? { view: "vermoegen", selectedVermoegenId: tail } : { view: "vermoegen" };
   }
   if (head === "vorsorge") {
-    return { view: "vorsorge" };
+    return tail ? { view: "vorsorge", selectedVorsorgeId: tail } : { view: "vorsorge" };
   }
   if (head === "szenarien") {
     return tail ? { view: "szenarien", selectedSzenarioId: tail } : { view: "szenarien" };

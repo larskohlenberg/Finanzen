@@ -1,7 +1,8 @@
 // app/views/vorsorge.mjs
 // Read-only Vorsorge-Ansicht: Vertraege, Werte, Pruefstatus und Beitragsbezug.
 import { data, state, t, escapeHtml, cents, personenById } from "../runtime.mjs";
-import { formatMoney, formatDate, renderPageHead, renderTableFilters } from "../komponenten.mjs";
+import { formatMoney, formatDate, renderPageHead, renderTableFilters, detailRow } from "../komponenten.mjs";
+import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert } from "../vermoegen.mjs";
 import { matchesQuery } from "../tools/lib/text.mjs";
 
@@ -183,7 +184,7 @@ function vorsorgeSortHeader(key, label, amount = false) {
 
 function renderVorsorgeRow(vs) {
   return `
-    <tr>
+    <tr class="clickable ${vs.vorsorge_id === state.selectedVorsorgeId ? "selected" : ""}" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" tabindex="0" role="button" aria-label="${escapeHtml(vs.name)}">
       <td>${escapeHtml(vs.vorsorge_id)}</td>
       <td><strong>${escapeHtml(vs.name)}</strong>${beitraegeHtml(vs.vorsorge_id)}${nachfolgerHtml(vs)}</td>
       <td>${escapeHtml(vorsorgeArtLabel(vs.art))}</td>
@@ -242,10 +243,107 @@ function nachfolgerHtml(vs) {
 
 export function renderVorsorge() {
   const rows = vorsorgeRows();
+  const selected = state.selectedVorsorgeId
+    ? rows.find((vs) => vs.vorsorge_id === state.selectedVorsorgeId)
+    : undefined;
+  const railOpen = Boolean(selected);
 
   return `
     ${renderPageHead(t("vorsorge.title"), t("vorsorge.lead"))}
-    ${renderVorsorgeHinweis()}
-    ${renderVorsorgeTabelle(rows)}
+    <div class="layout-with-rail ${railOpen ? "" : "rail-closed"}">
+      <div class="stack">
+        ${renderVorsorgeHinweis()}
+        ${renderVorsorgeTabelle(rows)}
+      </div>
+      ${railOpen ? `
+        <aside class="panel panel-pad detail-panel">
+          <div class="detail-head">
+            <h2 class="section-title">${escapeHtml(t("vorsorge.detailTitle"))}</h2>
+            <button class="icon-button" data-action="close-vorsorge-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
+          </div>
+          ${renderVorsorgeDetail(selected)}
+        </aside>` : ""}
+    </div>
   `;
+}
+
+export function renderVorsorgeDetail(vs) {
+  const beitraege = (data.regelzahlungen ?? []).filter((rz) => rz.vorsorge_id === vs.vorsorge_id);
+  const zeitwerte = aktuelleVorsorgeZeitwerte(vs.vorsorge_id);
+  const nachfolger = (data.vorsorge ?? []).find((candidate) => candidate.ersetzt_vorsorge_id === vs.vorsorge_id);
+  const vorgaenger = vs.ersetzt_vorsorge_id
+    ? (data.vorsorge ?? []).find((candidate) => candidate.vorsorge_id === vs.ersetzt_vorsorge_id)
+    : undefined;
+
+  return `
+    ${detailRow(t("labels.id"), escapeHtml(vs.vorsorge_id))}
+    ${detailRow(t("regelzahlungen.bezeichnung"), `<strong>${escapeHtml(vs.name)}</strong>`)}
+    ${detailRow(t("labels.type"), escapeHtml(vorsorgeArtLabel(vs.art)))}
+    ${detailRow(t("labels.owner"), escapeHtml(personName(vs.person_id)))}
+    ${detailRow(t("labels.status"), statusChip(vs))}
+    ${renderVorsorgeDates(vs)}
+    ${renderVorsorgeZeitwerte(zeitwerte)}
+    ${renderVorsorgeNachfolge(vorgaenger, nachfolger)}
+    ${renderVorsorgeQuelle(vs)}
+    ${vs.bemerkung ? detailRow(t("vorsorge.bemerkung"), escapeHtml(vs.bemerkung)) : ""}
+    ${renderErwarteteBeitraege(beitraege)}
+  `;
+}
+
+function aktuelleVorsorgeZeitwerte(vorsorgeId) {
+  return ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung"]
+    .map((feld) => aktuellerZeitwert(data.zeitwerte, "vorsorge", vorsorgeId, feld))
+    .filter(Boolean);
+}
+
+function renderVorsorgeDates(vs) {
+  return [
+    detailRow(t("vorsorge.kapitalbildendLabel"), escapeHtml(vs.kapitalbildend ? t("labels.yes") : t("labels.no"))),
+    vs.kapitalwahl ? detailRow(t("vorsorge.kapitalwahl"), escapeHtml(vs.kapitalwahl)) : "",
+    vs.leistung_beginn ? detailRow(t("vorsorge.leistungBeginn"), escapeHtml(formatDate(vs.leistung_beginn))) : "",
+    vs.aktiv_bis ? detailRow(t("vorsorge.aktivBis"), escapeHtml(formatDate(vs.aktiv_bis))) : "",
+    vs.geprueft_am ? detailRow(t("vorsorge.geprueftAm"), escapeHtml(formatDate(vs.geprueft_am))) : "",
+  ].join("");
+}
+
+function renderVorsorgeZeitwerte(zeitwerte) {
+  if (!zeitwerte.length) return "";
+  const feldLabel = {
+    rueckkaufswert: t("vorsorge.rueckkaufswert"),
+    erwartete_rente: t("vorsorge.erwarteteRente"),
+    erwartete_kapitalleistung: t("vorsorge.erwarteteKapitalleistung"),
+  };
+  const rows = zeitwerte.map((zw) => `
+    <div class="rail-item">
+      <strong>${escapeHtml(feldLabel[zw.feld] || zw.feld)}</strong>
+      <span>${escapeHtml(formatMoney(cents(zw.wert)))}</span>
+      <span class="muted">${escapeHtml(formatDate(zw.standdatum))} · ${escapeHtml(t(`vorsorge.qualitaet.${zw.qualitaet}`))}</span>
+    </div>`).join("");
+  return detailRow(t("vorsorge.zeitwerte"), `<div class="rail-list">${rows}</div>`);
+}
+
+function renderVorsorgeNachfolge(vorgaenger, nachfolger) {
+  return [
+    vorgaenger ? detailRow(t("vorsorge.vorgaenger"), escapeHtml(`${vorgaenger.vorsorge_id} · ${vorgaenger.name}`)) : "",
+    nachfolger ? detailRow(t("vorsorge.nachfolger"), escapeHtml(`${nachfolger.vorsorge_id} · ${nachfolger.name}`)) : "",
+  ].join("");
+}
+
+function renderVorsorgeQuelle(vs) {
+  if (!vs.quelle_hinweis && !vs.quelle_standdatum) return "";
+  const value = [
+    vs.quelle_hinweis ? escapeHtml(vs.quelle_hinweis) : "",
+    vs.quelle_standdatum ? escapeHtml(formatDate(vs.quelle_standdatum)) : "",
+  ].filter(Boolean).join(" · ");
+  return detailRow(t("vorsorge.vertragsquelle"), value);
+}
+
+function renderErwarteteBeitraege(beitraege) {
+  if (!beitraege.length) return "";
+  const rows = beitraege.map((rz) => `
+    <div class="rail-item">
+      <strong>${escapeHtml(`${rz.regelzahlung_id} · ${rz.bezeichnung}`)}</strong>
+      <span>${escapeHtml(formatMoney(cents(rz.betrag)))}</span>
+    </div>`).join("");
+  return detailRow(t("vorsorge.erwarteteBeitraege"), `<div class="rail-list">${rows}</div>`);
 }

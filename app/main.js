@@ -34,7 +34,7 @@ const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
   "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
   "data-vermoegen-sort", "data-vorsorge-sort", "data-vorsorge-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
-  "data-rule", "data-regel-sort", "data-next-action-type",
+  "data-rule", "data-regel-sort", "data-next-action-type", "data-vorsorge",
 ];
 const SCROLL_SELECTORS = [".nav", ".table-wrap"];
 
@@ -451,7 +451,7 @@ app.addEventListener("click", guard((event) => {
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
-const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-vorsorge-sort], [data-transaction-sort], [data-regel-sort], [data-rule]";
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-vorsorge-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
 app.addEventListener("keydown", guard((event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
@@ -785,6 +785,17 @@ async function handleAction(element) {
     commitNavigation();
     return;
   }
+  if (action === "select-vorsorge") {
+    state.view = "vorsorge";
+    state.selectedVorsorgeId = element.dataset.vorsorge || "";
+    commitNavigation();
+    return;
+  }
+  if (action === "close-vorsorge-rail") {
+    state.selectedVorsorgeId = "";
+    commitNavigation();
+    return;
+  }
   if (action === "select-szenario") {
     // Klick auf ein Szenario oeffnet das Uebersichts-Rail (Liste bleibt), nicht die Vollansicht.
     state.selectedSzenarioId = element.dataset.szenario;
@@ -904,6 +915,7 @@ function snapshotState() {
     selectedKonto: state.selectedKonto,
     selectedRegel: state.selectedRegel,
     selectedVermoegenId: state.selectedVermoegenId,
+    selectedVorsorgeId: state.selectedVorsorgeId,
     selectedSzenarioId: state.selectedSzenarioId,
     vermoegenRailMode: state.vermoegenRailMode,
     vermoegenRailWide: state.vermoegenRailWide,
@@ -920,6 +932,7 @@ function restoreState(snapshot) {
   state.selectedKonto = snapshot.selectedKonto || "";
   state.selectedRegel = snapshot.selectedRegel || "";
   state.selectedVermoegenId = snapshot.selectedVermoegenId || "";
+  state.selectedVorsorgeId = snapshot.selectedVorsorgeId || "";
   state.selectedSzenarioId = snapshot.selectedSzenarioId || "";
   state.vermoegenRailMode = snapshot.vermoegenRailMode || "position";
   state.vermoegenRailWide = Boolean(snapshot.vermoegenRailWide);
@@ -969,6 +982,17 @@ function applyRoute(route) {
     state.vermoegenRailMode = "position";
     state.vermoegenRailWide = false;
     state.vermoegenDetailRailClosed = false;
+  }
+  if (route.view === "vorsorge") {
+    const known = route.selectedVorsorgeId
+      ? (data.vorsorge ?? []).some((vs) => vs.vorsorge_id === route.selectedVorsorgeId)
+      : false;
+    if (known) {
+      resetVorsorgeFilters();
+      state.selectedVorsorgeId = route.selectedVorsorgeId;
+    } else {
+      state.selectedVorsorgeId = "";
+    }
   }
   if (route.selectedSzenarioId) {
     state.selectedSzenarioId = route.selectedSzenarioId;

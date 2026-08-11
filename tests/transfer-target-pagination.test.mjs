@@ -35,7 +35,17 @@ globalThis.fetch = async (path) => {
   };
 };
 globalThis.location = { hash: "" };
-globalThis.history = { pushState: () => {}, replaceState: () => {} };
+const historyCalls = [];
+globalThis.history = {
+  pushState(state, title, hash) {
+    historyCalls.push({ method: "push", state, title, hash });
+    location.hash = hash;
+  },
+  replaceState(state, title, hash) {
+    historyCalls.push({ method: "replace", state, title, hash });
+    location.hash = hash;
+  },
+};
 globalThis.CSS = { escape: (value) => String(value) };
 globalThis.scrollX = 0;
 globalThis.scrollY = 0;
@@ -117,6 +127,21 @@ function clickPairedTransfer(transactionId) {
   clickListener(event);
 }
 
+function clickAction(dataset) {
+  const action = { dataset };
+  const event = {
+    target: {
+      closest(selector) {
+        if (selector === ".transfer-link-cell") return null;
+        return selector === "[data-action]" ? action : null;
+      },
+    },
+  };
+  const clickListener = appListeners.get("click")?.[0];
+  assert.equal(typeof clickListener, "function");
+  clickListener(event);
+}
+
 installTransactions(buildTransactions());
 resetTransactionState();
 await import("../app/main.js");
@@ -145,4 +170,24 @@ test("Gegenbuchungsnavigation zeigt Zielzeile auf ihrer Seite und öffnet die De
   assert.match(app.innerHTML, /transaction-row selected/);
   assert.match(app.innerHTML, /data-transaction="TX-TARGET"/);
   assert.match(app.innerHTML, /detail-panel/);
+});
+
+test("open-vorsorge setzt Auswahl zurück, leert Filter und navigiert zum Vorsorge-Hash", () => {
+  resetTransactionState();
+  state.vorsorgeFilters = { search: "Riester", art: "riester", person: "PER-001", status: "aktiv", pruefstatus: "geprueft" };
+  state.selectedVorsorgeId = "VS-ALT";
+  historyCalls.length = 0;
+
+  clickAction({ action: "open-vorsorge", vorsorge: "VS-003" });
+
+  assert.equal(state.view, "vorsorge");
+  assert.deepEqual(state.vorsorgeFilters, { search: "", art: "", person: "", status: "", pruefstatus: "" });
+  assert.equal(state.selectedVorsorgeId, "VS-003");
+  assert.equal(location.hash, "#/vorsorge/VS-003");
+  const navigation = historyCalls.at(-1);
+  assert.equal(navigation.method, "push");
+  assert.equal(navigation.state.view, "vorsorge");
+  assert.equal(navigation.state.selectedVorsorgeId, "VS-003");
+  assert.equal(navigation.title, "");
+  assert.equal(navigation.hash, "#/vorsorge/VS-003");
 });

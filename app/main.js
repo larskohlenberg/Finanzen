@@ -5,7 +5,7 @@ import { routeFromState, parseRoute } from "./routing.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
 import { renderVorsorge } from "./views/vorsorge.mjs";
 import { renderSzenarien } from "./views/szenarien.mjs";
-import { renderTransactions, filteredTransactions, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
+import { renderTransactions, filteredTransactions, transactionPageForId, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
 import { renderRegelzahlungen } from "./views/regelzahlungen.mjs";
 import { renderOverview } from "./views/uebersicht.mjs";
@@ -742,14 +742,16 @@ async function handleAction(element) {
   }
   if (action === "paired-transfer") {
     state.view = "transactions";
-    state.selectedTransactionId = element.dataset.transaction;
-    const paired = transaktionenById.get(element.dataset.transaction);
+    const transactionId = element.dataset.transaction;
+    state.selectedTransactionId = transactionId;
+    const paired = transaktionenById.get(transactionId);
     if (paired) {
       state.transactionFilters.account = paired.konto_id;
       state.transactionFilters.status = "";
       state.transactionFilters.category = "";
       state.transactionFilters.transfer = "";
-      state.transactionPage = 1;
+      state.detailRailClosed = false;
+      state.transactionPage = transactionPageForId(transactionId);
     }
     commitNavigation();
     return;
@@ -926,8 +928,7 @@ function applyRoute(route) {
     });
     state.selectedTransactionId = route.selectedTransactionId;
     state.detailRailClosed = false;
-    const idx = filteredTransactions().findIndex((tx) => tx.transaktion_id === route.selectedTransactionId);
-    state.transactionPage = idx >= 0 ? Math.floor(idx / state.pageSize) + 1 : 1;
+    state.transactionPage = transactionPageForId(route.selectedTransactionId);
   }
 
   if (route.selectedVermoegenId) {

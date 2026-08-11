@@ -42,6 +42,11 @@ export function filteredTransactions() {
   }));
 }
 
+export function transactionPageForId(transactionId) {
+  const index = filteredTransactions().findIndex((tx) => tx.transaktion_id === transactionId);
+  return index >= 0 ? Math.floor(index / state.pageSize) + 1 : 1;
+}
+
 function sortTransactions(transaktionen) {
   const { key, dir } = state.transactionSort;
   const factor = dir === "asc" ? 1 : -1;

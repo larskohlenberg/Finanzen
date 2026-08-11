@@ -1,7 +1,7 @@
 // tests/belege-text.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { planZwillinge, MARKER_KOPF, GELESEN_KOPF } from "../app/tools/belege-text.mjs";
+import { planZwillinge, planAufraeumen, MARKER_KOPF, GELESEN_KOPF } from "../app/tools/belege-text.mjs";
 
 test("PDF ohne Zwilling steht im Erzeugungsplan", () => {
   const plan = planZwillinge({ belege: [{ pfad: "Belege/2025/Rente/a.pdf" }] });
@@ -93,4 +93,71 @@ test("Eingangsarray wird nicht mutiert", () => {
 
   const reihenfolgeNachher = belege.map(b => b.pfad);
   assert.deepEqual(reihenfolgeNachher, reihenfolgeVorher, "Eingangsarray sollte unveraendert bleiben");
+});
+
+test("Textvorlauf mit Hash-Treffer ist redundant und wird geloescht", () => {
+  const plan = planAufraeumen({
+    zwillinge: [{ pfad: "Belege/Kontoauszuege/KTO-002/TESTREF-026.txt", hash: "5f52" }],
+    staging: [{ name: "Kontoauszug-4711000815-2023-01.txt", hash: "5f52", zeichen: 4200 }],
+  });
+  assert.deepEqual(plan.loeschen, [{
+    name: "Kontoauszug-4711000815-2023-01.txt",
+    grund: "Hash-Treffer: Belege/Kontoauszuege/KTO-002/TESTREF-026.txt",
+  }]);
+  assert.deepEqual(plan.offen, []);
+});
+
+test("der Name spielt keine Rolle — nur der Inhalt entscheidet", () => {
+  // Genau der Bestandsfall: 41 Textvorlaeufe tragen den Bank-Downloadnamen,
+  // ihre Belege wurden beim Ablegen sprechend umbenannt.
+  const plan = planAufraeumen({
+    zwillinge: [{ pfad: "Belege/2026/Rente/2026_DRV-Bund_Altersrente_Rentenauskunft_12-345678-A-000.txt", hash: "2bc4" }],
+    staging: [{ name: "Rentenauskunft Altersrente.txt", hash: "2bc4", zeichen: 9100 }],
+  });
+  assert.equal(plan.loeschen.length, 1);
+  assert.equal(plan.loeschen[0].name, "Rentenauskunft Altersrente.txt");
+});
+
+test("Textvorlauf ohne Hash-Treffer bleibt liegen und wird gemeldet", () => {
+  const plan = planAufraeumen({
+    zwillinge: [{ pfad: "Belege/2025/Rente/a.txt", hash: "aaa" }],
+    staging: [{ name: "Umsatzanzeige - MusterbankB.txt", hash: "zzz", zeichen: 5000 }],
+  });
+  assert.deepEqual(plan.loeschen, []);
+  assert.deepEqual(plan.offen, [{ ort: "Umsatzanzeige - MusterbankB.txt", grund: "Beleg noch nicht abgelegt" }]);
+});
+
+test("leerer Textvorlauf wird immer geraeumt, auch ohne Hash-Treffer", () => {
+  // Der Extrakt eines Bildscans besteht nur aus Form-Feeds. Er traegt keine
+  // Information, findet nie einen Partner und bliebe sonst ewig als
+  // vermeintlich offener Punkt liegen.
+  const plan = planAufraeumen({
+    zwillinge: [],
+    staging: [{ name: "2025_MusterversicherungA_Testversicherung_Vertrag_A_Nachtrag_TEST-VERTRAG-001.txt", hash: "leer3", zeichen: 0 }],
+  });
+  assert.deepEqual(plan.loeschen, [{
+    name: "2025_MusterversicherungA_Testversicherung_Vertrag_A_Nachtrag_TEST-VERTRAG-001.txt",
+    grund: "leerer Textvorlauf",
+  }]);
+  assert.deepEqual(plan.offen, []);
+});
+
+test("leerer Vorlauf gewinnt gegen einen Hash-Treffer und meldet den einfachen Grund", () => {
+  const plan = planAufraeumen({
+    zwillinge: [{ pfad: "Belege/2025/Versicherungen/scan.txt", hash: "leer2" }],
+    staging: [{ name: "scan.txt", hash: "leer2", zeichen: 0 }],
+  });
+  assert.deepEqual(plan.loeschen, [{ name: "scan.txt", grund: "leerer Textvorlauf" }]);
+});
+
+test("liefert eine stabile, sortierte Reihenfolge", () => {
+  const plan = planAufraeumen({
+    zwillinge: [],
+    staging: [
+      { name: "c.txt", hash: "c", zeichen: 5 },
+      { name: "a.txt", hash: "a", zeichen: 5 },
+      { name: "b.txt", hash: "b", zeichen: 5 },
+    ],
+  });
+  assert.deepEqual(plan.offen.map((eintrag) => eintrag.ort), ["a.txt", "b.txt", "c.txt"]);
 });

@@ -1,7 +1,7 @@
 // tests/belege-text.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { planZwillinge, planAufraeumen, MARKER_KOPF, GELESEN_KOPF } from "../app/tools/belege-text.mjs";
+import { planZwillinge, planAufraeumen, istLeer, seitenZahl, markerText, MARKER_KOPF, GELESEN_KOPF } from "../app/tools/belege-text.mjs";
 
 test("PDF ohne Zwilling steht im Erzeugungsplan", () => {
   const plan = planZwillinge({ belege: [{ pfad: "Belege/2025/Rente/a.pdf" }] });
@@ -177,4 +177,23 @@ test("Hash-Treffer kommt mit original NFD-Pfad im Grund zurück", () => {
   assert.equal(plan.loeschen.length, 1);
   assert.equal(plan.loeschen[0].grund, `Hash-Treffer: ${nfd}`, "grund sollte original NFD-Pfad enthalten, nicht NFC-normalisiert");
   assert.equal(plan.offen.length, 0);
+});
+
+test("istLeer erkennt einen Bildscan-Extrakt aus reinen Form-Feeds", () => {
+  // Der Bestandsfall: die drei MusterversicherungA-Belege liefern exakt "\f\f" bzw "\f\f\f".
+  assert.equal(istLeer("\f\f"), true);
+  assert.equal(istLeer(""), true);
+  assert.equal(istLeer("   \n\n \f "), true);
+  assert.equal(istLeer("MusterversicherungA\f"), false);
+});
+
+test("seitenZahl zaehlt Form-Feeds — pdftotext setzt einen pro Seite", () => {
+  assert.equal(seitenZahl("\f\f"), 2);
+  assert.equal(seitenZahl("\f\f\f"), 3);
+  assert.equal(seitenZahl("Text ohne Seitenwechsel"), 0);
+});
+
+test("markerText schreibt die vereinbarte Kopfzeile", () => {
+  assert.equal(markerText(2), "# Kein Textlayer — Bildscan, 2 Seiten. Inhalt nur im PDF.\n");
+  assert.ok(markerText(2).startsWith(MARKER_KOPF), "der Marker muss von planZwillinge wiedererkannt werden");
 });

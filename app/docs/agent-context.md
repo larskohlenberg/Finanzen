@@ -167,6 +167,9 @@ Wichtige Tools:
 - `tools/transfer-matcher.mjs`: interne Transfers paaren — als Lauf ueber den
   **Bestand** (`npm run transfers`), nicht nur waehrend eines Imports. Nach einem
   neu angelegten Konto nachziehen, sonst bleiben dessen Gegenbuchungen ungepaart.
+- `tools/belege-text.mjs`: Textzwilling (`.txt`) je PDF unter `Belege/` erzeugen
+  und `data/inbox/standardized/` per Inhalts-Hash aufraeumen. `npm run belege:text`
+  ist die Vorschau.
 
 ### Auto-Match von Transfers: zwei Wege
 

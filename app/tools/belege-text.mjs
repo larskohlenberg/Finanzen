@@ -21,7 +21,7 @@ const zielFuer = (pfad) => pfad.replace(/\.pdf$/i, ".txt");
 export function planZwillinge({ belege }) {
   // Originalpfade (z.B. von macOS readdir in NFD-Form) behalten wir wie gegeben.
   // Nur fuer Vergleiche normalisieren wir temporaer (Typ-Pruefung, Map-Keys, Set).
-  const dateien = belege.sort(nachPfad);
+  const dateien = [...belege].sort(nachPfad);
   const pdfs = dateien.filter((datei) => istPdf(nfc(datei.pfad)));
   const zwillinge = dateien.filter((datei) => istTxt(nfc(datei.pfad)));
   const zwillingNachPfad = new Map(zwillinge.map((zwilling) => [nfc(zwilling.pfad), zwilling]));

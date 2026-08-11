@@ -80,3 +80,17 @@ test("PDF in NFD kommt mit original NFD-Pfad im Erzeugungsplan zurück", () => {
   assert.equal(plan.erzeugen[0].pdf, `${nfd}.pdf`, "PDF-Pfad sollte original NFD sein, nicht normalisiert zu NFC");
   assert.equal(plan.erzeugen[0].ziel, `${nfd}.txt`, "Ziel sollte von original NFD abgeleitet sein");
 });
+
+test("Eingangsarray wird nicht mutiert", () => {
+  const belege = [
+    { pfad: "Belege/c.pdf" },
+    { pfad: "Belege/a.pdf" },
+    { pfad: "Belege/b.pdf" }
+  ];
+  const reihenfolgeVorher = belege.map(b => b.pfad);
+
+  planZwillinge({ belege });
+
+  const reihenfolgeNachher = belege.map(b => b.pfad);
+  assert.deepEqual(reihenfolgeNachher, reihenfolgeVorher, "Eingangsarray sollte unveraendert bleiben");
+});

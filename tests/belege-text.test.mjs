@@ -70,3 +70,13 @@ test("liefert eine stabile, sortierte Reihenfolge fuer reproduzierbare Laeufe", 
   const plan = planZwillinge({ belege: [{ pfad: "Belege/b.pdf" }, { pfad: "Belege/a.pdf" }, { pfad: "Belege/c.pdf" }] });
   assert.deepEqual(plan.erzeugen.map((e) => e.pdf), ["Belege/a.pdf", "Belege/b.pdf", "Belege/c.pdf"]);
 });
+
+test("PDF in NFD kommt mit original NFD-Pfad im Erzeugungsplan zurück", () => {
+  const nfc = "Belege/2025/Sonstiges/Grundstück".normalize("NFC");
+  const nfd = nfc.normalize("NFD");
+  assert.notEqual(nfc, nfd, "Testvoraussetzung: die Normalformen unterscheiden sich");
+
+  const plan = planZwillinge({ belege: [{ pfad: `${nfd}.pdf` }] });
+  assert.equal(plan.erzeugen[0].pdf, `${nfd}.pdf`, "PDF-Pfad sollte original NFD sein, nicht normalisiert zu NFC");
+  assert.equal(plan.erzeugen[0].ziel, `${nfd}.txt`, "Ziel sollte von original NFD abgeleitet sein");
+});

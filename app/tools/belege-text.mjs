@@ -19,20 +19,22 @@ const istTxt = (pfad) => /\.txt$/i.test(pfad);
 const zielFuer = (pfad) => pfad.replace(/\.pdf$/i, ".txt");
 
 export function planZwillinge({ belege }) {
-  const dateien = belege.map((datei) => ({ ...datei, pfad: nfc(datei.pfad) })).sort(nachPfad);
-  const pdfs = dateien.filter((datei) => istPdf(datei.pfad));
-  const zwillinge = dateien.filter((datei) => istTxt(datei.pfad));
-  const zwillingNachPfad = new Map(zwillinge.map((zwilling) => [zwilling.pfad, zwilling]));
-  const erwarteteZwillinge = new Set(pdfs.map((pdf) => zielFuer(pdf.pfad)));
+  // Originalpfade (z.B. von macOS readdir in NFD-Form) behalten wir wie gegeben.
+  // Nur fuer Vergleiche normalisieren wir temporaer (Typ-Pruefung, Map-Keys, Set).
+  const dateien = belege.sort(nachPfad);
+  const pdfs = dateien.filter((datei) => istPdf(nfc(datei.pfad)));
+  const zwillinge = dateien.filter((datei) => istTxt(nfc(datei.pfad)));
+  const zwillingNachPfad = new Map(zwillinge.map((zwilling) => [nfc(zwilling.pfad), zwilling]));
+  const erwarteteZwillinge = new Set(pdfs.map((pdf) => zielFuer(nfc(pdf.pfad))));
 
   const erzeugen = [];
   const offen = [];
 
   for (const pdf of pdfs) {
-    const ziel = zielFuer(pdf.pfad);
-    const vorhanden = zwillingNachPfad.get(ziel);
+    const zielNorm = zielFuer(nfc(pdf.pfad));
+    const vorhanden = zwillingNachPfad.get(zielNorm);
     if (!vorhanden) {
-      erzeugen.push({ pdf: pdf.pfad, ziel });
+      erzeugen.push({ pdf: pdf.pfad, ziel: zielFuer(pdf.pfad) });
       continue;
     }
     // Der Marker bleibt so lange stehen, bis der Agent den Scan gelesen hat.
@@ -44,7 +46,7 @@ export function planZwillinge({ belege }) {
   }
 
   for (const zwilling of zwillinge) {
-    if (!erwarteteZwillinge.has(zwilling.pfad)) {
+    if (!erwarteteZwillinge.has(nfc(zwilling.pfad))) {
       offen.push({ ort: zwilling.pfad, grund: "Zwilling ohne Beleg" });
     }
   }

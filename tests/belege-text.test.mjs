@@ -164,8 +164,10 @@ test("liefert eine stabile, sortierte Reihenfolge", () => {
 
 test("Hash-Treffer kommt mit original NFD-Pfad im Grund zurück", () => {
   // macOS liefert Dateinamen in NFD. Der Pfad sollte im grund unveraendert
-  // bleiben, auch wenn er ein Umlaut in NFD-Zerlegung enthaelt. Nur der Hash
-  // ist ein Vergleichsschluessel und wird normalisiert.
+  // bleiben, auch wenn er ein Umlaut in NFD-Zerlegung enthaelt: Der Pfad wird
+  // in planAufraeumen nie normalisiert, weil er dort nie als Vergleichsschluessel
+  // dient — das ist allein der Hash, und ein SHA-256-Hex-String hat nichts,
+  // das sich normalisieren liesse.
   const nfc = "Belege/2025/Sonstiges/Grundstück.txt".normalize("NFC");
   const nfd = nfc.normalize("NFD");
   assert.notEqual(nfc, nfd, "Testvoraussetzung: die Normalformen unterscheiden sich");

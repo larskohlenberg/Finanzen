@@ -137,7 +137,12 @@ async function dateienUnter(ordner, praefix) {
 }
 
 async function ladeBelege() {
-  const pfade = await dateienUnter(BELEGE, "Belege/");
+  let pfade;
+  try {
+    pfade = await dateienUnter(BELEGE, "Belege/");
+  } catch {
+    return [];
+  }
   return Promise.all(pfade.map(async (pfad) => {
     if (!istTxt(pfad)) return { pfad };
     const inhalt = await readFile(urlUnterBelege(pfad));

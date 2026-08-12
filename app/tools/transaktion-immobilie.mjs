@@ -144,9 +144,10 @@ async function leseOptional(persistenz, url) {
   }
 }
 
-async function raeumeTemporaerePfadeAuf(persistenz, pfade) {
+async function raeumeTemporaerePfadeAuf(persistenz, pfade, behalten = new Set()) {
   const fehler = [];
   for (const url of Object.values(pfade)) {
+    if (behalten.has(url.href)) continue;
     try {
       await persistenz.entferne(url, "temp-aufraeumen");
     } catch (error) {
@@ -167,6 +168,8 @@ async function rollback({
   logVorhanden,
 }) {
   const fehler = [];
+  const recoveryPfade = [];
+  const behalten = new Set();
   if (logCommitBegonnen) {
     try {
       if (logVorhanden) {
@@ -176,6 +179,9 @@ async function rollback({
       }
     } catch (error) {
       fehler.push(error);
+      const recoveryPfad = logVorhanden ? pfade.logBackup : logUrl;
+      recoveryPfade.push(recoveryPfad);
+      if (logVorhanden) behalten.add(pfade.logBackup.href);
     }
   }
   if (transaktionenCommitBegonnen) {
@@ -187,6 +193,8 @@ async function rollback({
       );
     } catch (error) {
       fehler.push(error);
+      recoveryPfade.push(pfade.transaktionenBackup);
+      behalten.add(pfade.transaktionenBackup.href);
     }
   }
   try {
@@ -194,7 +202,17 @@ async function rollback({
   } catch (error) {
     fehler.push(error);
   }
-  return fehler;
+  return { fehler, recoveryPfade, behalten };
+}
+
+function mitRecoveryPfaden(error, recoveryPfade) {
+  const dateipfade = recoveryPfade.map((url) => fileURLToPath(url));
+  const aggregate = new AggregateError(
+    error.errors,
+    `${error.message}; Recovery-Dateien: ${dateipfade.join(", ")}`,
+  );
+  aggregate.recoveryPfade = dateipfade;
+  return aggregate;
 }
 
 export async function persistiereImmobilienbezug({
@@ -217,6 +235,7 @@ export async function persistiereImmobilienbezug({
   let transaktionenCommitBegonnen = false;
   let logCommitBegonnen = false;
   let hauptfehler;
+  let temporaerePfadeBehalten = new Set();
 
   try {
     validierungsfehler(
@@ -273,7 +292,7 @@ export async function persistiereImmobilienbezug({
   } catch (error) {
     hauptfehler = error;
     if (transaktionenCommitBegonnen) {
-      const rollbackFehler = await rollback({
+      const rollbackErgebnis = await rollback({
         persistenz,
         dataRoot,
         transaktionenUrl,
@@ -283,22 +302,29 @@ export async function persistiereImmobilienbezug({
         logCommitBegonnen,
         logVorhanden: originalLog.vorhanden,
       });
-      if (rollbackFehler.length > 0) {
-        hauptfehler = new AggregateError(
-          [error, ...rollbackFehler],
+      temporaerePfadeBehalten = rollbackErgebnis.behalten;
+      if (rollbackErgebnis.fehler.length > 0) {
+        hauptfehler = mitRecoveryPfaden(new AggregateError(
+          [error, ...rollbackErgebnis.fehler],
           `Schreibvorgang fehlgeschlagen und Rollback unvollstaendig: ${error.message}`,
-        );
+        ), rollbackErgebnis.recoveryPfade);
       }
     }
   }
 
-  const aufraeumFehler = await raeumeTemporaerePfadeAuf(persistenz, pfade);
+  const aufraeumFehler = await raeumeTemporaerePfadeAuf(
+    persistenz,
+    pfade,
+    temporaerePfadeBehalten,
+  );
   if (hauptfehler) {
     if (aufraeumFehler.length > 0) {
-      throw new AggregateError(
+      const error = new AggregateError(
         [hauptfehler, ...aufraeumFehler],
         `${hauptfehler.message}; temporaere Dateien konnten nicht vollstaendig entfernt werden`,
       );
+      if (hauptfehler.recoveryPfade) error.recoveryPfade = hauptfehler.recoveryPfade;
+      throw error;
     }
     throw hauptfehler;
   }

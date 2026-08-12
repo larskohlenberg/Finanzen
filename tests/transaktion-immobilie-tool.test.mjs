@@ -318,3 +318,76 @@ test("Logfehler nach Datenaustausch rollt Transaktionen und vollstaendigen Log z
     rmSync(fixture.temp, { recursive: true, force: true });
   }
 });
+
+test("gescheiterter Transaktions-Rollback behaelt das Recovery-Backup und meldet seinen Pfad", async () => {
+  const fixture = tempFixture();
+  try {
+    const beforeTx = readFileSync(fixture.txPath, "utf8");
+    const persistenz = {
+      ...immobilienTool.dateiPersistenz,
+      validiere: (data, phase) => phase === "nach-datenaustausch"
+        ? { valid: false, errors: ["injizierter Primaerfehler"] }
+        : immobilienTool.dateiPersistenz.validiere(data, phase),
+      benenneUm: async (von, nach, rolle) => {
+        if (rolle === "transaktionen-rollback") throw new Error("injizierter Rollbackfehler");
+        return immobilienTool.dateiPersistenz.benenneUm(von, nach, rolle);
+      },
+    };
+
+    let fehler;
+    try {
+      await persistenzFall(fixture, persistenz);
+    } catch (error) {
+      fehler = error;
+    }
+
+    assert.ok(fehler instanceof AggregateError);
+    assert.match(fehler.message, /injizierter Primaerfehler/);
+    const artefakte = tempArtefakte(fixture.temp);
+    assert.equal(artefakte.length, 1);
+    assert.match(artefakte[0], /-transaktionen-backup\.tmp$/);
+    const backupPath = join(fixture.temp, artefakte[0]);
+    assert.equal(readFileSync(backupPath, "utf8"), beforeTx);
+    assert.deepEqual(fehler.recoveryPfade, [backupPath]);
+    assert.match(fehler.message, new RegExp(backupPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  } finally {
+    rmSync(fixture.temp, { recursive: true, force: true });
+  }
+});
+
+test("gescheiterter Log-Rollback behaelt nur das alte Log als Recovery-Backup", async () => {
+  const fixture = tempFixture();
+  try {
+    const alterLog = `${JSON.stringify({ zeitpunkt: "2026-08-11T10:00:00.000Z", anlass: "bestand" })}\n`;
+    writeFileSync(fixture.logPath, alterLog);
+    const persistenz = {
+      ...immobilienTool.dateiPersistenz,
+      benenneUm: async (von, nach, rolle) => {
+        if (rolle === "log-rollback") throw new Error("injizierter Log-Rollbackfehler");
+        return immobilienTool.dateiPersistenz.benenneUm(von, nach, rolle);
+      },
+      synchronisiereVerzeichnis: async (url, rolle) => {
+        if (rolle === "nach-commit") throw new Error("injizierter Primaerfehler nach Log-Commit");
+        return immobilienTool.dateiPersistenz.synchronisiereVerzeichnis(url, rolle);
+      },
+    };
+
+    let fehler;
+    try {
+      await persistenzFall(fixture, persistenz);
+    } catch (error) {
+      fehler = error;
+    }
+
+    assert.ok(fehler instanceof AggregateError);
+    const artefakte = tempArtefakte(fixture.temp);
+    assert.equal(artefakte.length, 1);
+    assert.match(artefakte[0], /-log-backup\.tmp$/);
+    const backupPath = join(fixture.temp, artefakte[0]);
+    assert.equal(readFileSync(backupPath, "utf8"), alterLog);
+    assert.deepEqual(fehler.recoveryPfade, [backupPath]);
+    assert.match(fehler.message, new RegExp(backupPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  } finally {
+    rmSync(fixture.temp, { recursive: true, force: true });
+  }
+});

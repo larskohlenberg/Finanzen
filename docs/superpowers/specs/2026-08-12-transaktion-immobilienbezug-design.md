@@ -138,6 +138,25 @@ Die Labels `transactions.immobilie` werden in Deutsch und Englisch gepflegt.
 Fehlende oder unbekannte optionale IDs fuehren in der View nicht zu einem
 Absturz; der Validator bleibt die Stelle, die ungueltige Referenzen beanstandet.
 
+### Ruecknavigation aus der Immobilien-Rail
+
+Die Immobilien-Rail erhaelt fuer Immobilien einen lokalisierten Link
+`Transaktionen anzeigen`. Der Link wechselt in die bestehende
+Transaktionsansicht und setzt deren Freitextsuche auf die exakte Immobilien-ID,
+zum Beispiel `IMM-001`. Konto-, Status-, Kategorie-, Transfer-, Herkunfts- und
+Zeitraumfilter werden dabei geleert, die erste Seite wird geoeffnet und keine
+einzelne Transaktion vorselektiert. Damit ist der Rueckweg reproduzierbar und
+zeigt alle aktuell geladenen Buchungen mit diesem Objektbezug.
+
+Der empfohlene Weg nutzt bewusst den bestehenden Suchindex: Er ist kleiner und
+bleibt konsistent mit der bereits freigegebenen Suche nach `immobilie_id`.
+Verworfen sind ein eigener Immobilien-Dropdown in der Transaktionsansicht
+(zusaetzliche Filteroberflaeche ohne weiteren Nutzen) und eine eingebettete
+Transaktionsliste in der Immobilien-Rail (waere der Einstieg in die nicht
+beauftragte aggregierte Objektsicht). Die Klickaktion wird separat benannt und
+enthaelt die Immobilien-ID als Datenattribut; dadurch bleibt sie gezielt
+testbar und verwechselt den Bezug nicht mit einem Konto- oder Kategorie-Filter.
+
 ## Demodaten
 
 Die Demodaten enthalten genau eine Immobilie (`IMM-001`) und zwei vollstaendige,
@@ -177,6 +196,9 @@ Die Umsetzung folgt Red-Green-Refactor. Geplante Nachweise:
 - UI: Aufloesung, Detail-Querlink, Weglassen ohne Bezug sowie deutsche und
   englische i18n-Schluessel.
 - Suche: `IMM-001` findet nur die zugeordnete Transaktion; eine andere ID nicht.
+- Ruecknavigation: Die Immobilien-Rail rendert den lokalisierten Link; der Klick
+  oeffnet die Transaktionsansicht mit `search = IMM-001`, leert konkurrierende
+  Filter und setzt Seitennummer sowie Detailauswahl zurueck.
 - Demo: 72 eindeutig objektbezogene Buchungen tragen `IMM-001`, und der gesamte
   Demobestand bleibt valide.
 - Abschluss: `npm test`, `npm run validate:fixtures` und

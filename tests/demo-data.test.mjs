@@ -60,6 +60,8 @@ test("Demodaten zeigen den Immobilienbezug an Darlehensrate und Hausgeld", () =>
     ["Hannoversche Bank", "Hausverwaltung Lindenhof"].includes(entry.gegenpartei)
   );
 
+  assert.equal(data.transaktionen.filter((entry) => entry.gegenpartei === "Hannoversche Bank").length, 36);
+  assert.equal(data.transaktionen.filter((entry) => entry.gegenpartei === "Hausverwaltung Lindenhof").length, 36);
   assert.equal(objektbezogen.length, 72);
   assert.ok(objektbezogen.every((entry) => entry.immobilie_id === "IMM-001"));
   assert.equal(validateMasterData(data).valid, true);

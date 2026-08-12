@@ -14,6 +14,7 @@ function transactionSearchFields(tx) {
     tx.transaktion_id,
     tx.betrag,
     String(tx.betrag ?? "").replace(".", ","),
+    ...(tx.matched_regeln ?? []),
     // Konto und Kategorie bewusst NICHT durchsuchbar: beide haben einen eigenen
     // Dropdown-Filter. Im Freitext erzeugten sie nur Substring-Kollisionen
     // (z. B. "MusterbankA" matchte jede Buchung auf dem MusterbankA-Konto statt nur den Text).

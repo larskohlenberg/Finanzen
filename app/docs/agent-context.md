@@ -112,6 +112,26 @@ Der Agent darf offene Einzelbuchungen eigenstaendig als `vorgeschlagen` mit
 sondern Review-Vorbereitung; Bestaetigung, Korrektur oder Ablehnung bleiben
 Nutzerentscheidung.
 
+### Belegpflicht statt Ratepflicht
+
+Der Agent darf den Offen-Stapel eigenstaendig verregeln und vorschlagen — der
+Review ist der Ort der Entscheidung, nicht ein Gate davor. Das entbindet ihn
+**nicht** vom Beleg: Jeder Vorschlag stuetzt sich auf eine benennbare Quelle
+(Beleg im Archiv, identischer Merchant im Bestand, Merchant-Identitaet im
+Buchungstext, Recherche zum Merchant). **Ort, Rechtsform, Betragshoehe,
+Zeitraum und blosse Wortueberlappung mit anderen Buchungen sind keine Quellen.**
+
+Traegt keine Quelle, ist der ehrliche Vorschlag `KAT-012` „Noch zu klaeren" als
+Agenten-Einzelvorschlag — nicht die plausibelste Sachkategorie. `KAT-012` heisst
+hier genau das, was draufsteht, und macht die Buchung im Review sichtbar, statt
+sie unbemerkt auf `offen` liegen zu lassen. Die Belegstufe gehoert in den
+Regel-`kommentar` bzw. in die Review-Uebergabe, damit im Review erkennbar ist,
+wo genau hingesehen werden muss.
+
+Davon unberuehrt sind die technischen Eroeffnungsbuchungen weiter unten: die
+tragen `KAT-012` als bestaetigte Nutzerentscheidung und sind an
+`transaktionstyp = "Startzustand"` erkennbar.
+
 Nach-Kategorisierung bewertet offene Transaktionen und regelbasierte Eintraege neu.
 Agenten-Einzelvorschlaege, manuelle Kategorien und abgelehnte Vorschlaege bleiben
 unangetastet. Widerspricht ein neuer Regelstand einer bestaetigten regelbasierten
@@ -172,6 +192,9 @@ Wichtige Tools:
 - `tools/import.mjs`: normalisierte Buchungen importieren.
 - `tools/confirm.mjs`: Kategorie-Entscheidungen auf einen gefilterten Schnitt anwenden.
 - `tools/regel-vorschlag.mjs`: offenen Rueckstand zu Regelkandidaten buendeln.
+- `tools/regel-probelauf.mjs`: Regelkandidaten gegen den Gesamtbestand rechnen,
+  **bevor** etwas geschrieben wird. Blockiert mit Exit-Code 2 bei Strukturfehlern,
+  neuen Regelkonflikten und Wiedervorlagen.
 - `tools/dedupe.mjs`: Transaktions-Dedupe-Hash bilden.
 - `tools/categorizer.mjs`: Kategorisierungsregeln anwenden.
 - `tools/recategorize.mjs`: Bestand nach Regelaenderungen neu bewerten.

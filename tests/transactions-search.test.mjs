@@ -27,6 +27,7 @@ const { filteredTransactions } = transactionsView;
 const KONTO_ID = "__test_konto_xyz__";
 const TX_ID = "__test_tx_xyz__";
 const PURPOSE_TOKEN = "ZZZUNIKAT42";
+const RULE_ID = "REG-999";
 
 function withSearchScenario(fn) {
   kontenById.set(KONTO_ID, { konto_id: KONTO_ID, name: "MusterbankA Girokonto Test" });
@@ -40,6 +41,7 @@ function withSearchScenario(fn) {
     buchungstag: "2026-01-15",
     kategorisierung_status: "offen",
     ist_transfer: false,
+    matched_regeln: [RULE_ID],
   };
   data.transaktionen.push(tx);
   const previousSearch = state.transactionFilters.search;
@@ -65,5 +67,17 @@ test("Suche nach Verwendungszweck-Text matcht weiterhin", () => {
     state.transactionFilters.search = PURPOSE_TOKEN;
     const ids = filteredTransactions().map((tx) => tx.transaktion_id);
     assert.ok(ids.includes(TX_ID), "Text im Verwendungszweck muss gefunden werden");
+  });
+});
+
+test("Suche nach konkreter Regel-ID matcht nur die zugeordnete Buchung", () => {
+  withSearchScenario(() => {
+    state.transactionFilters.search = RULE_ID;
+    let ids = filteredTransactions().map((tx) => tx.transaktion_id);
+    assert.ok(ids.includes(TX_ID), "Zugeordnete Regel-ID muss die Buchung finden");
+
+    state.transactionFilters.search = "REG-998";
+    ids = filteredTransactions().map((tx) => tx.transaktion_id);
+    assert.ok(!ids.includes(TX_ID), "Andere Regel-ID darf die Buchung nicht finden");
   });
 });

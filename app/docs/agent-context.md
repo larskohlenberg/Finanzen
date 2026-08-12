@@ -191,6 +191,9 @@ Wichtige Tools:
 - `tools/normalize.mjs`: CSV per Bank-Profil ins Importformat normalisieren.
 - `tools/import.mjs`: normalisierte Buchungen importieren.
 - `tools/confirm.mjs`: Kategorie-Entscheidungen auf einen gefilterten Schnitt anwenden.
+- `tools/agent-vorschlag.mjs`: Agenten-Einzelvorschlaege setzen (`vorgeschlagen` mit
+  `kategorie_herkunft = agent`). Bewusst getrennt von `confirm.mjs`: das ist der
+  menschliche Entscheidungskanal und schreibt immer `bestaetigt`.
 - `tools/regel-vorschlag.mjs`: offenen Rueckstand zu Regelkandidaten buendeln.
 - `tools/regel-probelauf.mjs`: Regelkandidaten gegen den Gesamtbestand rechnen,
   **bevor** etwas geschrieben wird. Blockiert mit Exit-Code 2 bei Strukturfehlern,

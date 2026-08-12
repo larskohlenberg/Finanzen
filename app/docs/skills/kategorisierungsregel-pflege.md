@@ -143,7 +143,19 @@ Darum gilt eng begrenzt:
 
 5. **Nach-Kategorisierung anstossen.** `node tools/recategorize.mjs DATENROOT` aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel`) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator fuer `DATENROOT` und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs.
 
-6. **E5- und E6-Faelle als Einzelvorschlaege setzen.** Was keine Regel bekommen hat, wird ueber `tools/confirm.mjs` auf `vorgeschlagen` mit `kategorie_herkunft = agent` gestellt — gefiltert auf die betroffenen `--ids=`. Diese Buchungen tragen nie `matched_regeln`; Regellaeufe fassen sie spaeter nicht an.
+6. **E5- und E6-Faelle als Einzelvorschlaege setzen.**
+
+   ```
+   node tools/agent-vorschlag.mjs --ids=TXN-a,TXN-b --kategorie=KAT-012 DATENROOT --schreiben
+   ```
+
+   Was keine Regel bekommen hat, wird ueber `tools/agent-vorschlag.mjs` auf
+   `vorgeschlagen` mit `kategorie_herkunft = agent` gestellt. **Nicht**
+   `confirm.mjs` nehmen — das ist der menschliche Entscheidungskanal und
+   schreibt immer `bestaetigt`; ein Agentenvorschlag ist das Gegenteil davon.
+
+   Diese Buchungen tragen nie `matched_regeln`, und Regellaeufe fassen sie
+   spaeter nicht an. Ohne `--schreiben` ist der Lauf eine Vorschau.
 
 7. **Bericht + Uebergabe an das Review.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`) und in `DATENROOT/agent_log.jsonl` protokollieren.
 
@@ -202,7 +214,7 @@ Darum gilt eng begrenzt:
 | `tools/regel-probelauf.mjs` | Kandidaten gegen den Gesamtbestand pruefen (Schritt 3) |
 | `tools/categorizer.mjs` | Deterministisches Matching (Probelauf + Recompute) |
 | `tools/recategorize.mjs` | Nach-Kategorisierung (Recompute + Validator + Bericht) |
-| `tools/confirm.mjs` | E5-/E6-Einzelvorschlaege setzen (Schritt 6) |
+| `tools/agent-vorschlag.mjs` | E5-/E6-Einzelvorschlaege setzen (Schritt 6) |
 | `tools/validator.mjs` | Validator (von `recategorize.mjs` gerufen) |
 
 ## Verwandte Skills und Anschlussprozesse

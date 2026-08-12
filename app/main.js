@@ -700,6 +700,29 @@ async function handleAction(element) {
     commitNavigation();
     return;
   }
+  if (action === "immobilie-transactions") {
+    state.view = "transactions";
+    state.transactionFilters = {
+      account: "",
+      status: "",
+      category: "",
+      transfer: "",
+      origin: "",
+      search: element.dataset.immobilie || "",
+      timeMode: "none",
+      dateFrom: "",
+      dateTo: "",
+      month: "",
+      quarterYear: "",
+      quarter: "1",
+      year: "",
+    };
+    state.transactionPage = 1;
+    state.selectedTransactionId = "";
+    state.detailRailClosed = false;
+    commitNavigation();
+    return;
+  }
   if (action === "select-transaction") {
     state.selectedTransactionId = element.dataset.transaction;
     state.detailRailClosed = false;

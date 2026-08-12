@@ -192,6 +192,51 @@ test("open-vorsorge setzt Auswahl zurück, leert Filter und navigiert zum Vorsor
   assert.equal(navigation.hash, "#/vorsorge/VS-003");
 });
 
+test("Immobilien-Ruecklink oeffnet die Transaktionssuche nur mit der Immobilien-ID", () => {
+  resetTransactionState();
+  state.transactionFilters = {
+    account: "KTO-ALT",
+    status: "offen",
+    category: "KAT-ALT",
+    transfer: "ja",
+    origin: "regel",
+    search: "alt",
+    timeMode: "month",
+    dateFrom: "2026-01-01",
+    dateTo: "2026-01-31",
+    month: "2026-01",
+    quarterYear: "2026",
+    quarter: "2",
+    year: "2026",
+  };
+  state.transactionPage = 4;
+  state.selectedTransactionId = TARGET_ID;
+  historyCalls.length = 0;
+
+  clickAction({ action: "immobilie-transactions", immobilie: "IMM-004" });
+
+  assert.equal(state.view, "transactions");
+  assert.deepEqual(state.transactionFilters, {
+    account: "",
+    status: "",
+    category: "",
+    transfer: "",
+    origin: "",
+    search: "IMM-004",
+    timeMode: "none",
+    dateFrom: "",
+    dateTo: "",
+    month: "",
+    quarterYear: "",
+    quarter: "1",
+    year: "",
+  });
+  assert.equal(state.transactionPage, 1);
+  assert.equal(state.selectedTransactionId, "");
+  assert.equal(state.detailRailClosed, false);
+  assert.equal(location.hash, "#/transaktionen");
+});
+
 test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zur Vorsorge-Rail zurück", () => {
   const vorsorgeId = "VS-RUNDWEG";
   const regelzahlungId = "RZ-RUNDWEG";

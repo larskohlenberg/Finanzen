@@ -74,3 +74,60 @@ test("Vorsorgeklasse erscheint in Tabelle und Filter lokalisiert", () => {
     Object.assign(state, originalState);
   }
 });
+
+test("Immobilien-Rail bietet den lokalisierten Ruecklink zu Transaktionen", () => {
+  const originalData = {
+    konten: data.konten,
+    immobilien: data.immobilien,
+    vermoegenswerte: data.vermoegenswerte,
+    darlehen: data.darlehen,
+    vorsorge: data.vorsorge,
+    zeitwerte: data.zeitwerte,
+  };
+  const originalState = {
+    lang: state.lang,
+    vermoegenFilters: state.vermoegenFilters,
+    selectedVermoegenId: state.selectedVermoegenId,
+    vermoegenDetailRailClosed: state.vermoegenDetailRailClosed,
+    vermoegenRailMode: state.vermoegenRailMode,
+  };
+
+  try {
+    Object.assign(data, {
+      konten: [],
+      immobilien: [{
+        immobilie_id: "IMM-001",
+        bezeichnung: "Testhaus",
+        status: "aktiv",
+        eigentumsanteile: [],
+      }],
+      vermoegenswerte: [],
+      darlehen: [],
+      vorsorge: [],
+      zeitwerte: [{
+        entitaet: "immobilie",
+        entitaet_id: "IMM-001",
+        feld: "marktwert",
+        wert: "100000.00",
+        standdatum: "2026-01-01",
+        qualitaet: "belegt",
+      }],
+    });
+    Object.assign(state, {
+      vermoegenFilters: { klasse: "", qualitaet: "" },
+      selectedVermoegenId: "immobilie:IMM-001",
+      vermoegenDetailRailClosed: false,
+      vermoegenRailMode: "position",
+    });
+
+    for (const [lang, label] of [["de", "Transaktionen anzeigen"], ["en", "Show transactions"]]) {
+      state.lang = lang;
+      const html = renderVermoegen();
+      assert.match(html, /data-action="immobilie-transactions" data-immobilie="IMM-001"/);
+      assert.match(html, new RegExp(label));
+    }
+  } finally {
+    Object.assign(data, originalData);
+    Object.assign(state, originalState);
+  }
+});

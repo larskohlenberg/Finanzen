@@ -344,6 +344,9 @@ export function renderVermoegenDetail(p, today) {
     const entity = (p.klasse === "immobilie" ? data.immobilien : data.vermoegenswerte)?.find((e) => (e.immobilie_id || e.vermoegenswert_id) === p.id);
     const mw = aktuellerZeitwert(data.zeitwerte, entitaet, p.id, "marktwert");
     const mwCents = mw ? cents(mw.wert) : 0;
+    const transaktionenLink = p.klasse === "immobilie"
+      ? `<div class="detail-section"><button class="linkish" data-action="immobilie-transactions" data-immobilie="${escapeHtml(p.id)}">${escapeHtml(t("masterdata.showTransactions"))}</button></div>`
+      : "";
     return head
       + (entity?.typ ? detailRow(t("labels.type"), escapeHtml(t(`vermoegen.typ.${entity.typ}`))) : "")
       + (entity?.adresse ? detailRow(t("vermoegen.adresse"), escapeHtml(entity.adresse)) : "")
@@ -354,7 +357,8 @@ export function renderVermoegenDetail(p, today) {
       + (entity?.eigentumsanteile ? detailRow(t("vermoegen.eigentumsanteile"), anteileHtml(entity.eigentumsanteile, mwCents)) : "")
       + detailRow(t("vermoegen.anteiligerWert"),
           p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`)
-      + renderPositionWertstaende(p);
+      + renderPositionWertstaende(p)
+      + transaktionenLink;
   }
 
   if (p.klasse === "darlehen") {

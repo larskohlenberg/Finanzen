@@ -28,6 +28,7 @@ const KONTO_ID = "__test_konto_xyz__";
 const TX_ID = "__test_tx_xyz__";
 const PURPOSE_TOKEN = "ZZZUNIKAT42";
 const RULE_ID = "REG-999";
+const IMMOBILIE_ID = "IMM-777";
 
 function withSearchScenario(fn) {
   kontenById.set(KONTO_ID, { konto_id: KONTO_ID, name: "MusterbankA Girokonto Test" });
@@ -42,6 +43,7 @@ function withSearchScenario(fn) {
     kategorisierung_status: "offen",
     ist_transfer: false,
     matched_regeln: [RULE_ID],
+    immobilie_id: IMMOBILIE_ID,
   };
   data.transaktionen.push(tx);
   const previousSearch = state.transactionFilters.search;
@@ -79,5 +81,17 @@ test("Suche nach konkreter Regel-ID matcht nur die zugeordnete Buchung", () => {
     state.transactionFilters.search = "REG-998";
     ids = filteredTransactions().map((tx) => tx.transaktion_id);
     assert.ok(!ids.includes(TX_ID), "Andere Regel-ID darf die Buchung nicht finden");
+  });
+});
+
+test("Suche nach Immobilien-ID findet nur die zugeordnete Buchung", () => {
+  withSearchScenario(() => {
+    state.transactionFilters.search = IMMOBILIE_ID;
+    let ids = filteredTransactions().map((entry) => entry.transaktion_id);
+    assert.ok(ids.includes(TX_ID));
+
+    state.transactionFilters.search = "IMM-778";
+    ids = filteredTransactions().map((entry) => entry.transaktion_id);
+    assert.ok(!ids.includes(TX_ID));
   });
 });

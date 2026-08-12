@@ -15,6 +15,7 @@ function transactionSearchFields(tx) {
     tx.betrag,
     String(tx.betrag ?? "").replace(".", ","),
     ...(tx.matched_regeln ?? []),
+    tx.immobilie_id,
     // Konto und Kategorie bewusst NICHT durchsuchbar: beide haben einen eigenen
     // Dropdown-Filter. Im Freitext erzeugten sie nur Substring-Kollisionen
     // (z. B. "MusterbankA" matchte jede Buchung auf dem MusterbankA-Konto statt nur den Text).
@@ -52,6 +53,13 @@ export function transactionPageForId(transactionId) {
 export function regelzahlungForTransaction(tx) {
   if (!tx?.regelzahlung_id) return undefined;
   return (data.regelzahlungen ?? []).find((rz) => rz.regelzahlung_id === tx.regelzahlung_id);
+}
+
+export function immobilieForTransaction(tx) {
+  if (!tx?.immobilie_id) return undefined;
+  return (data.immobilien ?? []).find(
+    (immobilie) => immobilie.immobilie_id === tx.immobilie_id,
+  );
 }
 
 // Ein Vorsorgebezug wird nur ueber die Regelzahlung abgeleitet, nie direkt an
@@ -478,6 +486,7 @@ export function renderTransactionDetail(tx) {
   const paired = pairedTransferTransaction(tx);
   const regelzahlung = regelzahlungForTransaction(tx);
   const vorsorge = vorsorgeForTransaction(tx);
+  const immobilie = immobilieForTransaction(tx);
   const bankDetails = [
     [t("transactions.bankReference"), tx.bank_referenz],
     [t("transactions.valueDate"), tx.wertstellungsdatum, "date"],
@@ -504,6 +513,10 @@ export function renderTransactionDetail(tx) {
         <button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button>
       </div>
     </div>
+    ${immobilie ? detailRow(
+      t("transactions.immobilie"),
+      `<button class="linkish" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="${escapeHtml(immobilie.immobilie_id)}">${escapeHtml(`${immobilie.immobilie_id} · ${immobilie.bezeichnung}`)}</button>`,
+    ) : ""}
     ${regelzahlung ? detailRow(
       t("transactions.regelzahlung"),
       `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(regelzahlung.regelzahlung_id)}">${escapeHtml(`${regelzahlung.regelzahlung_id} · ${regelzahlung.bezeichnung}`)}</button>`,

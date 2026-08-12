@@ -53,3 +53,14 @@ test("Demo-Darlehen enthalten Laufzeitende und erwarteten Stand am Laufzeitende"
   }
   assert.equal(validateMasterData(data).valid, true);
 });
+
+test("Demodaten zeigen den Immobilienbezug an Darlehensrate und Hausgeld", () => {
+  const data = demoData();
+  const objektbezogen = data.transaktionen.filter((entry) =>
+    ["Hannoversche Bank", "Hausverwaltung Lindenhof"].includes(entry.gegenpartei)
+  );
+
+  assert.equal(objektbezogen.length, 72);
+  assert.ok(objektbezogen.every((entry) => entry.immobilie_id === "IMM-001"));
+  assert.equal(validateMasterData(data).valid, true);
+});

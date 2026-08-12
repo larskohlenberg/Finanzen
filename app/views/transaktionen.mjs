@@ -47,9 +47,16 @@ export function transactionPageForId(transactionId) {
   return index >= 0 ? Math.floor(index / state.pageSize) + 1 : 1;
 }
 
-export function vorsorgeForTransaction(tx) {
+// Transaktion -> Regelzahlung: welche erwartete Zahlung erfuellt diese Buchung.
+export function regelzahlungForTransaction(tx) {
   if (!tx?.regelzahlung_id) return undefined;
-  const regelzahlung = (data.regelzahlungen ?? []).find((rz) => rz.regelzahlung_id === tx.regelzahlung_id);
+  return (data.regelzahlungen ?? []).find((rz) => rz.regelzahlung_id === tx.regelzahlung_id);
+}
+
+// Ein Vorsorgebezug wird nur ueber die Regelzahlung abgeleitet, nie direkt an
+// der Buchung (agent-context: Transaktion -> Regelzahlung -> Vorsorge).
+export function vorsorgeForTransaction(tx) {
+  const regelzahlung = regelzahlungForTransaction(tx);
   if (!regelzahlung?.vorsorge_id) return undefined;
   return (data.vorsorge ?? []).find((vs) => vs.vorsorge_id === regelzahlung.vorsorge_id);
 }
@@ -465,9 +472,10 @@ export function renderHerkunft(tx) {
   return "—";
 }
 
-function renderTransactionDetail(tx) {
+export function renderTransactionDetail(tx) {
   const konto = kontenById.get(tx.konto_id);
   const paired = pairedTransferTransaction(tx);
+  const regelzahlung = regelzahlungForTransaction(tx);
   const vorsorge = vorsorgeForTransaction(tx);
   const bankDetails = [
     [t("transactions.bankReference"), tx.bank_referenz],
@@ -495,6 +503,10 @@ function renderTransactionDetail(tx) {
         <button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button>
       </div>
     </div>
+    ${regelzahlung ? detailRow(
+      t("transactions.regelzahlung"),
+      `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(regelzahlung.regelzahlung_id)}">${escapeHtml(`${regelzahlung.regelzahlung_id} · ${regelzahlung.bezeichnung}`)}</button>`,
+    ) : ""}
     ${vorsorge ? detailRow(
       t("transactions.vorsorge"),
       `<button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(vorsorge.vorsorge_id)}">${escapeHtml(`${vorsorge.vorsorge_id} · ${vorsorge.name}`)}</button>`,

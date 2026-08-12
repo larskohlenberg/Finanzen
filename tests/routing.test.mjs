@@ -55,6 +55,16 @@ test("routeFromState und parseRoute sind für Deeplinks invers", () => {
   }
 });
 
+test("Vorsorge-Rail ist adressierbar", () => {
+  assert.equal(
+    routeFromState({ view: "vorsorge", selectedVorsorgeId: "VS-003" }),
+    "#/vorsorge/VS-003",
+  );
+  assert.equal(routeFromState({ view: "vorsorge", selectedVorsorgeId: "" }), "#/vorsorge");
+  assert.deepEqual(parseRoute("#/vorsorge/VS-003"), { view: "vorsorge", selectedVorsorgeId: "VS-003" });
+  assert.deepEqual(parseRoute("#/vorsorge"), { view: "vorsorge" });
+});
+
 test("routeFromState adressiert das ausgewaehlte Szenario", () => {
   assert.equal(routeFromState({ view: "szenarien", selectedSzenarioId: "SZN-001" }), "#/szenarien/SZN-001");
   assert.equal(routeFromState({ view: "szenarien", selectedSzenarioId: "" }), "#/szenarien");

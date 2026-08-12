@@ -19,7 +19,7 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const transactionsView = await import("../app/views/transaktionen.mjs");
 const vermoegenView = await import("../app/views/vermoegen.mjs");
-const { data, state } = runtime;
+const { data, state, transaktionenById } = runtime;
 const { renderTransactions } = transactionsView;
 const { renderVermoegen } = vermoegenView;
 
@@ -32,6 +32,7 @@ function resetTransactionState() {
     status: "",
     category: "",
     transfer: "",
+    origin: "",
     search: "",
     timeMode: "none",
     dateFrom: "",
@@ -59,6 +60,56 @@ test("transactions initial render has no selected row and no visible detail rail
   assert.doesNotMatch(html, /transaction-row selected/);
   assert.doesNotMatch(html, /detail-panel/);
   assert.match(html, /layout-with-rail rail-closed/);
+});
+
+test("Transaktions-Rail zeigt die abgeleitete Vorsorge anklickbar", () => {
+  const tx = {
+    transaktion_id: "TXN-11111111-1111-4111-8111-111111111111",
+    regelzahlung_id: "RZ-001",
+    konto_id: data.konten[0].konto_id,
+    buchungsdatum: "2026-06-15",
+    betrag: "-162.00",
+    gegenpartei: "MusterversicherungA",
+    verwendungszweck: "Riester",
+    kategorisierung_status: "offen",
+    ist_transfer: false,
+    rohquelle: "Belege/riester.csv",
+  };
+  const saved = {
+    transaktionen: data.transaktionen,
+    regelzahlungen: data.regelzahlungen,
+    vorsorge: data.vorsorge,
+    transactionState: {
+      selectedTransactionId: state.selectedTransactionId,
+      detailRailClosed: state.detailRailClosed,
+      transactionPage: state.transactionPage,
+      transactionFilters: state.transactionFilters,
+    },
+    transactionMapEntry: transaktionenById.get(tx.transaktion_id),
+  };
+  try {
+    data.transaktionen = [tx];
+    data.regelzahlungen = [{ regelzahlung_id: "RZ-001", vorsorge_id: "VS-003" }];
+    data.vorsorge = [{ vorsorge_id: "VS-003", name: "Riester Lena" }];
+    transaktionenById.set(tx.transaktion_id, tx);
+    resetTransactionState();
+    state.selectedTransactionId = tx.transaktion_id;
+
+    const html = renderTransactions();
+    assert.match(html, /Vorsorge/);
+    assert.match(html, /data-action="open-vorsorge" data-vorsorge="VS-003"/);
+    assert.match(html, /VS-003 · Riester Lena/);
+  } finally {
+    data.transaktionen = saved.transaktionen;
+    data.regelzahlungen = saved.regelzahlungen;
+    data.vorsorge = saved.vorsorge;
+    state.selectedTransactionId = saved.transactionState.selectedTransactionId;
+    state.detailRailClosed = saved.transactionState.detailRailClosed;
+    state.transactionPage = saved.transactionState.transactionPage;
+    state.transactionFilters = saved.transactionState.transactionFilters;
+    if (saved.transactionMapEntry === undefined) transaktionenById.delete(tx.transaktion_id);
+    else transaktionenById.set(tx.transaktion_id, saved.transactionMapEntry);
+  }
 });
 
 test("vermoegen initial render has no selected row and no visible detail rail", () => {

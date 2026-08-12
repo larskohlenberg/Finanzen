@@ -17,11 +17,13 @@ const optionalTransactionFields = [
   "empfaenger_iban",
   "mandatsreferenz",
   "glaeubiger_id",
+  "regelzahlung_id",
 ];
 
-export function runImport({ entries, konten, kategorien, kategorisierungsregeln, transaktionen, transfers }) {
+export function runImport({ entries, konten, kategorien, kategorisierungsregeln, transaktionen, transfers, regelzahlungen = [] }) {
   const kontenIds = new Set(konten.map((k) => k.konto_id));
   const kategorienIds = new Set(kategorien.map((k) => k.kategorie_id));
+  const regelzahlungIds = new Set(regelzahlungen.map((rz) => rz.regelzahlung_id));
   const working = [...transaktionen];
   const existingIds = new Set(working.map((tx) => tx.transaktion_id));
   // Dedupe prueft gegen den BESTAND (Re-Import-Schutz), nicht innerhalb desselben
@@ -44,7 +46,7 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
   entries.forEach((entry, index) => {
     const row = index + 1;
 
-    const formatErrors = validateImportEntry(entry, kontenIds);
+    const formatErrors = validateImportEntry(entry, kontenIds, regelzahlungIds);
     if (formatErrors.length > 0) {
       result.errors.push({ row, reason: "format", detail: formatErrors.join("; "), raw: entry });
       return;
@@ -136,16 +138,17 @@ async function main() {
     return;
   }
   const masterRoot = dataRootFromArg(process.argv[3], new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
-  const [konten, kategorien, transaktionen, transfers, kategorisierungsregeln] = await Promise.all([
+  const [konten, kategorien, transaktionen, transfers, kategorisierungsregeln, regelzahlungen] = await Promise.all([
     readJson(new URL("konten.json", masterRoot)),
     readJson(new URL("kategorien.json", masterRoot)),
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readJson(new URL("transfers.json", masterRoot)),
     readJson(new URL("kategorisierungsregeln.json", masterRoot)),
+    readJson(new URL("regelzahlungen.json", masterRoot)),
   ]);
   const entries = await readJsonl(pathToFileURL(resolve(process.cwd(), inputPath)));
 
-  const out = runImport({ entries, konten, kategorien, kategorisierungsregeln, transaktionen, transfers });
+  const out = runImport({ entries, konten, kategorien, kategorisierungsregeln, transaktionen, transfers, regelzahlungen });
 
   await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
   await writeFile(new URL("transfers.json", masterRoot), JSON.stringify(out.transfers, null, 2) + "\n");

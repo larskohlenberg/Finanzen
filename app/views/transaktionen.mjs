@@ -2,7 +2,7 @@
 // Transaktions-Ansicht: Tabelle, Filter (inkl. Zeitfilter), Pagination, Detail-Rail.
 import { data, state, t, escapeHtml, cents, kontenById, transaktionenById, transfersById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, formatMonth, statusChip, renderPageHead, renderTableFilters, categoryName } from "../komponenten.mjs";
+import { formatMoney, formatDate, formatMonth, statusChip, renderPageHead, renderTableFilters, categoryName, detailRow } from "../komponenten.mjs";
 import { matchesQuery, formatIban } from "../tools/lib/text.mjs";
 
 function transactionSearchFields(tx) {
@@ -45,6 +45,13 @@ export function filteredTransactions() {
 export function transactionPageForId(transactionId) {
   const index = filteredTransactions().findIndex((tx) => tx.transaktion_id === transactionId);
   return index >= 0 ? Math.floor(index / state.pageSize) + 1 : 1;
+}
+
+export function vorsorgeForTransaction(tx) {
+  if (!tx?.regelzahlung_id) return undefined;
+  const regelzahlung = (data.regelzahlungen ?? []).find((rz) => rz.regelzahlung_id === tx.regelzahlung_id);
+  if (!regelzahlung?.vorsorge_id) return undefined;
+  return (data.vorsorge ?? []).find((vs) => vs.vorsorge_id === regelzahlung.vorsorge_id);
 }
 
 function sortTransactions(transaktionen) {
@@ -461,6 +468,7 @@ export function renderHerkunft(tx) {
 function renderTransactionDetail(tx) {
   const konto = kontenById.get(tx.konto_id);
   const paired = pairedTransferTransaction(tx);
+  const vorsorge = vorsorgeForTransaction(tx);
   const bankDetails = [
     [t("transactions.bankReference"), tx.bank_referenz],
     [t("transactions.valueDate"), tx.wertstellungsdatum, "date"],
@@ -487,6 +495,10 @@ function renderTransactionDetail(tx) {
         <button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button>
       </div>
     </div>
+    ${vorsorge ? detailRow(
+      t("transactions.vorsorge"),
+      `<button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(vorsorge.vorsorge_id)}">${escapeHtml(`${vorsorge.vorsorge_id} · ${vorsorge.name}`)}</button>`,
+    ) : ""}
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("transactions.coreData"))}</div>
       <div class="detail-list">

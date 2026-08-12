@@ -2,6 +2,7 @@
 import { istGueltigerBetrag } from "./lib/text.mjs";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+const regelzahlungPattern = /^RZ-\d{3}$/;
 const optionalStringFields = [
   "bank_referenz",
   "transaktionstyp",
@@ -18,7 +19,7 @@ function isIsoDate(value) {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
 
-export function validateImportEntry(entry, kontenIds) {
+export function validateImportEntry(entry, kontenIds, regelzahlungIds = new Set()) {
   const errors = [];
 
   if (typeof entry.konto_id !== "string") {
@@ -51,6 +52,14 @@ export function validateImportEntry(entry, kontenIds) {
   for (const field of optionalStringFields) {
     if (Object.hasOwn(entry, field) && typeof entry[field] !== "string") {
       errors.push(`${field}: muss string sein`);
+    }
+  }
+
+  if (Object.hasOwn(entry, "regelzahlung_id")) {
+    if (typeof entry.regelzahlung_id !== "string" || !regelzahlungPattern.test(entry.regelzahlung_id)) {
+      errors.push("regelzahlung_id: Format ungueltig (invalid format)");
+    } else if (!regelzahlungIds.has(entry.regelzahlung_id)) {
+      errors.push(`regelzahlung_id: ${entry.regelzahlung_id} unbekannt (unknown)`);
     }
   }
 

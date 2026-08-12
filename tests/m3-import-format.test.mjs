@@ -1,9 +1,11 @@
 // tests/m3-import-format.test.mjs
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { validateImportEntry } from "../app/tools/import-format.mjs";
 
 const kontenIds = new Set(["KTO-001", "KTO-004"]);
+const regelzahlungIds = new Set(["RZ-001"]);
 const valid = {
   konto_id: "KTO-001",
   buchungsdatum: "2026-05-20",
@@ -62,4 +64,34 @@ test("optionale Bankdetails sind erlaubt", () => {
 
 test("unplausibles Wertstellungsdatum wird gemeldet", () => {
   assert.match(validateImportEntry({ ...valid, wertstellungsdatum: "2026-02-31" }, kontenIds).join("\n"), /wertstellungsdatum/);
+});
+
+test("Importformat akzeptiert eine existierende regelzahlung_id", () => {
+  assert.deepEqual(validateImportEntry({ ...valid, regelzahlung_id: "RZ-001" }, kontenIds, regelzahlungIds), []);
+});
+
+test("Importformat lehnt eine unbekannte regelzahlung_id ab", () => {
+  assert.match(
+    validateImportEntry({ ...valid, regelzahlung_id: "RZ-999" }, kontenIds, regelzahlungIds).join("\n"),
+    /regelzahlung_id.*unbekannt/,
+  );
+});
+
+test("Regelzahlungsfehler enthalten deutsche und englische Hinweise", () => {
+  assert.match(
+    validateImportEntry({ ...valid, regelzahlung_id: "RZ-99" }, kontenIds, regelzahlungIds).join("\n"),
+    /regelzahlung_id.*Format ungueltig.*invalid format/,
+  );
+  assert.match(
+    validateImportEntry({ ...valid, regelzahlung_id: "RZ-999" }, kontenIds, regelzahlungIds).join("\n"),
+    /regelzahlung_id.*RZ-999.*unbekannt.*unknown/,
+  );
+});
+
+test("JSON-Datenverträge erlauben die Regelzahlungsreferenz", () => {
+  for (const name of ["importformat", "transaktionen"]) {
+    const schema = JSON.parse(readFileSync(new URL(`../app/schemas/${name}.schema.json`, import.meta.url), "utf8"));
+    const properties = schema.items?.properties ?? schema.properties;
+    assert.equal(properties.regelzahlung_id.pattern, "^RZ-\\d{3}$", name);
+  }
 });

@@ -51,6 +51,21 @@ test("uebernimmt optionale Bankdetails in die Transaktion", () => {
   assert.deepEqual(Object.fromEntries(Object.keys(bankdetails).map((key) => [key, out.transaktionen[0][key]])), bankdetails);
 });
 
+test("Import übernimmt die explizite Regelzahlungszuordnung", () => {
+  const out = runImport({
+    entries: [entry("KTO-001", "2026-05-20", "-162.00", "MusterversicherungA", "Riester", { regelzahlung_id: "RZ-001" })],
+    konten,
+    kategorien,
+    kategorisierungsregeln: regeln,
+    transaktionen: [],
+    transfers: [],
+    regelzahlungen: [{ regelzahlung_id: "RZ-001" }],
+  });
+
+  assert.equal(out.result.errors.length, 0);
+  assert.equal(out.transaktionen[0].regelzahlung_id, "RZ-001");
+});
+
 test("ohne Regel-Treffer bleibt Kategorie offen", () => {
   const out = runImport({
     entries: [entry("KTO-001", "2026-05-20", "-9.99", "Unbekannt", "x")],

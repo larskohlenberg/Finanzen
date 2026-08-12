@@ -96,12 +96,13 @@ async function main() {
 
   const bericht = { modus: schreiben ? "geschrieben" : "vorschau", profile: profile.length, dateien: plan.auftraege.length, laeufe: [], offen: plan.offen };
 
-  let [konten, kategorien, transaktionen, transfers, regeln] = await Promise.all([
+  let [konten, kategorien, transaktionen, transfers, regeln, regelzahlungen] = await Promise.all([
     readJson(new URL("konten.json", masterRoot)),
     readJson(new URL("kategorien.json", masterRoot)),
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readJson(new URL("transfers.json", masterRoot)),
     readJson(new URL("kategorisierungsregeln.json", masterRoot)),
+    readJson(new URL("regelzahlungen.json", masterRoot)),
   ]);
 
   for (const auftrag of plan.auftraege) {
@@ -132,7 +133,7 @@ async function main() {
       continue;
     }
 
-    const out = runImport({ entries: normalized.eintraege, konten, kategorien, kategorisierungsregeln: regeln, transaktionen, transfers });
+    const out = runImport({ entries: normalized.eintraege, konten, kategorien, kategorisierungsregeln: regeln, transaktionen, transfers, regelzahlungen });
     transaktionen = out.transaktionen;
     transfers = out.transfers;
 

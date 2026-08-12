@@ -158,8 +158,14 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
    - `verwendungszweck` nach Normalisierung (trim, Whitespace kollabieren, lowercase) identisch.
    Bei Match: Transfer-Datensatz anlegen, `ist_transfer = true` auf beiden Seiten, `transfer_id` setzen.
    Externe Transfers (Bargeld, Familie) erkennt das Tool nicht — die markiert der Nutzer im Dialog.
-9. **Beleg sprechend umbenennen und ablegen** (siehe Abschnitt unten): Rohbeleg in `Belege/` einsortieren, **niemals** den Scan-/Mail-Originalnamen behalten. War der Vorlauf leer (Bildscan), liest du die PDF-Seiten selbst und schreibst den Zwilling schon beim Ablegen von Hand daneben: `<Belegname>.txt`, erste Zeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`, darunter der gelesene Text. Danach `npm run belege:text:schreiben` — das legt die Textzwillinge der uebrigen Belege an und raeumt den Vorlauf in `standardized/` ab; einen bereits geschriebenen Zwilling laesst der Lauf unberuehrt. Zwischen-JSONL verwerfen. Bei Fehler: nach `data/inbox/error/` plus strukturierte Begleitdatei.
-10. **Agent-Lauf protokollieren**: Eintrag in `DATENROOT/agent_log.jsonl` mit Zaehlern (importiert, offen, Fehler), betroffene IDs, kurze Notiz. `rohquelle` jeder Buchung zeigt auf den **finalen Beleg-Pfad** in `Belege/`.
+9. **Immobiliencheck fuer neue Transaktionen**: Vor dem Abschluss jedes Importlaufs genau die IDs aus `result.written` beziehungsweise `geschriebene_ids` pruefen.
+   1. Alle neuen Buchungen auf einen moeglichen Immobilienbezug sichten.
+   2. Kategorie, Gegenpartei, Adresse, Buchungstext und Belegpfad nur als Suchsignale verwenden, nie als alleinigen Zuordnungsanker.
+   3. Bei eindeutigem Beleg `tools/transaktion-immobilie.mjs` verwenden.
+   4. Bei einem bloss plausiblen Bezug die Kandidaten gruppiert dem Nutzer vorlegen; ohne Beleg oder Nutzerentscheidung bleibt `immobilie_id` weg.
+   5. Im Abschlussbericht `geprueft`, `zugeordnet`, `ohne_hinweis` und `ungeklaert` nennen.
+10. **Beleg sprechend umbenennen und ablegen** (siehe Abschnitt unten): Rohbeleg in `Belege/` einsortieren, **niemals** den Scan-/Mail-Originalnamen behalten. War der Vorlauf leer (Bildscan), liest du die PDF-Seiten selbst und schreibst den Zwilling schon beim Ablegen von Hand daneben: `<Belegname>.txt`, erste Zeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`, darunter der gelesene Text. Danach `npm run belege:text:schreiben` — das legt die Textzwillinge der uebrigen Belege an und raeumt den Vorlauf in `standardized/` ab; einen bereits geschriebenen Zwilling laesst der Lauf unberuehrt. Zwischen-JSONL verwerfen. Bei Fehler: nach `data/inbox/error/` plus strukturierte Begleitdatei.
+11. **Agent-Lauf protokollieren**: Eintrag in `DATENROOT/agent_log.jsonl` mit Zaehlern (importiert, offen, Fehler), betroffene IDs, kurze Notiz. `rohquelle` jeder Buchung zeigt auf den **finalen Beleg-Pfad** in `Belege/`.
 
 ## Belege benennen und ablegen
 

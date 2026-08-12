@@ -1,12 +1,46 @@
 // tests/inbox-plan.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { planInbox } from "../app/tools/inbox.mjs";
+import {
+  betroffeneTransaktionsIds,
+  importLaufBericht,
+  planInbox,
+} from "../app/tools/inbox.mjs";
 
 const profile = [
   { profil_id: "musterbankc-csv", quelle: "csv", dateimuster: "^KtoNr_4711000815_Export", konto_id: "KTO-002" },
   { profil_id: "musterbanka-csv", quelle: "csv", dateimuster: "^MusterbankA_Umsaetze", konto_id: "KTO-001" },
 ];
+
+test("CSV-Laufbericht behaelt die neu geschriebenen Transaktions-IDs", () => {
+  const bericht = importLaufBericht({
+    auftrag: { datei: "test.csv", art: "csv" },
+    profil: { profil_id: "test-profil" },
+    normalized: { eintraege: [{}, {}], fehler: [] },
+    result: {
+      written: [
+        { transaktion_id: "TXN-A", kategorisierung_status: "offen" },
+        { transaktion_id: "TXN-B", kategorisierung_status: "vorgeschlagen" },
+      ],
+      skipped_dedupe: [],
+      errors: [],
+      transfers_matched: [],
+    },
+  });
+
+  assert.deepEqual(bericht.geschriebene_ids, ["TXN-A", "TXN-B"]);
+  assert.equal(bericht.geschrieben, 2);
+});
+
+test("Inbox-Protokoll aggregiert betroffene IDs stabil ueber alle CSV-Laeufe", () => {
+  const ids = betroffeneTransaktionsIds([
+    { art: "pdf-text" },
+    { art: "csv", geschriebene_ids: ["TXN-A", "TXN-B"] },
+    { art: "csv", geschriebene_ids: [] },
+    { art: "csv", geschriebene_ids: ["TXN-C"] },
+  ]);
+  assert.deepEqual(ids, ["TXN-A", "TXN-B", "TXN-C"]);
+});
 
 test("ordnet eine Datei ihrem Profil per dateimuster zu", () => {
   const plan = planInbox({ dateien: ["KtoNr_4711000815_Export_Umsaetze_20260608.csv"], profile });

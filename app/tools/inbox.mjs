@@ -61,6 +61,27 @@ export function planInbox({ dateien, profile }) {
   return { auftraege, offen };
 }
 
+export function importLaufBericht({ auftrag, profil, normalized, result }) {
+  return {
+    datei: auftrag.datei,
+    art: "csv",
+    profil: profil.profil_id,
+    gelesen: normalized.eintraege.length,
+    lesefehler: normalized.fehler.length,
+    geschrieben: result.written.length,
+    geschriebene_ids: result.written.map((entry) => entry.transaktion_id),
+    uebersprungen_dedupe: result.skipped_dedupe.length,
+    importfehler: result.errors.length,
+    transfer_treffer: result.transfers_matched.length,
+    ...(normalized.fehler.length ? { erste_lesefehler: normalized.fehler.slice(0, 3) } : {}),
+    ...(result.errors.length ? { erste_importfehler: result.errors.slice(0, 3) } : {}),
+  };
+}
+
+export function betroffeneTransaktionsIds(laeufe) {
+  return laeufe.flatMap((lauf) => lauf.geschriebene_ids ?? []);
+}
+
 async function readJson(url) {
   return JSON.parse(await readFile(url, "utf8"));
 }
@@ -137,19 +158,12 @@ async function main() {
     transaktionen = out.transaktionen;
     transfers = out.transfers;
 
-    bericht.laeufe.push({
-      datei: auftrag.datei,
-      art: "csv",
-      profil: profil.profil_id,
-      gelesen: normalized.eintraege.length,
-      lesefehler: normalized.fehler.length,
-      geschrieben: out.result.written.length,
-      uebersprungen_dedupe: out.result.skipped_dedupe.length,
-      importfehler: out.result.errors.length,
-      transfer_treffer: out.result.transfers_matched.length,
-      ...(normalized.fehler.length ? { erste_lesefehler: normalized.fehler.slice(0, 3) } : {}),
-      ...(out.result.errors.length ? { erste_importfehler: out.result.errors.slice(0, 3) } : {}),
-    });
+    bericht.laeufe.push(importLaufBericht({
+      auftrag,
+      profil,
+      normalized,
+      result: out.result,
+    }));
 
     if (schreiben) {
       const zielOrdner = out.result.errors.length === normalized.eintraege.length && normalized.eintraege.length > 0 ? "error" : "processed";
@@ -176,7 +190,7 @@ async function main() {
     anzahl_offen: plan.offen.length,
     anzahl_fehler: bericht.laeufe.reduce((s, l) => s + (l.importfehler ?? 0) + (l.lesefehler ?? 0), 0),
     notiz: `inbox.mjs: ${bericht.laeufe.length} Datei(en) verarbeitet`,
-    betroffene_ids: [],
+    betroffene_ids: betroffeneTransaktionsIds(bericht.laeufe),
   };
   const logUrl = new URL("agent_log.jsonl", masterRoot);
   const bisher = await readFile(logUrl, "utf8").catch(() => "");

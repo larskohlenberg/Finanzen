@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
-import { aktualisiereImmobilienbezug } from "../app/tools/transaktion-immobilie.mjs";
+import { pathToFileURL } from "node:url";
+import * as immobilienTool from "../app/tools/transaktion-immobilie.mjs";
+import { loadMasterData } from "../app/tools/validator.mjs";
+
+const { aktualisiereImmobilienbezug } = immobilienTool;
 
 const immobilien = [{ immobilie_id: "IMM-001" }, { immobilie_id: "IMM-002" }];
 const tx = (id, over = {}) => ({
@@ -20,6 +24,58 @@ const tx = (id, over = {}) => ({
   ist_transfer: false,
   ...over,
 });
+
+function tempFixture() {
+  const temp = mkdtempSync(join(tmpdir(), "transaktion-immobilie-"));
+  cpSync("tests/fixtures/master-valid", temp, { recursive: true });
+  const txPath = join(temp, "transaktionen.jsonl");
+  const [fixtureTx] = readFileSync(txPath, "utf8").trim().split(/\r?\n/).map(JSON.parse);
+  delete fixtureTx.immobilie_id;
+  writeFileSync(txPath, `${JSON.stringify(fixtureTx)}\n`);
+  return {
+    temp,
+    txPath,
+    logPath: join(temp, "agent_log.jsonl"),
+    fixtureTx,
+    dataRoot: new URL("./", pathToFileURL(txPath)),
+  };
+}
+
+function tempArtefakte(temp) {
+  return readdirSync(temp).filter((name) => name.startsWith(".transaktion-immobilie-"));
+}
+
+function logEntry(transaktionId) {
+  return {
+    zeitpunkt: "2026-08-12T12:00:00.000Z",
+    anlass: "transaktion-immobilie",
+    inputs: ["transaktionen.jsonl", "immobilien.json"],
+    anzahl_importiert: 0,
+    anzahl_offen: 0,
+    anzahl_fehler: 0,
+    immobilienbezuege_gesetzt: 1,
+    immobilienbezuege_entfernt: 0,
+    notiz: "Testlauf",
+    betroffene_ids: [transaktionId],
+  };
+}
+
+async function persistenzFall(fixture, persistenz) {
+  const data = await loadMasterData(fixture.dataRoot);
+  const out = aktualisiereImmobilienbezug({
+    transaktionen: data.transaktionen,
+    immobilien: data.immobilien,
+    ids: [fixture.fixtureTx.transaktion_id],
+    immobilieId: "IMM-001",
+  });
+  return immobilienTool.persistiereImmobilienbezug({
+    dataRoot: fixture.dataRoot,
+    data,
+    transaktionen: out.transaktionen,
+    logEntry: logEntry(fixture.fixtureTx.transaktion_id),
+    persistenz,
+  });
+}
 
 test("setzt den Bezug und laesst fachfremde Felder unveraendert", () => {
   const original = tx("TXN-A");
@@ -167,5 +223,98 @@ test("CLI-Vorschau schreibt nichts; --schreiben persistiert, validiert und proto
     assert.equal(log[0].immobilienbezuege_gesetzt, 1);
   } finally {
     rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("Stage-Schreibfehler laesst Transaktionen und Log unveraendert und raeumt auf", async () => {
+  const fixture = tempFixture();
+  try {
+    const beforeTx = readFileSync(fixture.txPath, "utf8");
+    const persistenz = {
+      ...immobilienTool.dateiPersistenz,
+      schreibeStage: async (url, inhalt, rolle) => {
+        if (rolle === "transaktionen-stage") throw new Error("injizierter Schreibfehler");
+        return immobilienTool.dateiPersistenz.schreibeStage(url, inhalt, rolle);
+      },
+    };
+
+    await assert.rejects(() => persistenzFall(fixture, persistenz), /injizierter Schreibfehler/);
+    assert.equal(readFileSync(fixture.txPath, "utf8"), beforeTx);
+    assert.equal(existsSync(fixture.logPath), false);
+    assert.deepEqual(tempArtefakte(fixture.temp), []);
+  } finally {
+    rmSync(fixture.temp, { recursive: true, force: true });
+  }
+});
+
+test("ungueltige Stage-Bytes blockieren vor dem Rename und lassen keine Artefakte zurueck", async () => {
+  const fixture = tempFixture();
+  try {
+    const beforeTx = readFileSync(fixture.txPath, "utf8");
+    const persistenz = {
+      ...immobilienTool.dateiPersistenz,
+      schreibeStage: (url, inhalt, rolle) => immobilienTool.dateiPersistenz.schreibeStage(
+        url,
+        rolle === "transaktionen-stage" ? "{}\n" : inhalt,
+        rolle,
+      ),
+    };
+
+    await assert.rejects(
+      () => persistenzFall(fixture, persistenz),
+      /Validierung der temporaeren Transaktionsdatei fehlgeschlagen/,
+    );
+    assert.equal(readFileSync(fixture.txPath, "utf8"), beforeTx);
+    assert.equal(existsSync(fixture.logPath), false);
+    assert.deepEqual(tempArtefakte(fixture.temp), []);
+  } finally {
+    rmSync(fixture.temp, { recursive: true, force: true });
+  }
+});
+
+test("Post-Validierungsfehler nach Datenaustausch rollt vor dem Log zurueck", async () => {
+  const fixture = tempFixture();
+  try {
+    const beforeTx = readFileSync(fixture.txPath, "utf8");
+    const persistenz = {
+      ...immobilienTool.dateiPersistenz,
+      validiere: (data, phase) => phase === "nach-datenaustausch"
+        ? { valid: false, errors: ["injizierter Post-Validierungsfehler"] }
+        : immobilienTool.dateiPersistenz.validiere(data, phase),
+    };
+
+    await assert.rejects(
+      () => persistenzFall(fixture, persistenz),
+      /Validierung nach Datenaustausch fehlgeschlagen.*injizierter Post-Validierungsfehler/s,
+    );
+    assert.equal(readFileSync(fixture.txPath, "utf8"), beforeTx);
+    assert.equal(existsSync(fixture.logPath), false);
+    assert.deepEqual(tempArtefakte(fixture.temp), []);
+  } finally {
+    rmSync(fixture.temp, { recursive: true, force: true });
+  }
+});
+
+test("Logfehler nach Datenaustausch rollt Transaktionen und vollstaendigen Log zurueck", async () => {
+  const fixture = tempFixture();
+  try {
+    const alterLog = `${JSON.stringify({ zeitpunkt: "2026-08-11T10:00:00.000Z", anlass: "bestand" })}\n`;
+    writeFileSync(fixture.logPath, alterLog);
+    const beforeTx = readFileSync(fixture.txPath, "utf8");
+    const persistenz = {
+      ...immobilienTool.dateiPersistenz,
+      benenneUm: async (von, nach, rolle) => {
+        if (rolle === "log-commit") throw new Error("injizierter Logfehler");
+        return immobilienTool.dateiPersistenz.benenneUm(von, nach, rolle);
+      },
+    };
+
+    await assert.rejects(() => persistenzFall(fixture, persistenz), /injizierter Logfehler/);
+    assert.equal(readFileSync(fixture.txPath, "utf8"), beforeTx);
+    assert.equal(readFileSync(fixture.logPath, "utf8"), alterLog);
+    assert.doesNotThrow(() => readFileSync(fixture.logPath, "utf8").trim().split(/\r?\n/).map(JSON.parse));
+    assert.deepEqual(tempArtefakte(fixture.temp), []);
+  } finally {
+    rmSync(fixture.temp, { recursive: true, force: true });
   }
 });

@@ -1,4 +1,5 @@
-import { appendFile, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { open, readFile, rename, unlink } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
@@ -70,6 +71,242 @@ export function aktualisiereImmobilienbezug({
   return { transaktionen: next, report, blockiert: false };
 }
 
+export const dateiPersistenz = {
+  lese(url) {
+    return readFile(url, "utf8");
+  },
+  async schreibeStage(url, inhalt) {
+    const handle = await open(url, "wx", 0o600);
+    try {
+      await handle.writeFile(inhalt, "utf8");
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  },
+  benenneUm(von, nach) {
+    return rename(von, nach);
+  },
+  async entferne(url) {
+    try {
+      await unlink(url);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  },
+  async synchronisiereVerzeichnis(url) {
+    const handle = await open(url, "r");
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  },
+  validiere(data) {
+    return validateMasterData(data);
+  },
+};
+
+function temporaerePfade(dataRoot) {
+  const lauf = `${process.pid}-${randomUUID()}`;
+  const pfad = (rolle) => new URL(`.transaktion-immobilie-${lauf}-${rolle}.tmp`, dataRoot);
+  return {
+    transaktionenStage: pfad("transaktionen-stage"),
+    transaktionenBackup: pfad("transaktionen-backup"),
+    logStage: pfad("log-stage"),
+    logBackup: pfad("log-backup"),
+  };
+}
+
+function parseJsonl(text, bezeichnung) {
+  return text.split(/\r?\n/)
+    .filter((line) => line.trim().length > 0)
+    .map((line, index) => {
+      try {
+        return JSON.parse(line);
+      } catch (error) {
+        throw new Error(`${bezeichnung}, Zeile ${index + 1}: ${error.message}`);
+      }
+    });
+}
+
+function validierungsfehler(prefix, result) {
+  if (result.valid) return;
+  throw new Error(`${prefix}:\n${result.errors.join("\n")}`);
+}
+
+async function leseOptional(persistenz, url) {
+  try {
+    return { vorhanden: true, inhalt: await persistenz.lese(url) };
+  } catch (error) {
+    if (error.code === "ENOENT") return { vorhanden: false, inhalt: "" };
+    throw error;
+  }
+}
+
+async function raeumeTemporaerePfadeAuf(persistenz, pfade) {
+  const fehler = [];
+  for (const url of Object.values(pfade)) {
+    try {
+      await persistenz.entferne(url, "temp-aufraeumen");
+    } catch (error) {
+      fehler.push(error);
+    }
+  }
+  return fehler;
+}
+
+async function rollback({
+  persistenz,
+  dataRoot,
+  transaktionenUrl,
+  logUrl,
+  pfade,
+  transaktionenCommitBegonnen,
+  logCommitBegonnen,
+  logVorhanden,
+}) {
+  const fehler = [];
+  if (logCommitBegonnen) {
+    try {
+      if (logVorhanden) {
+        await persistenz.benenneUm(pfade.logBackup, logUrl, "log-rollback");
+      } else {
+        await persistenz.entferne(logUrl, "log-rollback");
+      }
+    } catch (error) {
+      fehler.push(error);
+    }
+  }
+  if (transaktionenCommitBegonnen) {
+    try {
+      await persistenz.benenneUm(
+        pfade.transaktionenBackup,
+        transaktionenUrl,
+        "transaktionen-rollback",
+      );
+    } catch (error) {
+      fehler.push(error);
+    }
+  }
+  try {
+    await persistenz.synchronisiereVerzeichnis(dataRoot, "rollback");
+  } catch (error) {
+    fehler.push(error);
+  }
+  return fehler;
+}
+
+export async function persistiereImmobilienbezug({
+  dataRoot,
+  data,
+  transaktionen,
+  logEntry,
+  persistenz = dateiPersistenz,
+}) {
+  const transaktionenUrl = new URL("transaktionen.jsonl", dataRoot);
+  const logUrl = new URL("agent_log.jsonl", dataRoot);
+  const pfade = temporaerePfade(dataRoot);
+  const originalTransaktionen = await persistenz.lese(transaktionenUrl, "transaktionen-original");
+  const originalLog = await leseOptional(persistenz, logUrl);
+  const transaktionenText = transaktionen.map((entry) => JSON.stringify(entry)).join("\n") + "\n";
+  const logPrefix = originalLog.inhalt.length === 0 || originalLog.inhalt.endsWith("\n")
+    ? originalLog.inhalt
+    : `${originalLog.inhalt}\n`;
+  const logText = `${logPrefix}${JSON.stringify(logEntry)}\n`;
+  let transaktionenCommitBegonnen = false;
+  let logCommitBegonnen = false;
+  let hauptfehler;
+
+  try {
+    validierungsfehler(
+      "Validierung vor Schreiben fehlgeschlagen",
+      await persistenz.validiere({ ...data, transaktionen }, "vor-schreiben"),
+    );
+
+    await persistenz.schreibeStage(
+      pfade.transaktionenStage,
+      transaktionenText,
+      "transaktionen-stage",
+    );
+    const stageTransaktionen = parseJsonl(
+      await persistenz.lese(pfade.transaktionenStage, "transaktionen-stage"),
+      "Temporaere Transaktionsdatei ist kein gueltiges JSONL",
+    );
+    validierungsfehler(
+      "Validierung der temporaeren Transaktionsdatei fehlgeschlagen",
+      await persistenz.validiere(
+        { ...data, transaktionen: stageTransaktionen },
+        "transaktionen-stage",
+      ),
+    );
+
+    await persistenz.schreibeStage(pfade.logStage, logText, "log-stage");
+    parseJsonl(
+      await persistenz.lese(pfade.logStage, "log-stage"),
+      "Temporaere Logdatei ist kein gueltiges JSONL",
+    );
+    await persistenz.schreibeStage(
+      pfade.transaktionenBackup,
+      originalTransaktionen,
+      "transaktionen-backup",
+    );
+    if (originalLog.vorhanden) {
+      await persistenz.schreibeStage(pfade.logBackup, originalLog.inhalt, "log-backup");
+    }
+    await persistenz.synchronisiereVerzeichnis(dataRoot, "vor-commit");
+
+    transaktionenCommitBegonnen = true;
+    await persistenz.benenneUm(
+      pfade.transaktionenStage,
+      transaktionenUrl,
+      "transaktionen-commit",
+    );
+    validierungsfehler(
+      "Validierung nach Datenaustausch fehlgeschlagen",
+      await persistenz.validiere(await loadMasterData(dataRoot), "nach-datenaustausch"),
+    );
+
+    logCommitBegonnen = true;
+    await persistenz.benenneUm(pfade.logStage, logUrl, "log-commit");
+    await persistenz.synchronisiereVerzeichnis(dataRoot, "nach-commit");
+  } catch (error) {
+    hauptfehler = error;
+    if (transaktionenCommitBegonnen) {
+      const rollbackFehler = await rollback({
+        persistenz,
+        dataRoot,
+        transaktionenUrl,
+        logUrl,
+        pfade,
+        transaktionenCommitBegonnen,
+        logCommitBegonnen,
+        logVorhanden: originalLog.vorhanden,
+      });
+      if (rollbackFehler.length > 0) {
+        hauptfehler = new AggregateError(
+          [error, ...rollbackFehler],
+          `Schreibvorgang fehlgeschlagen und Rollback unvollstaendig: ${error.message}`,
+        );
+      }
+    }
+  }
+
+  const aufraeumFehler = await raeumeTemporaerePfadeAuf(persistenz, pfade);
+  if (hauptfehler) {
+    if (aufraeumFehler.length > 0) {
+      throw new AggregateError(
+        [hauptfehler, ...aufraeumFehler],
+        `${hauptfehler.message}; temporaere Dateien konnten nicht vollstaendig entfernt werden`,
+      );
+    }
+    throw hauptfehler;
+  }
+  if (aufraeumFehler.length > 0) {
+    throw new AggregateError(aufraeumFehler, "Temporaere Dateien konnten nicht entfernt werden");
+  }
+}
+
 function parseArgs(argv) {
   const args = {
     ids: [],
@@ -129,21 +366,6 @@ async function main() {
     return;
   }
 
-  const beforeWrite = validateMasterData({ ...data, transaktionen: out.transaktionen });
-  if (!beforeWrite.valid) {
-    throw new Error(`Validierung vor Schreiben fehlgeschlagen:\n${beforeWrite.errors.join("\n")}`);
-  }
-
-  await writeFile(
-    new URL("transaktionen.jsonl", dataRoot),
-    out.transaktionen.map((entry) => JSON.stringify(entry)).join("\n") + "\n",
-  );
-
-  const afterWrite = validateMasterData(await loadMasterData(dataRoot));
-  if (!afterWrite.valid) {
-    throw new Error(`Validierung nach Schreiben fehlgeschlagen:\n${afterWrite.errors.join("\n")}`);
-  }
-
   const logEntry = {
     zeitpunkt: new Date().toISOString(),
     anlass: "transaktion-immobilie",
@@ -158,10 +380,12 @@ async function main() {
       : `Immobilienbezug ${args.immobilieId} an Transaktionen gesetzt`,
     betroffene_ids: [...new Set(args.ids)],
   };
-  await appendFile(
-    new URL("agent_log.jsonl", dataRoot),
-    `${JSON.stringify(logEntry)}\n`,
-  );
+  await persistiereImmobilienbezug({
+    dataRoot,
+    data,
+    transaktionen: out.transaktionen,
+    logEntry,
+  });
   console.log(JSON.stringify({ modus: "geschrieben", ...out.report }, null, 2));
 }
 

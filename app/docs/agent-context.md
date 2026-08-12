@@ -98,6 +98,14 @@ only from documentation or a user decision; leave the field unset when uncertain
 Derive a retirement-provision relationship through
 `Transaktion → Regelzahlung → Vorsorge` only.
 
+Eine Transaktion kann optional ueber `immobilie_id` genau einer Immobilie
+zugeordnet sein; eine Immobilie kann viele Transaktionen haben. Die Zuordnung ist
+direkt und wird nur aus einem eindeutigen Beleg oder einer Nutzerentscheidung
+gesetzt. Kategorie, Gegenpartei, Adresse und Buchungstext duerfen einen
+Pruefkandidaten sichtbar machen, sind allein aber kein Zuordnungsanker. Ein
+fehlendes `immobilie_id` bedeutet nur, dass keine Zuordnung gespeichert ist; es
+entsteht kein zusaetzlicher Review-, Audit- oder Historienstatus.
+
 Eine Transaktion kann eine Kategorie aus drei Herkuenften haben:
 
 - `kategorie_herkunft = regel`: Kategorie stammt aus dem deterministischen
@@ -201,6 +209,9 @@ Wichtige Tools:
 - `tools/dedupe.mjs`: Transaktions-Dedupe-Hash bilden.
 - `tools/categorizer.mjs`: Kategorisierungsregeln anwenden.
 - `tools/recategorize.mjs`: Bestand nach Regelaenderungen neu bewerten.
+- `tools/transaktion-immobilie.mjs`: einen belegten oder vom Nutzer
+  entschiedenen Immobilienbezug fuer explizite Transaktions-IDs setzen,
+  entfernen oder bewusst ersetzen.
 - `tools/transfer-matcher.mjs`: interne Transfers paaren — als Lauf ueber den
   **Bestand** (`npm run transfers`), nicht nur waehrend eines Imports. Nach einem
   neu angelegten Konto nachziehen, sonst bleiben dessen Gegenbuchungen ungepaart.

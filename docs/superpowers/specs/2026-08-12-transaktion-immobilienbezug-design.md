@@ -116,8 +116,10 @@ verpflichtenden Schritt fuer genau diese neuen IDs:
    nennen.
 
 Die gemeinsame Betriebsgrundlage `app/docs/agent-context.md` definiert dieselbe
-Beleggrenze und listet das neue Tool. Ein Dokumentationstest verhindert, dass das
-Import-Gate oder der Werkzeughinweis spaeter unbemerkt entfernt werden.
+Beleggrenze und listet das neue Tool. Verhaltenstests sichern, dass die neuen IDs
+im produktiven Inbox-Bericht und Protokoll erhalten bleiben; der bestehende
+CLI-Auffindbarkeitstest sichert den Werkzeughinweis. Der Wortlaut der
+Betriebsanweisung wird nicht mit einem fragilen Prosa-Regex getestet.
 
 ## Benutzeroberflaeche
 
@@ -169,8 +171,9 @@ Die Umsetzung folgt Red-Green-Refactor. Geplante Nachweise:
   unbekannte Immobilien-/Transaktions-ID, atomarer Abbruch und unveraenderte
   fachfremde Felder.
 - Import: geschriebene IDs bleiben in Inbox-Bericht und Protokoll erhalten.
-- Agentendokumentation: neues Tool ist auffindbar und das Immobilien-Gate ist
-  verpflichtend beschrieben.
+- Agentendokumentation: neues Tool ist ueber den bestehenden CLI-Test auffindbar;
+  das Import-Gate ist verpflichtend beschrieben und sein ID-Datenfluss wird ueber
+  produktives Verhalten statt ueber einen Prosa-Regex getestet.
 - UI: Aufloesung, Detail-Querlink, Weglassen ohne Bezug sowie deutsche und
   englische i18n-Schluessel.
 - Suche: `IMM-001` findet nur die zugeordnete Transaktion; eine andere ID nicht.

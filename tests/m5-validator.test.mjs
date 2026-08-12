@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { validateMasterData } from "../app/tools/validator.mjs";
 
 function basis() {
@@ -128,4 +129,44 @@ test("Transaktion mit unbekanntem kategorie_herkunft ist Fehler", () => {
   const result = validateMasterData(basisMitTransaktion("geraten"));
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((e) => e.includes("kategorie_herkunft")));
+});
+
+test("JSON-Transaktionsvertrag erlaubt eine Immobilienreferenz", () => {
+  const schema = JSON.parse(readFileSync(
+    new URL("../app/schemas/transaktionen.schema.json", import.meta.url),
+    "utf8",
+  ));
+  assert.equal(schema.items.properties.immobilie_id.pattern, "^IMM-\\d{3}$");
+});
+
+test("Transaktion mit existierender immobilie_id ist valide", () => {
+  const data = basisMitTransaktion("regel");
+  data.immobilien.push({
+    immobilie_id: "IMM-001",
+    bezeichnung: "Testobjekt",
+    eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }],
+    status: "aktiv",
+  });
+  data.transaktionen[0].immobilie_id = "IMM-001";
+
+  const result = validateMasterData(data);
+  assert.equal(result.valid, true, result.errors.join("\n"));
+});
+
+test("Transaktion mit unbekannter immobilie_id ist ungueltig", () => {
+  const data = basisMitTransaktion("regel");
+  data.transaktionen[0].immobilie_id = "IMM-999";
+
+  const result = validateMasterData(data);
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /immobilie_id.*IMM-999.*existiert nicht/);
+});
+
+test("Transaktion mit falsch formatierter immobilie_id ist ungueltig", () => {
+  const data = basisMitTransaktion("regel");
+  data.transaktionen[0].immobilie_id = "IMM-1";
+
+  const result = validateMasterData(data);
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /immobilie_id.*Format ungueltig/);
 });

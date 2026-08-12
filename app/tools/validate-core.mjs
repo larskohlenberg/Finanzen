@@ -80,6 +80,7 @@ const schemas = {
       mandatsreferenz: { type: "string" },
       glaeubiger_id: { type: "string" },
       regelzahlung_id: { type: "string", pattern: /^RZ-\d{3}$/ },
+      immobilie_id: { type: "string", pattern: /^IMM-\d{3}$/ },
       transfer_id: { type: "string", pattern: TRF_ID },
       bemerkung: { type: "string" },
     },
@@ -394,6 +395,7 @@ function validateCrossFieldRules(data, errors) {
   const transaktionen = byId(data.transaktionen, "transaktion_id");
   const transfers = byId(data.transfers, "transfer_id");
   const regelzahlungen = byId(data.regelzahlungen, "regelzahlung_id");
+  const immobilien = byId(data.immobilien, "immobilie_id");
 
   data.konten?.forEach((konto) => {
     konto.inhaber_person_ids?.forEach((personId) => {
@@ -425,6 +427,11 @@ function validateCrossFieldRules(data, errors) {
     }
     if (transaktion.regelzahlung_id && !regelzahlungen.has(transaktion.regelzahlung_id)) {
       errors.push(`transaktionen.${transaktion.transaktion_id}.regelzahlung_id: ${transaktion.regelzahlung_id} existiert nicht`);
+    }
+    if (transaktion.immobilie_id && !immobilien.has(transaktion.immobilie_id)) {
+      errors.push(
+        `transaktionen.${transaktion.transaktion_id}.immobilie_id: ${transaktion.immobilie_id} existiert nicht`,
+      );
     }
     if (dedupeHashes.has(transaktion.dedupe_hash)) {
       errors.push(`transaktionen.${transaktion.transaktion_id}.dedupe_hash: doppelt mit ${dedupeHashes.get(transaktion.dedupe_hash)}`);
@@ -475,7 +482,6 @@ function validateCrossFieldRules(data, errors) {
     }
   });
 
-  const immobilien = byId(data.immobilien, "immobilie_id");
   const darlehen = byId(data.darlehen, "darlehen_id");
   const vermoegenswerte = byId(data.vermoegenswerte, "vermoegenswert_id");
   const vorsorge = byId(data.vorsorge, "vorsorge_id");

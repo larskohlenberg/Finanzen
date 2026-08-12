@@ -20,6 +20,7 @@ async function loadMasterData(root = "./fixtures/master-valid/") {
     personen: await readJson(`${root}personen.json`),
     konten: await readJson(`${root}konten.json`),
     kategorien: await readJson(`${root}kategorien.json`),
+    immobilien: await readJson(`${root}immobilien.json`),
     transaktionen: await readJsonl(`${root}transaktionen.jsonl`),
     transfers: await readJson(`${root}transfers.json`),
   };
@@ -33,6 +34,7 @@ assert.equal(invalidResult.valid, false);
 assert.match(invalidResult.errors.join("\n"), /konto_id.*existiert nicht/);
 assert.match(invalidResult.errors.join("\n"), /kategorie_id.*Pflicht/);
 assert.match(invalidResult.errors.join("\n"), /dedupe_hash.*doppelt/);
+assert.match(invalidResult.errors.join("\n"), /immobilie_id.*IMM-999.*existiert nicht/);
 
 test("Validator lehnt -0.00 und fuehrende Nullen als Betrag ab", async () => {
   const base = await loadMasterData();

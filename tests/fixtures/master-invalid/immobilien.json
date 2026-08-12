@@ -1,0 +1,10 @@
+[
+  {
+    "immobilie_id": "IMM-001",
+    "bezeichnung": "Testobjekt",
+    "eigentumsanteile": [
+      { "person_id": "PER-001", "zaehler": 1, "nenner": 1 }
+    ],
+    "status": "aktiv"
+  }
+]

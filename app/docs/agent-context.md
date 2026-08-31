@@ -209,6 +209,9 @@ Wichtige Tools:
 - `tools/dedupe.mjs`: Transaktions-Dedupe-Hash bilden.
 - `tools/categorizer.mjs`: Kategorisierungsregeln anwenden.
 - `tools/recategorize.mjs`: Bestand nach Regelaenderungen neu bewerten.
+- `tools/migrate-bestaetigt-durch.mjs`: einmalige Migration — bestaetigte Buchungen
+  ohne `bestaetigt_durch` bekommen `mensch`. Konservativ: sie bleiben damit vor
+  Regellaeufen geschuetzt wie vor Einfuehrung des Feldes.
 - `tools/transaktion-immobilie.mjs`: einen belegten oder vom Nutzer
   entschiedenen Immobilienbezug fuer explizite Transaktions-IDs setzen,
   entfernen oder bewusst ersetzen.

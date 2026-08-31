@@ -70,6 +70,7 @@ const schemas = {
       ist_transfer: { type: "boolean" },
       kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
       kategorie_herkunft: { type: "string", enum: ["regel", "agent", "manuell"] },
+      bestaetigt_durch: { type: "string", enum: ["auto", "mensch"] },
       matched_regeln: { type: "array", itemPattern: /^REG-\d{3}$/ },
       bank_referenz: { type: "string" },
       wertstellungsdatum: { type: "string", format: "date" },
@@ -415,6 +416,14 @@ function validateCrossFieldRules(data, errors) {
     }
     if (transaktion.kategorisierung_status === "offen" && transaktion.kategorie_id) {
       errors.push(`transaktionen.${transaktion.transaktion_id}.kategorie_id: offen darf keine kategorie_id tragen`);
+    }
+    // Eine Bestaetigung ohne Urheber laesst nicht mehr unterscheiden, ob je ein
+    // Mensch hingeschaut hat — davon haengt ab, ob recategorize sie anfassen darf.
+    if (transaktion.kategorisierung_status === "bestaetigt" && !transaktion.bestaetigt_durch) {
+      errors.push(`transaktionen.${transaktion.transaktion_id}.bestaetigt_durch: Pflicht bei bestaetigt`);
+    }
+    if (transaktion.kategorisierung_status !== "bestaetigt" && transaktion.bestaetigt_durch) {
+      errors.push(`transaktionen.${transaktion.transaktion_id}.bestaetigt_durch: nur erlaubt bei bestaetigt`);
     }
     if (transaktion.kategorie_id && !kategorien.has(transaktion.kategorie_id)) {
       errors.push(`transaktionen.${transaktion.transaktion_id}.kategorie_id: ${transaktion.kategorie_id} existiert nicht`);

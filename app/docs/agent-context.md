@@ -178,6 +178,32 @@ geschrieben**, nicht nachtraeglich aus dem aktuellen Regelwerk berechnet.
 - Die IDs in `matched_regeln` muessen in `DATENROOT/kategorisierungsregeln.json`
   existieren; der Validator prueft dies.
 
+### Belegstufe ist an das Konto gebunden, auf dem sie verdient wurde
+
+`belegstufe` bewertet die Beleglage **zum Zeitpunkt der Regelanlage** — nicht
+die Frage, ob dieser Beleg noch deckt, was die Regel **heute** erreicht. Trifft
+eine Regel nach einem Import erstmals ein Konto, auf dem niemand ihre Kategorie
+je entschieden hat, waehrend sie auf einem anderen von ihr getroffenen Konto
+einen solchen Anker hat, ist die Stufe dorthin **verliehen** statt verdient.
+Das Gate haelt diese Buchungen mit dem Grund `anker` zurueck (ADR 0027).
+
+Anker ist eine Buchung mit `bestaetigt_durch = "mensch"` oder
+`kategorie_herkunft = "manuell"` und der Kategorie der Regel **auf diesem
+Konto**. Eine Auto-Freigabe ist kein Anker — sie ist das, was hier geprueft
+wird.
+
+Aufloesen laesst sich das auf zwei Wegen, beide legitim:
+
+- Die Buchungen auf dem neuen Konto ansehen und per `confirm.mjs` entscheiden.
+  Damit entsteht der Anker, und die Regel gibt dort kuenftig frei.
+- Das Muster schaerfen, wenn die Regel dort nichts zu suchen hat:
+  `verwendungszweck_pattern` ergaenzen, `konto_id` setzen, oder eine zweite
+  Regel fuer den neuen Fall anlegen.
+
+Regeln **ohne** jeden menschlichen Anker sind davon nicht betroffen — ihre
+Stufe ruht auf Beleg, Buchungstext oder Recherche (E1, E3, E4) und ist
+kontounabhaengig. Der Pruefbericht zeigt sie trotzdem, unter „neu erschlossen".
+
 Qualitaet von Agenten-Einzelvorschlaegen wird ueber strukturierte Zaehler im
 `agent_log.jsonl` beobachtet, nicht ueber ein Historienfeld an der Transaktion.
 Wenn ein Agenten-Vorschlag korrigiert wird, zaehlt der Review-Lauf diese
@@ -196,6 +222,12 @@ Wichtige Tools:
 - `tools/validator.mjs`: Masterdaten pruefen.
 - `tools/inbox.mjs`: kompletter Inbox-Lauf (Profil zuordnen, CSV normalisieren,
   importieren, Datei verschieben, protokollieren). `npm run inbox` ist die Vorschau.
+  Verarbeitet werden **nur Dateien direkt im Inbox-Root** — Unterordner betritt der
+  Lauf bewusst nicht (ein Bank-Archivexport bringt hunderte Dateien mit, die keine
+  Buchungsquelle sind). Damit ein hineinkopierter Ordner nicht still uebersehen
+  wird, zaehlt der Lauf jeden Unterordner ausser `processed/`, `standardized/` und
+  `error/` rekursiv aus und meldet ihn unter `unterordner` im Bericht plus als
+  Warnzeile. Zum Import gehoeren die Dateien flach in den Inbox-Root.
 - `tools/normalize.mjs`: CSV per Bank-Profil ins Importformat normalisieren.
 - `tools/import.mjs`: normalisierte Buchungen importieren.
 - `tools/confirm.mjs`: Kategorie-Entscheidungen auf einen gefilterten Schnitt anwenden.
@@ -205,18 +237,24 @@ Wichtige Tools:
 - `tools/regel-vorschlag.mjs`: offenen Rueckstand zu Regelkandidaten buendeln.
 - `tools/regel-probelauf.mjs`: Regelkandidaten gegen den Gesamtbestand rechnen,
   **bevor** etwas geschrieben wird. Blockiert mit Exit-Code 2 bei Strukturfehlern,
-  neuen Regelkonflikten und Wiedervorlagen.
+  unspezifischen Mustern, neuen Regelkonflikten, Wiedervorlagen und **verlorenen
+  bestaetigten Treffern**: eine Einengung laesst bereits bestaetigte Buchungen aus
+  der Regel fallen, sie verlieren ihre Kategorie und landen wieder auf `offen`.
+  Die gemeldeten Trefferzahlen gelten fuer den Gesamtbestand, nicht nur fuer den
+  Offen-Stapel — sonst erschiene eine Regel bei leerem Offen-Stapel als
+  wirkungslos, obwohl sie hunderte bestaetigte Buchungen traegt.
 - `tools/dedupe.mjs`: Transaktions-Dedupe-Hash bilden.
 - `tools/categorizer.mjs`: Kategorisierungsregeln anwenden.
 - `tools/recategorize.mjs`: Bestand nach Regelaenderungen neu bewerten.
 - `tools/freigabe.mjs`: vorgeschlagene Buchungen automatisch bestaetigen, soweit
   ihre Regel das Gate besteht (aktiv, Kommentar, `belegstufe` E1-E4 und nicht
-  gesperrt, Muster spezifisch). Schreibt `bestaetigt_durch = auto`.
-  `npm run freigabe` ist die Vorschau.
+  gesperrt, Muster spezifisch, Belegstufe auf diesem Konto nicht nur geliehen).
+  Schreibt `bestaetigt_durch = auto`. `npm run freigabe` ist die Vorschau.
 - `tools/pruefbericht.mjs`: Nachkontrolle nach einem Durchlauf — groesste
   Auto-Freigaben, Merchants ohne jede menschliche Bestaetigung,
   Kategorie-Ausreisser, alle auto-freigegebenen `KAT-012`, am Gate gescheiterte
-  Regeln, E4-Regeln, Konten ohne Anker. Rein lesend, blockiert nie.
+  Regeln, Regeln auf Konten ohne menschlichen Anker, E4-Regeln, Konten ohne
+  Anker, nicht reconciliierte Kontostaende. Rein lesend, blockiert nie.
 - `tools/lernen.mjs`: wertet `agent_log.jsonl` aus — Korrekturquote je Regel und
   je Belegstufe, Gate-Durchfall nach Grund. Mit `--anwenden` legt es Regeln
   ueber der Korrekturquote still (danach `recategorize.mjs`); es aendert nur
@@ -287,6 +325,24 @@ deterministischen Textvorlauf (`pdftotext -layout`) nach
 `standardized/` ist dabei Durchgangsstation, kein Archiv — der dauerhafte
 Textzwilling entsteht neben dem Beleg, siehe Abschnitt „Belege".
 
+Dasselbe gilt fuer `data/inbox/processed/`. Auch dort liegen nur
+Durchgangsstaende, keine Archivkopien: sobald der Beleg sprechend benannt unter
+`Belege/` liegt, ist die Rohdatei in `processed/` eine Dublette und wird zum
+Abschluss des Laufs entfernt — **erst nachdem** der byte-identische Zwilling
+unter `Belege/` nachgewiesen ist. Der Nachweis laeuft ueber den Inhalts-Hash,
+nie ueber den Dateinamen: beim Ablegen wird ja gerade umbenannt.
+
+Das ist keine Kosmetik. Bleiben die Dubletten liegen, zeigt der naechste Lauf
+einen vollen Eingang, und es muss jedes Mal neu geklaert werden, was davon
+schon verarbeitet ist — eine Frage, die der Bestand allein nicht beantwortet,
+weil ein importierter Beleg im Eingang genauso aussieht wie ein neuer. Gleiches
+gilt fuer hineinkopierte Archivexporte: was daraus abgelegt ist, wird entfernt,
+der Rest bleibt sichtbar liegen.
+
+**Nicht** aufgeraeumt wird `error/`. Dort liegen ungeklaerte Faelle, die noch
+eine Entscheidung brauchen; sie verschwinden erst, wenn die Entscheidung
+gefallen ist.
+
 ## Zeitwerte, Anker und Reconciliation
 
 Zeitveraenderliche, beleg- oder schaetzbasierte Werte leben in
@@ -297,6 +353,33 @@ Konto-Salden und Darlehen-Restschulden brauchen belegte Ankerpunkte, wenn die
 Historie nicht vollstaendig garantiert ist. Laufende Werte werden aus Anker plus
 Bewegungen oder Tilgung berechnet. Aufeinanderfolgende belegte Staende werden
 reconciled; Abweichungen werden als Checks sichtbar und nicht still korrigiert.
+
+### Protokollformat der Reconciliation-Differenz
+
+Ein Kopf-Kontostand, der nicht aufgeht, wird **nicht** geschrieben, sondern im
+Laufprotokoll festgehalten. Das Feld ist verbindlich ein Objekt:
+
+```json
+"normalisierung": {
+  "reconciliation_differenz": {
+    "konto_id": "KTO-000",
+    "betrag": "-12.34",
+    "grund": "Kopfstand liegt nach der letzten enthaltenen Buchung"
+  }
+}
+```
+
+- `konto_id` ist Pflicht. Eine Differenz gehoert zu einem **Konto**, nicht zu
+  einer Datei; `normalisierung.dateien` ist eine **Anzahl** und taugt nicht als
+  Quellenangabe.
+- `betrag` ist ein Decimal-String wie jeder Betrag im Modell.
+- `grund` sagt in einem Satz, woran die Reconciliation scheiterte und was die
+  Luecke schliessen wuerde.
+
+Gibt es keine Differenz, bleibt das Feld **weg**. `null` oder `"0.00"` sind
+keine Platzhalter. Der Pruefbericht liest aeltere Eintraege (skalarer Betrag,
+`quelle`) weiter, damit der Log nicht umgeschrieben werden muss; neu
+geschrieben wird ausschliesslich dieses Format.
 
 ### Startzustandsbuchungen — bewusst KAT-012, kein Review-Fall
 

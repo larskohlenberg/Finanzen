@@ -1,7 +1,7 @@
 // tests/pruefbericht.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { pruefbericht } from "../app/tools/pruefbericht.mjs";
+import { pruefbericht, renderBericht } from "../app/tools/pruefbericht.mjs";
 
 let n = 0;
 function tx(props) {
@@ -94,4 +94,71 @@ test("leerer Bestand liefert leere Listen statt Fehler", () => {
   assert.deepEqual(out.ausreisser, []);
   assert.deepEqual(out.reconciliation, []);
   assert.deepEqual(out.lernen.je_regel, []);
+});
+
+// --- Regeln auf Konten ohne menschlichen Anker (ADR 0027) ------------------
+
+test("verliehene Belegstufe und Neuland werden getrennt gemeldet", () => {
+  const anker = mensch({ konto_id: "KTO-001", kategorie_herkunft: "regel", matched_regeln: ["REG-001"] });
+  const ausweitung = auto({ konto_id: "KTO-006", kategorie_herkunft: "regel", matched_regeln: ["REG-001"] });
+  const neuland = auto({ konto_id: "KTO-006", kategorie_id: "KAT-007", kategorie_herkunft: "regel", matched_regeln: ["REG-002"] });
+  const out = pruefbericht({ ...leer,
+    transaktionen: [anker, ausweitung, neuland],
+    regeln: [
+      { regel_id: "REG-001", kategorie_id: "KAT-003", status: "aktiv", belegstufe: "E2", kommentar: "Bestand" },
+      { regel_id: "REG-002", kategorie_id: "KAT-007", status: "aktiv", belegstufe: "E3", kommentar: "Beleg" },
+    ],
+  });
+  assert.deepEqual(
+    out.regeln_ohne_kontoanker.map((e) => [e.regel_id, e.konto_id, e.verliehen]),
+    [["REG-001", "KTO-006", true], ["REG-002", "KTO-006", false]],
+  );
+});
+
+test("der Bericht nennt Anker-Durchfall mit Konto", () => {
+  const text = renderBericht(pruefbericht({ ...leer, log: [
+    { anlass: "freigabe", gate_durchfall: [{ regel_id: "REG-001", grund: "anker", konto_id: "KTO-006" }] },
+  ] }));
+  assert.match(text, /REG-001 auf KTO-006: anker/);
+});
+
+// --- Reconciliation-Rendering ---------------------------------------------
+// Der Import-Agent schreibt `{ betrag, grund }` und benennt die Quelle in
+// `dateien`. Vorher rendete das als `undefined: Differenz [object Object]` —
+// eine erklaerte Differenz war damit unlesbar.
+
+test("Reconciliation-Differenz als Objekt wird lesbar gerendert", () => {
+  const text = renderBericht(pruefbericht({ ...leer, log: [
+    { anlass: "import", normalisierung: {
+      dateien: 1, // Anzahl, kein Name — taugt nicht als Quellenangabe
+      reconciliation_differenz: { konto_id: "KTO-006", betrag: "-99.99", grund: "Kopfstand liegt nach der letzten Buchung" },
+    } },
+  ] }));
+  assert.match(text, /KTO-006: Differenz -99\.99 — Kopfstand liegt nach der letzten Buchung/);
+  assert.doesNotMatch(text, /\[object Object\]/);
+  assert.doesNotMatch(text, /undefined/);
+});
+
+test("die aeltere Form aus quelle und Decimal-String bleibt lesbar", () => {
+  const text = renderBericht(pruefbericht({ ...leer, log: [
+    { anlass: "import", normalisierung: { quelle: "auszug-a.csv", reconciliation_differenz: "-12.34" } },
+  ] }));
+  assert.match(text, /auszug-a\.csv: Differenz -12\.34/);
+  assert.doesNotMatch(text, /undefined/);
+});
+
+test("ohne konto_id faellt die Quelle auf den Anlass des Logeintrags zurueck", () => {
+  const text = renderBericht(pruefbericht({ ...leer, log: [
+    { anlass: "Erstimport Testkonto", normalisierung: { dateien: 3, reconciliation_differenz: { betrag: "-1.00" } } },
+    { normalisierung: { reconciliation_differenz: { grund: "Anker fehlt" } } },
+  ] }));
+  assert.match(text, /Erstimport Testkonto: Differenz -1\.00/);
+  assert.match(text, /\(ohne Quellenangabe\): Differenz \(ohne Betrag\) — Anker fehlt/);
+  assert.doesNotMatch(text, /undefined/);
+});
+
+test("leerer Bestand rendert ohne undefined", () => {
+  const text = renderBericht(pruefbericht(leer));
+  assert.doesNotMatch(text, /undefined/);
+  assert.match(text, /REGELN AUF KONTEN OHNE MENSCHLICHEN ANKER \(0\)/);
 });

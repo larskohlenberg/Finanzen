@@ -102,3 +102,65 @@ test("eine durchgefallene von zwei Regeln haelt die Buchung zurueck", () => {
   const out = freigabe({ transaktionen: [v], regeln: [regel(), regel({ regel_id: "REG-002", status: "inaktiv" })] });
   assert.equal(out.transaktionen[0].kategorisierung_status, "vorgeschlagen");
 });
+
+// --- Verliehene Belegstufe (ADR 0027) -------------------------------------
+// Die Regel hat sich nicht geaendert, ihre Welt hat sich geaendert: eine auf
+// KTO-001 verdiente Stufe traegt auf KTO-006 nichts.
+const ankerAufEins = () => tx({
+  konto_id: "KTO-001", kategorisierung_status: "bestaetigt", bestaetigt_durch: "mensch",
+  kategorie_herkunft: "regel", kategorie_id: "KAT-003", matched_regeln: ["REG-001"],
+});
+
+test("verliehene Belegstufe haelt auf dem fremden Konto zurueck", () => {
+  const out = freigabe({
+    transaktionen: [ankerAufEins(), vorschlag({ konto_id: "KTO-006" })],
+    regeln: [regel()],
+  });
+  assert.equal(out.transaktionen[1].kategorisierung_status, "vorgeschlagen");
+  assert.equal(out.report.gate_durchfall[0].grund, "anker");
+  assert.equal(out.report.gate_durchfall[0].konto_id, "KTO-006");
+});
+
+test("dieselbe Regel gibt auf ihrem Ankerkonto weiter frei", () => {
+  // Der Kern des Kriteriums: es haengt am Paar aus Regel und Konto, nicht an
+  // der Regel. Eine Ausweitung darf den bewaehrten Teil nicht mitreissen.
+  const out = freigabe({
+    transaktionen: [ankerAufEins(), vorschlag({ konto_id: "KTO-001" }), vorschlag({ konto_id: "KTO-006" })],
+    regeln: [regel()],
+  });
+  assert.equal(out.report.freigegeben, 1);
+  assert.equal(out.report.zurueckgehalten, 1);
+  assert.equal(out.transaktionen[1].konto_id, "KTO-001");
+  assert.equal(out.transaktionen[1].bestaetigt_durch, "auto");
+});
+
+test("eine Regel ohne Anker erschliesst ein neues Konto und gibt frei", () => {
+  // E3 ruht auf einem Beleg, nicht auf dem Bestand. Wuerde das Gate auch hier
+  // greifen, waere fuer jedes neue Konto der Bucket-Dialog zurueck.
+  const out = freigabe({
+    transaktionen: [vorschlag({ konto_id: "KTO-006" })],
+    regeln: [regel({ belegstufe: "E3" })],
+  });
+  assert.equal(out.report.freigegeben, 1);
+  assert.deepEqual(out.report.gate_durchfall, []);
+});
+
+test("Auto-Freigaben dieses Laufs schaffen keinen Kontoanker", () => {
+  // Zirkularitaetstest, zweite Achse: sonst wuerde die erste durchgerutschte
+  // Buchung auf KTO-006 die Stufe fuer alle folgenden legitimieren.
+  const viele = Array.from({ length: 5 }, () => vorschlag({ konto_id: "KTO-006" }));
+  const out = freigabe({ transaktionen: [ankerAufEins(), ...viele], regeln: [regel()] });
+  assert.equal(out.report.freigegeben, 0);
+  assert.equal(out.report.zurueckgehalten, 5);
+});
+
+test("strukturelle Gruende schlagen den Ankergrund", () => {
+  // Der Ankergrund gilt einem Paar, die anderen der Regel selbst. Eine kaputte
+  // Regel soll als kaputt gemeldet werden, nicht als Ausweitung.
+  const out = freigabe({
+    transaktionen: [ankerAufEins(), vorschlag({ konto_id: "KTO-006" })],
+    regeln: [regel({ kommentar: "  " })],
+  });
+  assert.equal(out.report.gate_durchfall[0].grund, "kommentar");
+  assert.equal(out.report.gate_durchfall[0].konto_id, undefined);
+});

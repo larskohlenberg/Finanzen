@@ -40,11 +40,17 @@ beantwortet haette, ist verschenkte Preisgabe.
 
 ## Vor dem Schreiben pruefen
 
-`node app/tools/regel-probelauf.mjs` fuer jede Kandidatenregel. Ein
+`node app/tools/regel-probelauf.mjs` fuer jede Kandidatenregel, mit
+`belegstufe` — der Kandidat wird in seiner Endfassung geprueft. Ein
 `unspezifisch`-Befund heisst: das Muster streut im menschlich bestaetigten
 Bestand ueber drei oder mehr Kategorien und traegt damit keine
 Kategorieaussage. Verwirf es — ein solches Muster kategorisiert nicht, es
 faerbt nur ein.
+
+Engst du eine Bestandsregel ein (`--aenderung`), achte auf **verlorene
+bestaetigte Treffer**: die Buchungen fallen aus der Regel und verlieren ihre
+Kategorie. Das Tool blockiert dann — nenne den Umfang je Regel und frage,
+statt das Muster weiter zu drehen.
 
 ## Bericht
 

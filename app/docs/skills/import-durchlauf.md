@@ -37,11 +37,14 @@ das ist **kategorisierung-review**.
    entschieden hat. Das ist eine Entscheidung je Paar aus Regel und Konto.
 5. **Pruefen.** `node tools/pruefbericht.mjs DATENROOT` und den Bericht
    **ungekuerzt** zeigen.
-6. **Eingang aufraeumen.** Jede Rohdatei in `data/inbox/processed/`, deren
-   sprechend benannter Beleg nachweislich unter `Belege/` liegt, entfernen —
-   Nachweis ueber den Inhalts-Hash, nie ueber den Dateinamen. Dasselbe fuer
-   hineinkopierte Archivexporte: was abgelegt ist, verschwindet, der Rest bleibt
-   sichtbar liegen. `error/` bleibt unangetastet.
+6. **Eingang aufraeumen.** `node tools/belege-text.mjs --schreiben`. Das Tool
+   entfernt aus `data/inbox/processed/` und `standardized/` jede Datei, deren
+   Inhalt nachweislich unter `Belege/` liegt — Abgleich ueber den Inhalts-Hash,
+   nie ueber den Dateinamen. Was keinen Nachweis hat, bleibt liegen und steht
+   im Bericht unter `offen`; das ist der interessante Fall, kein Fehler.
+   `error/` wird nicht angefasst. Ohne `--schreiben` ist der Lauf eine Vorschau.
+   Hineinkopierte Archivexporte liegen in Unterordnern und werden vom Tool
+   nicht erfasst — die von Hand abgleichen, wenn welche da sind.
 7. **Protokollieren.** Die Zaehler in `DATENROOT/agent_log.jsonl` festhalten.
 
 ## Zentrale Regeln

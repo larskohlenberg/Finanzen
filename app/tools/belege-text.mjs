@@ -102,6 +102,35 @@ export function planAufraeumen({ zwillinge, staging }) {
   return { loeschen, offen };
 }
 
+export function planProcessed({ belege, processed }) {
+  // Wie planAufraeumen, aber eine Ebene frueher: `processed/` haelt die
+  // Rohdatei, nicht ihren Textvorlauf. Verglichen wird darum PDF gegen PDF.
+  const pfadNachHash = new Map();
+  for (const beleg of [...belege].sort(nachPfad)) {
+    // Ein `.txt` scheidet als Nachweis aus: es ist der abgeleitete Zwilling,
+    // jederzeit neu erzeugbar, und belegt nicht, dass das Original je im
+    // Archiv ankam. Alles andere zaehlt — CSVs bekommen bewusst keinen
+    // Zwilling und muessen sich selbst belegen koennen.
+    if (beleg.hash && !istTxt(beleg.pfad) && !pfadNachHash.has(beleg.hash)) {
+      pfadNachHash.set(beleg.hash, beleg.pfad);
+    }
+  }
+
+  const loeschen = [];
+  const offen = [];
+
+  for (const datei of [...processed].sort((a, b) => a.name.localeCompare(b.name))) {
+    const treffer = pfadNachHash.get(datei.hash);
+    if (treffer) {
+      loeschen.push({ name: datei.name, grund: `Hash-Treffer: ${treffer}` });
+      continue;
+    }
+    offen.push({ ort: datei.name, grund: "Beleg noch nicht abgelegt" });
+  }
+
+  return { loeschen, offen };
+}
+
 export function istLeer(text) {
   return text.replace(/\s/g, "").length === 0;
 }
@@ -119,6 +148,7 @@ export function markerText(seiten) {
 // Belege-Archiv anfassen kann.
 const BELEGE_STANDARD = new URL("../Belege/", import.meta.url);
 const STAGING_STANDARD = new URL("../data/inbox/standardized/", import.meta.url);
+const PROCESSED_STANDARD = new URL("../data/inbox/processed/", import.meta.url);
 
 const hashVon = (inhalt) => createHash("sha256").update(inhalt).digest("hex");
 const ersteZeile = (text) => text.split("\n", 1)[0];
@@ -134,6 +164,11 @@ async function dateienUnter(ordner, praefix) {
       gefunden.push(...(await dateienUnter(new URL(`${encodeURIComponent(eintrag.name)}/`, ordner), `${pfad}/`)));
       continue;
     }
+    // Nur regulaere Dateien. readdir meldet einen Symlink nicht als
+    // Verzeichnis, er kaeme also als vermeintliche Datei durch — und ein
+    // readFile darauf bricht mit EISDIR den gesamten Lauf ab. Ein einzelner
+    // ungewoehnlicher Verzeichniseintrag darf das Werkzeug nicht lahmlegen.
+    if (!eintrag.isFile()) continue;
     gefunden.push(pfad);
   }
   return gefunden;
@@ -147,8 +182,11 @@ async function ladeBelege(belegeRoot) {
     return [];
   }
   return Promise.all(pfade.map(async (pfad) => {
-    if (!istTxt(pfad)) return { pfad };
     const inhalt = await readFile(urlUnterBelege(pfad, belegeRoot));
+    // Der Kopf interessiert nur beim Zwilling (Bildscan-Marker). Der Hash
+    // dagegen bei jeder Datei: er ist der Nachweis, an dem `processed/`
+    // aufgeraeumt wird.
+    if (!istTxt(pfad)) return { pfad, hash: hashVon(inhalt) };
     return { pfad, hash: hashVon(inhalt), kopf: ersteZeile(inhalt.toString("utf8")) };
   }));
 }
@@ -163,6 +201,19 @@ async function ladeStaging(stagingRoot) {
   return Promise.all(namen.sort().map(async (name) => {
     const inhalt = await readFile(new URL(encodeURIComponent(name), stagingRoot));
     return { name, hash: hashVon(inhalt), zeichen: inhalt.toString("utf8").replace(/\s/g, "").length };
+  }));
+}
+
+async function ladeProcessed(processedRoot) {
+  let namen;
+  try {
+    namen = (await readdir(processedRoot)).filter((name) => !name.startsWith("."));
+  } catch {
+    return [];
+  }
+  return Promise.all(namen.sort().map(async (name) => {
+    const inhalt = await readFile(new URL(encodeURIComponent(name), processedRoot));
+    return { name, hash: hashVon(inhalt) };
   }));
 }
 
@@ -181,6 +232,7 @@ export async function extrahiere(pdfUrl) {
 export async function main({
   belegeRoot = BELEGE_STANDARD,
   stagingRoot = STAGING_STANDARD,
+  processedRoot = PROCESSED_STANDARD,
   schreiben = process.argv.slice(2).includes("--schreiben"),
 } = {}) {
   const belege = await ladeBelege(belegeRoot);
@@ -224,7 +276,19 @@ export async function main({
     bericht.geloescht.push(auftrag);
   }
 
-  bericht.offen.push(...offeneBelege, ...offenesStaging);
+  // `processed/` haelt die Rohdatei selbst. Sie darf erst weichen, wenn ihr
+  // Inhalt nachweislich unter `Belege/` liegt — der Beleg ist das Archiv, der
+  // Eingang nur die Durchgangsstation. `error/` wird nie angefasst: dort
+  // stehen Faelle, die noch eine Entscheidung brauchen.
+  const rohdateien = await ladeProcessed(processedRoot);
+  const { loeschen: rohLoeschen, offen: offeneRohdateien } = planProcessed({ belege, processed: rohdateien });
+
+  for (const auftrag of rohLoeschen) {
+    if (schreiben) await rm(new URL(encodeURIComponent(auftrag.name), processedRoot), { force: true });
+    bericht.geloescht.push(auftrag);
+  }
+
+  bericht.offen.push(...offeneBelege, ...offenesStaging, ...offeneRohdateien);
   console.log(JSON.stringify(bericht, null, 2));
 
   if (!schreiben) console.log("\nVorschau — nichts erzeugt, nichts geloescht. Mit --schreiben anwenden.");

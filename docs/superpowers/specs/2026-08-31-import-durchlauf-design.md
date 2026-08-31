@@ -230,8 +230,9 @@ dieselbe Semantik wie `patternMatches` in `categorizer.mjs`, damit Gate und
 Categorizer nicht auseinanderlaufen.
 
 Getroffen wird damit der in `kategorisierungsregel-pflege.md` dokumentierte
-Fehlermodus: `Deutsche.Post.AG` matcht ueber den Token `salzgitter` 650
-Buchungen quer ueber elf Kategorien. Streuung 11, Gate zu.
+Fehlermodus: Ein Muster, dessen einziger gemeinsamer Nenner ein Ortstoken im
+Buchungstext ist, trifft dort hunderte Buchungen quer ueber elf Kategorien.
+Streuung 11, Gate zu.
 
 **Cold-Start ist bewusst akzeptiert.** Ist die menschlich bestaetigte Basis fuer
 einen Merchant duenn, ist die Streuung 0 oder 1 und die Regel kommt durch. Die

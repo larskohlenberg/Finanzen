@@ -178,6 +178,32 @@ geschrieben**, nicht nachtraeglich aus dem aktuellen Regelwerk berechnet.
 - Die IDs in `matched_regeln` muessen in `DATENROOT/kategorisierungsregeln.json`
   existieren; der Validator prueft dies.
 
+### Belegstufe ist an das Konto gebunden, auf dem sie verdient wurde
+
+`belegstufe` bewertet die Beleglage **zum Zeitpunkt der Regelanlage** — nicht
+die Frage, ob dieser Beleg noch deckt, was die Regel **heute** erreicht. Trifft
+eine Regel nach einem Import erstmals ein Konto, auf dem niemand ihre Kategorie
+je entschieden hat, waehrend sie auf einem anderen von ihr getroffenen Konto
+einen solchen Anker hat, ist die Stufe dorthin **verliehen** statt verdient.
+Das Gate haelt diese Buchungen mit dem Grund `anker` zurueck (ADR 0027).
+
+Anker ist eine Buchung mit `bestaetigt_durch = "mensch"` oder
+`kategorie_herkunft = "manuell"` und der Kategorie der Regel **auf diesem
+Konto**. Eine Auto-Freigabe ist kein Anker — sie ist das, was hier geprueft
+wird.
+
+Aufloesen laesst sich das auf zwei Wegen, beide legitim:
+
+- Die Buchungen auf dem neuen Konto ansehen und per `confirm.mjs` entscheiden.
+  Damit entsteht der Anker, und die Regel gibt dort kuenftig frei.
+- Das Muster schaerfen, wenn die Regel dort nichts zu suchen hat:
+  `verwendungszweck_pattern` ergaenzen, `konto_id` setzen, oder eine zweite
+  Regel fuer den neuen Fall anlegen.
+
+Regeln **ohne** jeden menschlichen Anker sind davon nicht betroffen — ihre
+Stufe ruht auf Beleg, Buchungstext oder Recherche (E1, E3, E4) und ist
+kontounabhaengig. Der Pruefbericht zeigt sie trotzdem, unter „neu erschlossen".
+
 Qualitaet von Agenten-Einzelvorschlaegen wird ueber strukturierte Zaehler im
 `agent_log.jsonl` beobachtet, nicht ueber ein Historienfeld an der Transaktion.
 Wenn ein Agenten-Vorschlag korrigiert wird, zaehlt der Review-Lauf diese
@@ -222,12 +248,13 @@ Wichtige Tools:
 - `tools/recategorize.mjs`: Bestand nach Regelaenderungen neu bewerten.
 - `tools/freigabe.mjs`: vorgeschlagene Buchungen automatisch bestaetigen, soweit
   ihre Regel das Gate besteht (aktiv, Kommentar, `belegstufe` E1-E4 und nicht
-  gesperrt, Muster spezifisch). Schreibt `bestaetigt_durch = auto`.
-  `npm run freigabe` ist die Vorschau.
+  gesperrt, Muster spezifisch, Belegstufe auf diesem Konto nicht nur geliehen).
+  Schreibt `bestaetigt_durch = auto`. `npm run freigabe` ist die Vorschau.
 - `tools/pruefbericht.mjs`: Nachkontrolle nach einem Durchlauf — groesste
   Auto-Freigaben, Merchants ohne jede menschliche Bestaetigung,
   Kategorie-Ausreisser, alle auto-freigegebenen `KAT-012`, am Gate gescheiterte
-  Regeln, E4-Regeln, Konten ohne Anker. Rein lesend, blockiert nie.
+  Regeln, Regeln auf Konten ohne menschlichen Anker, E4-Regeln, Konten ohne
+  Anker, nicht reconciliierte Kontostaende. Rein lesend, blockiert nie.
 - `tools/lernen.mjs`: wertet `agent_log.jsonl` aus — Korrekturquote je Regel und
   je Belegstufe, Gate-Durchfall nach Grund. Mit `--anwenden` legt es Regeln
   ueber der Korrekturquote still (danach `recategorize.mjs`); es aendert nur
@@ -308,6 +335,33 @@ Konto-Salden und Darlehen-Restschulden brauchen belegte Ankerpunkte, wenn die
 Historie nicht vollstaendig garantiert ist. Laufende Werte werden aus Anker plus
 Bewegungen oder Tilgung berechnet. Aufeinanderfolgende belegte Staende werden
 reconciled; Abweichungen werden als Checks sichtbar und nicht still korrigiert.
+
+### Protokollformat der Reconciliation-Differenz
+
+Ein Kopf-Kontostand, der nicht aufgeht, wird **nicht** geschrieben, sondern im
+Laufprotokoll festgehalten. Das Feld ist verbindlich ein Objekt:
+
+```json
+"normalisierung": {
+  "reconciliation_differenz": {
+    "konto_id": "KTO-000",
+    "betrag": "-12.34",
+    "grund": "Kopfstand liegt nach der letzten enthaltenen Buchung"
+  }
+}
+```
+
+- `konto_id` ist Pflicht. Eine Differenz gehoert zu einem **Konto**, nicht zu
+  einer Datei; `normalisierung.dateien` ist eine **Anzahl** und taugt nicht als
+  Quellenangabe.
+- `betrag` ist ein Decimal-String wie jeder Betrag im Modell.
+- `grund` sagt in einem Satz, woran die Reconciliation scheiterte und was die
+  Luecke schliessen wuerde.
+
+Gibt es keine Differenz, bleibt das Feld **weg**. `null` oder `"0.00"` sind
+keine Platzhalter. Der Pruefbericht liest aeltere Eintraege (skalarer Betrag,
+`quelle`) weiter, damit der Log nicht umgeschrieben werden muss; neu
+geschrieben wird ausschliesslich dieses Format.
 
 ### Startzustandsbuchungen — bewusst KAT-012, kein Review-Fall
 

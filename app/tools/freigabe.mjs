@@ -15,6 +15,7 @@ import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
+import { kontoanker, stufeVerliehen } from "./lib/kontoanker.mjs";
 
 const BELEGSTUFEN = new Set(["E1", "E2", "E3", "E4"]);
 
@@ -23,29 +24,43 @@ const BELEGSTUFEN = new Set(["E1", "E2", "E3", "E4"]);
 // Kein Konfliktkriterium — categorize() liefert bei Regeln mit verschiedenen
 // Kategorien "offen", nie "vorgeschlagen". Eine konfliktbehaftete Buchung
 // erreicht dieses Gate also gar nicht.
-function gateGrund(regel, referenz, gesperrt) {
+function gateGrund(regel, konto_id, { referenz, gesperrt, anker }) {
   if (!regel) return "unbekannt";
   if (regel.status !== "aktiv") return "inaktiv";
   if (!String(regel.kommentar ?? "").trim()) return "kommentar";
   if (!BELEGSTUFEN.has(regel.belegstufe)) return "belegstufe";
   if (gesperrt.includes(regel.belegstufe)) return "gesperrt";
   if (!istSpezifisch(regel, referenz)) return "spezifitaet";
+  // Zuletzt geprueft: alle Gruende davor gelten der Regel selbst und fallen auf
+  // jedem Konto gleich aus. Dieser gilt erst dem Paar aus Regel und Konto —
+  // die Belegstufe war auf einem anderen Konto verdient, hier ist sie geliehen
+  // (ADR 0027).
+  if (stufeVerliehen(regel, konto_id, anker)) return "anker";
   return null;
 }
 
 export function freigabe({ transaktionen, regeln, gesperrteBelegstufen = [] }) {
   // EINMAL vor dem Lauf gebildet: sonst zaehlten die Freigaben dieses Laufs als
-  // Beleg fuer ihre eigene Spezifitaet.
+  // Beleg fuer ihre eigene Spezifitaet — und als ihren eigenen Kontoanker.
   const referenz = referenzmenge(transaktionen);
+  const anker = kontoanker(transaktionen);
   const index = new Map(regeln.map((r) => [r.regel_id, r]));
   const gate = new Map();
-  const pruefe = (id) => {
-    if (!gate.has(id)) gate.set(id, gateGrund(index.get(id), referenz, gesperrteBelegstufen));
-    return gate.get(id);
+  const pruefe = (id, konto_id) => {
+    const key = `${id}|${konto_id}`;
+    if (!gate.has(key)) gate.set(key, gateGrund(index.get(id), konto_id, { referenz, gesperrt: gesperrteBelegstufen, anker }));
+    return gate.get(key);
   };
 
   const freigaben = new Map();
   const durchfall = new Map();
+  // Nur der Ankergrund haengt am Konto; alle anderen an der Regel allein. Darum
+  // wird auch nur er je Konto aufgefuehrt — sonst stuende dieselbe kaputte
+  // Regel einmal pro Konto in der Arbeitsliste.
+  const merkeDurchfall = (regel_id, grund, konto_id) => {
+    if (grund !== "anker") durchfall.set(regel_id, { regel_id, grund });
+    else durchfall.set(`${regel_id}|${konto_id}`, { regel_id, grund, konto_id });
+  };
   let freigegeben = 0;
   let agent_freigegeben = 0;
   let zurueckgehalten = 0;
@@ -63,9 +78,9 @@ export function freigabe({ transaktionen, regeln, gesperrteBelegstufen = [] }) {
     }
 
     const ids = tx.matched_regeln ?? [];
-    const gruende = ids.map((id) => [id, pruefe(id)]).filter(([, grund]) => grund !== null);
+    const gruende = ids.map((id) => [id, pruefe(id, tx.konto_id)]).filter(([, grund]) => grund !== null);
     if (ids.length === 0 || gruende.length > 0) {
-      for (const [id, grund] of gruende) durchfall.set(id, grund);
+      for (const [id, grund] of gruende) merkeDurchfall(id, grund, tx.konto_id);
       zurueckgehalten += 1;
       return tx;
     }
@@ -85,7 +100,7 @@ export function freigabe({ transaktionen, regeln, gesperrteBelegstufen = [] }) {
     report: {
       freigegeben, agent_freigegeben, zurueckgehalten,
       freigaben: [...freigaben.values()],
-      gate_durchfall: [...durchfall].map(([regel_id, grund]) => ({ regel_id, grund })),
+      gate_durchfall: [...durchfall.values()],
     },
   };
 }
@@ -106,7 +121,7 @@ function berichte(report) {
   console.log(`Zurueckgehalten: ${report.zurueckgehalten}`);
   if (report.gate_durchfall.length) {
     console.log("\nAm Gate gescheitert:");
-    for (const d of report.gate_durchfall) console.log(`  - ${d.regel_id}: ${d.grund}`);
+    for (const d of report.gate_durchfall) console.log(`  - ${d.regel_id}${d.konto_id ? ` auf ${d.konto_id}` : ""}: ${d.grund}`);
   }
 }
 

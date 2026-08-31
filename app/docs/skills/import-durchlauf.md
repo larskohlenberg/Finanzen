@@ -31,7 +31,10 @@ das ist **kategorisierung-review**.
    `import-normalisierung` beauftragen. Der Lauf haelt nie an.
 3. **Verregeln.** Den Subagenten `regel-recherche` auf den Offen-Stapel
    ansetzen. Er legt Regeln mit `belegstufe` an und ruft `recategorize.mjs`.
-4. **Freigeben.** `node tools/freigabe.mjs DATENROOT --schreiben`.
+4. **Freigeben.** `node tools/freigabe.mjs DATENROOT --schreiben`. Der
+   Gate-Grund `anker` heisst nicht „Regel kaputt", sondern: eine bewaehrte
+   Regel reicht in ein Konto hinein, auf dem niemand ihre Kategorie je
+   entschieden hat. Das ist eine Entscheidung je Paar aus Regel und Konto.
 5. **Pruefen.** `node tools/pruefbericht.mjs DATENROOT` und den Bericht
    **ungekuerzt** zeigen.
 6. **Protokollieren.** Die Zaehler in `DATENROOT/agent_log.jsonl` festhalten.
@@ -56,6 +59,10 @@ das ist **kategorisierung-review**.
   einer Handvoll Muster, nicht an hunderten Buchungen.
 - Merchants, die nie ein Mensch bestaetigt hat, ausdruecklich benennen. Sie
   sind der blinde Fleck der Automatik.
+- Die Sektion „Regeln auf Konten ohne menschlichen Anker" mitlesen, besonders
+  nach einem Erstimport. Oben stehen die verliehenen Belegstufen — dort hat das
+  Gate gehalten und dort liegt die Arbeit. Darunter steht, was neu erschlossen
+  wurde: nicht blockiert, aber auch nie geprueft.
 
 ## Don'ts
 

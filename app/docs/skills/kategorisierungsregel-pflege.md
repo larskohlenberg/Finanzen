@@ -51,6 +51,15 @@ Von oben nach unten durchgehen. Die erste Stufe, die traegt, gewinnt.
 | **E5** | **Merchant identifiziert, Leistung mehrdeutig.** Wer die Zahlung bekommen hat, ist klar; wofuer, nicht. Beispiel: eine Stadtverwaltung kann Parkschein, Amtsgebuehr oder Museumseintritt sein. | Agenten-Einzelvorschlag, **keine** Regel |
 | **E6** | **E1 bis E5 ergebnislos.** | Agenten-Einzelvorschlag auf **`KAT-012` „Noch zu klaeren"** |
 
+**E2 ist an das Konto gebunden, auf dem es verdient wurde.** „Identischer
+Merchant im Bestand" heisst: irgendwo im Bestand hat jemand entschieden — wo,
+haelt die Regel nicht fest. Trifft sie spaeter ein Konto, auf dem niemand ihre
+Kategorie je entschieden hat, haelt das Gate sie dort mit dem Grund `anker`
+zurueck (ADR 0027). Ein reines `gegenpartei_pattern` ohne
+`verwendungszweck_pattern` ist dafuer besonders anfaellig: derselbe Zahler kann
+auf einem anderen Konto etwas voellig anderes leisten. Im Zweifel das zweite
+Feld setzen.
+
 ### Was ausdruecklich kein Beleg ist
 
 Diese Signale begruenden **nie** eine Kategorie — auch nicht in Kombination:

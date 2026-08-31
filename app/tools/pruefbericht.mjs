@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
 import { normalizeLoose, toCents } from "./lib/text.mjs";
 import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
+import { kontoanker, ungedeckteKonten } from "./lib/kontoanker.mjs";
 
 const GROSSE_ANZAHL = 15;
 const AUSREISSER_FAKTOR = 2;
@@ -52,6 +53,35 @@ function ausreisser(transaktionen) {
   return treffer;
 }
 
+// Der Import-Agent schreibt die Differenz als `{ konto_id, betrag, grund }`
+// (siehe agent-context). Vorher stand hier `undefined: Differenz
+// [object Object]`, weil das Rendering ein `quelle` erwartete, das der Agent nie
+// schreibt, und einen skalaren Betrag, den er nie schreibt — eine erklaerte
+// Differenz war damit unlesbar, und genau dafuer gibt es diesen Abschnitt.
+//
+// Eine nicht reconcilierte Differenz gehoert zu einem **Konto**, nicht zu einer
+// Datei: `normalisierung.dateien` ist eine Anzahl, kein Name. Reihenfolge der
+// Aufloesung: das festgeschriebene `konto_id`, das aeltere `quelle`, sonst der
+// `anlass` des Logeintrags. Bestehende Eintraege werden nicht umgeschrieben.
+function reconQuelle(eintrag) {
+  const n = eintrag.normalisierung;
+  const differenz = n.reconciliation_differenz;
+  const kandidaten = [
+    differenz !== null && typeof differenz === "object" ? differenz.konto_id : null,
+    n.quelle,
+    eintrag.anlass,
+  ];
+  return kandidaten.map((k) => String(k ?? "").trim()).find((k) => k.length > 0) ?? "(ohne Quellenangabe)";
+}
+
+// Nur anzeigen, nicht rechnen: der Betrag bleibt der Decimal-String aus dem Log.
+function reconDifferenz(differenz) {
+  if (differenz === null || typeof differenz !== "object") return String(differenz);
+  const grund = String(differenz.grund ?? "").trim();
+  const betrag = String(differenz.betrag ?? "(ohne Betrag)");
+  return grund ? `${betrag} — ${grund}` : betrag;
+}
+
 export function pruefbericht({ transaktionen, regeln, konten, zeitwerte, log }) {
   const autos = (transaktionen ?? []).filter(istAuto);
 
@@ -78,13 +108,17 @@ export function pruefbericht({ transaktionen, regeln, konten, zeitwerte, log }) 
     ausreisser: ausreisser(transaktionen ?? []),
     kat012: autos.filter((tx) => tx.kategorie_id === "KAT-012"),
     gate_durchfall: letzteFreigabe?.gate_durchfall ?? [],
+    // Was das Gate gehalten hat, steht schon im Logeintrag. Diese Liste zeigt
+    // die ganze Flaeche: jedes Konto, auf dem eine Regel wirkt, ohne dass dort
+    // je ein Mensch ihre Kategorie entschieden hat (ADR 0027).
+    regeln_ohne_kontoanker: ungedeckteKonten(regeln ?? [], kontoanker(transaktionen ?? [])),
     e4_regeln: (regeln ?? []).filter((r) => r.belegstufe === "E4" && r.status === "aktiv"),
     konten_ohne_anker: (konten ?? []).filter((k) => !ankerIds.has(k.konto_id)),
     // Ein Kopf-Kontostand, der nicht aufging, wurde bewusst NICHT geschrieben.
     // Genau deshalb muss er hier sichtbar sein, sonst verschwindet die Luecke.
     reconciliation: (log ?? [])
-      .flatMap((e) => e.normalisierung ? [e.normalisierung] : [])
-      .filter((n) => n.reconciliation_differenz),
+      .filter((e) => e.normalisierung?.reconciliation_differenz)
+      .map((e) => ({ ...e.normalisierung, quelle: reconQuelle(e) })),
     lernen: metriken(log ?? [], gesperrteBelegstufenAus(log ?? [])),
   };
 }
@@ -108,7 +142,17 @@ export function renderBericht(b) {
   for (const tx of b.kat012) z.push(zeile(tx.betrag, `${tx.buchungsdatum}  ${tx.gegenpartei}`));
 
   z.push("", `AM GATE GESCHEITERT (${b.gate_durchfall.length})`);
-  for (const d of b.gate_durchfall) z.push(`  ${d.regel_id}: ${d.grund}`);
+  for (const d of b.gate_durchfall) z.push(`  ${d.regel_id}${d.konto_id ? ` auf ${d.konto_id}` : ""}: ${d.grund}`);
+
+  const verliehen = b.regeln_ohne_kontoanker.filter((e) => e.verliehen);
+  const neuland = b.regeln_ohne_kontoanker.filter((e) => !e.verliehen);
+  z.push("", `REGELN AUF KONTEN OHNE MENSCHLICHEN ANKER (${b.regeln_ohne_kontoanker.length})`);
+  z.push(`  verliehene Belegstufe — vom Gate gehalten (${verliehen.length})`);
+  if (verliehen.length === 0) z.push("    keine");
+  for (const e of verliehen) z.push(`    ${e.regel_id}  [${e.kategorie_id}]  ${e.belegstufe ?? "ohne Stufe"}  ${e.konto_id}: ${e.anzahl}  (verdient auf ${e.gedeckt.join(", ")})`);
+  z.push(`  neu erschlossen, nirgends ein Anker — nur zur Kenntnis (${neuland.length})`);
+  if (neuland.length === 0) z.push("    keine");
+  for (const e of neuland.slice(0, 20)) z.push(`    ${e.regel_id}  [${e.kategorie_id}]  ${e.belegstufe ?? "ohne Stufe"}  ${e.konto_id}: ${e.anzahl}`);
 
   z.push("", `REGELN NUR AUF WEB-RECHERCHE, BELEGSTUFE E4 (${b.e4_regeln.length})`);
   for (const r of b.e4_regeln) z.push(`  ${r.regel_id}  [${r.kategorie_id}]  ${r.kommentar}`);
@@ -117,7 +161,7 @@ export function renderBericht(b) {
   for (const k of b.konten_ohne_anker) z.push(`  ${k.konto_id}  ${k.name}`);
 
   z.push("", `NICHT RECONCILIERTE KONTOSTAENDE (${b.reconciliation.length})`);
-  for (const r of b.reconciliation) z.push(`  ${r.quelle}: Differenz ${r.reconciliation_differenz}`);
+  for (const r of b.reconciliation) z.push(`  ${r.quelle}: Differenz ${reconDifferenz(r.reconciliation_differenz)}`);
 
   const auffaellig = b.lernen.je_regel.filter((r) => r.korrekturen > 0);
   z.push("", `REGELN MIT KORREKTUREN AN AUTO-FREIGABEN (${auffaellig.length})`);

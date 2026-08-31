@@ -209,6 +209,26 @@ Wichtige Tools:
 - `tools/dedupe.mjs`: Transaktions-Dedupe-Hash bilden.
 - `tools/categorizer.mjs`: Kategorisierungsregeln anwenden.
 - `tools/recategorize.mjs`: Bestand nach Regelaenderungen neu bewerten.
+- `tools/freigabe.mjs`: vorgeschlagene Buchungen automatisch bestaetigen, soweit
+  ihre Regel das Gate besteht (aktiv, Kommentar, `belegstufe` E1-E4 und nicht
+  gesperrt, Muster spezifisch). Schreibt `bestaetigt_durch = auto`.
+  `npm run freigabe` ist die Vorschau.
+- `tools/pruefbericht.mjs`: Nachkontrolle nach einem Durchlauf — groesste
+  Auto-Freigaben, Merchants ohne jede menschliche Bestaetigung,
+  Kategorie-Ausreisser, alle auto-freigegebenen `KAT-012`, am Gate gescheiterte
+  Regeln, E4-Regeln, Konten ohne Anker. Rein lesend, blockiert nie.
+- `tools/lernen.mjs`: wertet `agent_log.jsonl` aus — Korrekturquote je Regel und
+  je Belegstufe, Gate-Durchfall nach Grund. Mit `--anwenden` legt es Regeln
+  ueber der Korrekturquote still (danach `recategorize.mjs`); es aendert nur
+  den Status von Regeln, nie eine Transaktion. `npm run lernen` ist die
+  Vorschau.
+- `tools/migrate-bestaetigt-durch.mjs`: einmalige Migration — bestaetigte Buchungen
+  ohne `bestaetigt_durch` bekommen `mensch`. Konservativ: sie bleiben damit vor
+  Regellaeufen geschuetzt wie vor Einfuehrung des Feldes.
+- `tools/migrate-belegstufe.mjs`: einmalige Migration — leitet `belegstufe = E2`
+  dort ab, wo der Bestand sie **beweist**: alle menschlich bestaetigten Treffer
+  des Musters tragen die Kategorie der Regel. Regeln mit Widerspruch oder ohne
+  menschlichen Treffer bleiben ohne Stufe und geben nichts automatisch frei.
 - `tools/transaktion-immobilie.mjs`: einen belegten oder vom Nutzer
   entschiedenen Immobilienbezug fuer explizite Transaktions-IDs setzen,
   entfernen oder bewusst ersetzen.

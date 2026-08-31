@@ -14,7 +14,11 @@ __pycache__/
 *.pyc
 
 # Lokale Tooling-/Agenten-Verzeichnisse
-.claude/
+# Agent-Definitionen sind Projektkonfiguration (Modell und Effort) und gehoeren
+# ins Repo. Deshalb der Inhalt statt des Verzeichnisses: bei ".claude/" steigt
+# git nicht hinein und jede Ausnahme darunter liefe ins Leere.
+.claude/*
+!.claude/agents/
 .codex/
 .stitch/
 .worktrees/

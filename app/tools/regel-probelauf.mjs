@@ -25,6 +25,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 
 const PFLICHTFELDER = ["regel_id", "kategorie_id", "status", "erstellt_am", "kommentar"];
 const ERLAUBTE_FELDER = new Set([...PFLICHTFELDER, "gegenpartei_pattern", "verwendungszweck_pattern", "konto_id", "vorzeichen"]);
@@ -128,9 +129,17 @@ export function probelauf({ transaktionen, bestandsRegeln, kandidaten, kategorie
   }
 
   const ohne_treffer = kandidaten.filter((r) => r.status === "aktiv" && pro_regel[r.regel_id].treffer === 0).map((r) => r.regel_id);
-  const blockiert = struktur_fehler.length > 0 || neue_konflikte.length > 0 || wiedervorlagen.length > 0;
+  // Ein Muster, das ueber drei oder mehr Kategorien streut, traegt keine
+  // Kategorieaussage. Das soll schon beim Anlegen auffallen, nicht erst wenn
+  // das Gate die Buchungen stumm zurueckhaelt.
+  const referenz = referenzmenge(transaktionen);
+  const unspezifisch = kandidaten
+    .filter((regel) => !istSpezifisch(regel, referenz))
+    .map((regel) => ({ regel_id: regel.regel_id }));
 
-  return { treffer, pro_regel, neue_konflikte, wiedervorlagen, ohne_treffer, struktur_fehler, blockiert };
+  const blockiert = struktur_fehler.length > 0 || neue_konflikte.length > 0 || wiedervorlagen.length > 0 || unspezifisch.length > 0;
+
+  return { treffer, pro_regel, neue_konflikte, wiedervorlagen, ohne_treffer, struktur_fehler, unspezifisch, blockiert };
 }
 
 async function readJsonl(url) {
@@ -163,6 +172,11 @@ function bericht(out) {
     zeilen.push(`Ohne aktuellen Treffer (erlaubt, wenn wissensbasiert gewollt): ${out.ohne_treffer.join(", ")}`);
   }
 
+  if (out.unspezifisch.length) {
+    zeilen.push("");
+    zeilen.push(`UNSPEZIFISCHE MUSTER (${out.unspezifisch.length}) — blockiert:`);
+    for (const u of out.unspezifisch) zeilen.push(`  - ${u.regel_id}: Muster streut ueber drei oder mehr Kategorien und traegt keine Kategorieaussage`);
+  }
   if (out.neue_konflikte.length) {
     zeilen.push("");
     zeilen.push(`NEUE REGELKONFLIKTE (${out.neue_konflikte.length}) — blockiert:`);

@@ -147,3 +147,83 @@ test("ids-filter waehlt einzelne Buchungen punktgenau", () => {
   assert.deepEqual(out.transaktionen[0], a);
   assert.equal(out.transaktionen[1].kategorisierung_status, "bestaetigt");
 });
+
+test("bestaetigen setzt bestaetigt_durch mensch", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "vorgeschlagen", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"] });
+  const out = confirmTransactions({ transaktionen: [t], regeln, filter: { regel_id: "REG-001" }, entscheidung: { aktion: "bestaetigen" } });
+  assert.equal(out.transaktionen[0].bestaetigt_durch, "mensch");
+});
+
+test("Einzelkorrektur setzt bestaetigt_durch mensch", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "vorgeschlagen", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"] });
+  const out = confirmTransactions({ transaktionen: [t], regeln, filter: { ids: [t.transaktion_id] }, entscheidung: { aktion: "kategorie", kategorie_id: "KAT-007" } });
+  assert.equal(out.transaktionen[0].bestaetigt_durch, "mensch");
+  assert.equal(out.transaktionen[0].kategorie_herkunft, "manuell");
+});
+
+test("ablehnen setzt kein bestaetigt_durch", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "vorgeschlagen", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"] });
+  const out = confirmTransactions({ transaktionen: [t], regeln, filter: { regel_id: "REG-001" }, entscheidung: { aktion: "ablehnen" } });
+  assert.equal(Object.hasOwn(out.transaktionen[0], "bestaetigt_durch"), false);
+});
+
+test("ablehnen entfernt ein vorhandenes bestaetigt_durch", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"], bestaetigt_durch: "auto" });
+  const out = confirmTransactions({ transaktionen: [t], regeln, filter: { regel_id: "REG-001", auch_entschiedene: true }, entscheidung: { aktion: "ablehnen" } });
+  assert.equal(Object.hasOwn(out.transaktionen[0], "bestaetigt_durch"), false);
+});
+
+test("Korrektur einer Auto-Freigabe wird als Lernsignal vermerkt", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"], bestaetigt_durch: "auto" });
+  const out = confirmTransactions({
+    transaktionen: [t], regeln,
+    filter: { ids: [t.transaktion_id], auch_entschiedene: true },
+    entscheidung: { aktion: "kategorie", kategorie_id: "KAT-007" },
+  });
+  assert.equal(out.report.korrekturen.length, 1);
+  assert.equal(out.report.korrekturen[0].regel_id, "REG-001");
+  assert.equal(out.report.korrekturen[0].von_kategorie, "KAT-003");
+  assert.equal(out.report.korrekturen[0].nach_kategorie, "KAT-007");
+});
+
+test("Korrektur einer menschlichen Bestaetigung zaehlt nicht als Lernsignal", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"], bestaetigt_durch: "mensch" });
+  const out = confirmTransactions({
+    transaktionen: [t], regeln,
+    filter: { ids: [t.transaktion_id], auch_entschiedene: true },
+    entscheidung: { aktion: "kategorie", kategorie_id: "KAT-007" },
+  });
+  assert.equal(out.report.korrekturen.length, 0);
+});
+
+test("Ablehnen einer Auto-Freigabe ist ebenfalls ein Lernsignal", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"], bestaetigt_durch: "auto" });
+  const out = confirmTransactions({
+    transaktionen: [t], regeln,
+    filter: { ids: [t.transaktion_id], auch_entschiedene: true },
+    entscheidung: { aktion: "ablehnen" },
+  });
+  assert.equal(out.report.korrekturen.length, 1);
+  assert.equal(out.report.korrekturen[0].nach_kategorie, null);
+});
+
+test("Bestaetigen einer Auto-Freigabe ist keine Korrektur", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"], bestaetigt_durch: "auto" });
+  const out = confirmTransactions({
+    transaktionen: [t], regeln,
+    filter: { ids: [t.transaktion_id], auch_entschiedene: true },
+    entscheidung: { aktion: "bestaetigen" },
+  });
+  assert.equal(out.report.korrekturen.length, 0);
+});
+
+test("Korrektur traegt die Belegstufe der Regel mit", () => {
+  const mitStufe = [{ ...regeln[0], belegstufe: "E4" }, regeln[1]];
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"], bestaetigt_durch: "auto" });
+  const out = confirmTransactions({
+    transaktionen: [t], regeln: mitStufe,
+    filter: { ids: [t.transaktion_id], auch_entschiedene: true },
+    entscheidung: { aktion: "kategorie", kategorie_id: "KAT-007" },
+  });
+  assert.equal(out.report.korrekturen[0].belegstufe, "E4");
+});

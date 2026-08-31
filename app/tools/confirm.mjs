@@ -59,14 +59,14 @@ function trifftFilter(tx, filter) {
 function mitKategorie(tx, kategorieId, regeln) {
   const verdict = categorize(tx, regeln);
   if (verdict.status === "vorgeschlagen" && verdict.kategorie_id === kategorieId) {
-    return { ...tx, kategorisierung_status: "bestaetigt", kategorie_id: kategorieId, kategorie_herkunft: "regel", matched_regeln: verdict.matched_regeln };
+    return { ...tx, kategorisierung_status: "bestaetigt", kategorie_id: kategorieId, kategorie_herkunft: "regel", matched_regeln: verdict.matched_regeln, bestaetigt_durch: "mensch" };
   }
-  return { ...ohne(tx, "matched_regeln"), kategorisierung_status: "bestaetigt", kategorie_id: kategorieId, kategorie_herkunft: "manuell" };
+  return { ...ohne(tx, "matched_regeln"), kategorisierung_status: "bestaetigt", kategorie_id: kategorieId, kategorie_herkunft: "manuell", bestaetigt_durch: "mensch" };
 }
 
 function anwenden(tx, entscheidung, regeln) {
   if (entscheidung.aktion === "ablehnen") {
-    return { tx: { ...ohne(tx, "kategorie_id", "kategorie_herkunft", "matched_regeln"), kategorisierung_status: "abgelehnt" } };
+    return { tx: { ...ohne(tx, "kategorie_id", "kategorie_herkunft", "matched_regeln", "bestaetigt_durch"), kategorisierung_status: "abgelehnt" } };
   }
   if (entscheidung.aktion === "kategorie") {
     return { tx: mitKategorie(tx, entscheidung.kategorie_id, regeln) };
@@ -76,7 +76,7 @@ function anwenden(tx, entscheidung, regeln) {
   if (!tx.kategorie_id) {
     return { fehler: "keine Kategorie am Datensatz — bestaetigen braucht eine Kategorie (erst `kategorie` setzen)" };
   }
-  return { tx: { ...tx, kategorisierung_status: "bestaetigt" } };
+  return { tx: { ...tx, kategorisierung_status: "bestaetigt", bestaetigt_durch: "mensch" } };
 }
 
 function unveraendert(a, b) {
@@ -94,7 +94,7 @@ export function confirmTransactions({ transaktionen, regeln = [], filter = {}, e
     throw new Error("entscheidung.aktion=kategorie braucht eine kategorie_id");
   }
 
-  const report = { betroffen: 0, geaendert: 0, unveraendert: 0, uebersprungen: 0, fehler: [] };
+  const report = { betroffen: 0, geaendert: 0, unveraendert: 0, uebersprungen: 0, fehler: [], korrekturen: [] };
 
   const next = transaktionen.map((tx) => {
     if (!trifftFilter(tx, filter)) return tx;
@@ -115,6 +115,21 @@ export function confirmTransactions({ transaktionen, regeln = [], filter = {}, e
       return tx;
     }
     report.geaendert += 1;
+    // Lernsignal (ADR 0026): nur das Ueberschreiben einer Auto-Freigabe zaehlt.
+    // Eine Korrektur an einer menschlichen Entscheidung sagt nichts ueber die
+    // Regelqualitaet aus — dort hat schon jemand hingeschaut. Der Moment der
+    // Korrektur ist die einzige Gelegenheit: app/data ist gitignored, es gibt
+    // keine History, aus der sich das nachtraeglich ableiten liesse.
+    if (tx.bestaetigt_durch === "auto" && result.kategorie_id !== tx.kategorie_id) {
+      for (const regel_id of tx.matched_regeln ?? []) {
+        report.korrekturen.push({
+          regel_id,
+          belegstufe: regeln.find((r) => r.regel_id === regel_id)?.belegstufe ?? null,
+          von_kategorie: tx.kategorie_id ?? null,
+          nach_kategorie: result.kategorie_id ?? null,
+        });
+      }
+    }
     return result;
   });
 
@@ -174,6 +189,21 @@ async function main() {
     return;
   }
   await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
+
+  // Lernsignal protokollieren (ADR 0026). Nur wenn tatsaechlich eine
+  // Auto-Freigabe ueberschrieben wurde — sonst blaeht der Log auf.
+  if (out.report.korrekturen.length) {
+    const protokoll = {
+      zeitpunkt: new Date().toISOString(),
+      anlass: "korrektur",
+      inputs: ["data/master/transaktionen.jsonl"],
+      korrekturen: out.report.korrekturen,
+      notiz: `confirm.mjs: ${out.report.korrekturen.length} Korrektur(en) an Auto-Freigaben`,
+    };
+    const logUrl = new URL("agent_log.jsonl", masterRoot);
+    const bisher = await readFile(logUrl, "utf8").catch(() => "");
+    await writeFile(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);
+  }
 
   const validation = validateMasterData(await loadMasterData(masterRoot));
   if (!validation.valid) {

@@ -74,17 +74,19 @@ Bei abgehenden Zahlungen ist `Zahlungsempfaenger*in` die Gegenpartei/der Empfaen
 
 Wenn eines dieser Felder fuer eine Zeile nicht zuverlaessig extrahierbar ist: **nicht raten** — die Zeile gehoert in den Fehlerpfad (siehe unten).
 
-Zusaetzlich zu den Buchungen musst du bei Kontoauszuegen und Banking-Exporten auf belegte Kontostaende achten, z. B. "Kontostand vom ...", "Alter Saldo", "Neuer Saldo" oder vergleichbare Bankformulierungen. Beim Initialimport eines neuen Kontos ist ein solcher Stand ein moeglicher Saldo-Anker fuer die Liquiditaet. Du erkennst ihn und fragst den Nutzer, wie damit umzugehen ist, statt ihn still zu uebernehmen.
+Zusaetzlich zu den Buchungen musst du bei Kontoauszuegen und Banking-Exporten auf belegte Kontostaende achten, z. B. "Kontostand vom ...", "Alter Saldo", "Neuer Saldo" oder vergleichbare Bankformulierungen. Beim Initialimport eines neuen Kontos ist ein solcher Stand ein moeglicher Saldo-Anker fuer die Liquiditaet. Du erkennst ihn und entscheidest nach der Reconciliation-Regel unten, statt ihn still zu uebernehmen oder den Lauf dafuer anzuhalten.
 
-Wenn die Rohquelle einen belegten Kontostand enthaelt, schlage konkret vor:
+Wenn die Rohquelle einen belegten Kontostand enthaelt, entscheidet die
+Reconciliation — nicht eine Rueckfrage:
 
-1. Kontostand als Liquiditaetsanker uebernehmen.
-2. Kontostand ignorieren und ohne Liquiditaetsanker importieren.
-3. Anderen belegten Ankerwert verwenden, falls der Nutzer einen besseren Belegwert nennt.
+1. Reconciliation geht auf -> Kontostand als Liquiditaetsanker uebernehmen.
+2. Reconciliation geht nicht auf -> **nicht** uebernehmen, Differenz berichten.
+3. Kein belegter Kontostand vorhanden -> ohne Anker importieren, Konto im
+   Bericht als "ohne Anker" nennen.
 
-**Reconciliation-Pflicht fuer Kopf-Kontostaende:** Ein Kontostand aus dem Kopf einer Umsatzliste (z. B. "Kontostand vom ...") darf nicht still als Zeitwert uebernommen werden. Pruefe zuerst, ob der Standdatum-Zeitpunkt durch die enthaltenen Buchungszeilen abgedeckt ist. Wenn der Kopf-Kontostand nach der letzten enthaltenen Buchung liegt oder sonst nicht mit den importierten Bewegungen reconciliert werden kann, frage explizit beim Nutzer nach, ob dieser Zeitanker trotz der Luecke gilt. Wenn bereits ein frueherer belegter Anker im Bestand oder im selben Auszug existiert, rechne den erwarteten Stand aus `Anker + importierte Buchungen bis Standdatum` nach und nenne die Differenz. Nur bei plausibler Reconciliation oder ausdruecklicher Nutzerbestaetigung als Zeitwert schreiben; sonst ignorieren und im Laufprotokoll als verworfenen/ungeklaerten Kopf-Kontostand dokumentieren.
+**Reconciliation-Pflicht fuer Kopf-Kontostaende:** Ein Kontostand aus dem Kopf einer Umsatzliste (z. B. "Kontostand vom ...") darf nicht still als Zeitwert uebernommen werden. Pruefe zuerst, ob der Standdatum-Zeitpunkt durch die enthaltenen Buchungszeilen abgedeckt ist. Wenn der Kopf-Kontostand nach der letzten enthaltenen Buchung liegt oder sonst nicht mit den importierten Bewegungen reconciliert werden kann, wird er **nicht** geschrieben. Wenn bereits ein frueherer belegter Anker im Bestand oder im selben Auszug existiert, rechne den erwarteten Stand aus `Anker + importierte Buchungen bis Standdatum` nach und nenne die Differenz. Nur bei plausibler Reconciliation als Zeitwert schreiben; sonst ignorieren und im Laufprotokoll unter `normalisierung.reconciliation_differenz` festhalten, damit der Pruefbericht die Luecke zeigt. Ein falscher Saldo-Anker verschiebt die gesamte Liquiditaetsrechnung und ist, anders als eine Kategorie, nicht nebenbei korrigierbar — im Zweifel lieber kein Anker als ein falscher.
 
-Nach Bestaetigung wird der Anker als Zeitwert erfasst:
+Bei aufgehender Reconciliation wird der Anker als Zeitwert erfasst:
 
 - `entitaet = "konto"`
 - `entitaet_id = <konto_id>`
@@ -94,7 +96,7 @@ Nach Bestaetigung wird der Anker als Zeitwert erfasst:
 - `qualitaet = "belegt"`
 - `quelle_hinweis = <finaler Beleg-Pfad oder kurzer Rohquellenhinweis>`
 
-Wenn die Rohquelle keinen belegten Kontostand enthaelt, darfst du keinen Anfangsbestand aus den Buchungen raten. Frage den Nutzer, ob er einen belegten Ankerwert mit Standdatum mitteilen kann oder ob der Import ohne Liquiditaetsanker fortgesetzt werden soll. Dann muss der Lauf sichtbar machen, dass fuer dieses liquiditaetsrelevante Konto ein belegter Kontostand fehlt.
+Wenn die Rohquelle keinen belegten Kontostand enthaelt, darfst du keinen Anfangsbestand aus den Buchungen raten. Der Import laeuft dann ohne Liquiditaetsanker weiter und macht sichtbar, dass fuer dieses liquiditaetsrelevante Konto ein belegter Kontostand fehlt — das Konto erscheint im Pruefbericht unter "Konten ohne belegten Anker".
 
 ## Der schnelle Weg: Profil + Inbox-Lauf
 
@@ -128,8 +130,8 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
 
 ## Prozessablauf pro Importlauf
 
-1. **Rohdatei sichten**: Welches Format? Welche Bank? Welches Konto? Wenn das aus der Datei nicht hervorgeht (z. B. weil die CSV keine IBAN-Spalte hat), beim Nutzer nachfragen.
-2. **Konto zuordnen**: Erkenne das Konto, indem du die IBAN/Kontonummer der Rohdatei gegen die `kontoreferenz` in `DATENROOT/konten.json` abgleichst (die Referenz ist bevorzugt die volle IBAN, ggf. nur Endziffern). Das ist eine Wiedererkennung durch dich, kein im Code erzwungener String-Abgleich — im finalen Eintrag traegst du die `konto_id`. Mehrdeutig (z. B. gleiche Endziffern bei maskierter Referenz)? Pruefen, ob `inhaber_person_ids` oder Banknamen die Mehrdeutigkeit aufloesen. Nicht eindeutig zuordbar → in `error/`. Steht das Konto noch **gar nicht** in `konten.json` (z. B. erster Import einer neuen Bank), nicht raten: dem Nutzer einen konkreten Konto-Eintrag (`konto_id`, `name`, `kontotyp`, `kontoreferenz`, `inhaber_person_ids`) **vorschlagen** und ihn erst nach **expliziter Bestaetigung** validiert anlegen. Erst danach importieren. Bei einem Initialimport pruefen, ob die Rohquelle einen belegten Kontostand enthaelt; dem Nutzer den erkannten Stand oder das Fehlen eines Standes mit Handlungsoptionen vorlegen.
+1. **Rohdatei sichten**: Welches Format? Welche Bank? Welches Konto? Wenn das aus der Datei nicht hervorgeht (z. B. weil die CSV keine IBAN-Spalte hat), gehen die betroffenen Zeilen in `error/` — nicht raten, aber auch nicht anhalten.
+2. **Konto zuordnen**: Erkenne das Konto, indem du die IBAN/Kontonummer der Rohdatei gegen die `kontoreferenz` in `DATENROOT/konten.json` abgleichst (die Referenz ist bevorzugt die volle IBAN, ggf. nur Endziffern). Das ist eine Wiedererkennung durch dich, kein im Code erzwungener String-Abgleich — im finalen Eintrag traegst du die `konto_id`. Mehrdeutig (z. B. gleiche Endziffern bei maskierter Referenz)? Pruefen, ob `inhaber_person_ids` oder Banknamen die Mehrdeutigkeit aufloesen. Nicht eindeutig zuordbar → in `error/`. Steht das Konto noch **gar nicht** in `konten.json` (z. B. erster Import einer neuen Bank), lege es validiert an (`konto_id`, `name`, `kontotyp`, `kontoreferenz`, `inhaber_person_ids`) und nenne es im Bericht. Das ist keine Rateentscheidung: die Kontoreferenz steht in der Rohdatei. Bei einem Initialimport pruefen, ob die Rohquelle einen belegten Kontostand enthaelt, und nach der Reconciliation-Regel oben verfahren.
 3. **Normalisieren**: Roheintraege ins **standardisierte Importformat** (siehe `schemas/`) ueberfuehren. Eine JSONL-Datei pro Lauf unter `data/inbox/standardized/`.
 4. **Validieren**: `tools/validator.mjs` (bzw. die Browser-faehige Bibliothek) auf das Standardformat anwenden. Fehlschlag → in `error/`.
 5. **Dedupe**: Fuer jede Buchung den `dedupe_hash` bilden (Felder siehe `docs/agent-context.md`). Gegen `DATENROOT/transaktionen.jsonl` (den **Bestand**) pruefen. Hash bekannt → ueberspringen. **Nicht** innerhalb desselben Auszugs deduplizieren — ein amtlicher Auszug enthaelt reale Buchungen; das Tool laesst gleich aussehende Zeilen stehen und disambiguiert in allen Quellfeldern identische automatisch (zweistufiger Dedupe-Hash aus `docs/agent-context.md`). `bank_referenz` aus der Rohdatei roh mitgeben, wo die Bank eine liefert — die Pipeline nutzt sie nur als Schluessel, wenn sie **dateiweit eindeutig** ist, und faellt sonst auf den Freitext-Hash zurueck. Du musst die Eindeutigkeit nicht selbst herausfiltern.
@@ -202,7 +204,7 @@ ueberschreibt nie einen vorhandenen Zwilling.
 - **Keine Kategorie raten**, die nicht aus dem Categorizer kommt. Wenn du eine Buchung „eigentlich klar" findest und keine Regel matcht, dem Nutzer vorschlagen, eine Regel anzulegen — nicht still die Kategorie setzen.
 - **Keine Regeln automatisch anlegen**, auch wenn du sie sinnvoll findest. Regel-Pflege ist ein eigener Dialogschritt.
 - **Keine Transaktion „ablehnen"**. Eine Bankbuchung ist eine Tatsache. Wenn etwas nicht eingespielt werden kann, ist das ein Importfehler in `error/`, keine Ablehnung.
-- **Keine Annahmen ueber Konten, die nicht in `konten.json` stehen.** Unbekanntes Konto → nicht still durchlaufen. Entweder in `error/`, oder dem Nutzer einen Konto-Eintrag vorschlagen und nach **expliziter Bestaetigung** anlegen (siehe Schritt 2) — nie raten oder ungefragt anlegen.
+- **Konten anlegen, aber nie erfinden.** Ein unbekanntes Konto wird aus der Kontoreferenz der Rohdatei angelegt und im Bericht genannt (siehe Schritt 2). Laesst sich die Referenz nicht zuverlaessig lesen, gehen die Zeilen in `error/` — nie ein Konto aus einer geratenen Referenz anlegen.
 
 ## Wann fragen, wann handeln
 

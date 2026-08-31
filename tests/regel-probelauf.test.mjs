@@ -126,3 +126,19 @@ test("eine Aenderung an einer Bestandsregel ersetzt sie, statt sie zu doppeln", 
   assert.equal(out.pro_regel["REG-001"].kategorie_id, "KAT-015");
   assert.equal(out.treffer, 1);
 });
+
+test("unspezifisches Muster blockiert den Probelauf", () => {
+  const mensch = (g, k) => ({
+    transaktion_id: `TXN-${g}`, konto_id: "KTO-001", buchungsdatum: "2026-05-20", betrag: "-10.00",
+    gegenpartei: g, verwendungszweck: "", ist_transfer: false,
+    kategorisierung_status: "bestaetigt", kategorie_id: k, bestaetigt_durch: "mensch",
+  });
+  const bestand = [mensch("Testladen Ortstoken", "KAT-003"), mensch("Baumarkt Ortstoken", "KAT-005"), mensch("Apotheke Ortstoken", "KAT-007")];
+  const out = probelauf({
+    transaktionen: bestand, bestandsRegeln: [],
+    kandidaten: [{ regel_id: "REG-900", gegenpartei_pattern: "Ortstoken", kategorie_id: "KAT-003", status: "aktiv", erstellt_am: "2026-08-31", kommentar: "zu breit", belegstufe: "E3" }],
+  });
+  assert.equal(out.unspezifisch.length, 1);
+  assert.equal(out.unspezifisch[0].regel_id, "REG-900");
+  assert.equal(out.blockiert, true);
+});

@@ -16,15 +16,20 @@ import { dataRootFromArg } from "./data-root.mjs";
 function istKandidat(tx) {
   if (tx.kategorie_herkunft === "manuell") return false;
   if (tx.kategorisierung_status === "abgelehnt") return false;
+  // Eine Auto-Freigabe ist kein menschlicher Akt: nie hat jemand hingeschaut,
+  // also darf ein spaeterer Regellauf sie neu bewerten (ADR 0025).
+  if (tx.bestaetigt_durch === "auto") return true;
   return tx.kategorisierung_status === "offen" || tx.kategorie_herkunft === "regel";
 }
 
 function alsRegelVorschlag(tx, verdict) {
-  return { ...tx, kategorisierung_status: "vorgeschlagen", kategorie_id: verdict.kategorie_id, kategorie_herkunft: "regel", matched_regeln: verdict.matched_regeln };
+  // bestaetigt_durch faellt weg: das Feld ist nur bei bestaetigt erlaubt.
+  const { bestaetigt_durch, ...rest } = tx;
+  return { ...rest, kategorisierung_status: "vorgeschlagen", kategorie_id: verdict.kategorie_id, kategorie_herkunft: "regel", matched_regeln: verdict.matched_regeln };
 }
 
 function alsOffen(tx, verdict) {
-  const { kategorie_id, kategorie_herkunft, matched_regeln, ...rest } = tx;
+  const { kategorie_id, kategorie_herkunft, matched_regeln, bestaetigt_durch, ...rest } = tx;
   if ((verdict.matched_regeln ?? []).length) return { ...rest, kategorisierung_status: "offen", matched_regeln: verdict.matched_regeln };
   return { ...rest, kategorisierung_status: "offen" };
 }

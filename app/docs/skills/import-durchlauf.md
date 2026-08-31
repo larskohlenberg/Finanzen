@@ -37,7 +37,12 @@ das ist **kategorisierung-review**.
    entschieden hat. Das ist eine Entscheidung je Paar aus Regel und Konto.
 5. **Pruefen.** `node tools/pruefbericht.mjs DATENROOT` und den Bericht
    **ungekuerzt** zeigen.
-6. **Protokollieren.** Die Zaehler in `DATENROOT/agent_log.jsonl` festhalten.
+6. **Eingang aufraeumen.** Jede Rohdatei in `data/inbox/processed/`, deren
+   sprechend benannter Beleg nachweislich unter `Belege/` liegt, entfernen —
+   Nachweis ueber den Inhalts-Hash, nie ueber den Dateinamen. Dasselbe fuer
+   hineinkopierte Archivexporte: was abgelegt ist, verschwindet, der Rest bleibt
+   sichtbar liegen. `error/` bleibt unangetastet.
+7. **Protokollieren.** Die Zaehler in `DATENROOT/agent_log.jsonl` festhalten.
 
 ## Zentrale Regeln
 
@@ -72,3 +77,7 @@ das ist **kategorisierung-review**.
 - **Keine Regel selbst anlegen** — das ist Station 3.
 - **Den Pruefbericht nicht auf „alles in Ordnung" eindampfen.** Wenn er lang
   ist, ist das die Information.
+- **Den Eingang nicht voll zuruecklassen.** Ein Eingang, in dem verarbeitete
+  Dateien liegen bleiben, zwingt jeden naechsten Lauf zu der Frage, was davon
+  schon drin ist — und die beantwortet der Bestand nicht, weil ein importierter
+  Beleg im Eingang aussieht wie ein neuer.

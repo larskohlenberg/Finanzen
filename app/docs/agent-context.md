@@ -325,6 +325,24 @@ deterministischen Textvorlauf (`pdftotext -layout`) nach
 `standardized/` ist dabei Durchgangsstation, kein Archiv — der dauerhafte
 Textzwilling entsteht neben dem Beleg, siehe Abschnitt „Belege".
 
+Dasselbe gilt fuer `data/inbox/processed/`. Auch dort liegen nur
+Durchgangsstaende, keine Archivkopien: sobald der Beleg sprechend benannt unter
+`Belege/` liegt, ist die Rohdatei in `processed/` eine Dublette und wird zum
+Abschluss des Laufs entfernt — **erst nachdem** der byte-identische Zwilling
+unter `Belege/` nachgewiesen ist. Der Nachweis laeuft ueber den Inhalts-Hash,
+nie ueber den Dateinamen: beim Ablegen wird ja gerade umbenannt.
+
+Das ist keine Kosmetik. Bleiben die Dubletten liegen, zeigt der naechste Lauf
+einen vollen Eingang, und es muss jedes Mal neu geklaert werden, was davon
+schon verarbeitet ist — eine Frage, die der Bestand allein nicht beantwortet,
+weil ein importierter Beleg im Eingang genauso aussieht wie ein neuer. Gleiches
+gilt fuer hineinkopierte Archivexporte: was daraus abgelegt ist, wird entfernt,
+der Rest bleibt sichtbar liegen.
+
+**Nicht** aufgeraeumt wird `error/`. Dort liegen ungeklaerte Faelle, die noch
+eine Entscheidung brauchen; sie verschwinden erst, wenn die Entscheidung
+gefallen ist.
+
 ## Zeitwerte, Anker und Reconciliation
 
 Zeitveraenderliche, beleg- oder schaetzbasierte Werte leben in

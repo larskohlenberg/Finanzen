@@ -18,7 +18,10 @@ Ebenfalls lesen, bevor Daten angefasst werden: `app/docs/agent-context.md`.
 3. Den Subagenten **`regel-recherche`** auf den Offen-Stapel ansetzen.
 4. `node app/tools/freigabe.mjs app/data/master --schreiben`
 5. `node app/tools/pruefbericht.mjs app/data/master` — **ungekuerzt zeigen**.
-6. Zaehler in `app/data/master/agent_log.jsonl` protokollieren.
+6. Eingang aufraeumen: verarbeitete Rohdateien aus `app/data/inbox/processed/`
+   entfernen, sobald der Beleg unter `Belege/` per Inhalts-Hash nachgewiesen ist.
+   `error/` bleibt liegen.
+7. Zaehler in `app/data/master/agent_log.jsonl` protokollieren.
 
 ## Die drei Regeln, die den Unterschied machen
 

@@ -223,6 +223,7 @@ const schemas = {
       status: { type: "string", enum: ["aktiv", "inaktiv"] },
       erstellt_am: { type: "string", format: "date" },
       kommentar: { type: "string", minLength: 1 },
+      belegstufe: { type: "string", enum: ["E1", "E2", "E3", "E4"] },
     },
   },
   zeitwerte: {

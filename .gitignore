@@ -19,6 +19,7 @@ __pycache__/
 # git nicht hinein und jede Ausnahme darunter liefe ins Leere.
 .claude/*
 !.claude/agents/
+!.claude/skills/
 .codex/
 .stitch/
 .worktrees/

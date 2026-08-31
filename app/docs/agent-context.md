@@ -274,8 +274,12 @@ Wichtige Tools:
   **Bestand** (`npm run transfers`), nicht nur waehrend eines Imports. Nach einem
   neu angelegten Konto nachziehen, sonst bleiben dessen Gegenbuchungen ungepaart.
 - `tools/belege-text.mjs`: Textzwilling (`.txt`) je PDF unter `Belege/` erzeugen
-  und `data/inbox/standardized/` per Inhalts-Hash aufraeumen. `npm run belege:text`
-  ist die Vorschau.
+  und `data/inbox/standardized/` **sowie** `data/inbox/processed/` per
+  Inhalts-Hash aufraeumen. Ein `.txt` gilt dabei nie als Nachweis fuer eine
+  Rohdatei — es ist der abgeleitete Zwilling und belegt nicht, dass das
+  Original im Archiv ankam. Was keinen Nachweis hat, bleibt liegen und steht
+  unter `offen`. `error/` wird nicht angefasst. `npm run belege:text` ist die
+  Vorschau.
 
 ### Auto-Match von Transfers: zwei Wege
 

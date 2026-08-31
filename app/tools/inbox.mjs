@@ -24,14 +24,22 @@ import { dataRootFromArg } from "./data-root.mjs";
 
 const execFileAsync = promisify(execFile);
 const IGNORIEREN = new Set([".DS_Store", ".gitkeep"]);
+const VERARBEITBAR = new Set(["csv", "pdf"]);
+// Die Stationen des Laufs selbst. Alles andere im Inbox-Root ist ein Ordner,
+// den jemand dorthin kopiert hat — und den der flache Lauf nicht anfasst.
+export const PIPELINE_ORDNER = new Set(["processed", "standardized", "error"]);
 
-export function planInbox({ dateien, profile }) {
+function endungVon(datei) {
+  return datei.toLowerCase().split(".").pop();
+}
+
+export function planInbox({ dateien, unterordner = [], profile }) {
   const auftraege = [];
   const offen = [];
 
   for (const datei of [...dateien].sort()) {
     if (IGNORIEREN.has(datei) || datei.startsWith(".")) continue;
-    const endung = datei.toLowerCase().split(".").pop();
+    const endung = endungVon(datei);
     // macOS liefert Dateinamen aus readdir in NFD, ein von Hand geschriebenes
     // Profil traegt NFC. Beide Seiten auf dieselbe Normalform ziehen, sonst
     // findet ein Muster mit Umlaut seine Datei nie.
@@ -58,7 +66,19 @@ export function planInbox({ dateien, profile }) {
     offen.push({ datei, grund: `Dateityp .${endung} wird nicht verarbeitet` });
   }
 
-  return { auftraege, offen };
+  // Unterordner werden bewusst nicht verarbeitet — aber auch nicht verschwiegen.
+  // Ein Bankdownload landet gern als Ordner voller Auszuege in der Inbox; ohne
+  // diesen Hinweis sieht der Eingang leer aus, obwohl 42 PDFs darin liegen.
+  const uebersehen = [];
+  for (const ordner of unterordner) {
+    const name = ordner.name.normalize("NFC");
+    if (PIPELINE_ORDNER.has(name.toLowerCase())) continue;
+    const anzahl = ordner.dateien.filter((d) => VERARBEITBAR.has(endungVon(d))).length;
+    if (anzahl > 0) uebersehen.push({ ordner: name, dateien: anzahl });
+  }
+  uebersehen.sort((a, b) => (a.ordner < b.ordner ? -1 : a.ordner > b.ordner ? 1 : 0));
+
+  return { auftraege, offen, unterordner: uebersehen };
 }
 
 export function importLaufBericht({ auftrag, profil, normalized, result }) {
@@ -101,6 +121,22 @@ async function ladeProfile(inboxRoot) {
   return Promise.all(namen.map((n) => readJson(new URL(n, dir))));
 }
 
+// Nur eine Ebene tief auflisten, dann je Fund-Ordner rekursiv zaehlen. Die
+// Pipeline-Ordner werden gar nicht erst betreten — processed/ ist gross und
+// planInbox wuerde sie ohnehin verwerfen.
+async function sammleUnterordner(inboxRoot) {
+  const eintraege = await readdir(inboxRoot, { withFileTypes: true });
+  const ordner = eintraege.filter(
+    (e) => e.isDirectory() && !e.name.startsWith(".") && !PIPELINE_ORDNER.has(e.name.normalize("NFC").toLowerCase()),
+  );
+  return Promise.all(ordner.map(async (e) => ({
+    name: e.name,
+    dateien: (await readdir(new URL(`${encodeURIComponent(e.name)}/`, inboxRoot), { recursive: true, withFileTypes: true }))
+      .filter((k) => k.isFile())
+      .map((k) => k.name),
+  })));
+}
+
 async function pdfText(quelle, ziel) {
   await execFileAsync("pdftotext", ["-layout", fileURLToPath(quelle), fileURLToPath(ziel)]);
 }
@@ -113,9 +149,13 @@ async function main() {
 
   const profile = await ladeProfile(inboxRoot);
   const eintraege = await readdir(inboxRoot, { withFileTypes: true });
-  const plan = planInbox({ dateien: eintraege.filter((e) => e.isFile()).map((e) => e.name), profile });
+  const plan = planInbox({
+    dateien: eintraege.filter((e) => e.isFile()).map((e) => e.name),
+    unterordner: await sammleUnterordner(inboxRoot),
+    profile,
+  });
 
-  const bericht = { modus: schreiben ? "geschrieben" : "vorschau", profile: profile.length, dateien: plan.auftraege.length, laeufe: [], offen: plan.offen };
+  const bericht = { modus: schreiben ? "geschrieben" : "vorschau", profile: profile.length, dateien: plan.auftraege.length, laeufe: [], offen: plan.offen, unterordner: plan.unterordner };
 
   let [konten, kategorien, transaktionen, transfers, regeln, regelzahlungen] = await Promise.all([
     readJson(new URL("konten.json", masterRoot)),
@@ -173,6 +213,10 @@ async function main() {
   }
 
   console.log(JSON.stringify(bericht, null, 2));
+
+  for (const o of plan.unterordner) {
+    console.warn(`Unterordner "${o.ordner}" enthaelt ${o.dateien} verarbeitbare Datei(en), wird nicht verarbeitet — zum Import in den Inbox-Root legen.`);
+  }
 
   if (!schreiben) {
     console.log("\nVorschau — nichts geschrieben, nichts verschoben. Mit --schreiben anwenden.");

@@ -196,6 +196,12 @@ Wichtige Tools:
 - `tools/validator.mjs`: Masterdaten pruefen.
 - `tools/inbox.mjs`: kompletter Inbox-Lauf (Profil zuordnen, CSV normalisieren,
   importieren, Datei verschieben, protokollieren). `npm run inbox` ist die Vorschau.
+  Verarbeitet werden **nur Dateien direkt im Inbox-Root** — Unterordner betritt der
+  Lauf bewusst nicht (ein Bank-Archivexport bringt hunderte Dateien mit, die keine
+  Buchungsquelle sind). Damit ein hineinkopierter Ordner nicht still uebersehen
+  wird, zaehlt der Lauf jeden Unterordner ausser `processed/`, `standardized/` und
+  `error/` rekursiv aus und meldet ihn unter `unterordner` im Bericht plus als
+  Warnzeile. Zum Import gehoeren die Dateien flach in den Inbox-Root.
 - `tools/normalize.mjs`: CSV per Bank-Profil ins Importformat normalisieren.
 - `tools/import.mjs`: normalisierte Buchungen importieren.
 - `tools/confirm.mjs`: Kategorie-Entscheidungen auf einen gefilterten Schnitt anwenden.

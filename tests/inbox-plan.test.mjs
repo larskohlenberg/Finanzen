@@ -102,3 +102,55 @@ test("unbekannte Dateiendung landet nachvollziehbar im Offen-Topf", () => {
   assert.deepEqual(plan.auftraege, []);
   assert.match(plan.offen[0].grund, /Dateityp/);
 });
+
+test("Unterordner mit verarbeitbaren Dateien wird gemeldet statt still uebersehen", () => {
+  // Ein Bankdownload landet als Ordner in der Inbox. Der flache Lauf sieht ihn
+  // nicht — dann sieht der Eingang leer aus, obwohl 42 Auszuege darin liegen.
+  const dateien = Array.from({ length: 42 }, (_, i) => `Kontoauszug-${String(i).padStart(2, "0")}.pdf`);
+  const plan = planInbox({
+    dateien: [],
+    unterordner: [{ name: "Kontoauszuege", dateien }],
+    profile,
+  });
+
+  assert.deepEqual(plan.unterordner, [{ ordner: "Kontoauszuege", dateien: 42 }]);
+});
+
+test("Pipeline-Ordner melden sich nicht — sie sind das Ziel, nicht der Eingang", () => {
+  const plan = planInbox({
+    dateien: [],
+    unterordner: [
+      { name: "processed", dateien: ["alt.csv"] },
+      { name: "standardized", dateien: ["alt.txt", "vorlauf.pdf"] },
+      { name: "error", dateien: ["kaputt.csv"] },
+    ],
+    profile,
+  });
+
+  assert.deepEqual(plan.unterordner, []);
+});
+
+test("Unterordner ohne verarbeitbare Datei schweigt — nur CSV und PDF sind Buchungsquellen", () => {
+  const plan = planInbox({
+    dateien: [],
+    unterordner: [{ name: "Notizen", dateien: ["merkzettel.txt", ".DS_Store", "bild.png"] }],
+    profile,
+  });
+
+  assert.deepEqual(plan.unterordner, []);
+});
+
+test("zaehlt verschachtelte Dateien mit und meldet den Ordnernamen in NFC", () => {
+  // macOS liefert Ordnernamen aus readdir in NFD. Ungeglaettet steht im Bericht
+  // ein Name, den der Nutzer so nicht wiederfindet — siehe planInbox oben.
+  const nfc = "Kontoauszüge".normalize("NFC");
+  assert.notEqual(nfc, nfc.normalize("NFD"), "Testvoraussetzung: die Normalformen unterscheiden sich");
+
+  const plan = planInbox({
+    dateien: [],
+    unterordner: [{ name: nfc.normalize("NFD"), dateien: ["a.pdf", "2024/Konto/b.pdf", "2024/notiz.txt"] }],
+    profile,
+  });
+
+  assert.deepEqual(plan.unterordner, [{ ordner: nfc, dateien: 2 }]);
+});

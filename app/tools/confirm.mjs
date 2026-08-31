@@ -59,14 +59,14 @@ function trifftFilter(tx, filter) {
 function mitKategorie(tx, kategorieId, regeln) {
   const verdict = categorize(tx, regeln);
   if (verdict.status === "vorgeschlagen" && verdict.kategorie_id === kategorieId) {
-    return { ...tx, kategorisierung_status: "bestaetigt", kategorie_id: kategorieId, kategorie_herkunft: "regel", matched_regeln: verdict.matched_regeln };
+    return { ...tx, kategorisierung_status: "bestaetigt", kategorie_id: kategorieId, kategorie_herkunft: "regel", matched_regeln: verdict.matched_regeln, bestaetigt_durch: "mensch" };
   }
-  return { ...ohne(tx, "matched_regeln"), kategorisierung_status: "bestaetigt", kategorie_id: kategorieId, kategorie_herkunft: "manuell" };
+  return { ...ohne(tx, "matched_regeln"), kategorisierung_status: "bestaetigt", kategorie_id: kategorieId, kategorie_herkunft: "manuell", bestaetigt_durch: "mensch" };
 }
 
 function anwenden(tx, entscheidung, regeln) {
   if (entscheidung.aktion === "ablehnen") {
-    return { tx: { ...ohne(tx, "kategorie_id", "kategorie_herkunft", "matched_regeln"), kategorisierung_status: "abgelehnt" } };
+    return { tx: { ...ohne(tx, "kategorie_id", "kategorie_herkunft", "matched_regeln", "bestaetigt_durch"), kategorisierung_status: "abgelehnt" } };
   }
   if (entscheidung.aktion === "kategorie") {
     return { tx: mitKategorie(tx, entscheidung.kategorie_id, regeln) };
@@ -76,7 +76,7 @@ function anwenden(tx, entscheidung, regeln) {
   if (!tx.kategorie_id) {
     return { fehler: "keine Kategorie am Datensatz — bestaetigen braucht eine Kategorie (erst `kategorie` setzen)" };
   }
-  return { tx: { ...tx, kategorisierung_status: "bestaetigt" } };
+  return { tx: { ...tx, kategorisierung_status: "bestaetigt", bestaetigt_durch: "mensch" } };
 }
 
 function unveraendert(a, b) {

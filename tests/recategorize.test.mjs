@@ -170,3 +170,33 @@ test("ist idempotent: zweimal laufen liefert dasselbe Ergebnis", () => {
   const twice = recategorize({ transaktionen: once.transaktionen, regeln });
   assert.deepEqual(twice.transaktionen, once.transaktionen);
 });
+
+test("auto-bestaetigt wird neu bewertet, mensch-bestaetigt nicht", () => {
+  const auto = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-009", kategorie_herkunft: "agent", bestaetigt_durch: "auto" });
+  const mensch = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-009", kategorie_herkunft: "agent", bestaetigt_durch: "mensch" });
+  const out = recategorize({ transaktionen: [auto, mensch], regeln });
+  // REG-001 deckt MusterladenA mit KAT-003 ab: Wiedervorlage nur fuer den auto-Eintrag.
+  assert.equal(out.transaktionen[0].kategorisierung_status, "vorgeschlagen");
+  assert.equal(out.transaktionen[0].kategorie_id, "KAT-003");
+  assert.equal(out.transaktionen[1].kategorisierung_status, "bestaetigt");
+  assert.equal(out.transaktionen[1].kategorie_id, "KAT-009");
+});
+
+test("Wiedervorlage entfernt bestaetigt_durch (Invariante: nur bei bestaetigt)", () => {
+  const auto = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-009", kategorie_herkunft: "regel", bestaetigt_durch: "auto" });
+  const out = recategorize({ transaktionen: [auto], regeln });
+  assert.equal(out.transaktionen[0].kategorisierung_status, "vorgeschlagen");
+  assert.equal(Object.hasOwn(out.transaktionen[0], "bestaetigt_durch"), false);
+});
+
+// Ohne eindeutigen Regeltreffer gibt es nichts, worauf neu bewertet werden
+// koennte (ADR 0017: kein eindeutiges Ergebnis => unveraendert). Wuerde der
+// Lauf hier zurueckstufen, wischte er bei jedem Durchgang alle KAT-012-
+// Zuordnungen weg, ohne dass eine Regel etwas Besseres anzubieten haette.
+test("auto-bestaetigt ohne Regeltreffer bleibt unveraendert bestaetigt", () => {
+  const auto = tx({ gegenpartei: "Voellig Unbekannt", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-009", kategorie_herkunft: "agent", bestaetigt_durch: "auto" });
+  const out = recategorize({ transaktionen: [auto], regeln });
+  assert.equal(out.transaktionen[0].kategorisierung_status, "bestaetigt");
+  assert.equal(out.transaktionen[0].bestaetigt_durch, "auto");
+  assert.equal(out.transaktionen[0].kategorie_id, "KAT-009");
+});

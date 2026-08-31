@@ -147,3 +147,28 @@ test("ids-filter waehlt einzelne Buchungen punktgenau", () => {
   assert.deepEqual(out.transaktionen[0], a);
   assert.equal(out.transaktionen[1].kategorisierung_status, "bestaetigt");
 });
+
+test("bestaetigen setzt bestaetigt_durch mensch", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "vorgeschlagen", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"] });
+  const out = confirmTransactions({ transaktionen: [t], regeln, filter: { regel_id: "REG-001" }, entscheidung: { aktion: "bestaetigen" } });
+  assert.equal(out.transaktionen[0].bestaetigt_durch, "mensch");
+});
+
+test("Einzelkorrektur setzt bestaetigt_durch mensch", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "vorgeschlagen", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"] });
+  const out = confirmTransactions({ transaktionen: [t], regeln, filter: { ids: [t.transaktion_id] }, entscheidung: { aktion: "kategorie", kategorie_id: "KAT-007" } });
+  assert.equal(out.transaktionen[0].bestaetigt_durch, "mensch");
+  assert.equal(out.transaktionen[0].kategorie_herkunft, "manuell");
+});
+
+test("ablehnen setzt kein bestaetigt_durch", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "vorgeschlagen", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"] });
+  const out = confirmTransactions({ transaktionen: [t], regeln, filter: { regel_id: "REG-001" }, entscheidung: { aktion: "ablehnen" } });
+  assert.equal(Object.hasOwn(out.transaktionen[0], "bestaetigt_durch"), false);
+});
+
+test("ablehnen entfernt ein vorhandenes bestaetigt_durch", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"], bestaetigt_durch: "auto" });
+  const out = confirmTransactions({ transaktionen: [t], regeln, filter: { regel_id: "REG-001", auch_entschiedene: true }, entscheidung: { aktion: "ablehnen" } });
+  assert.equal(Object.hasOwn(out.transaktionen[0], "bestaetigt_durch"), false);
+});

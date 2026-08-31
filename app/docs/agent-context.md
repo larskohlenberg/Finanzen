@@ -213,6 +213,10 @@ Wichtige Tools:
   ihre Regel das Gate besteht (aktiv, Kommentar, `belegstufe` E1-E4 und nicht
   gesperrt, Muster spezifisch). Schreibt `bestaetigt_durch = auto`.
   `npm run freigabe` ist die Vorschau.
+- `tools/pruefbericht.mjs`: Nachkontrolle nach einem Durchlauf — groesste
+  Auto-Freigaben, Merchants ohne jede menschliche Bestaetigung,
+  Kategorie-Ausreisser, alle auto-freigegebenen `KAT-012`, am Gate gescheiterte
+  Regeln, E4-Regeln, Konten ohne Anker. Rein lesend, blockiert nie.
 - `tools/migrate-bestaetigt-durch.mjs`: einmalige Migration — bestaetigte Buchungen
   ohne `bestaetigt_durch` bekommen `mensch`. Konservativ: sie bleiben damit vor
   Regellaeufen geschuetzt wie vor Einfuehrung des Feldes.

@@ -5,17 +5,34 @@ Betriebsanweisung fuer das Bestaetigen, Korrigieren und Ablehnen vorgeschlagener
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
 `tools/...` und `docs/...` liegen unter dem App-Raum.
 
+## Rolle seit ADR 0025
+
+Dieser Skill ist **keine Pflichtstation mehr**. Seit der Auto-Freigabe
+entscheidet das Gate, und der **Pruefbericht** (`tools/pruefbericht.mjs`) ist
+die Kontrolle. Was hier passiert, ist Korrektur: der Nutzer hat im Bericht
+etwas gesehen und will es richtigstellen.
+
+Zwei Dinge folgen daraus:
+
+- Eine auto-freigegebene Buchung ist bereits `bestaetigt`. Sie zu korrigieren
+  braucht deshalb `--auch-entschiedene`, sonst ueberspringt `confirm.mjs` sie.
+- Genau diese Korrektur ist das **Lernsignal** (ADR 0026): `confirm.mjs`
+  protokolliert sie mit Regel-ID und Belegstufe, und `lernen.mjs` legt Regeln
+  still, deren Korrekturquote zu hoch wird. Eine Korrektur ist damit nicht nur
+  eine Buchung, sondern ein Urteil ueber die Regel.
+
 ## Wann diesen Skill nutzen
 
 Nutze ihn, wenn der Nutzer
 
+- eine im **Pruefbericht** auffaellige Auto-Freigabe korrigieren will,
 - offene Vorschlaege durchgehen will („was steht zur Bestaetigung an?", „arbeite die Vorschlaege ab"),
 - nach einem Regel-Lauf die neu erzeugten `vorgeschlagen`-Eintraege bestaetigen will,
 - **Wiedervorlagen** klaeren will (ein Regel-Tuning hat einer fruheren Bestaetigung widersprochen).
 
 Nicht nutzen fuer:
 - Regeln anlegen/aendern → **kategorisierungsregel-pflege** (die *erzeugt* die Vorschlaege).
-- Neue Belege einspielen → **import-agent**.
+- Neue Belege einspielen → **import-durchlauf** (orchestriert Import, Regelanlage, Freigabe und Pruefbericht in einem Lauf).
 
 ## Einstieg: Vorschlaege aktiv melden
 

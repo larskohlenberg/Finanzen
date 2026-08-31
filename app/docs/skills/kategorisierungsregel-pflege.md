@@ -121,9 +121,17 @@ Darum gilt eng begrenzt:
    - **Strukturfehlern** — Pflichtfeld fehlt, `regel_id` schon vergeben, Kategorie unbekannt.
    - **Neuen Regelkonflikten** — zwei Regeln mit verschiedenen Kategorien treffen dieselbe Buchung. Ergebnis ist `offen`, nicht `vorgeschlagen`; **das Review sieht solche Buchungen nie**, der Schaden bliebe unsichtbar. Muster schaerfen, nicht umgehen.
    - **Wiedervorlagen** — der Kandidat widerspricht einer bereits `bestaetigt`-en Regel-Kategorie. Das ist Nacharbeit an einer getroffenen Nutzerentscheidung: **hier ausdruecklich nachfragen**, bevor irgendetwas geschrieben wird.
+   - **Verlorenen bestaetigten Treffern** — eine **Einengung** (schaerferes Muster, zusaetzliches `konto_id`, Stilllegung) laesst bereits `bestaetigt`-e Buchungen aus der Regel fallen. Sie verlieren ihre Kategorie und landen wieder auf `offen`. Das ist derselbe Eingriff in eine Nutzerentscheidung wie eine Wiedervorlage, nur von der anderen Seite: dort widerspricht die Regel, hier verschwindet sie. **Hier ausdruecklich nachfragen** — mit Umfang je Regel, den der Bericht nennt.
 
-   Ein Kandidat **ohne aktuellen Treffer** blockiert nicht — eine Regel darf
-   wissensbasiert fuer kuenftige Buchungen angelegt werden.
+   Der Kandidat wird **in seiner Endfassung** geprueft, `belegstufe` eingeschlossen
+   (gueltig ist E1 bis E4). Nichts nach der Pruefung nachtragen: was das Tool nicht
+   gesehen hat, ist ungeprueft.
+
+   Die Trefferzahlen gelten fuer den **Gesamtbestand**, nicht nur fuer den
+   Offen-Stapel. Eine Regel, die ausschliesslich bestaetigte Buchungen traegt,
+   zeigt ihre Wirkung also trotzdem. Ein Kandidat **ohne aktuellen Treffer**
+   blockiert nicht — eine Regel darf wissensbasiert fuer kuenftige Buchungen
+   angelegt werden.
 
    Bei einer beabsichtigten **Aenderung** einer Bestandsregel `--aenderung`
    setzen; sonst gilt die bekannte `regel_id` als Versehen.
@@ -189,7 +197,7 @@ Darum gilt eng begrenzt:
 
 **Fragen, bevor du handelst:**
 
-- Der Probelauf meldet **Wiedervorlagen**. Umfang nennen und Entscheidung einholen.
+- Der Probelauf meldet **Wiedervorlagen** oder **verlorene bestaetigte Treffer**. Umfang je Regel nennen und Entscheidung einholen.
 - Eine geplante Regelaenderung wuerde viele `bestaetigt`-Eintraege betreffen.
 - Der Nutzer hat eine Kategorie zuvor ausdruecklich anders entschieden und die Recherche widerspricht ihr.
 

@@ -142,3 +142,125 @@ test("unspezifisches Muster blockiert den Probelauf", () => {
   assert.equal(out.unspezifisch[0].regel_id, "REG-900");
   assert.equal(out.blockiert, true);
 });
+
+// --- belegstufe ist ein Schemafeld, kein Fremdkoerper ---------------------
+
+test("belegstufe ist ein erlaubtes Feld und blockiert nicht", () => {
+  const out = probelauf({
+    transaktionen: [tx({ gegenpartei: "Musterrestaurant Mitte" })],
+    bestandsRegeln: [],
+    kandidaten: [{ regel_id: "REG-900", gegenpartei_pattern: "musterrestaurant", kategorie_id: "KAT-017", status: "aktiv", erstellt_am: "2026-08-31", kommentar: "x", belegstufe: "E2" }],
+  });
+  assert.deepEqual(out.struktur_fehler, []);
+  assert.equal(out.blockiert, false);
+});
+
+test("belegstufe ausserhalb von E1 bis E4 blockiert", () => {
+  const out = probelauf({
+    transaktionen: [tx({})],
+    bestandsRegeln: [],
+    kandidaten: [{ regel_id: "REG-900", gegenpartei_pattern: "x", kategorie_id: "KAT-003", status: "aktiv", erstellt_am: "2026-08-31", kommentar: "x", belegstufe: "E6" }],
+  });
+  assert.ok(out.struktur_fehler.some((f) => /belegstufe muss E1 bis E4 sein/.test(f)));
+  assert.equal(out.blockiert, true);
+});
+
+// --- Trefferzaehler und Trefferverlust ------------------------------------
+
+const bestaetigt = (over) => tx({ kategorisierung_status: "bestaetigt", kategorie_herkunft: "regel", bestaetigt_durch: "auto", ...over });
+
+test("Treffer zaehlen ueber den Gesamtbestand, nicht nur ueber den Offen-Stapel", () => {
+  // Der Fall vom 2026-08-31: Offen-Stapel bei 0, die Regel traegt trotzdem
+  // Buchungen. Das Tool meldete "ohne aktuellen Treffer" und 0 Wirkung.
+  const out = probelauf({
+    transaktionen: [
+      bestaetigt({ transaktion_id: "TXN-1", gegenpartei: "MusterladenA Mitte", kategorie_id: "KAT-003", matched_regeln: ["REG-001"] }),
+      bestaetigt({ transaktion_id: "TXN-2", gegenpartei: "MusterladenA Nord", kategorie_id: "KAT-003", matched_regeln: ["REG-001"] }),
+    ],
+    bestandsRegeln: [],
+    kandidaten: [{ regel_id: "REG-900", gegenpartei_pattern: "musterladena", kategorie_id: "KAT-003", status: "aktiv", erstellt_am: "2026-08-31", kommentar: "x", belegstufe: "E2" }],
+  });
+  assert.equal(out.pro_regel["REG-900"].treffer, 2);
+  assert.equal(out.treffer, 2);
+  assert.deepEqual(out.ohne_treffer, []);
+  assert.equal(out.blockiert, false);
+});
+
+test("Einengung, die bestaetigte Buchungen aus der Regel fallen laesst, blockiert", () => {
+  // REG-251 am 2026-08-31: Muster ohne Kontobezug griff nach einem Import auf
+  // ein Konto ueber, fuer das der Beleg nicht galt. Die Einengung nimmt der
+  // falsch getroffenen Buchung ihre Kategorie — sie faellt auf offen zurueck.
+  const out = probelauf({
+    transaktionen: [
+      bestaetigt({ transaktion_id: "TXN-RICHTIG", konto_id: "KTO-001", gegenpartei: "Mustermieter", kategorie_id: "KAT-005", matched_regeln: ["REG-251"] }),
+      bestaetigt({ transaktion_id: "TXN-UEBERGRIFF", konto_id: "KTO-009", gegenpartei: "Mustermieter", kategorie_id: "KAT-005", matched_regeln: ["REG-251"] }),
+    ],
+    bestandsRegeln: [{ regel_id: "REG-251", gegenpartei_pattern: "mustermieter", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "x", belegstufe: "E1" }],
+    kandidaten: [{ regel_id: "REG-251", gegenpartei_pattern: "mustermieter", konto_id: "KTO-001", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "auf das belegte Konto eingeengt", belegstufe: "E1" }],
+    aenderung: true,
+  });
+  assert.equal(out.verlorene_bestaetigte.length, 1);
+  assert.equal(out.verlorene_bestaetigte[0].transaktion_id, "TXN-UEBERGRIFF");
+  assert.equal(out.verlorene_bestaetigte[0].ist_kategorie, "KAT-005");
+  assert.equal(out.verlorene_bestaetigte[0].neu_kategorie, null);
+  assert.deepEqual(out.verlorene_bestaetigte[0].regeln, ["REG-251"]);
+  assert.equal(out.pro_regel["REG-251"].verliert_bestaetigt, 1);
+  assert.equal(out.pro_regel["REG-251"].treffer, 1);
+  assert.equal(out.blockiert, true);
+});
+
+test("Einengung ohne Kategorieverlust ist kein Trefferverlust", () => {
+  // Eine zweite Regel deckt die Buchung mit derselben Kategorie weiter ab —
+  // fachlich aendert sich nichts, also darf das Tool nicht blockieren.
+  const out = probelauf({
+    transaktionen: [
+      bestaetigt({ transaktion_id: "TXN-UEBERGRIFF", konto_id: "KTO-009", gegenpartei: "Mustermieter", kategorie_id: "KAT-005", matched_regeln: ["REG-251", "REG-300"] }),
+    ],
+    bestandsRegeln: [
+      { regel_id: "REG-251", gegenpartei_pattern: "mustermieter", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "x", belegstufe: "E1" },
+      { regel_id: "REG-300", gegenpartei_pattern: "mustermieter", konto_id: "KTO-009", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "x", belegstufe: "E1" },
+    ],
+    kandidaten: [{ regel_id: "REG-251", gegenpartei_pattern: "mustermieter", konto_id: "KTO-001", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "eingeengt", belegstufe: "E1" }],
+    aenderung: true,
+  });
+  assert.deepEqual(out.verlorene_bestaetigte, []);
+  assert.equal(out.blockiert, false);
+});
+
+test("eine Einengung, die nur offene Buchungen fallen laesst, blockiert nicht", () => {
+  const out = probelauf({
+    transaktionen: [tx({ transaktion_id: "TXN-OFFEN", konto_id: "KTO-009", gegenpartei: "Mustermieter" })],
+    bestandsRegeln: [{ regel_id: "REG-251", gegenpartei_pattern: "mustermieter", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "x", belegstufe: "E1" }],
+    kandidaten: [{ regel_id: "REG-251", gegenpartei_pattern: "mustermieter", konto_id: "KTO-001", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "eingeengt", belegstufe: "E1" }],
+    aenderung: true,
+  });
+  assert.deepEqual(out.verlorene_bestaetigte, []);
+  assert.equal(out.blockiert, false);
+});
+
+test("manuelle und abgelehnte Buchungen sind kein Trefferverlust", () => {
+  const out = probelauf({
+    transaktionen: [
+      bestaetigt({ transaktion_id: "TXN-M", konto_id: "KTO-009", gegenpartei: "Mustermieter", kategorie_id: "KAT-005", kategorie_herkunft: "manuell" }),
+      tx({ transaktion_id: "TXN-A", konto_id: "KTO-009", gegenpartei: "Mustermieter", kategorisierung_status: "abgelehnt" }),
+    ],
+    bestandsRegeln: [{ regel_id: "REG-251", gegenpartei_pattern: "mustermieter", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "x", belegstufe: "E1" }],
+    kandidaten: [{ regel_id: "REG-251", gegenpartei_pattern: "mustermieter", konto_id: "KTO-001", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "eingeengt", belegstufe: "E1" }],
+    aenderung: true,
+  });
+  assert.deepEqual(out.verlorene_bestaetigte, []);
+  assert.equal(out.blockiert, false);
+});
+
+test("eine stillgelegte Regel, die bestaetigte Buchungen traegt, blockiert", () => {
+  // Stilllegen ist die radikalste Einengung: alle Treffer fallen weg.
+  const out = probelauf({
+    transaktionen: [bestaetigt({ transaktion_id: "TXN-1", gegenpartei: "Mustermieter", kategorie_id: "KAT-005", matched_regeln: ["REG-251"] })],
+    bestandsRegeln: [{ regel_id: "REG-251", gegenpartei_pattern: "mustermieter", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "x", belegstufe: "E1" }],
+    kandidaten: [{ regel_id: "REG-251", gegenpartei_pattern: "mustermieter", kategorie_id: "KAT-005", status: "inaktiv", erstellt_am: "2026-06-01", kommentar: "stillgelegt", belegstufe: "E1" }],
+    aenderung: true,
+  });
+  assert.equal(out.verlorene_bestaetigte.length, 1);
+  assert.equal(out.pro_regel["REG-251"].verliert_bestaetigt, 1);
+  assert.equal(out.blockiert, true);
+});

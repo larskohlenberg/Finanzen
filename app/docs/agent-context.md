@@ -211,7 +211,12 @@ Wichtige Tools:
 - `tools/regel-vorschlag.mjs`: offenen Rueckstand zu Regelkandidaten buendeln.
 - `tools/regel-probelauf.mjs`: Regelkandidaten gegen den Gesamtbestand rechnen,
   **bevor** etwas geschrieben wird. Blockiert mit Exit-Code 2 bei Strukturfehlern,
-  neuen Regelkonflikten und Wiedervorlagen.
+  unspezifischen Mustern, neuen Regelkonflikten, Wiedervorlagen und **verlorenen
+  bestaetigten Treffern**: eine Einengung laesst bereits bestaetigte Buchungen aus
+  der Regel fallen, sie verlieren ihre Kategorie und landen wieder auf `offen`.
+  Die gemeldeten Trefferzahlen gelten fuer den Gesamtbestand, nicht nur fuer den
+  Offen-Stapel — sonst erschiene eine Regel bei leerem Offen-Stapel als
+  wirkungslos, obwohl sie hunderte bestaetigte Buchungen traegt.
 - `tools/dedupe.mjs`: Transaktions-Dedupe-Hash bilden.
 - `tools/categorizer.mjs`: Kategorisierungsregeln anwenden.
 - `tools/recategorize.mjs`: Bestand nach Regelaenderungen neu bewerten.

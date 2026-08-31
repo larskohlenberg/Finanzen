@@ -126,8 +126,15 @@ Regel-Tuning von selbst, ohne dass jemand danach sucht.
 ### `belegstufe` an der Kategorisierungsregel
 
 ```
-belegstufe: enum ["E1", "E2", "E3", "E4"]   -> required
+belegstufe: enum ["E1", "E2", "E3", "E4"]
 ```
+
+**Der Validator erzwingt den Wertebereich, das Gate erzwingt die Anwesenheit.**
+Ein globales `required` wuerde die 295 Bestandsregeln sofort ungueltig machen.
+Stattdessen: fehlt die Stufe, faellt die Regel durchs Gate und gibt nichts
+automatisch frei. Das erzeugt genau den Druck, sie nachzutragen, ohne den
+Bestand zu blockieren — und setzt "E5/E6 werden nie Regeln" dort durch, wo es
+wirkt.
 
 Bisher steht die Belegstufe nur als Prosa im `kommentar` und ist damit weder
 pruefbar noch sortierbar. Als Pflichtfeld setzt sie die Belegleiter-Regel
@@ -177,15 +184,20 @@ Sie sind ueber `istKandidat()` wieder einsammelbar, sobald eine passende Regel
 entsteht.
 
 **Regelvorschlaege (`kategorie_herkunft = "regel"`)**: freigegeben nur, wenn
-**jede** Regel aus `matched_regeln` alle fuenf Kriterien besteht:
+**jede** Regel aus `matched_regeln` alle vier Kriterien besteht:
 
 | Kriterium | Quelle |
 | --- | --- |
 | `status = "aktiv"` | Regelbestand |
-| Probelauf nicht `blockiert` | `regel-probelauf.mjs`, Feld existiert bereits |
 | `kommentar` nicht leer | Validator erzwingt seit ADR 0018 |
 | `belegstufe` in E1-E4 und nicht gesperrt | neu |
 | Muster besteht Spezifitaetspruefung | neu |
+
+**Kein Konfliktkriterium.** `categorize()` liefert bei mehreren Regeln mit
+verschiedenen Kategorien `status = "offen"`, nicht `"vorgeschlagen"` — eine
+konfliktbehaftete Buchung erreicht die Freigabe also nie. Eine Konfliktpruefung
+im Gate waere toter Code. Der Probelauf bleibt dort, wo er wirkt: beim Anlegen
+einer Regel in `kategorisierungsregel-pflege`.
 
 Faellt eine Regel durch, bleiben ihre Buchungen `vorgeschlagen` und die Regel
 landet mit Grund im Pruefbericht.
@@ -264,7 +276,7 @@ Das Tool aendert ausschliesslich `status` an Regeln — nie eine Transaktion.
 | --- | --- |
 | `confirm.mjs` | setzt `bestaetigt_durch = "mensch"`; schreibt `korrekturen` ins Log beim Ueberschreiben von `auto` |
 | `recategorize.mjs` | `istKandidat()` um `bestaetigt_durch === "auto"` erweitert |
-| `regel-probelauf.mjs` | Spezifitaetspruefung ergaenzt, damit sie schon vor dem Schreiben greift |
+| `regel-probelauf.mjs` | Spezifitaetspruefung ergaenzt, damit eine unspezifische Regel schon beim Anlegen auffaellt |
 | `validate-core.mjs` | Invarianten fuer `bestaetigt_durch` und `belegstufe` |
 | `transaktionen.schema.json` | Property `bestaetigt_durch` |
 | `kategorisierungsregeln.schema.json` | Property `belegstufe`, required |

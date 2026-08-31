@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
+import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
 
 const BELEGSTUFEN = new Set(["E1", "E2", "E3", "E4"]);
 
@@ -120,7 +121,13 @@ async function main() {
     readFile(new URL("kategorisierungsregeln.json", masterRoot), "utf8").then(JSON.parse),
   ]);
 
-  const out = freigabe({ transaktionen, regeln });
+  // Der Sperrzustand wird nicht gespeichert, sondern aus dem Log neu gerechnet.
+  const logText = await readFile(new URL("agent_log.jsonl", masterRoot), "utf8").catch(() => "");
+  const log = logText.split(/\r?\n/).filter((l) => l.trim()).map((l) => JSON.parse(l));
+  const gesperrteBelegstufen = metriken(log, gesperrteBelegstufenAus(log)).gesperrte_belegstufen;
+  if (gesperrteBelegstufen.length) console.log(`Gesperrte Belegstufen: ${gesperrteBelegstufen.join(", ")}`);
+
+  const out = freigabe({ transaktionen, regeln, gesperrteBelegstufen });
   berichte(out.report);
 
   if (!schreiben) {
@@ -136,6 +143,7 @@ async function main() {
     inputs: ["data/master/transaktionen.jsonl"],
     freigaben: out.report.freigaben,
     gate_durchfall: out.report.gate_durchfall,
+    gesperrte_belegstufen: gesperrteBelegstufen,
     notiz: `freigabe.mjs: ${out.report.freigegeben} ueber Regeln, ${out.report.agent_freigegeben} als Agentenvorschlag, ${out.report.zurueckgehalten} zurueckgehalten`,
   };
   const logUrl = new URL("agent_log.jsonl", masterRoot);

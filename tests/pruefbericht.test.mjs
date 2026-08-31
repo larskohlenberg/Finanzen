@@ -93,4 +93,5 @@ test("leerer Bestand liefert leere Listen statt Fehler", () => {
   assert.deepEqual(out.grosse, []);
   assert.deepEqual(out.ausreisser, []);
   assert.deepEqual(out.reconciliation, []);
+  assert.deepEqual(out.lernen.je_regel, []);
 });

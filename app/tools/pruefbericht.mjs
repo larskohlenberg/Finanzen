@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
 import { normalizeLoose, toCents } from "./lib/text.mjs";
+import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
 
 const GROSSE_ANZAHL = 15;
 const AUSREISSER_FAKTOR = 2;
@@ -84,6 +85,7 @@ export function pruefbericht({ transaktionen, regeln, konten, zeitwerte, log }) 
     reconciliation: (log ?? [])
       .flatMap((e) => e.normalisierung ? [e.normalisierung] : [])
       .filter((n) => n.reconciliation_differenz),
+    lernen: metriken(log ?? [], gesperrteBelegstufenAus(log ?? [])),
   };
 }
 
@@ -116,6 +118,11 @@ export function renderBericht(b) {
 
   z.push("", `NICHT RECONCILIERTE KONTOSTAENDE (${b.reconciliation.length})`);
   for (const r of b.reconciliation) z.push(`  ${r.quelle}: Differenz ${r.reconciliation_differenz}`);
+
+  const auffaellig = b.lernen.je_regel.filter((r) => r.korrekturen > 0);
+  z.push("", `REGELN MIT KORREKTUREN AN AUTO-FREIGABEN (${auffaellig.length})`);
+  for (const r of auffaellig.slice(0, 10)) z.push(`  ${r.regel_id}  ${(r.quote * 100).toFixed(0)}%  (${r.korrekturen}/${r.freigaben})`);
+  z.push(`GESPERRTE BELEGSTUFEN: ${b.lernen.gesperrte_belegstufen.join(", ") || "keine"}`);
   return z.join("\n");
 }
 

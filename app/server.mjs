@@ -18,7 +18,7 @@
 // (tests/app-server*.test.mjs); der CLI-Einstieg laeuft nur bei Direktaufruf.
 import http from "node:http";
 import { createReadStream } from "node:fs";
-import { open, mkdir, lstat, readdir, realpath, rename, rm, stat } from "node:fs/promises";
+import { open, link, mkdir, lstat, readdir, realpath, rm, stat } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import { dirname, extname, join, resolve, sep } from "node:path";
@@ -248,9 +248,22 @@ async function sha256Datei(pfad) {
 
 class ZuGross extends Error {}
 
+// Legt temp unter ziel ab, ohne je zu ueberschreiben: link() scheitert atomar
+// mit EEXIST, wenn ziel schon existiert (auch wenn es gerade erst ein anderer
+// Prozess angelegt hat). temp bleibt liegen; der Aufrufer raeumt es weg.
+export async function legeAbOhneUeberschreiben(temp, ziel) {
+  try {
+    await link(temp, ziel);
+    return true;
+  } catch (fehler) {
+    if (fehler.code === "EEXIST") return false;
+    throw fehler;
+  }
+}
+
 export function createAppServer({ appDir, inboxDir, proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, log = console.log }) {
   let appWurzel = null;
-  // Uploads nacheinander abschliessen: Namenswahl + rename ohne Wettlauf.
+  // Uploads nacheinander abschliessen: Namenswahl ohne Wettlauf untereinander.
   let kette = Promise.resolve();
   const exklusiv = (fn) => {
     const lauf = kette.then(fn);
@@ -311,12 +324,11 @@ export function createAppServer({ appDir, inboxDir, proxyIp = null, origins = nu
         for (let versuch = 1; versuch < 1000; versuch += 1) {
           const kandidat = kandidatenName(name, versuch);
           const ziel = join(inboxDir, kandidat);
-          const vorhanden = await lstat(ziel).catch(() => null);
-          if (!vorhanden) {
-            await rename(temp, ziel);
+          if (await legeAbOhneUeberschreiben(temp, ziel)) {
             return { code: 201, status: "hochgeladen", name: kandidat };
           }
-          if (vorhanden.isFile() && vorhanden.size === groesse && (await sha256Datei(ziel)) === inhaltHash) {
+          const vorhanden = await lstat(ziel).catch(() => null);
+          if (vorhanden?.isFile() && vorhanden.size === groesse && (await sha256Datei(ziel)) === inhaltHash) {
             return { code: 200, status: "vorhanden", name: kandidat };
           }
         }

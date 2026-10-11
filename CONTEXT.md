@@ -239,6 +239,10 @@ Keine eigene Entitaet. Quellen leben als Felder direkt am Datensatz:
 
 Keine `quellen.json`. Wenn dasselbe PDF an mehreren Stellen referenziert wird, steht der Pfad mehrfach — das ist akzeptiert, weil es keinen echten Pflegeaufwand erzeugt.
 
+## Dokument
+
+Eine Datei unter `Belege/` (Kontoauszug, Police, Bescheid, Vertrag, Export), die als **Quelle** eines Datensatzes dient; in der App erscheint sie unter „Dokumente". In der Oberflaeche heisst die Datei „Dokument" bzw. am Datensatz „Quelldokument", nicht „Beleg" — „Beleg" meint fuer den Nutzer den Datensatz selbst. Der Ordnername `Belege/` ist historisch.
+
 ## Kategorisierungsregel
 
 Stammdatensatz in `data/master/kategorisierungsregeln.json`. Ordnet eingehenden Transaktionen anhand von Mustern (z. B. Substring in `gegenpartei` oder `verwendungszweck`, optional gefiltert auf `konto_id`) eine `kategorie_id` zu. Wird beim Import (Erst-Kategorisierung) und bei Regelaenderungen ueber den Bestand (Nach-Kategorisierung, siehe ADR 0017) von einem deterministischen Tool ausgewertet — der Agent ruft das Tool, das Tool matcht, der Agent uebernimmt das Ergebnis.

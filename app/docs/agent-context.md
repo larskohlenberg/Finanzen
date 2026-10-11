@@ -341,7 +341,7 @@ Wichtige Tools:
 - `tools/transfer-matcher.mjs`: interne Transfers paaren — als Lauf ueber den
   **Bestand** (`npm run transfers`), nicht nur waehrend eines Imports. Nach einem
   neu angelegten Konto nachziehen, sonst bleiben dessen Gegenbuchungen ungepaart.
-- `tools/belege-text.mjs`: Textzwilling (`.txt`) je PDF unter `Belege/` erzeugen
+- `tools/belege-text.mjs`: Textzwilling (`.txt`) je PDF und Bild unter `Belege/` erzeugen
   und `data/inbox/standardized/` **sowie** `data/inbox/processed/` per
   Inhalts-Hash aufraeumen. Ein `.txt` gilt dabei nie als Nachweis fuer eine
   Rohdatei — es ist der abgeleitete Zwilling und belegt nicht, dass das
@@ -394,6 +394,10 @@ ab ("Spalte X nicht in der Datei") statt Werte still falsch zuzuordnen.
 PDFs werden **nicht** automatisch in Buchungen zerlegt. `inbox.mjs` legt einen
 deterministischen Textvorlauf (`pdftotext -layout`) nach
 `data/inbox/standardized/` ab; die Zeilenextraktion bleibt Agentenarbeit.
+PDFs ohne Textlayer und Belegfotos (png/jpg/jpeg) bekommen den Vorlauf schon
+hier per OCR (`tesseract`, gemeinsame Erkennung in `tools/lib/ocr.mjs`, mit
+der OCR-Kopfzeile aus Abschnitt „Belege"). Fotos bleiben wie PDFs im
+Inbox-Root liegen, bis sie abgelegt sind; nach `error/` wandern sie nie.
 `standardized/` ist dabei Durchgangsstation, kein Archiv — der dauerhafte
 Textzwilling entsteht neben dem Beleg, siehe Abschnitt „Belege".
 
@@ -560,26 +564,38 @@ und Annahmen entstehen ausschliesslich ueber den Agenten. Siehe Skill
 Belege werden sprechend benannt und unter `Belege/` abgelegt. Datenfelder wie
 `rohquelle` und `quelle_hinweis` zeigen auf den finalen App-relativen Belegpfad.
 
-Jedes PDF unter `Belege/` hat einen **Textzwilling**: gleicher Ordner, gleicher
-Basisname, Endung `.txt`. Der Zwilling macht das Archiv durchsuchbar, ohne PDFs
-zu oeffnen. Der Normalfall ist rohes `pdftotext -layout`-Ergebnis: nicht von
-Hand gepflegt und jederzeit aus dem Beleg wiederherstellbar. Nur Bildscans
-weichen davon ab, siehe unten. `tools/belege-text.mjs` erzeugt fehlende
+Jedes PDF und jedes Bild (png/jpg/jpeg) unter `Belege/` hat einen
+**Textzwilling**: gleicher Ordner, gleicher Basisname, Endung `.txt`. Der
+Zwilling macht das Archiv durchsuchbar, ohne PDFs zu oeffnen. Der Normalfall
+ist rohes `pdftotext -layout`-Ergebnis: nicht von Hand gepflegt und jederzeit
+aus dem Beleg wiederherstellbar. Nur Bildscans und Fotos weichen davon ab,
+siehe unten. HEIC/HEIF kommt nicht an: der Upload wandelt es in JPEG um. `tools/belege-text.mjs` erzeugt fehlende
 Zwillinge und raeumt danach `data/inbox/standardized/` ab
 (`npm run belege:text` fuer die Vorschau, `npm run belege:text:schreiben` zum
 Anwenden).
 CSVs unter `Belege/` bekommen keinen Zwilling, sie sind bereits Text.
 
-Ein Zwilling ist nie stumm leer. Hat ein PDF keine Textebene, traegt sein
-Zwilling die Kopfzeile `# Kein Textlayer — Bildscan, <N> Seiten. Inhalt nur im
-PDF.` und erscheint bei jedem Lauf als „OCR ausstehend". Ein leerer Zwilling
-waere schlimmer als gar keiner: Die Suche faende nichts, und ein fehlender
-Treffer ist von „das Dokument existiert nicht" nicht zu unterscheiden.
+Bildscans (PDF ohne Textebene) und Fotos gehen durch **OCR**: Seiten per
+`pdftoppm -r 300` rastern, Text per `tesseract -l deu+eng` erkennen. Der
+Zwilling beginnt dann mit `# Per OCR (tesseract) erkannt, <JJJJ-MM-TT>.`
+Liegt derselbe OCR-Text schon als Vorlauf in `standardized/`, uebernimmt der
+Zwilling ihn samt Kopfzeile und Datum — so bleibt er byte-identisch, und das
+Aufraeumen findet den Vorlauf wieder.
 
-Bildscans liest der **Agent beim Import** — er sieht das Dokument dort ohnehin
-an, um Kategorie und Namen zu bestimmen. Er schreibt den Zwilling dann selbst,
-mit der Kopfzeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`,
-damit die Herkunft in der Datei ablesbar bleibt. Normale Zwillinge tragen
+Ein Zwilling ist nie stumm leer. Liefert OCR fast nichts (unter 20 Zeichen)
+oder fehlt `tesseract`, traegt der Zwilling die Kopfzeile `# Kein Textlayer —
+Bildscan, <N> Seiten. Inhalt nur im PDF.` (bei Fotos `# Kein Textlayer —
+Bild. …`) und erscheint bei jedem Lauf als „OCR ausstehend". Jeder Lauf
+versucht diese Marker erneut per OCR und ersetzt sie, sobald es klappt. Ein
+leerer Zwilling waere schlimmer als gar keiner: Die Suche faende nichts, und
+ein fehlender Treffer ist von „das Dokument existiert nicht" nicht zu
+unterscheiden.
+
+Selbst liest der **Agent** einen Scan oder ein Foto nur noch, wenn OCR nichts
+taugt (Marker oder offensichtlich unbrauchbarer OCR-Text): `datei_lesen` mit
+`seite` liefert Seite bzw. Bild. Er schreibt den Zwilling dann selbst, mit der
+Kopfzeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`, damit die
+Herkunft in der Datei ablesbar bleibt. Normale pdftotext-Zwillinge tragen
 **keine** Kopfzeile: Sie muessen byte-identisch zum Textvorlauf bleiben, sonst
 findet das Aufraeumen sie nicht wieder.
 

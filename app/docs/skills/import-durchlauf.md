@@ -30,7 +30,9 @@ das ist **kategorisierung-review**.
 1. **Lernmetriken lesen.** Tool `lernen` (Vorschau) und den Befund vor
    den Lauf stellen: gesperrte Belegstufen und stillzulegende Regeln nennen.
 2. **Normalisieren und importieren.** Je Rohdatei den Subagenten
-   `import-normalisierung` beauftragen. Der Lauf haelt nie an.
+   `import-normalisierung` beauftragen. Der Lauf haelt nie an. Der Inbox-Lauf
+   legt fuer PDFs und Belegfotos den Textvorlauf an, bei Scans und Fotos per
+   OCR; Bild oder Scan selbst ansehen nur, wenn OCR nichts taugt.
 3. **Verregeln.** Den Subagenten `regel-recherche` auf den Offen-Stapel
    ansetzen. Er legt Regeln mit `belegstufe` an, ruft `recategorize.mjs` und
    schaetzt, was ohne Beleg bleibt, als Agenten-Einzelvorschlag. Er sucht je

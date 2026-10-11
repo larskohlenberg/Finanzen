@@ -1,6 +1,6 @@
 // Haertung der MCP-Tools aus dem Review: Pfade, Dateimodus, Anhaengen.
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test, { after, before } from "node:test";
 import { legeAbzugAn, starteServer } from "./mcp-hilfe.mjs";
@@ -25,6 +25,25 @@ test("regel_probelauf: kandidaten_datei wird nicht als URL dekodiert", async () 
     const woertlich = await s.werkzeug("regel_probelauf", { kandidaten_datei: "data/inbox/k%41.json", json: true });
     assert.ok(!woertlich.isError, woertlich.text);
     assert.match(woertlich.text, /REG-900/);
+  } finally {
+    await s.beenden();
+  }
+});
+
+test("Atomares Schreiben behaelt den Dateimodus, neue Dateien bekommen 0640", async () => {
+  const bestehend = join(abzug.app, "data", "inbox", "modus.txt");
+  writeFileSync(bestehend, "a=1\n");
+  chmodSync(bestehend, 0o600);
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const ersetzt = await s.werkzeug("datei_ersetzen", { pfad: "data/inbox/modus.txt", alt: "a=1", neu: "a=2" });
+    assert.ok(!ersetzt.isError, ersetzt.text);
+    assert.equal(readFileSync(bestehend, "utf8"), "a=2\n");
+    assert.equal(statSync(bestehend).mode & 0o777, 0o600);
+
+    const neu = await s.werkzeug("datei_schreiben", { pfad: "data/inbox/neu-modus.txt", inhalt: "x" });
+    assert.ok(!neu.isError, neu.text);
+    assert.equal(statSync(join(abzug.app, "data", "inbox", "neu-modus.txt")).mode & 0o777, 0o640);
   } finally {
     await s.beenden();
   }

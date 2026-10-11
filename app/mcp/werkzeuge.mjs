@@ -7,7 +7,7 @@
 //   --recht=schreiben.
 // Jeder schreibende Vorgang laeuft durch mitRollback (Validator + Rueckspielen).
 import { execFile } from "node:child_process";
-import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -493,11 +493,20 @@ const dateienSuchen = {
 
 // ---------------------------------------------------------------- Schreiben
 
+// Bestehende Dateien behalten ihren Modus, neue bekommen 0640 (unabhaengig von
+// der umask; die Daten sollen nicht fuer alle lesbar werden).
 async function schreibeAtomar(absolut, inhalt) {
   await mkdir(path.dirname(absolut), { recursive: true });
+  const modus = ((await stat(absolut).catch(() => null))?.mode ?? 0o640) & 0o7777;
   const temp = path.join(path.dirname(absolut), `.${path.basename(absolut)}.mcp-${process.pid}`);
-  await writeFile(temp, inhalt);
-  await rename(temp, absolut);
+  try {
+    await writeFile(temp, inhalt, { mode: modus });
+    await chmod(temp, modus);
+    await rename(temp, absolut);
+  } catch (error) {
+    await rm(temp, { force: true });
+    throw error;
+  }
 }
 
 const dateiSchreiben = {

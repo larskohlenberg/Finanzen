@@ -103,7 +103,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "inbox",
     skript: "inbox.mjs",
-    beschreibung: "Inbox-Lauf (tools/inbox.mjs) ueber die Dateien direkt in data/inbox/: Profil zuordnen, CSV normalisieren, importieren, Datei nach processed/ bzw. error/ verschieben, PDFs als Textvorlauf nach standardized/. Vorschau ist Default. Verschiebungen werden bei einem Rollback nicht zurueckgenommen.",
+    beschreibung: "Inbox-Lauf (tools/inbox.mjs) ueber die Dateien direkt in data/inbox/: Profil zuordnen, CSV normalisieren, importieren, Datei nach processed/ bzw. error/ verschieben, PDFs und Bilder als Textvorlauf nach standardized/ (ohne Textlayer per OCR; Bilder bleiben im Inbox-Root liegen). Vorschau ist Default. Verschiebungen werden bei einem Rollback nicht zurueckgenommen.",
     schreibFlag: "--schreiben",
     argv: async (ctx, a, root) => [root],
   }),
@@ -245,7 +245,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "belege_text",
     skript: "belege-text.mjs",
-    beschreibung: "Textzwillinge (.txt) fuer PDFs unter Belege/ erzeugen und data/inbox/standardized/ sowie processed/ per Inhalts-Hash aufraeumen (tools/belege-text.mjs). error/ bleibt unangetastet. Vorschau ist Default; geloeschte Eingangsdateien werden bei einem Rollback nicht wiederhergestellt.",
+    beschreibung: "Textzwillinge (.txt) fuer PDFs und Bilder unter Belege/ erzeugen (ohne Textlayer per OCR, alte Kein-Textlayer-Marker werden nachgeholt) und data/inbox/standardized/ sowie processed/ per Inhalts-Hash aufraeumen (tools/belege-text.mjs). error/ bleibt unangetastet. Vorschau ist Default; geloeschte Eingangsdateien werden bei einem Rollback nicht wiederhergestellt.",
     schreibFlag: "--schreiben",
     argv: async () => [],
   }),
@@ -382,14 +382,14 @@ function zeilenbereich(text, von, bis, relativ) {
 
 const dateiLesen = {
   name: "datei_lesen",
-  description: "Datei lesen, Pfad relativ zum App-Raum. Erlaubt: data/, Belege/, docs/, schemas/ sowie die Repo-Doku ../docs/ und ../CONTEXT.md. Textdateien bis 2 MB (groessere nur mit Zeilenbereich); ein Ordner liefert seine Eintraege. PDFs: liefert den .txt-Zwilling bzw. pdftotext-Text; mit seite:N die gerenderte Seite als Bild (fuer Bildscans). Bilder werden als Bild geliefert.",
+  description: "Datei lesen, Pfad relativ zum App-Raum. Erlaubt: data/, Belege/, docs/, schemas/ sowie die Repo-Doku ../docs/ und ../CONTEXT.md. Textdateien bis 2 MB (groessere nur mit Zeilenbereich); ein Ordner liefert seine Eintraege. PDFs: liefert den .txt-Zwilling bzw. pdftotext-Text; mit seite:N die gerenderte Seite als Bild (fuer Bildscans). Bilder (png/jpg) bis 5 MB: liefert den .txt-Zwilling (meist OCR), sonst das Bild; mit seite:1 immer das Bild.",
   inputSchema: {
     type: "object",
     properties: {
       pfad: { type: "string" },
       von_zeile: { type: "integer", minimum: 1 },
       bis_zeile: { type: "integer", minimum: 1 },
-      seite: { type: "integer", minimum: 1, description: "Nur PDF: Seite als Bild rendern" },
+      seite: { type: "integer", minimum: 1, description: "PDF: Seite als Bild rendern. Bild: seite:1 liefert das Bild statt des Textzwillings" },
     },
     required: ["pfad"],
     additionalProperties: false,
@@ -441,6 +441,20 @@ const dateiLesen = {
       }
     }
     if (BILDER[endung]) {
+      // Wie beim PDF: der Textzwilling (meist OCR) ist billiger als das Bild.
+      // Auch er muss durch den Pfadschutz.
+      if (!args.seite) {
+        let zwilling;
+        try {
+          zwilling = await loesePfad(ctx.app, relativ.slice(0, -endung.length) + ".txt", LESE_WURZELN);
+        } catch (error) {
+          if (!(error instanceof PfadFehler)) throw error;
+        }
+        const zwillingText = zwilling ? await readFile(zwilling.absolut, "utf8").catch(() => null) : null;
+        if (zwillingText !== null) {
+          return ergebnis(`# Textzwilling ${zwilling.relativ} (das Bild selbst: datei_lesen mit seite:1)\n${zeilenbereich(zwillingText, args.von_zeile, args.bis_zeile, relativ)}`);
+        }
+      }
       if (info.size > MAX_BILD) return ergebnis(`${relativ} ist groesser als 5 MB`, true);
       return { content: [{ type: "image", data: (await readFile(absolut)).toString("base64"), mimeType: BILDER[endung] }] };
     }

@@ -59,20 +59,25 @@ async function methode(ctx, name, params = {}) {
   }
 }
 
+const gueltigeId = (id) => id === null || typeof id === "string" || (typeof id === "number" && Number.isFinite(id));
+const ungueltig = (id = null) => ({ jsonrpc: "2.0", id, error: { code: -32600, message: "Ungueltige Anfrage" } });
+const hat = (o, k) => Object.hasOwn(o, k);
+
 async function verarbeiteNachricht(ctx, nachricht, log) {
-  if (nachricht === null || typeof nachricht !== "object" || Array.isArray(nachricht)) {
-    return { jsonrpc: "2.0", id: null, error: { code: -32600, message: "Ungueltige Anfrage" } };
-  }
-  const istAnfrage = Object.hasOwn(nachricht, "id") && nachricht.id !== null;
-  if (typeof nachricht.method !== "string") {
-    // Antworten des Clients auf Server-Anfragen gibt es hier nicht: ignorieren.
-    if (!istAnfrage || Object.hasOwn(nachricht, "result") || Object.hasOwn(nachricht, "error")) return null;
-    return { jsonrpc: "2.0", id: nachricht.id, error: { code: -32600, message: "Ungueltige Anfrage" } };
+  if (nachricht === null || typeof nachricht !== "object" || Array.isArray(nachricht)) return ungueltig();
+  const istAnfrage = hat(nachricht, "id");
+  if (istAnfrage && !gueltigeId(nachricht.id)) return ungueltig();
+  // Antworten des Clients auf Server-Anfragen gibt es hier nicht: ignorieren.
+  if (!hat(nachricht, "method") && (hat(nachricht, "result") || hat(nachricht, "error"))) return null;
+  if (nachricht.jsonrpc !== "2.0" || typeof nachricht.method !== "string") return ungueltig(istAnfrage ? nachricht.id : null);
+  const params = nachricht.params ?? {};
+  if (typeof params !== "object" || Array.isArray(params)) {
+    return istAnfrage ? { jsonrpc: "2.0", id: nachricht.id, error: { code: -32602, message: "params muss ein Objekt sein" } } : null;
   }
   if (!istAnfrage) return null; // notifications/initialized, notifications/cancelled, ...
   const start = Date.now();
   try {
-    const result = await methode(ctx, nachricht.method, nachricht.params ?? {});
+    const result = await methode(ctx, nachricht.method, params);
     log(`${nachricht.method}${nachricht.method === "tools/call" ? ` ${nachricht.params?.name}` : ""} ${Date.now() - start}ms${result?.isError ? " tool-fehler" : ""}`);
     return { jsonrpc: "2.0", id: nachricht.id, result };
   } catch (error) {
@@ -91,10 +96,8 @@ export async function verarbeiteZeile(ctx, zeile, log = () => {}) {
     log("parse-fehler");
     return JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } });
   }
-  if (Array.isArray(nachricht)) {
-    const antworten = (await Promise.all(nachricht.map((n) => verarbeiteNachricht(ctx, n, log)))).filter(Boolean);
-    return antworten.length ? JSON.stringify(antworten) : null;
-  }
+  // Batches gibt es in MCP seit 2025-06-18 nicht mehr: ein Array ist ungueltig.
+  if (Array.isArray(nachricht)) return JSON.stringify(ungueltig());
   const antwort = await verarbeiteNachricht(ctx, nachricht, log);
   return antwort ? JSON.stringify(antwort) : null;
 }

@@ -31,7 +31,8 @@ test("belegPfadeAusText: reiner Pfad, Pfad mitten im Text, Satzzeichen am Ende",
 test("belegPfadeAusText: kein Treffer bei Freitext, data/-Pfaden und fremden Endungen", () => {
   assert.deepEqual(belegPfadeAusText("Demo-Kontoauszug"), []);
   assert.deepEqual(belegPfadeAusText("data/demo/inbox/demo-2023-07.csv"), []);
-  assert.deepEqual(belegPfadeAusText("Belege/x/bild.png"), []);
+  assert.deepEqual(belegPfadeAusText("Belege/x/bild.gif"), []);
+  assert.deepEqual(belegPfadeAusText("Foto: Belege/x/Quittung.JPG."), ["Belege/x/Quittung.JPG"]);
   assert.deepEqual(belegPfadeAusText(undefined), []);
   assert.deepEqual(belegPfadeAusText("Belege/x/a.pdfx"), []);
 });

@@ -10,7 +10,7 @@ import { renderPageHead, formatDate } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import {
   BELEGE_WURZEL, baueBaum, belegSchluessel, dateiUrl, fasseTransaktionenZusammen,
-  findeOrdner, formatGroesse, kodierePfad, ordneZwillingeZu, sortiereDateien, sucheDateien,
+  findeOrdner, formatGroesse, istBildTyp, kodierePfad, ordneZwillingeZu, sortiereDateien, sucheDateien,
   verweisAnzahl, verweisIndex, vorfahren,
 } from "../belege.mjs";
 
@@ -188,6 +188,10 @@ function sortKopf(key, labelKey, klasse = "") {
   return `<th${klasse ? ` class="${klasse}"` : ""}${aria}><button type="button" class="linkish sort-th" data-action="sort-belege" data-beleg-sort="${key}">${escapeHtml(t(labelKey))}${pfeil}</button></th>`;
 }
 
+function typText(typ) {
+  return istBildTyp(typ) ? t("dokumente.typBild") : String(typ).toUpperCase();
+}
+
 function textZelle(d) {
   if (d.istZwilling) return `<span class="muted">${escapeHtml(t("dokumente.textzwilling"))}</span>`;
   if (d.textStatus === "durchsuchbar") return `<span class="chip success">${escapeHtml(t("dokumente.textDurchsuchbar"))}</span>`;
@@ -248,7 +252,7 @@ function renderZeile(d, gewaehlt, suche) {
     <tr class="clickable ${gewaehlt ? "selected" : ""}" data-action="select-beleg" data-beleg="${escapeHtml(d.pfad)}">
       <td class="belege-name"><button type="button" class="linkish" data-action="select-beleg" data-beleg="${escapeHtml(d.pfad)}"${gewaehlt ? ` aria-current="true"` : ""}>${iconSvg("belege")}<span>${escapeHtml(d.name)}</span></button></td>
       ${suche ? `<td class="muted">${escapeHtml(d.ordner.slice(BELEGE_WURZEL.length + 1) || "/")}</td>` : ""}
-      <td>${escapeHtml(d.typ.toUpperCase())}</td>
+      <td>${escapeHtml(typText(d.typ))}</td>
       <td class="amount">${escapeHtml(formatGroesse(d.groesse, locale()))}</td>
       <td title="${escapeHtml(formatZeit(d.geaendert))}">${escapeHtml(formatTag(d.geaendert))}</td>
       <td>${textZelle(d)}</td>
@@ -287,7 +291,7 @@ function renderDetail(d) {
       <div class="detail-section">
         <div class="detail-list">
           ${metaZeile(t("dokumente.ordnerSpalte"), `<button type="button" class="linkish" data-action="select-beleg" data-beleg="${escapeHtml(d.ordner)}">${escapeHtml(d.ordner)}</button>`)}
-          ${metaZeile(t("dokumente.spalteTyp"), escapeHtml(d.typ.toUpperCase()))}
+          ${metaZeile(t("dokumente.spalteTyp"), escapeHtml(typText(d.typ)))}
           ${metaZeile(t("dokumente.spalteGroesse"), escapeHtml(formatGroesse(d.groesse, locale())))}
           ${metaZeile(t("dokumente.spalteGeaendert"), escapeHtml(formatZeit(d.geaendert)))}
           ${metaZeile(t("dokumente.spalteText"), textZelle(d))}

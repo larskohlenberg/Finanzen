@@ -105,3 +105,31 @@ test("Ohne App-Server: freundlicher Hinweis statt Fehler", async () => {
   await view.ladeBelege(() => {});
   assert.match(view.renderBelege(), /App-Server/);
 });
+
+test("Bilder: Typ Bild, Textzwilling per OCR, Oeffnen und Herunterladen", async () => {
+  apiAntwort = {
+    dateien: [
+      { pfad: "Belege/2026/Sonstiges/quittung.jpg", groesse: 1000, geaendert: ISO, typ: "jpg" },
+      { pfad: "Belege/2026/Sonstiges/quittung.txt", groesse: 50, geaendert: ISO, typ: "txt" },
+      { pfad: "Belege/2026/Sonstiges/foto.png", groesse: 1000, geaendert: ISO, typ: "png" },
+      { pfad: "Belege/2026/Sonstiges/foto.txt", groesse: 50, geaendert: ISO, typ: "txt", ocrAusstehend: true },
+      { pfad: "Belege/2026/Sonstiges/alt.heic", groesse: 1000, geaendert: ISO, typ: "heic" },
+    ],
+  };
+  await view.ladeBelege(() => {});
+  state.selectedBeleg = "Belege/2026/Sonstiges";
+  let html = view.renderBelege();
+  assert.equal((html.match(/<td>Bild<\/td>/g) ?? []).length, 3, "png, jpg und heic heissen Bild");
+  assert.doesNotMatch(html, /quittung\.txt/, "Zwilling eines Bildes ist versteckt");
+  assert.match(html, /durchsuchbar/);
+  assert.match(html, /OCR ausstehend/);
+
+  state.selectedBeleg = "Belege/2026/Sonstiges/quittung.jpg";
+  html = view.renderBelege();
+  assert.match(html, /href="Belege\/2026\/Sonstiges\/quittung\.jpg" target="_blank" rel="noopener"/);
+  assert.match(html, /download="quittung\.jpg"/);
+  assert.match(html, /Textzwilling/);
+  state.lang = "en";
+  assert.match(view.renderBelege(), /Image/);
+  state.lang = "de";
+});

@@ -40,3 +40,6 @@ app/Belege/**
 
 # Runde-1-Excel-Archiv enthaelt echte Finanzdaten und bleibt lokal.
 archiv/
+
+# Versionsstand, schreibt ops/aktualisieren.sh beim Deploy.
+app/version.json

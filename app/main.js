@@ -21,8 +21,11 @@ import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
 import { bindDiagrammHover } from "./diagramm-hover.mjs";
+import { versionAnzeige, ladeVersion } from "./version.mjs";
 
 let nextActionCopiedTimer = null;
+// undefined = noch nicht geladen (nichts anzeigen), null = keine version.json.
+let appVersion;
 
 function applyTheme() {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -165,9 +168,24 @@ function renderSidebar() {
       <div class="sidebar-meta">
         <span>${escapeHtml(t("chrome.workState"))}</span>
         <strong>${escapeHtml(t("chrome.releaseState"))}</strong>
+        ${renderVersion()}
       </div>
     </aside>
   `;
+}
+
+function renderVersion() {
+  if (appVersion === undefined) return "";
+  const v = versionAnzeige(appVersion, {
+    locale: state.lang === "de" ? "de-DE" : "en-US",
+    lokal: t("chrome.versionLocal"),
+  });
+  if (v.lokal) return `<span class="sidebar-version">${escapeHtml(v.text)}</span>`;
+  const rest = [v.datum, v.branch].filter(Boolean).map(escapeHtml).join(" · ");
+  return `
+    <span class="sidebar-version">
+      <a href="${escapeHtml(v.href)}" target="_blank" rel="noopener" title="${escapeHtml(t("chrome.versionCommitHint"))}">${escapeHtml(v.kurz)}</a> · ${rest}
+    </span>`;
 }
 
 function renderTabbar() {
@@ -1095,3 +1113,9 @@ applyRoute(parseRoute(location.hash));
 lastCommittedView = state.view;
 history.replaceState(snapshotState(), "", routeFromState(state));
 render();
+
+// Versionsstand nachladen; blockiert den Start nicht und scheitert still.
+ladeVersion().then((version) => {
+  appVersion = version;
+  render();
+});

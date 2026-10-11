@@ -38,4 +38,6 @@ node app/server.mjs
 
 Lokal ist das der Entwicklungsbetrieb mit Demodaten. Produktiv laeuft der App-Server auf einer eigenen VM hinter Reverse Proxy mit Auth-Dienst (zweiter Faktor) und Heimnetz-Sperre; Agenten arbeiten dort ueber MCP per SSH. Der gesamte App-Raum, inklusive direkter Dateiaufrufe unter `data/`, `Belege/`, `schemas/` und `tools/`, ist nur hinter diesem Schutz erreichbar. Hintergrund: ADR 0008 (Webserver zulässig), ADR 0009 (Zugriffsschutz), ADR 0012 (App als ES-Modul), ADR 0015 (App als deploybarer Datenraum), ADR 0028 (Betrieb auf eigener VM). Das fruehere Setup ueber Synology Web Station und `serve_app.py` ist historisch.
 
+Aktualisiert wird die VM mit `sudo ops/aktualisieren.sh [branch]` (Default `main`): Fast-Forward auf `origin/<branch>`, Neustart des Dienstes und `app/version.json` (gitignored), deren Stand die App unten in der Sidebar zeigt (Kurz-Hash mit Link zum Commit, Datum, Branch ausser `main`); ohne die Datei steht dort „lokal“.
+
 Das alte `review-data.js`-Bundle ist nicht mehr der fuehrende Betriebsmodus; die App liest einzelne Masterdateien direkt aus `data/master/`.

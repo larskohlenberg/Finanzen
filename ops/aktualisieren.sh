@@ -2,12 +2,15 @@
 # Bringt den Checkout auf der VM auf den Stand von origin/<branch>, schreibt
 # app/version.json (Anzeige unten in der Sidebar) und startet die App neu.
 #
-# Installation einmalig als root, damit der fachliche User das Skript, das
-# root ausfuehrt, nicht aendern kann:
-#   sudo install -o root -g root -m 755 /opt/finanzen/ops/aktualisieren.sh /usr/local/sbin/finanzen-aktualisieren
+# Installation als root-eigene Kopie, damit der fachliche User das Skript, das
+# root ausfuehrt, nicht aendern kann. Erst in eine root-eigene Datei holen,
+# pruefen, dann genau diese Datei installieren (kein Austausch dazwischen):
+#   sudo sh -c 'umask 077; sudo -u finanzen git -C /opt/finanzen show <commit>:ops/aktualisieren.sh > /root/aktualisieren.neu'
+#   sudo diff /usr/local/sbin/finanzen-aktualisieren /root/aktualisieren.neu   (erstmals: sudo less ...)
+#   sudo install -o root -g root -m 755 /root/aktualisieren.neu /usr/local/sbin/finanzen-aktualisieren
 # Aufruf als Admin:  sudo finanzen-aktualisieren [branch]   (Default: main)
-# Die Fassung im Repo ist nur Quelle: weicht sie ab, meldet das Skript es,
-# kopiert aber nichts selbst.
+# Die Fassung im Repo ist nur Quelle: weicht sie ab, gibt das Skript diese
+# Befehle mit dem Commit aus, kopiert aber nichts selbst.
 #
 # Git laeuft als fachlicher User, nie als root. Nur Fast-Forward: hat der
 # Checkout eigene Commits oder Aenderungen, bricht das Skript ab.
@@ -59,7 +62,13 @@ als_nutzer mv -f "$tmp" "$ziel"
 # Neue Skriptfassung im Repo nur melden — root uebernimmt sie nach Pruefung.
 quelle="$VERZ/ops/aktualisieren.sh"
 if als_nutzer test -f "$quelle" && ! als_nutzer cmp -s "$quelle" "$(readlink -f "$0")"; then
-  echo "Hinweis: Neue Skriptfassung im Repo — nach Pruefung mit \`sudo install -o root -g root -m 755 $quelle /usr/local/sbin/finanzen-aktualisieren\` uebernehmen." >&2
+  neu=/root/aktualisieren.neu
+  {
+    echo "Hinweis: Neue Skriptfassung im Repo (${commit:0:7}). Uebernehmen nur nach Sichtpruefung:"
+    echo "  sudo sh -c 'umask 077; sudo -u $NUTZER git -C $VERZ show $commit:ops/aktualisieren.sh > $neu'"
+    echo "  sudo diff /usr/local/sbin/finanzen-aktualisieren $neu"
+    echo "  sudo install -o root -g root -m 755 $neu /usr/local/sbin/finanzen-aktualisieren && sudo rm $neu"
+  } >&2
 fi
 
 # Die Unit liegt als Kopie unter /etc — geaenderte Vorlage nur melden.

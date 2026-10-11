@@ -8,23 +8,24 @@
 // bekommen einen deterministischen Textvorlauf (pdftotext -layout) nach
 // `data/inbox/standardized/`; die Zeilenextraktion bleibt Agentenarbeit
 // (ADR 0005). Der Gewinn ist trotzdem gross: der Agent liest Text statt
-// PDF-Binaer, wiederholbar und pruefbar.
+// PDF-Binaer, wiederholbar und pruefbar. Bilder (png/jpg/jpeg) und PDFs ohne
+// Textlayer bekommen den Vorlauf per OCR (lib/ocr.mjs, dieselbe Erkennung wie
+// der Textzwilling). Bilder bleiben wie PDFs im Inbox-Root liegen, bis der
+// Agent sie ablegt; sie wandern nie nach error/.
 //
 // `standardized/` ist Durchgangsstation, kein Archiv. Der dauerhafte
 // Textzwilling entsteht neben dem Beleg unter `Belege/` — siehe
 // `belege-text.mjs`, das den Vorlauf danach wieder abraeumt.
 import { readFile, writeFile, readdir, rename, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { runImport } from "./import.mjs";
 import { normalizeCsv } from "./normalize.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
 
-const execFileAsync = promisify(execFile);
 const IGNORIEREN = new Set([".DS_Store", ".gitkeep"]);
-const VERARBEITBAR = new Set(["csv", "pdf"]);
+const VERARBEITBAR = new Set(["csv", "pdf", ...BILD_ENDUNGEN]);
 // Die Stationen des Laufs selbst. Alles andere im Inbox-Root ist ein Ordner,
 // den jemand dorthin kopiert hat — und den der flache Lauf nicht anfasst.
 export const PIPELINE_ORDNER = new Set(["processed", "standardized", "error"]);
@@ -53,6 +54,11 @@ export function planInbox({ dateien, unterordner = [], profile }) {
     if (endung === "pdf") {
       // Textvorlauf ist immer moeglich und immer nuetzlich, auch ohne Profil.
       auftraege.push({ datei, art: "pdf-text", profil_id: passend[0]?.profil_id ?? null });
+      continue;
+    }
+    if (BILD_ENDUNGEN.includes(endung)) {
+      // Foto eines Belegs: OCR-Vorlauf wie beim Scan-PDF, Datei bleibt liegen.
+      auftraege.push({ datei, art: "bild-text", profil_id: passend[0]?.profil_id ?? null });
       continue;
     }
     if (endung === "csv") {
@@ -137,8 +143,14 @@ async function sammleUnterordner(inboxRoot) {
   })));
 }
 
-async function pdfText(quelle, ziel) {
-  await execFileAsync("pdftotext", ["-layout", fileURLToPath(quelle), fileURLToPath(ziel)]);
+// Textvorlauf einer Inbox-Datei (PDF oder Bild). inhalt ist null, wenn es
+// nichts zu schreiben gibt (Bild ohne brauchbares OCR). Ein PDF ohne Textlayer
+// und ohne OCR-Ergebnis bekommt wie bisher den rohen pdftotext-Vorlauf (nur
+// Seitenvorschuebe), den belege-text.mjs als leer wieder raeumt.
+export async function erzeugeTextvorlauf(pfad, erkennung = {}) {
+  const ergebnis = await erkenneText(pfad, erkennung);
+  if (ergebnis.art !== "ohne-text") return ergebnis;
+  return { art: "ohne-text", inhalt: ergebnis.rohtext ? ergebnis.rohtext : null, grund: ergebnis.grund };
 }
 
 async function main() {
@@ -169,13 +181,27 @@ async function main() {
   for (const auftrag of plan.auftraege) {
     const quelle = new URL(encodeURIComponent(auftrag.datei), inboxRoot);
 
-    if (auftrag.art === "pdf-text") {
-      const zielName = `${auftrag.datei.replace(/\.pdf$/i, "")}.txt`;
+    if (auftrag.art === "pdf-text" || auftrag.art === "bild-text") {
+      const zielName = `${auftrag.datei.replace(/\.[^.]+$/, "")}.txt`;
+      const lauf = { datei: auftrag.datei, art: auftrag.art, ziel: `data/inbox/standardized/${zielName}`, hinweis: "Zeilenextraktion durch den Agenten; Textzwilling danach ueber belege-text.mjs" };
+      // OCR ist teuer: nur im Schreiblauf. Die Vorschau nennt nur den Auftrag.
       if (schreiben) {
-        await mkdir(new URL("standardized/", inboxRoot), { recursive: true });
-        await pdfText(quelle, new URL(`standardized/${encodeURIComponent(zielName)}`, inboxRoot));
+        let vorlauf;
+        try {
+          vorlauf = await erzeugeTextvorlauf(fileURLToPath(quelle));
+        } catch (error) {
+          bericht.laeufe.push({ ...lauf, ziel: null, abgebrochen: error.message });
+          continue;
+        }
+        lauf.text = vorlauf.art;
+        if (vorlauf.art === "ohne-text") lauf.hinweis = `Kein brauchbarer Text (${vorlauf.grund}) — der Agent liest ${auftrag.art === "bild-text" ? "das Bild" : "die Seiten"} selbst`;
+        if (vorlauf.inhalt === null) lauf.ziel = null;
+        else {
+          await mkdir(new URL("standardized/", inboxRoot), { recursive: true });
+          await writeFile(new URL(`standardized/${encodeURIComponent(zielName)}`, inboxRoot), vorlauf.inhalt);
+        }
       }
-      bericht.laeufe.push({ datei: auftrag.datei, art: "pdf-text", ziel: `data/inbox/standardized/${zielName}`, hinweis: "Zeilenextraktion durch den Agenten; Textzwilling danach ueber belege-text.mjs" });
+      bericht.laeufe.push(lauf);
       continue;
     }
 

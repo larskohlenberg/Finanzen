@@ -22,7 +22,7 @@
 import http from "node:http";
 import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { open, link, mkdir, mkdtemp, lstat, readdir, realpath, rm, stat } from "node:fs/promises";
+import { chmod, open, link, mkdir, mkdtemp, lstat, readdir, realpath, rm, stat } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import { dirname, extname, join, resolve, sep } from "node:path";
@@ -451,6 +451,8 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
         const info = jpeg ? await lstat(jpeg) : null;
         if (!info?.isFile() || info.size === 0) throw new Umwandlung(422, "heic-unlesbar", new Error("keine JPEG-Ausgabe"));
         if (info.size > maxBytes) throw new Umwandlung(413, "zu-gross", new Error(`JPEG ${info.size} Bytes`));
+        // Gleiche Rechte wie ein direkter Upload, unabhaengig von der umask des Konverters.
+        await chmod(jpeg, 0o640);
         ablage = jpeg;
         groesse = info.size;
         inhaltHash = await sha256Datei(jpeg);

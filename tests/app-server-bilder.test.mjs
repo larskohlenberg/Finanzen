@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test, before, after } from "node:test";
 import http from "node:http";
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createAppServer, jpegNameFuer } from "../app/server.mjs";
@@ -79,6 +79,7 @@ test("HEIC wird in JPEG umgewandelt: neuer Name, keine HEIC- und Temp-Reste", as
     assert.equal(r.status, 201);
     assert.deepEqual(r.json, { status: "hochgeladen", name: "IMG_0001.jpg", umgewandelt_aus: "IMG_0001.HEIC" });
     assert.equal(await readFile(join(inboxDir, "IMG_0001.jpg"), "utf8"), "JPEG aus heic-a");
+    assert.equal((await stat(join(inboxDir, "IMG_0001.jpg"))).mode & 0o777, 0o640, "Rechte wie beim direkten Upload");
     assert.deepEqual(await inhalt(), ["IMG_0001.jpg"]);
     assert.equal(aufrufe.length, 1);
     assert.match(aufrufe[0].aus, /\.jpg$/, "heif-convert bestimmt das Format ueber die Endung");

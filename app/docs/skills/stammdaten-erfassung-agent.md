@@ -4,6 +4,9 @@ Aktuelle Betriebsanweisung fuer interviewgeführte, schema-getriebene Erfassung 
 
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `Belege/...`,
 `schemas/...`, `tools/...` und `docs/...` liegen unter dem App-Raum.
+Im Betrieb laufen Lesen, Schreiben und Tool-Laeufe ueber den MCP-Server
+`finanzen` (Zuordnung CLI -> Tool in `docs/agent-context.md`, „Betrieb ueber
+MCP"); die CLI-Aufrufe gelten so fuer die lokalen Demodaten.
 
 ## Zweck
 
@@ -44,7 +47,7 @@ dieses Kontos hineinkommen. Direkt nach dem bestätigten Konto-Eintrag:
 2. Wenn ja: gemeinsam mit dem Nutzer **einmalig** ein Profil unter
    `data/import-profile/<profil_id>.json` anlegen — Vertrag ist
    `schemas/importprofil.schema.json`. Danach ist jeder weitere Export dieser Bank
-   ein Tool-Aufruf (`npm run inbox`) statt Handarbeit.
+   ein Tool-Aufruf (`npm run inbox`, MCP: `inbox`) statt Handarbeit.
 3. `dateimuster` so scharf fassen, dass genau **ein** Profil auf die Datei passt;
    zwei Treffer brechen den Inbox-Lauf bewusst ab.
 4. **Nie raten:** Gibt es für ein Feld keine verlässliche Spalte, bleibt es leer
@@ -87,12 +90,12 @@ Gilt fuer **alle** Belege (Kontoauszuege, Vertraege, Policen, Gutachten, Informa
 
 Schema: `<Entitaet/Konto>_<Quelle/Gesellschaft>_<Belegart>_<Datum oder Zeitraum>.<ext>` — z. B. `TESTREF-062.csv`, `Riester_MusterversicherungA_Vertragsstand_2026-01-01.pdf`.
 
-Ablage in `Belege/`: Kontoauszuege unter `Belege/Kontoauszuege/<Konto>/`; sonstige Belege nach bestehender `Belege/<Jahr>/<Kategorie>`-Struktur. `quelle_hinweis`/`rohquelle` zeigen auf den finalen Beleg-Pfad.
+Ablage in `Belege/` (MCP: `beleg_ablegen`): Kontoauszuege unter `Belege/Kontoauszuege/<Konto>/`; sonstige Belege nach bestehender `Belege/<Jahr>/<Kategorie>`-Struktur. `quelle_hinweis`/`rohquelle` zeigen auf den finalen Beleg-Pfad.
 
 Hat der Beleg keine Textebene (leerer Textvorlauf), beim Ablegen die Seiten
 selbst lesen und den Zwilling von Hand schreiben, erste Zeile
 `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.` Danach
-`npm run belege:text:schreiben` fahren — jedes PDF unter `Belege/` braucht
+`npm run belege:text:schreiben` (MCP: `belege_text` mit `schreiben: true`) fahren — jedes PDF unter `Belege/` braucht
 seinen Textzwilling; einen vorhandenen laesst der Lauf unberuehrt.
 
 ## Wo was liegt

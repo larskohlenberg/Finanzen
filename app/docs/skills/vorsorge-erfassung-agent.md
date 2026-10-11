@@ -5,6 +5,9 @@ Aktualisieren von Vorsorgeanspruechen. Der Nutzer stoesst an, der Agent fuehrt.
 
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `Belege/...`,
 `schemas/...`, `tools/...` und `docs/...` liegen unter dem App-Raum.
+Im Betrieb laufen Lesen, Schreiben und Tool-Laeufe ueber den MCP-Server
+`finanzen` (Zuordnung CLI -> Tool in `docs/agent-context.md`, „Betrieb ueber
+MCP"); die CLI-Aufrufe gelten so fuer die lokalen Demodaten.
 
 ## Zweck
 
@@ -51,7 +54,7 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
    `Belege/...`-Pfad als `quelle_hinweis` vorbereiten.
 
    Liegen die PDFs in `data/inbox/`, zuerst **einmal** `npm run inbox:schreiben`
-   fahren: der Lauf legt zu jedem PDF einen Textvorlauf (`pdftotext -layout`)
+   (MCP: `inbox` mit `schreiben: true`) fahren: der Lauf legt zu jedem PDF einen Textvorlauf (`pdftotext -layout`)
    unter `data/inbox/standardized/<name>.txt` ab. Danach den **Text** lesen statt
    des PDF-Binaers — bei einem Stapel Policen ist das der Unterschied zwischen
    einer Sitzung und mehreren. Der Lauf schreibt dabei **keine** Vorsorgedaten;
@@ -60,10 +63,13 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
    der Textvorlauf ist eine Lesehilfe, kein Ersatz fuer den Beleg.
 
    Ist der Vorlauf **leer**, hat das PDF keine Textebene. Dann die Seiten des
-   PDF selbst lesen und beim Ablegen den Textzwilling von Hand schreiben, erste
+   PDF selbst lesen (MCP: `datei_lesen` mit `seite`) und beim Ablegen den
+   Textzwilling von Hand schreiben (per `datei_schreiben` neben die Rohdatei,
+   `beleg_ablegen` nimmt ihn mit), erste
    Zeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`
 
-   Nach dem Ablegen des Belegs `npm run belege:text:schreiben` fahren: Das legt
+   Nach dem Ablegen des Belegs (MCP: `beleg_ablegen`) `npm run belege:text:schreiben`
+   (MCP: `belege_text` mit `schreiben: true`) fahren: Das legt
    den Textzwilling neben den Beleg und raeumt `standardized/` ab.
 3. **Vorsorge-Entitaet vorschlagen:** `vorsorge_id`, `art`, `name`, `person_id`,
    `status`, `kapitalbildend`, optional `kapitalwahl`, `leistung_beginn`,

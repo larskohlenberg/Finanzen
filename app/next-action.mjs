@@ -102,7 +102,7 @@ function basePrompt({ title, count, summary, skillPath, extraSkillPaths = [], in
     "",
     instructions,
     "",
-    `Arbeite im App-Raum. Analysiere zuerst read-only, pruefe vor jedem Schreibzugriff, dass der Zielpfad unter DATENROOT liegt, fuehre nach Schreiblaeufen \`node tools/validator.mjs ${dataContext.dataRoot}\` aus, frage vor fachlichen Schreibentscheidungen nach meiner Bestaetigung, nutze die vorgesehenen Tools und Validatoren, und fasse das Ergebnis am Ende mit Zaehlern zusammen.`,
+    `Arbeite im App-Raum. Analysiere zuerst read-only, pruefe vor jedem Schreibzugriff, dass der Zielpfad unter DATENROOT liegt, fuehre nach Schreiblaeufen \`node tools/validator.mjs ${dataContext.dataRoot}\` aus, frage nur dort nach meiner Entscheidung, wo die Betriebsanweisung es verlangt, nutze die vorgesehenen Tools und Validatoren, und fasse das Ergebnis am Ende mit Zaehlern zusammen.`,
   ].filter(Boolean).join("\n");
 }
 
@@ -164,10 +164,10 @@ export function buildNextAgentActions(data, options = {}) {
     actions.push(action(
       "suggested-categories",
       summary.suggestedCategories,
-      "Vorgeschlagene Kategorien reviewen",
+      "Vorgeschlagene Kategorien freigeben",
       SKILLS.suggestedCategories,
       summary,
-      `Bilde Buckets in \`${dataPath("transaktionen.jsonl")}\` fuer \`kategorisierung_status = vorgeschlagen\`, zeige Stichproben und fuehre Bestaetigung, Korrektur oder Ablehnung erst nach meiner Entscheidung aus.`,
+      `Fuehre fuer die vorgeschlagenen Buchungen in \`${dataPath("transaktionen.jsonl")}\` die Freigabe aus (\`node tools/freigabe.mjs ${dataContext.dataRoot} --schreiben\`) und zeige danach den Pruefbericht ungekuerzt. Was das Gate zurueckhaelt, ist Regelarbeit — keine Rueckfrage je Bucket.`,
       [],
       dataContext,
     ));
@@ -193,7 +193,7 @@ export function buildNextAgentActions(data, options = {}) {
       "Offene Kategorien verregeln",
       SKILLS.openCategories,
       summary,
-      `Analysiere ${summary.openCategories} offene Kategorien in \`${dataPath("transaktionen.jsonl")}\` fuer \`kategorisierung_status = offen\`, bilde Buckets nach Hebel, schlage Regeln vor, schreibe keine Regel ohne Bestaetigung und starte danach die Nach-Kategorisierung gegen \`${dataPath()}\`.`,
+      `Analysiere ${summary.openCategories} offene Kategorien in \`${dataPath("transaktionen.jsonl")}\` fuer \`kategorisierung_status = offen\`, bilde Buckets nach Hebel, lege Regeln nur mit Beleg an, schaetze den Rest als Agenten-Einzelvorschlag und starte danach die Nach-Kategorisierung gegen \`${dataPath()}\`.`,
       [],
       dataContext,
     ));

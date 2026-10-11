@@ -9,7 +9,7 @@ node_modules/
 **/.superpowers/
 *.pid
 
-# Python-Bytecode (z. B. vom lokalen serve_app.py)
+# Python-Bytecode (lokale Hilfsskripte)
 __pycache__/
 *.pyc
 
@@ -40,3 +40,6 @@ app/Belege/**
 
 # Runde-1-Excel-Archiv enthaelt echte Finanzdaten und bleibt lokal.
 archiv/
+
+# Versionsstand, schreibt ops/aktualisieren.sh beim Deploy.
+app/version.json

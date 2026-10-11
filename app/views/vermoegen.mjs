@@ -2,7 +2,7 @@
 // Vermögens-/Nettovermögens-Ansicht inkl. Detail-Rail und Wertstände.
 import { data, state, t, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, detailRow, renderPageHead, saldoLinie, renderTableFilters, accountOwnerNames, accountTypeLabel } from "../komponenten.mjs";
+import { formatMoney, formatDate, detailRow, renderPageHead, saldoLinie, renderTableFilters, accountOwnerNames, accountTypeLabel, quelleHtml } from "../komponenten.mjs";
 import { computeNettovermoegen, aktuellerZeitwert, anteilWertCents, restschuldHeute } from "../vermoegen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 
@@ -267,7 +267,7 @@ function renderPositionWertstaende(p) {
     <div class="wertstand-item">
       <div><strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong> <span class="muted">${escapeHtml(formatDate(zw.standdatum))}</span></div>
       <div>${zeitwertQualityChip(zw)}</div>
-      ${zw.quelle_hinweis ? `<div class="muted">${escapeHtml(zw.quelle_hinweis)}</div>` : ""}
+      ${zw.quelle_hinweis ? `<div class="muted">${quelleHtml(zw.quelle_hinweis)}</div>` : ""}
     </div>`).join("");
   const more = rows.length > 5
     ? `<button class="linkish" data-action="show-vermoegen-wertstaende">${escapeHtml(t("vermoegen.showAllWertstaende"))}</button>`
@@ -285,7 +285,7 @@ function renderWertstaendeRail() {
         <td>${escapeHtml(formatDate(zw.standdatum))}</td>
         <td class="amount">${escapeHtml(formatMoney(cents(zw.wert)))}</td>
         <td>${zeitwertQualityChip(zw)}</td>
-        <td>${zw.quelle_hinweis ? escapeHtml(zw.quelle_hinweis) : "—"}</td>
+        <td>${zw.quelle_hinweis ? quelleHtml(zw.quelle_hinweis) : "—"}</td>
       </tr>`).join("");
   return `
     <p class="page-lead">${escapeHtml(t("vermoegen.wertstaendeLead"))}</p>
@@ -331,7 +331,7 @@ export function renderVermoegenDetail(p, today) {
       + detailRow(t("labels.type"), escapeHtml(accountTypeLabel(konto?.kontotyp || "")))
       + (zw
         ? detailRow(istDepot ? t("vermoegen.depotwert") : t("vermoegen.anker"),
-            `<strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong><br>${escapeHtml(formatDate(zw.standdatum))} · ${qualitaetChip({ qualitaet: zw.qualitaet })}${zw.quelle_hinweis ? `<br><span class="muted">${escapeHtml(zw.quelle_hinweis)}</span>` : ""}`)
+            `<strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong><br>${escapeHtml(formatDate(zw.standdatum))} · ${qualitaetChip({ qualitaet: zw.qualitaet })}${zw.quelle_hinweis ? `<br><span class="muted">${quelleHtml(zw.quelle_hinweis)}</span>` : ""}`)
         : detailRow(t("vermoegen.anker"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + buchungenHtml
       + detailRow(t("vermoegen.aktuellerSaldo"),
@@ -352,7 +352,7 @@ export function renderVermoegenDetail(p, today) {
       + (entity?.adresse ? detailRow(t("vermoegen.adresse"), escapeHtml(entity.adresse)) : "")
       + (mw
         ? detailRow(t("vermoegen.marktwert"),
-            `<strong>${escapeHtml(formatMoney(mwCents))}</strong><br>${escapeHtml(formatDate(mw.standdatum))} · ${qualitaetChip({ qualitaet: mw.qualitaet })}${mw.quelle_hinweis ? `<br><span class="muted">${escapeHtml(mw.quelle_hinweis)}</span>` : ""}`)
+            `<strong>${escapeHtml(formatMoney(mwCents))}</strong><br>${escapeHtml(formatDate(mw.standdatum))} · ${qualitaetChip({ qualitaet: mw.qualitaet })}${mw.quelle_hinweis ? `<br><span class="muted">${quelleHtml(mw.quelle_hinweis)}</span>` : ""}`)
         : detailRow(t("vermoegen.marktwert"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + (entity?.eigentumsanteile ? detailRow(t("vermoegen.eigentumsanteile"), anteileHtml(entity.eigentumsanteile, mwCents)) : "")
       + detailRow(t("vermoegen.anteiligerWert"),
@@ -375,7 +375,7 @@ export function renderVermoegenDetail(p, today) {
     return head
       + (anker
         ? detailRow(t("vermoegen.anker"),
-            `<strong>${escapeHtml(formatMoney(cents(anker.wert)))}</strong><br>${escapeHtml(formatDate(anker.standdatum))} · ${qualitaetChip({ qualitaet: anker.qualitaet })}${anker.quelle_hinweis ? `<br><span class="muted">${escapeHtml(anker.quelle_hinweis)}</span>` : ""}`)
+            `<strong>${escapeHtml(formatMoney(cents(anker.wert)))}</strong><br>${escapeHtml(formatDate(anker.standdatum))} · ${qualitaetChip({ qualitaet: anker.qualitaet })}${anker.quelle_hinweis ? `<br><span class="muted">${quelleHtml(anker.quelle_hinweis)}</span>` : ""}`)
         : detailRow(t("vermoegen.anker"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
       + detailRow(t("vermoegen.restschuld"),
           `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(Math.abs(p.wert_cents)))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`)

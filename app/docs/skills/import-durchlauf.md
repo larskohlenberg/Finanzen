@@ -5,7 +5,9 @@ Ein Lauf von der Rohdatei bis zum freigegebenen Bestand. Dieser Skill
 Tools.
 
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `tools/...` und
-`docs/...` liegen unter dem App-Raum.
+`docs/...` liegen unter dem App-Raum. Im Betrieb laeuft jeder Schritt ueber die
+Tools des MCP-Servers `finanzen` (siehe `docs/agent-context.md`, „Betrieb ueber
+MCP"); lokal auf Demodaten gehen die genannten CLIs.
 
 ## Wann diesen Skill nutzen
 
@@ -25,27 +27,30 @@ das ist **kategorisierung-review**.
 
 ## Ablauf
 
-1. **Lernmetriken lesen.** `node tools/lernen.mjs DATENROOT` und den Befund vor
+1. **Lernmetriken lesen.** Tool `lernen` (Vorschau) und den Befund vor
    den Lauf stellen: gesperrte Belegstufen und stillzulegende Regeln nennen.
 2. **Normalisieren und importieren.** Je Rohdatei den Subagenten
    `import-normalisierung` beauftragen. Der Lauf haelt nie an.
 3. **Verregeln.** Den Subagenten `regel-recherche` auf den Offen-Stapel
-   ansetzen. Er legt Regeln mit `belegstufe` an und ruft `recategorize.mjs`.
-4. **Freigeben.** `node tools/freigabe.mjs DATENROOT --schreiben`. Der
+   ansetzen. Er legt Regeln mit `belegstufe` an, ruft `recategorize.mjs` und
+   schaetzt, was ohne Beleg bleibt, als Agenten-Einzelvorschlag. Er sucht je
+   Merchant nur kurz.
+4. **Freigeben.** Tool `freigabe` mit `schreiben: true`. Der
    Gate-Grund `anker` heisst nicht „Regel kaputt", sondern: eine bewaehrte
    Regel reicht in ein Konto hinein, auf dem niemand ihre Kategorie je
    entschieden hat. Das ist eine Entscheidung je Paar aus Regel und Konto.
-5. **Pruefen.** `node tools/pruefbericht.mjs DATENROOT` und den Bericht
+5. **Pruefen.** Tool `pruefbericht` und den Bericht
    **ungekuerzt** zeigen.
-6. **Eingang aufraeumen.** `node tools/belege-text.mjs --schreiben`. Das Tool
+6. **Eingang aufraeumen.** Tool `belege_text` mit `schreiben: true`. Das Tool
    entfernt aus `data/inbox/processed/` und `standardized/` jede Datei, deren
    Inhalt nachweislich unter `Belege/` liegt — Abgleich ueber den Inhalts-Hash,
    nie ueber den Dateinamen. Was keinen Nachweis hat, bleibt liegen und steht
    im Bericht unter `offen`; das ist der interessante Fall, kein Fehler.
-   `error/` wird nicht angefasst. Ohne `--schreiben` ist der Lauf eine Vorschau.
+   `error/` wird nicht angefasst. Ohne `schreiben: true` ist der Lauf eine Vorschau.
    Hineinkopierte Archivexporte liegen in Unterordnern und werden vom Tool
    nicht erfasst — die von Hand abgleichen, wenn welche da sind.
-7. **Protokollieren.** Die Zaehler in `DATENROOT/agent_log.jsonl` festhalten.
+7. **Protokollieren.** Die Zaehler in `DATENROOT/agent_log.jsonl` festhalten
+   (`datei_schreiben` mit `anhaengen: true`).
 
 ## Zentrale Regeln
 
@@ -61,8 +66,8 @@ das ist **kategorisierung-review**.
 
 ## Do's
 
-- Den Bericht mit den groessten Betraegen und den `KAT-012`-Faellen eroeffnen —
-  dort ist die Aufmerksamkeit am wertvollsten.
+- Den Bericht mit den groessten Betraegen und der Zahl der Agenten-Schaetzungen
+  eroeffnen — dort ist die Aufmerksamkeit am wertvollsten.
 - Am Gate gescheiterte Regeln als Arbeitsliste anbieten: das ist Regelarbeit an
   einer Handvoll Muster, nicht an hunderten Buchungen.
 - Merchants, die nie ein Mensch bestaetigt hat, ausdruecklich benennen. Sie
@@ -74,8 +79,10 @@ das ist **kategorisierung-review**.
 
 ## Don'ts
 
-- **Keine Kategorie raten**, um den Offen-Stapel zu leeren. Ohne Beleg ist es
-  `KAT-012`.
+- **Keine Regel aus einer Schaetzung.** Was ohne Beleg bleibt, schaetzt der
+  Agent als Einzelvorschlag (Herkunft `agent`); `KAT-012` nur, wenn keine
+  Kategorie plausibel ist. Korrigiert wird spaeter ueber den Herkunftsfilter
+  der Transaktionsansicht.
 - **Keinen Saldo-Anker uebernehmen, der nicht reconciliert.**
 - **Keine Regel selbst anlegen** — das ist Station 3.
 - **Den Pruefbericht nicht auf „alles in Ordnung" eindampfen.** Wenn er lang

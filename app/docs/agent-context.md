@@ -35,13 +35,75 @@ Ein Schreibziel ausserhalb von `DATENROOT` ist ein Fehler und wird nicht ausgefu
 Wenn eine Skill-Anweisung feste Datenpfade nennt, ist immer der aktive `DATENROOT`
 massgeblich.
 
+Im Betrieb ueber MCP (naechster Abschnitt) legt der Serveraufruf den `DATENROOT`
+fest; das Tool `status` nennt ihn. Damit ist der Datenmodus ausdruecklich
+festgestellt.
+
+## Betrieb ueber MCP
+
+Die Produktivdaten liegen auf dem Server. Agenten greifen **ausschliesslich**
+ueber den MCP-Server `finanzen` (`mcp/server.mjs`, stdio, per SSH gestartet)
+darauf zu, nicht per Shell. Wo ein Skill `node tools/<x>.mjs DATENROOT` oder
+`npm run <x>` nennt, ist im Betrieb das MCP-Tool gemeint; die CLI bleibt fuer
+die lokalen Demodaten.
+
+| CLI | MCP-Tool |
+| --- | --- |
+| Uebersicht der Web-App | `kennzahlen` (dieselben Kennzahlen wie die Uebersicht, frisch gerechnet; optional `stichtag`; erste Wahl fuer "Wie stehen wir?") |
+| `tools/validator.mjs` | `status` (Validator-Ergebnis mit Fehlern; laeuft ausserdem nach jedem Schreiben) |
+| `tools/inbox.mjs` | `inbox` |
+| `tools/import.mjs` | `import` (Vorschau gegen eine Kopie des Datenroots) |
+| `tools/regel-vorschlag.mjs` | `regel_vorschlag` |
+| `tools/regel-probelauf.mjs` | `regel_probelauf` (Kandidaten direkt als Liste) |
+| `tools/recategorize.mjs` | `nachkategorisieren` (Vorschau gegen eine Kopie) |
+| `tools/agent-vorschlag.mjs` | `agent_vorschlag` |
+| `tools/confirm.mjs` | `bestaetigen` |
+| `tools/transaktion-immobilie.mjs` | `immobilienbezug` |
+| `tools/transfer-matcher.mjs` | `transfers` |
+| `tools/freigabe.mjs` | `freigabe` |
+| `tools/lernen.mjs` | `lernen` (`schreiben: true` = `--anwenden`) |
+| `tools/belege-text.mjs` | `belege_text` |
+| `tools/pruefbericht.mjs` | `pruefbericht` |
+| Datei lesen, suchen | `datei_lesen`, `dateien_suchen`, `transaktionen_abfragen` |
+| Datei schreiben, editieren | `datei_schreiben`, `datei_ersetzen` (nur unter `data/`) |
+| Beleg wegsortieren | `beleg_ablegen` (`data/inbox/...` nach `Belege/...`, sprechend benannt) |
+
+Alle Tool-Laeufe sind ohne `schreiben: true` eine Vorschau. Skills stehen als
+MCP-Prompts bereit, dieses Dokument als Resource `finanzen://docs/agent-context`.
+Pflichtlektuere ist beides nur vor Datenarbeit (Import, Kategorisieren, Regeln,
+Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
+
+- **Rechte je Schluessel:** `--recht=lesen` erlaubt nur Lese-Tools und
+  Vorschau-Laeufe; `--recht=schreiben` zusaetzlich `schreiben: true`,
+  `datei_schreiben`, `datei_ersetzen` und `beleg_ablegen`.
+- **Rollback:** Vor jedem schreibenden Vorgang kopiert der Server den
+  `DATENROOT`; meldet der Validator danach neue Fehler, spielt er die Kopie
+  zurueck und meldet das. Verschiebungen und Loeschungen in `data/inbox/` und
+  `Belege/` werden **nicht** zurueckgerollt.
+- **Einbindung:** Claude Code liest `.mcp.json` (`ssh finanzen-mcp`, der Alias
+  steht in `~/.ssh/config`). Codex: in `~/.codex/config.toml`
+  `[mcp_servers.finanzen]` mit `command = "ssh"` und `args = ["finanzen-mcp"]`.
+  Jeder andere stdio-MCP-Client startet ebenso `ssh finanzen-mcp`.
+  Lokal gegen die Demodaten: `npm run --silent mcp:demo` (ohne `--silent`
+  schreibt npm eine Kopfzeile auf stdout und bricht das Protokoll).
+- **Forced Command:** Jeder Agent bekommt einen eigenen Schluessel in
+  `authorized_keys` des fachlichen Benutzers; der Eintrag bestimmt Befehl und
+  Recht, `SSH_ORIGINAL_COMMAND` wird ignoriert:
+
+  ```
+  restrict,command="<node> <checkout>/app/mcp/server.mjs data/master --recht=schreiben" ssh-ed25519 <schluessel> claude-code
+  restrict,command="<node> <checkout>/app/mcp/server.mjs data/master --recht=lesen" ssh-ed25519 <schluessel> codex
+  ```
+
 ## Arbeitsprinzipien
 
 - Agenten schreiben nur gegen Schemas und nach Validierung.
 - Tools rechnen deterministisch; Agenten rufen Tools auf und interpretieren deren
   Bericht.
 - Keine stille finale Fachentscheidung: unsichere Fakten bleiben offen oder werden
-  dem Nutzer als Vorschlag vorgelegt.
+  dem Nutzer als Vorschlag vorgelegt. Ausnahme Kategorien: eine Schaetzung des
+  Agenten wird freigegeben, bleibt aber an `kategorie_herkunft = agent`
+  erkennbar und steht im Pruefbericht.
 - Nutzerentscheidungen und Agentenvorschlaege bleiben getrennt.
 - Nach jedem schreibenden Lauf wird der Validator ausgefuehrt.
 - Jeder schreibende Lauf wird in `DATENROOT/agent_log.jsonl` mit Zaehlern,
@@ -53,8 +115,9 @@ Statuswerte sind entitaetsspezifisch. Fuer `kategorisierung_status` an
 Transaktionen gilt:
 
 - `offen`: keine eindeutige Kategorie aus dem Regelwerk; kein `kategorie_id`.
-- `vorgeschlagen`: ein Tool oder Agentenprozess hat einen Vorschlag erzeugt; der
-  Nutzer muss bestaetigen, korrigieren oder ablehnen.
+- `vorgeschlagen`: ein Tool oder Agentenprozess hat einen Vorschlag erzeugt; das
+  Gate (`tools/freigabe.mjs`) gibt ihn frei oder haelt ihn zurueck. Korrigieren
+  oder ablehnen kann der Nutzer jederzeit, auch nach der Freigabe.
 - `bestaetigt`: die Kategorie ist fachlich bestaetigt.
 - `abgelehnt`: ein Vorschlag wurde bewusst verworfen und bleibt unangetastet.
 
@@ -115,26 +178,29 @@ Eine Transaktion kann eine Kategorie aus drei Herkuenften haben:
 - `kategorie_herkunft = manuell`: Kategorie stammt aus einer ausdruecklichen
   Nutzerentscheidung im Agentendialog.
 
-Der Agent darf offene Einzelbuchungen eigenstaendig als `vorgeschlagen` mit
-`kategorie_herkunft = agent` vorbereiten. Das ist keine finale Fachentscheidung,
-sondern Review-Vorbereitung; Bestaetigung, Korrektur oder Ablehnung bleiben
-Nutzerentscheidung.
+Der Agent setzt offene Einzelbuchungen eigenstaendig als `vorgeschlagen` mit
+`kategorie_herkunft = agent`; das Gate gibt sie ohne weitere Pruefung frei.
+Korrektur bleibt Nutzerentscheidung — nachtraeglich, nicht vorab.
 
-### Belegpflicht statt Ratepflicht
+### Beleg fuer Regeln, Schaetzung fuer Einzelbuchungen
 
-Der Agent darf den Offen-Stapel eigenstaendig verregeln und vorschlagen — der
-Review ist der Ort der Entscheidung, nicht ein Gate davor. Das entbindet ihn
-**nicht** vom Beleg: Jeder Vorschlag stuetzt sich auf eine benennbare Quelle
-(Beleg im Archiv, identischer Merchant im Bestand, Merchant-Identitaet im
-Buchungstext, Recherche zum Merchant). **Ort, Rechtsform, Betragshoehe,
-Zeitraum und blosse Wortueberlappung mit anderen Buchungen sind keine Quellen.**
+Der Agent verregelt und kategorisiert den Offen-Stapel eigenstaendig; danach
+ist nichts mehr `offen`. Dabei gelten zwei Massstaebe:
 
-Traegt keine Quelle, ist der ehrliche Vorschlag `KAT-012` „Noch zu klaeren" als
-Agenten-Einzelvorschlag — nicht die plausibelste Sachkategorie. `KAT-012` heisst
-hier genau das, was draufsteht, und macht die Buchung im Review sichtbar, statt
-sie unbemerkt auf `offen` liegen zu lassen. Die Belegstufe gehoert in den
-Regel-`kommentar` bzw. in die Review-Uebergabe, damit im Review erkennbar ist,
-wo genau hingesehen werden muss.
+- **Regeln brauchen einen Beleg** (Belegstufe E1–E4: Beleg im Archiv,
+  identischer Merchant mit menschlicher Entscheidung im Bestand,
+  Merchant-Identitaet im Buchungstext, Recherche zum Merchant). **Ort,
+  Rechtsform, Betragshoehe, Zeitraum und blosse Wortueberlappung mit anderen
+  Buchungen sind keine Belege.**
+- **Einzelbuchungen ohne Beleg schaetzt der Agent**: plausibelste
+  Sachkategorie als Agenten-Einzelvorschlag, nach kurzer Recherche. Aus einer
+  Schaetzung entsteht nie eine Regel. `KAT-012` „Noch zu klaeren" nur, wenn
+  wirklich keine Kategorie plausibel ist.
+
+Korrigiert der Nutzer eine Agenten-Buchung, ist das eine menschliche
+Entscheidung (`bestaetigt_durch = mensch`) und damit Beleg E2 fuer eine
+kuenftige Regel zum selben Merchant. Den Weg dorthin zeigt der Herkunftsfilter
+der Transaktionsansicht.
 
 Davon unberuehrt sind die technischen Eroeffnungsbuchungen weiter unten: die
 tragen `KAT-012` als bestaetigte Nutzerentscheidung und sind an
@@ -204,10 +270,11 @@ Regeln **ohne** jeden menschlichen Anker sind davon nicht betroffen — ihre
 Stufe ruht auf Beleg, Buchungstext oder Recherche (E1, E3, E4) und ist
 kontounabhaengig. Der Pruefbericht zeigt sie trotzdem, unter „neu erschlossen".
 
-Qualitaet von Agenten-Einzelvorschlaegen wird ueber strukturierte Zaehler im
-`agent_log.jsonl` beobachtet, nicht ueber ein Historienfeld an der Transaktion.
-Wenn ein Agenten-Vorschlag korrigiert wird, zaehlt der Review-Lauf diese
-Korrektur; die Transaktion selbst traegt danach nur den fachlichen Zielzustand.
+Eine Korrektur an einer Agenten-Buchung erzeugt keinen Logeintrag — die
+Lernschleife (`tools/lernen.mjs`) zaehlt nur Korrekturen an Regel-Freigaben.
+Sie wirkt ueber den Bestand: die korrigierte Buchung ist menschlich entschieden
+und belegt E2 fuer eine kuenftige Regel. Die Transaktion traegt danach nur den
+fachlichen Zielzustand, kein Historienfeld.
 
 Nach-Kategorisierung laeuft ueber `tools/recategorize.mjs`. Reimport ist kein Mittel
 zur Nach-Kategorisierung, weil bekannte Buchungen per Dedupe uebersprungen werden.
@@ -252,7 +319,8 @@ Wichtige Tools:
   Schreibt `bestaetigt_durch = auto`. `npm run freigabe` ist die Vorschau.
 - `tools/pruefbericht.mjs`: Nachkontrolle nach einem Durchlauf — groesste
   Auto-Freigaben, Merchants ohne jede menschliche Bestaetigung,
-  Kategorie-Ausreisser, alle auto-freigegebenen `KAT-012`, am Gate gescheiterte
+  Kategorie-Ausreisser, alle auto-freigegebenen `KAT-012`, Zahl der
+  Agenten-Schaetzungen (Herkunft `agent`), am Gate gescheiterte
   Regeln, Regeln auf Konten ohne menschlichen Anker, E4-Regeln, Konten ohne
   Anker, nicht reconciliierte Kontostaende. Rein lesend, blockiert nie.
 - `tools/lernen.mjs`: wertet `agent_log.jsonl` aus — Korrekturquote je Regel und
@@ -514,3 +582,9 @@ mit der Kopfzeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`,
 damit die Herkunft in der Datei ablesbar bleibt. Normale Zwillinge tragen
 **keine** Kopfzeile: Sie muessen byte-identisch zum Textvorlauf bleiben, sonst
 findet das Aufraeumen sie nicht wieder.
+
+Ueber MCP sortiert `beleg_ablegen` die Rohdatei aus `data/inbox/` sprechend
+benannt nach `Belege/` (das Benennungsschema steht im Skill `import-agent`,
+Abschnitt „Belege benennen und ablegen"). Ein von Hand gelesener
+Bildscan-Zwilling wird vorher per `datei_schreiben` als `<Rohdateiname>.txt`
+neben die Rohdatei gelegt; `beleg_ablegen` nimmt ihn mit.

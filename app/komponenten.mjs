@@ -7,6 +7,7 @@ import { linienDiagramm } from "./charts.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
 import { formatIban } from "./tools/lib/text.mjs";
 import { accountBalance, overviewAccountStandDate, sortedOverviewAccounts } from "./selektoren.mjs";
+import { belegTextHtml } from "./belege.mjs";
 
 export function formatMoney(amountInCents) {
   return new Intl.NumberFormat(state.lang === "de" ? "de-DE" : "en-US", {
@@ -73,6 +74,12 @@ export function renderPageHead(title, lead, extra = "") {
       </div>
     </div>
   `;
+}
+
+// Quellfeld (rohquelle, quelle_hinweis) als HTML: Text escaped, enthaltene
+// Belege/...-Pfade als Link "Quelldokument" auf die Dokumente-Ansicht.
+export function quelleHtml(text) {
+  return belegTextHtml(text, { titel: t("dokumente.quelldokument"), escape: escapeHtml });
 }
 
 export function detailRow(label, valueHtml) {

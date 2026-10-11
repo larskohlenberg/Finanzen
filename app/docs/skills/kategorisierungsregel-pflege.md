@@ -2,10 +2,13 @@
 
 Betriebsanweisung fuer das datengetriebene Anlegen, Aendern und Stilllegen von Kategorisierungsregeln und die anschliessende Nach-Kategorisierung des Bestands.
 
-**Der Agent arbeitet den Offen-Stapel eigenstaendig ab.** Er fragt nicht Regel fuer Regel um Erlaubnis — er recherchiert, belegt, prueft mechanisch und schreibt. Das Review der erzeugten Vorschlaege ist der Ort, an dem der Nutzer entscheidet.
+**Der Agent arbeitet den Offen-Stapel eigenstaendig ab.** Er fragt nicht Regel fuer Regel um Erlaubnis — er recherchiert kurz, belegt oder schaetzt, prueft mechanisch und schreibt. Die Kontrolle ist der Pruefbericht danach; Fehler korrigiert der Nutzer spaeter.
 
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
-`tools/...` und `docs/...` liegen unter dem App-Raum.
+`tools/...` und `docs/...` liegen unter dem App-Raum. Im Betrieb laufen die
+genannten Tools ueber den MCP-Server `finanzen` (Zuordnung CLI -> Tool in
+`docs/agent-context.md`, „Betrieb ueber MCP"); die CLI-Zeilen gelten so fuer
+die lokalen Demodaten.
 
 ## Wann diesen Skill nutzen
 
@@ -28,15 +31,19 @@ Nicht nutzen fuer:
 4. `DATENROOT/kategorien.json` — gueltige `kategorie_id` (Ziel jeder Regel).
 5. `tools/categorizer.mjs` (Matching), `tools/regel-probelauf.mjs` (Vorpruefung) und `tools/recategorize.mjs` (Nach-Kategorisierung).
 
-## Der Grundsatz: recherchieren, nicht raten
+## Der Grundsatz: Regeln mit Beleg, Einzelbuchungen nach bestem Urteil
 
-Am Ende eines Laufs hat **jede** offene Buchung einen Vorschlag. Es bleibt nichts
-auf `offen` liegen, nur weil der Agent den Merchant nicht kennt — er hat die
-Pflicht, es herauszufinden.
+Am Ende eines Laufs hat **jede** offene Buchung eine Kategorie. Es bleibt nichts
+auf `offen` liegen. Das ist ein Privathaushalt ohne Abschluss und ohne
+Steuerzweck: wichtig ist, dass die Zahlen im Bestand stehen. Eine falsche
+Schaetzung korrigiert der Nutzer spaeter, Warten ist keine Option.
 
-Zugleich gilt unveraendert: **nichts erfinden.** Der Unterschied zwischen
-Recherche und Fantasie ist nicht der Aufwand, sondern der **Beleg**. Jeder
-Vorschlag traegt seine Belegstufe; ohne Beleg gibt es keine Sachkategorie.
+Zwei Massstaebe, je nach Reichweite:
+
+- Eine **Regel** ist dauerhaft und feuert auf kuenftige Importe. Sie braucht
+  einen **Beleg** (E1–E4) — unveraendert.
+- Ein **Einzelvorschlag** gilt nur fuer die benannten Buchungen. Dort
+  entscheidet das **beste Urteil** des Agenten (E5, E6), auch ohne Beleg.
 
 ### Belegleiter
 
@@ -45,11 +52,25 @@ Von oben nach unten durchgehen. Die erste Stufe, die traegt, gewinnt.
 | Stufe | Quelle | Ergebnis |
 | --- | --- | --- |
 | **E1** | **Beleg im Archiv.** Rechnung oder Quittung unter `Belege/`, die ueber **Datum und Betrag** zur Buchung passt. Jedes PDF hat einen Textzwilling — das Archiv ist durchsuchbar, ohne PDFs zu oeffnen. | Regel |
-| **E2** | **Identischer Merchant im Bestand.** Dieselbe lose normalisierte `gegenpartei` ist anderswo schon entschieden. | Regel |
+| **E2** | **Identischer Merchant im Bestand, von einem Menschen entschieden.** Dieselbe lose normalisierte `gegenpartei` traegt anderswo eine menschliche Entscheidung (`bestaetigt_durch = mensch` oder Herkunft `manuell`). Eine Auto-Freigabe zaehlt nicht. | Regel |
 | **E3** | **Merchant-Identitaet steht im Buchungstext.** Bekannte Kette, Gattungsbegriff, oder der Verwendungszweck nennt die Leistung. | Regel |
 | **E4** | **Web-Recherche zum Merchant-Namen** klaert, was das Unternehmen betreibt. | Regel |
-| **E5** | **Merchant identifiziert, Leistung mehrdeutig.** Wer die Zahlung bekommen hat, ist klar; wofuer, nicht. Beispiel: eine Stadtverwaltung kann Parkschein, Amtsgebuehr oder Museumseintritt sein. | Agenten-Einzelvorschlag, **keine** Regel |
-| **E6** | **E1 bis E5 ergebnislos.** | Agenten-Einzelvorschlag auf **`KAT-012` „Noch zu klaeren"** |
+| **E5** | **Merchant identifiziert, Leistung mehrdeutig.** Wer die Zahlung bekommen hat, ist klar; wofuer, nicht. Beispiel: eine Stadtverwaltung kann Parkschein, Amtsgebuehr oder Museumseintritt sein. | Agenten-Einzelvorschlag auf die plausibelste Kategorie, **keine** Regel |
+| **E6** | **Kein Beleg nach kurzer Suche.** | Schaetzung: Agenten-Einzelvorschlag auf die **plausibelste Sachkategorie**, **keine** Regel. `KAT-012` „Noch zu klaeren" nur, wenn wirklich keine Kategorie plausibel ist |
+
+**E6 heisst schaetzen, nicht aufgeben.** Ohne Beleg setzt der Agent die
+plausibelste Sachkategorie als Schaetzung ueber `agent_vorschlag`; das Gate gibt
+sie frei wie jeden Agentenvorschlag. `KAT-012` ist die Ausnahme fuer Faelle ohne
+jeden Anhaltspunkt — etwa eine Barabhebung, bei der nichts auf die Verwendung
+deutet.
+
+**Korrektur wird Beleg.** Korrigiert der Nutzer eine Agenten-Buchung
+(Tool `bestaetigen` mit `aktion: kategorie`, `confirm.mjs`), traegt sie
+`bestaetigt_durch = mensch` — damit steht eine
+menschliche Entscheidung im Bestand. Fuer kuenftige Buchungen desselben
+Merchants ist das **E2** — daraus darf eine Regel werden. Eine
+unkorrigierte Schaetzung ist dagegen nie ein Beleg, auch nicht nach der
+Freigabe.
 
 **E2 ist an das Konto gebunden, auf dem es verdient wurde.** „Identischer
 Merchant im Bestand" heisst: irgendwo im Bestand hat jemand entschieden — wo,
@@ -60,14 +81,23 @@ zurueck (ADR 0027). Ein reines `gegenpartei_pattern` ohne
 auf einem anderen Konto etwas voellig anderes leisten. Im Zweifel das zweite
 Feld setzen.
 
-### Was ausdruecklich kein Beleg ist
+### Was kein Beleg fuer eine Regel ist
 
-Diese Signale begruenden **nie** eine Kategorie — auch nicht in Kombination:
+Diese Signale begruenden **nie** eine Regel oder eine Belegstufe — auch nicht
+in Kombination. Fuer eine Schaetzung (E6) duerfen sie das Urteil stuetzen;
+dafuer ist die Schaetzung da.
 
 - **Ort** (`/HANNOVER`, `/SALZGITTER`, `/TEULADA`) und **Rechtsform** (`GMBH`, `AG`, `B.V.`).
-- **Betragshoehe.** „8 EUR in einer Innenstadt, also Parken" ist Fantasie, nicht Recherche. Ist die Betragshoehe das einzige Signal, ist der Fall E6.
+- **Betragshoehe.** „8 EUR in einer Innenstadt, also Parken" kann eine Schaetzung sein, nie ein Beleg. Ist die Betragshoehe das einzige Signal, ist der Fall E6.
 - **Datum oder Urlaubszeitraum.** „War im Juli in Spanien, also Urlaub" ordnet den Anlass zu, nicht die Leistung.
 - **Token-Ueberlappung mit dem uebrigen Bestand.** E2 verlangt denselben *Merchant*, nicht ein gemeinsames Wort. Am echten Bestand gemessen liefert naive Token-Suche fuer `Deutsche.Post.AG` 650 „aehnliche" Buchungen quer ueber elf Kategorien — der gemeinsame Token ist `salzgitter`. So laesst sich jede beliebige Kategorie scheinbar belegen. Genau das ist der Fehlermodus, den dieser Abschnitt verhindert.
+
+### Recherche ist kurz
+
+Je Merchant **hoechstens ein kurzer Blick**: lokal Archiv und Bestand (E1, E2),
+dann hoechstens eine Websuche (E4). Bringt das nichts Belastbares, nicht
+weitersuchen, sondern schaetzen (E6). Lange Suche ist der Fehler, nicht die
+Schaetzung.
 
 ### E4: was ins Netz gehen darf
 
@@ -83,7 +113,8 @@ Darum gilt eng begrenzt:
 1. **Read-only-Analyse des Offen-Stapels — mit dem Tool, nicht von Hand.**
 
    ```
-   node tools/regel-vorschlag.mjs DATENROOT
+   regel_vorschlag                                 # MCP-Tool
+   node tools/regel-vorschlag.mjs DATENROOT        # lokal
    ```
 
    `regel-vorschlag.mjs` buendelt alle `offen`-Buchungen nach lose normalisierter
@@ -105,8 +136,9 @@ Darum gilt eng begrenzt:
    Abdeckung. Nichts schreiben in diesem Schritt.
 
 2. **Je Cluster die Belegleiter durchgehen.** Ergebnis ist fuer jeden Cluster
-   entweder eine Regel (E1–E4), ein Agenten-Einzelvorschlag (E5) oder ein
-   Agenten-Einzelvorschlag auf `KAT-012` (E6). Kein Cluster bleibt unbearbeitet.
+   entweder eine Regel (E1–E4) oder ein Agenten-Einzelvorschlag auf die
+   plausibelste Kategorie (E5, E6 als Schaetzung; `KAT-012` nur als Ausnahme).
+   Kein Cluster bleibt unbearbeitet.
 
    Muster moeglichst **thematisch buendeln**: `categorizer.mjs` unterstuetzt in
    `gegenpartei_pattern` und `verwendungszweck_pattern` eine **Pipe-Alternation**
@@ -117,8 +149,8 @@ Darum gilt eng begrenzt:
 
 3. **Regelkandidaten mechanisch pruefen — vor jedem Schreiben, ohne Ausnahme.**
 
-   Kandidaten als JSON-Array in eine Arbeitsdatei schreiben (nicht unter
-   `DATENROOT`), dann:
+   Kandidaten als JSON-Array direkt an das MCP-Tool `regel_probelauf`
+   (`kandidaten`) geben; lokal in eine Arbeitsdatei (nicht unter `DATENROOT`):
 
    ```
    node tools/regel-probelauf.mjs DATENROOT <kandidaten.json>
@@ -143,9 +175,9 @@ Darum gilt eng begrenzt:
    angelegt werden.
 
    Bei einer beabsichtigten **Aenderung** einer Bestandsregel `--aenderung`
-   setzen; sonst gilt die bekannte `regel_id` als Versehen.
+   (MCP: `aenderung: true`) setzen; sonst gilt die bekannte `regel_id` als Versehen.
 
-4. **Schreiben.** Neue `regel_id` als naechste freie `REG-NNN` (Bestand scannen, es gibt keinen ID-Helfer), `status = "aktiv"`, `erstellt_am` = heutiges Datum.
+4. **Schreiben.** Neue `regel_id` als naechste freie `REG-NNN` (Bestand scannen, es gibt keinen ID-Helfer), `status = "aktiv"`, `erstellt_am` = heutiges Datum. Im Betrieb per `datei_ersetzen` in `DATENROOT/kategorisierungsregeln.json`.
 
    `kommentar` ist **Pflichtfeld** und muss zweierlei leisten: erklaeren, **was**
    der Merchant ist, und nennen, **woher** das bekannt ist (Belegstufe). „Monatlicher
@@ -158,28 +190,30 @@ Darum gilt eng begrenzt:
    **stilllegen** = `status = "inaktiv"` (nicht loeschen, der Categorizer
    ignoriert Inaktive ohnehin).
 
-5. **Nach-Kategorisierung anstossen.** `node tools/recategorize.mjs DATENROOT` aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel`) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator fuer `DATENROOT` und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs.
+5. **Nach-Kategorisierung anstossen.** MCP-Tool `nachkategorisieren` mit `schreiben: true` (lokal `node tools/recategorize.mjs DATENROOT`) aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel`) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator fuer `DATENROOT` und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs.
 
 6. **E5- und E6-Faelle als Einzelvorschlaege setzen.**
 
    ```
-   node tools/agent-vorschlag.mjs --ids=TXN-a,TXN-b --kategorie=KAT-012 DATENROOT --schreiben
+   agent_vorschlag  ids: [TXN-a, TXN-b]  kategorie: KAT-003  schreiben: true
    ```
 
    Was keine Regel bekommen hat, wird ueber `tools/agent-vorschlag.mjs` auf
-   `vorgeschlagen` mit `kategorie_herkunft = agent` gestellt. **Nicht**
+   `vorgeschlagen` mit `kategorie_herkunft = agent` gestellt — je Buchung die
+   plausibelste Kategorie, gleiche Kategorien in einem Aufruf. **Nicht**
    `confirm.mjs` nehmen — das ist der menschliche Entscheidungskanal und
    schreibt immer `bestaetigt`; ein Agentenvorschlag ist das Gegenteil davon.
 
    Diese Buchungen tragen nie `matched_regeln`, und Regellaeufe fassen sie
-   spaeter nicht an. Ohne `--schreiben` ist der Lauf eine Vorschau.
+   spaeter nicht an. Ohne `schreiben: true` ist der Lauf eine Vorschau.
 
-7. **Bericht + Uebergabe an das Review.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`) und in `DATENROOT/agent_log.jsonl` protokollieren.
+7. **Bericht.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`) und in `DATENROOT/agent_log.jsonl` protokollieren.
 
    Die Uebergabe erfolgt **regelweise** als Tabelle: Regel → Muster → Kategorie →
-   Treffer → **Belegstufe**. Dazu die E5- und E6-Buckets. Das ist die Grundlage,
-   auf der **kategorisierung-review** entscheidet — dieser Skill **endet bei
-   `vorgeschlagen`**.
+   Treffer → **Belegstufe**. Dazu die Zahl der Schaetzungen (E5/E6) je
+   Kategorie, davon `KAT-012`. Dieser Skill **endet bei `vorgeschlagen`**; die
+   Freigabe macht das Gate, Korrekturen macht der Nutzer spaeter ueber
+   **kategorisierung-review**.
 
 ## Do's
 
@@ -193,14 +227,15 @@ Darum gilt eng begrenzt:
 
 ## Don'ts
 
-- **Keine Kategorie raten.** Die Belegleiter ist der Test, nicht das Bauchgefuehl. Kein Beleg heisst `KAT-012`, nicht „wird schon Parken sein".
-- **Ort, Rechtsform, Betrag und Zeitraum sind keine Belege.** Auch nicht zu dritt.
+- **Keine Belegstufe hochstufen.** Eine Schaetzung bleibt E6, auch wenn eine Websuche irgendetwas geliefert hat. Die Belegleiter ist der Test fuer Regeln, nicht das Bauchgefuehl.
+- **Ort, Rechtsform, Betrag und Zeitraum sind keine Belege** fuer eine Regel. Auch nicht zu dritt.
+- **Nicht lange suchen.** Ein kurzer Blick je Merchant, dann schaetzen. `KAT-012` ist kein Ausweg aus einer muehsamen Recherche, sondern die Ausnahme ohne jeden Anhaltspunkt.
 - **Nie am blockierenden Probelauf vorbei schreiben.** Exit-Code 2 heisst: Muster schaerfen (Konflikt) oder nachfragen (Wiedervorlage). Nicht das Tool ueberstimmen.
 - **Nicht reimportieren, um nachzukategorisieren.** Der Reimport ueberspringt Bekanntes per Dedupe und ruehrt den Bestand nicht an. Nach-Kategorisierung laeuft ausschliesslich ueber `recategorize.mjs`.
 - **Bestaetigt/manuell/abgelehnt nicht umbiegen.** Das Tool fasst sie nicht an, und du auch nicht.
 - **Regel deckt eine `manuell`-Buchung mit gleicher Kategorie?** Dann ist die `manuell`-Markierung die Altlast (jemand hat Regel **und** `manuell` zugleich gesetzt). `recategorize.mjs` heilt das nicht (es laesst `manuell` in Ruhe). Solche Buchungen gezielt auf `kategorie_herkunft = regel` zuruecksetzen und `matched_regeln` stempeln — **nur**, wenn die treffende Regel **dieselbe** Kategorie liefert. Weicht die Nutzer-Kategorie ab, ist es eine bewusste Uebersteuerung und bleibt `manuell`.
 - **Keine Kategorie direkt an Transaktionen schreiben.** Kategorien entstehen ueber Regeln (deterministisch) oder ueber `confirm.mjs`, nicht per Hand-Edit an `transaktionen.jsonl`.
-- **Aus einer Vermutung nie eine Regel machen.** E5 und E6 sind Einzelvorschlaege. Eine Regel ist dauerhaft und feuert auf kuenftige Importe — eine Vermutung darf das nicht.
+- **Aus einer Schaetzung nie eine Regel machen.** E5 und E6 sind Einzelvorschlaege. Eine Regel ist dauerhaft und feuert auf kuenftige Importe — eine Schaetzung darf das nicht. Erst die Korrektur oder Bestaetigung durch den Nutzer macht daraus einen Beleg (E2).
 
 ## Wann fragen, wann handeln
 

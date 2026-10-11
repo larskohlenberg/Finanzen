@@ -162,3 +162,17 @@ test("leerer Bestand rendert ohne undefined", () => {
   assert.doesNotMatch(text, /undefined/);
   assert.match(text, /REGELN AUF KONTEN OHNE MENSCHLICHEN ANKER \(0\)/);
 });
+
+test("Agenten-Schaetzungen werden gezaehlt, menschlich entschiedene nicht", () => {
+  const out = pruefbericht({ ...leer, transaktionen: [
+    auto({ kategorie_herkunft: "agent" }),
+    auto({ kategorie_herkunft: "agent", kategorie_id: "KAT-012" }),
+    tx({ kategorisierung_status: "vorgeschlagen", kategorie_herkunft: "agent", kategorie_id: "KAT-003" }),
+    mensch({ kategorie_herkunft: "agent" }),
+    auto({ kategorie_herkunft: "regel" }),
+  ] });
+  assert.equal(out.agent_geschaetzt, 3);
+  const text = renderBericht(out);
+  assert.match(text, /VOM AGENTEN GESCHAETZT, HERKUNFT AGENT \(3\)/);
+  assert.match(text, /Filter Herkunft = Agent/);
+});

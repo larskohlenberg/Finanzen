@@ -8,7 +8,7 @@ kein Append-Only, keine Versionsfelder. Die Git-History ist Spur genug.
 
 | Datei | Inhalt |
 | --- | --- |
-| `app/docs/agent-context.md` | **Operative Wahrheit.** Status, Herkunft, Kategorisierung, Validierung, Agentenprotokoll, Liste aller Tools. Vor jeder Arbeit an Daten lesen. |
+| `app/docs/agent-context.md` | **Operative Wahrheit.** Status, Herkunft, Kategorisierung, Validierung, Agentenprotokoll, Liste aller Tools. Vor jeder Datenarbeit lesen (Import, Kategorisieren, Regeln, Freigabe, Schreiben); fuer Auswertungen und Statusfragen nicht noetig. |
 | `CONTEXT.md` | Fachliches Glossar. Nur Sprache, keine Implementierungsdetails. |
 | `docs/adr/` | Entscheidungen samt Begruendung und verworfenen Alternativen. |
 
@@ -39,6 +39,12 @@ ausgehenden Diff vor jedem Push auf Namen, Adressen, Betraege, Orte sowie
 Instituts- und Merchantnamen greppen. Konkrete Werte gehoeren ins
 `agent_log.jsonl` (nicht versioniert); Dokumente verweisen nur darauf.
 
+**Produktivdaten liegen auf dem Server**, Zugriff ausschliesslich ueber den
+MCP-Server `finanzen` (Tools `mcp__finanzen__*`, eingebunden per `.mcp.json`
+als `ssh finanzen-mcp`; Zuordnung CLI -> Tool in `app/docs/agent-context.md`).
+Lokal liegen nur Demodaten — dort laufen die CLIs wie gewohnt. Ein Upload ueber
+die App legt Dateien nur in die Inbox; verarbeitet wird im Import-Durchlauf.
+
 **Datenroot ist ein Argument**, nie hartkodiert — `dataRootFromArg` aus
 `app/tools/data-root.mjs`. Produktiv ist `app/data/master`.
 
@@ -56,9 +62,10 @@ Vorschlagen ist Agent-Urteil, Matchen und Rechnen ist Tool (ADR 0003, 0010).
 - **Feature-Branch ja, gemerged wird von Lars.** Quellcode und Doku duerfen
   ohne Rueckfrage committet werden; nur Echtdaten sind tabu.
 - **Commits auf Deutsch, ohne Umlaute** (`ue`, `ae`, `oe`, `ss`).
-- **Kategorisieren ohne Vorab-Bestaetigung.** Alles vorschlagen, aber nur mit
-  Beleg — sonst `KAT-012`. Das Gate und der Pruefbericht sind die Kontrolle
-  (ADR 0025), nicht ein Dialog pro Buchung.
+- **Kategorisieren ohne Vorab-Bestaetigung.** Regeln nur mit Beleg; was ohne
+  Beleg bleibt, schaetzt der Agent als Einzelvorschlag und gibt es frei
+  (`KAT-012` nur, wenn nichts plausibel ist). Das Gate und der Pruefbericht
+  sind die Kontrolle, Korrekturen kommen spaeter (ADR 0025, 0029).
 - **Stammdatenpflege braucht keine Spec.** Konto, Zeitwert oder Beleg direkt
   anlegen; Spec und Plan nur, wenn Code betroffen ist.
 

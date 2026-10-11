@@ -1,5 +1,8 @@
 # Auto-Freigabe mit Gate statt Vorab-Review
 
+Statushinweis 2026-10-11: Die Belegstufe E6 endet nicht mehr auf `KAT-012`,
+sondern auf einer Schaetzung des Agenten (ADR 0029).
+
 Vorgeschlagene Kategorien werden nicht mehr einzeln vom Nutzer bestaetigt,
 sondern von einem deterministischen Gate automatisch freigegeben. Die Kontrolle
 verschiebt sich von einer Zustimmung vorab auf einen Pruefbericht danach.

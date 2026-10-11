@@ -5,30 +5,39 @@ description: Belege importieren und den Bestand in einem Lauf bis zur Freigabe b
 
 # Import-Durchlauf
 
-Die vollstaendige Betriebsanweisung steht in `app/docs/skills/import-durchlauf.md`.
-**Lies sie zuerst und folge ihr** — dieses Dokument ist nur der Einstieg, damit
+Die vollstaendige Betriebsanweisung steht in `app/docs/skills/import-durchlauf.md`
+(auch als MCP-Prompt `import-durchlauf`). **Lies sie zuerst und folge ihr** — dieses Dokument ist nur der Einstieg, damit
 der Durchlauf per Name auffindbar ist.
 
-Ebenfalls lesen, bevor Daten angefasst werden: `app/docs/agent-context.md`.
+Ebenfalls lesen, bevor Daten angefasst werden: `app/docs/agent-context.md`
+(Resource `finanzen://docs/agent-context`).
 
 ## Der Lauf in Kurzform
 
-1. `node app/tools/lernen.mjs app/data/master` — Metriken vor den Lauf stellen.
+Die Daten liegen auf dem Server; jeder Schritt laeuft ueber die Tools des
+MCP-Servers `finanzen` (`mcp__finanzen__*`). Ohne `schreiben: true` ist jeder
+Lauf eine Vorschau.
+
+1. `lernen` — Metriken vor den Lauf stellen.
 2. Je Rohdatei den Subagenten **`import-normalisierung`** beauftragen.
-3. Den Subagenten **`regel-recherche`** auf den Offen-Stapel ansetzen.
-4. `node app/tools/freigabe.mjs app/data/master --schreiben`
-5. `node app/tools/pruefbericht.mjs app/data/master` — **ungekuerzt zeigen**.
-6. `node app/tools/belege-text.mjs --schreiben` — raeumt `processed/` und
+3. Den Subagenten **`regel-recherche`** auf den Offen-Stapel ansetzen. Er
+   verregelt, was belegt ist, und schaetzt den Rest als Einzelvorschlag.
+4. `freigabe` mit `schreiben: true`.
+5. `pruefbericht` — **ungekuerzt zeigen**.
+6. `belege_text` mit `schreiben: true` — raeumt `processed/` und
    `standardized/` per Inhalts-Hash ab. Ohne Nachweis bleibt die Datei liegen
    und steht unter `offen`. `error/` bleibt unangetastet.
-7. Zaehler in `app/data/master/agent_log.jsonl` protokollieren.
+7. Zaehler in `DATENROOT/agent_log.jsonl` protokollieren (`datei_schreiben`
+   mit `anhaengen: true`).
 
 ## Die drei Regeln, die den Unterschied machen
 
 - **Keine Vorab-Zustimmung einholen.** Das Gate entscheidet, der Pruefbericht
   ist die Kontrolle. Bucket-Dialoge waren der Engpass, den dieser Lauf abschafft.
-- **Der Lauf haelt nie an, erfindet aber nichts.** Unbekanntes Konto wird
-  angelegt, unlesbare Zeilen gehen nach `error/`, ein nicht reconcilierender
-  Kontostand wird **nicht** geschrieben.
+- **Der Lauf haelt nie an.** Was ohne Beleg bleibt, schaetzt der Agent
+  (Herkunft `agent`, keine Regel); der Nutzer korrigiert spaeter. Erfunden
+  wird trotzdem nichts: unbekanntes Konto wird angelegt, unlesbare Zeilen gehen
+  nach `error/`, ein nicht reconcilierender Kontostand wird **nicht**
+  geschrieben.
 - **Textvorschlaege fuer Skill-Dokumente nie selbst uebernehmen.** Sie aendern
   kuenftiges Verhalten und brauchen ein Wort des Nutzers.

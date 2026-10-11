@@ -2,6 +2,8 @@
 
 Statushinweis 2026-06-09: Der Grundsatz gilt weiter, aber die Begruendung "ohne Webserver" ist durch ADR 0012/0015 ueberholt. Praezise Lesart heute: Die App ist eine Web-App, schreibt aber keine Masterdaten; Aenderungen laufen ueber Agenten und Betriebstools.
 
+Statushinweis 2026-10-11: Durch ADR 0028 legt die App Rohdateien per Hochladen in die Inbox und der Dialog laeuft ueber MCP mit jedem Agenten; Masterdaten schreibt die App weiterhin nicht.
+
 Der interaktive Dialog zwischen Nutzer und Agent — Importauftraege, Kategoriefragen, Fehlerklaerung — findet in **Claude Code** statt, nicht in der lokalen App. Die App (`app/index.html`) bleibt eine **rein anzeigende Oberflaeche**: sie liest Daten, validiert beim Laden, zeigt offene Punkte und Importfehler an. Schreiben, Normalisieren und Klaeren passiert ausserhalb der App, durch den Agenten im Dialog.
 
 Begruendung: Ein App-internes Chat-Frontend wuerde einen Backend-Service, WebSocket-Plumbing und neue Sicherheitsfragen einfuehren. Claude Code ist der natuerliche Ort fuer den Dialog: der Nutzer arbeitet dort ohnehin (Dateien ablegen, Rohbelege benennen, Regeln pflegen). Die App profitiert davon, schlank zu bleiben.

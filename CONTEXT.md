@@ -86,7 +86,7 @@ Zustand einer Transaktion bezueglich ihrer Kategorie. Agent schreibt seinen Tipp
 
 Die **Erst-Kategorisierung** geschieht beim Import (deterministischer Categorizer ueber die zu dem Zeitpunkt bestehenden Regeln). Werden Regeln erst *nach* dem Import angelegt oder geaendert, wirkt die **Nach-Kategorisierung**: derselbe deterministische Lauf, aber ueber den Bestand statt ueber den Import-Stream, angestossen ueber die Kategorisierungsregel-Pflege. Beide rufen dieselbe `categorize()`-Funktion — gleiche Eingabe, gleiches Ergebnis. Der Agent raet nie eine Kategorie und legt nie still eine Regel an; beides ist eigener Pflegeprozess.
 
-Orthogonal zum Status steht die **Herkunft** einer Kategorie (`kategorie_herkunft`): `regel` (vom Categorizer abgeleitet), `agent` (plausibler Einzelvorschlag des Agenten ohne Regel) oder `manuell` (ausdrueckliche Nutzerentscheidung — es gibt keine UI-Bearbeitung, siehe ADR 0006). Die Herkunft bleibt bei Bestaetigung erhalten; nur eine Korrektur auf eine andere Kategorie wird `manuell`. Die Herkunft entscheidet, ob die Nach-Kategorisierung einen Eintrag anfassen darf: `regel`-Eintraege werden neu bewertet, `agent`-Einzelvorschlaege, `manuell`-Eintraege und `abgelehnt` bleiben von Regellaeufen unangetastet.
+Orthogonal zum Status steht die **Herkunft** einer Kategorie (`kategorie_herkunft`): `regel` (vom Categorizer abgeleitet), `agent` (Einzelvorschlag des Agenten ohne Regel, ohne Beleg eine Schaetzung) oder `manuell` (ausdrueckliche Nutzerentscheidung — es gibt keine UI-Bearbeitung, siehe ADR 0006). Die Herkunft bleibt bei Bestaetigung erhalten; nur eine Korrektur auf eine andere Kategorie wird `manuell`. Die Herkunft entscheidet, ob die Nach-Kategorisierung einen Eintrag anfassen darf: `regel`-Eintraege werden neu bewertet, `agent`-Einzelvorschlaege, `manuell`-Eintraege und `abgelehnt` bleiben von Regellaeufen unangetastet.
 
 Korrekturen sind in-place Updates — eine Kategorie aendern heisst: ueberschreiben. Die Git-History ist Spur genug; kein Audit-Log, keine Versionierung.
 
@@ -238,6 +238,10 @@ Keine eigene Entitaet. Quellen leben als Felder direkt am Datensatz:
 - **Stammdaten** (Immobilie, Darlehen, Versicherung, Rente, Sozialleistung, **Regelzahlung**): optionales `quelle_hinweis` (Pfad oder Freitext) plus optionales `quelle_standdatum`. Bei einer `belegt`-Regelzahlung verweist `quelle_hinweis` auf den Vertrag bzw. die Jahres-Beitragsinfo.
 
 Keine `quellen.json`. Wenn dasselbe PDF an mehreren Stellen referenziert wird, steht der Pfad mehrfach — das ist akzeptiert, weil es keinen echten Pflegeaufwand erzeugt.
+
+## Dokument
+
+Eine Datei unter `Belege/` (Kontoauszug, Police, Bescheid, Vertrag, Export), die als **Quelle** eines Datensatzes dient; in der App erscheint sie unter „Dokumente". In der Oberflaeche heisst die Datei „Dokument" bzw. am Datensatz „Quelldokument", nicht „Beleg" — „Beleg" meint fuer den Nutzer den Datensatz selbst. Der Ordnername `Belege/` ist historisch.
 
 ## Kategorisierungsregel
 

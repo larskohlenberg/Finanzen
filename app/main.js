@@ -12,6 +12,11 @@ import { renderOverview } from "./views/uebersicht.mjs";
 import { renderMasterdata } from "./views/stammdaten.mjs";
 import { renderChecks } from "./views/checks.mjs";
 import { renderExport } from "./views/export.mjs";
+import { renderUpload, dateienEinreihen, ladeInbox, inboxBeiBedarfLaden } from "./views/upload.mjs";
+import {
+  renderBelege, belegeBeiBedarfLaden, ladeBelege, setBelegeSuche, setBelegeZwillinge,
+  toggleBelegeSort, toggleBelegeOrdner, ordnerDerAuswahl,
+} from "./views/belege.mjs";
 import {
   app, data, state, storageKeys, navItems, TABBAR_VIEWS, transaktionenById,
   t, escapeHtml, cents,
@@ -20,8 +25,11 @@ import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
 import { bindDiagrammHover } from "./diagramm-hover.mjs";
+import { versionAnzeige, ladeVersion } from "./version.mjs";
 
 let nextActionCopiedTimer = null;
+// undefined = noch nicht geladen (nichts anzeigen), null = keine version.json.
+let appVersion;
 
 function applyTheme() {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -35,6 +43,7 @@ const FOCUS_ATTRS = [
   "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
   "data-vermoegen-sort", "data-vorsorge-sort", "data-vorsorge-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
   "data-rule", "data-regel-sort", "data-next-action-type", "data-vorsorge",
+  "data-beleg", "data-beleg-sort", "data-beleg-ordner",
 ];
 const SCROLL_SELECTORS = [".nav", ".table-wrap"];
 
@@ -136,6 +145,8 @@ function render() {
   restoreScroll(scrollSnap);
   restoreFocus(focusSnap);
   announceStatus();
+  if (state.view === "upload") inboxBeiBedarfLaden(render);
+  if (state.view === "belege") belegeBeiBedarfLaden(render);
 }
 
 function renderSidebar() {
@@ -163,9 +174,24 @@ function renderSidebar() {
       <div class="sidebar-meta">
         <span>${escapeHtml(t("chrome.workState"))}</span>
         <strong>${escapeHtml(t("chrome.releaseState"))}</strong>
+        ${renderVersion()}
       </div>
     </aside>
   `;
+}
+
+function renderVersion() {
+  if (appVersion === undefined) return "";
+  const v = versionAnzeige(appVersion, {
+    locale: state.lang === "de" ? "de-DE" : "en-US",
+    lokal: t("chrome.versionLocal"),
+  });
+  if (v.lokal) return `<span class="sidebar-version">${escapeHtml(v.text)}</span>`;
+  const rest = [v.datum, v.branch].filter(Boolean).map(escapeHtml).join(" · ");
+  return `
+    <span class="sidebar-version">
+      <a href="${escapeHtml(v.href)}" target="_blank" rel="noopener" title="${escapeHtml(t("chrome.versionCommitHint"))}">${escapeHtml(v.kurz)}</a> · ${rest}
+    </span>`;
 }
 
 function renderTabbar() {
@@ -336,6 +362,8 @@ function renderView() {
   if (state.view === "masterdata") return renderMasterdata();
   if (state.view === "checks") return renderChecks();
   if (state.view === "export") return renderExport();
+  if (state.view === "upload") return renderUpload();
+  if (state.view === "belege") return renderBelege();
   return renderOverview();
 }
 
@@ -466,6 +494,12 @@ app.addEventListener("keydown", guard((event) => {
 // Live-Suche: Textfilter wirken pro Tastendruck; Fokus/Cursor uebersteht das
 // Re-Render via captureFocus/restoreFocus (Selektor ueber die id des Inputs).
 app.addEventListener("input", guard((event) => {
+  const belegeSuche = event.target.closest("input[data-belege-suche]");
+  if (belegeSuche) {
+    setBelegeSuche(belegeSuche.value);
+    render();
+    return;
+  }
   const vorsorgeFilter = event.target.closest("input[data-vorsorge-filter]");
   if (vorsorgeFilter) {
     setVorsorgeFilter(vorsorgeFilter.dataset.vorsorgeFilter, vorsorgeFilter.value);
@@ -480,6 +514,17 @@ app.addEventListener("input", guard((event) => {
 }, setUiError, "input"));
 
 app.addEventListener("change", guard((event) => {
+  const uploadInput = event.target.closest("[data-upload-input]");
+  if (uploadInput) {
+    dateienEinreihen(uploadInput.files, render);
+    return;
+  }
+  const belegeZwillinge = event.target.closest("input[data-belege-zwillinge]");
+  if (belegeZwillinge) {
+    setBelegeZwillinge(belegeZwillinge.checked);
+    render();
+    return;
+  }
   const control = event.target.closest("[data-control]");
   if (control?.dataset.control === "data-mode") {
     state.dataMode = control.value === "demo" ? "demo" : "live";
@@ -543,6 +588,33 @@ app.addEventListener("change", guard((event) => {
   }
 }, setUiError, "change"));
 
+// Upload: Drop-Zone hebt sich beim Darueberziehen hervor (Klasse direkt am
+// Element, ohne Re-Render). Auf der Upload-Seite verhindert das Fenster, dass
+// eine daneben fallengelassene Datei den Browser von der App wegnavigiert.
+app.addEventListener("dragover", (event) => {
+  const zone = event.target.closest?.("[data-upload-drop]");
+  if (!zone) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+  zone.classList.add("is-dragover");
+});
+app.addEventListener("dragleave", (event) => {
+  const zone = event.target.closest?.("[data-upload-drop]");
+  if (zone && !zone.contains(event.relatedTarget)) zone.classList.remove("is-dragover");
+});
+app.addEventListener("drop", guard((event) => {
+  const zone = event.target.closest?.("[data-upload-drop]");
+  if (!zone) return;
+  event.preventDefault();
+  zone.classList.remove("is-dragover");
+  dateienEinreihen(event.dataTransfer.files, render);
+}, setUiError, "drop"));
+for (const typ of ["dragover", "drop"]) {
+  window.addEventListener(typ, (event) => {
+    if (state.view === "upload") event.preventDefault();
+  });
+}
+
 // Diagramm-Hover: delegierter pointermove-Handler auf dem App-Container.
 bindDiagrammHover(app);
 
@@ -596,6 +668,39 @@ async function handleAction(element) {
     window.location.assign(url);
     return;
   }
+  if (action === "upload-choose") {
+    document.getElementById("upload-input")?.click();
+    return;
+  }
+  if (action === "upload-refresh") {
+    void ladeInbox(render);
+    return;
+  }
+  if (action === "belege-refresh") {
+    void ladeBelege(render);
+    return;
+  }
+  if (action === "select-beleg") {
+    state.view = "belege";
+    state.selectedBeleg = element.dataset.beleg || "";
+    commitNavigation();
+    return;
+  }
+  if (action === "close-beleg") {
+    state.selectedBeleg = ordnerDerAuswahl(state.selectedBeleg);
+    commitNavigation();
+    return;
+  }
+  if (action === "toggle-beleg-ordner") {
+    toggleBelegeOrdner(element.dataset.belegOrdner);
+    render();
+    return;
+  }
+  if (action === "sort-belege") {
+    toggleBelegeSort(element.dataset.belegSort);
+    render();
+    return;
+  }
   if (action === "toggle-more-menu") {
     state.moreMenuOpen = !state.moreMenuOpen;
     render();
@@ -647,6 +752,7 @@ async function handleAction(element) {
   if (action === "filter-open-category") {
     state.view = "transactions";
     state.transactionFilters.status = "offen";
+    state.transactionFilters.beleg = "";
     state.transactionFilters.account = "";
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
@@ -674,6 +780,7 @@ async function handleAction(element) {
       transfer: "",
       origin: "",
       search: "",
+      beleg: "",
       timeMode: "none",
       dateFrom: "",
       dateTo: "",
@@ -689,6 +796,7 @@ async function handleAction(element) {
   if (action === "account-transactions") {
     state.view = "transactions";
     state.transactionFilters.account = element.dataset.account;
+    state.transactionFilters.beleg = "";
     state.transactionFilters.status = "";
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
@@ -709,6 +817,7 @@ async function handleAction(element) {
       transfer: "",
       origin: "",
       search: element.dataset.immobilie || "",
+      beleg: "",
       timeMode: "none",
       dateFrom: "",
       dateTo: "",
@@ -740,6 +849,7 @@ async function handleAction(element) {
     state.transactionFilters.transfer = "";
     state.transactionFilters.search = "";
     state.transactionFilters.origin = "";
+    state.transactionFilters.beleg = "";
     clearTransactionTimeFilter();
     state.transactionPage = 1;
     state.selectedTransactionId = element.dataset.transaction;
@@ -798,6 +908,7 @@ async function handleAction(element) {
     const paired = transaktionenById.get(transactionId);
     if (paired) {
       state.transactionFilters.account = paired.konto_id;
+      state.transactionFilters.beleg = "";
       state.transactionFilters.status = "";
       state.transactionFilters.category = "";
       state.transactionFilters.transfer = "";
@@ -922,6 +1033,7 @@ async function handleAction(element) {
     } else if (scope === "transaktion") {
       state.view = "transactions";
       state.selectedTransactionId = entity;
+      state.transactionFilters.beleg = "";
       state.transactionFilters.account = "";
       state.transactionFilters.status = "";
       state.transactionFilters.category = "";
@@ -947,6 +1059,7 @@ function snapshotState() {
     selectedVermoegenId: state.selectedVermoegenId,
     selectedVorsorgeId: state.selectedVorsorgeId,
     selectedSzenarioId: state.selectedSzenarioId,
+    selectedBeleg: state.selectedBeleg,
     vermoegenRailMode: state.vermoegenRailMode,
     vermoegenRailWide: state.vermoegenRailWide,
   };
@@ -964,6 +1077,7 @@ function restoreState(snapshot) {
   state.selectedVermoegenId = snapshot.selectedVermoegenId || "";
   state.selectedVorsorgeId = snapshot.selectedVorsorgeId || "";
   state.selectedSzenarioId = snapshot.selectedSzenarioId || "";
+  state.selectedBeleg = snapshot.selectedBeleg || "";
   state.vermoegenRailMode = snapshot.vermoegenRailMode || "position";
   state.vermoegenRailWide = Boolean(snapshot.vermoegenRailWide);
 }
@@ -997,13 +1111,26 @@ function applyRoute(route) {
 
   if (route.selectedTransactionId && transaktionenById.has(route.selectedTransactionId)) {
     Object.assign(state.transactionFilters, {
-      account: "", status: "", category: "", transfer: "", search: "",
+      account: "", status: "", category: "", transfer: "", search: "", beleg: "",
       timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
     });
     state.selectedTransactionId = route.selectedTransactionId;
     state.detailRailClosed = false;
     state.transactionPage = transactionPageForId(route.selectedTransactionId);
   }
+
+  // Transaktionen gefiltert auf ein Quelldokument: uebrige Filter leeren, damit
+  // genau die Buchungen dieses Dokuments sichtbar sind.
+  if (route.belegFilter) {
+    Object.assign(state.transactionFilters, {
+      account: "", status: "", category: "", transfer: "", origin: "", search: "", beleg: route.belegFilter,
+      timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
+    });
+    state.selectedTransactionId = "";
+    state.detailRailClosed = false;
+    state.transactionPage = 1;
+  }
+  if (route.view === "belege") state.selectedBeleg = route.selectedBeleg || "";
 
   if (route.selectedVermoegenId) {
     state.vermoegenFilters.klasse = "";
@@ -1052,3 +1179,9 @@ applyRoute(parseRoute(location.hash));
 lastCommittedView = state.view;
 history.replaceState(snapshotState(), "", routeFromState(state));
 render();
+
+// Versionsstand nachladen; blockiert den Start nicht und scheitert still.
+ladeVersion().then((version) => {
+  appVersion = version;
+  render();
+});

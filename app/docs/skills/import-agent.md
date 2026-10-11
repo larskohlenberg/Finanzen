@@ -3,7 +3,10 @@
 Aktuelle Betriebsanweisung fuer Importlaeufe. Fachlich aus M3 entstanden, inzwischen Teil des App-Datenraums.
 
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `Belege/...`,
-`schemas/...`, `tools/...` und `docs/...` liegen unter dem App-Raum.
+`schemas/...`, `tools/...` und `docs/...` liegen unter dem App-Raum. Im Betrieb
+laufen Lesen, Schreiben und Tool-Laeufe ueber den MCP-Server `finanzen` (Zuordnung
+CLI -> Tool in `docs/agent-context.md`, „Betrieb ueber MCP"); die CLI-Aufrufe
+unten gelten so fuer die lokalen Demodaten.
 
 ## Wann diesen Skill nutzen
 
@@ -104,8 +107,8 @@ Fuer eine **CSV einer bereits bekannten Bank** ist der ganze Ablauf unten ein
 einziger Aufruf:
 
 ```
-npm run inbox              # Vorschau: was wuerde passieren
-npm run inbox:schreiben    # anwenden
+inbox                      # MCP-Tool, Vorschau: was wuerde passieren
+inbox  schreiben: true     # anwenden   (lokal: npm run inbox / inbox:schreiben)
 ```
 
 `tools/inbox.mjs` ordnet jede Datei ihrem Profil zu (`data/import-profile/`),
@@ -152,7 +155,7 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
    When documentation or a user decision identifies unambiguously which recurring
    payment the booking fulfils, set `regelzahlung_id` in the standardized entry.
    Never infer the assignment from an equal amount or a similar counterparty alone.
-7. **Schreiben**: Buchungen an `DATENROOT/transaktionen.jsonl` anhaengen. Belegte Kontostaende als Zeitwerte an `DATENROOT/zeitwerte.jsonl` anhaengen, sofern sie aus der Rohquelle extrahiert wurden und nicht bereits identisch vorhanden sind. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz. Beim CLI-Import den Root explizit uebergeben: `node tools/import.mjs <standardisierte-datei.jsonl> DATENROOT`.
+7. **Schreiben**: Buchungen an `DATENROOT/transaktionen.jsonl` anhaengen. Belegte Kontostaende als Zeitwerte an `DATENROOT/zeitwerte.jsonl` anhaengen, sofern sie aus der Rohquelle extrahiert wurden und nicht bereits identisch vorhanden sind. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz. Im Betrieb: JSONL per `datei_schreiben` nach `data/inbox/standardized/`, dann Tool `import` (erst Vorschau, dann `schreiben: true`). Lokal den Root explizit uebergeben: `node tools/import.mjs <standardisierte-datei.jsonl> DATENROOT`.
 8. **Transfer-Match**: Nach dem Schreiben `tools/transfer-matcher.mjs` aufrufen. Kriterien fuer Auto-Match (alle vier zwingend):
    - Betrag exakt invers (cent-genau).
    - Beide Konten liegen im Modell.
@@ -166,7 +169,7 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
    3. Bei eindeutigem Beleg oder eindeutiger Nutzeraussage `tools/transaktion-immobilie.mjs` verwenden.
    4. Bei einem bloss plausiblen Bezug die Kandidaten gruppiert dem Nutzer vorlegen; ohne Beleg oder Nutzerentscheidung bleibt `immobilie_id` weg.
    5. Im Abschlussbericht `geprueft`, `zugeordnet`, `ohne_hinweis` und `ungeklaert` nennen.
-10. **Beleg sprechend umbenennen und ablegen** (siehe Abschnitt unten): Rohbeleg in `Belege/` einsortieren, **niemals** den Scan-/Mail-Originalnamen behalten. War der Vorlauf leer (Bildscan), liest du die PDF-Seiten selbst und schreibst den Zwilling schon beim Ablegen von Hand daneben: `<Belegname>.txt`, erste Zeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`, darunter der gelesene Text. Danach `npm run belege:text:schreiben` — das legt die Textzwillinge der uebrigen Belege an und raeumt den Vorlauf in `standardized/` ab; einen bereits geschriebenen Zwilling laesst der Lauf unberuehrt. Zwischen-JSONL verwerfen. Bei Fehler: nach `data/inbox/error/` plus strukturierte Begleitdatei.
+10. **Beleg sprechend umbenennen und ablegen** (siehe Abschnitt unten): Rohbeleg in `Belege/` einsortieren (im Betrieb: Tool `beleg_ablegen`), **niemals** den Scan-/Mail-Originalnamen behalten. War der Vorlauf leer (Bildscan), liest du die PDF-Seiten selbst (`datei_lesen` mit `seite`) und schreibst den Zwilling schon beim Ablegen von Hand daneben (per `datei_schreiben` neben die Rohdatei, `beleg_ablegen` nimmt ihn mit): `<Belegname>.txt`, erste Zeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`, darunter der gelesene Text. Danach `belege_text` mit `schreiben: true` — das legt die Textzwillinge der uebrigen Belege an und raeumt den Vorlauf in `standardized/` ab; einen bereits geschriebenen Zwilling laesst der Lauf unberuehrt. Zwischen-JSONL verwerfen. Bei Fehler: nach `data/inbox/error/` plus strukturierte Begleitdatei.
 11. **Agent-Lauf protokollieren**: Eintrag in `DATENROOT/agent_log.jsonl` mit Zaehlern (importiert, offen, Fehler), betroffene IDs, kurze Notiz. `rohquelle` jeder Buchung zeigt auf den **finalen Beleg-Pfad** in `Belege/`.
 
 ## Belege benennen und ablegen
@@ -185,8 +188,8 @@ Ablage in `Belege/`:
 - **Sonstige Belege**: nach bestehender `Belege/<Jahr>/<Kategorie>`-Struktur (Immobilien, Rente, Versicherungen, Sonstiges, Steuern, Depots, Kredite).
 
 Zu jedem abgelegten PDF gehoert ein **Textzwilling** mit gleichem Basisname und
-Endung `.txt` im selben Ordner. `npm run belege:text` zeigt die Vorschau,
-`npm run belege:text:schreiben` wendet sie an. Der Lauf ist idempotent und
+Endung `.txt` im selben Ordner. `belege_text` zeigt die Vorschau,
+mit `schreiben: true` wendet es sie an. Der Lauf ist idempotent und
 ueberschreibt nie einen vorhandenen Zwilling.
 
 ## Do's

@@ -3,11 +3,17 @@ name: import-normalisierung
 description: Normalisiert eine Bank-Rohdatei in die Standardform und spielt sie ueber import.mjs ein. Nutzen, wenn ein Kontoauszug oder Banking-Export eingelesen werden soll.
 model: opus
 effort: xhigh
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__finanzen__status, mcp__finanzen__datei_lesen, mcp__finanzen__dateien_suchen, mcp__finanzen__transaktionen_abfragen, mcp__finanzen__inbox, mcp__finanzen__import, mcp__finanzen__transfers, mcp__finanzen__immobilienbezug, mcp__finanzen__belege_text, mcp__finanzen__datei_schreiben, mcp__finanzen__datei_ersetzen, mcp__finanzen__beleg_ablegen
 ---
 
 Folge `app/docs/skills/import-agent.md` vollstaendig. Dieses Dokument ist die
 Wahrheit; hier steht nur, was zusaetzlich gilt.
+
+Die Daten liegen auf dem Server: Lesen, Schreiben und jeder Tool-Lauf gehen
+ueber die `mcp__finanzen__*`-Tools (Zuordnung CLI -> Tool in
+`app/docs/agent-context.md`, „Betrieb ueber MCP"). Die standardisierte JSONL
+schreibst du per `datei_schreiben` nach `data/inbox/standardized/` und spielst
+sie mit `import` ein — erst als Vorschau, dann mit `schreiben: true`.
 
 Deine Station ist die riskanteste der Pipeline. Eine falsche Spaltenzuordnung
 korrumpiert stumm tausende Zeilen, und die Saldo-Kettenpruefung faengt zwar

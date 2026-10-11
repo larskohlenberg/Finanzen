@@ -2,8 +2,9 @@
 // Transaktions-Ansicht: Tabelle, Filter (inkl. Zeitfilter), Pagination, Detail-Rail.
 import { data, state, t, escapeHtml, cents, kontenById, transaktionenById, transfersById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, formatMonth, statusChip, renderPageHead, renderTableFilters, categoryName, detailRow } from "../komponenten.mjs";
+import { formatMoney, formatDate, formatMonth, statusChip, renderPageHead, renderTableFilters, categoryName, detailRow, quelleHtml } from "../komponenten.mjs";
 import { matchesQuery, formatIban } from "../tools/lib/text.mjs";
+import { belegPfadeAusText, belegSchluessel, dokumentRoute } from "../belege.mjs";
 
 function transactionSearchFields(tx) {
   return [
@@ -30,6 +31,13 @@ export function matchesOriginFilter(tx, origin) {
   return (tx.kategorie_herkunft || "") === origin;
 }
 
+// Quelldokument-Filter: die rohquelle der Buchung nennt genau diesen Belegpfad.
+export function matchesBelegFilter(tx, beleg) {
+  if (!beleg) return true;
+  const gesucht = belegSchluessel(beleg);
+  return belegPfadeAusText(tx.rohquelle).some((pfad) => belegSchluessel(pfad) === gesucht);
+}
+
 export function filteredTransactions() {
   return sortTransactions(data.transaktionen.filter((tx) => {
     if (state.transactionFilters.account && tx.konto_id !== state.transactionFilters.account) return false;
@@ -38,6 +46,7 @@ export function filteredTransactions() {
     if (state.transactionFilters.transfer === "only" && !tx.ist_transfer) return false;
     if (state.transactionFilters.transfer === "without" && tx.ist_transfer) return false;
     if (!matchesOriginFilter(tx, state.transactionFilters.origin)) return false;
+    if (!matchesBelegFilter(tx, state.transactionFilters.beleg)) return false;
     if (!transactionMatchesTimeFilter(tx)) return false;
     if (state.transactionFilters.search && !matchesQuery(transactionSearchFields(tx), state.transactionFilters.search)) return false;
     return true;
@@ -259,8 +268,24 @@ function renderBreadcrumb(accountName) {
   `;
 }
 
+function renderBelegFilterChip() {
+  const pfad = state.transactionFilters.beleg;
+  if (!pfad) return "";
+  const name = pfad.slice(pfad.lastIndexOf("/") + 1);
+  return `
+    <div class="filter-chips">
+      <span class="filter-chip" title="${escapeHtml(pfad)}">
+        ${iconSvg("belege")}
+        <span>${escapeHtml(t("dokumente.filterChip"))}:</span>
+        <a class="linkish" href="${escapeHtml(dokumentRoute(pfad))}">${escapeHtml(name)}</a>
+        <button class="filter-chip-clear" data-action="clear-transaction-filter" data-filter-name="beleg" aria-label="${escapeHtml(t("dokumente.filterEntfernen"))}" title="${escapeHtml(t("dokumente.filterEntfernen"))}">${iconSvg("clear")}</button>
+      </span>
+    </div>`;
+}
+
 function renderTransactionFilters(resultCount, totalCount) {
   return renderTableFilters({
+    prefix: renderBelegFilterChip(),
     searchFields: [
       {
         name: "search",
@@ -422,7 +447,7 @@ export function applyTransactionTimeModeDefaults(mode) {
 
 function transactionFilterActiveCount() {
   const filters = state.transactionFilters;
-  const regular = ["account", "status", "category", "transfer", "origin", "search"].filter((name) => Boolean(filters[name])).length;
+  const regular = ["account", "status", "category", "transfer", "origin", "search", "beleg"].filter((name) => Boolean(filters[name])).length;
   return regular + (transactionTimeFilterIsActive() ? 1 : 0);
 }
 
@@ -549,7 +574,7 @@ export function renderTransactionDetail(tx) {
     </div>
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("transactions.rawSource"))}</div>
-      <div class="detail-value muted">${escapeHtml(tx.rohquelle)}</div>
+      <div class="detail-value muted">${quelleHtml(tx.rohquelle)}</div>
     </div>
     ${paired ? `
       <div class="detail-section">

@@ -11,11 +11,11 @@ import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writ
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { loadMasterData } from "../tools/validator.mjs";
+import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
 import { abfragen } from "./abfrage.mjs";
 import { pruefeArgumente } from "./argumente.mjs";
 import { LESE_WURZELN, PfadFehler, SCHREIB_WURZELN, loesePfad } from "./pfade.mjs";
-import { kopiereDatenroot, mitRollback, validiere } from "./schreiben.mjs";
+import { kopiereDatenroot, mitRollback } from "./schreiben.mjs";
 
 const MAX_TEXT = 2 * 1024 * 1024;
 const MAX_SCHREIBEN = 10 * 1024 * 1024;
@@ -283,8 +283,9 @@ const status = {
   inputSchema: { type: "object", properties: {}, additionalProperties: false },
   annotations: { readOnlyHint: true },
   async ausfuehren(ctx) {
-    const validator = await validiere(ctx.datenroot);
+    // Einmal laden, fuer Zaehler und Validator.
     const bericht = { datenroot: ctx.datenrootRel, recht: ctx.recht };
+    let validator;
     try {
       const daten = await loadMasterData(pathToFileURL(`${ctx.datenroot}${path.sep}`));
       const verteilung = {};
@@ -295,8 +296,11 @@ const status = {
         regeln: { gesamt: daten.kategorisierungsregeln.length, aktiv: daten.kategorisierungsregeln.filter((r) => r.status === "aktiv").length },
         konten: daten.konten.length,
       });
+      const pruefung = validateMasterData(daten);
+      validator = { gueltig: pruefung.valid, fehler: pruefung.errors };
     } catch (error) {
       bericht.masterdaten = `nicht lesbar: ${error.message}`;
+      validator = { gueltig: false, fehler: [`Masterdaten nicht lesbar: ${error.message}`] };
     }
     bericht.validator = { gueltig: validator.gueltig, fehler_anzahl: validator.fehler.length, fehler: validator.fehler.slice(0, 50) };
     bericht.inbox = await inboxStand(ctx);

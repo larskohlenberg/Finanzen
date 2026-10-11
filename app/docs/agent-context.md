@@ -69,6 +69,8 @@ die lokalen Demodaten.
 
 Alle Tool-Laeufe sind ohne `schreiben: true` eine Vorschau. Skills stehen als
 MCP-Prompts bereit, dieses Dokument als Resource `finanzen://docs/agent-context`.
+Pflichtlektuere ist beides nur vor Datenarbeit (Import, Kategorisieren, Regeln,
+Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
 
 - **Rechte je Schluessel:** `--recht=lesen` erlaubt nur Lese-Tools und
   Vorschau-Laeufe; `--recht=schreiben` zusaetzlich `schreiben: true`,

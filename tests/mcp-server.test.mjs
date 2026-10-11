@@ -25,6 +25,11 @@ test("Handshake: initialize, tools/list, prompts, resources", async () => {
     assert.equal(init.result.protocolVersion, "2025-03-26");
     assert.equal(init.result.serverInfo.name, "finanzen");
     assert.ok(init.result.capabilities.tools && init.result.capabilities.prompts && init.result.capabilities.resources);
+    // Statusfragen gehen direkt ans Tool; Pflichtlektuere nur vor Datenarbeit.
+    const anleitung = init.result.instructions;
+    assert.match(anleitung, /Auswertungen und Statusfragen direkt per Tool/);
+    assert.match(anleitung, /Vor Datenarbeit \(Import, Kategorisieren, Regeln, Freigabe, jedes Schreiben\) die Ressource finanzen:\/\/docs\/agent-context/);
+    assert.doesNotMatch(anleitung, /Zuerst status/);
 
     const fremd = await s.anfrage("initialize", { protocolVersion: "1999-01-01", capabilities: {} });
     assert.equal(fremd.result.protocolVersion, "2025-06-18");
@@ -75,6 +80,9 @@ test("Lese-Tools liefern Bestand, Pruefbericht und Dateien", async () => {
     assert.equal(daten.transaktionen, 675);
     assert.equal(daten.validator.gueltig, true);
     assert.equal(daten.inbox.dateien.length, 1);
+    assert.deepEqual(Object.keys(daten), ["datenroot", "recht", "transaktionen", "kategorisierung_status", "regeln", "konten", "validator", "inbox"]);
+    assert.deepEqual(Object.keys(daten.validator), ["gueltig", "fehler_anzahl", "fehler"]);
+    assert.equal(daten.validator.fehler_anzahl, 0);
 
     const bericht = await s.werkzeug("pruefbericht");
     assert.ok(!bericht.isError, bericht.text);
@@ -91,6 +99,23 @@ test("Lese-Tools liefern Bestand, Pruefbericht und Dateien", async () => {
     assert.match(treffer.text, /Belege\/2025\/rechnung\.txt:1:/);
   } finally {
     await s.beenden();
+  }
+});
+
+test("status meldet unlesbare Masterdaten im Bericht und im Validator", async () => {
+  const kaputt = legeAbzugAn();
+  writeFileSync(join(kaputt.master, "konten.json"), "{kaputt");
+  const s = starteServer(kaputt);
+  try {
+    const daten = JSON.parse((await s.werkzeug("status")).text);
+    assert.match(daten.masterdaten, /^nicht lesbar: /);
+    assert.equal(daten.transaktionen, undefined);
+    assert.equal(daten.validator.gueltig, false);
+    assert.equal(daten.validator.fehler_anzahl, 1);
+    assert.match(daten.validator.fehler[0], /^Masterdaten nicht lesbar: /);
+  } finally {
+    await s.beenden();
+    kaputt.aufraeumen();
   }
 });
 

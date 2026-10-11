@@ -13,7 +13,8 @@ class RpcFehler extends Error {
 function anleitung(ctx) {
   return [
     `Finanzmodell, Datenroot ${ctx.datenrootRel}, Recht: ${ctx.recht}.`,
-    "Zuerst status aufrufen und die Ressource finanzen://docs/agent-context lesen; Skills stehen als Prompts bereit.",
+    "Auswertungen und Statusfragen direkt per Tool beantworten (status, transaktionen_abfragen, pruefbericht), ohne Vorlektuere.",
+    "Vor Datenarbeit (Import, Kategorisieren, Regeln, Freigabe, jedes Schreiben) die Ressource finanzen://docs/agent-context und den passenden Skill-Prompt lesen.",
     "Alle Tool-Laeufe sind ohne schreiben:true eine Vorschau. Nach jedem Schreiben laeuft der Validator, neue Fehler setzen den Masterstand zurueck.",
     "Kategorien nur mit Beleg (Belegleiter E1-E4); ohne Beleg ist der Vorschlag KAT-012.",
   ].join(" ");

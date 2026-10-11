@@ -8,7 +8,7 @@ kein Append-Only, keine Versionsfelder. Die Git-History ist Spur genug.
 
 | Datei | Inhalt |
 | --- | --- |
-| `app/docs/agent-context.md` | **Operative Wahrheit.** Status, Herkunft, Kategorisierung, Validierung, Agentenprotokoll, Liste aller Tools. Vor jeder Arbeit an Daten lesen. |
+| `app/docs/agent-context.md` | **Operative Wahrheit.** Status, Herkunft, Kategorisierung, Validierung, Agentenprotokoll, Liste aller Tools. Vor jeder Datenarbeit lesen (Import, Kategorisieren, Regeln, Freigabe, Schreiben); fuer Auswertungen und Statusfragen nicht noetig. |
 | `CONTEXT.md` | Fachliches Glossar. Nur Sprache, keine Implementierungsdetails. |
 | `docs/adr/` | Entscheidungen samt Begruendung und verworfenen Alternativen. |
 

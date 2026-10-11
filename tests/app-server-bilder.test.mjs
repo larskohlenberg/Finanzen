@@ -7,7 +7,7 @@ import { test, before, after } from "node:test";
 import http from "node:http";
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { createAppServer, jpegNameFuer } from "../app/server.mjs";
 
 let wurzel;
@@ -83,6 +83,7 @@ test("HEIC wird in JPEG umgewandelt: neuer Name, keine HEIC- und Temp-Reste", as
     assert.equal(aufrufe.length, 1);
     assert.match(aufrufe[0].aus, /\.jpg$/, "heif-convert bestimmt das Format ueber die Endung");
     assert.ok(aufrufe[0].ein.startsWith(inboxDir) && aufrufe[0].aus.startsWith(inboxDir), "Temp-Dateien liegen in der Inbox");
+    assert.notEqual(dirname(aufrufe[0].aus), inboxDir, "Ausgabe in einem eigenen Temp-Verzeichnis");
 
     // gleicher Inhalt -> vorhanden (Vergleich gegen die JPEG-Datei)
     const nochmal = await upload("IMG_0001.HEIC", "heic-a");
@@ -134,5 +135,87 @@ test("Statik: Bild-MIME-Typen fuer png, jpg und heic", async () => {
     assert.equal((await statik("/c.jpeg")).headers["content-type"], "image/jpeg");
     assert.equal((await statik("/d.heic")).headers["content-type"], "image/heic");
     assert.equal((await statik("/e.heif")).headers["content-type"], "image/heif");
+  });
+});
+
+// Alles, auch Dotfiles und Verzeichnisse: nach jedem Ausgang muss die Inbox
+// bis auf abgelegte Ergebnisse leer sein.
+async function allesIn(ordner) {
+  return (await readdir(ordner, { recursive: true })).sort();
+}
+
+test("Konverter mit Nebendateien, der danach wirft: keine Reste in Inbox und Temp", async () => {
+  const ordner = [];
+  const nebendateien = async (ein, aus) => {
+    ordner.push(dirname(aus));
+    const stamm = aus.replace(/\.jpg$/, "");
+    for (const neben of ["-depth.jpg", "-aux.jpg", "-urn:com:apple:photo:2020:aux:hdrgainmap.jpg", "-1.jpg", "-2.jpg"]) await writeFile(stamm + neben, "neben");
+    await writeFile(aus, "halb");
+    throw Object.assign(new Error("timeout"), { killed: true, signal: "SIGKILL" });
+  };
+  await mitServer({ heicKonverter: nebendateien }, async ({ upload, inboxDir }) => {
+    const r = await upload("IMG_0003.heic", "heic");
+    assert.equal(r.status, 422);
+    assert.deepEqual(await allesIn(inboxDir), []);
+  });
+  await assert.rejects(readdir(ordner[0]), { code: "ENOENT" }, "Temp-Verzeichnis des Konverters ist entfernt");
+});
+
+test("Erfolg mit Nebendateien: nur das Hauptbild wird abgelegt, Temp-Verzeichnis weg", async () => {
+  const mitNeben = async (ein, aus) => {
+    await writeFile(aus.replace(/\.jpg$/, "-depth.jpg"), "tiefe");
+    await writeFile(aus, "haupt");
+  };
+  await mitServer({ heicKonverter: mitNeben }, async ({ upload, inboxDir }) => {
+    assert.equal((await upload("IMG_0004.heic", "heic")).status, 201);
+    assert.deepEqual(await allesIn(inboxDir), ["IMG_0004.jpg"]);
+    assert.equal(await readFile(join(inboxDir, "IMG_0004.jpg"), "utf8"), "haupt");
+  });
+  // Mehrbildrig ohne verlangten Namen: das erste nummerierte Bild
+  const nummeriert = async (ein, aus) => {
+    await writeFile(aus.replace(/\.jpg$/, "-2.jpg"), "zwei");
+    await writeFile(aus.replace(/\.jpg$/, "-1.jpg"), "eins");
+  };
+  await mitServer({ heicKonverter: nummeriert }, async ({ upload, inboxDir }) => {
+    assert.equal((await upload("serie.heic", "heic")).status, 201);
+    assert.equal(await readFile(join(inboxDir, "serie.jpg"), "utf8"), "eins");
+    assert.deepEqual(await allesIn(inboxDir), ["serie.jpg"]);
+  });
+});
+
+test("JPEG groesser als die Upload-Grenze -> 413, alles aufgeraeumt", async () => {
+  const riesig = async (ein, aus) => { await writeFile(aus, Buffer.alloc(2048, 1)); };
+  await mitServer({ heicKonverter: riesig, maxBytes: 1024 }, async ({ upload, inboxDir }) => {
+    const r = await upload("gross.heic", "klein");
+    assert.equal(r.status, 413);
+    assert.deepEqual(r.json, { status: "abgelehnt", grund: "zu-gross" });
+    assert.deepEqual(await allesIn(inboxDir), []);
+  });
+});
+
+test("Parallele HEIC-Uploads ueberschreiben sich keine Temp-Namen", async () => {
+  const ausgaben = new Set();
+  const langsam = async (ein, aus) => {
+    ausgaben.add(aus);
+    const inhalt = await readFile(ein, "utf8");
+    await new Promise((r) => setTimeout(r, 30));
+    await writeFile(aus, `JPEG ${inhalt}`);
+  };
+  await mitServer({ heicKonverter: langsam }, async ({ upload, inboxDir }) => {
+    const antworten = await Promise.all(["a", "b", "c", "d"].map((x) => upload(`${x}.heic`, x)));
+    assert.deepEqual(antworten.map((a) => a.status), [201, 201, 201, 201]);
+    assert.equal(ausgaben.size, 4);
+    for (const x of ["a", "b", "c", "d"]) assert.equal(await readFile(join(inboxDir, `${x}.jpg`), "utf8"), `JPEG ${x}`);
+    assert.deepEqual(await allesIn(inboxDir), ["a.jpg", "b.jpg", "c.jpg", "d.jpg"]);
+  });
+});
+
+test("Belegter Zielname (Verzeichnis): Suffix-Weg legt ab und raeumt Temp-Reste weg", async () => {
+  await mitServer({ heicKonverter: fakeKonverter() }, async ({ upload, inboxDir }) => {
+    await mkdir(join(inboxDir, "x.jpg"));
+    const r = await upload("x.heic", "heic");
+    assert.equal(r.status, 201);
+    assert.equal(r.json.name, "x-2.jpg");
+    assert.deepEqual((await allesIn(inboxDir)).filter((n) => n.startsWith(".")), []);
   });
 });

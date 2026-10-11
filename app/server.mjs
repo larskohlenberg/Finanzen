@@ -22,7 +22,7 @@
 import http from "node:http";
 import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { open, link, mkdir, lstat, readdir, realpath, rm, stat } from "node:fs/promises";
+import { open, link, mkdir, mkdtemp, lstat, readdir, realpath, rm, stat } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import { dirname, extname, join, resolve, sep } from "node:path";
@@ -106,10 +106,21 @@ export function jpegNameFuer(name) {
 
 // Standard-Konverter: heif-convert (Debian: libheif-examples) bestimmt das
 // Ausgabeformat ueber die Endung von aus. Fehlt das Programm, kommt ENOENT.
+// Nebenbilder (Tiefe, Hilfsbilder, Sequenzen) schreibt es nur auf Wunsch;
+// der Aufrufer laesst ohnehin in ein eigenes Temp-Verzeichnis schreiben.
+export const HEIC_TIMEOUT_MS = 60000;
 export function heifConvert(ein, aus) {
   return new Promise((resolve, reject) => {
-    execFile("heif-convert", ["--quiet", "-q", "90", ein, aus], { timeout: 120000 }, (fehler) => (fehler ? reject(fehler) : resolve()));
+    execFile("heif-convert", ["--quiet", "-q", "90", ein, aus], { timeout: HEIC_TIMEOUT_MS, killSignal: "SIGKILL", maxBuffer: 1024 * 1024 }, (fehler) => (fehler ? reject(fehler) : resolve()));
   });
+}
+
+// Hauptbild aus dem Konverter-Verzeichnis: die verlangte Ausgabe, sonst das
+// erste JPEG (mehrbildrige Dateien nummerieren ihre Ausgaben).
+export async function hauptbildIn(ordner, wunschName) {
+  const namen = (await readdir(ordner)).filter((n) => /\.jpe?g$/i.test(n)).sort();
+  const name = namen.includes(wunschName) ? wunschName : namen[0];
+  return name ? join(ordner, name) : null;
 }
 
 export function normalisiereIp(adresse) {
@@ -390,12 +401,12 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
 
     await mkdir(inboxDir, { recursive: true });
     // Dotfile: inbox.mjs ignoriert alles mit fuehrendem Punkt, ebenso GET /api/inbox.
-    const kennung = randomBytes(8).toString("hex");
-    const temp = join(inboxDir, `.upload-${kennung}.part`);
-    // HEIC/HEIF: die JPEG-Fassung entsteht ebenfalls als Dotfile in der Inbox
-    // (einziger beschreibbarer Ort unter der systemd-Haertung).
+    const temp = join(inboxDir, `.upload-${randomBytes(8).toString("hex")}.part`);
+    // HEIC/HEIF: Umwandlung in ein eigenes, frisch angelegtes Dot-Verzeichnis
+    // (mkdtemp: eindeutig auch bei parallelen Uploads), das am Ende samt aller
+    // Nebendateien des Konverters entfernt wird.
     const heic = istHeic(name);
-    const jpegTemp = heic ? join(inboxDir, `.upload-${kennung}.jpg`) : null;
+    let heicOrdner = null;
     const zielName = heic ? jpegNameFuer(name) : name;
     let ablage = temp;
     let groesse = 0;
@@ -418,18 +429,21 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       let inhaltHash = hash.digest("hex");
 
       if (heic) {
+        heicOrdner = await mkdtemp(join(inboxDir, ".heic-"));
         try {
-          await heicKonverter(temp, jpegTemp);
+          await heicKonverter(temp, join(heicOrdner, "bild.jpg"));
         } catch (fehler) {
           throw fehler.code === "ENOENT"
             ? new Umwandlung(415, "heic-konverter-fehlt", fehler)
             : new Umwandlung(422, "heic-unlesbar", fehler);
         }
-        const info = await stat(jpegTemp).catch(() => null);
+        const jpeg = await hauptbildIn(heicOrdner, "bild.jpg");
+        const info = jpeg ? await lstat(jpeg) : null;
         if (!info?.isFile() || info.size === 0) throw new Umwandlung(422, "heic-unlesbar", new Error("keine JPEG-Ausgabe"));
-        ablage = jpegTemp;
+        if (info.size > maxBytes) throw new Umwandlung(413, "zu-gross", new Error(`JPEG ${info.size} Bytes`));
+        ablage = jpeg;
         groesse = info.size;
-        inhaltHash = await sha256Datei(jpegTemp);
+        inhaltHash = await sha256Datei(jpeg);
       }
 
       const ergebnis = await exklusiv(async () => {
@@ -465,7 +479,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       }
     } finally {
       await rm(temp, { force: true });
-      if (jpegTemp) await rm(jpegTemp, { force: true });
+      if (heicOrdner) await rm(heicOrdner, { recursive: true, force: true });
     }
     antworte?.();
   }

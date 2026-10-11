@@ -48,3 +48,23 @@ test("Atomares Schreiben behaelt den Dateimodus, neue Dateien bekommen 0640", as
     await s.beenden();
   }
 });
+
+test("Anhaengen an eine unlesbare Datei bricht ab statt sie zu ersetzen", { skip: process.getuid?.() === 0 && "als root greift chmod nicht" }, async () => {
+  const datei = join(abzug.app, "data", "inbox", "gesperrt.txt");
+  writeFileSync(datei, "alt\n");
+  chmodSync(datei, 0o200);
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const r = await s.werkzeug("datei_schreiben", { pfad: "data/inbox/gesperrt.txt", inhalt: "neu", anhaengen: true });
+    assert.equal(r.isError, true, r.text);
+    chmodSync(datei, 0o600);
+    assert.equal(readFileSync(datei, "utf8"), "alt\n");
+
+    const neu = await s.werkzeug("datei_schreiben", { pfad: "data/inbox/frisch.txt", inhalt: "erste", anhaengen: true });
+    assert.ok(!neu.isError, neu.text);
+    assert.equal(readFileSync(join(abzug.app, "data", "inbox", "frisch.txt"), "utf8"), "erste\n");
+  } finally {
+    chmodSync(datei, 0o600);
+    await s.beenden();
+  }
+});

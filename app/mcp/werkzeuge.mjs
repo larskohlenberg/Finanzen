@@ -525,7 +525,12 @@ const dateiSchreiben = {
     if ((await stat(absolut).catch(() => null))?.isDirectory()) return ergebnis(`${relativ} ist ein Ordner`, true);
     return mitRollback(ctx.datenroot, async () => {
       if (args.anhaengen) {
-        const bisher = await readFile(absolut, "utf8").catch(() => "");
+        // Nur eine fehlende Datei gilt als leer; jeder andere Lesefehler bricht ab,
+        // sonst ersetzte das Anhaengen den unlesbaren Inhalt.
+        const bisher = await readFile(absolut, "utf8").catch((error) => {
+          if (error.code === "ENOENT") return "";
+          throw error;
+        });
         await schreibeAtomar(absolut, `${bisher.replace(/\n*$/, bisher ? "\n" : "")}${args.inhalt.replace(/\n*$/, "\n")}`);
         return ergebnis(`${relativ}: ${Buffer.byteLength(args.inhalt)} Bytes angehaengt.`);
       }

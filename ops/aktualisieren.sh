@@ -2,7 +2,12 @@
 # Bringt den Checkout auf der VM auf den Stand von origin/<branch>, schreibt
 # app/version.json (Anzeige unten in der Sidebar) und startet die App neu.
 #
-# Aufruf als Admin:  sudo /opt/finanzen/ops/aktualisieren.sh [branch]   (Default: main)
+# Installation einmalig als root, damit der fachliche User das Skript, das
+# root ausfuehrt, nicht aendern kann:
+#   sudo install -o root -g root -m 755 /opt/finanzen/ops/aktualisieren.sh /usr/local/sbin/finanzen-aktualisieren
+# Aufruf als Admin:  sudo finanzen-aktualisieren [branch]   (Default: main)
+# Die Fassung im Repo ist nur Quelle: weicht sie ab, meldet das Skript es,
+# kopiert aber nichts selbst.
 #
 # Git laeuft als fachlicher User, nie als root. Nur Fast-Forward: hat der
 # Checkout eigene Commits oder Aenderungen, bricht das Skript ab.
@@ -43,15 +48,23 @@ g merge --ff-only --quiet "origin/$BRANCH"
 
 commit="$(g log -1 --format=%H)"
 datum="$(g log -1 --format=%cs)"
+# Alles im Checkout als fachlicher User: root folgt dort keinem Symlink.
 ziel="$VERZ/app/version.json"
+tmp="$(als_nutzer mktemp "$VERZ/app/.version.XXXXXX")"
 printf '{"commit": "%s", "kurz": "%s", "datum": "%s", "branch": "%s"}\n' \
-  "$commit" "${commit:0:7}" "$datum" "$BRANCH" | als_nutzer tee "$ziel.neu" >/dev/null
-chmod 640 "$ziel.neu"
-mv -f "$ziel.neu" "$ziel"
+  "$commit" "${commit:0:7}" "$datum" "$BRANCH" | als_nutzer tee "$tmp" >/dev/null
+als_nutzer chmod 640 "$tmp"
+als_nutzer mv -f "$tmp" "$ziel"
+
+# Neue Skriptfassung im Repo nur melden — root uebernimmt sie nach Pruefung.
+quelle="$VERZ/ops/aktualisieren.sh"
+if als_nutzer test -f "$quelle" && ! als_nutzer cmp -s "$quelle" "$(readlink -f "$0")"; then
+  echo "Hinweis: Neue Skriptfassung im Repo — nach Pruefung mit \`sudo install -o root -g root -m 755 $quelle /usr/local/sbin/finanzen-aktualisieren\` uebernehmen." >&2
+fi
 
 # Die Unit liegt als Kopie unter /etc — geaenderte Vorlage nur melden.
 vorlage="$VERZ/ops/systemd/$DIENST.service"
-if [[ -f "$vorlage" ]] && ! cmp -s "$vorlage" "/etc/systemd/system/$DIENST.service"; then
+if als_nutzer test -f "$vorlage" && ! als_nutzer cmp -s "$vorlage" "/etc/systemd/system/$DIENST.service"; then
   echo "Hinweis: $vorlage weicht von /etc/systemd/system/$DIENST.service ab (kopieren + daemon-reload)." >&2
 fi
 

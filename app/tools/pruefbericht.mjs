@@ -107,6 +107,9 @@ export function pruefbericht({ transaktionen, regeln, konten, zeitwerte, log }) 
     nur_auto_merchants: [...nurAuto.values()].sort((a, b) => b.anzahl - a.anzahl),
     ausreisser: ausreisser(transaktionen ?? []),
     kat012: autos.filter((tx) => tx.kategorie_id === "KAT-012"),
+    // Schaetzungen des Agenten (ADR 0029): nur Information, kein Blocker. Was
+    // ein Mensch schon bestaetigt oder korrigiert hat, ist keine Schaetzung mehr.
+    agent_geschaetzt: (transaktionen ?? []).filter((tx) => tx.kategorie_herkunft === "agent" && tx.bestaetigt_durch !== "mensch").length,
     gate_durchfall: letzteFreigabe?.gate_durchfall ?? [],
     // Was das Gate gehalten hat, steht schon im Logeintrag. Diese Liste zeigt
     // die ganze Flaeche: jedes Konto, auf dem eine Regel wirkt, ohne dass dort
@@ -140,6 +143,9 @@ export function renderBericht(b) {
 
   z.push("", `AUTO-FREIGEGEBEN AUF KAT-012 — NOCH ZU KLAEREN (${b.kat012.length})`);
   for (const tx of b.kat012) z.push(zeile(tx.betrag, `${tx.buchungsdatum}  ${tx.gegenpartei}`));
+
+  z.push("", `VOM AGENTEN GESCHAETZT, HERKUNFT AGENT (${b.agent_geschaetzt})`);
+  z.push("  nur zur Kenntnis — korrigieren ueber Transaktionen, Filter Herkunft = Agent");
 
   z.push("", `AM GATE GESCHEITERT (${b.gate_durchfall.length})`);
   for (const d of b.gate_durchfall) z.push(`  ${d.regel_id}${d.konto_id ? ` auf ${d.konto_id}` : ""}: ${d.grund}`);

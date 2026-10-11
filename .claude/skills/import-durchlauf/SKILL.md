@@ -20,7 +20,8 @@ Lauf eine Vorschau.
 
 1. `lernen` — Metriken vor den Lauf stellen.
 2. Je Rohdatei den Subagenten **`import-normalisierung`** beauftragen.
-3. Den Subagenten **`regel-recherche`** auf den Offen-Stapel ansetzen.
+3. Den Subagenten **`regel-recherche`** auf den Offen-Stapel ansetzen. Er
+   verregelt, was belegt ist, und schaetzt den Rest als Einzelvorschlag.
 4. `freigabe` mit `schreiben: true`.
 5. `pruefbericht` — **ungekuerzt zeigen**.
 6. `belege_text` mit `schreiben: true` — raeumt `processed/` und
@@ -33,8 +34,10 @@ Lauf eine Vorschau.
 
 - **Keine Vorab-Zustimmung einholen.** Das Gate entscheidet, der Pruefbericht
   ist die Kontrolle. Bucket-Dialoge waren der Engpass, den dieser Lauf abschafft.
-- **Der Lauf haelt nie an, erfindet aber nichts.** Unbekanntes Konto wird
-  angelegt, unlesbare Zeilen gehen nach `error/`, ein nicht reconcilierender
-  Kontostand wird **nicht** geschrieben.
+- **Der Lauf haelt nie an.** Was ohne Beleg bleibt, schaetzt der Agent
+  (Herkunft `agent`, keine Regel); der Nutzer korrigiert spaeter. Erfunden
+  wird trotzdem nichts: unbekanntes Konto wird angelegt, unlesbare Zeilen gehen
+  nach `error/`, ein nicht reconcilierender Kontostand wird **nicht**
+  geschrieben.
 - **Textvorschlaege fuer Skill-Dokumente nie selbst uebernehmen.** Sie aendern
   kuenftiges Verhalten und brauchen ein Wort des Nutzers.

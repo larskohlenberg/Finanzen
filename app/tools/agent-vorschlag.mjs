@@ -11,9 +11,10 @@
 // das ganze Herkunftsmodell steht.
 //
 // Genutzt von kategorisierungsregel-pflege fuer die Belegstufen E5 (Merchant
-// klar, Leistung mehrdeutig) und E6 (Recherche ergebnislos -> KAT-012). Diese
-// Faelle bekommen bewusst KEINE Regel: eine Regel ist dauerhaft und feuert auf
-// kuenftige Importe, eine Vermutung darf das nicht.
+// klar, Leistung mehrdeutig) und E6 (kein Beleg -> Schaetzung der
+// plausibelsten Kategorie, ADR 0029). Diese Faelle bekommen bewusst KEINE
+// Regel: eine Regel ist dauerhaft und feuert auf kuenftige Importe, eine
+// Schaetzung darf das nicht.
 //
 // Fasst nur `offen` und eigene frueher gesetzte Agentenvorschlaege an. Alles,
 // worueber schon entschieden wurde — und auch ein fremder Regel-Vorschlag —

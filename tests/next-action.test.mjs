@@ -271,3 +271,23 @@ test("ein Szenario-Entwurf erzeugt keine Next-Action (Pull, nicht Push)", () => 
   assert.deepEqual(buildNextAgentActions(data, { vermoegenChecks: [] }), []);
   assert.equal(buildNextAgentAction(data, { vermoegenChecks: [] }).type, "none");
 });
+
+// ADR 0029: Kategorisieren laeuft ohne Vorab-Bestaetigung — die Prompts duerfen
+// den Agenten nicht in den alten Bucket-Dialog zurueckschicken.
+test("Kategorie-Prompts verlangen keine Vorab-Bestaetigung", () => {
+  const actions = buildNextAgentActions(baseData({
+    transaktionen: [
+      { kategorisierung_status: "offen" },
+      { kategorisierung_status: "vorgeschlagen" },
+    ],
+  }), { vermoegenChecks: [] });
+  const vorgeschlagen = actions.find((a) => a.type === "suggested-categories");
+  const offen = actions.find((a) => a.type === "open-categories");
+
+  for (const action of [vorgeschlagen, offen]) {
+    assert.doesNotMatch(action.prompt, /ohne Bestaetigung|erst nach meiner Entscheidung|vor fachlichen Schreibentscheidungen/);
+  }
+  assert.match(vorgeschlagen.prompt, /tools\/freigabe\.mjs/);
+  assert.match(offen.prompt, /nur mit Beleg/);
+  assert.match(offen.prompt, /schaetze den Rest/);
+});

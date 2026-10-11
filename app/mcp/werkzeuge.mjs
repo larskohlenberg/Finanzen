@@ -167,7 +167,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "agent_vorschlag",
     skript: "agent-vorschlag.mjs",
-    beschreibung: "Agenten-Einzelvorschlaege setzen (tools/agent-vorschlag.mjs): Buchungen auf vorgeschlagen mit kategorie_herkunft=agent. Fuer E5-Faelle und fuer E6 immer KAT-012 (ohne Beleg keine Sachkategorie). Vorschau ist Default.",
+    beschreibung: "Agenten-Einzelvorschlaege setzen (tools/agent-vorschlag.mjs): Buchungen auf vorgeschlagen mit kategorie_herkunft=agent. Fuer E5/E6: die plausibelste Kategorie, ohne Beleg als Schaetzung; KAT-012 nur, wenn keine Kategorie plausibel ist. Nie Grundlage einer Regel. Vorschau ist Default.",
     eigenschaften: {
       ids: { type: "array", items: ID("TXN"), minItems: 1 },
       kategorie: ID("KAT"),

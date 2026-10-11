@@ -62,9 +62,10 @@ Vorschlagen ist Agent-Urteil, Matchen und Rechnen ist Tool (ADR 0003, 0010).
 - **Feature-Branch ja, gemerged wird von Lars.** Quellcode und Doku duerfen
   ohne Rueckfrage committet werden; nur Echtdaten sind tabu.
 - **Commits auf Deutsch, ohne Umlaute** (`ue`, `ae`, `oe`, `ss`).
-- **Kategorisieren ohne Vorab-Bestaetigung.** Alles vorschlagen, aber nur mit
-  Beleg — sonst `KAT-012`. Das Gate und der Pruefbericht sind die Kontrolle
-  (ADR 0025), nicht ein Dialog pro Buchung.
+- **Kategorisieren ohne Vorab-Bestaetigung.** Regeln nur mit Beleg; was ohne
+  Beleg bleibt, schaetzt der Agent als Einzelvorschlag und gibt es frei
+  (`KAT-012` nur, wenn nichts plausibel ist). Das Gate und der Pruefbericht
+  sind die Kontrolle, Korrekturen kommen spaeter (ADR 0025, 0029).
 - **Stammdatenpflege braucht keine Spec.** Konto, Zeitwert oder Beleg direkt
   anlegen; Spec und Plan nur, wenn Code betroffen ist.
 

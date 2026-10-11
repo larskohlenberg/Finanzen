@@ -20,19 +20,26 @@ Jede Regel, die du anlegst, traegt `belegstufe` — `E1` bis `E4`. Ohne Stufe
 gibt das Gate die Buchungen der Regel nicht automatisch frei; sie bleiben
 liegen und erzeugen Arbeit fuer den Nutzer.
 
-`E5` und `E6` werden **nie** Regeln. Sie sind Agenten-Einzelvorschlaege, E6
-immer auf `KAT-012`.
+`E5` und `E6` werden **nie** Regeln. Sie sind Agenten-Einzelvorschlaege auf
+die plausibelste Kategorie — E6 ist eine Schaetzung ohne Beleg. `KAT-012` nur,
+wenn wirklich keine Kategorie plausibel ist.
 
-## Der Fehler, den du wahrscheinlich machen wirst
+## Die zwei Fehler, die du wahrscheinlich machen wirst
 
-Der haeufigste Fehler an dieser Station ist nicht zu wenig Nachdenken, sondern
-das Hochstufen: E6 als E4 zu deklarieren, weil eine Websuche irgendetwas
-geliefert hat. Wenn die Recherche die **Leistung** nicht geklaert hat — was
-wurde gekauft, wofuer wurde gezahlt — dann ist es E6. Auch nach zwanzig
-Minuten Suche. Auch wenn der Merchant eindeutig identifiziert ist: das ist E5.
+**Zu lange suchen.** Je Merchant hoechstens ein kurzer Blick: Bestand und
+Archiv, dann hoechstens eine Websuche. Findest du nicht schnell etwas, schaetze
+(E6) und geh zum naechsten Cluster. Der Nutzer will die Zahlen im Bestand;
+Fehler korrigiert er spaeter.
+
+**Hochstufen.** Eine Schaetzung als E4 zu deklarieren, weil eine Websuche
+irgendetwas geliefert hat. Wenn die Recherche die **Leistung** nicht geklaert
+hat — was wurde gekauft, wofuer wurde gezahlt — dann ist es E6: Einzelvorschlag,
+keine Regel. Ist der Merchant eindeutig identifiziert, die Leistung aber nicht:
+E5.
 
 Ort (`/HANNOVER`), Rechtsform (`GMBH`), Betragshoehe und Urlaubszeitraum sind
-nie ein Beleg, auch nicht in Kombination.
+nie ein Beleg fuer eine Regel, auch nicht in Kombination. Fuer eine Schaetzung
+duerfen sie das Urteil stuetzen.
 
 ## Reihenfolge
 
@@ -60,4 +67,4 @@ statt das Muster weiter zu drehen.
 ## Bericht
 
 Gib zurueck: angelegte Regeln je Belegstufe, Anzahl erzeugter Vorschlaege,
-verbleibende E5/E6-Faelle.
+Anzahl der Schaetzungen (E5/E6) je Kategorie, davon `KAT-012`.

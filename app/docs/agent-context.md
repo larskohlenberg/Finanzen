@@ -101,7 +101,9 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
 - Tools rechnen deterministisch; Agenten rufen Tools auf und interpretieren deren
   Bericht.
 - Keine stille finale Fachentscheidung: unsichere Fakten bleiben offen oder werden
-  dem Nutzer als Vorschlag vorgelegt.
+  dem Nutzer als Vorschlag vorgelegt. Ausnahme Kategorien: eine Schaetzung des
+  Agenten wird freigegeben, bleibt aber an `kategorie_herkunft = agent`
+  erkennbar und steht im Pruefbericht.
 - Nutzerentscheidungen und Agentenvorschlaege bleiben getrennt.
 - Nach jedem schreibenden Lauf wird der Validator ausgefuehrt.
 - Jeder schreibende Lauf wird in `DATENROOT/agent_log.jsonl` mit Zaehlern,
@@ -113,8 +115,9 @@ Statuswerte sind entitaetsspezifisch. Fuer `kategorisierung_status` an
 Transaktionen gilt:
 
 - `offen`: keine eindeutige Kategorie aus dem Regelwerk; kein `kategorie_id`.
-- `vorgeschlagen`: ein Tool oder Agentenprozess hat einen Vorschlag erzeugt; der
-  Nutzer muss bestaetigen, korrigieren oder ablehnen.
+- `vorgeschlagen`: ein Tool oder Agentenprozess hat einen Vorschlag erzeugt; das
+  Gate (`tools/freigabe.mjs`) gibt ihn frei oder haelt ihn zurueck. Korrigieren
+  oder ablehnen kann der Nutzer jederzeit, auch nach der Freigabe.
 - `bestaetigt`: die Kategorie ist fachlich bestaetigt.
 - `abgelehnt`: ein Vorschlag wurde bewusst verworfen und bleibt unangetastet.
 
@@ -175,26 +178,29 @@ Eine Transaktion kann eine Kategorie aus drei Herkuenften haben:
 - `kategorie_herkunft = manuell`: Kategorie stammt aus einer ausdruecklichen
   Nutzerentscheidung im Agentendialog.
 
-Der Agent darf offene Einzelbuchungen eigenstaendig als `vorgeschlagen` mit
-`kategorie_herkunft = agent` vorbereiten. Das ist keine finale Fachentscheidung,
-sondern Review-Vorbereitung; Bestaetigung, Korrektur oder Ablehnung bleiben
-Nutzerentscheidung.
+Der Agent setzt offene Einzelbuchungen eigenstaendig als `vorgeschlagen` mit
+`kategorie_herkunft = agent`; das Gate gibt sie ohne weitere Pruefung frei.
+Korrektur bleibt Nutzerentscheidung — nachtraeglich, nicht vorab.
 
-### Belegpflicht statt Ratepflicht
+### Beleg fuer Regeln, Schaetzung fuer Einzelbuchungen
 
-Der Agent darf den Offen-Stapel eigenstaendig verregeln und vorschlagen — der
-Review ist der Ort der Entscheidung, nicht ein Gate davor. Das entbindet ihn
-**nicht** vom Beleg: Jeder Vorschlag stuetzt sich auf eine benennbare Quelle
-(Beleg im Archiv, identischer Merchant im Bestand, Merchant-Identitaet im
-Buchungstext, Recherche zum Merchant). **Ort, Rechtsform, Betragshoehe,
-Zeitraum und blosse Wortueberlappung mit anderen Buchungen sind keine Quellen.**
+Der Agent verregelt und kategorisiert den Offen-Stapel eigenstaendig; danach
+ist nichts mehr `offen`. Dabei gelten zwei Massstaebe:
 
-Traegt keine Quelle, ist der ehrliche Vorschlag `KAT-012` „Noch zu klaeren" als
-Agenten-Einzelvorschlag — nicht die plausibelste Sachkategorie. `KAT-012` heisst
-hier genau das, was draufsteht, und macht die Buchung im Review sichtbar, statt
-sie unbemerkt auf `offen` liegen zu lassen. Die Belegstufe gehoert in den
-Regel-`kommentar` bzw. in die Review-Uebergabe, damit im Review erkennbar ist,
-wo genau hingesehen werden muss.
+- **Regeln brauchen einen Beleg** (Belegstufe E1–E4: Beleg im Archiv,
+  identischer Merchant mit menschlicher Entscheidung im Bestand,
+  Merchant-Identitaet im Buchungstext, Recherche zum Merchant). **Ort,
+  Rechtsform, Betragshoehe, Zeitraum und blosse Wortueberlappung mit anderen
+  Buchungen sind keine Belege.**
+- **Einzelbuchungen ohne Beleg schaetzt der Agent**: plausibelste
+  Sachkategorie als Agenten-Einzelvorschlag, nach kurzer Recherche. Aus einer
+  Schaetzung entsteht nie eine Regel. `KAT-012` „Noch zu klaeren" nur, wenn
+  wirklich keine Kategorie plausibel ist.
+
+Korrigiert der Nutzer eine Agenten-Buchung, ist das eine menschliche
+Entscheidung (`bestaetigt_durch = mensch`) und damit Beleg E2 fuer eine
+kuenftige Regel zum selben Merchant. Den Weg dorthin zeigt der Herkunftsfilter
+der Transaktionsansicht.
 
 Davon unberuehrt sind die technischen Eroeffnungsbuchungen weiter unten: die
 tragen `KAT-012` als bestaetigte Nutzerentscheidung und sind an
@@ -264,10 +270,11 @@ Regeln **ohne** jeden menschlichen Anker sind davon nicht betroffen — ihre
 Stufe ruht auf Beleg, Buchungstext oder Recherche (E1, E3, E4) und ist
 kontounabhaengig. Der Pruefbericht zeigt sie trotzdem, unter „neu erschlossen".
 
-Qualitaet von Agenten-Einzelvorschlaegen wird ueber strukturierte Zaehler im
-`agent_log.jsonl` beobachtet, nicht ueber ein Historienfeld an der Transaktion.
-Wenn ein Agenten-Vorschlag korrigiert wird, zaehlt der Review-Lauf diese
-Korrektur; die Transaktion selbst traegt danach nur den fachlichen Zielzustand.
+Eine Korrektur an einer Agenten-Buchung erzeugt keinen Logeintrag — die
+Lernschleife (`tools/lernen.mjs`) zaehlt nur Korrekturen an Regel-Freigaben.
+Sie wirkt ueber den Bestand: die korrigierte Buchung ist menschlich entschieden
+und belegt E2 fuer eine kuenftige Regel. Die Transaktion traegt danach nur den
+fachlichen Zielzustand, kein Historienfeld.
 
 Nach-Kategorisierung laeuft ueber `tools/recategorize.mjs`. Reimport ist kein Mittel
 zur Nach-Kategorisierung, weil bekannte Buchungen per Dedupe uebersprungen werden.
@@ -312,7 +319,8 @@ Wichtige Tools:
   Schreibt `bestaetigt_durch = auto`. `npm run freigabe` ist die Vorschau.
 - `tools/pruefbericht.mjs`: Nachkontrolle nach einem Durchlauf — groesste
   Auto-Freigaben, Merchants ohne jede menschliche Bestaetigung,
-  Kategorie-Ausreisser, alle auto-freigegebenen `KAT-012`, am Gate gescheiterte
+  Kategorie-Ausreisser, alle auto-freigegebenen `KAT-012`, Zahl der
+  Agenten-Schaetzungen (Herkunft `agent`), am Gate gescheiterte
   Regeln, Regeln auf Konten ohne menschlichen Anker, E4-Regeln, Konten ohne
   Anker, nicht reconciliierte Kontostaende. Rein lesend, blockiert nie.
 - `tools/lernen.mjs`: wertet `agent_log.jsonl` aus — Korrekturquote je Regel und

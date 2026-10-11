@@ -32,7 +32,9 @@ das ist **kategorisierung-review**.
 2. **Normalisieren und importieren.** Je Rohdatei den Subagenten
    `import-normalisierung` beauftragen. Der Lauf haelt nie an.
 3. **Verregeln.** Den Subagenten `regel-recherche` auf den Offen-Stapel
-   ansetzen. Er legt Regeln mit `belegstufe` an und ruft `recategorize.mjs`.
+   ansetzen. Er legt Regeln mit `belegstufe` an, ruft `recategorize.mjs` und
+   schaetzt, was ohne Beleg bleibt, als Agenten-Einzelvorschlag. Er sucht je
+   Merchant nur kurz.
 4. **Freigeben.** Tool `freigabe` mit `schreiben: true`. Der
    Gate-Grund `anker` heisst nicht „Regel kaputt", sondern: eine bewaehrte
    Regel reicht in ein Konto hinein, auf dem niemand ihre Kategorie je
@@ -64,8 +66,8 @@ das ist **kategorisierung-review**.
 
 ## Do's
 
-- Den Bericht mit den groessten Betraegen und den `KAT-012`-Faellen eroeffnen —
-  dort ist die Aufmerksamkeit am wertvollsten.
+- Den Bericht mit den groessten Betraegen und der Zahl der Agenten-Schaetzungen
+  eroeffnen — dort ist die Aufmerksamkeit am wertvollsten.
 - Am Gate gescheiterte Regeln als Arbeitsliste anbieten: das ist Regelarbeit an
   einer Handvoll Muster, nicht an hunderten Buchungen.
 - Merchants, die nie ein Mensch bestaetigt hat, ausdruecklich benennen. Sie
@@ -77,8 +79,10 @@ das ist **kategorisierung-review**.
 
 ## Don'ts
 
-- **Keine Kategorie raten**, um den Offen-Stapel zu leeren. Ohne Beleg ist es
-  `KAT-012`.
+- **Keine Regel aus einer Schaetzung.** Was ohne Beleg bleibt, schaetzt der
+  Agent als Einzelvorschlag (Herkunft `agent`); `KAT-012` nur, wenn keine
+  Kategorie plausibel ist. Korrigiert wird spaeter ueber den Herkunftsfilter
+  der Transaktionsansicht.
 - **Keinen Saldo-Anker uebernehmen, der nicht reconciliert.**
 - **Keine Regel selbst anlegen** — das ist Station 3.
 - **Den Pruefbericht nicht auf „alles in Ordnung" eindampfen.** Wenn er lang

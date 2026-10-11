@@ -23,6 +23,9 @@ Zwei Dinge folgen daraus:
   protokolliert sie mit Regel-ID und Belegstufe, und `lernen.mjs` legt Regeln
   still, deren Korrekturquote zu hoch wird. Eine Korrektur ist damit nicht nur
   eine Buchung, sondern ein Urteil ueber die Regel.
+- Die Korrektur einer **Agenten-Schaetzung** (Herkunft `agent`) erzeugt keinen
+  Logeintrag, ist aber eine menschliche Entscheidung im Bestand — und damit
+  Beleg E2 fuer eine kuenftige Regel zum selben Merchant.
 
 ## Wann diesen Skill nutzen
 
@@ -66,7 +69,7 @@ Zu Beginn `DATENROOT/transaktionen.jsonl` auf `kategorisierung_status = vorgesch
 1. **Buckets bilden.** Lade die `vorgeschlagen`-Eintraege und gruppiere sie:
 
    - **`kategorie_herkunft = regel` → primaer nach `regel_id`**, nicht nach Kategorie. Das ist die entscheidende Achse: Eine Regel ist dauerhaft und feuert auf kuenftige Importe, eine bestaetigte Buchung nicht. Wer nur Buchungen abnickt, hat das Muster nie geprueft. Der Bucket-Kopf zeigt darum **Muster, `kommentar` samt Belegstufe und Zielkategorie** — damit ist eine Bucket-Entscheidung zugleich das Urteil ueber die Regel.
-   - **`kategorie_herkunft = agent` → nach Zielkategorie.** Das sind Einzelvorschlaege ohne Regel (Belegstufe E5/E6 aus **kategorisierungsregel-pflege**). `KAT-012`-Buckets sind hier der Normalfall und kein Fehler: Sie sagen „der Agent hat recherchiert und nichts gefunden" und sind genau die Liste, bei der deine Ortskenntnis gebraucht wird.
+   - **`kategorie_herkunft = agent` → nach Zielkategorie.** Das sind Einzelvorschlaege ohne Regel, meist Schaetzungen (Belegstufe E5/E6 aus **kategorisierungsregel-pflege**). Nach der Freigabe stehen sie als Auto-Freigabe im Bestand; in der Transaktionsansicht findet sie der Filter Herkunft = Agent. `KAT-012` ist hier die seltene Ausnahme ohne jeden Anhaltspunkt — dort wird deine Ortskenntnis gebraucht.
 
    Pro Bucket zeigen: Zielkategorie, **Anzahl** und eine **Stichprobe** (z. B. 3–5 Buchungen mit `buchungsdatum`, `gegenpartei`, `betrag`, `verwendungszweck`). Wiedervorlagen (zuvor `bestaetigt`, jetzt anderer Vorschlag) als eigenes Bucket hervorheben — hier widerspricht eine Regel einer fruheren Entscheidung.
    Fuer Agenten-Einzelvorschlaege (`kategorie_herkunft = agent`) ist die sichtbare Stichprobe Pflicht und groesser: mindestens 10 Buchungen oder 20 % des Buckets, je nachdem was kleiner ist; bei Buckets ab 5 Buchungen aber nie weniger als 5, bei kleineren Buckets alle anzeigen. Zusammensetzung: hoechste Betraege, juengste Buchungen, aelteste Buchungen und auffaellige Gegenparteien. Jede gezeigte Stichprobenzeile wird durchnummeriert, damit der Nutzer im Chat gezielt korrigieren kann. Der Agent darf nicht nur berichten, dass er Stichproben genommen hat; er muss sie dem Nutzer vor einer Bulk-Entscheidung anzeigen.

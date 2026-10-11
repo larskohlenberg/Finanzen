@@ -14,6 +14,10 @@ import { renderChecks } from "./views/checks.mjs";
 import { renderExport } from "./views/export.mjs";
 import { renderUpload, dateienEinreihen, ladeInbox, inboxBeiBedarfLaden } from "./views/upload.mjs";
 import {
+  renderBelege, belegeBeiBedarfLaden, ladeBelege, setBelegeSuche, setBelegeZwillinge,
+  toggleBelegeSort, toggleBelegeOrdner, ordnerDerAuswahl,
+} from "./views/belege.mjs";
+import {
   app, data, state, storageKeys, navItems, TABBAR_VIEWS, transaktionenById,
   t, escapeHtml, cents,
 } from "./runtime.mjs";
@@ -39,6 +43,7 @@ const FOCUS_ATTRS = [
   "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
   "data-vermoegen-sort", "data-vorsorge-sort", "data-vorsorge-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
   "data-rule", "data-regel-sort", "data-next-action-type", "data-vorsorge",
+  "data-beleg", "data-beleg-sort", "data-beleg-ordner",
 ];
 const SCROLL_SELECTORS = [".nav", ".table-wrap"];
 
@@ -141,6 +146,7 @@ function render() {
   restoreFocus(focusSnap);
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
+  if (state.view === "belege") belegeBeiBedarfLaden(render);
 }
 
 function renderSidebar() {
@@ -357,6 +363,7 @@ function renderView() {
   if (state.view === "checks") return renderChecks();
   if (state.view === "export") return renderExport();
   if (state.view === "upload") return renderUpload();
+  if (state.view === "belege") return renderBelege();
   return renderOverview();
 }
 
@@ -487,6 +494,12 @@ app.addEventListener("keydown", guard((event) => {
 // Live-Suche: Textfilter wirken pro Tastendruck; Fokus/Cursor uebersteht das
 // Re-Render via captureFocus/restoreFocus (Selektor ueber die id des Inputs).
 app.addEventListener("input", guard((event) => {
+  const belegeSuche = event.target.closest("input[data-belege-suche]");
+  if (belegeSuche) {
+    setBelegeSuche(belegeSuche.value);
+    render();
+    return;
+  }
   const vorsorgeFilter = event.target.closest("input[data-vorsorge-filter]");
   if (vorsorgeFilter) {
     setVorsorgeFilter(vorsorgeFilter.dataset.vorsorgeFilter, vorsorgeFilter.value);
@@ -504,6 +517,12 @@ app.addEventListener("change", guard((event) => {
   const uploadInput = event.target.closest("[data-upload-input]");
   if (uploadInput) {
     dateienEinreihen(uploadInput.files, render);
+    return;
+  }
+  const belegeZwillinge = event.target.closest("input[data-belege-zwillinge]");
+  if (belegeZwillinge) {
+    setBelegeZwillinge(belegeZwillinge.checked);
+    render();
     return;
   }
   const control = event.target.closest("[data-control]");
@@ -657,6 +676,31 @@ async function handleAction(element) {
     void ladeInbox(render);
     return;
   }
+  if (action === "belege-refresh") {
+    void ladeBelege(render);
+    return;
+  }
+  if (action === "select-beleg") {
+    state.view = "belege";
+    state.selectedBeleg = element.dataset.beleg || "";
+    commitNavigation();
+    return;
+  }
+  if (action === "close-beleg") {
+    state.selectedBeleg = ordnerDerAuswahl(state.selectedBeleg);
+    commitNavigation();
+    return;
+  }
+  if (action === "toggle-beleg-ordner") {
+    toggleBelegeOrdner(element.dataset.belegOrdner);
+    render();
+    return;
+  }
+  if (action === "sort-belege") {
+    toggleBelegeSort(element.dataset.belegSort);
+    render();
+    return;
+  }
   if (action === "toggle-more-menu") {
     state.moreMenuOpen = !state.moreMenuOpen;
     render();
@@ -708,6 +752,7 @@ async function handleAction(element) {
   if (action === "filter-open-category") {
     state.view = "transactions";
     state.transactionFilters.status = "offen";
+    state.transactionFilters.beleg = "";
     state.transactionFilters.account = "";
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
@@ -735,6 +780,7 @@ async function handleAction(element) {
       transfer: "",
       origin: "",
       search: "",
+      beleg: "",
       timeMode: "none",
       dateFrom: "",
       dateTo: "",
@@ -750,6 +796,7 @@ async function handleAction(element) {
   if (action === "account-transactions") {
     state.view = "transactions";
     state.transactionFilters.account = element.dataset.account;
+    state.transactionFilters.beleg = "";
     state.transactionFilters.status = "";
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
@@ -770,6 +817,7 @@ async function handleAction(element) {
       transfer: "",
       origin: "",
       search: element.dataset.immobilie || "",
+      beleg: "",
       timeMode: "none",
       dateFrom: "",
       dateTo: "",
@@ -801,6 +849,7 @@ async function handleAction(element) {
     state.transactionFilters.transfer = "";
     state.transactionFilters.search = "";
     state.transactionFilters.origin = "";
+    state.transactionFilters.beleg = "";
     clearTransactionTimeFilter();
     state.transactionPage = 1;
     state.selectedTransactionId = element.dataset.transaction;
@@ -859,6 +908,7 @@ async function handleAction(element) {
     const paired = transaktionenById.get(transactionId);
     if (paired) {
       state.transactionFilters.account = paired.konto_id;
+      state.transactionFilters.beleg = "";
       state.transactionFilters.status = "";
       state.transactionFilters.category = "";
       state.transactionFilters.transfer = "";
@@ -983,6 +1033,7 @@ async function handleAction(element) {
     } else if (scope === "transaktion") {
       state.view = "transactions";
       state.selectedTransactionId = entity;
+      state.transactionFilters.beleg = "";
       state.transactionFilters.account = "";
       state.transactionFilters.status = "";
       state.transactionFilters.category = "";
@@ -1008,6 +1059,7 @@ function snapshotState() {
     selectedVermoegenId: state.selectedVermoegenId,
     selectedVorsorgeId: state.selectedVorsorgeId,
     selectedSzenarioId: state.selectedSzenarioId,
+    selectedBeleg: state.selectedBeleg,
     vermoegenRailMode: state.vermoegenRailMode,
     vermoegenRailWide: state.vermoegenRailWide,
   };
@@ -1025,6 +1077,7 @@ function restoreState(snapshot) {
   state.selectedVermoegenId = snapshot.selectedVermoegenId || "";
   state.selectedVorsorgeId = snapshot.selectedVorsorgeId || "";
   state.selectedSzenarioId = snapshot.selectedSzenarioId || "";
+  state.selectedBeleg = snapshot.selectedBeleg || "";
   state.vermoegenRailMode = snapshot.vermoegenRailMode || "position";
   state.vermoegenRailWide = Boolean(snapshot.vermoegenRailWide);
 }
@@ -1058,13 +1111,26 @@ function applyRoute(route) {
 
   if (route.selectedTransactionId && transaktionenById.has(route.selectedTransactionId)) {
     Object.assign(state.transactionFilters, {
-      account: "", status: "", category: "", transfer: "", search: "",
+      account: "", status: "", category: "", transfer: "", search: "", beleg: "",
       timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
     });
     state.selectedTransactionId = route.selectedTransactionId;
     state.detailRailClosed = false;
     state.transactionPage = transactionPageForId(route.selectedTransactionId);
   }
+
+  // Transaktionen gefiltert auf ein Quelldokument: uebrige Filter leeren, damit
+  // genau die Buchungen dieses Dokuments sichtbar sind.
+  if (route.belegFilter) {
+    Object.assign(state.transactionFilters, {
+      account: "", status: "", category: "", transfer: "", origin: "", search: "", beleg: route.belegFilter,
+      timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
+    });
+    state.selectedTransactionId = "";
+    state.detailRailClosed = false;
+    state.transactionPage = 1;
+  }
+  if (route.view === "belege") state.selectedBeleg = route.selectedBeleg || "";
 
   if (route.selectedVermoegenId) {
     state.vermoegenFilters.klasse = "";

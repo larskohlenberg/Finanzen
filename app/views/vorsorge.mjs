@@ -1,7 +1,7 @@
 // app/views/vorsorge.mjs
 // Read-only Vorsorge-Ansicht: Vertraege, Werte, Pruefstatus und Beitragsbezug.
 import { data, state, t, escapeHtml, cents, personenById } from "../runtime.mjs";
-import { formatMoney, formatDate, renderPageHead, renderTableFilters, detailRow } from "../komponenten.mjs";
+import { formatMoney, formatDate, renderPageHead, renderTableFilters, detailRow, quelleHtml } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert } from "../vermoegen.mjs";
 import { matchesQuery } from "../tools/lib/text.mjs";
@@ -348,7 +348,7 @@ function renderVorsorgeNachfolge(vorgaenger, nachfolger) {
 function renderVorsorgeQuelle(vs) {
   if (!vs.quelle_hinweis && !vs.quelle_standdatum) return "";
   const value = [
-    vs.quelle_hinweis ? escapeHtml(vs.quelle_hinweis) : "",
+    vs.quelle_hinweis ? quelleHtml(vs.quelle_hinweis) : "",
     vs.quelle_standdatum ? escapeHtml(formatDate(vs.quelle_standdatum)) : "",
   ].filter(Boolean).join(" · ");
   return detailRow(t("vorsorge.vertragsquelle"), value);

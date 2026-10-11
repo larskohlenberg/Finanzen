@@ -329,7 +329,7 @@ test("desktop nav order matches the mobile reading order", () => {
   const order = [...block.matchAll(/\["(\w+)"/g)].map((m) => m[1]);
   assert.deepEqual(order, [
     "overview", "transactions", "liquiditaet", "vermoegen", "vorsorge",
-    "regelzahlungen", "szenarien", "masterdata", "checks", "upload", "export",
+    "regelzahlungen", "szenarien", "masterdata", "checks", "belege", "upload", "export",
   ]);
 });
 

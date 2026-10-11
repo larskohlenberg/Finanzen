@@ -2211,3 +2211,316 @@ tr.clickable.selected td:first-child {
     justify-content: flex-start;
   }
 }
+
+/* Dokumente (#/dokumente): Ordnerbaum + Dateiliste, Detail im Rail */
+.belege-browser {
+  display: grid;
+  grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
+  min-height: 420px;
+}
+
+.belege-baum {
+  padding: 12px 8px;
+  border-right: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.belege-baum ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.belege-baum ul ul {
+  padding-left: 14px;
+}
+
+.belege-ordner-zeile {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--radius-tight);
+}
+
+.belege-ordner-zeile.aktiv {
+  background: var(--accent-soft);
+}
+
+.belege-toggle,
+.belege-toggle-platz {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 28px;
+}
+
+.belege-toggle {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-tight);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.belege-ordner-knopf {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: var(--radius-tight);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.belege-ordner-zeile.aktiv .belege-ordner-knopf {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.belege-toggle:hover,
+.belege-ordner-knopf:hover {
+  background: color-mix(in srgb, var(--accent-soft) 60%, transparent);
+}
+
+.belege-toggle:focus-visible,
+.belege-ordner-knopf:focus-visible,
+.belege-download:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.belege-ordner-knopf .icon {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.belege-ordner-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.belege-anzahl {
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.belege-liste {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.belege-werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+
+.belege-suche {
+  flex: 1 1 260px;
+}
+
+.belege-schalter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.belege-kopf,
+.belege-leer {
+  margin: 0;
+}
+
+.belege-tabelle-wrap {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.belege-tabelle {
+  min-width: 520px;
+  font-size: 13px;
+}
+
+.belege-tabelle th,
+.belege-tabelle td {
+  padding: 8px 10px;
+}
+
+.belege-tabelle td {
+  white-space: nowrap;
+}
+
+.belege-tabelle td.belege-name {
+  min-width: 200px;
+  white-space: normal;
+}
+
+.belege-tabelle td.amount {
+  font-weight: 400;
+}
+
+.belege-tabelle thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+
+.belege-name .linkish {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.belege-name .icon {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.belege-detail-titel {
+  overflow-wrap: anywhere;
+}
+
+.belege-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.belege-aktionen .upload-button {
+  margin-top: 0;
+  text-decoration: none;
+}
+
+.belege-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.belege-download:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.belege-tx-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  text-decoration: none;
+}
+
+.belege-verweise {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.belege-verweise li {
+  display: grid;
+  gap: 2px;
+}
+
+.belege-verweise .muted {
+  font-size: 12px;
+}
+
+a.linkish {
+  text-decoration: none;
+}
+
+.quelldokument-link {
+  overflow-wrap: anywhere;
+}
+
+/* Quelldokument-Filter der Transaktionen als entfernbarer Chip */
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.filter-chip .linkish {
+  overflow-wrap: anywhere;
+}
+
+.filter-chip-clear {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.filter-chip-clear:hover,
+.filter-chip-clear:focus-visible {
+  background: var(--surface);
+  color: var(--danger);
+  outline: none;
+}
+
+@media (max-width: 760px) {
+  .belege-browser {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .belege-baum {
+    max-height: 260px;
+    overflow-y: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}

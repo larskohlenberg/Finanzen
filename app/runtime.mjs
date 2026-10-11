@@ -68,6 +68,7 @@ export const navItems = [
   ["szenarien", "nav.szenarien", "szenarien"],
   ["masterdata", "nav.masterdata", "masterdata"],
   ["checks", "nav.checks", "checks"],
+  ["belege", "nav.belege", "belege"],
   ["upload", "nav.upload", "upload"],
   ["export", "nav.export", "export"],
 ];
@@ -90,6 +91,7 @@ export const state = {
     transfer: "",
     origin: "",
     search: "",
+    beleg: "",
     timeMode: "none",
     dateFrom: "",
     dateTo: "",
@@ -132,6 +134,8 @@ export const state = {
   szenarioVollansicht: false,
   szenarioBasisExpanded: false,
   selectedRegelzahlungId: "",
+  // Dokumente (#/dokumente): ausgewaehlte Datei oder ausgewaehlter Ordner, App-relativ.
+  selectedBeleg: "",
 };
 
 export const personenById = new Map(data.personen.map((person) => [person.person_id, person]));

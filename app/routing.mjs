@@ -3,6 +3,7 @@
 // Detailansichten adressierbar (#/transaktionen/TXN-…, #/konten/KTO-…), sodass
 // Checks (M8) und Laufprotokolle auf konkrete Datensätze verlinken können.
 // Getestet ueber parseRoute/routeFromState; die DOM-Anbindung liegt in main.js.
+import { dokumentRoute, belegPfadAusRoute, kodierePfad } from "./belege.mjs";
 
 const VIEW_SLUG = {
   overview: "uebersicht",
@@ -16,6 +17,7 @@ const VIEW_SLUG = {
   checks: "checks",
   export: "export",
   upload: "hochladen",
+  belege: "dokumente",
 };
 const SLUG_VIEW = Object.fromEntries(Object.entries(VIEW_SLUG).map(([view, slug]) => [slug, view]));
 
@@ -24,6 +26,13 @@ export function routeFromState(state) {
   if (state.view === "transactions" && state.selectedTransactionId) {
     return `#/transaktionen/${encodeURIComponent(state.selectedTransactionId)}`;
   }
+  // Transaktionen gefiltert auf ein Quelldokument (Pfad ohne "Belege/").
+  const belegFilter = state.transactionFilters?.beleg;
+  if (state.view === "transactions" && belegFilter?.startsWith("Belege/")) {
+    return `#/transaktionen/dokument/${kodierePfad(belegFilter.slice("Belege/".length))}`;
+  }
+  // Dokumente: Datei oder Ordner unter Belege/.
+  if (state.view === "belege") return dokumentRoute(state.selectedBeleg);
   if (state.view === "vorsorge" && state.selectedVorsorgeId) {
     return `#/vorsorge/${encodeURIComponent(state.selectedVorsorgeId)}`;
   }
@@ -55,8 +64,20 @@ export function parseRoute(hash) {
   const clean = String(hash || "").replace(/^#\/?/, "").replace(/\/+$/, "");
   if (!clean) return { view: "overview" };
   const [head, ...rest] = clean.split("/");
-  const tail = rest.length ? decodeURIComponent(rest.join("/")) : "";
+  let tail;
+  try {
+    tail = rest.length ? decodeURIComponent(rest.join("/")) : "";
+  } catch {
+    // Kaputte Prozent-Kodierung: auf die Liste der Ansicht zurueckfallen.
+    return SLUG_VIEW[head] ? { view: SLUG_VIEW[head] } : { view: "overview" };
+  }
 
+  if (head === "dokumente") {
+    return tail ? { view: "belege", selectedBeleg: belegPfadAusRoute(tail) } : { view: "belege" };
+  }
+  if (head === "transaktionen" && rest[0] === "dokument" && rest.length > 1) {
+    return { view: "transactions", belegFilter: belegPfadAusRoute(tail.slice("dokument/".length)) };
+  }
   if (head === "transaktionen") {
     return tail ? { view: "transactions", selectedTransactionId: tail } : { view: "transactions" };
   }

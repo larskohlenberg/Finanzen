@@ -6,7 +6,10 @@
 // Verarbeitung bleibt dem Import-Durchlauf (inbox.mjs + Agent) vorbehalten.
 //
 //   node app/server.mjs [--host 127.0.0.1] [--port 8000] [--proxy-ip <ip>]
-//                       [--origin <url>[,<url>]] [--inbox <pfad>]
+//                       [--origin <url>[,<url>]] [--inbox <pfad>] [--belege <pfad>]
+//
+// GET /api/belege listet (nur lesend) alle Dateien unter Belege/ fuer die
+// Dokumente-Ansicht; die Dateien selbst kommen ueber die statische Auslieferung.
 //
 // Jede Anfrage braucht eine erlaubte Host-Kopfzeile (Schutz gegen DNS-
 // Rebinding): lokal Loopback mit Port, mit --origin der Host der Origin.
@@ -27,6 +30,8 @@ import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt } from "./upload-reg
 
 const MAX_NAME_LAENGE = 200;
 const API_INBOX = "/api/inbox";
+const API_BELEGE = "/api/belege";
+const OCR_KOPF = "# Kein Textlayer";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -125,7 +130,7 @@ function originAusUrl(wert) {
 }
 
 export function parseArgs(argv, { appDir }) {
-  const opt = { host: "127.0.0.1", port: 8000, proxyIp: null, origins: null, inbox: join(appDir, "data", "inbox") };
+  const opt = { host: "127.0.0.1", port: 8000, proxyIp: null, origins: null, inbox: join(appDir, "data", "inbox"), belege: join(appDir, "Belege") };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     const gleich = arg.indexOf("=");
@@ -151,6 +156,7 @@ export function parseArgs(argv, { appDir }) {
       opt.origins = wert().split(",").map((o) => o.trim()).filter(Boolean).map(originAusUrl);
       if (opt.origins.length === 0) throw new Error("--origin: leer");
     } else if (schalter === "--inbox") opt.inbox = resolve(wert());
+    else if (schalter === "--belege") opt.belege = resolve(wert());
     else throw new Error(`Unbekannte Option ${arg}`);
   }
   return opt;
@@ -240,6 +246,54 @@ async function listeInbox(inboxDir) {
   return dateien.sort((a, b) => (a.geaendert < b.geaendert ? 1 : a.geaendert > b.geaendert ? -1 : a.name.localeCompare(b.name)));
 }
 
+// Textzwilling ohne Textebene erkennen: nur die ersten Bytes lesen.
+async function beginntMitOcrKopf(pfad) {
+  const datei = await open(pfad, "r");
+  try {
+    const puffer = Buffer.alloc(OCR_KOPF.length);
+    const { bytesRead } = await datei.read(puffer, 0, puffer.length, 0);
+    return puffer.subarray(0, bytesRead).toString("utf8") === OCR_KOPF;
+  } finally {
+    await datei.close();
+  }
+}
+
+// Alle Dateien unter wurzel rekursiv, Pfade mit praefix ("Belege/..."), nach
+// Pfad sortiert. Dotfiles/Dot-Ordner fehlen; Symlinks werden weder gelistet
+// noch verfolgt (Dirent.isFile/isDirectory sind fuer Links false). Fehlt die
+// Wurzel, ist die Liste leer.
+export async function listeBelege(wurzel, praefix = "Belege") {
+  const ergebnis = [];
+  async function lauf(ordner, rel) {
+    let eintraege;
+    try {
+      eintraege = await readdir(ordner, { withFileTypes: true });
+    } catch (fehler) {
+      if (fehler.code === "ENOENT" && rel === praefix) return;
+      throw fehler;
+    }
+    const unterordner = [];
+    await Promise.all(eintraege.map(async (e) => {
+      if (e.name.startsWith(".")) return;
+      const voll = join(ordner, e.name);
+      const pfad = `${rel}/${e.name}`;
+      if (e.isDirectory()) {
+        unterordner.push([voll, pfad]);
+        return;
+      }
+      if (!e.isFile()) return;
+      const info = await lstat(voll);
+      const typ = extname(e.name).slice(1).toLowerCase();
+      const eintrag = { pfad, groesse: info.size, geaendert: info.mtime.toISOString(), typ };
+      if (typ === "txt" && (await beginntMitOcrKopf(voll))) eintrag.ocrAusstehend = true;
+      ergebnis.push(eintrag);
+    }));
+    for (const [voll, pfad] of unterordner) await lauf(voll, pfad);
+  }
+  await lauf(wurzel, praefix);
+  return ergebnis.sort((a, b) => (a.pfad < b.pfad ? -1 : a.pfad > b.pfad ? 1 : 0));
+}
+
 async function sha256Datei(pfad) {
   const hash = createHash("sha256");
   for await (const teil of createReadStream(pfad)) hash.update(teil);
@@ -272,7 +326,7 @@ export async function legeAbOhneUeberschreiben(temp, ziel) {
   }
 }
 
-export function createAppServer({ appDir, inboxDir, proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, log = console.log }) {
+export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, log = console.log }) {
   let appWurzel = null;
   // Uploads nacheinander abschliessen: Namenswahl ohne Wettlauf untereinander.
   let kette = Promise.resolve();
@@ -380,6 +434,10 @@ export function createAppServer({ appDir, inboxDir, proxyIp = null, origins = nu
       if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
       return sendeJson(res, 200, { dateien: await listeInbox(inboxDir) });
     }
+    if (rohPfad === API_BELEGE) {
+      if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
+      return sendeJson(res, 200, { dateien: await listeBelege(belegeDir) });
+    }
     if (rohPfad.startsWith(`${API_INBOX}/`)) {
       if (req.method !== "PUT") return abgelehnt(res, 405, "methode", { Allow: "PUT" });
       return nimmUpload(req, res, rohPfad.slice(API_INBOX.length + 1));
@@ -407,10 +465,10 @@ function main() {
     opt = parseArgs(process.argv.slice(2), { appDir });
   } catch (fehler) {
     console.error(fehler.message);
-    console.error("Aufruf: node app/server.mjs [--host <adresse>] [--port <zahl>] [--proxy-ip <ip>] [--origin <url>[,<url>]] [--inbox <pfad>]");
+    console.error("Aufruf: node app/server.mjs [--host <adresse>] [--port <zahl>] [--proxy-ip <ip>] [--origin <url>[,<url>]] [--inbox <pfad>] [--belege <pfad>]");
     process.exit(2);
   }
-  const server = createAppServer({ appDir, inboxDir: opt.inbox, proxyIp: opt.proxyIp, origins: opt.origins });
+  const server = createAppServer({ appDir, inboxDir: opt.inbox, belegeDir: opt.belege, proxyIp: opt.proxyIp, origins: opt.origins });
   server.on("error", (fehler) => {
     if (fehler.code === "EADDRINUSE") console.error(`Port ${opt.port} auf ${opt.host} ist bereits belegt — anderen Port mit --port waehlen.`);
     else if (fehler.code === "EACCES") console.error(`Keine Berechtigung fuer ${opt.host}:${opt.port}.`);

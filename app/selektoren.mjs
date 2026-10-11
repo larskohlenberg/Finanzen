@@ -2,9 +2,24 @@
 // View-uebergreifende Ableitungen aus dem geladenen Bestand (reine Lesezugriffe,
 // kein DOM). Liegen getrennt von den Render-Funktionen, damit mehrere Views und
 // die Topbar dieselbe Logik teilen.
-import { data, cents } from "./runtime.mjs";
-import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert } from "./vermoegen.mjs";
+import { data } from "./runtime.mjs";
+import { computeNettovermoegen, computeVermoegenChecks } from "./vermoegen.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
+import {
+  checkItems,
+  checkVorschau,
+  kontoRang,
+  kontoSaldoGeladen,
+  kontoStandDatum,
+  saldoGeladenerKonten,
+  sortierteKonten,
+  vermoegenCheckItem,
+} from "./uebersicht-rechnung.mjs";
+
+// Die Rechnung der Uebersicht liegt DOM-frei in uebersicht-rechnung.mjs (das
+// MCP-Tool kennzahlen nutzt sie ebenso); hier wird nur der geladene Bestand
+// und der heutige Tag eingesetzt.
+export { vermoegenCheckItem };
 
 export function reviewChecks() {
   return data.checks.filter((check) => check.severity === "review");
@@ -14,30 +29,12 @@ export function currentVermoegenChecks() {
   return computeVermoegenChecks(data, localTodayIso());
 }
 
-export function vermoegenCheckItem(check) {
-  return {
-    scope: "vermoegen",
-    severity: "review",
-    title_key: `vermoegen.checkArt.${check.art}`,
-    detail: check.text,
-    entity_id: check.entitaet_id,
-    entitaet: check.entitaet,
-  };
-}
-
 export function currentCheckItems() {
-  return [
-    ...data.checks,
-    ...currentVermoegenChecks().map(vermoegenCheckItem),
-  ];
+  return checkItems(data, localTodayIso());
 }
 
 export function overviewCheckPreviewItems(limit = 4) {
-  const checks = currentCheckItems();
-  return [
-    ...checks.filter((check) => check.severity === "review"),
-    ...checks.filter((check) => check.severity !== "review"),
-  ].slice(0, limit);
+  return checkVorschau(currentCheckItems(), limit);
 }
 
 export function openCategoryTransactions() {
@@ -49,18 +46,11 @@ export function missingReferenceChecks() {
 }
 
 export function accountBalance(kontoId) {
-  return data.transaktionen
-    .filter((tx) => tx.konto_id === kontoId)
-    .reduce((sum, tx) => sum + cents(tx.betrag), 0);
+  return kontoSaldoGeladen(data, kontoId);
 }
 
 export function loadedTotalAccountsBalance() {
-  const accountIds = data.konten
-    .filter((konto) => konto.kontotyp !== "depot" && konto.liquiditaetsrelevant)
-    .map((konto) => konto.konto_id);
-  return data.transaktionen
-    .filter((tx) => accountIds.includes(tx.konto_id))
-    .reduce((sum, tx) => sum + cents(tx.betrag), 0);
+  return saldoGeladenerKonten(data);
 }
 
 export function currentNettovermoegen() {
@@ -68,30 +58,15 @@ export function currentNettovermoegen() {
 }
 
 export function overviewAccountStandDate(konto) {
-  if (konto.kontotyp === "depot") {
-    return aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert")?.standdatum || "";
-  }
-  const latestBookingDate = data.transaktionen
-    .filter((tx) => tx.konto_id === konto.konto_id)
-    .reduce((latest, tx) => (String(tx.buchungsdatum ?? "") > latest ? String(tx.buchungsdatum ?? "") : latest), "");
-  return latestBookingDate || aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand")?.standdatum || "";
+  return kontoStandDatum(data, konto);
 }
 
 export function overviewAccountRank(konto) {
-  if (konto.kontotyp === "giro") return 0;
-  if (konto.kontotyp === "tagesgeld") return 1;
-  if (konto.kontotyp === "depot") return 2;
-  return 3;
+  return kontoRang(konto);
 }
 
 export function sortedOverviewAccounts() {
-  return data.konten.slice().sort((a, b) => {
-    const rank = overviewAccountRank(a) - overviewAccountRank(b);
-    if (rank !== 0) return rank;
-    const dateCmp = overviewAccountStandDate(b).localeCompare(overviewAccountStandDate(a));
-    if (dateCmp !== 0) return dateCmp;
-    return a.name.localeCompare(b.name);
-  });
+  return sortierteKonten(data);
 }
 
 // Reine Inversion (testbar ohne Modulzustand): matched_regeln -> Regel-Treffer.

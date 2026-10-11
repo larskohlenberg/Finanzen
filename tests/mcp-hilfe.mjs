@@ -3,7 +3,7 @@
 // stdio-Client. Der Server bestimmt App-Raum und Repo-Root relativ zu seinem
 // Skript — der Abzug beruehrt den Worktree darum nie.
 import { spawn } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,10 @@ export function legeAbzugAn() {
   const wurzel = mkdtempSync(join(tmpdir(), "finanzen-mcp-test-"));
   for (const teil of ["tools", "mcp", "docs", "schemas"]) {
     cpSync(join(repo, "app", teil), join(wurzel, "app", teil), { recursive: true });
+  }
+  // Gemeinsame Rechenmodule der App (kennzahlen rechnet wie die Uebersicht).
+  for (const datei of readdirSync(join(repo, "app")).filter((n) => n.endsWith(".mjs"))) {
+    cpSync(join(repo, "app", datei), join(wurzel, "app", datei));
   }
   cpSync(join(repo, "app", "data", "demo"), join(wurzel, "app", "data", "master"), { recursive: true });
   mkdirSync(join(wurzel, "app", "data", "inbox"), { recursive: true });

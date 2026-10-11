@@ -1,6 +1,6 @@
 // app/mcp/werkzeuge.mjs
 // Die MCP-Tools. Drei Sorten:
-// - Lese-Tools (status, transaktionen_abfragen, datei_lesen, dateien_suchen),
+// - Lese-Tools (status, kennzahlen, transaktionen_abfragen, datei_lesen, dateien_suchen),
 // - 1:1-Wrapper um die CLIs in app/tools/ (Vorschau ist Default, schreiben:true
 //   setzt das Schreib-Flag der CLI und braucht --recht=schreiben),
 // - Datei-Schreiben (datei_schreiben, datei_ersetzen, beleg_ablegen), nur mit
@@ -12,8 +12,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
+import { localTodayIso } from "../liquiditaet.mjs";
 import { abfragen } from "./abfrage.mjs";
 import { pruefeArgumente } from "./argumente.mjs";
+import { istKalenderdatum, kennzahlenText } from "./kennzahlen.mjs";
 import { LESE_WURZELN, PfadFehler, SCHREIB_WURZELN, loesePfad } from "./pfade.mjs";
 import { kopiereDatenroot, mitRollback } from "./schreiben.mjs";
 
@@ -305,6 +307,25 @@ const status = {
     bericht.validator = { gueltig: validator.gueltig, fehler_anzahl: validator.fehler.length, fehler: validator.fehler.slice(0, 50) };
     bericht.inbox = await inboxStand(ctx);
     return ergebnis(json(bericht));
+  },
+};
+
+const kennzahlen = {
+  name: "kennzahlen",
+  description: "Erste Wahl fuer Fragen wie \u201eWie stehen wir?\u201c, liefert dieselben Kennzahlen wie die Uebersicht: Nettovermoegen mit Aktiva/Passiva und Positionen, Summe geladener Bewegungen, Kontentabelle, naechste Aktion und Checks. Bei jedem Aufruf frisch gerechnet, nur Aggregate, keine Einzelbuchungen. Rein lesend.",
+  inputSchema: {
+    type: "object",
+    properties: { stichtag: { ...DATUM, description: "Stichtag fuer Nettovermoegen, Checks und naechste Aktion (Default heute)" } },
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: true },
+  async ausfuehren(ctx, args) {
+    const stichtag = args.stichtag ?? localTodayIso();
+    if (!istKalenderdatum(stichtag)) return ergebnis(`Ungueltiger Stichtag: ${stichtag} (YYYY-MM-DD, gueltiges Kalenderdatum)`, true);
+    const daten = await loadMasterData(pathToFileURL(`${ctx.datenroot}${path.sep}`));
+    // Wie runtime.mjs im Browser: Validator-Ergebnis, keine vorab geladenen Checks.
+    Object.assign(daten, { validation: validateMasterData(daten), checks: [], importfehler: [] });
+    return ergebnis(kennzahlenText(daten, stichtag));
   },
 };
 
@@ -616,7 +637,7 @@ const belegAblegen = {
   },
 };
 
-export const WERKZEUGE = [status, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen];
+export const WERKZEUGE = [status, kennzahlen, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen];
 
 export function sichtbareWerkzeuge(ctx) {
   return WERKZEUGE

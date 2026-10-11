@@ -49,6 +49,7 @@ die lokalen Demodaten.
 
 | CLI | MCP-Tool |
 | --- | --- |
+| Uebersicht der Web-App | `kennzahlen` (dieselben Kennzahlen wie die Uebersicht, frisch gerechnet; optional `stichtag`; erste Wahl fuer "Wie stehen wir?") |
 | `tools/validator.mjs` | `status` (Validator-Ergebnis mit Fehlern; laeuft ausserdem nach jedem Schreiben) |
 | `tools/inbox.mjs` | `inbox` |
 | `tools/import.mjs` | `import` (Vorschau gegen eine Kopie des Datenroots) |

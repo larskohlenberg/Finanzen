@@ -4,6 +4,9 @@ Betriebsanweisung fuer das Bestaetigen, Korrigieren und Ablehnen vorgeschlagener
 
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
 `tools/...` und `docs/...` liegen unter dem App-Raum.
+Im Betrieb laufen Lesen, Schreiben und Tool-Laeufe ueber den MCP-Server
+`finanzen` (Zuordnung CLI -> Tool in `docs/agent-context.md`, „Betrieb ueber
+MCP"); die CLI-Aufrufe gelten so fuer die lokalen Demodaten.
 
 ## Rolle seit ADR 0025
 
@@ -78,13 +81,17 @@ Zu Beginn `DATENROOT/transaktionen.jsonl` auf `kategorisierung_status = vorgesch
    **`KAT-012`-Buckets nie bulk-bestaetigen.** Eine Bestaetigung wuerde „noch zu klaeren" zur Endkategorie machen und die Buchung aus dem Blick nehmen. Hier ist Drill-down der Normalweg: Der Nutzer nennt die Kategorie, und wenn dabei ein wiederkehrendes Muster sichtbar wird, ist das ein Regel-Kandidat fuer **kategorisierungsregel-pflege** (Schritt 4).
 3. **Einzelkorrektur.** Setzt der Nutzer fuer eine Buchung (oder Teilmenge) eine **andere** Zielkategorie, ist das ein menschlicher Akt: `kategorie_id` = die genannte Kategorie, `kategorisierung_status = bestaetigt`, `kategorie_herkunft = manuell`. Die Zielkategorie nennt der Nutzer — **nie raten**. `manuell` schuetzt den Eintrag vor kuenftigen Regellaeufen. **Aber nur fuer Einzelfaelle:** Soll aus der Korrektur eine **Regel** werden (gleiches Muster, gleiche Kategorie, vgl. Schritt 4), dann die Buchung **nicht** auf `manuell` setzen — Regel ueber **kategorisierungsregel-pflege** anlegen und Nach-Kategorisierung laufen lassen; die Buchung wird dann `kategorie_herkunft = regel` und zaehlt zur Regel. Regel **und** `manuell` auf derselben Buchung widersprechen sich.
 4. **Aehnliche Faelle suchen.** Nach jeder Einzelkorrektur read-only nach aehnlichen offenen oder agent-vorgeschlagenen Buchungen suchen. Wenn ein wiederkehrendes Muster erkennbar ist, ist die Nutzerkorrektur selbst der Beleg (Belegstufe E2: derselbe Merchant ist jetzt entschieden) — dann uebernimmt **kategorisierungsregel-pflege** und legt die Regel an, mit Probelauf und ohne erneute Rueckfrage. Nur die *Kategorie* stand hier zur Debatte, nicht die Regelanlage. Diesen Uebergang ansagen, damit klar ist, dass aus der Einzelkorrektur ein dauerhaftes Muster wird.
-5. **Schreiben mit Validator.** Aenderungen laufen ueber `tools/confirm.mjs` — nicht per Hand-Edit an `transaktionen.jsonl`. **Vor** dem Schreiben die Review-Tabelle zeigen; das Tool validiert nach dem Schreiben selbst.
+5. **Schreiben mit Validator.** Aenderungen laufen ueber `tools/confirm.mjs` (MCP-Tool `bestaetigen`) — nicht per Hand-Edit an `transaktionen.jsonl`. **Vor** dem Schreiben die Review-Tabelle zeigen; das Tool validiert nach dem Schreiben selbst.
 
    ```
    node app/tools/confirm.mjs --aktion=bestaetigen --regel_id=REG-219 DATENROOT
    node app/tools/confirm.mjs --aktion=bestaetigen --status=vorgeschlagen --herkunft=agent --kategorie_id=KAT-015 DATENROOT
    node app/tools/confirm.mjs --aktion=kategorie --kategorie=KAT-007 --gegenpartei="MAX MUSTERMANN" DATENROOT --schreiben
    ```
+
+   Ueber MCP dieselben Filter als Parameter, z. B. `bestaetigen` mit
+   `aktion: "bestaetigen", regel_id: "REG-219"`; `schreiben: true` statt
+   `--schreiben`, `auch_entschiedene: true` statt `--auch-entschiedene`.
 
    `--regel_id=` ist der Filter, der ein Regel-Bucket exakt trifft — er matcht
    gegen `matched_regeln`. Damit ist „Bucket entschieden" genau ein Tool-Aufruf.

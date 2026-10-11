@@ -5,7 +5,10 @@ Betriebsanweisung fuer das datengetriebene Anlegen, Aendern und Stilllegen von K
 **Der Agent arbeitet den Offen-Stapel eigenstaendig ab.** Er fragt nicht Regel fuer Regel um Erlaubnis — er recherchiert, belegt, prueft mechanisch und schreibt. Das Review der erzeugten Vorschlaege ist der Ort, an dem der Nutzer entscheidet.
 
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
-`tools/...` und `docs/...` liegen unter dem App-Raum.
+`tools/...` und `docs/...` liegen unter dem App-Raum. Im Betrieb laufen die
+genannten Tools ueber den MCP-Server `finanzen` (Zuordnung CLI -> Tool in
+`docs/agent-context.md`, „Betrieb ueber MCP"); die CLI-Zeilen gelten so fuer
+die lokalen Demodaten.
 
 ## Wann diesen Skill nutzen
 
@@ -83,7 +86,8 @@ Darum gilt eng begrenzt:
 1. **Read-only-Analyse des Offen-Stapels — mit dem Tool, nicht von Hand.**
 
    ```
-   node tools/regel-vorschlag.mjs DATENROOT
+   regel_vorschlag                                 # MCP-Tool
+   node tools/regel-vorschlag.mjs DATENROOT        # lokal
    ```
 
    `regel-vorschlag.mjs` buendelt alle `offen`-Buchungen nach lose normalisierter
@@ -117,8 +121,8 @@ Darum gilt eng begrenzt:
 
 3. **Regelkandidaten mechanisch pruefen — vor jedem Schreiben, ohne Ausnahme.**
 
-   Kandidaten als JSON-Array in eine Arbeitsdatei schreiben (nicht unter
-   `DATENROOT`), dann:
+   Kandidaten als JSON-Array direkt an das MCP-Tool `regel_probelauf`
+   (`kandidaten`) geben; lokal in eine Arbeitsdatei (nicht unter `DATENROOT`):
 
    ```
    node tools/regel-probelauf.mjs DATENROOT <kandidaten.json>
@@ -143,9 +147,9 @@ Darum gilt eng begrenzt:
    angelegt werden.
 
    Bei einer beabsichtigten **Aenderung** einer Bestandsregel `--aenderung`
-   setzen; sonst gilt die bekannte `regel_id` als Versehen.
+   (MCP: `aenderung: true`) setzen; sonst gilt die bekannte `regel_id` als Versehen.
 
-4. **Schreiben.** Neue `regel_id` als naechste freie `REG-NNN` (Bestand scannen, es gibt keinen ID-Helfer), `status = "aktiv"`, `erstellt_am` = heutiges Datum.
+4. **Schreiben.** Neue `regel_id` als naechste freie `REG-NNN` (Bestand scannen, es gibt keinen ID-Helfer), `status = "aktiv"`, `erstellt_am` = heutiges Datum. Im Betrieb per `datei_ersetzen` in `DATENROOT/kategorisierungsregeln.json`.
 
    `kommentar` ist **Pflichtfeld** und muss zweierlei leisten: erklaeren, **was**
    der Merchant ist, und nennen, **woher** das bekannt ist (Belegstufe). „Monatlicher
@@ -158,12 +162,12 @@ Darum gilt eng begrenzt:
    **stilllegen** = `status = "inaktiv"` (nicht loeschen, der Categorizer
    ignoriert Inaktive ohnehin).
 
-5. **Nach-Kategorisierung anstossen.** `node tools/recategorize.mjs DATENROOT` aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel`) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator fuer `DATENROOT` und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs.
+5. **Nach-Kategorisierung anstossen.** MCP-Tool `nachkategorisieren` mit `schreiben: true` (lokal `node tools/recategorize.mjs DATENROOT`) aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel`) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator fuer `DATENROOT` und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs.
 
 6. **E5- und E6-Faelle als Einzelvorschlaege setzen.**
 
    ```
-   node tools/agent-vorschlag.mjs --ids=TXN-a,TXN-b --kategorie=KAT-012 DATENROOT --schreiben
+   agent_vorschlag  ids: [TXN-a, TXN-b]  kategorie: KAT-012  schreiben: true
    ```
 
    Was keine Regel bekommen hat, wird ueber `tools/agent-vorschlag.mjs` auf
@@ -172,7 +176,7 @@ Darum gilt eng begrenzt:
    schreibt immer `bestaetigt`; ein Agentenvorschlag ist das Gegenteil davon.
 
    Diese Buchungen tragen nie `matched_regeln`, und Regellaeufe fassen sie
-   spaeter nicht an. Ohne `--schreiben` ist der Lauf eine Vorschau.
+   spaeter nicht an. Ohne `schreiben: true` ist der Lauf eine Vorschau.
 
 7. **Bericht + Uebergabe an das Review.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`) und in `DATENROOT/agent_log.jsonl` protokollieren.
 

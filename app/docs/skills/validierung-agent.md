@@ -5,6 +5,9 @@ zeigt den Fehlerstatus, aber die Korrektur laeuft agentisch im App-Raum.
 
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
 `tools/...` und `docs/...` liegen unter dem App-Raum.
+Im Betrieb laufen Lesen, Schreiben und Tool-Laeufe ueber den MCP-Server
+`finanzen` (Zuordnung CLI -> Tool in `docs/agent-context.md`, „Betrieb ueber
+MCP"); die CLI-Aufrufe gelten so fuer die lokalen Demodaten.
 
 ## Wann diesen Skill nutzen
 
@@ -29,7 +32,7 @@ Nicht nutzen fuer:
 ## Ablauf
 
 1. **Validator ausfuehren.** Starte `node tools/validator.mjs DATENROOT` aus
-   dem App-Raum und uebernimm die Fehler nicht aus der UI ungeprueft.
+   dem App-Raum (MCP: `status` liefert alle Validatorfehler) und uebernimm die Fehler nicht aus der UI ungeprueft.
 2. **Fehler gruppieren.** Ordne Fehler nach Datei, Schemafeld und Ursache
    (Format, Pflichtfeld, Referenz, Cross-Field-Regel).
 3. **Betroffene Daten read-only pruefen.** Lies nur die genannten Dateien und die

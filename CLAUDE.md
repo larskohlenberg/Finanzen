@@ -39,6 +39,12 @@ ausgehenden Diff vor jedem Push auf Namen, Adressen, Betraege, Orte sowie
 Instituts- und Merchantnamen greppen. Konkrete Werte gehoeren ins
 `agent_log.jsonl` (nicht versioniert); Dokumente verweisen nur darauf.
 
+**Produktivdaten liegen auf dem Server**, Zugriff ausschliesslich ueber den
+MCP-Server `finanzen` (Tools `mcp__finanzen__*`, eingebunden per `.mcp.json`
+als `ssh finanzen-mcp`; Zuordnung CLI -> Tool in `app/docs/agent-context.md`).
+Lokal liegen nur Demodaten — dort laufen die CLIs wie gewohnt. Ein Upload ueber
+die App legt Dateien nur in die Inbox; verarbeitet wird im Import-Durchlauf.
+
 **Datenroot ist ein Argument**, nie hartkodiert — `dataRootFromArg` aus
 `app/tools/data-root.mjs`. Produktiv ist `app/data/master`.
 

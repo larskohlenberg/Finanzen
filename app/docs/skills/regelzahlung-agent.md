@@ -4,6 +4,9 @@ Aktuelle Betriebsanweisung fuer Erkennung, Vorschlag und Bestätigung wiederkehr
 
 Alle Pfade in diesem Skill sind app-relativ: `data/...`, `schemas/...`,
 `tools/...` und `docs/...` liegen unter dem App-Raum.
+Im Betrieb laufen Lesen, Schreiben und Tool-Laeufe ueber den MCP-Server
+`finanzen` (Zuordnung CLI -> Tool in `docs/agent-context.md`, „Betrieb ueber
+MCP"); die CLI-Aufrufe gelten so fuer die lokalen Demodaten.
 
 ## Session-Start-Pflicht
 

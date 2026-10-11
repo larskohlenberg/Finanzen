@@ -2,6 +2,8 @@
 
 Statushinweis 2026-06-09: Diese ADR gilt weiter, ist aber durch ADR 0015 erweitert. Nicht nur `review-data.js`, sondern der gesamte App-Raum mit `data/`, `Belege/`, `schemas/`, `tools/` und statischen App-Dateien muss serverseitig geschuetzt sein.
 
+Statushinweis 2026-10-11: Durch ADR 0028 erweitert; fuehrend wird nach der Abnahme eine eigene VM hinter Reverse Proxy mit Auth-Dienst (zweiter Faktor) und Heimnetz-Sperre, das NAS-Setup ist dann historisch.
+
 Die App wird im aktuellen Setup ueber Synology Web Station im lokalen Netzwerk bereitgestellt. Das Portal zeigt auf das App-Verzeichnis mit `index.html` und den statischen Dateien. Die Synology ist nur lokal erreichbar; Router/Fritzbox blockieren Internetzugriff und es gibt kein Port Forwarding.
 
 Entscheidung: Fuer dieses konkrete Setup wird der Zugriffsschutz serverseitig vor der statischen App geloest. Der Webserver schuetzt das gesamte App-Verzeichnis, inklusive direkter Dateiaufrufe unter `data/`, `Belege/`, `schemas/`, `tools/` und der statischen App-Dateien. Die App selbst bekommt kein internes Passwortfeld und erzwingt keine bestimmte Authentifizierungsloesung.

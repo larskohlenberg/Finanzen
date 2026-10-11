@@ -2,6 +2,8 @@
 
 Statushinweis 2026-06-09: Diese ADR ist teilweise durch ADR 0012 und ADR 0015 ueberholt. Der Webserver ist nicht mehr nur ein zulaessiger Betriebsmodus, sondern der fuehrende Betriebsmodus; `file://` ist fuer die aktuelle App nicht mehr vorgesehen.
 
+Statushinweis 2026-10-11: Der Webserver ist durch ADR 0028 der App-Server `app/server.mjs`, dessen einziger Schreibweg der Upload in `data/inbox/` ist.
+
 Nach Abschluss von M3 wird die statische App nicht mehr nur per Doppelklick auf `app/index.html` genutzt, sondern darf auch ueber einen lokalen Webserver bereitgestellt werden. Damit ist der urspruengliche Betriebsmodus "Datei im Browser oeffnen" nicht aufgehoben, aber nicht mehr die einzige relevante Annahme.
 
 Entscheidung: Die App bleibt eine statische HTML/CSS/JavaScript-App ohne eigene Backend-Schreiblogik. Ein lokaler Webserver ist aber ab sofort ein zulaessiger Betriebsmodus. Dadurch duerfen spaetere Funktionen eingeplant werden, die bei reinem `file://`-Betrieb nicht oder nur schlecht funktionieren, z. B. stabilere Browser-Ladepfade, serverbasierte Auslieferung statischer Dateien oder bessere lokale Preview-/Betriebsablaeufe.

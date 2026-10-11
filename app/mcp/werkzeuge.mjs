@@ -501,10 +501,10 @@ async function schreibeAtomar(absolut, inhalt) {
 
 const dateiSchreiben = {
   name: "datei_schreiben",
-  description: "Ganze Textdatei unter data/ schreiben oder anlegen (max. 10 MB), z. B. eine standardisierte JSONL unter data/inbox/standardized/, ein Importprofil oder eine Masterdatei. Nicht Belege/. Danach laeuft der Validator; bei neuen Fehlern wird der Masterstand zurueckgesetzt. Kategorien nie per Datei-Edit an Transaktionen setzen — dafuer gibt es bestaetigen/agent_vorschlag.",
+  description: "Ganze Textdatei unter data/ schreiben oder anlegen (max. 10 MB), z. B. eine standardisierte JSONL unter data/inbox/standardized/, ein Importprofil oder eine Masterdatei. Mit anhaengen:true wird der Inhalt als Zeile(n) ans Dateiende gehaengt (z. B. ein Eintrag in agent_log.jsonl). Nicht Belege/. Danach laeuft der Validator; bei neuen Fehlern wird der Masterstand zurueckgesetzt. Kategorien nie per Datei-Edit an Transaktionen setzen — dafuer gibt es bestaetigen/agent_vorschlag.",
   inputSchema: {
     type: "object",
-    properties: { pfad: { type: "string" }, inhalt: { type: "string" } },
+    properties: { pfad: { type: "string" }, inhalt: { type: "string" }, anhaengen: { type: "boolean" } },
     required: ["pfad", "inhalt"],
     additionalProperties: false,
   },
@@ -514,6 +514,11 @@ const dateiSchreiben = {
     if (Buffer.byteLength(args.inhalt) > MAX_SCHREIBEN) return ergebnis("Inhalt groesser als 10 MB", true);
     if ((await stat(absolut).catch(() => null))?.isDirectory()) return ergebnis(`${relativ} ist ein Ordner`, true);
     return mitRollback(ctx.datenroot, async () => {
+      if (args.anhaengen) {
+        const bisher = await readFile(absolut, "utf8").catch(() => "");
+        await schreibeAtomar(absolut, `${bisher.replace(/\n*$/, bisher ? "\n" : "")}${args.inhalt.replace(/\n*$/, "\n")}`);
+        return ergebnis(`${relativ}: ${Buffer.byteLength(args.inhalt)} Bytes angehaengt.`);
+      }
       await schreibeAtomar(absolut, args.inhalt);
       return ergebnis(`${relativ} geschrieben (${Buffer.byteLength(args.inhalt)} Bytes).`);
     });

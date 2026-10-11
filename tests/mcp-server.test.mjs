@@ -188,6 +188,10 @@ test("Rollback bei Validatorfehler, gueltiges Schreiben bleibt", async () => {
     assert.ok(!ok.isError, ok.text);
     assert.match(readFileSync(kontenPfad, "utf8"), /Gemeinschaftskonto/);
 
+    const log = await s.werkzeug("datei_schreiben", { pfad: "data/master/agent_log.jsonl", inhalt: "{\"anlass\":\"test\"}", anhaengen: true });
+    assert.ok(!log.isError, log.text);
+    assert.match(readFileSync(join(abzug.master, "agent_log.jsonl"), "utf8"), /\n\{"anlass":"test"\}\n$/);
+
     const mehrdeutig = await s.werkzeug("datei_ersetzen", { pfad: "data/master/konten.json", alt: "\"status\": \"aktiv\"", neu: "x" });
     assert.equal(mehrdeutig.isError, true);
   } finally {

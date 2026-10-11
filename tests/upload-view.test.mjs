@@ -33,12 +33,16 @@ test("Upload-Texte existieren in de und en", () => {
     "uploadPage.grund.zu-gross", "uploadPage.grund.kopfzeile-fehlt",
     "uploadPage.grund.origin-abgelehnt", "uploadPage.grund.api-fehlt",
     "uploadPage.grund.netzwerk", "uploadPage.grund.serverfehler",
+    "uploadPage.grund.heic-konverter-fehlt", "uploadPage.grund.heic-unlesbar",
   ];
   for (const lang of ["de", "en"]) {
     for (const key of schluessel) assert.ok(t(lang, key), `${key} fehlt in ${lang}`);
   }
   assert.equal(t("de", "nav.upload"), "Hochladen");
   assert.equal(t("en", "nav.upload"), "Upload");
+  // Hinweistext nennt Bilder und die HEIC-Umwandlung
+  assert.match(t("de", "uploadPage.dropHint"), /HEIC.*JPEG/);
+  assert.match(t("en", "uploadPage.dropHint"), /HEIC.*JPEG/);
 });
 
 test("Upload-Ansicht ist im Menue und in main.js verdrahtet", async () => {
@@ -50,4 +54,6 @@ test("Upload-Ansicht ist im Menue und in main.js verdrahtet", async () => {
   assert.match(view, /"X-Finanzen-Upload": "1"/);
   assert.match(view, /type="file" multiple/);
   assert.match(view, /vorpruefeDatei/);
+  assert.match(view, /accept="\$\{escapeHtml\(ACCEPT\)\}"/);
+  assert.match(view, /ERLAUBTE_ENDUNGEN\.map/, "accept folgt den gemeinsamen Upload-Regeln (inkl. Bilder)");
 });

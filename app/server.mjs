@@ -20,13 +20,14 @@
 // Nur node:-Module. Reine Funktionen sind exportiert und getestet
 // (tests/app-server*.test.mjs); der CLI-Einstieg laeuft nur bei Direktaufruf.
 import http from "node:http";
+import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { open, link, mkdir, lstat, readdir, realpath, rm, stat } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt } from "./upload-regeln.mjs";
+import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt, istHeic } from "./upload-regeln.mjs";
 
 const MAX_NAME_LAENGE = 200;
 const API_INBOX = "/api/inbox";
@@ -44,6 +45,8 @@ const MIME = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
   ".ico": "image/x-icon",
   ".pdf": "application/pdf",
   ".txt": "text/plain; charset=utf-8",
@@ -93,6 +96,20 @@ export function kandidatenName(name, versuch) {
   if (versuch <= 1) return name;
   const punkt = name.lastIndexOf(".");
   return `${name.slice(0, punkt)}-${versuch}${name.slice(punkt)}`;
+}
+
+// HEIC/HEIF-Upload -> Name der abgelegten JPEG-Datei.
+export function jpegNameFuer(name) {
+  const punkt = name.lastIndexOf(".");
+  return `${punkt > 0 ? name.slice(0, punkt) : name}.jpg`;
+}
+
+// Standard-Konverter: heif-convert (Debian: libheif-examples) bestimmt das
+// Ausgabeformat ueber die Endung von aus. Fehlt das Programm, kommt ENOENT.
+export function heifConvert(ein, aus) {
+  return new Promise((resolve, reject) => {
+    execFile("heif-convert", ["--quiet", "-q", "90", ein, aus], { timeout: 120000 }, (fehler) => (fehler ? reject(fehler) : resolve()));
+  });
 }
 
 export function normalisiereIp(adresse) {
@@ -302,6 +319,14 @@ async function sha256Datei(pfad) {
 
 class ZuGross extends Error {}
 
+class Umwandlung extends Error {
+  constructor(status, grund, ursache) {
+    super(`${grund}: ${ursache?.message ?? ""}`);
+    this.status = status;
+    this.grund = grund;
+  }
+}
+
 // FileHandle.write darf weniger Bytes schreiben als verlangt (z. B. bei
 // knappem Speicher): so lange nachschreiben, bis der ganze Puffer drin ist.
 export async function schreibeVoll(datei, puffer) {
@@ -326,7 +351,7 @@ export async function legeAbOhneUeberschreiben(temp, ziel) {
   }
 }
 
-export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, log = console.log }) {
+export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
   let appWurzel = null;
   // Uploads nacheinander abschliessen: Namenswahl ohne Wettlauf untereinander.
   let kette = Promise.resolve();
@@ -365,7 +390,14 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
 
     await mkdir(inboxDir, { recursive: true });
     // Dotfile: inbox.mjs ignoriert alles mit fuehrendem Punkt, ebenso GET /api/inbox.
-    const temp = join(inboxDir, `.upload-${randomBytes(8).toString("hex")}.part`);
+    const kennung = randomBytes(8).toString("hex");
+    const temp = join(inboxDir, `.upload-${kennung}.part`);
+    // HEIC/HEIF: die JPEG-Fassung entsteht ebenfalls als Dotfile in der Inbox
+    // (einziger beschreibbarer Ort unter der systemd-Haertung).
+    const heic = istHeic(name);
+    const jpegTemp = heic ? join(inboxDir, `.upload-${kennung}.jpg`) : null;
+    const zielName = heic ? jpegNameFuer(name) : name;
+    let ablage = temp;
     let groesse = 0;
     // Antwort erst nach dem Aufraeumen der Temp-Datei senden.
     let antworte = null;
@@ -383,13 +415,28 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       } finally {
         await datei.close();
       }
-      const inhaltHash = hash.digest("hex");
+      let inhaltHash = hash.digest("hex");
+
+      if (heic) {
+        try {
+          await heicKonverter(temp, jpegTemp);
+        } catch (fehler) {
+          throw fehler.code === "ENOENT"
+            ? new Umwandlung(415, "heic-konverter-fehlt", fehler)
+            : new Umwandlung(422, "heic-unlesbar", fehler);
+        }
+        const info = await stat(jpegTemp).catch(() => null);
+        if (!info?.isFile() || info.size === 0) throw new Umwandlung(422, "heic-unlesbar", new Error("keine JPEG-Ausgabe"));
+        ablage = jpegTemp;
+        groesse = info.size;
+        inhaltHash = await sha256Datei(jpegTemp);
+      }
 
       const ergebnis = await exklusiv(async () => {
         for (let versuch = 1; versuch < 1000; versuch += 1) {
-          const kandidat = kandidatenName(name, versuch);
+          const kandidat = kandidatenName(zielName, versuch);
           const ziel = join(inboxDir, kandidat);
-          if (await legeAbOhneUeberschreiben(temp, ziel)) {
+          if (await legeAbOhneUeberschreiben(ablage, ziel)) {
             return { code: 201, status: "hochgeladen", name: kandidat };
           }
           const vorhanden = await lstat(ziel).catch(() => null);
@@ -399,10 +446,14 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
         }
         throw new Error("kein freier Dateiname");
       });
-      protokolliere(ergebnis.name, groesse, ergebnis.status);
-      antworte = () => sendeJson(res, ergebnis.code, { status: ergebnis.status, name: ergebnis.name });
+      protokolliere(ergebnis.name, groesse, heic ? `${ergebnis.status}:umgewandelt-aus=${JSON.stringify(name)}` : ergebnis.status);
+      const antwort = { status: ergebnis.status, name: ergebnis.name, ...(heic ? { umgewandelt_aus: name } : {}) };
+      antworte = () => sendeJson(res, ergebnis.code, antwort);
     } catch (fehler) {
-      if (fehler instanceof ZuGross) {
+      if (fehler instanceof Umwandlung) {
+        protokolliere(name, groesse, `abgelehnt:${fehler.grund} (${fehler.message})`);
+        antworte = () => abgelehnt(res, fehler.status, fehler.grund);
+      } else if (fehler instanceof ZuGross) {
         protokolliere(name, groesse, "abgelehnt:zu-gross");
         antworte = () => abgelehnt(res, 413, "zu-gross", { Connection: "close" });
       } else if (req.destroyed || req.aborted || fehler.code === "ECONNRESET" || fehler.code === "ERR_STREAM_PREMATURE_CLOSE") {
@@ -414,6 +465,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       }
     } finally {
       await rm(temp, { force: true });
+      if (jpegTemp) await rm(jpegTemp, { force: true });
     }
     antworte?.();
   }

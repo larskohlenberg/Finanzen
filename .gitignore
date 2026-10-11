@@ -9,7 +9,7 @@ node_modules/
 **/.superpowers/
 *.pid
 
-# Python-Bytecode (z. B. vom lokalen serve_app.py)
+# Python-Bytecode (lokale Hilfsskripte)
 __pycache__/
 *.pyc
 

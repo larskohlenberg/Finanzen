@@ -81,6 +81,8 @@ MCP-Prompts bereit, dieses Dokument als Resource `finanzen://docs/agent-context`
   steht in `~/.ssh/config`). Codex: in `~/.codex/config.toml`
   `[mcp_servers.finanzen]` mit `command = "ssh"` und `args = ["finanzen-mcp"]`.
   Jeder andere stdio-MCP-Client startet ebenso `ssh finanzen-mcp`.
+  Lokal gegen die Demodaten: `npm run --silent mcp:demo` (ohne `--silent`
+  schreibt npm eine Kopfzeile auf stdout und bricht das Protokoll).
 - **Forced Command:** Jeder Agent bekommt einen eigenen Schluessel in
   `authorized_keys` des fachlichen Benutzers; der Eintrag bestimmt Befehl und
   Recht, `SSH_ORIGINAL_COMMAND` wird ignoriert:

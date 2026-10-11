@@ -1,6 +1,6 @@
 // Haertung der MCP-Tools aus dem Review: Pfade, Dateimodus, Anhaengen.
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test, { after, before } from "node:test";
 import { legeAbzugAn, starteServer } from "./mcp-hilfe.mjs";
@@ -65,6 +65,26 @@ test("Anhaengen an eine unlesbare Datei bricht ab statt sie zu ersetzen", { skip
     assert.equal(readFileSync(join(abzug.app, "data", "inbox", "frisch.txt"), "utf8"), "erste\n");
   } finally {
     chmodSync(datei, 0o600);
+    await s.beenden();
+  }
+});
+
+test("datei_lesen: der .txt-Zwilling eines PDFs laeuft durch den Pfadschutz", async () => {
+  mkdirSync(join(abzug.wurzel, "geheim"), { recursive: true });
+  writeFileSync(join(abzug.wurzel, "geheim", "zwilling.txt"), "GEHEIM-ZWILLING\n");
+  writeFileSync(join(abzug.app, "Belege", "ausbruch.pdf"), "%PDF-1.4 x");
+  symlinkSync(join(abzug.wurzel, "geheim", "zwilling.txt"), join(abzug.app, "Belege", "ausbruch.txt"));
+  writeFileSync(join(abzug.app, "Belege", "echt.pdf"), "%PDF-1.4 y");
+  writeFileSync(join(abzug.app, "Belege", "echt.txt"), "Zwillingstext\n");
+  const s = starteServer(abzug);
+  try {
+    const r = await s.werkzeug("datei_lesen", { pfad: "Belege/ausbruch.pdf" });
+    assert.ok(!r.text.includes("GEHEIM"), r.text);
+
+    const echt = await s.werkzeug("datei_lesen", { pfad: "Belege/echt.pdf" });
+    assert.ok(!echt.isError, echt.text);
+    assert.match(echt.text, /Zwillingstext/);
+  } finally {
     await s.beenden();
   }
 });

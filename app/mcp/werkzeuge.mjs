@@ -394,10 +394,18 @@ const dateiLesen = {
           await rm(ordner, { recursive: true, force: true });
         }
       }
-      const zwilling = absolut.replace(/\.pdf$/i, ".txt");
-      const zwillingText = await readFile(zwilling, "utf8").catch(() => null);
+      // Der Zwilling ist ein eigener Pfad und muss selbst durch den Pfadschutz
+      // (sonst liest ein Symlink daneben Dateien ausserhalb der Wurzeln).
+      let zwilling;
+      try {
+        zwilling = await loesePfad(ctx.app, relativ.replace(/\.pdf$/i, ".txt"), LESE_WURZELN);
+      } catch (error) {
+        if (error instanceof PfadFehler) return ergebnis(`Textzwilling zu ${relativ}: ${error.message}`, true);
+        throw error;
+      }
+      const zwillingText = await readFile(zwilling.absolut, "utf8").catch(() => null);
       if (zwillingText !== null) {
-        return ergebnis(`# Textzwilling ${relativ.replace(/\.pdf$/i, ".txt")}\n${zeilenbereich(zwillingText, args.von_zeile, args.bis_zeile, relativ)}`);
+        return ergebnis(`# Textzwilling ${zwilling.relativ}\n${zeilenbereich(zwillingText, args.von_zeile, args.bis_zeile, relativ)}`);
       }
       try {
         const text = (await programm("pdftotext", ["-layout", absolut, "-"])).toString("utf8");

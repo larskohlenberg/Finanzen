@@ -70,6 +70,14 @@ const BASIS_KOPFZEILEN = {
   "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
 };
 
+// Rasterbilder (Belegfotos) im eigenen Tab: der Browser baut dafuer ein
+// Bild-Dokument mit eigenen Inline-Styles (Zentrieren, Zoomen), die die
+// App-CSP blockiert. Rasterbilder fuehren keinen Code aus; fuer sie gilt
+// eine engere CSP ohne Skripte, nur mit Inline-Styles. SVG bleibt bei der
+// App-CSP, weil es Skripte enthalten kann.
+const RASTERBILD_CSP = "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
+const RASTERBILDER = new Set([".png", ".jpg", ".jpeg", ".heic", ".heif"]);
+
 // --- Reine Funktionen ------------------------------------------------------
 
 // Rohes Pfadsegment aus der URL -> sicherer Dateiname fuer die Inbox.
@@ -244,9 +252,11 @@ async function liefereStatik(req, res, appWurzel) {
   // Symlinks, die aus app/ hinauszeigen, werden nicht ausgeliefert.
   if (!innerhalb(appWurzel, echt) || !info.isFile()) return nichtGefunden(res);
 
+  const endung = extname(echt).toLowerCase();
   res.writeHead(200, {
-    "Content-Type": MIME[extname(echt).toLowerCase()] ?? "application/octet-stream",
+    "Content-Type": MIME[endung] ?? "application/octet-stream",
     "Content-Length": info.size,
+    ...(RASTERBILDER.has(endung) ? { "Content-Security-Policy": RASTERBILD_CSP } : {}),
   });
   if (req.method === "HEAD") {
     res.end();

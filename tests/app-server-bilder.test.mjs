@@ -128,8 +128,15 @@ test("kaputte HEIC -> 422 mit Grund, nichts halb abgelegt", async () => {
 });
 
 test("Statik: Bild-MIME-Typen fuer png, jpg und heic", async () => {
-  for (const name of ["a.png", "b.jpg", "c.jpeg", "d.heic", "e.heif"]) await writeFile(join(wurzel, "app", name), "x");
+  for (const name of ["a.png", "b.jpg", "c.jpeg", "d.heic", "e.heif", "f.svg"]) await writeFile(join(wurzel, "app", name), "x");
   await mitServer({}, async ({ statik }) => {
+    // Rasterbilder: Inline-Styles fuers Bild-Dokument des Browsers, keine Skripte
+    const csp = (await statik("/a.png")).headers["content-security-policy"];
+    assert.match(csp, /default-src 'none'/);
+    assert.match(csp, /style-src 'unsafe-inline'/);
+    assert.doesNotMatch(csp, /script-src/);
+    assert.match((await statik("/f.svg")).headers["content-security-policy"], /default-src 'self'/, "SVG behaelt die App-CSP");
+    assert.match((await statik("/index.html")).headers["content-security-policy"], /default-src 'self'/);
     assert.equal((await statik("/a.png")).headers["content-type"], "image/png");
     assert.equal((await statik("/b.jpg")).headers["content-type"], "image/jpeg");
     assert.equal((await statik("/c.jpeg")).headers["content-type"], "image/jpeg");

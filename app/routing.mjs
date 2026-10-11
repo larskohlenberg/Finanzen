@@ -15,6 +15,7 @@ const VIEW_SLUG = {
   masterdata: "stammdaten",
   checks: "checks",
   export: "export",
+  upload: "hochladen",
 };
 const SLUG_VIEW = Object.fromEntries(Object.entries(VIEW_SLUG).map(([view, slug]) => [slug, view]));
 

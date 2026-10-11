@@ -68,6 +68,7 @@ export const navItems = [
   ["szenarien", "nav.szenarien", "szenarien"],
   ["masterdata", "nav.masterdata", "masterdata"],
   ["checks", "nav.checks", "checks"],
+  ["upload", "nav.upload", "upload"],
   ["export", "nav.export", "export"],
 ];
 

@@ -12,6 +12,7 @@ import { renderOverview } from "./views/uebersicht.mjs";
 import { renderMasterdata } from "./views/stammdaten.mjs";
 import { renderChecks } from "./views/checks.mjs";
 import { renderExport } from "./views/export.mjs";
+import { renderUpload, dateienEinreihen, ladeInbox, inboxBeiBedarfLaden } from "./views/upload.mjs";
 import {
   app, data, state, storageKeys, navItems, TABBAR_VIEWS, transaktionenById,
   t, escapeHtml, cents,
@@ -136,6 +137,7 @@ function render() {
   restoreScroll(scrollSnap);
   restoreFocus(focusSnap);
   announceStatus();
+  if (state.view === "upload") inboxBeiBedarfLaden(render);
 }
 
 function renderSidebar() {
@@ -336,6 +338,7 @@ function renderView() {
   if (state.view === "masterdata") return renderMasterdata();
   if (state.view === "checks") return renderChecks();
   if (state.view === "export") return renderExport();
+  if (state.view === "upload") return renderUpload();
   return renderOverview();
 }
 
@@ -480,6 +483,11 @@ app.addEventListener("input", guard((event) => {
 }, setUiError, "input"));
 
 app.addEventListener("change", guard((event) => {
+  const uploadInput = event.target.closest("[data-upload-input]");
+  if (uploadInput) {
+    dateienEinreihen(uploadInput.files, render);
+    return;
+  }
   const control = event.target.closest("[data-control]");
   if (control?.dataset.control === "data-mode") {
     state.dataMode = control.value === "demo" ? "demo" : "live";
@@ -543,6 +551,33 @@ app.addEventListener("change", guard((event) => {
   }
 }, setUiError, "change"));
 
+// Upload: Drop-Zone hebt sich beim Darueberziehen hervor (Klasse direkt am
+// Element, ohne Re-Render). Auf der Upload-Seite verhindert das Fenster, dass
+// eine daneben fallengelassene Datei den Browser von der App wegnavigiert.
+app.addEventListener("dragover", (event) => {
+  const zone = event.target.closest?.("[data-upload-drop]");
+  if (!zone) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+  zone.classList.add("is-dragover");
+});
+app.addEventListener("dragleave", (event) => {
+  const zone = event.target.closest?.("[data-upload-drop]");
+  if (zone && !zone.contains(event.relatedTarget)) zone.classList.remove("is-dragover");
+});
+app.addEventListener("drop", guard((event) => {
+  const zone = event.target.closest?.("[data-upload-drop]");
+  if (!zone) return;
+  event.preventDefault();
+  zone.classList.remove("is-dragover");
+  dateienEinreihen(event.dataTransfer.files, render);
+}, setUiError, "drop"));
+for (const typ of ["dragover", "drop"]) {
+  window.addEventListener(typ, (event) => {
+    if (state.view === "upload") event.preventDefault();
+  });
+}
+
 // Diagramm-Hover: delegierter pointermove-Handler auf dem App-Container.
 bindDiagrammHover(app);
 
@@ -594,6 +629,14 @@ async function handleAction(element) {
     const url = new URL(window.location.href);
     url.searchParams.set("_reload", String(Date.now()));
     window.location.assign(url);
+    return;
+  }
+  if (action === "upload-choose") {
+    document.getElementById("upload-input")?.click();
+    return;
+  }
+  if (action === "upload-refresh") {
+    void ladeInbox(render);
     return;
   }
   if (action === "toggle-more-menu") {

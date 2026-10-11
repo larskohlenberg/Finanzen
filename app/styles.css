@@ -2067,3 +2067,128 @@ tr.clickable.selected td:first-child {
 .error-banner-dismiss {
   margin-top: 0.5rem;
 }
+
+/* Hochladen (#/hochladen) */
+.upload-hinweis {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  color: var(--muted);
+}
+
+.upload-hinweis .icon {
+  margin-top: 0.2em;
+  color: var(--accent);
+}
+
+.upload-drop {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 32px 18px;
+  border: 2px dashed var(--border-strong);
+  text-align: center;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.upload-drop.is-dragover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.upload-drop-icon {
+  color: var(--accent);
+}
+
+.upload-drop .section-title {
+  margin: 0;
+}
+
+.upload-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 9px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.upload-button:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.upload-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.upload-kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.upload-liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upload-zeile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, auto);
+  gap: 12px;
+  align-items: center;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+}
+
+.upload-zeile:first-child {
+  border-top: 0;
+}
+
+.upload-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.upload-status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.upload-detail {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.upload-hinweis-api {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  color: var(--review);
+}
+
+@media (max-width: 640px) {
+  .upload-zeile {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .upload-status {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}

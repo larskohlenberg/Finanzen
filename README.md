@@ -6,7 +6,7 @@ Dieses Projekt startet nach der Excel-Retrospektive neu als agentenfreundliches 
 
 - Excel ist nicht mehr Masterformat.
 - Masterdaten liegen in einfachen, validierbaren Dateien.
-- Die Oberflaeche ist eine geschuetzte Web-App, die aus `app/` ausgeliefert wird.
+- Die Oberflaeche ist eine geschuetzte Web-App, die der App-Server `app/server.mjs` aus `app/` ausliefert. Produktiv laeuft sie auf einer eigenen VM hinter Reverse Proxy mit Authentifizierung; Rohdateien kommen per Hochladen in die Inbox, Agenten arbeiten ueber MCP per SSH (ADR 0028). Lokal nur Demodaten.
 - Produktive App-Daten, Schemas, Belege, Tools und Agenten-Skills liegen im App-Raum.
 - Markdown dokumentiert Anforderungen, Architektur, Entscheidungen und Handover.
 - Excel kann spaeter als Export entstehen, aber nicht als fuehrende Quelle.
@@ -30,7 +30,7 @@ archiv/              Alter Excel-V1-Stand und Zwischenartefakte
 
 1. `CONTEXT.md` und `app/README.md` lesen.
 2. `docs/runde2/Anforderungen_Runde2.md` und `docs/runde2/Datenmodell_Runde2.md` lesen.
-3. Bei Architekturfragen die aktuellen ADRs lesen, insbesondere ADR 0012 und ADR 0015.
+3. Bei Architekturfragen die aktuellen ADRs lesen, insbesondere ADR 0012, ADR 0015 und ADR 0028.
 4. Nur den naechsten fachlichen Meilenstein umsetzen.
 5. Vor jedem neuen Ausbau die Exit-Kriterien in `docs/runde2/Meilensteine_Runde2.md` pruefen.
 6. Fuer UI-Arbeit zusaetzlich `docs/runde2/UI_Guideline_Runde2.md` (Stilrichtlinie), `docs/runde2/UI_Umsetzungsplan_Runde2.md` (Phasenplan) und `docs/runde2/UI_Handoff_Komponenten_Runde2.md` (Komponenten-Spec mit Massen, Tokens, States, bekannten Bugs) lesen.
@@ -40,6 +40,7 @@ archiv/              Alter Excel-V1-Stand und Zwischenartefakte
 ```bash
 npm test
 npm run validate:fixtures
+node app/server.mjs   # App lokal starten
 ```
 
 `npm run validate:master` prueft den lokalen privaten Masterdatenstand unter `app/data/master/`. Diese produktiven Daten werden bewusst nicht versioniert.

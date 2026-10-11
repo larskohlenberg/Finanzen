@@ -113,7 +113,7 @@ const CLI_WERKZEUGE = [
     pflicht: ["datei"],
     schreibFlag: true,
     ohneVorschau: true,
-    argv: async (ctx, a, root) => [(await loesePfad(ctx.app, a.datei, ["data/inbox"])).relativ, root],
+    argv: async (ctx, a, root) => [(await loesePfad(ctx.app, a.datei, ["data/inbox"])).absolut, root],
   }),
   cli({
     name: "regel_vorschlag",
@@ -144,7 +144,8 @@ const CLI_WERKZEUGE = [
         datei = path.join(ordner, "kandidaten.json");
         await writeFile(datei, JSON.stringify(a.kandidaten));
       } else if (a.kandidaten_datei) {
-        datei = (await loesePfad(ctx.app, a.kandidaten_datei, SCHREIB_WURZELN)).relativ;
+        // Den geprueften absoluten Pfad reichen: die CLI soll nichts mehr deuten.
+        datei = (await loesePfad(ctx.app, a.kandidaten_datei, SCHREIB_WURZELN)).absolut;
       } else {
         throw new PfadFehler("kandidaten oder kandidaten_datei angeben");
       }

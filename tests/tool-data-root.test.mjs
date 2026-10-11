@@ -14,6 +14,12 @@ test("dataRootFromArg resolves app-relative demo root with a trailing slash", ()
   assert.ok(root.href.endsWith("/app/data/demo/"));
 });
 
+test("dataRootFromArg nimmt Prozentzeichen im Pfad woertlich", () => {
+  const root = dataRootFromArg("/tmp/roh%2e%2e/master", new URL("../app/data/master/", import.meta.url));
+
+  assert.equal(root.href, "file:///tmp/roh%252e%252e/master/");
+});
+
 test("dataRootFromArg resolves data/* roots relative to the app root", () => {
   const appRoot = new URL("../app/", import.meta.url);
   const root = dataRootFromArg("data/demo", new URL("../app/data/master/", import.meta.url), appRoot);

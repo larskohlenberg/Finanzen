@@ -27,7 +27,8 @@
 // Nicht blockierend, aber berichtet: Kandidaten ohne jeden Treffer. Eine Regel
 // darf wissensbasiert fuer kuenftige Buchungen angelegt werden.
 import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { toCents } from "./lib/text.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
@@ -284,7 +285,7 @@ async function main() {
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readFile(new URL("kategorisierungsregeln.json", masterRoot), "utf8").then(JSON.parse),
     readFile(new URL("kategorien.json", masterRoot), "utf8").then(JSON.parse),
-    readFile(new URL(kandidatenPfad, `file://${process.cwd()}/`), "utf8").then(JSON.parse),
+    readFile(pathToFileURL(resolve(process.cwd(), kandidatenPfad)), "utf8").then(JSON.parse),
   ]);
 
   const out = probelauf({

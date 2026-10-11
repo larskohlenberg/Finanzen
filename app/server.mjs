@@ -248,6 +248,17 @@ async function sha256Datei(pfad) {
 
 class ZuGross extends Error {}
 
+// FileHandle.write darf weniger Bytes schreiben als verlangt (z. B. bei
+// knappem Speicher): so lange nachschreiben, bis der ganze Puffer drin ist.
+export async function schreibeVoll(datei, puffer) {
+  let offset = 0;
+  while (offset < puffer.length) {
+    const { bytesWritten } = await datei.write(puffer, offset, puffer.length - offset);
+    if (!(bytesWritten > 0)) throw new Error("Schreiben ohne Fortschritt");
+    offset += bytesWritten;
+  }
+}
+
 // Legt temp unter ziel ab, ohne je zu ueberschreiben: link() scheitert atomar
 // mit EEXIST, wenn ziel schon existiert (auch wenn es gerade erst ein anderer
 // Prozess angelegt hat). temp bleibt liegen; der Aufrufer raeumt es weg.
@@ -312,7 +323,7 @@ export function createAppServer({ appDir, inboxDir, proxyIp = null, origins = nu
           groesse += teil.length;
           if (groesse > maxBytes) throw new ZuGross();
           hash.update(teil);
-          await datei.write(teil);
+          await schreibeVoll(datei, teil);
         }
         await datei.sync();
       } finally {

@@ -1,10 +1,10 @@
-// Upload-Abschluss: nie ueberschreiben.
+// Upload-Abschluss: nie ueberschreiben, Teilschreibvorgaenge vollstaendig.
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { legeAbOhneUeberschreiben } from "../app/server.mjs";
+import { legeAbOhneUeberschreiben, schreibeVoll } from "../app/server.mjs";
 
 test("legeAbOhneUeberschreiben: freies Ziel wird belegt, vorhandenes nie ueberschrieben", async () => {
   const ordner = await mkdtemp(join(tmpdir(), "finanzen-ablage-test-"));
@@ -21,4 +21,23 @@ test("legeAbOhneUeberschreiben: freies Ziel wird belegt, vorhandenes nie uebersc
   } finally {
     await rm(ordner, { recursive: true, force: true });
   }
+});
+
+test("schreibeVoll: wiederholt, bis alle Bytes geschrieben sind", async () => {
+  const geschrieben = [];
+  const datei = {
+    // schreibt hoechstens zwei Bytes je Aufruf, wie bei knappem Speicher
+    async write(puffer, offset, laenge) {
+      const n = Math.min(2, laenge);
+      geschrieben.push(...puffer.subarray(offset, offset + n));
+      return { bytesWritten: n, buffer: puffer };
+    },
+  };
+  await schreibeVoll(datei, Buffer.from("abcdefg"));
+  assert.equal(Buffer.from(geschrieben).toString(), "abcdefg");
+});
+
+test("schreibeVoll: bricht ab, wenn nichts mehr geschrieben wird", async () => {
+  const datei = { async write() { return { bytesWritten: 0 }; } };
+  await assert.rejects(schreibeVoll(datei, Buffer.from("abc")));
 });

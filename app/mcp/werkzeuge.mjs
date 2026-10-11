@@ -597,6 +597,17 @@ export function sichtbareWerkzeuge(ctx) {
     .map(({ name, description, inputSchema, annotations }) => ({ name, description, inputSchema, ...(annotations ? { annotations } : {}) }));
 }
 
+// Schreibende Aufrufe einer Sitzung laufen nacheinander: Clients schicken
+// Tool-Aufrufe parallel, und Lesen-Aendern-Schreiben (anhaengen, ersetzen)
+// sowie Kopie und Rueckspielen in mitRollback vertragen keine Ueberlappung.
+// Zwischen zwei Sitzungen (Prozessen) gibt es bewusst keine Sperre.
+let schreibKette = Promise.resolve();
+function nacheinander(fn) {
+  const lauf = schreibKette.then(fn);
+  schreibKette = lauf.catch(() => {});
+  return lauf;
+}
+
 // Liefert ein MCP-CallToolResult oder null (unbekanntes Tool).
 export async function rufeWerkzeug(ctx, name, args = {}) {
   const werkzeug = WERKZEUGE.find((w) => w.name === name);
@@ -607,8 +618,10 @@ export async function rufeWerkzeug(ctx, name, args = {}) {
   }
   const fehler = pruefeArgumente(werkzeug.inputSchema, args);
   if (fehler.length) return alsErgebnis(ergebnis(`Ungueltige Argumente:\n${fehler.map((f) => `- ${f}`).join("\n")}`, true));
+  const schreibt = Boolean(werkzeug.nurSchreiben || (args.schreiben === true && werkzeug.inputSchema.properties?.schreiben));
   try {
-    return alsErgebnis(await werkzeug.ausfuehren(ctx, args));
+    const lauf = () => werkzeug.ausfuehren(ctx, args);
+    return alsErgebnis(await (schreibt ? nacheinander(lauf) : lauf()));
   } catch (error) {
     return alsErgebnis(ergebnis(error instanceof PfadFehler ? `Pfad abgewiesen: ${error.message}` : `Fehler: ${error.message}`, true));
   }

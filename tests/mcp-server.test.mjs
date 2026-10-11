@@ -244,3 +244,37 @@ test("Schreib-Lauf einer CLI validiert danach", async () => {
     await s.beenden();
   }
 });
+
+test("Parallele Schreibaufrufe einer Sitzung laufen nacheinander: kein verlorenes Anhaengen, kein fremder Rollback", async () => {
+  const s = starteServer(abzug, "schreiben");
+  const logPfad = join(abzug.master, "agent_log.jsonl");
+  const kontenPfad = join(abzug.master, "konten.json");
+  const kontenVorher = readFileSync(kontenPfad, "utf8");
+  try {
+    const anhaengen = Array.from({ length: 6 }, (_, i) =>
+      s.werkzeug("datei_schreiben", { pfad: "data/master/agent_log.jsonl", inhalt: `{"anlass":"parallel-${i}"}`, anhaengen: true }));
+    // Ein kaputter Schreibvorgang dazwischen darf beim Rollback keine fremden Schreibvorgaenge mitnehmen.
+    const kaputt = s.werkzeug("datei_schreiben", { pfad: "data/master/konten.json", inhalt: "{ kaputt" });
+    const ergebnisse = await Promise.all([...anhaengen, kaputt]);
+    for (const r of ergebnisse.slice(0, 6)) assert.ok(!r.isError, r.text);
+    assert.equal(ergebnisse[6].isError, true);
+    const log = readFileSync(logPfad, "utf8");
+    for (let i = 0; i < 6; i += 1) assert.ok(log.includes(`"parallel-${i}"`), `Eintrag parallel-${i} fehlt`);
+    assert.equal(readFileSync(kontenPfad, "utf8"), kontenVorher);
+  } finally {
+    await s.beenden();
+  }
+});
+
+test("datei_ersetzen parallel auf dieselbe Datei verliert keine Aenderung", async () => {
+  const s = starteServer(abzug, "schreiben");
+  const pfad = join(abzug.app, "data", "inbox", "notiz.txt");
+  writeFileSync(pfad, "a=1\nb=1\nc=1\n");
+  try {
+    const r = await Promise.all(["a", "b", "c"].map((k) => s.werkzeug("datei_ersetzen", { pfad: "data/inbox/notiz.txt", alt: `${k}=1`, neu: `${k}=2` })));
+    for (const x of r) assert.ok(!x.isError, x.text);
+    assert.equal(readFileSync(pfad, "utf8"), "a=2\nb=2\nc=2\n");
+  } finally {
+    await s.beenden();
+  }
+});

@@ -36,6 +36,7 @@ async function spieleZurueck(kopie, datenrootPfad) {
 export async function mitRollback(datenrootPfad, fn) {
   const vorher = await validiere(datenrootPfad);
   const kopie = await kopiereDatenroot(datenrootPfad);
+  let sicherungBehalten = false;
   try {
     let ergebnis;
     try {
@@ -50,12 +51,22 @@ export async function mitRollback(datenrootPfad, fn) {
       const befund = nachher.gueltig ? "Validator nach dem Schreiben: gueltig." : `Validator nach dem Schreiben: ${nachher.fehler.length} Fehler, alle schon vorher vorhanden.`;
       return { ...ergebnis, text: `${ergebnis.text}\n\n${befund}` };
     }
-    await spieleZurueck(kopie, datenrootPfad);
+    try {
+      await spieleZurueck(kopie, datenrootPfad);
+    } catch (error) {
+      // Der Master kann jetzt teilweise fehlen: die Sicherung ist die einzige
+      // Quelle fuer die Wiederherstellung und bleibt liegen.
+      sicherungBehalten = true;
+      return {
+        isError: true,
+        text: `${ergebnis.text}\n\nValidator meldet ${neu.length} neue(n) Fehler, Zurueckspielen fehlgeschlagen (${error.message}). Masterstand von Hand aus der Sicherung wiederherstellen. Sicherung: ${kopie}`,
+      };
+    }
     return {
       isError: true,
       text: `${ergebnis.text}\n\nValidator meldet ${neu.length} neue(n) Fehler — Masterstand wurde zurueckgesetzt:\n${neu.slice(0, 30).map((f) => `- ${f}`).join("\n")}\n\nHinweis: Verschiebungen und Loeschungen in data/inbox/ und Belege/ werden nicht zurueckgerollt.`,
     };
   } finally {
-    await rm(kopie, { recursive: true, force: true });
+    if (!sicherungBehalten) await rm(kopie, { recursive: true, force: true });
   }
 }

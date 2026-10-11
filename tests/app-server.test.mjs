@@ -250,6 +250,15 @@ test("GET /api/inbox: nur Dateien direkt in der Inbox, neueste zuerst", async ()
   }
 });
 
+// --- Host-Pruefung (DNS-Rebinding) ---------------------------------------
+
+test("Fremder Host -> 403 fuer alle Anfragen, erlaubter Host -> 200", async () => {
+  assert.equal((await anfrage({ path: "/", headers: { Host: "boese.example" } })).status, 403);
+  assert.equal((await anfrage({ path: "/api/inbox", headers: { Host: `boese.example:${port}` } })).status, 403);
+  assert.equal((await anfrage({ path: "/", headers: { Host: `localhost:${port}` } })).status, 200);
+  assert.equal((await anfrage({ path: "/" })).status, 200);
+});
+
 // --- Betriebsmodus hinter dem Proxy ---------------------------------------
 
 test("Proxy-Modus: nur Proxy-IP mit Remote-User, sonst 403 (auch Statik)", async () => {
@@ -273,9 +282,11 @@ test("Explizite Origin ersetzt die lokalen Defaults", async () => {
   const s = await starte({ origins: ["https://finanzen.example.org"] });
   const p = s.address().port;
   try {
-    const put = (origin) => anfrage({ method: "PUT", path: "/api/inbox/o.txt", headers: { "X-Finanzen-Upload": "1", Origin: origin }, body: "o", p });
+    const put = (origin) => anfrage({ method: "PUT", path: "/api/inbox/o.txt", headers: { Host: "finanzen.example.org", "X-Finanzen-Upload": "1", Origin: origin }, body: "o", p });
     assert.equal((await put(`http://127.0.0.1:${p}`)).status, 403);
     assert.equal((await put("https://finanzen.example.org")).status, 201);
+    assert.equal((await anfrage({ path: "/", headers: { Host: "finanzen.example.org:443" }, p })).status, 200);
+    assert.equal((await anfrage({ path: "/", p })).status, 403, "Loopback-Host gilt mit --origin nicht mehr");
   } finally {
     await new Promise((resolve) => s.close(resolve));
   }

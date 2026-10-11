@@ -16,6 +16,7 @@ import {
   pruefeZugang,
   parseArgs,
   erlaubteOrigins,
+  erlaubteHosts,
 } from "../app/server.mjs";
 
 test("Upload-Regeln: Endungen und Grenze", () => {
@@ -137,4 +138,10 @@ test("parseArgs: ungueltige Werte werfen", () => {
 test("erlaubteOrigins: explizit oder lokale Defaults zum Port", () => {
   assert.deepEqual(erlaubteOrigins({ origins: null, port: 8771 }), ["http://127.0.0.1:8771", "http://localhost:8771"]);
   assert.deepEqual(erlaubteOrigins({ origins: ["https://finanzen.example.org"], port: 8771 }), ["https://finanzen.example.org"]);
+});
+
+test("erlaubteHosts: lokal Loopback mit Port, sonst Host aus der Origin (mit/ohne Default-Port)", () => {
+  assert.deepEqual(erlaubteHosts({ origins: null, port: 8771 }), ["127.0.0.1:8771", "localhost:8771"]);
+  assert.deepEqual(erlaubteHosts({ origins: ["https://finanzen.example.org"], port: 8080 }), ["finanzen.example.org", "finanzen.example.org:443"]);
+  assert.deepEqual(erlaubteHosts({ origins: ["http://192.0.2.10:8080"], port: 8080 }), ["192.0.2.10:8080"]);
 });

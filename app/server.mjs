@@ -8,6 +8,8 @@
 //   node app/server.mjs [--host 127.0.0.1] [--port 8000] [--proxy-ip <ip>]
 //                       [--origin <url>[,<url>]] [--inbox <pfad>]
 //
+// Jede Anfrage braucht eine erlaubte Host-Kopfzeile (Schutz gegen DNS-
+// Rebinding): lokal Loopback mit Port, mit --origin der Host der Origin.
 // Mit --proxy-ip laeuft er im Betriebsmodus hinter einem Reverse-Proxy: jede
 // Anfrage, die nicht von dieser IP kommt oder keine Remote-User-Kopfzeile
 // traegt, bekommt 403. Konkrete IPs/Domains kommen nur per Argument.
@@ -99,6 +101,17 @@ export function pruefeZugang({ proxyIp, remoteAddress, remoteUser }) {
 
 export function erlaubteOrigins({ origins, port }) {
   return origins ?? [`http://127.0.0.1:${port}`, `http://localhost:${port}`];
+}
+
+// Erlaubte Host-Kopfzeilen (Schutz gegen DNS-Rebinding): lokal nur Loopback
+// mit Port, mit --origin nur der Host der Origin — mit und ohne Default-Port.
+export function erlaubteHosts({ origins, port }) {
+  if (!origins) return [`127.0.0.1:${port}`, `localhost:${port}`];
+  return origins.flatMap((origin) => {
+    const url = new URL(origin);
+    if (url.port) return [url.host];
+    return [url.host, `${url.hostname}:${url.protocol === "https:" ? 443 : 80}`];
+  });
 }
 
 function originAusUrl(wert) {
@@ -328,7 +341,9 @@ export function createAppServer({ appDir, inboxDir, proxyIp = null, origins = nu
 
   async function behandle(req, res) {
     for (const [k, v] of Object.entries(BASIS_KOPFZEILEN)) res.setHeader(k, v);
-    if (!pruefeZugang({ proxyIp, remoteAddress: req.socket.remoteAddress, remoteUser: req.headers["remote-user"] })) {
+    const host = String(req.headers.host ?? "").toLowerCase();
+    const hostOk = erlaubteHosts({ origins, port: server.address()?.port }).includes(host);
+    if (!hostOk || !pruefeZugang({ proxyIp, remoteAddress: req.socket.remoteAddress, remoteUser: req.headers["remote-user"] })) {
       res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("Zugriff verweigert\n");
       return;
@@ -383,6 +398,7 @@ function main() {
     console.log(`Inbox: ${opt.inbox} (Endungen: ${ERLAUBTE_ENDUNGEN.join(", ")})`);
     console.log(opt.proxyIp ? `Betriebsmodus: nur Anfragen von ${opt.proxyIp} mit Remote-User` : "Lokaler Modus (ohne Proxy-Pruefung)");
     console.log(`Erlaubte Origins: ${erlaubteOrigins({ origins: opt.origins, port }).join(", ")}`);
+    console.log(`Erlaubte Hosts: ${erlaubteHosts({ origins: opt.origins, port }).join(", ")}`);
     console.log(`Offen: http://${opt.host.includes(":") ? `[${opt.host}]` : opt.host}:${port}`);
   });
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => server.close(() => process.exit(0)));

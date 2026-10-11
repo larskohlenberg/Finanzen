@@ -58,6 +58,8 @@ const BASIS_KOPFZEILEN = {
   Expires: "0",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
+  // Die App kommt ohne Inline-Skripte, Inline-Styles und fremde Quellen aus.
+  "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
 };
 
 // --- Reine Funktionen ------------------------------------------------------

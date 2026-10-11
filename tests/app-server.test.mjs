@@ -82,6 +82,7 @@ test("Statik: / liefert index.html mit No-Cache- und Sicherheits-Kopfzeilen", as
   assert.match(r.headers["cache-control"], /no-store/);
   assert.equal(r.headers["x-content-type-options"], "nosniff");
   assert.equal(r.headers["referrer-policy"], "no-referrer");
+  assert.match(r.headers["content-security-policy"], /default-src 'self'/);
 });
 
 test("Statik: MIME-Typen fuer Module und JSON, HEAD ohne Body", async () => {

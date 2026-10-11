@@ -1,0 +1,35 @@
+# Vorlage: App-Server der Finanz-App als systemd-Dienst.
+# Installation (als root):
+#   cp ops/systemd/finanzen-app.service /etc/systemd/system/
+#   install -d -m 750 /etc/finanzen
+#   cp ops/systemd/app.env.beispiel /etc/finanzen/app.env   # Werte anpassen
+#   systemctl daemon-reload && systemctl enable --now finanzen-app
+[Unit]
+Description=Finanz-App (statische App + Inbox-Upload)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=finanzen
+Group=finanzen
+WorkingDirectory=/opt/finanzen
+EnvironmentFile=/etc/finanzen/app.env
+ExecStart=/usr/bin/node /opt/finanzen/app/server.mjs --host ${FINANZEN_HOST} --port ${FINANZEN_PORT} --proxy-ip ${FINANZEN_PROXY_IP} --origin ${FINANZEN_ORIGIN}
+Restart=on-failure
+RestartSec=5
+
+# Haertung: alles read-only ausser der Inbox.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/finanzen/app/data/inbox
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

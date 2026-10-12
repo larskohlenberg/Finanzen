@@ -292,6 +292,22 @@ fachlichen Zielzustand, kein Historienfeld.
 Nach-Kategorisierung laeuft ueber `tools/recategorize.mjs`. Reimport ist kein Mittel
 zur Nach-Kategorisierung, weil bekannte Buchungen per Dedupe uebersprungen werden.
 
+Auto-Freigaben (`bestaetigt_durch = auto`) bewertet die Nach-Kategorisierung
+neu, auch wenn sie vom Agenten stammen (ADR 0025). Trifft eine Regel eine
+solche Agenten-Buchung eindeutig:
+
+- **gleiche Kategorie:** Die Schaetzung hat jetzt einen Beleg. Die Herkunft
+  wird `regel`, `matched_regeln` wird gesetzt, Status `bestaetigt` und
+  `bestaetigt_durch = auto` bleiben. Der Bericht zaehlt das als `belegt`. Der
+  Zaehler „vom Agenten geschaetzt" im Pruefbericht sinkt entsprechend, und die
+  Buchung zaehlt ab jetzt als Treffer der Regel auf ihrem Konto.
+- **andere Kategorie:** Wiedervorlage als Regelvorschlag (`vorgeschlagen`,
+  Herkunft `regel`), wie bei jeder Auto-Freigabe.
+- **kein eindeutiger Treffer:** unveraendert.
+
+Menschlich bestaetigte Agenten-Buchungen (`bestaetigt_durch = mensch`) fasst
+die Nach-Kategorisierung nie an.
+
 ## Validierung und Tools
 
 Validierung ist deterministischer Code. Agenten fuehren Validierung aus, statt
@@ -411,8 +427,9 @@ ein zweites Mal aendert nichts.
 
 ### Wer darf welche Entscheidung anfassen
 
-- **Automatische Laeufe** (`import.mjs`, `recategorize.mjs`) fassen `bestaetigt`,
-  `abgelehnt` und `manuell` nie an.
+- **Automatische Laeufe** (`import.mjs`, `recategorize.mjs`) fassen menschlich
+  `bestaetigt`, `abgelehnt` und `manuell` nie an. Auto-Freigaben darf
+  `recategorize.mjs` neu bewerten (siehe Kategorisierung und Herkunft).
 - **`confirm.mjs`** ist der menschliche Kanal und darf eine fruehere Entscheidung
   korrigieren — aber nur mit ausdruecklichem `--auch-entschiedene`. Ohne das Flag
   ueberspringt es entschiedene Buchungen und zaehlt sie als `uebersprungen`.

@@ -75,6 +75,16 @@ Typische Spaltenzuordnung fuer Bank-CSV-Exporte:
 
 Bei abgehenden Zahlungen ist `Zahlungsempfaenger*in` die Gegenpartei/der Empfaenger. Bei eingehenden Zahlungen kann die Rohspalte stattdessen `Zahlungspflichtige*r`, `Auftraggeber*in` oder aehnlich heissen; dann diese Partei als `gegenpartei` verwenden und `empfaenger` nur setzen, wenn wirklich ein separater Empfaenger ausgewiesen ist.
 
+**`empfaenger_iban` nennt nur den Empfaenger eines Ausgangs.** Druckt die Bank
+bei einer Gutschrift die IBAN des Absenders, gehoert sie **nicht** in
+`empfaenger_iban`; ein eigenes Feld fuer die Absender-IBAN gibt es nicht. Steht
+sie im Buchungstext, bleibt sie dort; steht sie in einer eigenen Zeile, entfaellt
+sie. Begruendung: Interne Transfers paart der Transfer-Matcher ueber die
+Ausgangsseite, die die Kontoreferenz des Gegenkontos traegt; fuer externe
+Eingaenge nutzt das Modell die Absender-IBAN nirgends. Aeltere Buchungen, die
+dort die Absender-IBAN tragen, bleiben stehen (das Feld geht nicht in den Hash,
+und den Transfer-Match stoert es nicht); sie werden nicht nachtraeglich bereinigt.
+
 Wenn eines dieser Felder fuer eine Zeile nicht zuverlaessig extrahierbar ist: **nicht raten** — die Zeile gehoert in den Fehlerpfad (siehe unten).
 
 Zusaetzlich zu den Buchungen musst du bei Kontoauszuegen und Banking-Exporten auf belegte Kontostaende achten, z. B. "Kontostand vom ...", "Alter Saldo", "Neuer Saldo" oder vergleichbare Bankformulierungen. Beim Initialimport eines neuen Kontos ist ein solcher Stand ein moeglicher Saldo-Anker fuer die Liquiditaet. Du erkennst ihn und entscheidest nach der Reconciliation-Regel unten, statt ihn still zu uebernehmen oder den Lauf dafuer anzuhalten.
@@ -162,7 +172,7 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
    - `zweck`: `verwendungszweck` nach Normalisierung (trim, Whitespace kollabieren, lowercase) identisch, ≤ 3 Tage.
    - `iban`: `empfaenger_iban` einer Seite ist die `kontoreferenz` des Gegenkontos, ≤ 5 Tage.
    - `iban-text`: der `verwendungszweck` einer Seite nennt die `kontoreferenz` des Gegenkontos als IBAN, ≤ 5 Tage.
-   Steht bei einem Eingang die **Absender**-IBAN nur im Text (etwa „Incoming transfer from <Name> (<IBAN>)"), reicht das jetzt fuer den Match: die IBAN im `verwendungszweck` lassen und **nicht** nach `empfaenger_iban` schreiben — das Feld nennt nur den Empfaenger eines Ausgangs. Mehrdeutige Faelle (zwei gleich nahe Gegenstuecke) paart das Tool nicht, sondern meldet sie unter `mehrdeutig`; die klaert der Nutzer. Details: `agent-context.md`, „Auto-Match von Transfers".
+   Steht bei einem Eingang die **Absender**-IBAN nur im Text (etwa „Incoming transfer from <Name> (<IBAN>)"), reicht das fuer den Match: die IBAN im `verwendungszweck` lassen und **nicht** nach `empfaenger_iban` schreiben (Konvention oben bei der Feldtabelle). Mehrdeutige Faelle (zwei gleich nahe Gegenstuecke) paart das Tool nicht, sondern meldet sie unter `mehrdeutig`; die klaert der Nutzer. Details: `agent-context.md`, „Auto-Match von Transfers".
    Bei Match: Transfer-Datensatz anlegen, `ist_transfer = true` auf beiden Seiten, `transfer_id` setzen.
    Externe Transfers (Bargeld, Familie) erkennt das Tool nicht — die markiert der Nutzer im Dialog.
 9. **Immobiliencheck fuer neue Transaktionen**: Vor dem Abschluss jedes Importlaufs genau die IDs aus `result.written` beziehungsweise `geschriebene_ids` pruefen.
@@ -208,8 +218,95 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
 - **Rechnungsabschluss**: Das separate Dokument enthaelt keine Buchung. Die
   Abschlussbuchung (Zinsen, Entgelte) steht im Auszug zum Quartalsende. Der
   Abschluss nennt keinen Gegenpartei-Namen; die Bank selbst eintragen.
-- **Dateiname**: Im Download-Namen steht das Abrufdatum, nicht das Belegdatum —
-  Zeitraum bzw. Abrechnungstag aus dem Beleg nehmen.
+
+## PDF-Kontoauszug mit Vorzeichen-Betraegen und Valuta-Spalte
+
+- **Kopfzeile je Posten**: `DD.MM. DD.MM. <Vorgang> - Betrag` (Soll) bzw.
+  `+ Betrag` (Haben). Das Jahr steht in der Folgezeile unter beiden Daten. Die
+  Spaltenfolge ist fest: erst Buchungstag, dann Valuta. Bei Echtzeit-Ausgaengen
+  kann die Valuta vor dem Buchungstag liegen; nicht tauschen.
+- **Gegenpartei** ist die Zeile nach dem Vorgang. Danach folgt die Marke
+  `Verwendungszweck/ Kundenreferenz`; die Zweckzeilen mit Leerzeichen verbinden.
+  `IBAN …` steht nur bei Ausgaengen und geht nach `empfaenger_iban`,
+  `Glaeubiger-ID` nach `glaeubiger_id`, `Mand-ID` nach `mandatsreferenz`.
+- **Viererkuerzel am Zweckende** wie `OTHR`, `RCUR`, `RINP`, `SALA`, `ABWA`,
+  `ABWE` gehoeren nicht in den Zweck. Was der Bestand des Kontos schon mitfuehrt
+  (z. B. `GDDS`, `IVPT`), bleibt drin. Vorher im Bestand pruefen, sonst kippen
+  Hash und Regeln.
+- **Kartenzahlung** hat keine Gegenpartei-Zeile. Gegenpartei ist der
+  Haendlertext vor `//`, beim aelteren Format mit `Folgenr./Verfalld.` der Text
+  vor dem ersten `/`.
+- **Kreditkartenabrechnung** hat keinen Vorgang; die Zeile beginnt direkt mit der
+  Zweck-Marke. `gegenpartei` bleibt leer, kein `transaktionstyp`.
+- **Abschlussposten im Auszug**: Die Zeile traegt keinen Vorgang, nur „Saldo der
+  Abschlussposten". Den `transaktionstyp` (z. B. Habenzinsen) nennt nur der
+  separate Kontoabschluss. Liegt der nicht vor, `transaktionstyp` leer lassen
+  statt aus frueheren Quartalen fortzuschreiben.
+- **Kontoabschluss als eigenes Dokument**: Bei „Saldo der Abschlussposten 0,00"
+  gibt es nichts zu buchen, und die Zeile fehlt dann auch im Auszug. Der dort
+  genannte Kontosaldo ist derselbe wie der Neue Saldo des Quartalsend-Auszugs und
+  kein zusaetzlicher Beleg fuer die Reconciliation.
+- **Ersatzzeichen**: Ein `?` statt eines Umlauts im Haendlernamen steht so im PDF.
+  Woertlich uebernehmen, nicht korrigieren.
+
+## PDF-Monatsauszug mit Spalten lfd. Nr. / Buchungsdatum / Umsatzinformationen / Wertstellung / Soll / Haben
+
+- **Kopfzeile je Posten**: lfd. Nr., Buchungsdatum, Umsatzart (→
+  `transaktionstyp`), Wertstellung, Betrag in der Soll- oder Haben-Spalte (Soll
+  mit Minus gedruckt).
+- **Folgezeilen**: Die erste Textzeile ist der `verwendungszweck`. Eine rein
+  numerische SEPA-Referenz geht nach `kundenreferenz`, nicht nach
+  `bank_referenz`: sie bleibt ueber Monate gleich. Die Namenszeile direkt vor der
+  Zeile „BIC … IBAN …" ist die `gegenpartei`.
+- **IBAN-Zeile**: Bei Belastungen nennt sie den Empfaenger (→ `empfaenger_iban`),
+  bei Gutschriften den Absender. Den Absender **nicht** nach `empfaenger_iban`
+  (Konvention bei der Feldtabelle oben).
+- **„Rechnungsabschluss <Datum>"**: Das unterstrichene Band ist die Ueberschrift
+  der folgenden Zinsbuchung, kein Buchungstext. Ein Monatsauszug ohne Bewegung
+  kann nur aus dieser Zinsbuchung bestehen.
+- **Saldokette** ueber Auszugsnummer und „letzter Auszug vom": Alter Kontostand =
+  Neuer Kontostand des Vorauszugs. Fehlen Vorauszuege (Sprung in der
+  Auszugsnummer oder „letzter Auszug vom" juenger als der Bestand), ist der Neue
+  Kontostand **nicht** als Anker schreibbar, auch wenn der Auszug in sich aufgeht.
+- **Freistellungsblock** („Gesamtzinsertraege"): Er summiert alle Konten des
+  Kunden bei dieser Bank. Steigt er staerker als die Habenzinsen des Auszugs, hat
+  ein anderes Konto derselben Bank Zinsen gutgeschrieben, ein Hinweis auf eine
+  Festgeld-Rueckzahlung. Festgeld bekommt nie ein eigenes Konto
+  (Nutzerentscheidung): Anlage und Rueckzahlung laufen ueber das Tagesgeldkonto
+  auf `KAT-010`, mit `bemerkung`.
+
+## Broker-Kontoauszug mit Kontouebersicht und Barmitteluebersicht
+
+- **Datum** im Format „DD Monat YYYY" mit abgekuerzten Monaten (Aug., Sept.,
+  Okt.). Im Textvorlauf steht das Jahr oft in der Zeile unter Tag und Monat, und
+  die Beschreibung umschliesst die TYP-Zeile. Beide Teile mit Leerzeichen
+  verbinden.
+- **Geldmarktfonds-Kaeufe und -Verkaeufe** in der Transaktionsuebersicht sind
+  Umschichtungen innerhalb des Cashkontos, keine Buchungen. Nachweis:
+  Zahlungseingang und -ausgang der Kontouebersicht sind genau die Summen der
+  Umsatzzeilen.
+- **Anker**: Der Endsaldo der Kontouebersicht zum Periodenende ist schreibbar,
+  wenn die Saldospalte der letzten Umsatzzeile ihn trifft und die
+  Barmitteluebersicht (Treuhand plus Fonds) ihn bestaetigt.
+
+## Duplikate und Vollstaendigkeit
+
+- **Erneut heruntergeladene Dokumente**: Der Dateiname traegt oft eine stabile
+  Dokument-ID, der Textvorlauf weicht aber im Zeilenlayout ab. Dann findet
+  `belege_text` keinen Hash-Treffer. Die Druckkennung im Seitenfuss
+  (`<lfd.Nr.> / <Lauf> / <JJJJMMTT>`) ist **nicht** dokumentspezifisch, sie ist
+  fuer alle Konten desselben Drucklaufs gleich. Ein Duplikat erst annehmen, wenn
+  IBAN, Auszugsnummer bzw. Abrechnungszeitraum, alle Betraege und der Saldo mit
+  dem abgelegten Beleg uebereinstimmen; dann `inbox_verwerfen`.
+- **Sparkonten ohne Monatsrhythmus**: Ein Auszug entsteht nur bei Bewegung oder
+  zum Quartalsabschluss. Datumsluecken zwischen Auszuegen sind keine
+  Historienluecken. Die Vollstaendigkeit ueber die je Jahr fortlaufende
+  Auszugsnummer und die geschlossene Saldenkette pruefen.
+- **Dateiname**: Das Datum im Download-Namen ist nicht verlaesslich das
+  Belegdatum. Je nach Bank ist es das Abruf- oder das Auszugsdatum, und Namen mit
+  eingebautem Datum (`..._<T_M_JJJJ>.pdf`) treffen den Belegmonat nicht genau.
+  Zeitraum bzw. Monat immer aus dem Beleg nehmen (Auszugsnummer, Abrechnungstag,
+  Erstellungsdatum im Kopf).
 
 ## Belege benennen und ablegen
 

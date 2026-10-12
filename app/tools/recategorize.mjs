@@ -36,9 +36,13 @@ function alsOffen(tx, verdict) {
 
 // Nur eine eindeutige, mit der bestaetigten Kategorie konsistente Trefferliste
 // ist eine gueltige Quelle. Sonst Quelle entfernen ("nicht mehr ermittelbar").
+// Eine auto-freigegebene Agenten-Schaetzung, die eine Regel jetzt bestaetigt,
+// hat damit einen Beleg: Herkunft wird regel, die Freigabe bleibt. Herkunft
+// agent zusammen mit matched_regeln verbietet der Validator.
 function stampeKonsistenteQuelle(tx, verdict) {
   if (verdict.status === "vorgeschlagen" && verdict.kategorie_id === tx.kategorie_id) {
-    return { ...tx, matched_regeln: verdict.matched_regeln };
+    const herkunft = tx.kategorie_herkunft === "agent" ? { kategorie_herkunft: "regel" } : {};
+    return { ...tx, ...herkunft, matched_regeln: verdict.matched_regeln };
   }
   const { matched_regeln, ...rest } = tx;
   return rest;
@@ -50,7 +54,7 @@ function recompute(tx, regeln) {
   const treffer = verdict.status === "vorgeschlagen";
 
   if (tx.kategorisierung_status === "bestaetigt") {
-    // Bestaetigt (herkunft = regel): eine bestaetigte Kategorie ist Fakt (ADR 0002)
+    // Bestaetigt (herkunft regel, oder agent bei Auto-Freigabe): eine bestaetigte Kategorie ist Fakt (ADR 0002)
     // und wird nie still gekippt. Nur eine ANDERE konkrete Kategorie loest eine
     // Wiedervorlage aus; gleiche Kategorie oder kein eindeutiger Treffer => unveraendert.
     if (treffer && verdict.kategorie_id !== tx.kategorie_id) {
@@ -94,7 +98,7 @@ function fachlichChanged(a, b) {
 }
 
 export function recategorize({ transaktionen, regeln }) {
-  const report = { neu_vorgeschlagen: 0, wiedervorlage: 0, zurueckgesetzt: 0, unveraendert: 0, uebersprungen: 0 };
+  const report = { neu_vorgeschlagen: 0, wiedervorlage: 0, belegt: 0, zurueckgesetzt: 0, unveraendert: 0, uebersprungen: 0 };
 
   const next = transaktionen.map((tx) => {
     if (!istKandidat(tx)) {
@@ -104,6 +108,9 @@ export function recategorize({ transaktionen, regeln }) {
     const result = recompute(tx, regeln);
     if (!fachlichChanged(tx, result)) {
       report.unveraendert += 1;
+    } else if (result.kategorisierung_status === "bestaetigt") {
+      // Gleiche Kategorie, nur die Herkunft wechselt von agent auf regel.
+      report.belegt += 1;
     } else if (tx.kategorisierung_status === "bestaetigt") {
       report.wiedervorlage += 1;
     } else if (result.kategorisierung_status === "offen") {

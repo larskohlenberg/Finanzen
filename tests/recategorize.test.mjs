@@ -1,7 +1,9 @@
 // tests/recategorize.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFile } from "node:fs/promises";
 import { recategorize } from "../app/tools/recategorize.mjs";
+import { validateMasterData } from "../app/tools/validator.mjs";
 
 const regeln = [
   { regel_id: "REG-001", gegenpartei_pattern: "musterladena", kategorie_id: "KAT-003", status: "aktiv", erstellt_am: "2026-06-01" },
@@ -199,4 +201,68 @@ test("auto-bestaetigt ohne Regeltreffer bleibt unveraendert bestaetigt", () => {
   assert.equal(out.transaktionen[0].kategorisierung_status, "bestaetigt");
   assert.equal(out.transaktionen[0].bestaetigt_durch, "auto");
   assert.equal(out.transaktionen[0].kategorie_id, "KAT-009");
+});
+
+// Trifft eine Regel eine auto-freigegebene Agenten-Schaetzung mit derselben
+// Kategorie, hat die Schaetzung jetzt einen Beleg: Herkunft wird regel, die
+// Freigabe bleibt. Agenten-Herkunft mit matched_regeln verbietet der Validator.
+test("agent+auto mit gleicher Kategorie wird belegt: Herkunft regel, Freigabe bleibt", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "agent", bestaetigt_durch: "auto" });
+  const out = recategorize({ transaktionen: [t], regeln });
+  const r = out.transaktionen[0];
+  assert.equal(r.kategorisierung_status, "bestaetigt");
+  assert.equal(r.bestaetigt_durch, "auto");
+  assert.equal(r.kategorie_id, "KAT-003");
+  assert.equal(r.kategorie_herkunft, "regel");
+  assert.deepEqual(r.matched_regeln, ["REG-001"]);
+  assert.equal(out.report.belegt, 1);
+  assert.equal(out.report.wiedervorlage, 0);
+});
+
+test("agent+auto mit gleicher Kategorie ergibt einen gueltigen Bestand", async () => {
+  const root = new URL("./fixtures/master-valid/", import.meta.url);
+  const json = async (name) => JSON.parse(await readFile(new URL(name, root), "utf8"));
+  const jsonl = async (name) => (await readFile(new URL(name, root), "utf8")).split(/\r?\n/).filter((l) => l.trim()).map((l) => JSON.parse(l));
+  const data = {
+    personen: await json("personen.json"),
+    konten: await json("konten.json"),
+    kategorien: await json("kategorien.json"),
+    immobilien: await json("immobilien.json"),
+    transaktionen: await jsonl("transaktionen.jsonl"),
+    transfers: await json("transfers.json"),
+  };
+  const fixtureRegeln = [{ regel_id: "REG-001", gegenpartei_pattern: "musterladena", kategorie_id: "KAT-001", status: "aktiv", erstellt_am: "2026-06-01", kommentar: "Testregel" }];
+  const t = tx({ transaktion_id: "TXN-00000000-0000-4000-8000-000000000001", gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-001", kategorie_herkunft: "agent", bestaetigt_durch: "auto" });
+  const out = recategorize({ transaktionen: [...data.transaktionen, t], regeln: fixtureRegeln });
+  const result = validateMasterData({ ...data, kategorisierungsregeln: fixtureRegeln, transaktionen: out.transaktionen });
+  assert.equal(result.valid, true, result.errors.join("\n"));
+});
+
+test("agent+auto mit anderer Kategorie wird wie bisher als Regelvorschlag wiedervorgelegt", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-009", kategorie_herkunft: "agent", bestaetigt_durch: "auto" });
+  const out = recategorize({ transaktionen: [t], regeln });
+  const r = out.transaktionen[0];
+  assert.equal(r.kategorisierung_status, "vorgeschlagen");
+  assert.equal(r.kategorie_id, "KAT-003");
+  assert.equal(r.kategorie_herkunft, "regel");
+  assert.deepEqual(r.matched_regeln, ["REG-001"]);
+  assert.equal(Object.hasOwn(r, "bestaetigt_durch"), false);
+  assert.equal(out.report.wiedervorlage, 1);
+});
+
+test("agent+mensch bleibt unveraendert, auch bei gleicher Kategorie", () => {
+  const gleich = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "agent", bestaetigt_durch: "mensch" });
+  const anders = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-009", kategorie_herkunft: "agent", bestaetigt_durch: "mensch" });
+  const out = recategorize({ transaktionen: [gleich, anders], regeln });
+  assert.deepEqual(out.transaktionen, [gleich, anders]);
+  assert.equal(out.report.uebersprungen, 2);
+});
+
+test("regel+auto und regel+mensch mit gleicher Kategorie bleiben bestaetigt", () => {
+  const auto = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", bestaetigt_durch: "auto" });
+  const mensch = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", bestaetigt_durch: "mensch" });
+  const out = recategorize({ transaktionen: [auto, mensch], regeln });
+  assert.deepEqual(out.transaktionen, [{ ...auto, matched_regeln: ["REG-001"] }, { ...mensch, matched_regeln: ["REG-001"] }]);
+  assert.equal(out.report.unveraendert, 2);
+  assert.equal(out.report.belegt, 0);
 });

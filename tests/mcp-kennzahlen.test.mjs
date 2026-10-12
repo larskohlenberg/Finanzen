@@ -42,6 +42,9 @@ test("kennzahlen liefert dieselben Werte wie die Uebersicht", async () => {
     assert.ok(text.includes(`Aktiva ${eur(netto.aktiva_cents)}`));
     assert.ok(text.includes(`Passiva ${eur(netto.passiva_cents)}`));
     assert.ok(text.includes(`Summe geladener Bewegungen (Konten): ${eur(selektoren.loadedTotalAccountsBalance())}`));
+    const gruppen = selektoren.overviewAccountGroups();
+    assert.ok(text.includes(`Verfuegbares Geld: ${eur(gruppen.konten.summe_cents)} (= Summe Konten der Tabelle, ${gruppen.konten.belegt} von ${gruppen.konten.gesamt} belegt`), text);
+    assert.ok(text.includes(`Summe Depots: ${eur(gruppen.depots.summe_cents)}`), text);
 
     // Kontentabelle in derselben Reihenfolge und mit denselben Salden.
     const zeilen = text.split("\n");

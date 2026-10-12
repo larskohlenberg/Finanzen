@@ -43,6 +43,38 @@ export function kontoZeile(data, konto, today) {
   };
 }
 
+// Konten, die ins "Verfuegbare Geld" der Uebersicht einfliessen.
+export function istVerfuegbaresKonto(konto) {
+  return konto.kontotyp !== "depot" && konto.kontotyp !== "bar" && konto.liquiditaetsrelevant === true && konto.status !== "geschlossen";
+}
+
+function istOffenesDepot(konto) {
+  return konto.kontotyp === "depot" && konto.status !== "geschlossen";
+}
+
+function kontoGruppe(data, konten, today) {
+  const zeilen = konten.map((konto) => ({ konto, zeile: kontoZeile(data, konto, today) }));
+  const enthalten = zeilen.filter((z) => z.zeile.wert_cents !== null);
+  return {
+    zeilen,
+    summe_cents: enthalten.reduce((summe, z) => summe + z.zeile.wert_cents, 0),
+    belegt: enthalten.filter((z) => z.zeile.qualitaet === "belegt").length,
+    gesamt: zeilen.length,
+    aeltester: enthalten.map((z) => z.zeile.belegdatum).filter(Boolean).sort()[0] ?? "",
+  };
+}
+
+// Kontentabelle in Bloecken: konten (Summe = Verfuegbares Geld, Kachel der
+// Uebersicht), depots, weitere (nicht liquide, bar, geschlossen; ohne Summe).
+export function kontenGruppen(data, today) {
+  const sortiert = sortierteKonten(data);
+  return {
+    konten: kontoGruppe(data, sortiert.filter(istVerfuegbaresKonto), today),
+    depots: kontoGruppe(data, sortiert.filter(istOffenesDepot), today),
+    weitere: kontoGruppe(data, sortiert.filter((k) => !istVerfuegbaresKonto(k) && !istOffenesDepot(k)), today),
+  };
+}
+
 export function kontoStandDatum(data, konto) {
   if (konto.kontotyp === "depot") {
     return aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert")?.standdatum || "";

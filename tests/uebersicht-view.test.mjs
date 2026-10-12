@@ -63,6 +63,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
     { ...basis, konto_id: "KTO-902", name: "Depot ohne Wert", kontotyp: "depot" },
     { ...basis, konto_id: "KTO-903", name: "Giro belegt", kontotyp: "giro" },
     { ...basis, konto_id: "KTO-904", name: "Giro ohne Anker", kontotyp: "giro" },
+    { ...basis, konto_id: "KTO-905", name: "Kasse", kontotyp: "bar", liquiditaetsrelevant: false },
   ];
   data.transaktionen = [
     { transaktion_id: "TXN-T1", konto_id: "KTO-903", buchungsdatum: "2026-05-01", betrag: "-4000.00" },
@@ -98,6 +99,13 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.doesNotMatch(html, /Letzte Buchung/);
   assert.doesNotMatch(zeile("KTO-903"), /noch nicht belegt/);
 
-  assert.match(zeile("KTO-904"), /chip danger[\s\S]*Kontostand noch nicht belegt/);
+  assert.match(zeile("KTO-904"), /chip danger[\s\S]*Kontostand noch nicht belegt · nicht enthalten/);
+
+  // Kachel = Summenzeile der Konten (nur KTO-903, KTO-904 ohne Beleg), Depots getrennt summiert.
+  assert.match(html, /Verfügbares Geld[\s\S]*?1\.150,00[\s\S]*?= Summe Konten in der Tabelle · 1 von 2 belegt · ältester Stand 10\.6\.2026/);
+  assert.match(html, /<tr class="table-sum"[\s\S]*?Summe Konten = Verfügbares Geld[\s\S]*?1\.150,00/);
+  assert.match(html, /<tr class="table-sum"[\s\S]*?Summe Depots[\s\S]*?4\.321,09/);
+  assert.doesNotMatch(html, /Summe geladener Bewegungen/);
+  assert.match(zeile("KTO-905"), /chip neutral[\s\S]*Bargeld wird nicht bewertet/);
   assert.match(zeile("KTO-903"), /chip review/);
 });

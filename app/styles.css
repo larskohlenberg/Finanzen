@@ -698,6 +698,18 @@ tbody tr.transaction-row:focus-within td {
   font-size: 12px;
 }
 
+/* Summenzeile eines Tabellenblocks (Kontentabelle der Uebersicht). */
+.table-sum td {
+  border-top: 2px solid var(--border);
+  font-weight: 700;
+}
+
+.table-sum td:last-child {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
 .amount {
   text-align: right;
   white-space: nowrap;

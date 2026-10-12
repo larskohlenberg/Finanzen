@@ -5,7 +5,7 @@
 // next-action.mjs); hier wird nur formatiert. Betraege als Decimal-String.
 import { buildNextAgentAction } from "../next-action.mjs";
 import { centsToDecimal } from "../tools/lib/text.mjs";
-import { checkItems, checkVorschau, kontoZeile, saldoGeladenerKonten, sortierteKonten } from "../uebersicht-rechnung.mjs";
+import { checkItems, checkVorschau, kontenGruppen, kontoZeile, saldoGeladenerKonten, sortierteKonten } from "../uebersicht-rechnung.mjs";
 import { computeNettovermoegen } from "../vermoegen.mjs";
 
 const eur = (cents) => `${centsToDecimal(cents)} EUR`;
@@ -31,6 +31,8 @@ export function kennzahlenText(data, stichtag) {
   const vorschau = checkVorschau(items);
   const aktion = buildNextAgentAction(data, { today: stichtag });
   const q = netto.qualitaet;
+  const gruppen = kontenGruppen(data, stichtag);
+  const abdeckung = (g) => `${g.belegt} von ${g.gesamt} belegt${g.aeltester ? `, aeltester Stand ${g.aeltester}` : ""}`;
 
   const zeilen = [
     `Kennzahlen der Uebersicht, Stichtag ${stichtag}. Betraege in EUR als Decimal-String.`,
@@ -39,6 +41,9 @@ export function kennzahlenText(data, stichtag) {
     `  Qualitaet: belegt ${q.belegt}, geschaetzt ${q.geschaetzt}, fehlend ${q.fehlend}, gesamt ${q.gesamt ?? "offen"}`,
     "  Positionen (Wert zum Stichtag; Konten = belegter Anker + Buchungen danach, Stand = letzte eingerechnete Buchung):",
     ...netto.positionen.map((p) => `  * ${p.klasse} ${p.id} ${p.name}: ${p.fehlt ? `fehlt (${p.basis})` : `${eur(p.wert_cents)}, Stand ${p.standdatum ?? "-"}, ${p.qualitaet ?? "offen"}`}`),
+    "",
+    `Verfuegbares Geld: ${eur(gruppen.konten.summe_cents)} (= Summe Konten der Tabelle, ${abdeckung(gruppen.konten)})`,
+    `Summe Depots: ${eur(gruppen.depots.summe_cents)} (${abdeckung(gruppen.depots)})`,
     "",
     `Summe geladener Bewegungen (Konten): ${eur(saldoGeladenerKonten(data))}`,
     "  Nur geladene Buchungen liquiditaetsrelevanter Konten ohne Depots, kein Anfangssaldo, ohne Stichtagsbezug.",

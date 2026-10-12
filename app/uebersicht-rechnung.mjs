@@ -3,7 +3,7 @@
 // kommt als Argument. Die Uebersicht (ueber selektoren.mjs) und das MCP-Tool
 // `kennzahlen` rufen dieselben Funktionen, damit beide gleich rechnen.
 import { toCents } from "./tools/lib/text.mjs";
-import { aktuellerZeitwert, computeVermoegenChecks, kontoWert } from "./vermoegen.mjs";
+import { aktuellerZeitwert, computeVermoegenChecks, kontoWert, standVeraltet } from "./vermoegen.mjs";
 
 // Summe aller geladenen Buchungen eines Kontos (kein Anfangssaldo, kein Stichtag).
 export function kontoSaldoGeladen(data, kontoId) {
@@ -30,7 +30,8 @@ function letzteBuchung(data, kontoId) {
 
 // Eine Zeile der Kontentabelle: Wert zum Stichtag aus derselben Rechnung wie das
 // Nettovermoegen (Depot = Depotwert, sonst belegter Anker + Buchungen danach),
-// dazu Qualitaet und Datum des Belegs. wert_cents null = kein Zeitwert.
+// dazu Qualitaet, Stichtag des Belegs und ob dieser Stand veraltet ist
+// (Schwellen wie der Check bewertung-veraltet). wert_cents null = kein Zeitwert.
 export function kontoZeile(data, konto, today) {
   const w = kontoWert(konto, data.zeitwerte, data.transaktionen, today);
   return {
@@ -38,7 +39,7 @@ export function kontoZeile(data, konto, today) {
     qualitaet: w.qualitaet,
     belegdatum: w.standdatum ?? "",
     basis: w.basis,
-    letzteBuchung: letzteBuchung(data, konto.konto_id),
+    veraltet: w.wert_cents !== null && standVeraltet(konto, w.standdatum, data.transaktionen, today),
   };
 }
 

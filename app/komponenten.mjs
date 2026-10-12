@@ -168,7 +168,6 @@ export function renderAccountTable({ showId = false, rowAction = "account-transa
             <th>${escapeHtml(t("labels.accountReference"))}</th>
             <th>${escapeHtml(t("labels.owner"))}</th>
             <th>${escapeHtml(t("labels.type"))}</th>
-            <th>${escapeHtml(t("labels.lastBooking"))}</th>
             <th class="amount" title="${escapeHtml(t("labels.valueTodayHint"))}">${escapeHtml(t("labels.valueToday"))}</th>
             <th>${escapeHtml(t("labels.evidence"))}</th>
           </tr>
@@ -191,7 +190,7 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
         ? escapeHtml(formatMoney(zeile.wert_cents))
         : `<span class="muted">—</span>`;
       const status = hatWert
-        ? `${t(zeile.qualitaet === "belegt" ? "vermoegen.qualityBelegt" : "vermoegen.qualityGeschaetzt")} · ${formatDate(zeile.belegdatum)}`
+        ? `${t(zeile.qualitaet === "belegt" ? "vermoegen.qualityBelegt" : "vermoegen.qualityGeschaetzt")} · ${formatDate(zeile.belegdatum)}${zeile.veraltet ? ` · ${t("labels.standOutdated")}` : ""}`
         : zeile.basis === "bar-ignoriert"
           ? t("labels.cashNotValued")
           : isDepot
@@ -199,9 +198,8 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
             : konto.kontoreferenz
               ? t("labels.accountStatusMissing")
               : t("labels.referenceMissing");
-      const chipClass = !hatWert ? "review" : zeile.qualitaet === "belegt" ? "success" : "neutral";
-      const chipIcon = !hatWert ? "review" : zeile.qualitaet === "belegt" ? "success" : "neutral";
-      const lastBooking = isDepot ? "" : zeile.letzteBuchung;
+      const chipClass = !hatWert || zeile.veraltet ? "review" : zeile.qualitaet === "belegt" ? "success" : "neutral";
+      const chipIcon = chipClass;
       const selectableAttrs = rowAction === "select-master-account"
         ? ` tabindex="0" role="button" aria-label="${escapeHtml(konto.name)}"`
         : "";
@@ -215,7 +213,6 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
           <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
           <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
-          <td>${lastBooking ? escapeHtml(formatDate(lastBooking)) : `<span class="muted">—</span>`}</td>
           <td class="amount">${balanceCell}</td>
           <td><span class="chip ${chipClass}">${iconSvg(chipIcon)}${escapeHtml(status)}</span></td>
         </tr>

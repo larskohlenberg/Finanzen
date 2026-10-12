@@ -100,6 +100,7 @@ export const STANDDATUM_SCHWELLEN = {
   vermoegenswert_sonstiges: 12,
   depot_aktiv: 1,
   depot_ruhig: 3,
+  konto: 1,
 };
 
 function monateZwischen(vonIso, bisIso) {
@@ -113,6 +114,20 @@ function monateZwischen(vonIso, bisIso) {
 function hatDepotBewegungLetztenMonat(kontoId, transaktionen, today) {
   const grenze = addInterval(today, "monat", -1);
   return (transaktionen ?? []).some((tx) => tx.konto_id === kontoId && tx.buchungsdatum > grenze && tx.buchungsdatum <= today);
+}
+
+// Ab wie vielen Monaten der Stand eines Kontos als veraltet gilt: Depot mit
+// Bewegung im letzten Monat 1, ruhiges Depot 3, alle anderen Konten 1.
+export function standSchwelleMonate(konto, transaktionen, today) {
+  if (konto.kontotyp !== "depot") return STANDDATUM_SCHWELLEN.konto;
+  return hatDepotBewegungLetztenMonat(konto.konto_id, transaktionen, today)
+    ? STANDDATUM_SCHWELLEN.depot_aktiv
+    : STANDDATUM_SCHWELLEN.depot_ruhig;
+}
+
+export function standVeraltet(konto, standdatum, transaktionen, today) {
+  if (!standdatum) return false;
+  return monateZwischen(standdatum, today) >= standSchwelleMonate(konto, transaktionen, today);
 }
 
 // Worst-of-Aggregation: eine Kennzahl ist nur so gut wie ihre schwaechste
@@ -227,9 +242,8 @@ export function computeVermoegenChecks(data, today) {
     if (konto.kontotyp !== "depot" || konto.status === "geschlossen") continue;
     const dw = aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert");
     if (!dw) { checks.push({ art: "marktwert-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, text: `Depot ${konto.name}: kein Depotwert` }); continue; }
-    const aktiv = hatDepotBewegungLetztenMonat(konto.konto_id, data.transaktionen, today);
-    const schwelle = aktiv ? STANDDATUM_SCHWELLEN.depot_aktiv : STANDDATUM_SCHWELLEN.depot_ruhig;
-    if (monateZwischen(dw.standdatum, today) >= schwelle) {
+    const schwelle = standSchwelleMonate(konto, data.transaktionen, today);
+    if (standVeraltet(konto, dw.standdatum, data.transaktionen, today)) {
       checks.push({ art: "bewertung-veraltet", entitaet: "konto", entitaet_id: konto.konto_id, text: `Depot ${konto.name}: Depotwert vom ${dw.standdatum} älter als ${schwelle} Monat(e)` });
     }
   }

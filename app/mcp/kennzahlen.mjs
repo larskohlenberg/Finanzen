@@ -46,9 +46,8 @@ export function kennzahlenText(data, stichtag) {
     "Konten (Tabelle der Uebersicht; Wert = Depotwert bzw. belegter Anker + Buchungen danach, wie im Nettovermoegen):",
     ...sortierteKonten(data).map((k) => {
       const z = kontoZeile(data, k, stichtag);
-      const wert = z.wert_cents === null ? `kein Wert (${z.basis})` : `${eur(z.wert_cents)}, ${z.qualitaet ?? "offen"} zum ${z.belegdatum}`;
-      const buchung = k.kontotyp === "depot" ? "" : `, letzte Buchung ${z.letzteBuchung || "-"}`;
-      return `- ${k.konto_id} ${k.name} (${k.kontotyp}${k.status === "geschlossen" ? ", geschlossen" : ""}): ${wert}${buchung}`;
+      const wert = z.wert_cents === null ? `kein Wert (${z.basis})` : `${eur(z.wert_cents)}, ${z.qualitaet ?? "offen"} zum ${z.belegdatum}${z.veraltet ? ", veraltet" : ""}`;
+      return `- ${k.konto_id} ${k.name} (${k.kontotyp}${k.status === "geschlossen" ? ", geschlossen" : ""}): ${wert}`;
     }),
     "",
     aktion.type === "none" ? "Naechste Aktion: keine" : `Naechste Aktion: ${aktion.label} (${aktion.count})`,

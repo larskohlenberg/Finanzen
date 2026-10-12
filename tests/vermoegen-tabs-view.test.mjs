@@ -61,6 +61,7 @@ test("Uebersicht: Wertstaende als filter- und sortierbare Tabelle, keine Rail", 
     assert.match(html, /id="vermoegen-wertstaende"/);
     assert.match(html, /data-wertstaende-sort="wert"/);
     assert.match(html, /data-wertstaende-filter="klasse"/);
+    assert.doesNotMatch(html.slice(html.indexOf('id="vermoegen-wertstaende"')), /Rohquelle|Quelle<\/th>/);
     assert.doesNotMatch(html, /layout-with-rail/);
     assert.ok(html.indexOf("DAR-002</span>") < html.indexOf("DAR-001</span>"), "neuester Stand zuerst");
   });
@@ -88,9 +89,13 @@ test("Darlehen mit Anker: Verlauf, Zins/Tilgung und Rest zum Zinsbindungsende", 
     assert.match(html, /class="restschuld-ist"/);
     assert.match(html, /class="balken-tilgung/);
     assert.match(html, /Rest zum Zinsbindungsende/);
-    // Kennzahlen und Stammdaten ueber den Diagrammen, Bemerkung/Wertstaende darunter.
-    assert.ok(html.indexOf("darlehen-kopf") < html.indexOf("restschuld-ist"));
-    assert.ok(html.indexOf("restschuld-ist") < html.indexOf("objekt-anhang"));
+    // Detailtitel, Kennzahlen ueber, Stammdaten unter den Diagrammen, Anhang zuletzt.
+    const detail = html.slice(html.indexOf("objekt-detail-titel"));
+    assert.ok(detail.indexOf("Kennzahlen") < detail.indexOf("restschuld-ist"));
+    assert.ok(detail.indexOf("restschuld-ist") < detail.indexOf("Stammdaten"));
+    assert.ok(detail.indexOf("Stammdaten") < detail.indexOf("objekt-anhang"));
+    assert.match(html, /class="detail-zweispaltig"/);
+    assert.doesNotMatch(html, /Belegter Anker|Zinsen seit Anker/);
   });
 });
 
@@ -123,7 +128,13 @@ test("Immobilie: Monatstabelle und Umschalter ohne Darlehensrate", () => {
     assert.match(html, /class="monats-tabelle"/);
     assert.match(html, /-850,00/);
     // Stammdaten ueber Diagramm und Tabelle, Wertstaende und Dokumente darunter.
+    assert.ok(html.indexOf("objekt-detail-titel") < html.indexOf("stammdaten-raster"));
     assert.ok(html.indexOf("stammdaten-raster") < html.indexOf("monats-tabelle"));
+    // Karte nur Auswahl: keine Kennzahl-Zeilen mehr.
+    assert.doesNotMatch(html, /objekt-karte-zeile/);
+    // Betraege springen in die gefilterten Transaktionen.
+    assert.match(html, /data-action="immobilie-transactions" data-immobilie="IMM-001" data-monat="\d{4}-\d{2}" data-kategorie="KAT-012"/);
+    assert.match(html, /data-action="immobilie-transactions" data-immobilie="IMM-001" data-von="\d{4}-\d{2}-01" data-bis="\d{4}-\d{2}-31"/);
     assert.ok(html.indexOf("monats-tabelle") < html.indexOf("objekt-anhang"));
     assert.match(html, /data-spalten="/);
   });

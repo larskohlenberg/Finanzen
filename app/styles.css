@@ -2844,13 +2844,26 @@ a.linkish {
 }
 .stammdaten-raster .detail-section,
 .stammdaten-raster .detail-section:first-child { padding: 8px 0; border-top: 0; }
-.darlehen-kopf {
+/* Trennt Auswahlkarten und Detail des gewaehlten Objekts. */
+.objekt-detail-titel {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 22px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-strong);
+}
+.objekt-detail-titel .section-title { margin: 0; font-size: 20px; }
+/* Kennzahlen und Stammdaten eines Darlehens: zwei Spalten ueber die volle Breite. */
+.detail-zweispaltig {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-  align-items: start;
+  column-gap: 32px;
 }
+.detail-zweispaltig .detail-section { padding: 10px 0; }
+.detail-zweispaltig .detail-section:nth-child(-n + 2) { padding-top: 0; border-top: 0; }
+.betrag-link { font: inherit; color: inherit; text-align: inherit; }
+.betrag-link:hover, .betrag-link:focus-visible { text-decoration: underline; }
 .objekt-anhang-raster {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2905,7 +2918,8 @@ a.linkish {
 .swatch.plan { background: var(--accent); opacity: 0.45; }
 
 @media (max-width: 1180px) {
-  .darlehen-kopf, .objekt-anhang-raster { grid-template-columns: minmax(0, 1fr); }
+  .detail-zweispaltig, .objekt-anhang-raster { grid-template-columns: minmax(0, 1fr); }
+  .detail-zweispaltig .detail-section:nth-child(2) { padding-top: 10px; border-top: 1px solid var(--border); }
   .kennzahl-raster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {

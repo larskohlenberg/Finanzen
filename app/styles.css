@@ -1919,6 +1919,8 @@ tr.clickable.selected td:first-child {
 .linien-diagramm {
   display: block;
   width: 100%;
+  /* Auf breiten Monitoren nicht endlos mitwachsen: die Schrift skaliert mit. */
+  max-width: 1000px;
   height: auto;
   overflow: visible;
 }
@@ -2071,6 +2073,24 @@ tr.clickable.selected td:first-child {
   border-top-style: dashed;
   border-top-color: var(--muted);
 }
+
+/* Saeulen-Hover (Vermoegensseite): Bezeichnung links, Betrag rechtsbuendig. */
+.diagramm-hover-zeile {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0 6px;
+  align-items: center;
+}
+.diagramm-hover-zeile strong { margin-left: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.diagramm-hover-swatch.einnahme { border-top: 8px solid var(--success); width: 8px; }
+.diagramm-hover-swatch.ausgabe { border-top: 8px solid var(--danger); width: 8px; }
+.diagramm-hover-swatch.saldo { border-top-color: var(--text); }
+.diagramm-hover-swatch.tilgung { border-top: 8px solid var(--accent); width: 8px; }
+.diagramm-hover-swatch.zins { border-top: 8px solid var(--review); width: 8px; }
+.diagramm-hover-swatch.summe { border-top-color: transparent; }
+.diagramm-hover-swatch.restschuld { border-top-color: var(--danger); }
+.diagramm-hover-swatch.restschuld-plan { border-top: 2px dashed var(--danger); }
+.diagramm-hover-swatch.beleg { border-top-color: var(--text); }
 
 /* In-App-Validierungsbanner: gleiche Logik wie das CLI, oben in jeder Ansicht. */
 .validation-banner {
@@ -2317,14 +2337,46 @@ a.upload-name:focus-visible,
 /* Dokumente (#/dokumente): Ordnerbaum + Dateiliste, Detail im Rail */
 .belege-browser {
   display: grid;
-  grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
+  /* Baumbreite per Trenner verschiebbar (app/belege-trenner.mjs). */
+  grid-template-columns: var(--belege-baum-breite, 280px) 7px minmax(0, 1fr);
   min-height: 420px;
 }
 
 .belege-baum {
+  min-width: 0;
   padding: 12px 8px;
-  border-right: 1px solid var(--border);
   overflow-x: auto;
+}
+
+.belege-trenner {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.belege-trenner::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  border-left: 1px solid var(--border);
+}
+
+.belege-trenner:hover::before,
+.belege-trenner:focus-visible::before,
+.trenner-aktiv .belege-trenner::before {
+  left: 2px;
+  border-left: 3px solid var(--accent);
+}
+
+.belege-trenner:focus-visible {
+  outline: none;
+}
+
+.trenner-aktiv {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .belege-baum ul {
@@ -2619,6 +2671,10 @@ a.linkish {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .belege-trenner {
+    display: none;
+  }
+
   .belege-baum {
     max-height: 260px;
     overflow-y: auto;
@@ -2628,13 +2684,10 @@ a.linkish {
 }
 
 /* ---------------------------------------------------------------- Vermoegensseite
-   Kopf (Nettovermoegen + offene Punkte), Tabs je Klasse, Objektkarten,
-   Kennzahl-Raster und Diagramme der Tabs Immobilien und Darlehen. */
+   Kopf (Nettovermoegen), Tabs je Klasse, Objektkarten, Kennzahl-Raster und
+   Diagramme der Tabs Immobilien und Darlehen. */
 .vermoegen-kopf {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 .vermoegen-netto {
   font-size: 28px;
@@ -2679,32 +2732,42 @@ a.linkish {
   gap: 8px;
   margin-bottom: 8px;
 }
-.chip-zeile { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.luecken-liste { margin: 0; padding-left: 18px; }
-.luecken-liste li { margin: 3px 0; }
 
+/* Karteireiter: jeder Tab mit eigenem Rahmen; der aktive ist hell und nach
+   unten offen, so dass er in den Inhalt darunter uebergeht. */
 .vermoegen-tabs {
   display: flex;
-  gap: 2px;
-  margin: 4px 0 14px;
+  align-items: flex-end;
+  gap: 4px;
+  margin: 4px 0 16px;
+  padding: 0 4px;
   border-bottom: 1px solid var(--border-strong);
   overflow-x: auto;
+  overflow-y: hidden;
 }
 .vermoegen-tab {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 8px 14px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
+  margin-bottom: -1px;
+  padding: 8px 16px 7px;
+  border: 1px solid var(--border);
+  border-bottom-color: var(--border-strong);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--surface-2);
   color: var(--muted);
   font: inherit;
   cursor: pointer;
   white-space: nowrap;
 }
-.vermoegen-tab:hover { color: var(--text); }
-.vermoegen-tab.active { border-bottom-color: var(--accent); }
+.vermoegen-tab:hover { border-color: var(--border-strong); color: var(--text); }
+.vermoegen-tab.active {
+  padding-top: 10px;
+  border-color: var(--border-strong);
+  border-top: 3px solid var(--accent);
+  border-bottom-color: var(--bg);
+  background: var(--bg);
+}
 .vermoegen-tab-titel { color: var(--text); font-weight: 600; }
 .vermoegen-tab.active .vermoegen-tab-titel { color: var(--accent); }
 .vermoegen-tab-unter { font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -2718,10 +2781,15 @@ a.linkish {
   vertical-align: 1px;
 }
 
+.klassen-karten {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
 .klassen-karten .klassen-karte { text-align: left; }
 .objekt-karten {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -2765,10 +2833,30 @@ a.linkish {
 
 .objekt-detail {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+}
+/* Harte Stammdaten als Raster ueber Diagramm und Tabelle. */
+.stammdaten-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0 24px;
+}
+.stammdaten-raster .detail-section,
+.stammdaten-raster .detail-section:first-child { padding: 8px 0; border-top: 0; }
+.darlehen-kopf {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
   align-items: start;
 }
+.objekt-anhang-raster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+}
+.diagramm-lead { margin: 0 0 8px; font-size: 13px; }
 .segment {
   display: inline-flex;
   overflow: hidden;
@@ -2791,7 +2879,9 @@ a.linkish {
 .dokument-liste li { margin: 4px 0; }
 .dokument-liste a { display: inline-flex; gap: 6px; align-items: center; }
 
-.balken-diagramm { display: block; width: 100%; height: auto; }
+/* viewBox 960 breit; auf breiten Monitoren gedeckelt, damit die Schrift lesbar bleibt. */
+.balken-diagramm { display: block; width: 100%; max-width: 1100px; height: auto; }
+.diagramm-achse-titel { fill: var(--muted); font-weight: 600; }
 .balken-einnahme { fill: var(--success); opacity: 0.75; }
 .balken-ausgabe { fill: var(--danger); opacity: 0.7; }
 .balken-saldo { stroke: var(--text); stroke-width: 1.8; }
@@ -2815,11 +2905,10 @@ a.linkish {
 .swatch.plan { background: var(--accent); opacity: 0.45; }
 
 @media (max-width: 1180px) {
-  .objekt-detail { grid-template-columns: minmax(0, 1fr); }
+  .darlehen-kopf, .objekt-anhang-raster { grid-template-columns: minmax(0, 1fr); }
   .kennzahl-raster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
-  .vermoegen-kopf { grid-template-columns: minmax(0, 1fr); }
   .kennzahl-raster { grid-template-columns: minmax(0, 1fr); }
 }
 .bemerkung { margin: 8px 0; }

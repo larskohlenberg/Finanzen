@@ -141,6 +141,7 @@ function renderInhalt() {
         <nav class="belege-baum" aria-label="${escapeHtml(t("dokumente.ordner"))}">
           <ul role="tree" class="belege-baum-liste">${renderOrdner(baum, ordnerPfad)}</ul>
         </nav>
+        <div class="belege-trenner" data-belege-trenner role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeHtml(t("dokumente.trenner"))}" title="${escapeHtml(t("dokumente.trenner"))}"></div>
         <div class="belege-liste">
           ${renderWerkzeuge()}
           ${renderDateien(sichtbar, ordner, datei)}
@@ -163,7 +164,7 @@ function renderOrdner(knoten, aktiverOrdner) {
           ? `<button type="button" class="belege-toggle" data-action="toggle-beleg-ordner" data-beleg-ordner="${escapeHtml(knoten.pfad)}" aria-label="${escapeHtml(`${toggleLabel}: ${knoten.name}`)}" title="${escapeHtml(toggleLabel)}">${iconSvg(offen ? "chevronDown" : "chevronRight")}</button>`
           : `<span class="belege-toggle-platz"></span>`}
         <button type="button" class="belege-ordner-knopf" data-action="select-beleg" data-beleg="${escapeHtml(knoten.pfad)}"${aktiv ? ` aria-current="true"` : ""}>
-          ${iconSvg("folder")}<span class="belege-ordner-name">${escapeHtml(knoten.pfad === BELEGE_WURZEL ? t("dokumente.title") : knoten.name)}</span>
+          ${iconSvg("folder")}<span class="belege-ordner-name" title="${escapeHtml(knoten.pfad === BELEGE_WURZEL ? t("dokumente.title") : knoten.name)}">${escapeHtml(knoten.pfad === BELEGE_WURZEL ? t("dokumente.title") : knoten.name)}</span>
           <span class="belege-anzahl">${knoten.anzahl}</span>
         </button>
       </div>

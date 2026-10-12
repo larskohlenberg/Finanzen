@@ -179,7 +179,10 @@ test("monatsBalken: Einnahmen oben, Ausgaben unten, Saldo als Linie; leer ohne W
   assert.equal((svg.match(/class="balken-einnahme"/g) ?? []).length, 1);
   assert.equal((svg.match(/class="balken-ausgabe"/g) ?? []).length, 2);
   assert.match(svg, /class="balken-saldo"/);
-  assert.match(svg, /<title>2026-02: −3 €<\/title>/);
+  const spalten = JSON.parse(svg.match(/data-spalten="([^"]*)"/)[1].replaceAll("&quot;", '"'));
+  assert.equal(spalten.length, 2);
+  assert.deepEqual(spalten[1].zeilen.map((z) => z.wert), ["0 €", "-3 €", "-3 €"]);
+  assert.match(svg, /class="diagramm-gitter"/);
   assert.equal(monatsBalken({ monate: ["2026-01"], einnahmen: [0], ausgaben: [0], saldo: [0] }), "");
 });
 
@@ -188,6 +191,7 @@ test("jahresBalken: Zins und Tilgung gestapelt, Planjahre markiert", async () =>
   const svg = jahresBalken({ jahre: [{ jahr: 2026, zins_cents: 300, tilgung_cents: 700, ist: true }, { jahr: 2027, zins_cents: 250, tilgung_cents: 750, ist: false }] });
   assert.equal((svg.match(/class="balken-zins"/g) ?? []).length, 1);
   assert.equal((svg.match(/class="balken-tilgung plan"/g) ?? []).length, 1);
+  assert.match(svg, /data-spalten="/);
   assert.equal(jahresBalken({ jahre: [] }), "");
 });
 
@@ -203,6 +207,15 @@ test("restschuldVerlauf: Ist und Plan getrennt, Marker nur im Zeitraum", async (
   assert.match(svg, /class="marker-heute"/);
   assert.match(svg, /class="marker-zinsbindung"/);
   assert.match(svg, /class="restschuld-beleg"/);
+  assert.match(svg, /data-spalten="/);
   assert.doesNotMatch(restschuldVerlauf({ punkte, heute: "2026-06-30", zinsbindungBis: "2035-01-01" }), /marker-zinsbindung/);
   assert.equal(restschuldVerlauf({ punkte: [punkte[0]], heute: "2026-06-30" }), "");
+});
+
+test("Balkendiagramme: linker Rand waechst mit der breitesten Y-Beschriftung", async () => {
+  const { monatsBalken } = await import("../app/charts.mjs");
+  const plotLinks = (svg) => JSON.parse(svg.match(/data-plot="([^"]*)"/)[1].replaceAll("&quot;", '"')).left;
+  const kurz = monatsBalken({ monate: ["2026-01"], einnahmen: [100], ausgaben: [0], saldo: [100], formatAchse: (c) => String(c) });
+  const lang = monatsBalken({ monate: ["2026-01"], einnahmen: [100], ausgaben: [0], saldo: [100], formatAchse: (c) => `${c} xxxxxxxxxxxx €` });
+  assert.ok(plotLinks(lang) > plotLinks(kurz));
 });

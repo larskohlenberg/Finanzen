@@ -63,7 +63,7 @@ export function renderPositionWertstaende(p) {
       ${zw.quelle_hinweis ? `<div class="muted">${quelleHtml(zw.quelle_hinweis)}</div>` : ""}
     </div>`).join("");
   const more = rows.length > 5
-    ? `<button class="linkish" data-action="show-vermoegen-wertstaende">${escapeHtml(t("vermoegen.showAllWertstaende"))}</button>`
+    ? `<button class="linkish" data-action="show-vermoegen-wertstaende" data-entity="${escapeHtml(p.id)}">${escapeHtml(t("vermoegen.showAllWertstaende"))}</button>`
     : "";
   return detailRow(t("vermoegen.wertstaende"), `<div class="wertstand-list">${html}${more}</div>`);
 }

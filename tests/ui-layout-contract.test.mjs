@@ -71,29 +71,25 @@ test("detail rails have close controls", () => {
   assert.match(i18n, /closeDetails/);
 });
 
-test("vermoegen: Tabs je Klasse, Wertstaende in der bestehenden Detail-Rail, keine Modals", () => {
+test("vermoegen: Tabs je Klasse, Wertstaende als Tabelle auf der Uebersicht, keine Modals", () => {
   assert.match(main, /data-action="show-vermoegen-wertstaende"/);
-  assert.match(main, /data-action="toggle-vermoegen-rail-width"/);
-  assert.match(main, /state\.vermoegenRailMode === "wertstaende"/);
-  assert.match(main, /iconSvg\(railWide \? "chevronRight" : "chevronLeft"/);
-  assert.doesNotMatch(main, /iconSvg\(railWide \? "panelNarrow" : "panelWide"/);
-  assert.doesNotMatch(main, /data-action="toggle-vermoegen-rail-width"[^>]*>\$\{escapeHtml\(railWide \? t\("vermoegen\.railNarrow"\) : t\("vermoegen\.railWide"\)\)\}/);
-  assert.match(main, /renderWertstaendeRail/);
+  assert.match(main, /renderWertstaendeTabelle/);
+  assert.match(main, /data-wertstaende-sort/);
+  assert.doesNotMatch(main, /renderWertstaendeRail/);
+  assert.doesNotMatch(main, /toggle-vermoegen-rail-width/);
   assert.match(main, /renderPositionWertstaende/);
-  assert.match(main, /vermoegenRailMode/);
   assert.match(main, /role="tablist"/);
   assert.match(main, /data-action="vermoegen-tab"/);
   assert.doesNotMatch(main, /role="dialog"[\s\S]*wertstaende/);
   assert.match(css, /\.layout-with-rail\.rail-wide/s);
-  assert.match(main, /<div class="detail-actions">[\s\S]*data-action="toggle-vermoegen-rail-width"[\s\S]*data-action="close-vermoegen-detail-rail"[\s\S]*<\/div>/);
   assert.doesNotMatch(main, /rail-edge-toggle/);
   assert.doesNotMatch(main, /has-edge-toggle/);
   assert.doesNotMatch(css, /rail-edge-toggle/);
   assert.doesNotMatch(css, /has-edge-toggle/);
   assert.match(css, /\.detail-panel\s*{[^}]*max-height:\s*calc\(100vh - 36px\)/s);
   assert.match(css, /\.detail-panel\s*{[^}]*overflow-y:\s*auto/s);
+  assert.match(css, /\.balken-diagramm\s*{[^}]*max-width/s);
   assert.match(i18n, /wertstaende:\s*"Wertstände"/);
-  assert.match(i18n, /allWertstaende:\s*"Alle Wertstände"/);
 });
 
 test("transaction detail key-value rows stack and wrap in the narrow rail", () => {

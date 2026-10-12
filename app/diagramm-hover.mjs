@@ -46,8 +46,65 @@ function grenzen(punkte, plot) {
   return { min, max };
 }
 
+// Saeulen- und Verlaufsdiagramme der Vermoegensseite (charts.mjs, data-spalten):
+// je Spalte ein fertiger Titel und formatierte Zeilen; der Zeiger rastet auf die
+// naechste Spalte ein.
+function zeigeSpalte(svg, event) {
+  let spalten;
+  let plot;
+  try {
+    spalten = JSON.parse(svg.dataset.spalten);
+    plot = JSON.parse(svg.dataset.plot);
+  } catch {
+    hide();
+    return;
+  }
+  const rect = svg.getBoundingClientRect();
+  if (!Array.isArray(spalten) || !spalten.length || !rect.width) {
+    hide();
+    return;
+  }
+  // viewBox mit "meet": gleichmaessig skaliert und zentriert, falls das SVG breiter ist als sein Inhalt.
+  const vb = svg.viewBox.baseVal;
+  const skala = Math.min(rect.width / vb.width, rect.height / vb.height);
+  const versatzX = (rect.width - vb.width * skala) / 2;
+  const versatzY = (rect.height - vb.height * skala) / 2;
+  const vbX = (event.clientX - rect.left - versatzX) / skala;
+  if (vbX < plot.left - 6 || vbX > plot.right + 6) {
+    hide();
+    return;
+  }
+  let nah = spalten[0];
+  for (const s of spalten) if (Math.abs(s.x - vbX) < Math.abs(nah.x - vbX)) nah = s;
+
+  const el = ensureOverlay();
+  el.hidden = false;
+  const clientX = rect.left + versatzX + nah.x * skala + window.scrollX;
+  const topPx = rect.top + versatzY + plot.top * skala + window.scrollY;
+  const linie = el.querySelector(".diagramm-hover-linie");
+  linie.style.left = `${clientX}px`;
+  linie.style.top = `${topPx}px`;
+  linie.style.height = `${(plot.bottom - plot.top) * skala}px`;
+  for (const punkt of el.querySelectorAll(".diagramm-hover-punkt")) punkt.hidden = true;
+
+  const box = el.querySelector(".diagramm-hover-box");
+  box.innerHTML = `<div class="diagramm-hover-monat">${escapeHtml(nah.titel)}</div>`
+    + nah.zeilen.map((z) => `<div class="diagramm-hover-zeile"><span class="diagramm-hover-swatch ${escapeHtml(z.klasse)}"></span><span>${escapeHtml(z.label)}</span><strong>${escapeHtml(z.wert)}</strong></div>`).join("");
+  box.style.left = `${clientX}px`;
+  box.style.top = `${topPx}px`;
+}
+
+function escapeHtml(text) {
+  return String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
 export function bindDiagrammHover(root) {
   root.addEventListener("pointermove", (event) => {
+    const spaltenSvg = event.target.closest?.("svg[data-spalten]");
+    if (spaltenSvg) {
+      zeigeSpalte(spaltenSvg, event);
+      return;
+    }
     const svg = event.target.closest?.("svg.linien-diagramm");
     if (!svg || !svg.dataset.punkte || !svg.dataset.plot) {
       hide();

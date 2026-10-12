@@ -236,8 +236,11 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
 - **Kartenzahlung** hat keine Gegenpartei-Zeile. Gegenpartei ist der
   Haendlertext vor `//`, beim aelteren Format mit `Folgenr./Verfalld.` der Text
   vor dem ersten `/`.
-- **Kreditkartenabrechnung** hat keinen Vorgang; die Zeile beginnt direkt mit der
-  Zweck-Marke. `gegenpartei` bleibt leer, kein `transaktionstyp`.
+- **Posten ohne Vorgang**: Nicht nur die Kreditkartenabrechnung, auch
+  Bareinzahlungen, Wertpapierabrechnungen und einzelne Gutschriften drucken
+  keinen Vorgang; die Zeile beginnt direkt mit der Zweck-Marke. Was danach
+  steht, ist Zweck, auch wenn es wie ein Personenname aussieht. `gegenpartei`
+  bleibt leer, kein `transaktionstyp`.
 - **Abschlussposten im Auszug**: Die Zeile traegt keinen Vorgang, nur „Saldo der
   Abschlussposten". Den `transaktionstyp` (z. B. Habenzinsen) nennt nur der
   separate Kontoabschluss. Liegt der nicht vor, `transaktionstyp` leer lassen
@@ -302,11 +305,23 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
   zum Quartalsabschluss. Datumsluecken zwischen Auszuegen sind keine
   Historienluecken. Die Vollstaendigkeit ueber die je Jahr fortlaufende
   Auszugsnummer und die geschlossene Saldenkette pruefen.
+- **Nachgereichter Auszug schliesst eine Luecke**: Wurde ein spaeterer Auszug
+  wegen fehlender Vorgaenger ohne Anker importiert (`reconciliation_differenz`
+  im Log), nach dem Import des fehlenden Auszugs auch den zurueckgehaltenen
+  spaeteren Saldo gegen den Bestand rechnen. Geht er cent-genau auf, ihn im
+  selben Lauf als Zeitwert schreiben und im Laufeintrag
+  `normalisierung.reconciliation_erledigt` setzen (Format in
+  `docs/agent-context.md`); erst dann verschwindet die alte Differenz aus dem
+  Pruefbericht.
 - **Dateiname**: Das Datum im Download-Namen ist nicht verlaesslich das
   Belegdatum. Je nach Bank ist es das Abruf- oder das Auszugsdatum, und Namen mit
   eingebautem Datum (`..._<T_M_JJJJ>.pdf`) treffen den Belegmonat nicht genau.
   Zeitraum bzw. Monat immer aus dem Beleg nehmen (Auszugsnummer, Abrechnungstag,
   Erstellungsdatum im Kopf).
+  Manche Banken setzen in den Download-Namen Filial-, Konto- und
+  Unterkontonummer hintereinander; das Unterkonto unterscheidet Giro- und
+  Sparkonto desselben Kunden. Zugeordnet wird trotzdem nur ueber die IBAN im
+  Belegkopf.
 - **Vertragsuebersicht aus einem Vermittlerportal**: Browser-Ausdrucke von
   Vertragsdetailseiten (Browserkopf mit Seitentitel und Abrufzeit, Portal-URL im
   Seitenfuss) enthalten keine Buchungen und sind kein Kontoauszug. Nicht
@@ -321,6 +336,15 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
   als Zeitwert `vertragswert` mit `quelle_hinweis` auf den abgelegten Beleg
   erfassen, **nie** als `rueckkaufswert`. Der Rueckkaufswert bleibt der
   Kuendigungsbetrag aus der Standmitteilung des Versicherers.
+- **Depot-Screenshot aus einer Banking-App**: Enthaelt keine Buchungen und ist
+  kein Kontoauszug. Zuordnung ueber die gezeigte Depotnummer gegen
+  `kontoreferenz` bzw. die bestehenden Zeitwerte und Belege des Depotkontos. Den
+  Gesamtwert gegen Stueck x Kurs aller Positionen pruefen und nur bei
+  centgenauer Summe als `depotwert` (`qualitaet: belegt`) schreiben. Zeigt das
+  Bild nur eine Uhrzeit, gilt das Aufnahmedatum aus dem Dateinamen als
+  `standdatum`. Felder wie „Kursgewinn/-verlust" ohne bekannten Einstandswert
+  ignorieren. Ablage unter
+  `Belege/Konten/<KTO-ID>_<Kurzname>/<Jahr>/<Jahr>_<Bank>_Depot_<KTO-ID>_Depotstand_<JJJJ-MM-TT>.png`.
 
 ## Belege benennen und ablegen
 

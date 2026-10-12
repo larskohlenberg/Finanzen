@@ -176,3 +176,56 @@ test("Agenten-Schaetzungen werden gezaehlt, menschlich entschiedene nicht", () =
   assert.match(text, /VOM AGENTEN GESCHAETZT, HERKUNFT AGENT \(3\)/);
   assert.match(text, /Filter Herkunft = Agent/);
 });
+
+// --- Erledigte Differenzen und nachgerechnete Saldenkette -------------------
+// Vorher stand jede je protokollierte Differenz fuer immer im Bericht, auch
+// nachdem ein spaeterer Lauf die Luecke geschlossen hatte.
+
+const diff = (konto_id, betrag) => ({ anlass: "import", normalisierung: { reconciliation_differenz: { konto_id, betrag, grund: "Auszug fehlt" } } });
+const erledigt = (konto_id) => ({ anlass: "import", normalisierung: { reconciliation_erledigt: { konto_id, bezug: "frueherer Lauf", grund: "Auszug nachgereicht" } } });
+
+test("eine spaeter erledigte Differenz verschwindet aus dem Bericht", () => {
+  const out = pruefbericht({ ...leer, log: [diff("KTO-002", "1.23"), diff("KTO-006", "45.67"), erledigt("KTO-002")] });
+  assert.deepEqual(out.reconciliation.map((r) => r.quelle), ["KTO-006"]);
+});
+
+test("ein Erledigt-Vermerk vor der Differenz hakt sie nicht ab", () => {
+  const out = pruefbericht({ ...leer, log: [erledigt("KTO-002"), diff("KTO-002", "1.23")] });
+  assert.deepEqual(out.reconciliation.map((r) => r.quelle), ["KTO-002"]);
+});
+
+test("Erledigt-Vermerk als Liste hakt mehrere Konten ab", () => {
+  const liste = { anlass: "import", normalisierung: { reconciliation_erledigt: [{ konto_id: "KTO-002" }, { konto_id: "KTO-006" }] } };
+  const out = pruefbericht({ ...leer, log: [diff("KTO-002", "1.23"), diff("KTO-006", "1.00"), liste] });
+  assert.deepEqual(out.reconciliation, []);
+});
+
+const konto = { konto_id: "KTO-001", name: "Giro", kontotyp: "giro", status: "aktiv" };
+const stand = (standdatum, wert) => ({ entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert, standdatum, qualitaet: "belegt" });
+
+test("aufgehende Saldenkette meldet nichts", () => {
+  const out = pruefbericht({ ...leer, konten: [konto],
+    zeitwerte: [stand("2026-07-31", "100.00"), stand("2026-08-31", "70.00")],
+    transaktionen: [tx({ buchungsdatum: "2026-08-10", betrag: "-30.00" })],
+  });
+  assert.deepEqual(out.salden_drift, []);
+});
+
+test("fehlende Buchungen zwischen zwei Ankern werden nachgerechnet gemeldet", () => {
+  const out = pruefbericht({ ...leer, konten: [konto],
+    zeitwerte: [stand("2026-07-31", "100.00"), stand("2026-08-31", "70.00")],
+    transaktionen: [tx({ buchungsdatum: "2026-08-10", betrag: "-10.00" })],
+  });
+  assert.equal(out.salden_drift.length, 1);
+  assert.equal(out.salden_drift[0].differenz_cents, -2000);
+  const text = renderBericht(out);
+  assert.match(text, /KTO-001  2026-07-31 -> 2026-08-31: belegt 70\.00, erwartet 90\.00, Differenz -20\.00/);
+});
+
+test("Depots und geschlossene Konten werden nicht nachgerechnet", () => {
+  const out = pruefbericht({ ...leer,
+    konten: [{ ...konto, kontotyp: "depot" }],
+    zeitwerte: [stand("2026-07-31", "100.00"), stand("2026-08-31", "70.00")],
+  });
+  assert.deepEqual(out.salden_drift, []);
+});

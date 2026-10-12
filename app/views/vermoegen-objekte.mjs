@@ -184,12 +184,13 @@ function renderImmobilieDetail(imm, today) {
       .map((kat) => ({ kat, wert: index === null ? summe(kat[art]) : kat[art][index] }))
       .filter((p) => p.wert)
       .sort((a, b) => Math.abs(b.wert) - Math.abs(a.wert));
-    const liste = posten.map((p) => `<li><span>${escapeHtml(p.kat.kategorie_id ? categoryName(p.kat.kategorie_id) : t("vermoegen.immobilie.ohneKategorie"))}</span>${buchungenLink(geld(p.wert, { negativ: true }), { immobilie: id, ...filter, kategorie: p.kat.kategorie_id })}</li>`).join("");
-    return `
+    // Je Kategorie eine Unterzeile, der Betrag steht genau unter der aufgeklappten Summe.
+    return posten.map((p) => `
     <tr class="drill-zeile">
+      <td class="drill-name">${escapeHtml(p.kat.kategorie_id ? categoryName(p.kat.kategorie_id) : t("vermoegen.immobilie.ohneKategorie"))}</td>
+      ${spalten.map((sp) => `<td class="amount">${sp.art === art ? `${buchungenLink(geld(p.wert, { negativ: true }), { immobilie: id, ...filter, kategorie: p.kat.kategorie_id })}<span class="drill-platz" aria-hidden="true"> ▸</span>` : ""}</td>`).join("")}
       <td></td>
-      <td colspan="${spalten.length + 1}"><ul class="drill-liste">${liste}</ul></td>
-    </tr>`;
+    </tr>`).join("");
   };
   const zeilen = m.monate.map((monat, i) => `
     <tr>

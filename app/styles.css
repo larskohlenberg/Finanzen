@@ -2890,11 +2890,9 @@ a.linkish {
 .segment button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .monats-tabelle { min-width: 0; }
 .monats-tabelle td, .monats-tabelle th { white-space: nowrap; }
-.monats-tabelle .drill-zeile td { background: var(--accent-soft); padding-top: 4px; padding-bottom: 6px; }
-.drill-liste { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: max-content max-content; gap: 2px 24px; justify-content: end; }
-.drill-liste li { display: contents; }
-.drill-liste li > span { color: var(--muted); }
-.drill-liste .betrag-link { text-align: right; }
+.monats-tabelle .drill-zeile td { background: var(--accent-soft); padding-top: 3px; padding-bottom: 3px; }
+.monats-tabelle .drill-zeile .drill-name { padding-left: 24px; color: var(--muted); }
+.monats-tabelle .drill-platz { visibility: hidden; }
 .dokument-liste { margin: 0 0 8px; padding: 0; list-style: none; }
 .dokument-liste li { margin: 4px 0; }
 .dokument-liste a { display: inline-flex; gap: 6px; align-items: center; }

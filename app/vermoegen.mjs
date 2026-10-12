@@ -46,25 +46,36 @@ export function kontoWert(konto, zeitwerte, transaktionen, today) {
   return { wert_cents: summe, basis: "anker+buchungen", standdatum, anker_datum: anker.standdatum, qualitaet: anker.qualitaet };
 }
 
-// Restschuld nach Annuität: Anker + Tilgung der seit Anker fälligen Perioden (ADR 0013).
-export function restschuldHeute(darlehen, zeitwerte, today) {
+// Annuitaet ab dem juengsten Restschuld-Anker: je Ratentermin bis `bis` Zins,
+// Tilgung und Rest. Endet, sobald der Rest 0 ist. Deckt die Rate den Zins nicht,
+// waechst der Rest; die Grenze ist dann allein `bis`. Ohne Anker null.
+export function darlehensplan(darlehen, zeitwerte, bis) {
   const anker = aktuellerZeitwert(zeitwerte, "darlehen", darlehen.darlehen_id, "restschuld");
-  if (!anker) return { wert_cents: null, basis: "anker-fehlt", standdatum: null, qualitaet: null };
+  if (!anker) return null;
   let rest = toCents(anker.wert);
   const rateCents = toCents(darlehen.sollrate);
   const zinssatzProzent = Number(darlehen.zinssatz); // % p.a., kein Cent-Wert
   const ppj = PERIODEN_PRO_JAHR[darlehen.rhythmus_einheit] / darlehen.rhythmus_intervall;
+  const raten = [];
+  for (const datum of faelligkeiten(darlehen, anker.standdatum, bis)) {
+    if (rest <= 0) break;
+    const zins = Math.round((rest * zinssatzProzent) / 100 / ppj);
+    const tilgung = Math.min(rateCents - zins, rest);
+    rest -= tilgung;
+    raten.push({ datum, zins_cents: zins, tilgung_cents: tilgung, rest_cents: rest });
+  }
+  return { anker, raten };
+}
+
+// Restschuld nach Annuität: Anker + Tilgung der seit Anker fälligen Perioden (ADR 0013).
+export function restschuldHeute(darlehen, zeitwerte, today) {
+  const plan = darlehensplan(darlehen, zeitwerte, today);
+  if (!plan) return { wert_cents: null, basis: "anker-fehlt", standdatum: null, qualitaet: null };
+  const { anker, raten } = plan;
   // Die Fortschreibung erzeugt die Zwischenstände ohnehin — als Verlauf festhalten
   // (Anker + je Ratentermin), damit die UI nicht nur den Stichtagswert zeigt.
-  const punkte = [{ datum: anker.standdatum, wert_cents: rest }];
-  for (const datum of faelligkeiten(darlehen, anker.standdatum, today)) {
-    const zinsCents = Math.round((rest * zinssatzProzent) / 100 / ppj);
-    const tilgung = rateCents - zinsCents;
-    rest -= tilgung;
-    if (rest < 0) rest = 0;
-    punkte.push({ datum, wert_cents: rest });
-  }
-  return { wert_cents: rest, basis: "anker+tilgung", standdatum: anker.standdatum, qualitaet: anker.qualitaet, punkte };
+  const punkte = [{ datum: anker.standdatum, wert_cents: toCents(anker.wert) }, ...raten.map((r) => ({ datum: r.datum, wert_cents: r.rest_cents }))];
+  return { wert_cents: punkte.at(-1).wert_cents, basis: "anker+tilgung", standdatum: anker.standdatum, qualitaet: anker.qualitaet, punkte };
 }
 
 // Fälligkeitstermine eines Darlehens strikt nach `nach` (exklusiv) bis `bis` (inklusiv).

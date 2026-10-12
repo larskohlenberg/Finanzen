@@ -108,7 +108,7 @@ Intern in Code: Cent-Integer. Konvertierung an genau zwei Stellen (Reader, Write
 
 **Kontostand** bezeichnet einen belegten Stand eines Kontos zu einem bestimmten Datum, typischerweise aus Bank- oder Depotunterlagen. In M2 wird der Begriff in der UI vermieden, solange nur Demo- oder Teildaten geladen sind.
 
-Ab M5 ist der belegte Kontostand ein **Zeitwert** (`entitaet = konto`, `feld = kontostand`, `qualitaet = belegt`); pro Konto duerfen mehrere existieren (Auszug fuer Auszug). Er ist **belegt, nicht abgeleitet** — der Saldo steht auf dem Auszug selbst ("alter/neuer Saldo"). Bewusst nicht "Endstand minus alle Buchungen" rechnen: das wuerde fehlende Buchungen in den Anker hineinrechnen und den Reconciliation-Check (s. u.) wirkungslos machen.
+Ab M5 ist der belegte Kontostand ein **Zeitwert** (`entitaet = konto`, `feld = kontostand`, `qualitaet = belegt`); pro Konto duerfen mehrere existieren (Auszug fuer Auszug). Er ist **belegt, nicht abgeleitet** — der Saldo steht auf dem Auszug selbst ("alter/neuer Saldo"). Bewusst nicht "Endstand minus alle Buchungen" rechnen: das wuerde fehlende Buchungen in den Anker hineinrechnen und den Reconciliation-Check (s. u.) wirkungslos machen. Der **angezeigte Stand** eines Kontos ist dagegen das Datum der letzten eingerechneten Buchung (mindestens das Ankerdatum): importierte Buchungen stammen selbst aus Belegen (Export, Auszug, Screenshot) und gelten als belegt.
 
 **Live-Saldo eines Kontos** = juengster belegter Kontostand **+** Summe der Buchungen *nach* dessen Standdatum. So sammeln sich keine alten Buchungsfehler an. Liegt fuer ein liquiditaetsrelevantes Konto kein belegter Kontostand vor → sichtbarer Check.
 

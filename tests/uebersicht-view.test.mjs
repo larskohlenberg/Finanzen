@@ -93,7 +93,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
 
   assert.match(zeile("KTO-903"), /1\.150,00/);
   assert.doesNotMatch(zeile("KTO-903"), /-4\.050,00|−4\.050,00/);
-  assert.match(zeile("KTO-903"), /belegt · 8\.6\.2026/);
+  assert.match(zeile("KTO-903"), /belegt · 10\.6\.2026/);
   assert.doesNotMatch(zeile("KTO-903"), /noch nicht belegt/);
 
   assert.match(zeile("KTO-904"), /Kontostand noch nicht belegt/);

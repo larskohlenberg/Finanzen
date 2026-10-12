@@ -37,7 +37,7 @@ export function kennzahlenText(data, stichtag) {
     "",
     `Nettovermoegen: ${eur(netto.netto_cents)} (Aktiva ${eur(netto.aktiva_cents)}, Passiva ${eur(netto.passiva_cents)})`,
     `  Qualitaet: belegt ${q.belegt}, geschaetzt ${q.geschaetzt}, fehlend ${q.fehlend}, gesamt ${q.gesamt ?? "offen"}`,
-    "  Positionen (Wert zum Stichtag; Konten = belegter Anker + Buchungen danach):",
+    "  Positionen (Wert zum Stichtag; Konten = belegter Anker + Buchungen danach, Stand = letzte eingerechnete Buchung):",
     ...netto.positionen.map((p) => `  * ${p.klasse} ${p.id} ${p.name}: ${p.fehlt ? `fehlt (${p.basis})` : `${eur(p.wert_cents)}, Stand ${p.standdatum ?? "-"}, ${p.qualitaet ?? "offen"}`}`),
     "",
     `Summe geladener Bewegungen (Konten): ${eur(saldoGeladenerKonten(data))}`,

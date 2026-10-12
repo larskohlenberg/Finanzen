@@ -1,17 +1,31 @@
 // app/views/export.mjs
-// Export-Hinweis-Ansicht.
+// Export (#/export): Backup zum Herunterladen. Die ZIPs baut der App-Server
+// beim Klick (GET /api/export/<art>, app/export.mjs). Im Demomodus kommen die
+// Daten aus data/demo; die Dokumente sind immer die unter Belege/.
 import { state, t, escapeHtml } from "../runtime.mjs";
 import { renderPageHead } from "../komponenten.mjs";
+import { iconSvg } from "../icons.js";
 
-export function renderExport() {
+const ARTEN = ["komplett", "dokumente", "daten"];
+
+export function exportUrl(art, dataMode) {
+  return `./api/export/${art}${art !== "dokumente" && dataMode === "demo" ? "?quelle=demo" : ""}`;
+}
+
+function karte(art) {
   return `
-    ${renderPageHead(t("exportPage.title"), t("exportPage.lead"))}
-    <section class="panel empty-state">
-      <div>
-        <h2>${escapeHtml(t("exportPage.lead"))}</h2>
-        <p class="page-lead">${escapeHtml(t("exportPage.body"))}</p>
-      </div>
+    <section class="panel panel-pad export-karte">
+      <h2>${escapeHtml(t(`exportPage.${art}.titel`))}</h2>
+      <p class="muted">${escapeHtml(t(`exportPage.${art}.text`))}</p>
+      <a class="belege-download" href="${escapeHtml(exportUrl(art, state.dataMode))}" download>${iconSvg("download")}${escapeHtml(t("exportPage.herunterladen"))}</a>
     </section>
   `;
 }
 
+export function renderExport() {
+  return `
+    ${renderPageHead(t("exportPage.title"), t("exportPage.lead"))}
+    <div class="export-karten">${ARTEN.map(karte).join("")}</div>
+    ${state.dataMode === "demo" ? `<p class="muted">${escapeHtml(t("exportPage.demoHinweis"))}</p>` : ""}
+  `;
+}

@@ -543,3 +543,140 @@ export function saldoDiagramm(punkte, options = {}) {
     ${xLabels}
   </svg>`;
 }
+
+// --- Zeitstrahl (Szenarien) -------------------------------------------------
+// Spalten auf einem gleichmaessigen Raster (Jahre oder Monate), darueber optional
+// Phasenbaender und Ereignismarker auf derselben X-Achse. Mehrere Linien (Szenario,
+// Vergleich, Vergleichsreihen), gerundete Y-Ticks mit Gitter, betonte Nulllinie und
+// eine rot getoente Zone unter Null. Hover ueber data-spalten wie die Balken.
+// spalten: [{ label, titel }] · serien: [{ klasse, label, werte: [cents|null] }]
+// (null = keine Angabe, die Linie setzt dort aus). Phasen und Ereignisse liegen in
+// Spaltenkoordinaten: Spalte i reicht von i bis i+1, Bruchteile sind erlaubt.
+// phasen: [{ name, von, bis }] (bis exklusiv) · ereignisse: [{ pos, label }]
+export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = [], formatWert = String, formatAchse = formatWert, ariaLabel = "" }) {
+  const n = spalten?.length ?? 0;
+  const gueltig = (serien ?? []).filter((s) => s.werte?.length === n);
+  if (n < 2 || !gueltig.length) return "";
+  const rechts = 12;
+  const bandHoehe = phasen.length ? 22 : 0;
+  const ereignisZeilen = ereignisse.length ? 2 : 0;
+  const oben = 8 + bandHoehe + ereignisZeilen * 15 + (bandHoehe || ereignisZeilen ? 6 : 0);
+  const unten = 28;
+  const hoehe = oben + 250 + unten;
+  const alle = gueltig.flatMap((s) => s.werte).filter((w) => w != null);
+  if (!alle.length) return "";
+  const achse = achsenTicks(Math.min(0, ...alle), Math.max(0, ...alle), 5);
+  const yTexte = achse.ticks.map((w) => formatAchse(w));
+  const links = linkerRand(yTexte, false);
+  const breiteInnen = BREITE - links - rechts;
+  const spalte = breiteInnen / n;
+  const mx = (i) => links + spalte * i + spalte / 2;
+  const y = (w) => oben + ((achse.max - w) / (achse.max - achse.min)) * (hoehe - oben - unten);
+  const teile = [];
+
+  if (achse.min < 0) teile.push(`<rect x="${links}" y="${runde(y(0))}" width="${runde(breiteInnen)}" height="${runde(y(achse.min) - y(0))}" class="zone-negativ" />`);
+  for (const w of achse.ticks) {
+    teile.push(`<line x1="${links}" x2="${BREITE - rechts}" y1="${runde(y(w))}" y2="${runde(y(w))}" class="${w === 0 ? "zeitstrahl-null" : "diagramm-gitter"}" />`);
+  }
+  achse.ticks.forEach((w, i) => teile.push(achsenText(links - 8, y(w) + 4, yTexte[i], "end")));
+
+  phasen.forEach((ph, k) => {
+    const x0 = links + spalte * ph.von;
+    const b = spalte * (ph.bis - ph.von);
+    teile.push(`<rect x="${runde(x0)}" y="8" width="${runde(b)}" height="${bandHoehe - 4}" class="phase-band phase-${k % 4}" />`);
+    if (b > String(ph.name).length * SCHRIFT * 0.6 + 8) {
+      teile.push(`<text x="${runde(x0 + b / 2)}" y="${runde(8 + bandHoehe / 2 + 2)}" text-anchor="middle" font-size="${SCHRIFT - 1}" class="phase-label">${esc(ph.name)}</text>`);
+    }
+  });
+
+  // Ereignisse: Marker durch die Plotflaeche, Beschriftung abwechselnd in zwei Zeilen.
+  const belegt = [[], []];
+  for (const e of ereignisse) {
+    const px = links + spalte * e.pos;
+    const breite = String(e.label).length * (SCHRIFT - 2) * 0.6 + 12;
+    const zeile = belegt[0].every((b) => Math.abs(b - px) > breite) ? 0 : 1;
+    belegt[zeile].push(px);
+    const ty = 8 + bandHoehe + 12 + zeile * 15;
+    const anchor = px - links < breite / 2 ? "start" : BREITE - rechts - px < breite / 2 ? "end" : "middle";
+    teile.push(`<line x1="${runde(px)}" x2="${runde(px)}" y1="${runde(ty + 3)}" y2="${runde(hoehe - unten)}" class="ereignis-marker" />`);
+    teile.push(`<text x="${runde(px)}" y="${runde(ty)}" text-anchor="${anchor}" font-size="${SCHRIFT - 2}" class="ereignis-label">${esc(e.label)}</text>`);
+  }
+
+  const schritt = Math.max(1, Math.ceil(n / 14));
+  spalten.forEach((s, i) => {
+    if (i % schritt === 0 || i === n - 1 && (n - 1) % schritt >= schritt / 2) teile.push(achsenText(mx(i), hoehe - 8, s.label));
+  });
+  teile.push(`<line x1="${links}" x2="${BREITE - rechts}" y1="${hoehe - unten}" y2="${hoehe - unten}" class="diagramm-achse" />`);
+
+  for (const s of [...gueltig].reverse()) {
+    // Zusammenhaengende Abschnitte ohne null je als eigene Linie.
+    let abschnitt = [];
+    const abschnitte = [];
+    s.werte.forEach((w, i) => {
+      if (w == null) { if (abschnitt.length) abschnitte.push(abschnitt); abschnitt = []; return; }
+      abschnitt.push(`${runde(mx(i))},${runde(y(w))}`);
+    });
+    if (abschnitt.length) abschnitte.push(abschnitt);
+    for (const a of abschnitte) teile.push(`<polyline points="${a.join(" ")}" class="zeitstrahl-linie ${esc(s.klasse)}" fill="none" />`);
+    if (n <= 40) s.werte.forEach((w, i) => { if (w != null) teile.push(`<circle cx="${runde(mx(i))}" cy="${runde(y(w))}" r="2.6" class="zeitstrahl-punkt ${esc(s.klasse)}" />`); });
+  }
+
+  const hover = spalten.map((s, i) => ({
+    x: Math.round(mx(i)),
+    titel: s.titel ?? s.label,
+    zeilen: gueltig.map((serie) => ({ klasse: serie.klasse, label: serie.label, wert: serie.werte[i] == null ? "—" : formatWert(serie.werte[i]) })),
+  }));
+  const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };
+  return `<svg class="balken-diagramm zeitstrahl-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(hover, plot)}>${teile.join("")}</svg>`;
+}
+
+// Gestapelte Saeulen mit Netto-Linie (Nettovermoegen-Zusammensetzung): positive
+// Teile nach oben, negative (Restschuld) nach unten, die Summe als Linie.
+// teile: [{ klasse, label, werte: [cents] }] · netto: { label, werte }
+export function stapelDiagramm({ spalten, teile, netto, formatWert = String, formatAchse = formatWert, ariaLabel = "" }) {
+  const n = spalten?.length ?? 0;
+  if (!n || !teile?.length) return "";
+  const hoehe = 280;
+  const rechts = 12;
+  const oben = 10;
+  const unten = 28;
+  const plus = spalten.map((_, i) => teile.reduce((s, t) => s + Math.max(0, t.werte[i]), 0));
+  const minus = spalten.map((_, i) => teile.reduce((s, t) => s + Math.min(0, t.werte[i]), 0));
+  const achse = achsenTicks(Math.min(0, ...minus, ...netto.werte), Math.max(1, ...plus, ...netto.werte), 5);
+  const yTexte = achse.ticks.map((w) => formatAchse(w));
+  const links = linkerRand(yTexte, false);
+  const spalte = (BREITE - links - rechts) / n;
+  const breite = Math.max(3, spalte * 0.62);
+  const mx = (i) => links + spalte * i + spalte / 2;
+  const y = (w) => oben + ((achse.max - w) / (achse.max - achse.min)) * (hoehe - oben - unten);
+  const svg = [
+    ...yAchse({ ticks: achse.ticks, y, links, rechts, titel: "", oben, unten: hoehe - unten }),
+    ...achse.ticks.map((w, i) => achsenText(links - 8, y(w) + 4, yTexte[i], "end")),
+  ];
+  const schritt = Math.max(1, Math.ceil(n / 14));
+  spalten.forEach((s, i) => {
+    let auf = 0;
+    let ab = 0;
+    for (const t of teile) {
+      const w = t.werte[i];
+      if (!w) continue;
+      const von = w > 0 ? auf : ab;
+      const bis = von + w;
+      if (w > 0) auf = bis; else ab = bis;
+      svg.push(`<rect x="${runde(mx(i) - breite / 2)}" y="${runde(y(Math.max(von, bis)))}" width="${runde(breite)}" height="${runde(Math.abs(y(von) - y(bis)))}" class="stapel ${esc(t.klasse)}" />`);
+    }
+    if (i % schritt === 0) svg.push(achsenText(mx(i), hoehe - 8, s.label));
+  });
+  svg.push(`<polyline points="${netto.werte.map((w, i) => `${runde(mx(i))},${runde(y(w))}`).join(" ")}" class="balken-saldo" fill="none" />`);
+  netto.werte.forEach((w, i) => svg.push(`<circle cx="${runde(mx(i))}" cy="${runde(y(w))}" r="3" class="balken-saldo-punkt" />`));
+  const hover = spalten.map((s, i) => ({
+    x: Math.round(mx(i)),
+    titel: s.titel ?? s.label,
+    zeilen: [
+      ...teile.map((t) => ({ klasse: t.klasse, label: t.label, wert: formatWert(t.werte[i]) })),
+      { klasse: "saldo", label: netto.label, wert: formatWert(netto.werte[i]) },
+    ],
+  }));
+  const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };
+  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(hover, plot)}>${svg.join("")}</svg>`;
+}

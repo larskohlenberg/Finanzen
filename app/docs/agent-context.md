@@ -606,6 +606,11 @@ ab. Sondertilgungen und Depot-Verkaeufe werden effektiv (geklemmt) gerechnet —
 Engine kann nie mehr abtragen oder verkaufen, als die Position hergibt; eine
 Position wird pro Szenario nur einmal abgebaut.
 
+Ein Szenario kann optional `phasen: [{name, ab}]` tragen (aufsteigend, ohne
+doppelte Startdaten, keine nach `reichweite_bis`). Phasen sind reine Beschriftung
+des Zeitstrahls in der App (Phasenbaender, Kennzahlen je Phase) und aendern die
+Rechnung nicht.
+
 Die Engine `szenarien.mjs` ist deterministisch und rechnet live ab dem
 Rechenstichtag (nicht ab `stand`); die App schreibt keine Masterdaten — Szenarien
 und Annahmen entstehen ausschliesslich ueber den Agenten. Siehe Skill

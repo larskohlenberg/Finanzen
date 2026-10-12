@@ -6,7 +6,7 @@ import { renderVermoegen } from "./views/vermoegen.mjs";
 import { TAB_FUER_KLASSE } from "./vermoegen-routen.mjs";
 import { renderVorsorge, setVorsorgeFilter, resetVorsorgeFilters, toggleVorsorgeSort } from "./views/vorsorge.mjs";
 import { setWertstaendeFilter, resetWertstaendeFilters, toggleWertstaendeSort } from "./views/vermoegen-wertstaende.mjs";
-import { renderSzenarien } from "./views/szenarien.mjs";
+import { renderSzenarien, MAX_VERGLEICH } from "./views/szenarien.mjs";
 import { renderTransactions, filteredTransactions, transactionPageForId, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
 import { renderRegelzahlungen } from "./views/regelzahlungen.mjs";
@@ -437,6 +437,8 @@ app.addEventListener("click", guard((event) => {
   if (navButton) {
     state.view = navButton.dataset.view;
     state.moreMenuOpen = false;
+    // Navigation auf "Szenarien" zeigt immer die Liste, auch aus Detail oder Vergleich.
+    if (state.view === "szenarien") oeffneSzenario("");
     commitNavigation();
     return;
   }
@@ -584,6 +586,11 @@ app.addEventListener("change", guard((event) => {
     const url = new URL(window.location.href);
     url.searchParams.set("_reload", String(Date.now()));
     window.location.assign(url);
+    return;
+  }
+  if (control?.dataset.control === "szenario-vergleich") {
+    state.szenarioVergleichMit = control.value || "";
+    commitNavigation();
     return;
   }
   if (control?.dataset.control === "lang") {
@@ -991,42 +998,72 @@ async function handleAction(element) {
     commitNavigation();
     return;
   }
-  if (action === "select-szenario") {
-    // Klick auf ein Szenario oeffnet das Uebersichts-Rail (Liste bleibt), nicht die Vollansicht.
-    state.selectedSzenarioId = element.dataset.szenario;
-    state.szenarioDetailRailClosed = false;
-    state.szenarioVollansicht = false;
-    state.szenarioBasisExpanded = false;
-    commitNavigation();
+  if (action === "open-szenario") {
+    // Liste, Vergleich oder Querlink -> Detail; eigener History-Eintrag, damit Zurueck zur Liste fuehrt.
+    state.view = "szenarien";
+    oeffneSzenario(element.dataset.szenario || "");
+    commitNavigation(true);
     return;
   }
-  if (action === "close-szenario-rail") {
-    state.szenarioDetailRailClosed = true;
-    commitNavigation();
+  if (action === "back-to-szenarien") {
+    oeffneSzenario("");
+    commitNavigation(true);
     return;
   }
-  if (action === "open-szenario-vollansicht") {
-    state.szenarioVollansicht = true;
-    commitNavigation();
+  if (action === "toggle-szenario-auswahl") {
+    const id = element.dataset.szenario;
+    if (state.szenarioAuswahl.has(id)) state.szenarioAuswahl.delete(id);
+    else if (state.szenarioAuswahl.size < MAX_VERGLEICH) state.szenarioAuswahl.add(id);
+    render();
+    return;
+  }
+  if (action === "szenarien-vergleichen") {
+    const bekannt = new Set((data.szenarien ?? []).map((s) => s.szenario_id));
+    oeffneSzenario("");
+    state.szenarioVergleichIds = (data.szenarien ?? []).map((s) => s.szenario_id).filter((id) => state.szenarioAuswahl.has(id) && bekannt.has(id));
+    commitNavigation(true);
+    return;
+  }
+  if (action === "set-szenario-modus") {
+    state.szenarioDiagrammModus = element.dataset.wert === "differenz" ? "differenz" : "absolut";
+    render();
+    return;
+  }
+  if (action === "set-szenario-aufloesung") {
+    state.szenarioAufloesung = element.dataset.wert === "monat" ? "monat" : "jahr";
+    render();
+    return;
+  }
+  if (action === "set-szenario-netto-ansicht") {
+    state.szenarioNettoTabelle = element.dataset.wert === "tabelle";
+    render();
+    return;
+  }
+  if (action === "toggle-szenario-phase") {
+    const i = Number(element.dataset.phase);
+    if (state.szenarioPhaseOffen.has(i)) state.szenarioPhaseOffen.delete(i);
+    else state.szenarioPhaseOffen.add(i);
+    render();
+    return;
+  }
+  if (action === "toggle-szenario-beschreibung") {
+    state.szenarioBeschreibungOffen = !state.szenarioBeschreibungOffen;
+    render();
+    return;
+  }
+  if (action === "toggle-szenario-netto") {
+    state.szenarioNettoOffen = !state.szenarioNettoOffen;
+    render();
+    return;
+  }
+  if (action === "toggle-szenario-grundlage") {
+    state.szenarioGrundlageOffen = !state.szenarioGrundlageOffen;
+    render();
     return;
   }
   if (action === "toggle-szenario-basis") {
     state.szenarioBasisExpanded = !state.szenarioBasisExpanded;
-    commitNavigation();
-    return;
-  }
-  if (action === "back-to-szenarien") {
-    // Aus der Vollansicht zurueck zu Liste + Rail (Auswahl bleibt erhalten).
-    state.szenarioVollansicht = false;
-    commitNavigation();
-    return;
-  }
-  if (action === "open-szenario") {
-    state.view = "szenarien";
-    state.selectedSzenarioId = element.dataset.szenario;
-    state.szenarioDetailRailClosed = false;
-    state.szenarioVollansicht = false;
-    commitNavigation();
+    render();
     return;
   }
   if (action === "open-regelzahlung") {
@@ -1120,6 +1157,19 @@ async function handleAction(element) {
 }
 
 
+// Szenario oeffnen ("" = Liste): Vergleich und Detail-Schalter zuruecksetzen,
+// damit jedes Detail aufgeraeumt startet.
+function oeffneSzenario(id) {
+  state.selectedSzenarioId = id;
+  state.szenarioVergleichIds = [];
+  state.szenarioVergleichMit = "";
+  state.szenarioPhaseOffen = new Set();
+  state.szenarioBeschreibungOffen = false;
+  state.szenarioNettoOffen = false;
+  state.szenarioGrundlageOffen = false;
+  state.szenarioBasisExpanded = false;
+}
+
 function snapshotState() {
   return {
     view: state.view,
@@ -1133,6 +1183,8 @@ function snapshotState() {
     vermoegenTab: state.vermoegenTab,
     selectedVorsorgeId: state.selectedVorsorgeId,
     selectedSzenarioId: state.selectedSzenarioId,
+    szenarioVergleichMit: state.szenarioVergleichMit,
+    szenarioVergleichIds: [...state.szenarioVergleichIds],
     selectedBeleg: state.selectedBeleg,
   };
 }
@@ -1150,6 +1202,8 @@ function restoreState(snapshot) {
   state.vermoegenTab = snapshot.vermoegenTab || "uebersicht";
   state.selectedVorsorgeId = snapshot.selectedVorsorgeId || "";
   state.selectedSzenarioId = snapshot.selectedSzenarioId || "";
+  state.szenarioVergleichMit = snapshot.szenarioVergleichMit || "";
+  state.szenarioVergleichIds = snapshot.szenarioVergleichIds || [];
   state.selectedBeleg = snapshot.selectedBeleg || "";
 }
 
@@ -1157,10 +1211,10 @@ function restoreState(snapshot) {
 // innerhalb einer View (Filter, Seite, Auswahl) ersetzen den aktuellen Eintrag,
 // damit der Zurueck-Button nicht durch jeden Klick zugemuellt wird.
 let lastCommittedView = state.view;
-function commitNavigation() {
+function commitNavigation(neuerEintrag = false) {
   state.uiError = null;
   const route = routeFromState(state);
-  if (state.view !== lastCommittedView) {
+  if (state.view !== lastCommittedView || (neuerEintrag && route !== location.hash)) {
     history.pushState(snapshotState(), "", route);
   } else {
     history.replaceState(snapshotState(), "", route);
@@ -1220,8 +1274,10 @@ function applyRoute(route) {
       state.selectedVorsorgeId = "";
     }
   }
-  if (route.selectedSzenarioId) {
-    state.selectedSzenarioId = route.selectedSzenarioId;
+  if (route.view === "szenarien") {
+    oeffneSzenario(route.selectedSzenarioId || "");
+    state.szenarioVergleichMit = route.szenarioVergleichMit || "";
+    state.szenarioVergleichIds = route.szenarioVergleichIds || [];
   }
 }
 

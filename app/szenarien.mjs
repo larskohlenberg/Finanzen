@@ -57,6 +57,9 @@ export function modifizierteRegelzahlungen(data, szenario) {
   return { rzs, warnungen };
 }
 
+// Ereignis aus einem wiederkehrenden Termin (regelzahlung-neu-Klon, "ID@datum")?
+const wiederkehrend = (annahmeId) => String(annahmeId).includes("@");
+
 const QUALITAET_RANG = { belegt: 0, geschaetzt: 1, offen: 2 };
 function worstOf(qualitaeten) {
   let s = null;
@@ -277,7 +280,7 @@ export function rechneSzenario(data, szenario, today) {
     }
     depotLauf.set(g.ziel_id, vorhanden - eff);
     depotReihe.get(g.ziel_id).push({ datum: g.datum, wert_cents: depotLauf.get(g.ziel_id) });
-    depotCashEreignisse.push({ datum: g.datum, cents: eff });
+    depotCashEreignisse.push({ datum: g.datum, cents: eff, art: wiederkehrend(g.annahme_id) ? "umbuchung" : "einmal" });
   }
   for (const a of szenario.annahmen ?? []) {
     if (a.gegenbuchung?.ziel_typ === "depot") {
@@ -313,22 +316,30 @@ export function rechneSzenario(data, szenario, today) {
   // Cash-Ereignisse je Datum sammeln. Generisches Cash-Bein NUR für Annahmen OHNE
   // gegenbuchung — gegenbuchung-Annahmen buchen ihr (effektives) Cash hier separat
   // (Sondertilgungen unten; Depot/Sachwerte folgen in Task 6/7).
-  const ereignisse = []; // { datum, cents }
+  // Jedes Ereignis traegt seine Herkunft (art) fuer die Monatsbewegungen:
+  // ein/aus = regelmaessige Zu-/Abfluesse, umbuchung = neutrale Kategorien und
+  // wiederkehrende Gegenbuchungen (Sparplan, laufende Sondertilgung),
+  // einmal = Einmalzahlungen inkl. Gegenbuchungs-Cash.
+  const katTyp = new Map((data.kategorien ?? []).map((k) => [k.kategorie_id, k.typ]));
+  const regelArt = (rz, cents) => (katTyp.get(rz.kategorie_id) === "neutral" ? "umbuchung" : cents >= 0 ? "ein" : "aus");
+  const ereignisse = []; // { datum, cents, art }
   for (const rz of rzs) {
     if (rz._gegenbuchung) continue;
-    for (const datum of occurrences(rz, today, horizon)) ereignisse.push({ datum, cents: toCents(rz.betrag) });
+    const cents = toCents(rz.betrag);
+    const art = regelArt(rz, cents);
+    for (const datum of occurrences(rz, today, horizon)) ereignisse.push({ datum, cents, art });
   }
   for (const proj of restschuldNachDarlehen.values()) {
-    for (const eff of proj.effektive) ereignisse.push({ datum: eff.datum, cents: -eff.effektiv_cents });
+    for (const eff of proj.effektive) ereignisse.push({ datum: eff.datum, cents: -eff.effektiv_cents, art: wiederkehrend(eff.annahme_id) ? "umbuchung" : "einmal" });
   }
   for (const e of depotCashEreignisse) ereignisse.push(e);
-  for (const e of sachwertCash) ereignisse.push(e);
+  for (const e of sachwertCash) ereignisse.push({ ...e, art: "einmal" });
   const startDatum = (a) => (a.art === "einmalzahlung" ? a.datum : a.ab);
   for (const a of szenario.annahmen ?? []) {
     const d = startDatum(a);
     if (d && d <= today) { warnungen.push({ code: "annahme-vergangen", text: `Annahme ${a.annahme_id} liegt vor dem Rechenstichtag`, datum: d }); }
     if (a.art === "einmalzahlung" && !a.gegenbuchung && a.datum > today && a.datum <= horizon && a.betrag && a.betrag !== "0.00") {
-      ereignisse.push({ datum: a.datum, cents: toCents(a.betrag) });
+      ereignisse.push({ datum: a.datum, cents: toCents(a.betrag), art: "einmal" });
     }
   }
   ereignisse.sort((x, y) => x.datum.localeCompare(y.datum));
@@ -341,7 +352,12 @@ export function rechneSzenario(data, szenario, today) {
   const horizonMonat = monatVon(horizon);
   while (cur <= horizonMonat) {
     const monatsEnde = addInterval(`${cur}-01`, "monat", 1); // erster des Folgemonats; Ereignisse < dem zählen
-    while (ev < ereignisse.length && ereignisse[ev].datum < monatsEnde) { lauf += ereignisse[ev].cents; ev++; }
+    const bewegung = { ein: 0, aus: 0, umbuchung: 0, einmal: 0 };
+    while (ev < ereignisse.length && ereignisse[ev].datum < monatsEnde) {
+      lauf += ereignisse[ev].cents;
+      bewegung[ereignisse[ev].art] += ereignisse[ev].cents;
+      ev++;
+    }
     let restschuld = 0;
     for (const darlehen of data.darlehen ?? []) {
       const proj = restschuldNachDarlehen.get(darlehen.darlehen_id);
@@ -358,7 +374,8 @@ export function rechneSzenario(data, szenario, today) {
     let sachwerteGesamt = 0;
     for (const v of sachwertStart.values()) sachwerteGesamt += v;
     for (const d of sachwertDeltas) { if (d.datum < monatsEnde) sachwerteGesamt += d.delta_cents; }
-    punkte.push({ monat: cur, liquide_cents: lauf, depot_cents: depotGesamt, restschuld_cents: restschuld, sachwerte_cents: sachwerteGesamt, netto_cents: lauf + depotGesamt + sachwerteGesamt - restschuld });
+    punkte.push({ monat: cur, liquide_cents: lauf, depot_cents: depotGesamt, restschuld_cents: restschuld, sachwerte_cents: sachwerteGesamt, netto_cents: lauf + depotGesamt + sachwerteGesamt - restschuld,
+      ein_cents: bewegung.ein, aus_cents: bewegung.aus, umbuchung_cents: bewegung.umbuchung, einmal_cents: bewegung.einmal });
     cur = monatVon(addInterval(`${cur}-01`, "monat", 1));
   }
 
@@ -459,4 +476,116 @@ export function guardrailWarnungen(data, today, regelzahlungen = data.regelzahlu
     }
   }
   return warnungen;
+}
+
+// --- Auswertungen fuer den Zeitstrahl (Detail, Liste, Vergleich) -------------
+
+// Erster Monat mit negativer Liquiditaet; null = reicht ueber den Horizont.
+export function kippMonat(punkte) {
+  return (punkte ?? []).find((p) => p.liquide_cents < 0)?.monat ?? null;
+}
+
+export function tiefpunkt(punkte) {
+  let tief = null;
+  for (const p of punkte ?? []) if (!tief || p.liquide_cents < tief.cents) tief = { monat: p.monat, cents: p.liquide_cents };
+  return tief;
+}
+
+const monatsIndex = (monat) => Number(monat.slice(0, 4)) * 12 + Number(monat.slice(5, 7)) - 1;
+const vormonat = (monat) => monatVon(addInterval(`${monat}-01`, "monat", -1));
+const annahmeStart = (a) => (a.art === "einmalzahlung" ? a.datum : a.ab);
+
+// Phasen auf das Monatsraster der Punkte legen: vor dem Rechenstart endende Phasen
+// entfallen, die laufende beginnt mit dem Rechenstart, eine Luecke davor ist der
+// "vorlauf"; ohne Phasen gibt es genau eine Phase "gesamt".
+function phasenRaster(szenario, startMonat, endMonat) {
+  const benannt = [...(szenario.phasen ?? [])].sort((a, b) => a.ab.localeCompare(b.ab));
+  if (!benannt.length) return [{ art: "gesamt", name: null, von: startMonat, bis: endMonat }];
+  const liste = benannt.map((ph, i) => ({
+    art: "benannt",
+    name: ph.name,
+    von: monatVon(ph.ab),
+    bis: i + 1 < benannt.length ? vormonat(monatVon(benannt[i + 1].ab)) : endMonat,
+  }));
+  const sichtbar = liste
+    .filter((ph) => ph.bis >= startMonat && ph.von <= endMonat && ph.bis >= ph.von)
+    .map((ph) => ({ ...ph, von: ph.von < startMonat ? startMonat : ph.von, bis: ph.bis > endMonat ? endMonat : ph.bis }));
+  if (!sichtbar.length || sichtbar[0].von > startMonat) {
+    sichtbar.unshift({ art: "vorlauf", name: null, von: startMonat, bis: sichtbar.length ? vormonat(sichtbar[0].von) : endMonat });
+  }
+  return sichtbar;
+}
+
+// Kennzahlen je Phase: Durchschnitte pro Monat (Einnahmen, Ausgaben, Umbuchungen,
+// Saldo ohne Einmalzahlungen), Summe der Einmalzahlungen, Stand am Phasenende und
+// die Annahmen, deren Start in die Phase faellt (Randfaelle zur ersten/letzten).
+export function phasenKennzahlen(szenario, punkte) {
+  if (!punkte?.length) return [];
+  const raster = phasenRaster(szenario, punkte[0].monat, punkte.at(-1).monat);
+  const phasen = raster.map((ph) => {
+    const teil = punkte.filter((p) => p.monat >= ph.von && p.monat <= ph.bis);
+    const n = teil.length || 1;
+    const summe = (feld) => teil.reduce((s, p) => s + (p[feld] ?? 0), 0);
+    const ein = summe("ein_cents");
+    const aus = summe("aus_cents");
+    const umbuchung = summe("umbuchung_cents");
+    return {
+      ...ph,
+      monate: teil.length,
+      ein_cents: Math.round(ein / n),
+      aus_cents: Math.round(aus / n),
+      umbuchung_cents: Math.round(umbuchung / n),
+      saldo_cents: Math.round((ein + aus + umbuchung) / n),
+      einmal_cents: summe("einmal_cents"),
+      liquide_ende_cents: teil.at(-1)?.liquide_cents ?? 0,
+      annahme_ids: [],
+    };
+  });
+  for (const a of szenario.annahmen ?? []) {
+    const start = annahmeStart(a);
+    if (!start) continue;
+    const m = monatVon(start);
+    const ziel = phasen.find((ph) => m >= ph.von && m <= ph.bis) ?? (m < phasen[0].von ? phasen[0] : phasen.at(-1));
+    ziel.annahme_ids.push(a.annahme_id);
+  }
+  return phasen;
+}
+
+// Welche Einmal-Ereignisse tragen das Szenario? Je Einmalzahlung (und Kapital-
+// Leistung) ohne diese eine Annahme nachrechnen; gemeldet wird, wenn sich der
+// Kipp-Monat um mehr als 12 Monate verschiebt oder erst dadurch entsteht.
+export function ereignisWirkung(data, szenario, today) {
+  const basisKipp = kippMonat(rechneSzenario(data, szenario, today).punkte);
+  const horizontIndex = monatsIndex(monatVon(szenario.reichweite_bis)) + 1;
+  const index = (k) => (k === null ? horizontIndex : monatsIndex(k));
+  const wirkung = [];
+  for (const a of szenario.annahmen ?? []) {
+    const einmal = a.art === "einmalzahlung" || (a.art === "vorsorge-leistung" && a.arm === "kapital");
+    if (!einmal) continue;
+    const ohne = { ...szenario, annahmen: szenario.annahmen.filter((x) => x !== a) };
+    const kipp = kippMonat(rechneSzenario(data, ohne, today).punkte);
+    const verschiebung = Math.abs(index(kipp) - index(basisKipp));
+    if ((kipp === null) !== (basisKipp === null) || verschiebung > 12) wirkung.push({ annahme_id: a.annahme_id, kipp_monat: kipp });
+  }
+  return wirkung;
+}
+
+// Jahresaggregation fuer Diagramme: je Jahr der letzte Monatspunkt und die
+// Summen der Monatsbewegungen.
+export function jahresWerte(punkte) {
+  const jahre = [];
+  for (const p of punkte ?? []) {
+    const jahr = p.monat.slice(0, 4);
+    let j = jahre.at(-1);
+    if (!j || j.jahr !== jahr) {
+      j = { jahr, punkt: p, ein_cents: 0, aus_cents: 0, umbuchung_cents: 0, einmal_cents: 0 };
+      jahre.push(j);
+    }
+    j.punkt = p;
+    j.ein_cents += p.ein_cents ?? 0;
+    j.aus_cents += p.aus_cents ?? 0;
+    j.umbuchung_cents += p.umbuchung_cents ?? 0;
+    j.einmal_cents += p.einmal_cents ?? 0;
+  }
+  return jahre;
 }

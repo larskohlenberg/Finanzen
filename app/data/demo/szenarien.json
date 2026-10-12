@@ -7,6 +7,7 @@
     "stand": "2026-06-22",
     "reichweite_bis": "2028-12-31",
     "erstellt_am": "2026-06-22",
+    "phasen": [{ "name": "Vollzeit", "ab": "2026-06-01" }, { "name": "Teilzeit", "ab": "2027-01-01" }],
     "annahmen": [
       { "annahme_id": "A-001", "art": "regelzahlung-aenderung", "qualitaet": "geschaetzt", "regelzahlung_id": "RZ-002", "ab": "2027-01-01", "aktion": "betrag-aendern", "betrag": "1800.00" },
       { "annahme_id": "A-002", "art": "regelzahlung-neu", "qualitaet": "geschaetzt", "name": "Nachhilfe-Puffer", "betrag": "-120.00", "rhythmus_einheit": "monat", "rhythmus_intervall": 1, "ab": "2027-02-01", "bis": "2028-07-31" },
@@ -43,6 +44,7 @@
   {
     "szenario_id": "SZN-004", "name": "Ruhestand Lena ab 2042", "status": "entwurf",
     "stand": "2026-06-22", "reichweite_bis": "2048-12-31", "erstellt_am": "2026-06-22",
+    "phasen": [{ "name": "Arbeit", "ab": "2026-06-01" }, { "name": "Rente", "ab": "2042-08-01" }],
     "beschreibung": "Lena geht 2042 in Rente: Gehalt endet, gesetzliche Rente + Riester (Verrentung) beginnen.",
     "annahmen": [
       { "annahme_id": "A2", "art": "vorsorge-leistung", "vorsorge_id": "VS-001", "arm": "rente", "ab": "2042-08-01", "qualitaet": "geschaetzt", "begruendung": "Gesetzliche Rente Lena, netto aus Renteninfo 2026" },
@@ -52,6 +54,7 @@
   {
     "szenario_id": "SZN-005", "name": "Todesfall Martin 2028", "status": "entwurf",
     "stand": "2026-06-22", "reichweite_bis": "2040-12-31", "erstellt_am": "2026-06-22",
+    "phasen": [{ "name": "Wie heute", "ab": "2026-06-01" }, { "name": "Hinterbliebene mit Kindern", "ab": "2028-03-01" }, { "name": "Kinder aus dem Haus", "ab": "2037-10-01" }],
     "beschreibung": "Hypothese: Martin verstirbt 2028. Sein Gehalt endet, Risiko-LV zahlt Kapital, Lena erhält Witwenrente, die Kinder Waisenrente.",
     "annahmen": [
       { "annahme_id": "A1", "art": "regelzahlung-aenderung", "regelzahlung_id": "RZ-002", "aktion": "beenden", "ab": "2028-03-01", "qualitaet": "geschaetzt", "begruendung": "Wegfall Erwerbseinkommen Martin" },

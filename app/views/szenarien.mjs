@@ -1,14 +1,17 @@
 // app/views/szenarien.mjs
-// Szenarien-Liste + Detail (Szenario vs. Basis). App ist nur Anzeige (ADR 0006) —
-// Szenarien und Annahmen entstehen ausschliesslich ueber den Agenten.
-// Einstieg wie im Rest der App: Liste + Detail-Rail (Uebersicht); die schwere
-// Vollansicht (Diagramme, Rechengrundlage, Objektwirkungen) oeffnet ein Button.
+// Szenarien: Liste, Detail als Zeitstrahl mit Phasen, Vergleich mehrerer. App ist
+// nur Anzeige (ADR 0006) — Szenarien, Annahmen und Phasen entstehen ausschliesslich
+// ueber den Agenten. Jede Detailseite beantwortet dieselben Fragen: Wie lange reicht
+// die Liquiditaet? Wie kommen wir in jeder Phase aus? Wo steht das Vermoegen am Ende?
 import { data, state, t, escapeHtml, cents } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead } from "../komponenten.mjs";
-import { linienDiagramm } from "../charts.mjs";
-import { computeSzenario, guardrailWarnungen } from "../szenarien.mjs";
+import { zeitstrahlDiagramm, stapelDiagramm } from "../charts.mjs";
+import { computeSzenario, rechneSzenario, guardrailWarnungen, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte } from "../szenarien.mjs";
 import { localTodayIso, addInterval } from "../liquiditaet.mjs";
+
+export const MAX_VERGLEICH = 7;
+const PPJ = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 
 function qualitaetChip(q) {
   const stil = { belegt: ["success", "success", "Belegt"], geschaetzt: ["neutral", "", "Geschaetzt"], offen: ["review", "review", "Offen"] };
@@ -27,37 +30,34 @@ function rhythmusLabel(einheit, intervall) {
   return Number(intervall) > 1 ? `${intervall} ${einheitText}` : einheitText;
 }
 
-function gegenbuchungLabel(g) {
-  const ziel = g.ziel_id ? g.ziel_id : (g.neue_position?.bezeichnung ?? "—");
-  return `${escapeHtml(t(`szenarien.zielTyp.${g.ziel_typ}`))}: ${escapeHtml(ziel)}`;
+// Monat eines ISO-Datums ("YYYY-MM-DD") als "Monat Jahr". Szenarien rechnen im
+// Monatsraster — der Horizont-Tag suggeriert sonst eine Praezision, die es nicht gibt.
+function monatLabel(datumIso) {
+  return datumIso ? formatMonth(String(datumIso).slice(0, 7)) : "—";
 }
 
-function annahmeInhalt(a) {
-  if (a.art === "einmalzahlung") {
-    const teile = [escapeHtml(formatDate(a.datum)), escapeHtml(formatMoney(cents(a.betrag)))];
-    if (a.gegenbuchung) teile.push(gegenbuchungLabel(a.gegenbuchung));
-    return teile.join(" · ");
-  }
-  if (a.art === "regelzahlung-neu") {
-    const teile = [
-      `${escapeHtml(t("szenarien.ab"))} ${escapeHtml(formatDate(a.ab))}`,
-      `${escapeHtml(formatMoney(cents(a.betrag)))} / ${escapeHtml(rhythmusLabel(a.rhythmus_einheit, a.rhythmus_intervall))}`,
-    ];
-    if (a.gegenbuchung) teile.push(gegenbuchungLabel(a.gegenbuchung));
-    return teile.join(" · ");
-  }
-  if (a.art === "regelzahlung-aenderung") {
-    const aktion = a.aktion === "beenden"
-      ? escapeHtml(t("szenarien.aktionBeenden"))
-      : `${escapeHtml(t("szenarien.aktionBetragAendern"))}: ${escapeHtml(formatMoney(cents(a.betrag)))}`;
-    return `${escapeHtml(a.regelzahlung_id)} · ${escapeHtml(t("szenarien.ab"))} ${escapeHtml(formatDate(a.ab))} · ${aktion}`;
-  }
-  if (a.art === "vorsorge-leistung") {
-    const arm = t(`szenarien.arm.${a.arm}`);
-    const armText = arm === `szenarien.arm.${a.arm}` ? a.arm : arm;
-    return `${escapeHtml(a.vorsorge_id)} · ${escapeHtml(armText)} · ${escapeHtml(t("szenarien.ab"))} ${escapeHtml(formatDate(a.ab))}`;
-  }
-  return "—";
+// Kompakte Achsenbeschriftung: 800 €, 12,5k €, 1,2 Mio. €.
+function kurzBetrag(c) {
+  const euro = c / 100;
+  const lang = state.lang === "de" ? "de-DE" : "en-US";
+  const zahl = (n, d) => n.toLocaleString(lang, { maximumFractionDigits: d });
+  const betrag = Math.abs(euro);
+  const vz = euro < 0 ? "−" : "";
+  if (betrag >= 1e6) return `${vz}${zahl(betrag / 1e6, 1)} ${t("szenarien.mio")} €`;
+  if (betrag >= 1000) return `${vz}${zahl(betrag / 1000, 1)}k €`;
+  return `${vz}${zahl(betrag, 0)} €`;
+}
+
+function kurzMonat(monat) {
+  return `${monat.slice(5, 7)}/${monat.slice(2, 4)}`;
+}
+
+function vorzeichen(c) {
+  return c > 0 ? `+${formatMoney(c)}` : formatMoney(c);
+}
+
+function reichtBisText(kipp, punkte) {
+  return kipp ? formatMonth(kipp) : t("szenarien.ueberHorizont").replace("{monat}", punkte.length ? formatMonth(punkte.at(-1).monat) : "—");
 }
 
 function staleNote(szenario, today) {
@@ -66,13 +66,6 @@ function staleNote(szenario, today) {
   return `<p class="page-lead"><span class="chip review">${iconSvg("review")}${escapeHtml(text)}</span></p>`;
 }
 
-// Monat eines ISO-Datums ("YYYY-MM-DD") als "Monat Jahr". Szenarien rechnen im
-// Monatsraster — der Horizont-Tag suggeriert sonst eine Praezision, die es nicht gibt.
-function monatLabel(datumIso) {
-  return datumIso ? formatMonth(String(datumIso).slice(0, 7)) : "—";
-}
-
-// Klartext eines Warnungscodes (i18n); faellt auf den Code zurueck, falls kein Text.
 function warnKlartext(code) {
   const titel = t(`szenarien.warnCode.${code}.titel`);
   return titel === `szenarien.warnCode.${code}.titel` ? code : titel;
@@ -82,202 +75,369 @@ function warnGefahr(code) {
   return code === "liquiditaet-negativ" || code === "depot-ueberzogen";
 }
 
-function warnZeileVoll(w) {
-  const herkunft = t(`szenarien.warnCode.${w.code}.herkunft`);
-  const herkunftText = herkunft === `szenarien.warnCode.${w.code}.herkunft` ? "" : herkunft;
-  return `
-    <div class="rail-item">
-      <span class="chip ${warnGefahr(w.code) ? "danger" : "review"}">${iconSvg("review")}${escapeHtml(warnKlartext(w.code))}</span>
-      <div>
-        <div>${escapeHtml(w.text)}</div>
-        ${herkunftText ? `<div class="muted">${escapeHtml(herkunftText)}</div>` : ""}
-      </div>
-    </div>`;
+function zielBezeichnung(zielTyp, zielId) {
+  if (zielTyp === "immobilie") return (data.immobilien ?? []).find((i) => i.immobilie_id === zielId)?.bezeichnung ?? zielId;
+  if (zielTyp === "vermoegenswert") return (data.vermoegenswerte ?? []).find((v) => v.vermoegenswert_id === zielId)?.bezeichnung ?? zielId;
+  if (zielTyp === "darlehen") return (data.darlehen ?? []).find((d) => d.darlehen_id === zielId)?.bezeichnung ?? zielId;
+  if (zielTyp === "depot") return (data.konten ?? []).find((k) => k.konto_id === zielId)?.name ?? zielId;
+  if (zielTyp === "vorsorge") return (data.vorsorge ?? []).find((v) => v.vorsorge_id === zielId)?.name ?? zielId;
+  return zielId;
 }
 
-// --- Liste + Rail-Einstieg --------------------------------------------------
+function gegenbuchungLabel(g) {
+  const ziel = g.ziel_id ? zielBezeichnung(g.ziel_typ, g.ziel_id) : (g.neue_position?.bezeichnung ?? "—");
+  return `${t(`szenarien.zielTyp.${g.ziel_typ}`)}: ${ziel}`;
+}
+
+// Kurzname einer Annahme fuer Marker und Tabellen.
+function annahmeName(a) {
+  if (a.name) return a.name;
+  if (a.art === "regelzahlung-aenderung") return (data.regelzahlungen ?? []).find((r) => r.regelzahlung_id === a.regelzahlung_id)?.bezeichnung ?? a.regelzahlung_id;
+  if (a.art === "vorsorge-leistung") return zielBezeichnung("vorsorge", a.vorsorge_id);
+  if (a.gegenbuchung) return gegenbuchungLabel(a.gegenbuchung);
+  if (a.begruendung) return a.begruendung.length > 40 ? `${a.begruendung.slice(0, 38)}…` : a.begruendung;
+  return t(`szenarien.art.${a.art}`);
+}
+
+const istEinmalig = (a) => a.art === "einmalzahlung" || (a.art === "vorsorge-leistung" && a.arm === "kapital");
+const monatsBetrag = (betrag, einheit, intervall) => Math.round((cents(betrag) * PPJ[einheit ?? "monat"]) / 12 / Number(intervall || 1));
+
+// --- Raster: Spalten (Jahr oder Monat) und Positionen auf der Zeitachse ---------
+
+function spaltenAus(punkte, aufloesung) {
+  if (aufloesung === "monat") return punkte.map((p) => ({ key: p.monat, label: kurzMonat(p.monat), titel: formatMonth(p.monat), monate: [p.monat] }));
+  return jahresWerte(punkte).map((j) => ({
+    key: j.jahr,
+    label: j.jahr,
+    titel: formatMonth(j.punkt.monat),
+    monate: punkte.filter((p) => p.monat.startsWith(j.jahr)).map((p) => p.monat),
+  }));
+}
+
+// Spaltenschluessel -> Wert (Jahr: letzter Monatspunkt des Jahres).
+function werteJeSpalte(punkte, spalten, aufloesung, feld) {
+  const map = new Map();
+  for (const p of punkte) map.set(aufloesung === "monat" ? p.monat : p.monat.slice(0, 4), p[feld]);
+  return spalten.map((s) => (map.has(s.key) ? map.get(s.key) : null));
+}
+
+function position(spalten, monat, ende = false) {
+  if (!spalten.length) return 0;
+  if (monat < spalten[0].monate[0]) return 0;
+  for (let i = 0; i < spalten.length; i++) {
+    const idx = spalten[i].monate.indexOf(monat);
+    if (idx >= 0) return i + (idx + (ende ? 1 : 0)) / spalten[i].monate.length;
+  }
+  return spalten.length;
+}
+
+function phasenName(ph) {
+  if (ph.art === "vorlauf") return t("szenarien.vorlauf");
+  if (ph.art === "gesamt") return t("szenarien.gesamt");
+  return ph.name;
+}
+
+// --- Liste ----------------------------------------------------------------------
 
 export function renderSzenarien() {
   const today = localTodayIso();
   const szenarien = data.szenarien ?? [];
+  const bekannt = new Set(szenarien.map((s) => s.szenario_id));
+
+  if (state.szenarioVergleichIds?.length) {
+    const ids = state.szenarioVergleichIds.filter((id) => bekannt.has(id)).slice(0, MAX_VERGLEICH);
+    if (ids.length) return renderVergleich(ids.map((id) => szenarien.find((s) => s.szenario_id === id)), today);
+    state.szenarioVergleichIds = [];
+  }
   const selected = state.selectedSzenarioId ? szenarien.find((s) => s.szenario_id === state.selectedSzenarioId) : undefined;
   if (state.selectedSzenarioId && !selected) state.selectedSzenarioId = "";
+  if (selected) return renderDetail(selected, today);
 
-  if (selected && state.szenarioVollansicht) return renderSzenarioVollansicht(selected, today);
-
-  const railOpen = Boolean(selected) && !state.szenarioDetailRailClosed;
-
+  const auswahl = state.szenarioAuswahl ?? new Set();
   const rows = szenarien.map((sz) => {
-    const r = computeSzenario(data, sz, today);
-    const ende = r.szenario.punkte[r.szenario.punkte.length - 1];
-    const sel = sz.szenario_id === state.selectedSzenarioId ? "selected" : "";
+    const r = rechneSzenario(data, sz, today);
+    const kipp = kippMonat(r.punkte);
+    const tief = tiefpunkt(r.punkte);
+    const ende = r.punkte.at(-1);
+    const gewaehlt = auswahl.has(sz.szenario_id);
     return `
-    <tr class="clickable ${sel}" data-action="select-szenario" data-szenario="${escapeHtml(sz.szenario_id)}" tabindex="0" role="button" aria-label="${escapeHtml(sz.name)}">
+    <tr class="clickable" data-action="open-szenario" data-szenario="${escapeHtml(sz.szenario_id)}" tabindex="0" role="button" aria-label="${escapeHtml(sz.name)}">
+      <td class="auswahl-zelle"><input type="checkbox" data-action="toggle-szenario-auswahl" data-szenario="${escapeHtml(sz.szenario_id)}" ${gewaehlt ? "checked" : ""} aria-label="${escapeHtml(t("szenarien.zumVergleich"))}: ${escapeHtml(sz.name)}"></td>
       <td>${escapeHtml(sz.name)}</td>
       <td>${statusChip(sz.status)}</td>
-      <td>${escapeHtml(String(sz.annahmen?.length ?? 0))}</td>
-      <td>${escapeHtml(monatLabel(sz.reichweite_bis))}</td>
-      <td class="amount ${ende && ende.liquide_cents < 0 ? "amount-negativ" : ""}">${ende ? escapeHtml(formatMoney(ende.liquide_cents)) : "—"}</td>
-      <td>${qualitaetChip(r.szenario.qualitaet)}</td>
+      <td class="amount">${escapeHtml(String(sz.phasen?.length || 1))}</td>
+      <td class="${kipp ? "amount-negativ" : ""}">${escapeHtml(kipp ? formatMonth(kipp) : t("szenarien.ueberHorizontKurz").replace("{monat}", ende ? kurzMonat(ende.monat) : "—"))}</td>
+      <td class="amount ${tief && tief.cents < 0 ? "amount-negativ" : ""}">${tief ? `${escapeHtml(formatMoney(tief.cents))} <span class="muted">${escapeHtml(kurzMonat(tief.monat))}</span>` : "—"}</td>
+      <td class="amount">${ende ? escapeHtml(formatMoney(ende.netto_cents)) : "—"}</td>
+      <td>${qualitaetChip(r.qualitaet)}</td>
     </tr>`;
   }).join("");
 
+  const anzahl = [...auswahl].filter((id) => bekannt.has(id)).length;
+  const vergleichLeiste = anzahl >= 2
+    ? `<button class="pager-button vergleich-button" data-action="szenarien-vergleichen">${iconSvg("chevronRight")}${escapeHtml(t("szenarien.vergleichen").replace("{n}", String(anzahl)))}</button>`
+    : `<span class="muted">${escapeHtml(t("szenarien.vergleichHinweis"))}</span>`;
+
   return `
     ${renderPageHead(t("szenarien.title"), t("szenarien.lead"))}
-    <div class="layout-with-rail ${railOpen ? "" : "rail-closed"}">
-      <div class="stack">
-        <section class="panel">
-          <div class="table-wrap">
-            <table>
-              <thead><tr>
-                <th>${escapeHtml(t("szenarien.name"))}</th>
-                <th>${escapeHtml(t("szenarien.statusHead"))}</th>
-                <th>${escapeHtml(t("szenarien.annahmenAnzahl"))}</th>
-                <th>${escapeHtml(t("szenarien.reichweite"))}</th>
-                <th class="amount">${escapeHtml(t("szenarien.liquideEnde"))}</th>
-                <th>${escapeHtml(t("szenarien.qualitaetHead"))}</th>
-              </tr></thead>
-              <tbody>${rows || `<tr><td colspan="6" class="muted">${escapeHtml(t("szenarien.noSzenarien"))}</td></tr>`}</tbody>
-            </table>
-          </div>
-        </section>
+    <section class="panel">
+      <div class="szenario-leiste">${vergleichLeiste}</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th class="auswahl-zelle"><span class="sr-only">${escapeHtml(t("szenarien.zumVergleich"))}</span></th>
+            <th>${escapeHtml(t("szenarien.name"))}</th>
+            <th>${escapeHtml(t("szenarien.statusHead"))}</th>
+            <th class="amount">${escapeHtml(t("szenarien.phasenAnzahl"))}</th>
+            <th>${escapeHtml(t("szenarien.reichtBis"))}</th>
+            <th class="amount">${escapeHtml(t("szenarien.tiefpunkt"))}</th>
+            <th class="amount">${escapeHtml(t("szenarien.nettoHorizont"))}</th>
+            <th>${escapeHtml(t("szenarien.qualitaetHead"))}</th>
+          </tr></thead>
+          <tbody>${rows || `<tr><td colspan="8" class="muted">${escapeHtml(t("szenarien.noSzenarien"))}</td></tr>`}</tbody>
+        </table>
       </div>
-      ${railOpen ? renderSzenarioRail(selected, today) : ""}
-    </div>`;
+    </section>`;
 }
 
-function renderSzenarioRail(szenario, today) {
-  const r = computeSzenario(data, szenario, today);
-  const sEnde = r.szenario.punkte[r.szenario.punkte.length - 1];
-  const bEnde = r.basis.punkte[r.basis.punkte.length - 1];
-  const endeMonat = sEnde?.monat ? formatMonth(sEnde.monat) : monatLabel(szenario.reichweite_bis);
-  const warnungen = r.szenario.warnungen ?? [];
+// --- Detail ---------------------------------------------------------------------
 
-  const kpi = (label, wert, basis, negativ) => `
-    <div class="rail-kpi">
-      <span class="muted">${escapeHtml(label)} (${escapeHtml(endeMonat)})</span>
-      <strong class="${negativ ? "amount-negativ" : ""}">${wert}</strong>
-      <span class="muted">${escapeHtml(t("szenarien.basis"))}: ${basis}</span>
-    </div>`;
+function vergleichsRechnung(szenario, today) {
+  const anderes = state.szenarioVergleichMit
+    ? (data.szenarien ?? []).find((s) => s.szenario_id === state.szenarioVergleichMit && s.szenario_id !== szenario.szenario_id)
+    : undefined;
+  if (state.szenarioVergleichMit && !anderes) state.szenarioVergleichMit = "";
+  if (anderes) return { label: anderes.name, r: rechneSzenario(data, anderes, today) };
+  return { label: t("szenarien.basis"), r: rechneSzenario(data, { ...szenario, annahmen: [] }, today) };
+}
 
+function beschreibungHtml(szenario) {
+  const text = szenario.beschreibung ?? "";
+  if (!text) return "";
+  const satzEnde = text.search(/[.!?](\s|$)/);
+  const erster = satzEnde > 0 ? text.slice(0, satzEnde + 1) : text;
+  if (erster.length >= text.length) return `<p class="page-lead">${escapeHtml(text)}</p>`;
+  const offen = state.szenarioBeschreibungOffen;
+  return `<p class="page-lead">${escapeHtml(offen ? text : erster)}
+    <button class="linkish" data-action="toggle-szenario-beschreibung" aria-expanded="${offen}">${escapeHtml(t(offen ? "szenarien.weniger" : "szenarien.mehr"))}</button></p>`;
+}
+
+function warnungenHtml(warnungen) {
+  if (!warnungen.length) return "";
+  const codes = [...new Map(warnungen.map((w) => [w.code, w])).values()];
   return `
-    <aside class="panel panel-pad detail-panel">
-      <div class="detail-head">
-        <h2 class="section-title">${escapeHtml(szenario.name)}</h2>
-        <button class="icon-button" data-action="close-szenario-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
-      </div>
-      <p class="kpi-note">${escapeHtml(t("szenarien.prognoseBis"))} ${escapeHtml(endeMonat)}</p>
-      ${kpi(t("szenarien.liquideEnde"), sEnde ? escapeHtml(formatMoney(sEnde.liquide_cents)) : "—", bEnde ? escapeHtml(formatMoney(bEnde.liquide_cents)) : "—", sEnde && sEnde.liquide_cents < 0)}
-      ${kpi(t("szenarien.nettoEnde"), sEnde ? escapeHtml(formatMoney(sEnde.netto_cents)) : "—", bEnde ? escapeHtml(formatMoney(bEnde.netto_cents)) : "—", false)}
-      <p class="kpi-note">${escapeHtml(t("szenarien.qualitaetHead"))}: ${qualitaetChip(r.szenario.qualitaet)}</p>
-      ${warnungen.length ? `<div class="rail-list">${warnungen.map((w) => `<div class="rail-item"><span class="chip ${warnGefahr(w.code) ? "danger" : "review"}">${iconSvg("review")}${escapeHtml(warnKlartext(w.code))}</span></div>`).join("")}</div>` : ""}
-      <button class="linkish section-spacing" data-action="open-szenario-vollansicht">${iconSvg("chevronRight")}${escapeHtml(t("szenarien.vollansichtOeffnen"))}</button>
-    </aside>`;
+    <details class="szenario-warnungen">
+      <summary>${codes.map((w) => `<span class="chip ${warnGefahr(w.code) ? "danger" : "review"}">${iconSvg("review")}${escapeHtml(warnKlartext(w.code))}</span>`).join(" ")}</summary>
+      <ul>${warnungen.map((w) => `<li>${escapeHtml(w.text)}</li>`).join("")}</ul>
+    </details>`;
 }
 
-// --- Vollansicht ------------------------------------------------------------
+function kachel(titel, wert, zeilen, negativ = false) {
+  return `
+    <div class="tile tile-static">
+      <strong>${escapeHtml(titel)}</strong>
+      <div class="count ${negativ ? "amount-negativ" : ""}">${escapeHtml(wert)}</div>
+      ${zeilen.map((z) => `<div class="kpi-note">${z}</div>`).join("")}
+    </div>`;
+}
 
-function renderSzenarioVollansicht(szenario, today) {
-  const r = computeSzenario(data, szenario, today);
-  const sEnde = r.szenario.punkte[r.szenario.punkte.length - 1];
-  const bEnde = r.basis.punkte[r.basis.punkte.length - 1];
-  const endeMonat = sEnde?.monat ? formatMonth(sEnde.monat) : monatLabel(szenario.reichweite_bis);
+function deltaText(c, vergleichLabel) {
+  if (c === 0) return `${escapeHtml(t("szenarien.gleichWie"))} ${escapeHtml(vergleichLabel)}`;
+  return `<span class="${c < 0 ? "amount-negativ" : "amount-positiv"}">${escapeHtml(vorzeichen(c))}</span> ${escapeHtml(t("szenarien.ggue"))} ${escapeHtml(vergleichLabel)}`;
+}
 
-  const liquideSerie = r.szenario.punkte.map((p) => ({ wert: p.liquide_cents, monat: p.monat }));
-  const liquideBasis = r.basis.punkte.map((p) => ({ wert: p.liquide_cents }));
-  const nettoSerie = r.szenario.punkte.map((p) => ({ wert: p.netto_cents, monat: p.monat }));
-  const nettoBasis = r.basis.punkte.map((p) => ({ wert: p.netto_cents }));
-  const diagrammOpt = (ariaKey) => ({
-    vergleich: undefined,
-    formatWert: (c) => formatMoney(c),
-    formatMonat: (m) => formatMonth(m),
-    ariaLabel: t(ariaKey),
-    szenarioLabel: t("szenarien.nachher"),
-    basisLabel: t("szenarien.basis"),
+function antwortZeile(szenario, r, v, today) {
+  const kipp = kippMonat(r.punkte);
+  const vKipp = kippMonat(v.r.punkte);
+  const tief = tiefpunkt(r.punkte);
+  const vTief = tiefpunkt(v.r.punkte);
+  const ende = r.punkte.at(-1);
+  const vEnde = v.r.punkte.at(-1);
+  const annahmenById = new Map((szenario.annahmen ?? []).map((a) => [a.annahme_id, a]));
+  const wirkung = ereignisWirkung(data, szenario, today).map((w) => {
+    const a = annahmenById.get(w.annahme_id);
+    return `${escapeHtml(t("szenarien.ohne"))} ${escapeHtml(a ? annahmeName(a) : w.annahme_id)}: ${escapeHtml(reichtBisText(w.kipp_monat, r.punkte))}`;
   });
-
-  const warnungen = r.szenario.warnungen ?? [];
-  const warnungenHtml = warnungen.length ? `
-    <section class="panel panel-pad section-spacing">
-      <h2 class="section-title">${escapeHtml(t("szenarien.warnungenTitle"))}</h2>
-      <div class="rail-list">${warnungen.map(warnZeileVoll).join("")}</div>
-    </section>` : "";
-
-  const guardrails = guardrailWarnungen(data, today);
-  const prognoseHinweis = guardrails.length ? `
-    <p class="page-lead">
-      <span class="chip neutral">${iconSvg("review")}${escapeHtml(t("szenarien.prognosebasisHinweis").replace("{n}", String(guardrails.length)))}</span>
-      <button class="linkish" data-view="checks">${escapeHtml(t("szenarien.zuChecks"))}</button>
-    </p>` : "";
-
   return `
-    ${renderPageHead(szenario.name, szenario.beschreibung || "", `<button class="linkish" data-action="back-to-szenarien">${iconSvg("chevronLeft")}${escapeHtml(t("szenarien.backToList"))}</button>`)}
-    ${staleNote(szenario, today)}
-    <p class="page-lead">${escapeHtml(t("szenarien.prognoseBis"))} <strong>${escapeHtml(endeMonat)}</strong> · ${escapeHtml(t("szenarien.standLabel"))}: ${escapeHtml(formatDate(szenario.stand))}</p>
     <div class="tile-grid">
-      <div class="tile tile-static">
-        <strong>${escapeHtml(t("szenarien.liquideEnde"))} (${escapeHtml(endeMonat)})</strong>
-        <div class="count ${sEnde && sEnde.liquide_cents < 0 ? "amount-negativ" : ""}">${sEnde ? escapeHtml(formatMoney(sEnde.liquide_cents)) : "—"}</div>
-        <div class="kpi-note">${escapeHtml(t("szenarien.basis"))}: ${bEnde ? escapeHtml(formatMoney(bEnde.liquide_cents)) : "—"}</div>
-      </div>
-      <div class="tile tile-static">
-        <strong>${escapeHtml(t("szenarien.nettoEnde"))} (${escapeHtml(endeMonat)})</strong>
-        <div class="count">${sEnde ? escapeHtml(formatMoney(sEnde.netto_cents)) : "—"}</div>
-        <div class="kpi-note">${escapeHtml(t("szenarien.basis"))}: ${bEnde ? escapeHtml(formatMoney(bEnde.netto_cents)) : "—"}</div>
-      </div>
-      <div class="tile tile-static">
-        <strong>${escapeHtml(t("szenarien.qualitaetHead"))}</strong>
-        ${qualitaetChip(r.szenario.qualitaet)}
-      </div>
-    </div>
-    ${warnungenHtml}
-    <section class="panel panel-pad section-spacing">
-      <h2 class="section-title">${escapeHtml(t("szenarien.liquiditaetVerlauf"))}</h2>
-      ${liquideSerie.length > 1 ? `<div class="diagramm-wrap">${linienDiagramm(liquideSerie, { ...diagrammOpt("szenarien.liquiditaetVerlauf"), vergleich: liquideBasis })}</div>` : `<p class="muted">${escapeHtml(t("szenarien.zuWenigPunkte"))}</p>`}
-    </section>
-    <section class="panel panel-pad section-spacing">
-      <h2 class="section-title">${escapeHtml(t("szenarien.nettovermoegenVerlauf"))}</h2>
-      ${nettoSerie.length > 1 ? `<div class="diagramm-wrap">${linienDiagramm(nettoSerie, { ...diagrammOpt("szenarien.nettovermoegenVerlauf"), vergleich: nettoBasis })}</div>` : `<p class="muted">${escapeHtml(t("szenarien.zuWenigPunkte"))}</p>`}
-      <p class="page-lead">${escapeHtml(t("szenarien.sachwerteEingefroren"))}</p>
-    </section>
-    ${renderRechengrundlage(szenario, r, endeMonat)}
-    ${prognoseHinweis}
-  `;
-}
-
-// --- Rechengrundlage: Abweichungen (vorher -> nachher), Objektwirkungen,
-// aufklappbare Basis-Regelzahlungen. -----------------------------------------
-
-function abweichungBlock(titelHtml, qChip, basisText, nachherText, begrHtml) {
-  return `
-    <div class="rail-item">
-      <div><strong>${titelHtml}</strong> ${qChip}</div>
-      <div><span class="muted">${escapeHtml(t("szenarien.basis"))}:</span> ${basisText} <span class="muted">→</span> <span class="muted">${escapeHtml(t("szenarien.nachher"))}:</span> ${nachherText}</div>
-      ${begrHtml}
+      ${kachel(t("szenarien.reichtBis"), kipp ? formatMonth(kipp) : t("szenarien.ganzerHorizont"), [
+        kipp ? "" : escapeHtml(t("szenarien.keinEngpass").replace("{monat}", ende ? formatMonth(ende.monat) : "—")),
+        `${escapeHtml(v.label)}: ${escapeHtml(reichtBisText(vKipp, v.r.punkte))}`,
+        ...wirkung,
+      ].filter(Boolean), Boolean(kipp))}
+      ${kachel(t("szenarien.tiefpunkt"), tief ? formatMoney(tief.cents) : "—", [tief ? escapeHtml(formatMonth(tief.monat)) : "", tief && vTief ? deltaText(tief.cents - vTief.cents, v.label) : ""].filter(Boolean), Boolean(tief && tief.cents < 0))}
+      ${kachel(`${t("szenarien.nettoverm")} ${ende ? formatMonth(ende.monat) : ""}`, ende ? formatMoney(ende.netto_cents) : "—", [r.punkte.length ? `${escapeHtml(t("szenarien.jetzt"))}: ${escapeHtml(formatMoney(r.punkte[0].netto_cents))}` : "", ende && vEnde ? deltaText(ende.netto_cents - vEnde.netto_cents, v.label) : ""].filter(Boolean))}
     </div>`;
 }
 
-function abweichungZeile(a) {
+function umschalter(action, aktiv, optionen) {
+  return `<div class="segment" role="group">${optionen.map(([wert, label]) => `<button class="segment-button ${aktiv === wert ? "active" : ""}" data-action="${action}" data-wert="${wert}" aria-pressed="${aktiv === wert}">${escapeHtml(label)}</button>`).join("")}</div>`;
+}
+
+function zeitstrahl(szenario, r, v, phasen) {
+  const aufloesung = state.szenarioAufloesung === "monat" ? "monat" : "jahr";
+  const modus = state.szenarioDiagrammModus === "differenz" ? "differenz" : "absolut";
+  const spalten = spaltenAus(r.punkte, aufloesung);
+  const eigene = werteJeSpalte(r.punkte, spalten, aufloesung, "liquide_cents");
+  const fremde = werteJeSpalte(v.r.punkte, spalten, aufloesung, "liquide_cents");
+  const serien = modus === "differenz"
+    ? [{ klasse: "differenz", label: `${t("szenarien.abstandZu")} ${v.label}`, werte: eigene.map((w, i) => (w == null || fremde[i] == null ? null : w - fremde[i])) }]
+    : [{ klasse: "szenario", label: szenario.name, werte: eigene }, { klasse: "vergleich", label: v.label, werte: fremde }];
+  const baender = phasen.length > 1
+    ? phasen.map((ph) => ({ name: phasenName(ph), von: position(spalten, ph.von), bis: position(spalten, ph.bis, true) }))
+    : [];
+  const horizontMonat = r.punkte.at(-1)?.monat ?? "";
+  const ereignisse = (szenario.annahmen ?? [])
+    .filter(istEinmalig)
+    .map((a) => ({ a, monat: String(a.art === "einmalzahlung" ? a.datum : a.ab).slice(0, 7) }))
+    .filter(({ monat }) => monat >= (r.punkte[0]?.monat ?? "") && monat <= horizontMonat)
+    .map(({ a, monat }) => {
+      const betrag = a.art === "einmalzahlung" && a.betrag && a.betrag !== "0.00" ? ` ${kurzBetrag(cents(a.betrag))}` : "";
+      return { pos: (position(spalten, monat) + position(spalten, monat, true)) / 2, label: `${annahmeName(a)}${betrag}` };
+    });
+  const svg = zeitstrahlDiagramm({ spalten, serien, phasen: baender, ereignisse, formatWert: formatMoney, formatAchse: kurzBetrag, ariaLabel: t("szenarien.liquiditaetVerlauf") });
+  const legende = `<div class="stapel-legende">${serien.map((s) => `<span><span class="legende-linie ${s.klasse}"></span>${escapeHtml(s.label)}</span>`).join("")}</div>`;
+  return `
+    <section class="panel panel-pad section-spacing">
+      <div class="szenario-diagramm-kopf">
+        <h2 class="section-title">${escapeHtml(t("szenarien.liquiditaetVerlauf"))}</h2>
+        <div class="szenario-schalter">
+          ${umschalter("set-szenario-modus", modus, [["absolut", t("szenarien.absolut")], ["differenz", t("szenarien.differenz")]])}
+          ${umschalter("set-szenario-aufloesung", aufloesung, [["jahr", t("szenarien.jahre")], ["monat", t("szenarien.monate")]])}
+        </div>
+      </div>
+      ${svg ? `${legende}<div class="diagramm-wrap">${svg}</div>` : `<p class="muted">${escapeHtml(t("szenarien.zuWenigPunkte"))}</p>`}
+    </section>`;
+}
+
+function annahmeZeile(a) {
   const q = qualitaetChip(a.qualitaet);
-  const begr = a.begruendung ? `<div class="muted">${escapeHtml(a.begruendung)}</div>` : "";
+  const begr = a.begruendung ? `<div class="muted annahme-begruendung">${escapeHtml(a.begruendung)}</div>` : "";
+  const ab = a.art === "einmalzahlung" ? a.datum : a.ab;
+  let vorher = "—";
+  let nachher = "—";
+  let wirkung = "—";
+  let posten = escapeHtml(annahmeName(a));
   if (a.art === "regelzahlung-aenderung") {
     const orig = (data.regelzahlungen ?? []).find((r) => r.regelzahlung_id === a.regelzahlung_id);
-    const name = orig ? orig.bezeichnung : a.regelzahlung_id;
-    const nameLink = `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(a.regelzahlung_id)}">${escapeHtml(name)}</button>`;
-    const basisText = orig
-      ? `${escapeHtml(formatMoney(cents(orig.betrag)))} / ${escapeHtml(rhythmusLabel(orig.rhythmus_einheit, orig.rhythmus_intervall))}`
-      : escapeHtml(t("szenarien.nichtVorgesehen"));
-    const nachher = a.aktion === "beenden"
-      ? `${escapeHtml(t("szenarien.aktionBeenden"))} ${escapeHtml(t("szenarien.ab"))} ${escapeHtml(formatDate(a.ab))}`
-      : `${escapeHtml(formatMoney(cents(a.betrag)))} / ${escapeHtml(rhythmusLabel(orig?.rhythmus_einheit ?? "monat", orig?.rhythmus_intervall ?? 1))} ${escapeHtml(t("szenarien.ab"))} ${escapeHtml(formatDate(a.ab))}`;
-    return abweichungBlock(nameLink, q, basisText, nachher, begr);
+    posten = `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(a.regelzahlung_id)}">${posten}</button>`;
+    if (orig) vorher = `${formatMoney(cents(orig.betrag))} / ${rhythmusLabel(orig.rhythmus_einheit, orig.rhythmus_intervall)}`;
+    const alt = orig ? monatsBetrag(orig.betrag, orig.rhythmus_einheit, orig.rhythmus_intervall) : 0;
+    if (a.aktion === "beenden") {
+      nachher = t("szenarien.aktionBeenden");
+      wirkung = `${vorzeichen(-alt)} / ${t("szenarien.monatKurz")}`;
+    } else {
+      nachher = `${formatMoney(cents(a.betrag))} / ${rhythmusLabel(orig?.rhythmus_einheit ?? "monat", orig?.rhythmus_intervall ?? 1)}`;
+      const neu = monatsBetrag(a.betrag, orig?.rhythmus_einheit, orig?.rhythmus_intervall);
+      wirkung = `${vorzeichen(neu - alt)} / ${t("szenarien.monatKurz")}`;
+    }
+  } else if (a.art === "regelzahlung-neu") {
+    nachher = `${formatMoney(cents(a.betrag))} / ${rhythmusLabel(a.rhythmus_einheit, a.rhythmus_intervall)}${a.bis ? ` ${t("szenarien.bis")} ${monatLabel(a.bis)}` : ""}`;
+    wirkung = `${vorzeichen(monatsBetrag(a.betrag, a.rhythmus_einheit, a.rhythmus_intervall))} / ${t("szenarien.monatKurz")}`;
+  } else if (a.art === "einmalzahlung") {
+    nachher = a.gegenbuchung ? gegenbuchungLabel(a.gegenbuchung) : t("szenarien.art.einmalzahlung");
+    wirkung = `${vorzeichen(cents(a.betrag))} ${t("szenarien.einmalig")}`;
+  } else if (a.art === "vorsorge-leistung") {
+    const arm = t(`szenarien.arm.${a.arm}`);
+    nachher = arm === `szenarien.arm.${a.arm}` ? a.arm : arm;
   }
-  const titel = escapeHtml(t(`szenarien.art.${a.art}`));
-  return abweichungBlock(titel, q, escapeHtml(t("szenarien.nichtVorgesehen")), annahmeInhalt(a), begr);
+  const artText = `${t(`szenarien.art.${a.art}`)}${a.art === "vorsorge-leistung" ? ` · ${a.vorsorge_id}` : ""}`;
+  return `
+    <tr>
+      <td>${posten} ${q}<div class="muted annahme-art">${escapeHtml(artText)}</div>${begr}</td>
+      <td>${escapeHtml(vorher)}</td>
+      <td>${escapeHtml(nachher)}</td>
+      <td class="amount">${escapeHtml(wirkung)}</td>
+      <td>${ab ? escapeHtml(kurzMonat(String(ab).slice(0, 7))) : "—"}</td>
+    </tr>`;
 }
 
-function objektZeile(bezeichnungHtml, text) {
-  return `<div class="rail-item"><div><strong>${bezeichnungHtml}</strong></div><div>${text}</div></div>`;
+function phasenTabelle(szenario, phasen) {
+  const annahmenById = new Map((szenario.annahmen ?? []).map((a) => [a.annahme_id, a]));
+  const offen = state.szenarioPhaseOffen ?? new Set();
+  const zeilen = phasen.map((ph, i) => {
+    const istOffen = offen.has(i);
+    const annahmen = ph.annahme_ids.map((id) => annahmenById.get(id)).filter(Boolean);
+    const kopf = `
+      <tr class="clickable" data-action="toggle-szenario-phase" data-phase="${i}" tabindex="0" role="button" aria-expanded="${istOffen}">
+        <td><span class="toggle-icon">${iconSvg(istOffen ? "chevronDown" : "chevronRight")}</span>${escapeHtml(phasenName(ph))} <span class="muted">· ${annahmen.length} ${escapeHtml(t(annahmen.length === 1 ? "szenarien.annahmeKurz" : "szenarien.annahmenKurz"))}</span></td>
+        <td>${escapeHtml(kurzMonat(ph.von))} – ${escapeHtml(kurzMonat(ph.bis))}</td>
+        <td class="amount">${escapeHtml(formatMoney(ph.ein_cents))}</td>
+        <td class="amount">${escapeHtml(formatMoney(ph.aus_cents))}</td>
+        <td class="amount ${ph.saldo_cents < 0 ? "amount-negativ" : ""}">${escapeHtml(vorzeichen(ph.saldo_cents))}</td>
+        <td class="amount">${ph.einmal_cents ? escapeHtml(vorzeichen(ph.einmal_cents)) : "—"}</td>
+        <td class="amount ${ph.liquide_ende_cents < 0 ? "amount-negativ" : ""}">${escapeHtml(formatMoney(ph.liquide_ende_cents))}</td>
+      </tr>`;
+    if (!istOffen) return kopf;
+    const inhalt = annahmen.length
+      ? `<table class="annahmen-tabelle">
+          <thead><tr>
+            <th>${escapeHtml(t("szenarien.posten"))}</th>
+            <th>${escapeHtml(t("szenarien.vorher"))}</th>
+            <th>${escapeHtml(t("szenarien.nachher"))}</th>
+            <th class="amount">${escapeHtml(t("szenarien.wirkung"))}</th>
+            <th>${escapeHtml(t("szenarien.ab"))}</th>
+          </tr></thead>
+          <tbody>${annahmen.map(annahmeZeile).join("")}</tbody>
+        </table>`
+      : `<p class="muted">${escapeHtml(t("szenarien.keineAnnahmenInPhase"))}</p>`;
+    return `${kopf}<tr class="phase-detail"><td colspan="7">${inhalt}</td></tr>`;
+  }).join("");
+  return `
+    <section class="panel panel-pad section-spacing">
+      <h2 class="section-title">${escapeHtml(t("szenarien.phasenTitle"))}</h2>
+      <p class="muted">${escapeHtml(t("szenarien.phasenLead"))}</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>${escapeHtml(t("szenarien.phase"))}</th>
+            <th>${escapeHtml(t("szenarien.zeitraum"))}</th>
+            <th class="amount">${escapeHtml(t("szenarien.einnahmenMonat"))}</th>
+            <th class="amount">${escapeHtml(t("szenarien.ausgabenMonat"))}</th>
+            <th class="amount">${escapeHtml(t("szenarien.saldoMonat"))}</th>
+            <th class="amount">${escapeHtml(t("szenarien.einmalSumme"))}</th>
+            <th class="amount">${escapeHtml(t("szenarien.liquideEndePhase"))}</th>
+          </tr></thead>
+          <tbody>${zeilen}</tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
+function klappKopf(action, offen, titel, zusatz = "") {
+  return `
+    <button class="row-toggle klapp-kopf" data-action="${action}" aria-expanded="${offen}">
+      <span class="toggle-icon">${iconSvg(offen ? "chevronDown" : "chevronRight")}</span>${escapeHtml(titel)}${zusatz}
+    </button>`;
+}
+
+function nettoAbschnitt(r) {
+  const offen = state.szenarioNettoOffen;
+  const kopf = klappKopf("toggle-szenario-netto", offen, t("szenarien.nettovermoegenVerlauf"));
+  if (!offen) return `<section class="panel panel-pad section-spacing">${kopf}</section>`;
+  const jahre = jahresWerte(r.punkte);
+  const spalten = jahre.map((j) => ({ label: j.jahr, titel: formatMonth(j.punkt.monat) }));
+  const reihe = (feld, vz = 1) => jahre.map((j) => vz * j.punkt[feld]);
+  const teile = [
+    { klasse: "liquide", label: t("szenarien.liquide"), werte: reihe("liquide_cents") },
+    { klasse: "depot", label: t("szenarien.depot"), werte: reihe("depot_cents") },
+    { klasse: "sachwerte", label: t("szenarien.sachwerte"), werte: reihe("sachwerte_cents") },
+    { klasse: "restschuld", label: t("szenarien.restschuld"), werte: reihe("restschuld_cents", -1) },
+  ];
+  const tabelle = state.szenarioNettoTabelle;
+  const inhalt = tabelle
+    ? `<div class="table-wrap"><table>
+        <thead><tr><th>${escapeHtml(t("szenarien.jahr"))}</th>${teile.map((x) => `<th class="amount">${escapeHtml(x.label)}</th>`).join("")}<th class="amount">${escapeHtml(t("szenarien.nettoverm"))}</th></tr></thead>
+        <tbody>${jahre.map((j, i) => `<tr><td>${escapeHtml(spalten[i].titel)}</td>${teile.map((x) => `<td class="amount">${escapeHtml(formatMoney(x.werte[i]))}</td>`).join("")}<td class="amount"><strong>${escapeHtml(formatMoney(j.punkt.netto_cents))}</strong></td></tr>`).join("")}</tbody>
+      </table></div>`
+    : `<div class="diagramm-wrap">${stapelDiagramm({ spalten, teile, netto: { label: t("szenarien.nettoverm"), werte: reihe("netto_cents") }, formatWert: formatMoney, formatAchse: kurzBetrag, ariaLabel: t("szenarien.nettovermoegenVerlauf") })}</div>
+       <div class="stapel-legende">${teile.map((x) => `<span><span class="legende-swatch ${x.klasse}"></span>${escapeHtml(x.label)}</span>`).join("")}<span><span class="legende-swatch saldo"></span>${escapeHtml(t("szenarien.nettoverm"))}</span></div>`;
+  return `
+    <section class="panel panel-pad section-spacing">
+      <div class="szenario-diagramm-kopf">${kopf}${umschalter("set-szenario-netto-ansicht", tabelle ? "tabelle" : "diagramm", [["diagramm", t("szenarien.diagramm")], ["tabelle", t("szenarien.tabelle")]])}</div>
+      <p class="muted">${escapeHtml(t("szenarien.sachwerteEingefroren"))}</p>
+      ${inhalt}
+    </section>`;
 }
 
 function vermoegenLink(zielTyp, zielId, bezeichnung) {
@@ -290,40 +450,38 @@ function vermoegenLink(zielTyp, zielId, bezeichnung) {
   return escapeHtml(bezeichnung);
 }
 
-function renderObjektwirkungen(r) {
-  const items = [];
+function objektZeile(bezeichnungHtml, text) {
+  return `<div class="rail-item"><div><strong>${bezeichnungHtml}</strong></div><div>${text}</div></div>`;
+}
 
-  const basisDarlehen = new Map((r.basis.darlehen ?? []).map((d) => [d.darlehen_id, d]));
-  for (const d of r.szenario.darlehen ?? []) {
+// Wirkung auf Objekte immer gegenueber der annahmenfreien Basis.
+function renderObjektwirkungen(c) {
+  const items = [];
+  const basisDarlehen = new Map((c.basis.darlehen ?? []).map((d) => [d.darlehen_id, d]));
+  for (const d of c.szenario.darlehen ?? []) {
     const b = basisDarlehen.get(d.darlehen_id);
     if (!b) continue;
     if (d.abbezahlt_am !== b.abbezahlt_am) {
-      // Tilgung faellt in den Horizont und verschiebt sich — der klarste Effekt.
       const szT = d.abbezahlt_am ? monatLabel(d.abbezahlt_am) : t("szenarien.nichtGetilgt");
       const baT = b.abbezahlt_am ? monatLabel(b.abbezahlt_am) : t("szenarien.nichtGetilgt");
       items.push(objektZeile(escapeHtml(d.bezeichnung), `${escapeHtml(t("szenarien.darlehenAbbezahlt"))}: ${escapeHtml(baT)} <span class="muted">→</span> ${escapeHtml(szT)}`));
     } else if (d.ende_cents !== b.ende_cents) {
-      // Tilgung liegt jenseits des Horizonts, aber die Restschuld am Ende sinkt (z. B. Sondertilgung).
       items.push(objektZeile(escapeHtml(d.bezeichnung), `${escapeHtml(t("szenarien.restschuldEnde"))}: ${escapeHtml(formatMoney(b.ende_cents))} <span class="muted">→</span> ${escapeHtml(formatMoney(d.ende_cents))}`));
     }
   }
-
-  const basisDepot = new Map((r.basis.depots ?? []).map((d) => [d.konto_id, d]));
-  for (const d of r.szenario.depots ?? []) {
+  const basisDepot = new Map((c.basis.depots ?? []).map((d) => [d.konto_id, d]));
+  for (const d of c.szenario.depots ?? []) {
     const b = basisDepot.get(d.konto_id);
     if (!b || d.ende_cents === b.ende_cents) continue;
     items.push(objektZeile(vermoegenLink("depot", d.konto_id, d.bezeichnung), `${escapeHtml(t("szenarien.depotWert"))}: ${escapeHtml(formatMoney(b.ende_cents))} <span class="muted">→</span> ${escapeHtml(formatMoney(d.ende_cents))}`));
   }
-
-  for (const s of r.szenario.sachwertwirkungen ?? []) {
+  for (const s of c.szenario.sachwertwirkungen ?? []) {
     const vz = s.art === "aufbau" ? "+" : "−";
     items.push(objektZeile(vermoegenLink(s.ziel_typ, s.ziel_id, s.bezeichnung), `${escapeHtml(formatDate(s.datum))} · ${vz} ${escapeHtml(formatMoney(s.wert_cents))}`));
   }
-
-  for (const v of r.szenario.vorsorgewirkungen ?? []) {
+  for (const v of c.szenario.vorsorgewirkungen ?? []) {
     items.push(objektZeile(escapeHtml(v.bezeichnung), `${escapeHtml(formatDate(v.datum))} · − ${escapeHtml(formatMoney(v.rueckkaufswert_cents))}`));
   }
-
   if (!items.length) return "";
   return `
     <h3 class="section-title section-subtitle">${escapeHtml(t("szenarien.objektwirkungTitle"))}</h3>
@@ -331,13 +489,9 @@ function renderObjektwirkungen(r) {
 }
 
 function renderBasisRegelzahlungen(r, endeMonat) {
-  const rz = r.szenario.basisRegelzahlungen ?? [];
+  const rz = r.basisRegelzahlungen ?? [];
   const expanded = state.szenarioBasisExpanded;
-  const kopf = `
-    <button class="row-toggle" data-action="toggle-szenario-basis" aria-expanded="${expanded}">
-      <span class="toggle-icon">${iconSvg(expanded ? "chevronDown" : "chevronRight")}</span>${escapeHtml(t("szenarien.basisRzTitle"))}
-      <span class="muted">· ${rz.length} ${escapeHtml(t("szenarien.ausDerBasis"))}</span>
-    </button>`;
+  const kopf = klappKopf("toggle-szenario-basis", expanded, t("szenarien.basisRzTitle"), ` <span class="muted">· ${rz.length} ${escapeHtml(t("szenarien.ausDerBasis"))}</span>`);
   if (!expanded) return kopf;
   const rows = rz.map((x) => {
     const bis = x.aktiv_bis ? formatDate(x.aktiv_bis) : t("szenarien.unbefristetBis").replace("{monat}", endeMonat);
@@ -364,19 +518,94 @@ function renderBasisRegelzahlungen(r, endeMonat) {
     </div>`;
 }
 
-function renderRechengrundlage(szenario, r, endeMonat) {
-  const annahmen = szenario.annahmen ?? [];
-  const abweichungen = annahmen.length
-    ? `<div class="rail-list">${annahmen.map(abweichungZeile).join("")}</div>`
-    : `<p class="muted">${escapeHtml(t("szenarien.keineAbweichungen"))}</p>`;
-
+function rechengrundlage(szenario, today) {
+  const offen = state.szenarioGrundlageOffen;
+  const kopf = klappKopf("toggle-szenario-grundlage", offen, t("szenarien.rechengrundlageTitle"));
+  if (!offen) return `<section class="panel panel-pad section-spacing">${kopf}</section>`;
+  const c = computeSzenario(data, szenario, today);
+  const guardrails = guardrailWarnungen(data, today);
+  const hinweis = guardrails.length ? `
+    <p class="page-lead">
+      <span class="chip neutral">${iconSvg("review")}${escapeHtml(t("szenarien.prognosebasisHinweis").replace("{n}", String(guardrails.length)))}</span>
+      <button class="linkish" data-view="checks">${escapeHtml(t("szenarien.zuChecks"))}</button>
+    </p>` : "";
   return `
     <section class="panel panel-pad section-spacing">
-      <h2 class="section-title">${escapeHtml(t("szenarien.rechengrundlageTitle"))}</h2>
-      <h3 class="section-title section-subtitle">${escapeHtml(t("szenarien.abweichungenTitle"))}</h3>
-      <p class="muted">${escapeHtml(t("szenarien.abweichungenLead"))}</p>
-      ${abweichungen}
-      ${renderObjektwirkungen(r)}
-      <div class="section-spacing">${renderBasisRegelzahlungen(r, endeMonat)}</div>
+      ${kopf}
+      ${renderObjektwirkungen(c)}
+      <div class="section-spacing">${renderBasisRegelzahlungen(c.szenario, monatLabel(szenario.reichweite_bis))}</div>
+      ${hinweis}
+    </section>`;
+}
+
+function renderDetail(szenario, today) {
+  const r = rechneSzenario(data, szenario, today);
+  const v = vergleichsRechnung(szenario, today);
+  const phasen = phasenKennzahlen(szenario, r.punkte);
+  const andere = (data.szenarien ?? []).filter((s) => s.szenario_id !== szenario.szenario_id);
+  const auswahl = `
+    <label class="szenario-vergleich-wahl">${escapeHtml(t("szenarien.vergleichMit"))}
+      <select data-control="szenario-vergleich">
+        <option value="" ${state.szenarioVergleichMit ? "" : "selected"}>${escapeHtml(t("szenarien.basisOhneAnnahmen"))}</option>
+        ${andere.map((s) => `<option value="${escapeHtml(s.szenario_id)}" ${state.szenarioVergleichMit === s.szenario_id ? "selected" : ""}>${escapeHtml(s.name)}</option>`).join("")}
+      </select>
+    </label>`;
+  const meta = `${t(`szenarien.status.${szenario.status}`)} · ${t("szenarien.standLabel")} ${formatDate(szenario.stand)} · ${t("szenarien.prognoseBis")} ${monatLabel(szenario.reichweite_bis)}`;
+  return `
+    <div class="page-head szenario-kopf">
+      <div>
+        <button class="linkish" data-action="back-to-szenarien">${iconSvg("chevronLeft")}${escapeHtml(t("szenarien.backToList"))}</button>
+        <h1 class="page-title">${escapeHtml(szenario.name)}</h1>
+        <p class="kpi-note">${escapeHtml(meta)} ${qualitaetChip(r.qualitaet)}</p>
+        ${beschreibungHtml(szenario)}
+      </div>
+      ${auswahl}
+    </div>
+    ${staleNote(szenario, today)}
+    ${warnungenHtml(r.warnungen ?? [])}
+    ${antwortZeile(szenario, r, v, today)}
+    ${zeitstrahl(szenario, r, v, phasen)}
+    ${phasenTabelle(szenario, phasen)}
+    ${nettoAbschnitt(r)}
+    ${rechengrundlage(szenario, today)}`;
+}
+
+// --- Vergleich ------------------------------------------------------------------
+
+function renderVergleich(szenarien, today) {
+  const rechnungen = szenarien.map((sz) => ({ sz, r: rechneSzenario(data, sz, today) }));
+  const alleMonate = [...new Set(rechnungen.flatMap(({ r }) => r.punkte.map((p) => p.monat)))].sort();
+  const raster = alleMonate.map((monat) => ({ monat }));
+  const spalten = spaltenAus(raster, "jahr");
+  const serien = rechnungen.map(({ sz, r }, i) => ({ klasse: `serie-${i}`, label: sz.name, werte: werteJeSpalte(r.punkte, spalten, "jahr", "liquide_cents") }));
+  const svg = zeitstrahlDiagramm({ spalten, serien, formatWert: formatMoney, formatAchse: kurzBetrag, ariaLabel: t("szenarien.vergleichTitel") });
+  const zeilen = [
+    [t("szenarien.reichtBis"), ({ r }) => { const k = kippMonat(r.punkte); return `<span class="${k ? "amount-negativ" : ""}">${escapeHtml(reichtBisText(k, r.punkte))}</span>`; }],
+    [t("szenarien.tiefpunkt"), ({ r }) => { const tp = tiefpunkt(r.punkte); return tp ? `${escapeHtml(formatMoney(tp.cents))} <span class="muted">${escapeHtml(kurzMonat(tp.monat))}</span>` : "—"; }],
+    [t("szenarien.nettoHorizont"), ({ r }) => escapeHtml(formatMoney(r.punkte.at(-1)?.netto_cents ?? 0))],
+    [t("szenarien.horizont"), ({ sz }) => escapeHtml(monatLabel(sz.reichweite_bis))],
+    [t("szenarien.phasenAnzahl"), ({ sz }) => escapeHtml(String(sz.phasen?.length || 1))],
+    [t("szenarien.qualitaetHead"), ({ r }) => qualitaetChip(r.qualitaet)],
+  ];
+  return `
+    <div class="page-head">
+      <div>
+        <button class="linkish" data-action="back-to-szenarien">${iconSvg("chevronLeft")}${escapeHtml(t("szenarien.backToList"))}</button>
+        <h1 class="page-title">${escapeHtml(t("szenarien.vergleichTitel"))}</h1>
+        <p class="page-lead">${escapeHtml(t("szenarien.vergleichLead"))}</p>
+      </div>
+    </div>
+    <section class="panel panel-pad section-spacing">
+      <h2 class="section-title">${escapeHtml(t("szenarien.liquiditaetVerlauf"))}</h2>
+      <div class="stapel-legende">${serien.map((s) => `<span><span class="legende-swatch ${s.klasse}"></span>${escapeHtml(s.label)}</span>`).join("")}</div>
+      ${svg ? `<div class="diagramm-wrap">${svg}</div>` : `<p class="muted">${escapeHtml(t("szenarien.zuWenigPunkte"))}</p>`}
+    </section>
+    <section class="panel section-spacing">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th>${rechnungen.map(({ sz }, i) => `<th><span class="legende-swatch serie-${i}"></span><button class="linkish" data-action="open-szenario" data-szenario="${escapeHtml(sz.szenario_id)}">${escapeHtml(sz.name)}</button></th>`).join("")}</tr></thead>
+          <tbody>${zeilen.map(([label, f]) => `<tr><th scope="row">${escapeHtml(label)}</th>${rechnungen.map((x) => `<td>${f(x)}</td>`).join("")}</tr>`).join("")}</tbody>
+        </table>
+      </div>
     </section>`;
 }

@@ -649,6 +649,26 @@ const dateiErsetzen = {
   },
 };
 
+// Ablage nach Objekt (agent-context, "Ablage nach Objekt"): Belege/<Klasse>/...
+// Klassen mit Stammsatz verlangen <ID>_<Kurzname> oder Allgemein als Ordner.
+const BELEG_KLASSEN = {
+  Konten: "KTO", Immobilien: "IMM", Darlehen: "DAR", Vorsorge: "VS",
+  Versicherungen: null, Steuern: null, Sonstiges: null,
+};
+
+export function pruefeBelegZiel(relativ) {
+  const teile = relativ.split("/");
+  const klasse = teile[1];
+  if (teile[0] !== "Belege" || !Object.hasOwn(BELEG_KLASSEN, klasse) || teile.length < 4) {
+    return `Ziel muss unter Belege/<Klasse>/.../<Datei> liegen, Klasse eine von ${Object.keys(BELEG_KLASSEN).join(", ")} (agent-context: Ablage nach Objekt)`;
+  }
+  const praefix = BELEG_KLASSEN[klasse];
+  if (praefix && teile[2] !== "Allgemein" && !new RegExp(`^${praefix}-\\d+_`).test(teile[2])) {
+    return `Ordner unter Belege/${klasse}/ muss ${praefix}-<Nr>_<Kurzname> oder Allgemein heissen, nicht ${teile[2]}`;
+  }
+  return null;
+}
+
 const belegAblegen = {
   name: "beleg_ablegen",
   description: "Rohbeleg aus data/inbox/ (auch processed/, error/) sprechend benannt unter Belege/ ablegen, nach Objekt und Jahr, z. B. Belege/Konten/<KTO-ID>_<Kurzname>/<Jahr>/... (Regel: agent-context, Ablage nach Objekt) Verschiebt, legt fehlende Ordner an, ueberschreibt nie, Endung bleibt gleich. Ein .txt-Zwilling gleichen Namens neben der Quelle wird mitgenommen (so kommt ein von Hand geschriebener Bildscan-Zwilling an den Beleg: erst per datei_schreiben neben die Quelle legen). Wird bei einem Rollback nicht zurueckgenommen.",
@@ -665,6 +685,8 @@ const belegAblegen = {
   async ausfuehren(ctx, args) {
     const quelle = await loesePfad(ctx.app, args.quelle, ["data/inbox"]);
     const ziel = await loesePfad(ctx.app, args.ziel, ["Belege"]);
+    const falschesZiel = pruefeBelegZiel(ziel.relativ);
+    if (falschesZiel) return ergebnis(falschesZiel, true);
     if (!(await lstat(quelle.absolut).catch(() => null))?.isFile()) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
     const endung = path.extname(quelle.absolut).toLowerCase();
     if (path.extname(ziel.absolut).toLowerCase() !== endung) return ergebnis(`Ziel muss dieselbe Endung haben (${endung || "keine"})`, true);

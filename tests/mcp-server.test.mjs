@@ -232,7 +232,7 @@ test("beleg_ablegen: verschiebt mit Zwilling, ueberschreibt nie, nur inbox -> Be
   writeFileSync(join(inbox, "scan0002.pdf"), "%PDF-1.4 b");
   const s = starteServer(abzug, "schreiben");
   try {
-    const ziel = "Belege/2026/Sonstiges/Muster_Beleg_2026-10-01.pdf";
+    const ziel = "Belege/Sonstiges/2026/Muster_Beleg_2026-10-01.pdf";
     const ok = await s.werkzeug("beleg_ablegen", { quelle: "data/inbox/processed/scan0001.pdf", ziel });
     assert.ok(!ok.isError, ok.text);
     assert.equal(readFileSync(join(abzug.app, ziel), "utf8"), "%PDF-1.4 a");
@@ -249,6 +249,9 @@ test("beleg_ablegen: verschiebt mit Zwilling, ueberschreibt nie, nur inbox -> Be
       ["data/inbox/scan0002.pdf", "data/master/x.pdf"],
       ["data/inbox/scan0002.pdf", "Belege/../data/x.pdf"],
       ["data/inbox/scan0002.pdf", "Belege/2026/x.txt"],
+      ["data/inbox/scan0002.pdf", "Belege/Kontoauszuege/KTO-002/x.pdf"],
+      ["data/inbox/scan0002.pdf", "Belege/Konten/KTO-002/x.pdf"],
+      ["data/inbox/scan0002.pdf", "Belege/Konten/x.pdf"],
     ]) {
       const r = await s.werkzeug("beleg_ablegen", { quelle, ziel: z });
       assert.equal(r.isError, true, `${quelle} -> ${z} muss abgewiesen werden`);
@@ -379,7 +382,7 @@ test("beleg_ablegen: Foto aus der Inbox samt Zwilling", async () => {
   writeFileSync(join(inbox, "IMG_0001.txt"), "# Vom Agenten aus dem Bildscan gelesen, 2026-10-11.\nText\n");
   const s = starteServer(abzug, "schreiben");
   try {
-    const ziel = "Belege/2026/Sonstiges/Quittung_Musterladen_2026-10-01.jpg";
+    const ziel = "Belege/Sonstiges/2026/Quittung_Musterladen_2026-10-01.jpg";
     const r = await s.werkzeug("beleg_ablegen", { quelle: "data/inbox/IMG_0001.jpg", ziel });
     assert.ok(!r.isError, r.text);
     assert.equal(readFileSync(join(abzug.app, ziel), "utf8"), "jpeg");

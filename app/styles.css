@@ -2626,3 +2626,202 @@ a.linkish {
     border-bottom: 1px solid var(--border);
   }
 }
+
+/* ---------------------------------------------------------------- Vermoegensseite
+   Kopf (Nettovermoegen + offene Punkte), Tabs je Klasse, Objektkarten,
+   Kennzahl-Raster und Diagramme der Tabs Immobilien und Darlehen. */
+.vermoegen-kopf {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.vermoegen-netto {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.vermoegen-balken {
+  display: block;
+  height: 12px;
+  margin-top: 8px;
+  border-radius: var(--radius-tight);
+}
+.balken-grund { fill: var(--surface-2); }
+.segment-konto { fill: var(--accent); background: var(--accent); }
+.segment-immobilie { fill: #3b6fb6; background: #3b6fb6; }
+.segment-vermoegenswert { fill: #a07a1c; background: #a07a1c; }
+.segment-vorsorge { fill: #8a5cc2; background: #8a5cc2; }
+.segment-darlehen { fill: var(--danger); background: var(--danger); }
+:root[data-theme="dark"] .segment-immobilie { fill: #7fa8e8; background: #7fa8e8; }
+:root[data-theme="dark"] .segment-vermoegenswert { fill: #e0b84f; background: #e0b84f; }
+:root[data-theme="dark"] .segment-vorsorge { fill: #c39bf0; background: #c39bf0; }
+.vermoegen-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.vermoegen-legende i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 2px;
+}
+.panel-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.chip-zeile { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.luecken-liste { margin: 0; padding-left: 18px; }
+.luecken-liste li { margin: 3px 0; }
+
+.vermoegen-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 4px 0 14px;
+  border-bottom: 1px solid var(--border-strong);
+  overflow-x: auto;
+}
+.vermoegen-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vermoegen-tab:hover { color: var(--text); }
+.vermoegen-tab.active { border-bottom-color: var(--accent); }
+.vermoegen-tab-titel { color: var(--text); font-weight: 600; }
+.vermoegen-tab.active .vermoegen-tab-titel { color: var(--accent); }
+.vermoegen-tab-unter { font-size: 12px; font-variant-numeric: tabular-nums; }
+.tab-punkt {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--review);
+  vertical-align: 1px;
+}
+
+.klassen-karten .klassen-karte { text-align: left; }
+.objekt-karten {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.objekt-karte {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.objekt-karte:hover { border-color: var(--border-strong); }
+.objekt-karte.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.objekt-karte-kopf { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.objekt-karte-wert { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.objekt-karte-zeile { color: var(--muted); font-size: 12px; }
+.fortschritt { display: block; width: 100%; height: 6px; margin: 4px 0 2px; border-radius: 3px; }
+.fortschritt-wert { fill: var(--accent); }
+
+.kennzahl-raster {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.kennzahl {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.kennzahl-label { color: var(--muted); font-size: 12px; }
+.kennzahl-wert { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.kennzahl-notiz { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.betrag-negativ { color: var(--danger); }
+
+.objekt-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 12px;
+  align-items: start;
+}
+.segment {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+.segment button {
+  padding: 4px 10px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.segment button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.monats-tabelle { min-width: 0; }
+.monats-tabelle td, .monats-tabelle th { white-space: nowrap; }
+.dokument-liste { margin: 0 0 8px; padding: 0; list-style: none; }
+.dokument-liste li { margin: 4px 0; }
+.dokument-liste a { display: inline-flex; gap: 6px; align-items: center; }
+
+.balken-diagramm { display: block; width: 100%; height: auto; }
+.balken-einnahme { fill: var(--success); opacity: 0.75; }
+.balken-ausgabe { fill: var(--danger); opacity: 0.7; }
+.balken-saldo { stroke: var(--text); stroke-width: 1.8; }
+.balken-saldo-punkt { fill: var(--text); }
+.balken-tilgung { fill: var(--accent); }
+.balken-zins { fill: var(--review); }
+.balken-tilgung.plan, .balken-zins.plan { opacity: 0.45; }
+.restschuld-ist { stroke: var(--danger); stroke-width: 2.4; }
+.restschuld-plan { stroke: var(--danger); stroke-width: 1.6; stroke-dasharray: 5 4; }
+.restschuld-beleg { fill: var(--bg); stroke: var(--text); stroke-width: 1.5; }
+.marker-heute { stroke: var(--accent); }
+.marker-zinsbindung { stroke: var(--review); stroke-dasharray: 3 3; }
+.diagramm-legende-html { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin: 6px 0 10px; color: var(--muted); font-size: 12px; }
+.diagramm-legende-html .swatch { display: inline-block; width: 10px; height: 10px; margin-left: 8px; border-radius: 2px; }
+.diagramm-legende-html .swatch:first-child { margin-left: 0; }
+.swatch.einnahme { background: var(--success); }
+.swatch.ausgabe { background: var(--danger); }
+.swatch.saldo { background: var(--text); }
+.swatch.tilgung { background: var(--accent); }
+.swatch.zins { background: var(--review); }
+.swatch.plan { background: var(--accent); opacity: 0.45; }
+
+@media (max-width: 1180px) {
+  .objekt-detail { grid-template-columns: minmax(0, 1fr); }
+  .kennzahl-raster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .vermoegen-kopf { grid-template-columns: minmax(0, 1fr); }
+  .kennzahl-raster { grid-template-columns: minmax(0, 1fr); }
+}
+.bemerkung { margin: 8px 0; }
+.bemerkung summary { color: var(--muted); font-size: 12px; cursor: pointer; }
+.bemerkung p { margin: 6px 0 0; font-size: 13px; white-space: pre-wrap; }

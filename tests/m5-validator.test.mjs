@@ -170,3 +170,21 @@ test("Transaktion mit falsch formatierter immobilie_id ist ungueltig", () => {
   assert.equal(result.valid, false);
   assert.match(result.errors.join("\n"), /immobilie_id.*Format ungueltig/);
 });
+
+test("Immobilie mit Nutzung und Wohnflaeche ist valide, falsche Werte nicht", () => {
+  const immobilie = (extra) => ({
+    immobilie_id: "IMM-001",
+    bezeichnung: "EFH",
+    eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }],
+    status: "aktiv",
+    ...extra,
+  });
+  const gut = basis();
+  gut.immobilien.push(immobilie({ nutzung: "vermietet", wohnflaeche: "78.50" }));
+  assert.equal(validateMasterData(gut).valid, true, JSON.stringify(validateMasterData(gut).errors));
+  for (const extra of [{ nutzung: "ferienhaus" }, { wohnflaeche: "78,5" }, { wohnflaeche: "-1.00" }]) {
+    const schlecht = basis();
+    schlecht.immobilien.push(immobilie(extra));
+    assert.equal(validateMasterData(schlecht).valid, false, JSON.stringify(extra));
+  }
+});

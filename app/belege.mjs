@@ -4,6 +4,8 @@
 // Verweis-Index Datei -> Datensaetze, Sortierung/Suche, Routen.
 // Kein DOM, kein runtime-Import: in Node direkt testbar (tests/belege.test.mjs).
 
+import { vermoegenRoute } from "./vermoegen-routen.mjs";
+
 export const BELEGE_WURZEL = "Belege";
 const OCR_KOPF = "# Kein Textlayer";
 
@@ -175,7 +177,7 @@ export function routeFuerDatensatz(entitaet, id) {
   const e = encodeURIComponent(id);
   if (entitaet === "vorsorge") return `#/vorsorge/${e}`;
   if (entitaet === "regelzahlung") return `#/regelzahlungen/${e}`;
-  if (["konto", "immobilie", "vermoegenswert", "darlehen"].includes(entitaet)) return `#/vermoegen/${encodeURIComponent(entitaet)}:${e}`;
+  if (["konto", "immobilie", "vermoegenswert", "darlehen"].includes(entitaet)) return vermoegenRoute(entitaet, id);
   return "#/vermoegen";
 }
 
@@ -209,6 +211,27 @@ export function verweisIndex(daten) {
     }
   }
   return index;
+}
+
+// Dokumente eines Objekts (Immobilie, Darlehen, Konto ...): alles im
+// Objektordner Belege/<Klasse>/<ID>_<Kurzname>/ und alles, worauf ein Datensatz
+// dieses Objekts per quelle_hinweis zeigt. Textzwillinge fallen weg, neueste
+// Pfade (Jahresordner) zuerst. ids: IDs, deren Dokumente zusammen gezeigt werden.
+export function dokumenteZuObjekt({ dateien = [], index = new Map(), ids = [] }) {
+  const gesucht = new Set(ids);
+  const pfade = new Set();
+  for (const datei of dateien) {
+    const ordner = String(datei.pfad).split("/")[2] ?? "";
+    if ([...gesucht].some((id) => ordner === id || ordner.startsWith(`${id}_`))) pfade.add(belegSchluessel(datei.pfad));
+  }
+  for (const [pfad, verweis] of index) {
+    if (verweis.andere.some((a) => gesucht.has(a.id))) pfade.add(pfad);
+  }
+  const basen = new Set([...pfade, ...dateien.map((d) => belegSchluessel(d.pfad))].filter((p) => !/\.txt$/i.test(p)).map(ohneEndung));
+  return [...pfade]
+    .filter((p) => !(/\.txt$/i.test(p) && basen.has(ohneEndung(p))))
+    .sort((a, b) => b.localeCompare(a))
+    .map((pfad) => ({ pfad, name: dateiName(pfad) }));
 }
 
 export function verweisAnzahl(verweis) {

@@ -6,7 +6,7 @@ import { test } from "node:test";
 import {
   belegPfadeAusText, belegTextHtml, baueBaum, ordneZwillingeZu, verweisIndex,
   fasseTransaktionenZusammen, dokumentRoute, belegPfadAusRoute, sortiereDateien,
-  sucheDateien, formatGroesse, ordnerVon, vorfahren, belegSchluessel,
+  sucheDateien, formatGroesse, ordnerVon, vorfahren, belegSchluessel, dokumenteZuObjekt,
 } from "../app/belege.mjs";
 import { routeFromState, parseRoute } from "../app/routing.mjs";
 
@@ -172,13 +172,13 @@ test("verweisIndex: Transaktionen per rohquelle, andere Entitaeten per quelle_hi
   assert.deepEqual(auszug.transaktionen, []);
   assert.equal(auszug.andere.length, 1);
   assert.equal(auszug.andere[0].entitaet, "zeitwert");
-  assert.equal(auszug.andere[0].route, "#/vermoegen/konto:KTO-001");
+  assert.equal(auszug.andere[0].route, "#/vermoegen/konten/KTO-001");
   const scan = index.get("Belege/2025/Rente/scan.pdf");
   assert.deepEqual(scan.andere.map((v) => [v.entitaet, v.id, v.route]), [
     ["zeitwert", "VS-001", "#/vorsorge/VS-001"],
     ["vorsorge", "VS-001", "#/vorsorge/VS-001"],
-    ["darlehen", "DAR-001", "#/vermoegen/darlehen:DAR-001"],
-    ["immobilie", "IMM-001", "#/vermoegen/immobilie:IMM-001"],
+    ["darlehen", "DAR-001", "#/vermoegen/darlehen/DAR-001"],
+    ["immobilie", "IMM-001", "#/vermoegen/immobilien/IMM-001"],
     ["regelzahlung", "RZ-001", "#/regelzahlungen/RZ-001"],
   ]);
   assert.equal(scan.andere[1].label, "VS-001 · Rentenvertrag");
@@ -267,4 +267,23 @@ test("Dokumente-Texte existieren in de und en, ohne 'Beleg' in der Oberflaeche",
   assert.equal(tr("en", "nav.belege"), "Documents");
   assert.equal(tr("de", "dokumente.quelldokument"), "Quelldokument");
   assert.equal(tr("en", "dokumente.quelldokument"), "Source document");
+});
+
+test("dokumenteZuObjekt: Objektordner plus Verweise, ohne Zwillinge, neueste zuerst", () => {
+  const dateien = [
+    { pfad: "Belege/Darlehen/DAR-001_Bank-Bau/2024/Jahresauszug_2024.pdf", typ: "pdf" },
+    { pfad: "Belege/Darlehen/DAR-001_Bank-Bau/2024/Jahresauszug_2024.txt", typ: "txt" },
+    { pfad: "Belege/Darlehen/DAR-001_Bank-Bau/2025/Jahresauszug_2025.pdf", typ: "pdf" },
+    { pfad: "Belege/Darlehen/DAR-0011_Andere/2025/x.pdf", typ: "pdf" },
+    { pfad: "Belege/Immobilien/IMM-001_Haus/2019/Kaufvertrag.pdf", typ: "pdf" },
+    { pfad: "Belege/Sonstiges/2026/Gutachten.pdf", typ: "pdf" },
+  ];
+  const index = verweisIndex({ immobilien: [{ immobilie_id: "IMM-001", bezeichnung: "Haus", quelle_hinweis: "Belege/Sonstiges/2026/Gutachten.pdf" }] });
+  assert.deepEqual(dokumenteZuObjekt({ dateien, index, ids: ["DAR-001"] }).map((d) => d.pfad), [
+    "Belege/Darlehen/DAR-001_Bank-Bau/2025/Jahresauszug_2025.pdf",
+    "Belege/Darlehen/DAR-001_Bank-Bau/2024/Jahresauszug_2024.pdf",
+  ]);
+  assert.deepEqual(dokumenteZuObjekt({ dateien, index, ids: ["IMM-001"] }).map((d) => d.name), ["Gutachten.pdf", "Kaufvertrag.pdf"]);
+  assert.deepEqual(dokumenteZuObjekt({ index, ids: ["IMM-001"] }).map((d) => d.pfad), ["Belege/Sonstiges/2026/Gutachten.pdf"]);
+  assert.deepEqual(dokumenteZuObjekt({ dateien, index, ids: [] }), []);
 });

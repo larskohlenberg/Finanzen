@@ -172,3 +172,37 @@ test("linienDiagramm (Zeit-Modus) entfernt die alten Start-/Endwert-Eck-Labels",
   // nicht als oberes Label auf (max ist 65.00 € aus der Basis).
   assert.doesNotMatch(svg, /y="18\.00" class="diagramm-label"/);
 });
+
+test("monatsBalken: Einnahmen oben, Ausgaben unten, Saldo als Linie; leer ohne Werte", async () => {
+  const { monatsBalken } = await import("../app/charts.mjs");
+  const svg = monatsBalken({ monate: ["2026-01", "2026-02"], einnahmen: [1000, 0], ausgaben: [400, 300], saldo: [600, -300], formatWert: (c) => `${c / 100} €` });
+  assert.equal((svg.match(/class="balken-einnahme"/g) ?? []).length, 1);
+  assert.equal((svg.match(/class="balken-ausgabe"/g) ?? []).length, 2);
+  assert.match(svg, /class="balken-saldo"/);
+  assert.match(svg, /<title>2026-02: −3 €<\/title>/);
+  assert.equal(monatsBalken({ monate: ["2026-01"], einnahmen: [0], ausgaben: [0], saldo: [0] }), "");
+});
+
+test("jahresBalken: Zins und Tilgung gestapelt, Planjahre markiert", async () => {
+  const { jahresBalken } = await import("../app/charts.mjs");
+  const svg = jahresBalken({ jahre: [{ jahr: 2026, zins_cents: 300, tilgung_cents: 700, ist: true }, { jahr: 2027, zins_cents: 250, tilgung_cents: 750, ist: false }] });
+  assert.equal((svg.match(/class="balken-zins"/g) ?? []).length, 1);
+  assert.equal((svg.match(/class="balken-tilgung plan"/g) ?? []).length, 1);
+  assert.equal(jahresBalken({ jahre: [] }), "");
+});
+
+test("restschuldVerlauf: Ist und Plan getrennt, Marker nur im Zeitraum", async () => {
+  const { restschuldVerlauf } = await import("../app/charts.mjs");
+  const punkte = [
+    { datum: "2025-01-31", wert_cents: 1000 }, { datum: "2026-01-31", wert_cents: 800 },
+    { datum: "2027-01-31", wert_cents: 600 }, { datum: "2028-01-31", wert_cents: 0 },
+  ];
+  const svg = restschuldVerlauf({ punkte, heute: "2026-06-30", zinsbindungBis: "2027-06-30", belegte: [{ datum: "2026-01-31", wert_cents: 800 }] });
+  assert.match(svg, /class="restschuld-ist"/);
+  assert.match(svg, /class="restschuld-plan"/);
+  assert.match(svg, /class="marker-heute"/);
+  assert.match(svg, /class="marker-zinsbindung"/);
+  assert.match(svg, /class="restschuld-beleg"/);
+  assert.doesNotMatch(restschuldVerlauf({ punkte, heute: "2026-06-30", zinsbindungBis: "2035-01-01" }), /marker-zinsbindung/);
+  assert.equal(restschuldVerlauf({ punkte: [punkte[0]], heute: "2026-06-30" }), "");
+});

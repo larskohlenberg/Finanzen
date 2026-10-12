@@ -38,10 +38,9 @@ test("table wrappers own horizontal overflow", () => {
   assert.match(css, /table\s*{[^}]*min-width:/s);
 });
 
-test("transaction and vermoegen filters use the shared table filter renderer", () => {
+test("transaction filters use the shared table filter renderer", () => {
   assert.match(main, /function renderTableFilters\(/);
   assert.match(main, /renderTableFilters\(\s*{[\s\S]*transactionFilters/s);
-  assert.match(main, /renderTableFilters\(\s*{[\s\S]*vermoegenFilters/s);
 });
 
 test("search clear sits visually inside the search input, anchored to its own control row", () => {
@@ -72,7 +71,7 @@ test("detail rails have close controls", () => {
   assert.match(i18n, /closeDetails/);
 });
 
-test("vermoegen value states use the existing detail rail pattern, not tabs or modals", () => {
+test("vermoegen: Tabs je Klasse, Wertstaende in der bestehenden Detail-Rail, keine Modals", () => {
   assert.match(main, /data-action="show-vermoegen-wertstaende"/);
   assert.match(main, /data-action="toggle-vermoegen-rail-width"/);
   assert.match(main, /state\.vermoegenRailMode === "wertstaende"/);
@@ -82,7 +81,8 @@ test("vermoegen value states use the existing detail rail pattern, not tabs or m
   assert.match(main, /renderWertstaendeRail/);
   assert.match(main, /renderPositionWertstaende/);
   assert.match(main, /vermoegenRailMode/);
-  assert.doesNotMatch(main, /vermoegen-tab/);
+  assert.match(main, /role="tablist"/);
+  assert.match(main, /data-action="vermoegen-tab"/);
   assert.doesNotMatch(main, /role="dialog"[\s\S]*wertstaende/);
   assert.match(css, /\.layout-with-rail\.rail-wide/s);
   assert.match(main, /<div class="detail-actions">[\s\S]*data-action="toggle-vermoegen-rail-width"[\s\S]*data-action="close-vermoegen-detail-rail"[\s\S]*<\/div>/);

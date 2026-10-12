@@ -70,6 +70,11 @@ export async function ladeBelege(aktualisiere) {
   aktualisiere();
 }
 
+// Fuer andere Ansichten (Dokumente je Objekt auf der Vermoegensseite).
+export function belegDateienStand() {
+  return { zustand: ansicht.zustand, dateien: ansicht.dateien };
+}
+
 export function belegeBeiBedarfLaden(aktualisiere) {
   if (ansicht.zustand === "unbekannt") void ladeBelege(aktualisiere);
 }

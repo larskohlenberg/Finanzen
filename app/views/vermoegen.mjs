@@ -1,14 +1,287 @@
 // app/views/vermoegen.mjs
-// Vermögens-/Nettovermögens-Ansicht inkl. Detail-Rail und Wertstände.
+// Vermoegensseite: Kopf (Nettovermoegen, offene Punkte) ueber allen Tabs, darunter
+// je Klasse ein Tab (Uebersicht, Konten & Depots, Immobilien, Darlehen, Sonstige
+// Werte). Vorsorge hat keinen Tab: die Vorsorge-Seite traegt die Details, hier
+// steht nur der Verweis. Immobilien und Darlehen rendert vermoegen-objekte.mjs.
 import { data, state, t, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, detailRow, renderPageHead, saldoLinie, renderTableFilters, accountOwnerNames, accountTypeLabel, quelleHtml } from "../komponenten.mjs";
-import { computeNettovermoegen, aktuellerZeitwert, anteilWertCents, restschuldHeute } from "../vermoegen.mjs";
+import { formatMoney, formatDate, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie } from "../komponenten.mjs";
+import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "../vermoegen.mjs";
+import { immobilienKennzahlen, kontoSaldoVerlauf } from "../vermoegen-details.mjs";
+import { VERMOEGEN_TABS, TAB_FUER_KLASSE } from "../vermoegen-routen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
+import { renderImmobilienTab, renderDarlehenTab } from "./vermoegen-objekte.mjs";
+import { balkenSvg, geld, qualitaetChip, rateJeMonatCents, renderPositionWertstaende, tf } from "./vermoegen-teile.mjs";
 
-function positionKey(p) {
-  return `${p.klasse}:${p.id}`;
+const KLASSEN = ["konto", "immobilie", "darlehen", "vermoegenswert", "vorsorge"];
+
+// Worst-of-Badge: traegt die schlechteste Qualitaet aller Positionen als eine
+// ehrliche Gesamtaussage (belegt < geschaetzt < offen). Quelle: vermoegen.mjs.
+function gesamtQualitaetChip(gesamt) {
+  if (!gesamt) return "";
+  const stil = { belegt: ["success", "success", "Belegt"], geschaetzt: ["neutral", null, "Geschaetzt"], offen: ["review", "review", "Offen"] };
+  const [cls, icon, wort] = stil[gesamt];
+  return `<span class="chip ${cls}">${icon ? iconSvg(icon) : ""}${escapeHtml(t("vermoegen.qualityOverall"))}: ${escapeHtml(t(`vermoegen.quality${wort}`))}</span>`;
 }
+
+// Je Klasse: Summe, Anzahl, fehlende Positionen und Objekte mit offenen Checks.
+function klassenUebersicht(r, checks) {
+  const je = Object.fromEntries(KLASSEN.map((k) => [k, { summe: 0, anzahl: 0, fehlend: 0, offen: new Set(), arten: new Set() }]));
+  for (const p of r.positionen) {
+    const e = je[p.klasse];
+    e.anzahl += 1;
+    e.summe += p.wert_cents;
+    if (p.fehlt) {
+      e.fehlend += 1;
+      e.offen.add(p.id);
+    }
+  }
+  for (const c of checks) {
+    const e = je[c.entitaet];
+    if (!e) continue;
+    e.offen.add(c.entitaet_id);
+    e.arten.add(c.art);
+  }
+  return je;
+}
+
+const sonstigeSichtbar = () => (data.vermoegenswerte ?? []).some((v) => v.status !== "veraeussert");
+
+function aktiverTab() {
+  const [klasse] = String(state.selectedVermoegenId ?? "").split(":");
+  if (klasse && TAB_FUER_KLASSE[klasse]) state.vermoegenTab = TAB_FUER_KLASSE[klasse];
+  let tab = VERMOEGEN_TABS.includes(state.vermoegenTab) ? state.vermoegenTab : "uebersicht";
+  if (tab === "sonstige" && !sonstigeSichtbar()) tab = "uebersicht";
+  return tab;
+}
+
+function tabZiel(klasse) {
+  return klasse === "vorsorge" ? `data-view="vorsorge"` : `data-action="vermoegen-tab" data-tab="${TAB_FUER_KLASSE[klasse]}"`;
+}
+
+export function renderVermoegen() {
+  const today = localTodayIso();
+  const r = computeNettovermoegen(data, today);
+  const checks = computeVermoegenChecks(data, today);
+  const je = klassenUebersicht(r, checks);
+  const tab = aktiverTab();
+
+  let inhalt;
+  if (tab === "konten") inhalt = renderKontenTab(r, today);
+  else if (tab === "immobilien") inhalt = renderImmobilienTab(today);
+  else if (tab === "darlehen") inhalt = renderDarlehenTab(today);
+  else if (tab === "sonstige") inhalt = renderSonstigeTab(r, today);
+  else inhalt = renderUebersichtTab(r, je, today);
+
+  return `
+    ${renderPageHead(t("vermoegen.title"), t("vermoegen.lead"))}
+    ${renderKopf(r, je)}
+    ${renderTabs(tab, je)}
+    <div class="vermoegen-tab-inhalt" role="tabpanel" id="vermoegen-tab-${tab}">${inhalt}</div>`;
+}
+
+// ------------------------------------------------------------- Kopf
+
+function renderKopf(r, je) {
+  const aktiva = Math.max(r.aktiva_cents, 1);
+  const segmente = ["konto", "immobilie", "vermoegenswert", "vorsorge"]
+    .map((k) => ({ anteil: je[k].summe / aktiva, klasse: `segment-${k}`, titel: `${t(`vermoegen.klassePlural.${k}`)}: ${formatMoney(je[k].summe)}` }));
+  const legende = ["konto", "immobilie", "vermoegenswert", "vorsorge", "darlehen"]
+    .filter((k) => je[k].summe !== 0)
+    .map((k) => `<span><i class="segment-${k}"></i>${escapeHtml(t(`vermoegen.klassePlural.${k}`))} ${escapeHtml(formatMoney(je[k].summe))}</span>`)
+    .join("");
+
+  const luecken = KLASSEN
+    .filter((k) => je[k].offen.size)
+    .map((k) => {
+      const arten = [...je[k].arten].map((a) => t(`vermoegen.checkArt.${a}`));
+      if (je[k].fehlend && !je[k].arten.size) arten.push(t("vermoegen.ohneWert"));
+      return `
+        <li>
+          <button class="linkish" ${tabZiel(k)}>${escapeHtml(t(`vermoegen.klassePlural.${k}`))}</button>:
+          ${escapeHtml(tf("vermoegen.offenAnzahl", { n: je[k].offen.size }))}
+          <span class="muted">(${escapeHtml(arten.join(", "))})</span>
+        </li>`;
+    })
+    .join("");
+
+  return `
+    <div class="vermoegen-kopf">
+      <section class="panel panel-pad">
+        <div class="muted">${escapeHtml(t("vermoegen.netto"))}</div>
+        <div class="vermoegen-netto">${escapeHtml(formatMoney(r.netto_cents))}</div>
+        <div class="kpi-note">${escapeHtml(t("vermoegen.aktiva"))}: ${escapeHtml(formatMoney(r.aktiva_cents))} · ${escapeHtml(t("vermoegen.passiva"))}: ${escapeHtml(formatMoney(r.passiva_cents))}</div>
+        ${balkenSvg(segmente)}
+        ${balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(r.passiva_cents)}` }], { laenge: r.passiva_cents / aktiva })}
+        <div class="vermoegen-legende">${legende}</div>
+      </section>
+      <section class="panel panel-pad">
+        <div class="panel-kopf">
+          <div class="muted">${escapeHtml(t("vermoegen.qualitaetTitle"))}</div>
+          ${gesamtQualitaetChip(r.qualitaet.gesamt)}
+        </div>
+        <div class="chip-zeile">
+          <span class="chip success">${iconSvg("success")}${r.qualitaet.belegt} ${escapeHtml(t("vermoegen.qualityBelegt"))}</span>
+          <span class="chip neutral">${r.qualitaet.geschaetzt} ${escapeHtml(t("vermoegen.qualityGeschaetzt"))}</span>
+          ${r.qualitaet.fehlend > 0 ? `<span class="chip review">${iconSvg("review")}${r.qualitaet.fehlend} ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : ""}
+        </div>
+        ${luecken ? `<ul class="luecken-liste">${luecken}</ul>` : `<p class="muted">${escapeHtml(t("vermoegen.keineLuecken"))}</p>`}
+      </section>
+    </div>`;
+}
+
+function renderTabs(aktiv, je) {
+  const tabs = [
+    ["uebersicht", null],
+    ["konten", "konto"],
+    ["immobilien", "immobilie"],
+    ["darlehen", "darlehen"],
+    ...(sonstigeSichtbar() ? [["sonstige", "vermoegenswert"]] : []),
+  ];
+  const knoepfe = tabs.map(([tab, klasse]) => {
+    const e = klasse ? je[klasse] : null;
+    const unter = e ? `${e.anzahl} · ${formatMoney(e.summe)}` : t("vermoegen.tabUebersichtUnter");
+    const punkt = e && e.offen.size ? `<span class="tab-punkt" title="${escapeHtml(tf("vermoegen.offenAnzahl", { n: e.offen.size }))}"></span>` : "";
+    return `
+      <button class="vermoegen-tab ${tab === aktiv ? "active" : ""}" role="tab" aria-selected="${tab === aktiv}" aria-controls="vermoegen-tab-${tab}" data-action="vermoegen-tab" data-tab="${tab}">
+        <span class="vermoegen-tab-titel">${escapeHtml(t(`vermoegen.tabs.${tab}`))}${punkt}</span>
+        <span class="vermoegen-tab-unter">${escapeHtml(unter)}</span>
+      </button>`;
+  }).join("");
+  return `<div class="vermoegen-tabs" role="tablist" aria-label="${escapeHtml(t("vermoegen.title"))}">${knoepfe}</div>`;
+}
+
+// ------------------------------------------------------------- Rail (Konten, Sonstige, Wertstaende)
+
+function mitRail(inhalt, railHtml, titel, { breitSchalter = false } = {}) {
+  if (!railHtml || state.vermoegenDetailRailClosed) return inhalt;
+  const railWide = breitSchalter && state.vermoegenRailWide;
+  return `
+    <div class="layout-with-rail ${railWide ? "rail-wide" : ""}">
+      <div class="stack">${inhalt}</div>
+      <aside class="panel panel-pad detail-panel">
+        <div class="detail-head">
+          <h2 class="section-title">${escapeHtml(titel)}</h2>
+          <div class="detail-actions">
+            ${breitSchalter ? `<button class="icon-button" data-action="toggle-vermoegen-rail-width" aria-label="${escapeHtml(railWide ? t("vermoegen.railNarrow") : t("vermoegen.railWide"))}" title="${escapeHtml(railWide ? t("vermoegen.railNarrow") : t("vermoegen.railWide"))}">${iconSvg(railWide ? "chevronRight" : "chevronLeft")}</button>` : ""}
+            <button class="icon-button" data-action="close-vermoegen-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
+          </div>
+        </div>
+        ${railHtml}
+      </aside>
+    </div>`;
+}
+
+function ausgewaehltePosition(r, klasse) {
+  const [k, id] = String(state.selectedVermoegenId ?? "").split(":");
+  if (k !== klasse) return null;
+  return r.positionen.find((p) => p.klasse === klasse && p.id === id) ?? null;
+}
+
+// ------------------------------------------------------------- Uebersicht
+
+function renderUebersichtTab(r, je, today) {
+  const konten = (data.konten ?? []).filter((k) => k.status !== "geschlossen" && k.kontotyp !== "bar");
+  const depots = konten.filter((k) => k.kontotyp === "depot").length;
+  const immobilien = (data.immobilien ?? []).filter((i) => i.status !== "verkauft");
+  const eigenkapital = immobilien.reduce((summe, i) => summe + (immobilienKennzahlen(data, i.immobilie_id, today).eigenkapital_cents ?? 0), 0);
+  const darlehen = (data.darlehen ?? []).filter((d) => d.status !== "abgeloest");
+  const rate = darlehen.reduce((summe, d) => summe + rateJeMonatCents(d), 0);
+  const kapitalbildend = (data.vorsorge ?? []).filter((v) => v.kapitalbildend);
+  const mitWert = r.positionen.filter((p) => p.klasse === "vorsorge" && !p.fehlt).length;
+
+  const karte = (klasse, zeile, extra = "") => {
+    const e = je[klasse];
+    const chip = e.offen.size
+      ? `<span class="chip review">${iconSvg("review")}${escapeHtml(tf("vermoegen.offenAnzahl", { n: e.offen.size }))}</span>`
+      : `<span class="chip success">${iconSvg("success")}${escapeHtml(t("vermoegen.vollstaendig"))}</span>`;
+    return `
+      <button class="tile klassen-karte" ${tabZiel(klasse)}>
+        <strong>${escapeHtml(t(`vermoegen.klassePlural.${klasse}`))}</strong>
+        <div class="count">${geld(e.summe, { negativ: true })}</div>
+        <div class="kpi-note">${escapeHtml(zeile)}</div>
+        ${extra}
+        ${chip}
+      </button>`;
+  };
+
+  const karten = [
+    karte("konto", tf("vermoegen.karte.konten", { konten: konten.length - depots, depots })),
+    karte("immobilie", tf("vermoegen.karte.immobilien", { n: immobilien.length, ek: formatMoney(eigenkapital) })),
+    karte("darlehen", tf("vermoegen.karte.darlehen", { n: darlehen.length, rate: formatMoney(rate) })),
+    ...(sonstigeSichtbar() ? [karte("vermoegenswert", tf("vermoegen.karte.sonstige", { n: je.vermoegenswert.anzahl }))] : []),
+    karte("vorsorge", tf("vermoegen.karte.vorsorge", { mit: mitWert, gesamt: kapitalbildend.length }), `<div class="kpi-note">${escapeHtml(t("vermoegen.karte.vorsorgeHinweis"))}</div>`),
+  ].join("");
+
+  const inhalt = `
+    <div class="tile-grid klassen-karten">${karten}</div>
+    <section class="panel panel-pad section-spacing">
+      <div class="panel-kopf">
+        <h2 class="section-title">${escapeHtml(t("vermoegen.wertstaende"))}</h2>
+        <button class="linkish" data-action="show-vermoegen-wertstaende">${escapeHtml(tf("vermoegen.alleWertstaendeAnzahl", { n: data.zeitwerte?.length ?? 0 }))}</button>
+      </div>
+      <p class="muted">${escapeHtml(t("vermoegen.wertstaendeLead"))}</p>
+    </section>`;
+  const rail = state.vermoegenRailMode === "wertstaende" ? renderWertstaendeRail() : "";
+  return mitRail(inhalt, rail, t("vermoegen.wertstaende"), { breitSchalter: true });
+}
+
+// ------------------------------------------------------------- Konten & Depots
+
+function renderKontenTab(r, today) {
+  const p = ausgewaehltePosition(r, "konto");
+  const inhalt = `<div class="stack">${renderAccountPanels({ rowAction: "select-vermoegen-konto" })}</div>`;
+  if (state.vermoegenRailMode === "wertstaende") return mitRail(inhalt, renderWertstaendeRail(), t("vermoegen.wertstaende"), { breitSchalter: true });
+  if (!p) return inhalt;
+  const konto = kontenById.get(p.id);
+  const verlauf = konto ? kontoSaldoVerlauf(data, konto, today) : [];
+  const linie = saldoLinie(verlauf.map((pt) => ({ wert: pt.wert_cents })), t("vermoegen.konto.saldoVerlauf"));
+  const rail = `
+    ${renderVermoegenDetail(p, today)}
+    ${linie ? detailRow(t("vermoegen.konto.saldoVerlauf"), linie) : ""}
+    <div class="detail-section">
+      <button class="linkish" data-action="account-transactions" data-account="${escapeHtml(p.id)}">${escapeHtml(t("vermoegen.konto.buchungen"))}</button>
+      · <button class="linkish" data-action="select-master-account" data-account="${escapeHtml(p.id)}">${escapeHtml(t("vermoegen.konto.stammdaten"))}</button>
+    </div>`;
+  return mitRail(inhalt, rail, t("vermoegen.detailTitle"));
+}
+
+// ------------------------------------------------------------- Sonstige Werte
+
+function renderSonstigeTab(r, today) {
+  const positionen = r.positionen.filter((p) => p.klasse === "vermoegenswert");
+  const zeilen = positionen.map((p) => {
+    const vmw = data.vermoegenswerte.find((v) => v.vermoegenswert_id === p.id);
+    const key = `vermoegenswert:${p.id}`;
+    return `
+      <tr class="clickable ${key === state.selectedVermoegenId ? "selected" : ""}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(key)}" tabindex="0" role="button" aria-label="${escapeHtml(p.name)}">
+        <td>${escapeHtml(p.name)}</td>
+        <td>${escapeHtml(vmw?.typ ? t(`vermoegen.typ.${vmw.typ}`) : "")}</td>
+        <td class="amount">${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : escapeHtml(formatMoney(p.wert_cents))}</td>
+        <td>${p.standdatum ? escapeHtml(formatDate(p.standdatum)) : "—"}</td>
+        <td>${qualitaetChip(p)}</td>
+      </tr>`;
+  }).join("");
+  const inhalt = `
+    <section class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>${escapeHtml(t("vermoegen.position"))}</th>
+            <th>${escapeHtml(t("labels.type"))}</th>
+            <th class="amount">${escapeHtml(t("vermoegen.wert"))}</th>
+            <th>${escapeHtml(t("vermoegen.stand"))}</th>
+            <th>${escapeHtml(t("vermoegen.qualitaetHead"))}</th>
+          </tr></thead>
+          <tbody>${zeilen}</tbody>
+        </table>
+      </div>
+    </section>`;
+  const p = ausgewaehltePosition(r, "vermoegenswert");
+  return p ? mitRail(inhalt, renderVermoegenDetail(p, today), t("vermoegen.detailTitle")) : inhalt;
+}
+
+// ------------------------------------------------------------- Wertstaende (Rail)
 
 function entityLabel(entitaet, entitaetId) {
   if (entitaet === "konto") return kontenById.get(entitaetId)?.name || entitaetId;
@@ -24,257 +297,6 @@ function zeitwertLabel(zw) {
   return `${entityLabel(zw.entitaet, zw.entitaet_id)} · ${field}`;
 }
 
-function filterVermoegenPositions(positionen) {
-  const f = state.vermoegenFilters;
-  return positionen.filter((p) => {
-    if (f.klasse && p.klasse !== f.klasse) return false;
-    if (f.qualitaet === "fehlend" && !p.fehlt) return false;
-    if (f.qualitaet === "belegt" && p.qualitaet !== "belegt") return false;
-    if (f.qualitaet === "geschaetzt" && p.qualitaet !== "geschaetzt") return false;
-    return true;
-  });
-}
-
-function sortVermoegenPositions(positionen) {
-  const { key, dir } = state.vermoegenSort;
-  const factor = dir === "asc" ? 1 : -1;
-  const qualitaetRank = (p) => (p.fehlt ? 2 : p.qualitaet === "geschaetzt" ? 1 : 0);
-  return positionen.slice().sort((a, b) => {
-    let cmp;
-    if (key === "wert") cmp = a.wert_cents - b.wert_cents;
-    else if (key === "stand") cmp = String(a.standdatum ?? "").localeCompare(String(b.standdatum ?? ""));
-    else if (key === "qualitaet") cmp = qualitaetRank(a) - qualitaetRank(b);
-    else if (key === "position") cmp = a.name.localeCompare(b.name);
-    else cmp = t(`vermoegen.klasse.${a.klasse}`).localeCompare(t(`vermoegen.klasse.${b.klasse}`));
-    if (cmp === 0) cmp = a.name.localeCompare(b.name);
-    return cmp * factor;
-  });
-}
-
-function vermoegenSortIndicator(key) {
-  if (state.vermoegenSort.key !== key) return "";
-  return state.vermoegenSort.dir === "asc" ? " ▲" : " ▼";
-}
-
-function vermoegenSortHeader(key, labelKey, amount = false) {
-  return `<th${amount ? ' class="amount"' : ""}><button class="linkish sort-th" data-vermoegen-sort="${key}">${escapeHtml(t(labelKey))}${escapeHtml(vermoegenSortIndicator(key))}</button></th>`;
-}
-
-function qualitaetChip(p) {
-  if (p.fehlt || !p.qualitaet) return `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`;
-  return `<span class="chip ${p.qualitaet === "belegt" ? "success" : "neutral"}">${p.qualitaet === "belegt" ? iconSvg("success") : ""}${escapeHtml(t(`vermoegen.quality${p.qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`))}</span>`;
-}
-
-// Read-only Rückverweis: Szenarien, die eine Sondertilgung auf dieses Darlehen
-// planen. Hat KEINEN Einfluss auf restschuldHeute/p.wert_cents — rein informativ.
-function sondertilgungsRueckverweise(darlehenId) {
-  const treffer = [];
-  for (const sz of data.szenarien ?? []) {
-    for (const a of sz.annahmen ?? []) {
-      if (a.gegenbuchung?.ziel_typ === "darlehen" && a.gegenbuchung.ziel_id === darlehenId) {
-        treffer.push({ szenario_id: sz.szenario_id, name: sz.name, status: sz.status, qualitaet: a.qualitaet });
-      }
-    }
-  }
-  return treffer;
-}
-
-function annahmeQualitaetChip(q) {
-  const stil = { belegt: ["success", "success", "Belegt"], geschaetzt: ["neutral", "", "Geschaetzt"], offen: ["review", "review", "Offen"] };
-  const [cls, icon, wort] = stil[q] ?? stil.offen;
-  return `<span class="chip ${cls}">${icon ? iconSvg(icon) : ""}${escapeHtml(t(`szenarien.quality${wort}`))}</span>`;
-}
-
-function szenarioStatusChip(status) {
-  const stil = { entwurf: "neutral", bestaetigt: "success", verworfen: "review" };
-  return `<span class="chip ${stil[status] ?? "neutral"}">${escapeHtml(t(`szenarien.status.${status}`))}</span>`;
-}
-
-function sondertilgungenRow(darlehenId) {
-  const treffer = sondertilgungsRueckverweise(darlehenId);
-  if (!treffer.length) return "";
-  const rows = treffer.map((tr) => `
-    <div class="rail-item">
-      <button class="linkish" data-action="open-szenario" data-szenario="${escapeHtml(tr.szenario_id)}">${escapeHtml(tr.name)}</button>
-      ${szenarioStatusChip(tr.status)}
-      ${annahmeQualitaetChip(tr.qualitaet)}
-    </div>`).join("");
-  return detailRow(t("vermoegen.sondertilgungenTitle"), `<div class="rail-list">${rows}</div><p class="muted">${escapeHtml(t("vermoegen.sondertilgungenHinweis"))}</p>`);
-}
-
-// Worst-of-Badge: traegt die schlechteste Qualitaet aller Positionen als eine
-// ehrliche Gesamtaussage (belegt < geschaetzt < offen). Quelle: vermoegen.mjs.
-function gesamtQualitaetChip(gesamt) {
-  if (!gesamt) return "";
-  const stil = { belegt: ["success", "success", "Belegt"], geschaetzt: ["neutral", null, "Geschaetzt"], offen: ["review", "review", "Offen"] };
-  const [cls, icon, wort] = stil[gesamt];
-  return `<span class="chip ${cls}">${icon ? iconSvg(icon) : ""}${escapeHtml(t("vermoegen.qualityOverall"))}: ${escapeHtml(t(`vermoegen.quality${wort}`))}</span>`;
-}
-
-export function renderVermoegen() {
-  const today = localTodayIso();
-  const r = computeNettovermoegen(data, today);
-  const visible = sortVermoegenPositions(filterVermoegenPositions(r.positionen));
-  const selected = state.selectedVermoegenId ? visible.find((p) => positionKey(p) === state.selectedVermoegenId) : undefined;
-  if (state.selectedVermoegenId && !selected) state.selectedVermoegenId = "";
-  const railWide = state.vermoegenRailWide;
-  const detailRailOpen = !state.vermoegenDetailRailClosed && (state.vermoegenRailMode === "wertstaende" || Boolean(selected));
-
-  const rows = visible.map((p) => {
-    const key = positionKey(p);
-    return `
-    <tr class="clickable ${key === state.selectedVermoegenId ? "selected" : ""} ${p.fehlt ? "open" : ""}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(key)}" tabindex="0" role="button" aria-label="${escapeHtml(p.name)}">
-      <td>${escapeHtml(t(`vermoegen.klasse.${p.klasse}`))}</td>
-      <td>${escapeHtml(p.name)}</td>
-      <td class="amount">${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : escapeHtml(formatMoney(p.wert_cents))}</td>
-      <td>${p.standdatum ? escapeHtml(formatDate(p.standdatum)) : "—"}</td>
-      <td>${qualitaetChip(p)}</td>
-    </tr>`;
-  }).join("");
-
-  return `
-    ${renderPageHead(t("vermoegen.title"), t("vermoegen.lead"))}
-    <div class="layout-with-rail ${detailRailOpen ? "" : "rail-closed"} ${railWide && detailRailOpen ? "rail-wide" : ""}">
-      <div class="stack">
-        <div class="tile-grid">
-          <div class="tile tile-static">
-            <strong>${escapeHtml(t("vermoegen.netto"))}</strong>
-            <div class="count">${escapeHtml(formatMoney(r.netto_cents))}</div>
-            <div class="kpi-note">${escapeHtml(t("vermoegen.aktiva"))}: ${escapeHtml(formatMoney(r.aktiva_cents))} · ${escapeHtml(t("vermoegen.passiva"))}: ${escapeHtml(formatMoney(r.passiva_cents))}</div>
-          </div>
-          <div class="tile tile-static">
-            <strong>${escapeHtml(t("vermoegen.qualitaetTitle"))}</strong>
-            <div class="count">${r.positionen.length}</div>
-            ${gesamtQualitaetChip(r.qualitaet.gesamt)}
-            <span class="chip success">${iconSvg("success")}${r.qualitaet.belegt} ${escapeHtml(t("vermoegen.qualityBelegt"))}</span>
-            <span class="chip neutral">${r.qualitaet.geschaetzt} ${escapeHtml(t("vermoegen.qualityGeschaetzt"))}</span>
-            ${r.qualitaet.fehlend > 0 ? `<span class="chip review">${iconSvg("review")}${r.qualitaet.fehlend} ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : ""}
-          </div>
-          <button class="tile ${state.vermoegenRailMode === "wertstaende" ? "active" : ""}" data-action="show-vermoegen-wertstaende">
-            <strong>${escapeHtml(t("vermoegen.wertstaende"))}</strong>
-            <div class="count">${escapeHtml(String(data.zeitwerte?.length ?? 0))}</div>
-            <span class="chip neutral">${escapeHtml(t("vermoegen.allWertstaende"))}</span>
-          </button>
-        </div>
-        <p class="page-lead">${escapeHtml(t("vermoegen.incompleteNote"))}</p>
-        ${renderVermoegenFilters(visible.length, r.positionen.length)}
-        <section class="panel">
-          <div class="table-wrap">
-            <table>
-              <thead><tr>
-                ${vermoegenSortHeader("klasse", "vermoegen.klasseHead")}
-                ${vermoegenSortHeader("position", "vermoegen.position")}
-                ${vermoegenSortHeader("wert", "vermoegen.wert", true)}
-                ${vermoegenSortHeader("stand", "vermoegen.stand")}
-                ${vermoegenSortHeader("qualitaet", "vermoegen.qualitaetHead")}
-              </tr></thead>
-              <tbody>${rows || `<tr><td colspan="5" class="muted">${escapeHtml(t("vermoegen.noMatches"))}</td></tr>`}</tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-      ${detailRailOpen ? `
-        <aside class="panel panel-pad detail-panel">
-          <div class="detail-head">
-            <h2 class="section-title">${escapeHtml(state.vermoegenRailMode === "wertstaende" ? t("vermoegen.wertstaende") : t("vermoegen.detailTitle"))}</h2>
-            <div class="detail-actions">
-              ${state.vermoegenRailMode === "wertstaende" ? `<button class="icon-button" data-action="toggle-vermoegen-rail-width" aria-label="${escapeHtml(railWide ? t("vermoegen.railNarrow") : t("vermoegen.railWide"))}" title="${escapeHtml(railWide ? t("vermoegen.railNarrow") : t("vermoegen.railWide"))}">${iconSvg(railWide ? "chevronRight" : "chevronLeft")}</button>` : ""}
-              <button class="icon-button" data-action="close-vermoegen-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
-            </div>
-          </div>
-          ${state.vermoegenRailMode === "wertstaende" ? renderWertstaendeRail() : renderVermoegenDetail(selected, today)}
-        </aside>
-      ` : ""}
-    </div>`;
-}
-
-function renderVermoegenFilters(resultCount, totalCount) {
-  return renderTableFilters({
-    fields: [
-      {
-        name: "klasse",
-        label: t("vermoegen.filterKlasse"),
-        options: [
-        ["", t("vermoegen.filterAll")],
-        ["konto", t("vermoegen.klasse.konto")],
-        ["immobilie", t("vermoegen.klasse.immobilie")],
-        ["vermoegenswert", t("vermoegen.klasse.vermoegenswert")],
-        ["vorsorge", t("vermoegen.klasse.vorsorge")],
-        ["darlehen", t("vermoegen.klasse.darlehen")],
-        ],
-      },
-      {
-        name: "qualitaet",
-        label: t("vermoegen.filterQualitaet"),
-        options: [
-        ["", t("vermoegen.filterAll")],
-        ["belegt", t("vermoegen.qualityBelegt")],
-        ["geschaetzt", t("vermoegen.qualityGeschaetzt")],
-        ["fehlend", t("vermoegen.qualityFehlend")],
-        ],
-      },
-    ],
-    filters: state.vermoegenFilters,
-    filterAttr: "vermoegen-filter",
-    clearAction: "clear-vermoegen-filter",
-    resetAction: "reset-vermoegen-filters",
-    resultCount,
-    totalCount,
-  });
-}
-
-function basisLabel(basis) {
-  const key = `vermoegen.basisLabels.${basis}`;
-  const text = t(key);
-  return text === key ? basis : text;
-}
-
-function anteileHtml(eigentumsanteile, marktwertCents) {
-  return (eigentumsanteile ?? []).map((a) => {
-    const name = a.extern === true || !a.person_id
-      ? t("vermoegen.externerAnteil")
-      : (personenById.get(a.person_id)?.name || a.person_id);
-    const teilCents = a.extern === true || !a.person_id ? 0 : anteilWertCents(marktwertCents, [a]);
-    const teil = a.extern === true || !a.person_id ? "—" : formatMoney(teilCents);
-    return `<div>${escapeHtml(name)}: <strong>${escapeHtml(String(a.zaehler))}/${escapeHtml(String(a.nenner))}</strong> · ${escapeHtml(teil)}</div>`;
-  }).join("");
-}
-
-function zeitwerteForPosition(p) {
-  if (!p) return [];
-  const fieldsByKlasse = {
-    konto: ["kontostand", "depotwert"],
-    immobilie: ["marktwert"],
-    vermoegenswert: ["marktwert"],
-    darlehen: ["restschuld"],
-  };
-  const fields = fieldsByKlasse[p.klasse] ?? [];
-  return (data.zeitwerte ?? [])
-    .filter((zw) => zw.entitaet === p.klasse && zw.entitaet_id === p.id && fields.includes(zw.feld))
-    .sort((a, b) => b.standdatum.localeCompare(a.standdatum) || b.feld.localeCompare(a.feld));
-}
-
-function zeitwertQualityChip(zw) {
-  return qualitaetChip({ qualitaet: zw.qualitaet, fehlt: false });
-}
-
-function renderPositionWertstaende(p) {
-  const rows = zeitwerteForPosition(p);
-  if (!rows.length) {
-    return detailRow(t("vermoegen.wertstaende"), `<span class="muted">${escapeHtml(t("vermoegen.noWertstaende"))}</span>`);
-  }
-  const html = rows.slice(0, 5).map((zw) => `
-    <div class="wertstand-item">
-      <div><strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong> <span class="muted">${escapeHtml(formatDate(zw.standdatum))}</span></div>
-      <div>${zeitwertQualityChip(zw)}</div>
-      ${zw.quelle_hinweis ? `<div class="muted">${quelleHtml(zw.quelle_hinweis)}</div>` : ""}
-    </div>`).join("");
-  const more = rows.length > 5
-    ? `<button class="linkish" data-action="show-vermoegen-wertstaende">${escapeHtml(t("vermoegen.showAllWertstaende"))}</button>`
-    : "";
-  return detailRow(t("vermoegen.wertstaende"), `<div class="wertstand-list">${html}${more}</div>`);
-}
-
 function renderWertstaendeRail() {
   const rows = (data.zeitwerte ?? [])
     .slice()
@@ -284,7 +306,7 @@ function renderWertstaendeRail() {
         <td>${escapeHtml(zeitwertLabel(zw))}<br><span class="muted">${escapeHtml(zw.entitaet_id)}</span></td>
         <td>${escapeHtml(formatDate(zw.standdatum))}</td>
         <td class="amount">${escapeHtml(formatMoney(cents(zw.wert)))}</td>
-        <td>${zeitwertQualityChip(zw)}</td>
+        <td>${qualitaetChip({ qualitaet: zw.qualitaet, fehlt: false })}</td>
         <td>${zw.quelle_hinweis ? quelleHtml(zw.quelle_hinweis) : "—"}</td>
       </tr>`).join("");
   return `
@@ -303,6 +325,24 @@ function renderWertstaendeRail() {
     </div>`;
 }
 
+// ------------------------------------------------------------- Detail einer Position (Konto, Sonstige)
+
+function basisLabel(basis) {
+  const key = `vermoegen.basisLabels.${basis}`;
+  const text = t(key);
+  return text === key ? basis : text;
+}
+
+function anteileHtml(eigentumsanteile, marktwertCents) {
+  return (eigentumsanteile ?? []).map((a) => {
+    const extern = a.extern === true || !a.person_id;
+    const name = extern ? t("vermoegen.externerAnteil") : (personenById.get(a.person_id)?.name || a.person_id);
+    const teil = extern ? "—" : formatMoney(anteilWertCents(marktwertCents, [a]));
+    return `<div>${escapeHtml(name)}: <strong>${escapeHtml(String(a.zaehler))}/${escapeHtml(String(a.nenner))}</strong> · ${escapeHtml(teil)}</div>`;
+  }).join("");
+}
+
+// Auch von den Stammdaten (Konto-Rail) genutzt.
 export function renderVermoegenDetail(p, today) {
   const head = `
     <div class="detail-section">
@@ -313,15 +353,12 @@ export function renderVermoegenDetail(p, today) {
   if (p.klasse === "konto") {
     const konto = kontenById.get(p.id);
     const istDepot = konto?.kontotyp === "depot";
-    const feld = istDepot ? "depotwert" : "kontostand";
-    const zw = aktuellerZeitwert(data.zeitwerte, "konto", p.id, feld);
+    const zw = aktuellerZeitwert(data.zeitwerte, "konto", p.id, istDepot ? "depotwert" : "kontostand");
     let buchungenHtml = "";
     if (!istDepot && zw) {
       let summe = 0;
       for (const tx of data.transaktionen ?? []) {
-        if (tx.konto_id !== p.id) continue;
-        if (tx.buchungsdatum <= zw.standdatum) continue;
-        if (tx.buchungsdatum > today) continue;
+        if (tx.konto_id !== p.id || tx.buchungsdatum <= zw.standdatum || tx.buchungsdatum > today) continue;
         summe += cents(tx.betrag);
       }
       buchungenHtml = detailRow(t("vermoegen.buchungenSeitAnker"), escapeHtml(formatMoney(summe)));
@@ -340,13 +377,9 @@ export function renderVermoegenDetail(p, today) {
   }
 
   if (p.klasse === "immobilie" || p.klasse === "vermoegenswert") {
-    const entitaet = p.klasse === "immobilie" ? "immobilie" : "vermoegenswert";
     const entity = (p.klasse === "immobilie" ? data.immobilien : data.vermoegenswerte)?.find((e) => (e.immobilie_id || e.vermoegenswert_id) === p.id);
-    const mw = aktuellerZeitwert(data.zeitwerte, entitaet, p.id, "marktwert");
+    const mw = aktuellerZeitwert(data.zeitwerte, p.klasse, p.id, "marktwert");
     const mwCents = mw ? cents(mw.wert) : 0;
-    const transaktionenLink = p.klasse === "immobilie"
-      ? `<div class="detail-section"><button class="linkish" data-action="immobilie-transactions" data-immobilie="${escapeHtml(p.id)}">${escapeHtml(t("masterdata.showTransactions"))}</button></div>`
-      : "";
     return head
       + (entity?.typ ? detailRow(t("labels.type"), escapeHtml(t(`vermoegen.typ.${entity.typ}`))) : "")
       + (entity?.adresse ? detailRow(t("vermoegen.adresse"), escapeHtml(entity.adresse)) : "")
@@ -357,72 +390,8 @@ export function renderVermoegenDetail(p, today) {
       + (entity?.eigentumsanteile ? detailRow(t("vermoegen.eigentumsanteile"), anteileHtml(entity.eigentumsanteile, mwCents)) : "")
       + detailRow(t("vermoegen.anteiligerWert"),
           p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`)
-      + renderPositionWertstaende(p)
-      + transaktionenLink;
-  }
-
-  if (p.klasse === "darlehen") {
-    const dar = data.darlehen?.find((d) => d.darlehen_id === p.id);
-    const anker = aktuellerZeitwert(data.zeitwerte, "darlehen", p.id, "restschuld");
-    const verknuepft = [];
-    if (dar?.immobilie_id) {
-      const imm = data.immobilien?.find((i) => i.immobilie_id === dar.immobilie_id);
-      verknuepft.push(`<button class="linkish" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="${escapeHtml(dar.immobilie_id)}">${escapeHtml(imm?.bezeichnung || dar.immobilie_id)}</button>`);
-    }
-    if (dar?.konto_id) {
-      verknuepft.push(escapeHtml(kontenById.get(dar.konto_id)?.name || dar.konto_id));
-    }
-    return head
-      + (anker
-        ? detailRow(t("vermoegen.anker"),
-            `<strong>${escapeHtml(formatMoney(cents(anker.wert)))}</strong><br>${escapeHtml(formatDate(anker.standdatum))} · ${qualitaetChip({ qualitaet: anker.qualitaet })}${anker.quelle_hinweis ? `<br><span class="muted">${quelleHtml(anker.quelle_hinweis)}</span>` : ""}`)
-        : detailRow(t("vermoegen.anker"), `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`))
-      + detailRow(t("vermoegen.restschuld"),
-          `${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(Math.abs(p.wert_cents)))}</strong>`}<br><span class="muted">${escapeHtml(basisLabel(p.basis))}</span>`)
-      + restschuldVerlaufRow(dar, today)
-      + sondertilgungenRow(p.id)
-      + (dar?.anfangsdatum ? detailRow(t("vermoegen.aufgenommenAm"), escapeHtml(formatDate(dar.anfangsdatum))) : "")
-      + (dar?.anfangsbetrag ? detailRow(t("vermoegen.anfangsbetrag"), escapeHtml(formatMoney(cents(dar.anfangsbetrag)))) : "")
-      + (dar?.laufzeit_bis ? detailRow(t("vermoegen.laufzeit"), `${escapeHtml(laufzeitText(dar.anfangsdatum, dar.laufzeit_bis))}<br><span class="muted">${escapeHtml(t("vermoegen.bis"))} ${escapeHtml(formatDate(dar.laufzeit_bis))}</span>`) : "")
-      + (dar?.zinssatz ? detailRow(t("vermoegen.zinssatz"), `${escapeHtml(dar.zinssatz)} %`) : "")
-      + (dar?.zinsbindung_bis ? detailRow(t("vermoegen.zinsbindungBis"), escapeHtml(formatDate(dar.zinsbindung_bis))) : "")
-      + (dar?.sollrate ? detailRow(t("vermoegen.rate"), `${escapeHtml(formatMoney(cents(dar.sollrate)))} / ${escapeHtml(rhythmusLabel(dar.rhythmus_einheit, dar.rhythmus_intervall))}`) : "")
-      + (dar?.restschuld_laufzeitende ? detailRow(t("vermoegen.restschuldLaufzeitende"), escapeHtml(formatMoney(cents(dar.restschuld_laufzeitende)))) : "")
-      + (verknuepft.length ? detailRow(t("vermoegen.verknuepft"), verknuepft.join(" · ")) : "")
       + renderPositionWertstaende(p);
   }
 
   return head;
-}
-
-// Restschuld-Verlauf seit Anker als Linie (Anker + je Ratentermin). Die Nulllinie
-// der Komponente zeigt den Weg zur Null (abbezahlt). Erst ab zwei Punkten.
-function restschuldVerlaufRow(dar, today) {
-  if (!dar) return "";
-  const r = restschuldHeute(dar, data.zeitwerte, today);
-  if (!r.punkte || r.punkte.length < 2) return "";
-  const svg = saldoLinie(
-    r.punkte.map((pt) => ({ wert: pt.wert_cents })),
-    `${t("vermoegen.restschuldVerlauf")}: ${formatMoney(r.punkte[0].wert_cents)} → ${formatMoney(r.punkte.at(-1).wert_cents)}`,
-  );
-  return svg ? detailRow(t("vermoegen.restschuldVerlauf"), svg) : "";
-}
-
-function rhythmusLabel(einheit, intervall) {
-  const e = t(`vermoegen.rhythmus.${einheit}`);
-  const einheitText = e === `vermoegen.rhythmus.${einheit}` ? einheit : e;
-  return Number(intervall) > 1 ? `${intervall} ${einheitText}` : einheitText;
-}
-
-function laufzeitText(von, bis) {
-  if (!von || !bis) return "";
-  const [vy, vm, vd] = von.split("-").map(Number);
-  const [by, bm, bd] = bis.split("-").map(Number);
-  let monate = (by - vy) * 12 + (bm - vm);
-  if (bd < vd) monate -= 1;
-  const jahre = Math.floor(monate / 12);
-  const restMonate = monate % 12;
-  if (jahre > 0 && restMonate > 0) return `${jahre} ${t("vermoegen.jahre")} ${restMonate} ${t("vermoegen.monate")}`;
-  if (jahre > 0) return `${jahre} ${t("vermoegen.jahre")}`;
-  return `${Math.max(0, restMonate)} ${t("vermoegen.monate")}`;
 }

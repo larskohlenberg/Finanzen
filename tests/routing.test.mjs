@@ -9,8 +9,10 @@ test("routeFromState adressiert die ausgewählte Transaktion", () => {
 
 test("routeFromState adressiert den Konto-Stammsatz und Vermögens-Positionen", () => {
   assert.equal(routeFromState({ view: "masterdata", masterSection: "konten", selectedKonto: "KTO-001" }), "#/konten/KTO-001");
-  assert.equal(routeFromState({ view: "vermoegen", selectedVermoegenId: "konto:KTO-001" }), "#/vermoegen/konto:KTO-001");
-  assert.equal(routeFromState({ view: "vermoegen", selectedVermoegenId: "darlehen:DAR-001" }), "#/vermoegen/darlehen:DAR-001");
+  assert.equal(routeFromState({ view: "vermoegen", selectedVermoegenId: "konto:KTO-001" }), "#/vermoegen/konten/KTO-001");
+  assert.equal(routeFromState({ view: "vermoegen", selectedVermoegenId: "darlehen:DAR-001" }), "#/vermoegen/darlehen/DAR-001");
+  assert.equal(routeFromState({ view: "vermoegen", vermoegenTab: "immobilien", selectedVermoegenId: "" }), "#/vermoegen/immobilien");
+  assert.equal(routeFromState({ view: "vermoegen", vermoegenTab: "uebersicht" }), "#/vermoegen");
 });
 
 test("routeFromState bildet reine Views auf Slugs ab", () => {
@@ -22,7 +24,7 @@ test("routeFromState bildet reine Views auf Slugs ab", () => {
 test("parseRoute liest Transaktions- und Konto-Deeplinks", () => {
   assert.deepEqual(parseRoute("#/transaktionen/TXN-5347b957-b93e-4453-830d-81eae240aa51"), { view: "transactions", selectedTransactionId: "TXN-5347b957-b93e-4453-830d-81eae240aa51" });
   assert.deepEqual(parseRoute("#/konten/KTO-001"), { view: "masterdata", masterSection: "konten", selectedKonto: "KTO-001" });
-  assert.deepEqual(parseRoute("#/vermoegen/darlehen:DAR-001"), { view: "vermoegen", selectedVermoegenId: "darlehen:DAR-001" });
+  assert.deepEqual(parseRoute("#/vermoegen/darlehen/DAR-001"), { view: "vermoegen", vermoegenTab: "darlehen", selectedVermoegenId: "darlehen:DAR-001" });
 });
 
 test("parseRoute liest reine Views und faellt sauber zurueck", () => {
@@ -73,4 +75,17 @@ test("routeFromState adressiert das ausgewaehlte Szenario", () => {
 test("parseRoute liest Szenario-Deeplinks", () => {
   assert.deepEqual(parseRoute("#/szenarien/SZN-001"), { view: "szenarien", selectedSzenarioId: "SZN-001" });
   assert.deepEqual(parseRoute("#/szenarien"), { view: "szenarien" });
+});
+
+test("Vermoegen: Tabs adressierbar, alte Klassen-Links landen im richtigen Tab", () => {
+  assert.deepEqual(parseRoute("#/vermoegen"), { view: "vermoegen", vermoegenTab: "uebersicht" });
+  assert.deepEqual(parseRoute("#/vermoegen/immobilien"), { view: "vermoegen", vermoegenTab: "immobilien" });
+  assert.deepEqual(parseRoute("#/vermoegen/immobilien/IMM-004"), { view: "vermoegen", vermoegenTab: "immobilien", selectedVermoegenId: "immobilie:IMM-004" });
+  assert.deepEqual(parseRoute("#/vermoegen/konto:KTO-001"), { view: "vermoegen", vermoegenTab: "konten", selectedVermoegenId: "konto:KTO-001" });
+  assert.deepEqual(parseRoute("#/vermoegen/vermoegenswert:VMW-001"), { view: "vermoegen", vermoegenTab: "sonstige", selectedVermoegenId: "vermoegenswert:VMW-001" });
+  assert.deepEqual(parseRoute("#/vermoegen/vorsorge:VS-002"), { view: "vorsorge", selectedVorsorgeId: "VS-002" });
+  assert.deepEqual(parseRoute("#/vermoegen/quatsch"), { view: "vermoegen", vermoegenTab: "uebersicht" });
+  for (const id of ["immobilie:IMM-004", "darlehen:DAR-002", "konto:KTO-010", "vermoegenswert:VMW-001"]) {
+    assert.equal(parseRoute(routeFromState({ view: "vermoegen", selectedVermoegenId: id })).selectedVermoegenId, id);
+  }
 });

@@ -49,7 +49,7 @@ function resetVermoegenState() {
   state.vermoegenDetailRailClosed = false;
   state.vermoegenRailMode = "position";
   state.vermoegenRailWide = false;
-  state.vermoegenFilters = { klasse: "", qualitaet: "" };
+  state.vermoegenTab = "uebersicht";
 }
 
 test("transactions initial render has no selected row and no visible detail rail", () => {
@@ -119,7 +119,7 @@ test("vermoegen initial render has no selected row and no visible detail rail", 
   assert.equal(state.selectedVermoegenId, "");
   assert.doesNotMatch(html, /clickable selected/);
   assert.doesNotMatch(html, /detail-panel/);
-  assert.match(html, /layout-with-rail rail-closed/);
+  assert.doesNotMatch(html, /layout-with-rail/);
 });
 
 test("vermoegen loan detail renders term metadata", () => {

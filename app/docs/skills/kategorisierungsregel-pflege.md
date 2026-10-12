@@ -190,7 +190,7 @@ Darum gilt eng begrenzt:
    **stilllegen** = `status = "inaktiv"` (nicht loeschen, der Categorizer
    ignoriert Inaktive ohnehin).
 
-5. **Nach-Kategorisierung anstossen.** MCP-Tool `nachkategorisieren` mit `schreiben: true` (lokal `node tools/recategorize.mjs DATENROOT`) aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel`) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator fuer `DATENROOT` und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs.
+5. **Nach-Kategorisierung anstossen.** MCP-Tool `nachkategorisieren` mit `schreiben: true` (lokal `node tools/recategorize.mjs DATENROOT`) aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel` + Auto-Freigaben) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator fuer `DATENROOT` und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs.
 
 6. **E5- und E6-Faelle als Einzelvorschlaege setzen.**
 
@@ -204,10 +204,17 @@ Darum gilt eng begrenzt:
    `confirm.mjs` nehmen — das ist der menschliche Entscheidungskanal und
    schreibt immer `bestaetigt`; ein Agentenvorschlag ist das Gegenteil davon.
 
-   Diese Buchungen tragen nie `matched_regeln`, und Regellaeufe fassen sie
-   spaeter nicht an. Ohne `schreiben: true` ist der Lauf eine Vorschau.
+   Diese Buchungen tragen nie `matched_regeln`. Solange sie `vorgeschlagen`
+   sind, fassen Regellaeufe sie nicht an; nach der Auto-Freigabe bewertet sie
+   ein spaeterer Regellauf neu (bei gleicher Kategorie wird die Herkunft
+   `regel`, siehe `agent-context.md`). Ohne `schreiben: true` ist der Lauf
+   eine Vorschau.
 
-7. **Bericht.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`) und in `DATENROOT/agent_log.jsonl` protokollieren.
+   `agent_vorschlag` ueberstimmt keine Regelvorschlaege. Weicht die richtige
+   Kategorie von einer greifenden Regel ab, ist das eine Nutzerentscheidung
+   (`bestaetigen` mit `aktion: kategorie`) oder eine Regelreparatur.
+
+7. **Bericht.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `belegt`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`) und in `DATENROOT/agent_log.jsonl` protokollieren.
 
    Die Uebergabe erfolgt **regelweise** als Tabelle: Regel → Muster → Kategorie →
    Treffer → **Belegstufe**. Dazu die Zahl der Schaetzungen (E5/E6) je

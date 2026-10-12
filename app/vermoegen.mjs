@@ -294,7 +294,7 @@ export function computeVermoegenChecks(data, today) {
       continue;
     }
 
-    const felder = ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung"];
+    const felder = ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "vertragswert"];
     let juengstes = vs.geprueft_am;
     for (const feld of felder) {
       const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld);

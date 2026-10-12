@@ -564,6 +564,10 @@ Zeitwerte zu Vorsorge stehen in `DATENROOT/zeitwerte.jsonl` mit
 - `erwartete_rente`: erwartete monatliche Leistung, als Netto-Wert oder klar
   gekennzeichnete Netto-Schaetzung.
 - `erwartete_kapitalleistung`: erwartete einmalige Kapitalleistung.
+- `vertragswert`: ausgewiesenes Vertragsguthaben (z. B. aus einem
+  Vermittlerportal), auch bei nicht kuendbaren Vertraegen. Nur Anzeige, zaehlt
+  nie ins Nettovermoegen. Ein Portalfeld "Rueckkaufswert" ohne ausgewiesenen
+  Stornoabzug gehoert hierher, nicht nach `rueckkaufswert`.
 
 Laufende Beitraege werden einseitig von `DATENROOT/regelzahlungen.json` aus
 verknuepft: `Regelzahlung.vorsorge_id` zeigt auf `vorsorge.vorsorge_id`. Die

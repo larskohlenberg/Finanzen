@@ -161,6 +161,7 @@ function render() {
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
   if (state.view === "belege") belegeBeiBedarfLaden(render);
+  if (state.view === "vorsorge" && state.selectedVorsorgeId) belegeBeiBedarfLaden(render);
   // Dokumente je Objekt auf den Tabs Immobilien und Darlehen.
   if (state.view === "vermoegen" && ["immobilien", "darlehen"].includes(state.vermoegenTab)) belegeBeiBedarfLaden(render);
 }

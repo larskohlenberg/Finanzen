@@ -37,6 +37,10 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
   Netto-Wert erfassen. Wenn der Beleg nur Brutto nennt, nur nach Nutzerfreigabe
   eine Netto-Schaetzung mit `qualitaet = "geschaetzt"` und klarer `bemerkung`
   verwenden.
+- **Vertragsuebersicht ohne Kuendigungsbetrag** (z. B. Ausdruck aus einem
+  Vermittlerportal): den ausgewiesenen Wert als `vertragswert` erfassen, mit
+  `quelle_hinweis` auf den abgelegten Beleg. Er ist nur Anzeige und ersetzt
+  keinen `rueckkaufswert`.
 - **Kapitalprognose / Ablaufleistung:** `erwartete_kapitalleistung` als Zeitwert
   erfassen, wenn der Beleg eine einmalige Leistung oder ein Kapitalwahlrecht
   ausweist.

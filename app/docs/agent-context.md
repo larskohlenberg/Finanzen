@@ -67,6 +67,8 @@ die lokalen Demodaten.
 | Datei lesen, suchen | `datei_lesen`, `dateien_suchen`, `transaktionen_abfragen` |
 | Datei schreiben, editieren | `datei_schreiben`, `datei_ersetzen` (nur unter `data/`) |
 | Beleg wegsortieren | `beleg_ablegen` (`data/inbox/...` nach `Belege/...`, sprechend benannt) |
+| Inbox-Datei verwerfen | `inbox_verwerfen` (`pfad` unter `data/inbox/`, optional `grund`; verschiebt in den Papierkorb, z. B. ein erkanntes Duplikat) |
+| Aus `error/` zurueckholen | `inbox_zurueckholen` (`pfad` unter `data/inbox/error/`; zurueck in die Inbox-Wurzel, bricht bei gleichem Namen ab) |
 
 Alle Tool-Laeufe sind ohne `schreiben: true` eine Vorschau. Skills stehen als
 MCP-Prompts bereit, dieses Dokument als Resource `finanzen://docs/agent-context`.
@@ -75,11 +77,21 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
 
 - **Rechte je Schluessel:** `--recht=lesen` erlaubt nur Lese-Tools und
   Vorschau-Laeufe; `--recht=schreiben` zusaetzlich `schreiben: true`,
-  `datei_schreiben`, `datei_ersetzen` und `beleg_ablegen`.
+  `datei_schreiben`, `datei_ersetzen`, `beleg_ablegen`, `inbox_verwerfen`
+  und `inbox_zurueckholen`.
+- **Papierkorb statt Loeschen:** `inbox_verwerfen` loescht nie, sondern
+  verschiebt nach `data/papierkorb/<JJJJ-MM-TT>/` und behaelt die Unterstruktur
+  unterhalb von `data/inbox/` (`error/`, `standardized/`, `processed/`). Mit
+  wandern der `.txt`-Zwilling daneben, der Textvorlauf in `standardized/` und
+  die Fehlernotiz `<name>.fehler.txt`. Bei gleichem Namen bekommt die Gruppe ein
+  Suffix (`-2`, `-3`, ...); ueberschrieben wird nie. `grund` landet als `notiz`
+  einer Zeile mit `anlass: "inbox-verwerfen"` in `agent_log.jsonl`. Endgueltig
+  leeren ist bewusst kein Tool, das macht der Nutzer selbst:
+  `ssh finanzen-vm sudo -u finanzen rm -r /opt/finanzen/app/data/papierkorb/<datum>`.
 - **Rollback:** Vor jedem schreibenden Vorgang kopiert der Server den
   `DATENROOT`; meldet der Validator danach neue Fehler, spielt er die Kopie
-  zurueck und meldet das. Verschiebungen und Loeschungen in `data/inbox/` und
-  `Belege/` werden **nicht** zurueckgerollt.
+  zurueck und meldet das. Verschiebungen und Loeschungen in `data/inbox/`,
+  `data/papierkorb/` und `Belege/` werden **nicht** zurueckgerollt.
 - **Einbindung:** Claude Code liest `.mcp.json` (`ssh finanzen-mcp`, der Alias
   steht in `~/.ssh/config`). Codex: in `~/.codex/config.toml`
   `[mcp_servers.finanzen]` mit `command = "ssh"` und `args = ["finanzen-mcp"]`.

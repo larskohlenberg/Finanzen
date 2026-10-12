@@ -32,7 +32,11 @@ das ist **kategorisierung-review**.
 2. **Normalisieren und importieren.** Je Rohdatei den Subagenten
    `import-normalisierung` beauftragen. Der Lauf haelt nie an. Der Inbox-Lauf
    legt fuer PDFs und Belegfotos den Textvorlauf an, bei Scans und Fotos per
-   OCR; Bild oder Scan selbst ansehen nur, wenn OCR nichts taugt.
+   OCR; Bild oder Scan selbst ansehen nur, wenn OCR nichts taugt. Erkannte
+   Duplikate verwirft der Agent per Tool `inbox_verwerfen` (mit `grund`; die
+   Datei geht in den Papierkorb, nichts wird geloescht); eine Datei aus
+   `error/`, die nach einer Korrektur erneut laufen soll, holt
+   `inbox_zurueckholen` in die Inbox-Wurzel.
 3. **Verregeln.** Den Subagenten `regel-recherche` auf den Offen-Stapel
    ansetzen. Er legt Regeln mit `belegstufe` an, ruft `recategorize.mjs` und
    schaetzt, was ohne Beleg bleibt, als Agenten-Einzelvorschlag. Er sucht je

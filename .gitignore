@@ -43,3 +43,5 @@ archiv/
 
 # Versionsstand, schreibt ops/aktualisieren.sh beim Deploy.
 app/version.json
+# Sitzungsschutz (Logout-URL, Sperrzeit), schreibt ops/aktualisieren.sh aus app.env.
+app/sitzung.json

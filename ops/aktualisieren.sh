@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Bringt den Checkout auf der VM auf den Stand von origin/<branch>, schreibt
-# app/version.json (Anzeige unten in der Sidebar) und startet die App neu.
+# app/version.json (Anzeige unten in der Sidebar) und app/sitzung.json
+# (Logout-URL und Sperrzeit fuer den Sitzungsschutz der App, Werte aus
+# FINANZEN_ABMELDEN_URL und FINANZEN_SPERRE_MINUTEN in /etc/finanzen/app.env)
+# und startet die App neu.
 #
 # Installation als root-eigene Kopie, damit der fachliche User das Skript, das
 # root ausfuehrt, nicht aendern kann. Erst in eine root-eigene Datei holen,
@@ -20,6 +23,7 @@ BRANCH="${1:-main}"
 VERZ="${FINANZEN_VERZ:-/opt/finanzen}"
 NUTZER="${FINANZEN_NUTZER:-finanzen}"
 DIENST="${FINANZEN_DIENST:-finanzen-app}"
+ENV_DATEI="${FINANZEN_ENV_DATEI:-/etc/finanzen/app.env}"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Bitte mit sudo aufrufen." >&2
@@ -28,6 +32,32 @@ fi
 # Schuetzt auch das JSON unten: keine Anfuehrungszeichen, kein Backslash.
 if ! [[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
   echo "Ungueltiger Branch-Name: $BRANCH" >&2
+  exit 1
+fi
+
+# Einen Wert aus der Env-Datei lesen, ohne sie auszufuehren (letzte Zeile gilt,
+# umschliessende Anfuehrungszeichen fallen weg).
+env_wert() {
+  local wert=""
+  if [[ -f "$ENV_DATEI" ]]; then
+    wert="$(sed -n "s/^[[:space:]]*$1=//p" "$ENV_DATEI" | tail -n 1)"
+  fi
+  wert="${wert%\"}"; wert="${wert#\"}"; wert="${wert%\'}"; wert="${wert#\'}"
+  printf '%s' "$wert"
+}
+
+# Vor jeder Aenderung pruefen. Die Werte landen unescaped im JSON: keine
+# Anfuehrungszeichen, kein Backslash, keine Leerzeichen.
+ABMELDEN_URL="$(env_wert FINANZEN_ABMELDEN_URL)"
+SPERRE_MINUTEN="$(env_wert FINANZEN_SPERRE_MINUTEN)"
+SPERRE_MINUTEN="${SPERRE_MINUTEN:-5}"
+url_muster='^https?://[][A-Za-z0-9._~:/?#@!$&()*+,;=%-]+$'
+if [[ -n "$ABMELDEN_URL" && ! "$ABMELDEN_URL" =~ $url_muster ]]; then
+  echo "FINANZEN_ABMELDEN_URL in $ENV_DATEI ist keine gueltige http(s)-URL." >&2
+  exit 1
+fi
+if ! [[ "$SPERRE_MINUTEN" =~ ^([1-9][0-9]*|0)([.][0-9]+)?$ ]] || [[ "$SPERRE_MINUTEN" =~ ^0+([.]0+)?$ ]]; then
+  echo "FINANZEN_SPERRE_MINUTEN in $ENV_DATEI muss eine positive Zahl sein." >&2
   exit 1
 fi
 
@@ -58,6 +88,19 @@ printf '{"commit": "%s", "kurz": "%s", "datum": "%s", "branch": "%s"}\n' \
   "$commit" "${commit:0:7}" "$datum" "$BRANCH" | als_nutzer tee "$tmp" >/dev/null
 als_nutzer chmod 640 "$tmp"
 als_nutzer mv -f "$tmp" "$ziel"
+
+# Sitzungsschutz: ohne Logout-URL keine Datei, die App sperrt dann nur und
+# laedt neu. Gleiches Muster wie version.json (als fachlicher User).
+ziel="$VERZ/app/sitzung.json"
+if [[ -n "$ABMELDEN_URL" ]]; then
+  tmp="$(als_nutzer mktemp "$VERZ/app/.sitzung.XXXXXX")"
+  printf '{"abmelden_url": "%s", "sperre_minuten": %s}\n' "$ABMELDEN_URL" "$SPERRE_MINUTEN" \
+    | als_nutzer tee "$tmp" >/dev/null
+  als_nutzer chmod 640 "$tmp"
+  als_nutzer mv -f "$tmp" "$ziel"
+else
+  als_nutzer rm -f "$ziel"
+fi
 
 # Neue Skriptfassung im Repo nur melden — root uebernimmt sie nach Pruefung.
 quelle="$VERZ/ops/aktualisieren.sh"

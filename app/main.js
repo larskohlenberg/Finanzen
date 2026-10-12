@@ -19,17 +19,24 @@ import {
 } from "./views/belege.mjs";
 import {
   app, data, state, storageKeys, navItems, TABBAR_VIEWS, transaktionenById,
-  t, escapeHtml, cents,
+  t, escapeHtml, cents, verwerfeDaten,
 } from "./runtime.mjs";
 import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
 import { bindDiagrammHover } from "./diagramm-hover.mjs";
 import { versionAnzeige, ladeVersion } from "./version.mjs";
+import {
+  AKTIVITAETS_EREIGNISSE, PRUEF_INTERVALL_MS, erstelleSitzungswaechter, ladeSitzungKonfig, zielNachSperre,
+} from "./sitzung.mjs";
 
 let nextActionCopiedTimer = null;
 // undefined = noch nicht geladen (nichts anzeigen), null = keine version.json.
 let appVersion;
+// Sitzungsschutz (sitzung.mjs): null = Konfiguration noch nicht geladen.
+let sitzungKonfig = null;
+let sitzungswaechter = null;
+let sitzungGesperrt = false;
 
 function applyTheme() {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -127,6 +134,9 @@ function announceStatus() {
 }
 
 function render() {
+  // Nach der Sitzungssperre ist der Bestand verworfen; nachlaufende
+  // Ladevorgaenge (Version, Inbox, Dokumente) duerfen nichts mehr zeichnen.
+  if (sitzungGesperrt) return;
   applyTheme();
   const focusSnap = captureFocus();
   const scrollSnap = captureScroll();
@@ -171,10 +181,13 @@ function renderSidebar() {
           `)
           .join("")}
       </nav>
-      <div class="sidebar-meta">
-        <span>${escapeHtml(t("chrome.workState"))}</span>
-        <strong>${escapeHtml(t("chrome.releaseState"))}</strong>
-        ${renderVersion()}
+      <div class="sidebar-fuss">
+        <div class="sidebar-meta">
+          <span>${escapeHtml(t("chrome.workState"))}</span>
+          <strong>${escapeHtml(t("chrome.releaseState"))}</strong>
+          ${renderVersion()}
+        </div>
+        ${renderAbmelden()}
       </div>
     </aside>
   `;
@@ -194,6 +207,16 @@ function renderVersion() {
     </span>`;
 }
 
+// Nur mit konfigurierter Logout-URL (sitzung.json); lokal gibt es nichts abzumelden.
+function renderAbmelden() {
+  if (!sitzungKonfig?.abmeldenUrl) return "";
+  return `
+    <button type="button" class="nav-button sidebar-abmelden" data-action="abmelden" aria-label="${escapeHtml(t("chrome.signOut"))}" title="${escapeHtml(t("chrome.signOut"))}">
+      <span class="nav-icon">${iconSvg("logout")}</span>
+      <span class="nav-label">${escapeHtml(t("chrome.signOut"))}</span>
+    </button>`;
+}
+
 function renderTabbar() {
   const primary = navItems.filter(([view]) => TABBAR_VIEWS.includes(view));
   const secondary = navItems.filter(([view]) => !TABBAR_VIEWS.includes(view));
@@ -209,6 +232,10 @@ function renderTabbar() {
               </button>
             `)
             .join("")}
+          ${sitzungKonfig?.abmeldenUrl ? `
+            <button type="button" class="tabbar-more-item" data-action="abmelden">
+              <span class="nav-icon">${iconSvg("logout")}</span>${escapeHtml(t("chrome.signOut"))}
+            </button>` : ""}
         </div>` : ""}
       <div class="tabbar-row">
         ${primary
@@ -660,6 +687,10 @@ async function handleAction(element) {
   if (action === "close-prompt-fallback") {
     state.nextActionPromptFallback = "";
     render();
+    return;
+  }
+  if (action === "abmelden") {
+    sitzungswaechter?.abmelden();
     return;
   }
   if (action === "reload-data") {
@@ -1184,4 +1215,41 @@ render();
 ladeVersion().then((version) => {
   appVersion = version;
   render();
+});
+
+// Sitzungsschutz: Daten verwerfen, DOM ersetzen, dann abmelden oder neu laden.
+// Keine Ansicht wird von den Timern neu gezeichnet.
+const sitzungsTimer = [];
+function sperreSitzung(grund) {
+  sitzungGesperrt = true;
+  for (const id of sitzungsTimer) clearInterval(id);
+  const hinweis = t("chrome.locked");
+  verwerfeDaten();
+  app.className = "app-shell sitzung-gesperrt";
+  app.innerHTML = `<p class="sitzung-hinweis" role="status">${iconSvg("lock")}<span>${escapeHtml(hinweis)}</span></p>`;
+  const sr = document.querySelector("#sr-status");
+  if (sr) sr.textContent = "";
+  const ziel = zielNachSperre(grund, sitzungKonfig);
+  if (ziel.art === "abmelden") window.location.replace(ziel.url);
+  else window.location.reload();
+}
+
+// Nur im echten Browser: Tests mit DOM-Attrappe (ohne visibilityState)
+// laden main.js ohne Timer, die den Testprozess am Leben hielten.
+if ("visibilityState" in document) void ladeSitzungKonfig().then((konfig) => {
+  sitzungKonfig = konfig;
+  sitzungswaechter = erstelleSitzungswaechter({ konfig, beiSperre: sperreSitzung });
+  const aktivitaet = () => sitzungswaechter.aktivitaet();
+  for (const typ of AKTIVITAETS_EREIGNISSE) {
+    window.addEventListener(typ, aktivitaet, { capture: true, passive: true });
+  }
+  const wiederSichtbar = () => {
+    if (document.visibilityState === "visible") void sitzungswaechter.wiederSichtbar();
+  };
+  document.addEventListener("visibilitychange", wiederSichtbar);
+  window.addEventListener("focus", wiederSichtbar);
+  // Die Uhr wird oft gelesen (billig), der Proxy einmal pro Minute gefragt.
+  sitzungsTimer.push(window.setInterval(() => sitzungswaechter.pruefeInaktivitaet(), Math.min(5_000, konfig.sperreMs / 4)));
+  sitzungsTimer.push(window.setInterval(() => void sitzungswaechter.pruefeAnmeldung(), PRUEF_INTERVALL_MS));
+  if (konfig.abmeldenUrl) render();
 });

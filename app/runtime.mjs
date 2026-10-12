@@ -164,3 +164,14 @@ export function escapeHtml(value) {
 }
 
 export const cents = toCents;
+
+// Sitzungssperre (sitzung.mjs): geladenen Bestand und alles daraus Abgeleitete
+// aus dem Speicher werfen, bevor die Seite neu laedt oder abmeldet.
+export function verwerfeDaten() {
+  for (const schluessel of Object.keys(data)) delete data[schluessel];
+  for (const map of [personenById, kontenById, kategorienById, transaktionenById, transfersById]) map.clear();
+  state.liquiditaetExpanded.clear();
+  state.nextActionPromptFallback = "";
+  state.transactionFilters.search = "";
+  state.vorsorgeFilters.search = "";
+}

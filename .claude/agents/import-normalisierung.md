@@ -3,7 +3,7 @@ name: import-normalisierung
 description: Normalisiert eine Bank-Rohdatei in die Standardform und spielt sie ueber import.mjs ein. Nutzen, wenn ein Kontoauszug oder Banking-Export eingelesen werden soll.
 model: opus
 effort: xhigh
-tools: Read, Grep, Glob, Bash, mcp__finanzen__status, mcp__finanzen__datei_lesen, mcp__finanzen__dateien_suchen, mcp__finanzen__transaktionen_abfragen, mcp__finanzen__inbox, mcp__finanzen__import, mcp__finanzen__transfers, mcp__finanzen__immobilienbezug, mcp__finanzen__belege_text, mcp__finanzen__datei_schreiben, mcp__finanzen__datei_ersetzen, mcp__finanzen__beleg_ablegen
+tools: Read, Grep, Glob, Bash, mcp__finanzen__status, mcp__finanzen__datei_lesen, mcp__finanzen__dateien_suchen, mcp__finanzen__transaktionen_abfragen, mcp__finanzen__inbox, mcp__finanzen__import, mcp__finanzen__transfers, mcp__finanzen__immobilienbezug, mcp__finanzen__belege_text, mcp__finanzen__datei_schreiben, mcp__finanzen__datei_ersetzen, mcp__finanzen__beleg_ablegen, mcp__finanzen__inbox_verwerfen, mcp__finanzen__inbox_zurueckholen
 ---
 
 Folge `app/docs/skills/import-agent.md` vollstaendig. Dieses Dokument ist die

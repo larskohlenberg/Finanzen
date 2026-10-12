@@ -121,6 +121,7 @@ export const state = {
   vermoegenTab: "uebersicht",
   selectedVermoegenId: "",
   immobilieOhneRate: false,
+  immobilieDrill: "",
   vorsorgeFilters: { search: "", art: "", person: "", status: "", pruefstatus: "" },
   vorsorgeSort: { key: "id", dir: "asc" },
   wertstaendeFilters: { search: "", klasse: "", qualitaet: "" },

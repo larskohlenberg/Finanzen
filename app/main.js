@@ -1083,6 +1083,11 @@ async function handleAction(element) {
     oeffneVermoegenObjekt(`konto:${element.dataset.account}`);
     return;
   }
+  if (action === "immobilie-drill") {
+    state.immobilieDrill = state.immobilieDrill === element.dataset.drill ? "" : element.dataset.drill;
+    render();
+    return;
+  }
   if (action === "immobilie-rate") {
     state.immobilieOhneRate = element.dataset.rate === "ohne";
     render();

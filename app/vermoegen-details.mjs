@@ -120,14 +120,17 @@ export function immobilienMonate(data, immobilieId, today, { anzahl = 12, ohneKa
     if (cents >= 0) einnahmen[i] += cents;
     else ausgaben[i] -= cents;
     const schluessel = eigenanteil ? "eigenanteil" : kategorie;
-    if (!nachKategorie.has(schluessel)) nachKategorie.set(schluessel, { kategorie_id: kategorie, eigenanteil, werte: leer() });
-    nachKategorie.get(schluessel).werte[i] += cents;
+    if (!nachKategorie.has(schluessel)) nachKategorie.set(schluessel, { kategorie_id: kategorie, eigenanteil, werte: leer(), ein: leer(), aus: leer() });
+    const eintrag = nachKategorie.get(schluessel);
+    eintrag.werte[i] += cents;
+    if (cents >= 0) eintrag.ein[i] += cents;
+    else eintrag.aus[i] += cents;
     anzahlBuchungen += 1;
   }
 
   const summe = (werte) => werte.reduce((a, b) => a + b, 0);
   const kategorien = [...nachKategorie.values()]
-    .map(({ kategorie_id, eigenanteil, werte }) => ({ kategorie_id, ...(eigenanteil ? { eigenanteil } : {}), werte, summe_cents: summe(werte) }))
+    .map(({ kategorie_id, eigenanteil, werte, ein, aus }) => ({ kategorie_id, ...(eigenanteil ? { eigenanteil } : {}), werte, ein, aus, summe_cents: summe(werte) }))
     .sort((a, b) => b.summe_cents - a.summe_cents || a.kategorie_id.localeCompare(b.kategorie_id));
   const saldo = monate.map((_, i) => einnahmen[i] - ausgaben[i]);
   return {

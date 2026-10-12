@@ -8,7 +8,7 @@ globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: () => null, setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (pfad) => {
-  const body = readFileSync(new URL(`../app/${String(pfad).replace(/^\.\//, "").replace(/\?.*$/, "")}`, import.meta.url), "utf8");
+  const body = readFileSync(new URL(`../app/${String(pfad).replace(/^\.\//, "").replace(/\?.*$/, "").replace(/^data\/master\//, "data/demo/")}`, import.meta.url), "utf8");
   return { ok: true, json: async () => JSON.parse(body), text: async () => body };
 };
 await import("../app/i18n.js");

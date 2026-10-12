@@ -509,6 +509,26 @@ keine Platzhalter. Der Pruefbericht liest aeltere Eintraege (skalarer Betrag,
 `quelle`) weiter, damit der Log nicht umgeschrieben werden muss; neu
 geschrieben wird ausschliesslich dieses Format.
 
+Schliesst ein spaeterer Lauf die Luecke (fehlender Auszug nachgereicht, Anker
+jetzt geschrieben), vermerkt **sein** Laufeintrag das, statt den alten Eintrag
+umzuschreiben:
+
+```json
+"normalisierung": {
+  "reconciliation_erledigt": {
+    "konto_id": "KTO-000",
+    "bezug": "Logeintrag <zeitpunkt> des urspruenglichen Laufs",
+    "grund": "Fehlender Auszug importiert, Anker cent-genau geschrieben"
+  }
+}
+```
+
+Mehrere Konten gehen als Liste. Der Pruefbericht blendet eine Differenz aus,
+sobald ein **spaeterer** Eintrag sie fuer dasselbe Konto abhakt. Unabhaengig vom
+Log rechnet er zusaetzlich jede Kette aufeinanderfolgender belegter Anker nach
+(Anker + Buchungen bis zum naechsten Anker = naechster Anker); was dort nicht
+aufgeht, steht immer im Bericht.
+
 ### Startzustandsbuchungen — bewusst KAT-012, kein Review-Fall
 
 Wo die Importhistorie erst nach dem Kontoleben beginnt, traegt eine technische

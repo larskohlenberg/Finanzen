@@ -6,9 +6,10 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
-import { normalizeLoose, toCents } from "./lib/text.mjs";
+import { centsToDecimal, normalizeLoose, toCents } from "./lib/text.mjs";
 import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
 import { kontoanker, ungedeckteKonten } from "./lib/kontoanker.mjs";
+import { reconciliationDrift } from "../vermoegen.mjs";
 
 const GROSSE_ANZAHL = 15;
 const AUSREISSER_FAKTOR = 2;
@@ -82,6 +83,35 @@ function reconDifferenz(differenz) {
   return grund ? `${betrag} — ${grund}` : betrag;
 }
 
+// Ein spaeterer Lauf, der die Luecke schliesst, vermerkt das unter
+// `normalisierung.reconciliation_erledigt: { konto_id, bezug, grund }` (Objekt
+// oder Liste). Bestehende Eintraege werden nie umgeschrieben; erledigt ist eine
+// Differenz, wenn ein SPAETERER Eintrag fuer dasselbe Konto sie abhakt. Vorher
+// stand hier jede je protokollierte Differenz fuer immer im Bericht.
+function erledigtKonten(eintrag) {
+  const e = eintrag.normalisierung?.reconciliation_erledigt ?? eintrag.reconciliation_erledigt;
+  return (Array.isArray(e) ? e : e ? [e] : []).map((x) => String(x?.konto_id ?? "").trim()).filter(Boolean);
+}
+
+export function offeneReconciliation(log) {
+  const eintraege = log ?? [];
+  return eintraege.flatMap((e, i) => {
+    if (!e.normalisierung?.reconciliation_differenz) return [];
+    const quelle = reconQuelle(e);
+    const spaeterErledigt = eintraege.slice(i + 1).some((spaeter) => erledigtKonten(spaeter).includes(quelle));
+    return spaeterErledigt ? [] : [{ ...e.normalisierung, quelle }];
+  });
+}
+
+// Was zwischen geschriebenen Ankern nicht aufgeht, rechnet der Bericht selbst
+// nach (dieselbe Funktion wie die Vermoegens-Checks) — unabhaengig davon, ob ein
+// Agent es je protokolliert hat.
+function saldenDrift(konten, zeitwerte, transaktionen) {
+  return (konten ?? [])
+    .filter((k) => k.status !== "geschlossen" && k.kontotyp !== "bar" && k.kontotyp !== "depot")
+    .flatMap((k) => reconciliationDrift(k, zeitwerte, transaktionen));
+}
+
 export function pruefbericht({ transaktionen, regeln, konten, zeitwerte, log }) {
   const autos = (transaktionen ?? []).filter(istAuto);
 
@@ -119,9 +149,8 @@ export function pruefbericht({ transaktionen, regeln, konten, zeitwerte, log }) 
     konten_ohne_anker: (konten ?? []).filter((k) => !ankerIds.has(k.konto_id)),
     // Ein Kopf-Kontostand, der nicht aufging, wurde bewusst NICHT geschrieben.
     // Genau deshalb muss er hier sichtbar sein, sonst verschwindet die Luecke.
-    reconciliation: (log ?? [])
-      .filter((e) => e.normalisierung?.reconciliation_differenz)
-      .map((e) => ({ ...e.normalisierung, quelle: reconQuelle(e) })),
+    reconciliation: offeneReconciliation(log),
+    salden_drift: saldenDrift(konten, zeitwerte, transaktionen),
     lernen: metriken(log ?? [], gesperrteBelegstufenAus(log ?? [])),
   };
 }
@@ -166,8 +195,14 @@ export function renderBericht(b) {
   z.push("", `KONTEN OHNE BELEGTEN ANKER (${b.konten_ohne_anker.length})`);
   for (const k of b.konten_ohne_anker) z.push(`  ${k.konto_id}  ${k.name}`);
 
-  z.push("", `NICHT RECONCILIERTE KONTOSTAENDE (${b.reconciliation.length})`);
-  for (const r of b.reconciliation) z.push(`  ${r.quelle}: Differenz ${reconDifferenz(r.reconciliation_differenz)}`);
+  const drift = b.salden_drift ?? [];
+  z.push("", `NICHT RECONCILIERTE KONTOSTAENDE (${drift.length + b.reconciliation.length})`);
+  z.push(`  Saldenkette zwischen belegten Ankern — nachgerechnet (${drift.length})`);
+  if (drift.length === 0) z.push("    keine");
+  for (const d of drift) z.push(`    ${d.konto_id}  ${d.von} -> ${d.bis}: belegt ${centsToDecimal(d.belegt_cents)}, erwartet ${centsToDecimal(d.erwartet_cents)}, Differenz ${centsToDecimal(d.differenz_cents)}`);
+  z.push(`  zurueckgehaltene Kopfstaende — laut Protokoll, nicht erledigt (${b.reconciliation.length})`);
+  if (b.reconciliation.length === 0) z.push("    keine");
+  for (const r of b.reconciliation) z.push(`    ${r.quelle}: Differenz ${reconDifferenz(r.reconciliation_differenz)}`);
 
   const auffaellig = b.lernen.je_regel.filter((r) => r.korrekturen > 0);
   z.push("", `REGELN MIT KORREKTUREN AN AUTO-FREIGABEN (${auffaellig.length})`);

@@ -219,6 +219,31 @@ export function computeNettovermoegen(data, today) {
   };
 }
 
+// Reconciliation über aufeinanderfolgende belegte Stände eines Kontos: Anker plus
+// Buchungen bis zum nächsten Anker muss den nächsten Anker ergeben. Liefert jede
+// Abweichung; leer heißt, die Kette geht auf. Genutzt von den Vermögens-Checks
+// und vom Prüfbericht (tools/pruefbericht.mjs).
+export function reconciliationDrift(konto, zeitwerte, transaktionen) {
+  const staende = (zeitwerte ?? [])
+    .filter((z) => z.entitaet === "konto" && z.entitaet_id === konto.konto_id && z.feld === "kontostand" && z.qualitaet === "belegt")
+    .sort((a, b) => a.standdatum.localeCompare(b.standdatum));
+  const drift = [];
+  for (let i = 1; i < staende.length; i++) {
+    const von = staende[i - 1], bis = staende[i];
+    let gebucht = 0;
+    for (const tx of transaktionen ?? []) {
+      if (tx.konto_id !== konto.konto_id) continue;
+      if (tx.buchungsdatum > von.standdatum && tx.buchungsdatum <= bis.standdatum) gebucht += toCents(tx.betrag);
+    }
+    const erwartet = toCents(von.wert) + gebucht;
+    const belegt = toCents(bis.wert);
+    if (erwartet !== belegt) {
+      drift.push({ konto_id: konto.konto_id, von: von.standdatum, bis: bis.standdatum, erwartet_cents: erwartet, belegt_cents: belegt, differenz_cents: belegt - erwartet });
+    }
+  }
+  return drift;
+}
+
 export function computeVermoegenChecks(data, today) {
   const checks = [];
 
@@ -231,21 +256,8 @@ export function computeVermoegenChecks(data, today) {
       checks.push({ art: "anker-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, text: `Konto ${konto.name}: kein belegter Kontostand` });
       continue;
     }
-    // Reconciliation über aufeinanderfolgende belegte Stände
-    const staende = (data.zeitwerte ?? [])
-      .filter((z) => z.entitaet === "konto" && z.entitaet_id === konto.konto_id && z.feld === "kontostand" && z.qualitaet === "belegt")
-      .sort((a, b) => a.standdatum.localeCompare(b.standdatum));
-    for (let i = 1; i < staende.length; i++) {
-      const von = staende[i - 1], bis = staende[i];
-      let gebucht = 0;
-      for (const tx of data.transaktionen ?? []) {
-        if (tx.konto_id !== konto.konto_id) continue;
-        if (tx.buchungsdatum > von.standdatum && tx.buchungsdatum <= bis.standdatum) gebucht += toCents(tx.betrag);
-      }
-      const erwartet = toCents(von.wert) + gebucht;
-      if (erwartet !== toCents(bis.wert)) {
-        checks.push({ art: "reconciliation-drift", entitaet: "konto", entitaet_id: konto.konto_id, text: `Konto ${konto.name}: Buchungen passen nicht zum Kontoauszug ${bis.standdatum} (erwartet ${(erwartet / 100).toFixed(2)}, belegt ${(toCents(bis.wert) / 100).toFixed(2)})` });
-      }
+    for (const d of reconciliationDrift(konto, data.zeitwerte, data.transaktionen)) {
+      checks.push({ art: "reconciliation-drift", entitaet: "konto", entitaet_id: konto.konto_id, text: `Konto ${konto.name}: Buchungen passen nicht zum Kontoauszug ${d.bis} (erwartet ${(d.erwartet_cents / 100).toFixed(2)}, belegt ${(d.belegt_cents / 100).toFixed(2)})` });
     }
   }
 

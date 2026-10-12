@@ -92,10 +92,16 @@ function letzteMonate(today, anzahl) {
   return Array.from({ length: anzahl }, (_, i) => addInterval(erster, "monat", i).slice(0, 7));
 }
 
-export function immobilienMonate(data, immobilieId, today, { anzahl = 12, ohneKategorien = [] } = {}) {
+// Eigenanteil (mitEigenanteil): Transfers eigener Konten auf das Konto, ueber das die
+// Darlehen dieses Objekts laufen. Sie bleiben Transfer, erscheinen hier aber als eigene
+// Spalte, damit die Rate nicht ungedeckt aussieht. Fuer Kennzahlen wie die Mietrendite aus.
+export function immobilienMonate(data, immobilieId, today, { anzahl = 12, ohneKategorien = [], mitEigenanteil = false } = {}) {
   const monate = letzteMonate(today, anzahl);
   const position = new Map(monate.map((m, i) => [m, i]));
   const ohne = new Set(ohneKategorien);
+  const hauskonten = new Set((data.darlehen ?? [])
+    .filter((d) => d.immobilie_id === immobilieId && d.status !== "abgeloest" && d.konto_id)
+    .map((d) => d.konto_id));
   const leer = () => monate.map(() => 0);
   const einnahmen = leer();
   const ausgaben = leer();
@@ -103,22 +109,25 @@ export function immobilienMonate(data, immobilieId, today, { anzahl = 12, ohneKa
   let anzahlBuchungen = 0;
 
   for (const tx of data.transaktionen ?? []) {
-    if (tx.immobilie_id !== immobilieId || tx.ist_transfer) continue;
+    if (tx.immobilie_id !== immobilieId) continue;
+    const eigenanteil = Boolean(tx.ist_transfer);
+    if (eigenanteil && !(mitEigenanteil && hauskonten.has(tx.konto_id))) continue;
     const i = position.get(String(tx.buchungsdatum).slice(0, 7));
     if (i === undefined) continue;
     const kategorie = tx.kategorie_id ?? "";
-    if (ohne.has(kategorie)) continue;
+    if (!eigenanteil && ohne.has(kategorie)) continue;
     const cents = toCents(tx.betrag);
     if (cents >= 0) einnahmen[i] += cents;
     else ausgaben[i] -= cents;
-    if (!nachKategorie.has(kategorie)) nachKategorie.set(kategorie, leer());
-    nachKategorie.get(kategorie)[i] += cents;
+    const schluessel = eigenanteil ? "eigenanteil" : kategorie;
+    if (!nachKategorie.has(schluessel)) nachKategorie.set(schluessel, { kategorie_id: kategorie, eigenanteil, werte: leer() });
+    nachKategorie.get(schluessel).werte[i] += cents;
     anzahlBuchungen += 1;
   }
 
   const summe = (werte) => werte.reduce((a, b) => a + b, 0);
-  const kategorien = [...nachKategorie]
-    .map(([kategorie_id, werte]) => ({ kategorie_id, werte, summe_cents: summe(werte) }))
+  const kategorien = [...nachKategorie.values()]
+    .map(({ kategorie_id, eigenanteil, werte }) => ({ kategorie_id, ...(eigenanteil ? { eigenanteil } : {}), werte, summe_cents: summe(werte) }))
     .sort((a, b) => b.summe_cents - a.summe_cents || a.kategorie_id.localeCompare(b.kategorie_id));
   const saldo = monate.map((_, i) => einnahmen[i] - ausgaben[i]);
   return {

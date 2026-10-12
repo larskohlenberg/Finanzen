@@ -8,7 +8,8 @@ import { renderCheckItems } from "./checks.mjs";
 
 export function renderOverview() {
   const nextAction = buildNextAgentAction(data);
-  const verfuegbar = overviewAccountGroups().konten;
+  const gruppen = overviewAccountGroups();
+  const verfuegbar = gruppen.konten;
   return `
     ${renderPageHead(t("overview.title"), "")}
     <div class="layout-with-rail">
@@ -19,6 +20,13 @@ export function renderOverview() {
               <div class="kpi-label" id="kpi-balance-label">${escapeHtml(t("overview.availableMoney"))}</div>
               <div class="kpi-value">${escapeHtml(formatMoney(verfuegbar.summe_cents))}</div>
               <div class="kpi-note">${escapeHtml(`${t("overview.availableNote")} · ${accountGroupCoverage(verfuegbar)}`)}</div>
+            </div>
+          </section>
+          <section class="panel hero-kpi" aria-labelledby="kpi-depot-label">
+            <div>
+              <div class="kpi-label" id="kpi-depot-label">${escapeHtml(t("overview.depotTotal"))}</div>
+              <div class="kpi-value">${escapeHtml(formatMoney(gruppen.depots.summe_cents))}</div>
+              <div class="kpi-note">${escapeHtml(`${t("overview.depotNote")} · ${accountGroupCoverage(gruppen.depots)}`)}</div>
             </div>
           </section>
           <section class="panel hero-kpi" aria-labelledby="kpi-networth-label">

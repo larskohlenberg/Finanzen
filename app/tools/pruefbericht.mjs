@@ -93,12 +93,25 @@ function erledigtKonten(eintrag) {
   return (Array.isArray(e) ? e : e ? [e] : []).map((x) => String(x?.konto_id ?? "").trim()).filter(Boolean);
 }
 
+// Aeltere Eintraege tragen kein `konto_id` an der Differenz; dann nennt der
+// Anlass das Konto (z. B. "Erstimport KTO-006 ..."). Nur ein eindeutiger
+// Treffer zaehlt, sonst bleibt die Differenz sichtbar.
+function differenzKonto(eintrag) {
+  const d = eintrag.normalisierung.reconciliation_differenz;
+  const direkt = d !== null && typeof d === "object" ? String(d.konto_id ?? "").trim() : "";
+  if (direkt) return direkt;
+  const text = `${eintrag.normalisierung.quelle ?? ""} ${eintrag.anlass ?? ""}`;
+  const treffer = [...new Set(text.match(/KTO-[A-Za-z0-9-]*[A-Za-z0-9]/g) ?? [])];
+  return treffer.length === 1 ? treffer[0] : null;
+}
+
 export function offeneReconciliation(log) {
   const eintraege = log ?? [];
   return eintraege.flatMap((e, i) => {
     if (!e.normalisierung?.reconciliation_differenz) return [];
     const quelle = reconQuelle(e);
-    const spaeterErledigt = eintraege.slice(i + 1).some((spaeter) => erledigtKonten(spaeter).includes(quelle));
+    const konto = differenzKonto(e);
+    const spaeterErledigt = konto !== null && eintraege.slice(i + 1).some((spaeter) => erledigtKonten(spaeter).includes(konto));
     return spaeterErledigt ? [] : [{ ...e.normalisierung, quelle }];
   });
 }

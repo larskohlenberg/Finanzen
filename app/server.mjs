@@ -10,6 +10,8 @@
 //
 // GET /api/belege listet (nur lesend) alle Dateien unter Belege/ fuer die
 // Dokumente-Ansicht; die Dateien selbst kommen ueber die statische Auslieferung.
+// GET /api/export/{dokumente|daten|komplett}[?quelle=demo] liefert ein Backup
+// als ZIP (app/export.mjs), gebaut beim Herunterladen, ohne Datei auf der Platte.
 //
 // Jede Anfrage braucht eine erlaubte Host-Kopfzeile (Schutz gegen DNS-
 // Rebinding): lokal Loopback mit Port, mit --origin der Host der Origin.
@@ -22,16 +24,20 @@
 import http from "node:http";
 import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { chmod, open, link, mkdir, mkdtemp, lstat, readdir, realpath, rm, stat } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { EXPORT_ARTEN, exportDateiname, exportEintraege, pruefeZipGrenzen, zipTeile } from "./export.mjs";
 import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt, istHeic } from "./upload-regeln.mjs";
 
 const MAX_NAME_LAENGE = 200;
 const API_INBOX = "/api/inbox";
 const API_BELEGE = "/api/belege";
+const API_EXPORT = "/api/export";
 const OCR_KOPF = "# Kein Textlayer";
 
 const MIME = {
@@ -372,7 +378,7 @@ export async function legeAbOhneUeberschreiben(temp, ziel) {
   }
 }
 
-export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
+export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), datenDirs = { live: join(appDir, "data", "master"), demo: join(appDir, "data", "demo") }, proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
   let appWurzel = null;
   // Uploads nacheinander abschliessen: Namenswahl ohne Wettlauf untereinander.
   let kette = Promise.resolve();
@@ -496,6 +502,33 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     antworte?.();
   }
 
+  async function liefereExport(req, res, art) {
+    if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
+    if (!EXPORT_ARTEN.includes(art)) return abgelehnt(res, 404, "nicht-gefunden");
+    const quelle = new URLSearchParams(req.url.split("?")[1] ?? "").get("quelle") === "demo" ? "demo" : "live";
+    const eintraege = await exportEintraege(art, { datenDir: datenDirs[quelle], belegeDir });
+    let groesse;
+    try {
+      groesse = pruefeZipGrenzen(eintraege);
+    } catch (fehler) {
+      log(`${new Date().toISOString()} export art=${art} ergebnis=abgelehnt:${fehler.message}`);
+      return abgelehnt(res, 413, "zu-gross");
+    }
+    const name = exportDateiname(art);
+    res.writeHead(200, {
+      "Content-Type": "application/zip",
+      "Content-Length": groesse,
+      "Content-Disposition": `attachment; filename="${name}"`,
+    });
+    try {
+      await pipeline(Readable.from(zipTeile(eintraege)), res);
+      log(`${new Date().toISOString()} export art=${art} quelle=${quelle} dateien=${eintraege.length} groesse=${groesse}`);
+    } catch (fehler) {
+      log(`${new Date().toISOString()} export art=${art} ergebnis=abgebrochen:${fehler.message}`);
+      res.destroy();
+    }
+  }
+
   async function behandle(req, res) {
     for (const [k, v] of Object.entries(BASIS_KOPFZEILEN)) res.setHeader(k, v);
     const host = String(req.headers.host ?? "").toLowerCase();
@@ -516,6 +549,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
       return sendeJson(res, 200, { dateien: await listeBelege(belegeDir) });
     }
+    if (rohPfad.startsWith(`${API_EXPORT}/`)) return liefereExport(req, res, rohPfad.slice(API_EXPORT.length + 1));
     if (rohPfad.startsWith(`${API_INBOX}/`)) {
       if (req.method !== "PUT") return abgelehnt(res, 405, "methode", { Allow: "PUT" });
       return nimmUpload(req, res, rohPfad.slice(API_INBOX.length + 1));

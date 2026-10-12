@@ -3018,3 +3018,28 @@ a.linkish {
 .aenderungen-tabelle td { vertical-align: top; }
 .aenderung-monat th { background: var(--surface); text-align: left; font-weight: 700; }
 .aenderung-monat th.amount { text-align: right; }
+
+/* Export (#/export) */
+.export-karten {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.export-karte {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.export-karte h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.export-karte p {
+  flex: 1;
+  margin: 0;
+}

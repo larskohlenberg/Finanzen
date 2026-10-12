@@ -729,8 +729,12 @@ window.FINANCE_I18N = {
     },
     exportPage: {
       title: "Export",
-      lead: "Export ist für spätere Meilensteine vorgesehen.",
-      body: "In M2 gibt es keine Export-Funktion. Die Seite bleibt als Navigationspunkt sichtbar, damit die spätere App-Struktur klar bleibt.",
+      lead: "Backup zum Herunterladen, als ZIP frisch vom Server zusammengestellt.",
+      herunterladen: "ZIP herunterladen",
+      komplett: { titel: "Komplettes Backup", text: "Alle Dokumente und alle Daten in einer Datei." },
+      dokumente: { titel: "Dokumente", text: "Alle hochgeladenen Dokumente in ihrer Ordnerstruktur." },
+      daten: { titel: "Daten", text: "Buchungen, Regeln, Konten und Verträge als JSON, dazu die Buchungsliste als CSV für Excel." },
+      demoHinweis: "Demomodus: Die Daten im Export sind die Demodaten, die Dokumente die echten.",
     },
     labels: {
       id: "ID",
@@ -1531,8 +1535,12 @@ window.FINANCE_I18N = {
     },
     exportPage: {
       title: "Export",
-      lead: "Export is planned for later milestones.",
-      body: "M2 has no export function. This page remains visible to keep the future app structure clear.",
+      lead: "Backup to download, assembled fresh on the server as a ZIP.",
+      herunterladen: "Download ZIP",
+      komplett: { titel: "Full backup", text: "All documents and all data in one file." },
+      dokumente: { titel: "Documents", text: "All uploaded documents in their folder structure." },
+      daten: { titel: "Data", text: "Transactions, rules, accounts and contracts as JSON, plus the transaction list as CSV for Excel." },
+      demoHinweis: "Demo mode: the data in the export is demo data, the documents are the real ones.",
     },
     labels: {
       id: "ID",

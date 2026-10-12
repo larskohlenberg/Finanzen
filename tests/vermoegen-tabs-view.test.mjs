@@ -156,3 +156,38 @@ test("Kein style-Attribut im HTML: die CSP der App wuerde es blockieren", () => 
     });
   }
 });
+
+test("Immobilie: Einnahmen und Ausgaben zusammengefasst, Drill-down nach Kategorie", () => {
+  const imm = { immobilie_id: "IMM-001", bezeichnung: "Haus", status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] };
+  const monat = new Date().toISOString().slice(0, 7);
+  const vormonatTag = new Date(Date.UTC(Number(monat.slice(0, 4)), Number(monat.slice(5, 7)) - 2, 15)).toISOString().slice(0, 10);
+  const vormonat = vormonatTag.slice(0, 7);
+  const teil = {
+    immobilien: [imm],
+    darlehen: [darlehen("DAR-001", { immobilie_id: "IMM-001", konto_id: "KTO-006" })],
+    regelzahlungen: [{ regelzahlung_id: "RZ-001", darlehen_id: "DAR-001", kategorie_id: "KAT-012" }],
+    transaktionen: [
+      { transaktion_id: "T1", konto_id: "KTO-006", immobilie_id: "IMM-001", buchungsdatum: vormonatTag, betrag: "-800.00", kategorie_id: "KAT-012" },
+      { transaktion_id: "T2", konto_id: "KTO-006", immobilie_id: "IMM-001", buchungsdatum: vormonatTag, betrag: "-50.00", kategorie_id: "KAT-003" },
+      { transaktion_id: "T3", konto_id: "KTO-006", immobilie_id: "IMM-001", buchungsdatum: vormonatTag, betrag: "-7.00", kategorie_id: "KAT-004" },
+      { transaktion_id: "T4", konto_id: "KTO-006", immobilie_id: "IMM-001", buchungsdatum: vormonatTag, betrag: "20.00", kategorie_id: "KAT-003" },
+      { transaktion_id: "T5", konto_id: "KTO-006", immobilie_id: "IMM-001", buchungsdatum: vormonatTag, betrag: "800.00", kategorie_id: "KAT-011", ist_transfer: true },
+    ],
+  };
+  mitDaten(teil, { vermoegenTab: "immobilien" }, (html) => {
+    const tabelle = html.slice(html.indexOf('class="monats-tabelle"'));
+    assert.match(tabelle, /<th class="amount">Einnahmen<\/th><th class="amount">Ausgaben<\/th>/);
+    assert.match(tabelle, /Eigenanteil<\/th>/);
+    const knopf = tabelle.slice(tabelle.indexOf(`data-drill="${vormonat}:aus"`));
+    assert.match(knopf.slice(0, knopf.indexOf("</button>")), /-57,00/);
+    assert.doesNotMatch(tabelle, /drill-zeile/);
+  });
+  mitDaten(teil, { vermoegenTab: "immobilien", immobilieDrill: `${vormonat}:aus` }, (html) => {
+    const zeile = html.slice(html.indexOf('class="drill-zeile"'));
+    const drill = zeile.slice(0, zeile.indexOf("</tr>"));
+    assert.match(drill, /data-kategorie="KAT-003"[\s\S]*?-50,00/);
+    assert.match(drill, /data-kategorie="KAT-004"[\s\S]*?-7,00/);
+    assert.ok(drill.indexOf("KAT-003") < drill.indexOf("KAT-004"));
+    assert.doesNotMatch(drill, /20,00/);
+  });
+});

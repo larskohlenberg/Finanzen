@@ -361,19 +361,41 @@ Wichtige Tools:
   unter `offen`. `error/` wird nicht angefasst. `npm run belege:text` ist die
   Vorschau.
 
-### Auto-Match von Transfers: zwei Wege
+### Auto-Match von Transfers: drei Wege
 
-Ein Paar entsteht automatisch bei invertiertem Betrag **und** beiden Konten im
-Modell **und** Datumsdifferenz ≤ 3 Tage **und** *einem* der beiden folgenden
-Signale:
+Ein Paar entsteht automatisch bei invertiertem Betrag **und** zwei verschiedenen
+Konten **und** *einem* der folgenden Signale innerhalb seines Datumsfensters:
 
-1. `verwendungszweck` nach Normalisierung identisch, **oder**
-2. `empfaenger_iban` der einen Seite ist die `kontoreferenz` des Gegenkontos.
+| Signal | Bedingung | Fenster |
+| --- | --- | --- |
+| `zweck` | `verwendungszweck` nach Normalisierung identisch | ≤ 3 Tage |
+| `iban` | `empfaenger_iban` der einen Seite ist die `kontoreferenz` des Gegenkontos | ≤ 5 Tage |
+| `iban-text` | der `verwendungszweck` der einen Seite nennt eine IBAN, und die ist die `kontoreferenz` des Gegenkontos | ≤ 5 Tage |
 
-Weg 2 ist noetig, weil zwei Banken denselben Uebertrag unterschiedlich betexten
-(die eine haengt Name/BIC/IBAN an, die andere schreibt nur „Uebertrag") — dann
-kann Weg 1 systematisch nie greifen. Die IBAN-Kopplung ist strukturell und damit
-das staerkere Signal.
+Die IBAN-Wege sind noetig, weil zwei Banken denselben Uebertrag unterschiedlich
+betexten (die eine haengt Name/BIC/IBAN an, die andere schreibt nur
+„Uebertrag") — dann kann `zweck` systematisch nie greifen. `iban-text` deckt den
+Fall, dass eine Seite die **Absender**-IBAN nur im Text nennt (z. B. das
+Cashkonto eines Brokers: „Incoming transfer from <Name> (<IBAN>)") und die
+Gegenseite aus einem PDF ohne IBAN kommt. Die Absender-IBAN gehoert **nicht**
+in `empfaenger_iban`; der Text reicht. Erkannt werden deutsche IBANs, auch mit
+Leerzeichen; der Wortlaut drumherum ist egal (kein Bankparser, ADR 0005). Nennt
+der Text die eigene IBAN oder ein Konto ausserhalb des Modells, greift nichts.
+
+Das Fenster ist gestaffelt: Freitext-Gleichheit ist das schwaechere Signal und
+bleibt bei 3 Tagen; die strukturellen IBAN-Signale duerfen 5 Tage ueberbruecken
+(Lastschrift oder Dauerauftrag am Monatsende, Gutschrift erst nach Wochenende
+oder Feiertag).
+
+**Eindeutigkeit statt greedy.** Gepaart wird nach aufsteigender
+Datumsdifferenz: jede Buchung bekommt ihr naechstes freies Gegenstueck. Hat eine
+Buchung im kleinsten Abstand mehrere Kandidaten, die sich in Konto oder Tag
+unterscheiden, paart das Tool **nicht**: die Buchung und diese Kandidaten
+bleiben offen und stehen im Ergebnis unter `mehrdeutig` (sie fallen auch nicht
+auf ein weiter entferntes Gegenstueck zurueck). Gleichartige Kandidaten (selbes
+Konto, selber Tag, selber Betrag) sind austauschbar und werden der Reihe nach
+gepaart. Die Vorschau nennt je neuem Paar Signal und Abstand (`paare[].signal`,
+`paare[].tage`).
 
 Externe Transfers (Bargeld, Familie, Konten ausserhalb des Modells) erkennt das
 Tool bewusst nicht — die markiert der Nutzer im Dialog.

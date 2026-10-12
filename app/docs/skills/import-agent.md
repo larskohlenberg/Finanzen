@@ -158,11 +158,11 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
    payment the booking fulfils, set `regelzahlung_id` in the standardized entry.
    Never infer the assignment from an equal amount or a similar counterparty alone.
 7. **Schreiben**: Buchungen an `DATENROOT/transaktionen.jsonl` anhaengen. Belegte Kontostaende als Zeitwerte an `DATENROOT/zeitwerte.jsonl` anhaengen, sofern sie aus der Rohquelle extrahiert wurden und nicht bereits identisch vorhanden sind. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz. Im Betrieb: JSONL per `datei_schreiben` nach `data/inbox/standardized/`, dann Tool `import` (erst Vorschau, dann `schreiben: true`). Lokal den Root explizit uebergeben: `node tools/import.mjs <standardisierte-datei.jsonl> DATENROOT`.
-8. **Transfer-Match**: Nach dem Schreiben `tools/transfer-matcher.mjs` aufrufen. Kriterien fuer Auto-Match (alle vier zwingend):
-   - Betrag exakt invers (cent-genau).
-   - Beide Konten liegen im Modell.
-   - Datumsdifferenz ≤ 3 Tage.
-   - `verwendungszweck` nach Normalisierung (trim, Whitespace kollabieren, lowercase) identisch.
+8. **Transfer-Match**: Nach dem Schreiben `tools/transfer-matcher.mjs` aufrufen. Auto-Match bei exakt inversem Betrag (cent-genau), zwei verschiedenen Konten und einem Signal in seinem Fenster:
+   - `zweck`: `verwendungszweck` nach Normalisierung (trim, Whitespace kollabieren, lowercase) identisch, ≤ 3 Tage.
+   - `iban`: `empfaenger_iban` einer Seite ist die `kontoreferenz` des Gegenkontos, ≤ 5 Tage.
+   - `iban-text`: der `verwendungszweck` einer Seite nennt die `kontoreferenz` des Gegenkontos als IBAN, ≤ 5 Tage.
+   Steht bei einem Eingang die **Absender**-IBAN nur im Text (etwa „Incoming transfer from <Name> (<IBAN>)"), reicht das jetzt fuer den Match: die IBAN im `verwendungszweck` lassen und **nicht** nach `empfaenger_iban` schreiben — das Feld nennt nur den Empfaenger eines Ausgangs. Mehrdeutige Faelle (zwei gleich nahe Gegenstuecke) paart das Tool nicht, sondern meldet sie unter `mehrdeutig`; die klaert der Nutzer. Details: `agent-context.md`, „Auto-Match von Transfers".
    Bei Match: Transfer-Datensatz anlegen, `ist_transfer = true` auf beiden Seiten, `transfer_id` setzen.
    Externe Transfers (Bargeld, Familie) erkennt das Tool nicht — die markiert der Nutzer im Dialog.
 9. **Immobiliencheck fuer neue Transaktionen**: Vor dem Abschluss jedes Importlaufs genau die IDs aus `result.written` beziehungsweise `geschriebene_ids` pruefen.

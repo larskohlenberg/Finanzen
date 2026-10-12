@@ -119,3 +119,162 @@ test("zwei gleich hohe Uebertraege im selben Fenster werden paarweise zugeordnet
   assert.equal(new Set(transaktionen.map((t) => t.transfer_id)).size, 2, "jede Buchung genau einem Transfer");
   assert.ok(transaktionen.every((t) => t.ist_transfer === true));
 });
+
+// --- Signal 3: IBAN im Verwendungszweck (Absender-IBAN nur im Text) --------
+// Das Cashkonto eines Brokers nennt bei Eingaengen die Absender-IBAN nur im
+// Text; die Gegenseite (PDF-Import) hat weder empfaenger_iban noch denselben
+// Text. Alle IBANs hier sind erfundene Musterwerte (fiktive BLZ 00000000 bzw. die ISO-Beispiel-IBAN).
+
+const kontenText = [
+  { konto_id: "KTO-010", kontoreferenz: "DE89 3704 0044 0532 0130 00" }, // Girokonto
+  { konto_id: "KTO-011", kontoreferenz: "DE60000000000000011111" }, // Cashkonto eines Brokers
+  { konto_id: "KTO-012", kontoreferenz: "DE84000000000000022222" }, // drittes Konto
+];
+
+test("Signal iban-text: Eingang nennt die IBAN des Gegenkontos im Text -> Paar", () => {
+  const transaktionen = [
+    tx("TXN-20260701-000001", "KTO-010", "2026-07-01", "-750.00", "Uebertrag auf Depot"),
+    tx("TXN-20260702-000002", "KTO-011", "2026-07-02", "750.00", "Incoming transfer from Max Muster (DE89 3704 0044 0532 0130 00)"),
+  ];
+  const { transfers, matched } = matchTransfers(transaktionen, [], kontenText);
+  assert.equal(matched.length, 1);
+  assert.equal(matched[0].signal, "iban-text");
+  assert.equal(transfers[0].abgang_transaktion_id, "TXN-20260701-000001");
+  assert.equal(transfers[0].zugang_transaktion_id, "TXN-20260702-000002");
+  assert.equal(transaktionen[1].empfaenger_iban, undefined, "Absender-IBAN wandert nicht in empfaenger_iban");
+});
+
+test("Signal iban-text: Ausgang nennt die IBAN des Gegenkontos kompakt im Text -> Paar", () => {
+  const transaktionen = [
+    tx("TXN-20260701-000001", "KTO-011", "2026-07-01", "-300.00", "Outgoing transfer for Max Muster (DE89370400440532013000)"),
+    tx("TXN-20260702-000002", "KTO-010", "2026-07-02", "300.00", "Gutschrift"),
+  ];
+  const { matched } = matchTransfers(transaktionen, [], kontenText);
+  assert.equal(matched.length, 1);
+  assert.equal(matched[0].signal, "iban-text");
+});
+
+test("Signal iban-text greift nicht, wenn die IBAN im Text auf ein drittes Konto zeigt", () => {
+  const transaktionen = [
+    tx("TXN-20260701-000001", "KTO-010", "2026-07-01", "-750.00", "Uebertrag auf Depot"),
+    tx("TXN-20260702-000002", "KTO-011", "2026-07-02", "750.00", "Incoming transfer from Max Muster (DE84000000000000022222)"),
+  ];
+  assert.equal(matchTransfers(transaktionen, [], kontenText).matched.length, 0);
+});
+
+test("Signal iban-text greift nicht, wenn die IBAN im Text kein Modellkonto ist", () => {
+  const transaktionen = [
+    tx("TXN-20260701-000001", "KTO-010", "2026-07-01", "-750.00", "Uebertrag auf Depot"),
+    tx("TXN-20260702-000002", "KTO-011", "2026-07-02", "750.00", "Incoming transfer from Max Muster (DE11 0000 0000 0000 0333 33)"),
+  ];
+  assert.equal(matchTransfers(transaktionen, [], kontenText).matched.length, 0);
+});
+
+test("Signal iban-text greift nicht, wenn der Text die eigene IBAN nennt", () => {
+  const transaktionen = [
+    tx("TXN-20260701-000001", "KTO-010", "2026-07-01", "-750.00", "Uebertrag"),
+    tx("TXN-20260702-000002", "KTO-011", "2026-07-02", "750.00", "Eingang auf DE60000000000000011111"),
+  ];
+  assert.equal(matchTransfers(transaktionen, [], kontenText).matched.length, 0);
+});
+
+// --- Gestaffeltes Datumsfenster -------------------------------------------
+// Text-Gleichheit bleibt bei 3 Tagen; strukturelle Signale duerfen 5 Tage
+// ueberbruecken (Monatsende plus Wochenende/Feiertag).
+
+test("Fenster: IBAN-gekoppelt mit 5 Tagen Abstand -> Paar", () => {
+  const transaktionen = [
+    { ...tx("TXN-20260630-000001", "KTO-002", "2026-06-30", "-400.00", "Dauerauftrag"), empfaenger_iban: "DE11110000000000000011" },
+    tx("TXN-20260705-000002", "KTO-001", "2026-07-05", "400.00", "Gutschrift"),
+  ];
+  const { matched } = matchTransfers(transaktionen, [], konten);
+  assert.equal(matched.length, 1);
+  assert.equal(matched[0].signal, "iban");
+});
+
+test("Fenster: IBAN-gekoppelt mit 6 Tagen Abstand -> kein Paar", () => {
+  const transaktionen = [
+    { ...tx("TXN-20260630-000001", "KTO-002", "2026-06-30", "-400.00", "Dauerauftrag"), empfaenger_iban: "DE11110000000000000011" },
+    tx("TXN-20260706-000002", "KTO-001", "2026-07-06", "400.00", "Gutschrift"),
+  ];
+  assert.equal(matchTransfers(transaktionen, [], konten).matched.length, 0);
+});
+
+test("Fenster: Text-gleich mit 4 Tagen Abstand -> kein Paar", () => {
+  const transaktionen = [
+    tx("TXN-20260501-000001", "KTO-001", "2026-05-01", "-500.00", "Sparen"),
+    tx("TXN-20260505-000002", "KTO-004", "2026-05-05", "500.00", "Sparen"),
+  ];
+  assert.equal(matchTransfers(transaktionen, []).matched.length, 0);
+});
+
+test("Fenster: Text-gleich mit 3 Tagen Abstand -> Paar mit Signal zweck", () => {
+  const transaktionen = [
+    tx("TXN-20260501-000001", "KTO-001", "2026-05-01", "-500.00", "Sparen"),
+    tx("TXN-20260504-000002", "KTO-004", "2026-05-04", "500.00", "Sparen"),
+  ];
+  const { matched } = matchTransfers(transaktionen, []);
+  assert.equal(matched.length, 1);
+  assert.equal(matched[0].signal, "zweck");
+});
+
+test("Fenster: Text-gleich mit 4 Tagen reicht, wenn zusaetzlich die IBAN koppelt", () => {
+  const transaktionen = [
+    { ...tx("TXN-20260501-000001", "KTO-002", "2026-05-01", "-500.00", "Sparen"), empfaenger_iban: "DE11110000000000000011" },
+    tx("TXN-20260505-000002", "KTO-001", "2026-05-05", "500.00", "Sparen"),
+  ];
+  const { matched } = matchTransfers(transaktionen, [], konten);
+  assert.equal(matched.length, 1);
+  assert.equal(matched[0].signal, "iban");
+});
+
+// --- Eindeutigkeit statt greedy ---------------------------------------------
+
+test("naechstes Gegenstueck gewinnt, nicht das zuerst gefundene", () => {
+  // Greedy haette den Ausgang mit der 4 Tage frueheren Gutschrift gepaart.
+  const transaktionen = [
+    { ...tx("TXN-20260626-000001", "KTO-002", "2026-06-26", "-400.00", "Dauerauftrag"), empfaenger_iban: "DE11110000000000000011" },
+    tx("TXN-20260630-000002", "KTO-001", "2026-06-30", "400.00", "Gutschrift alt"),
+    { ...tx("TXN-20260630-000003", "KTO-002", "2026-06-30", "-400.00", "Dauerauftrag"), empfaenger_iban: "DE11110000000000000011" },
+  ];
+  const { matched } = matchTransfers(transaktionen, [], konten);
+  assert.equal(matched.length, 1);
+  assert.equal(matched[0].from, "TXN-20260630-000003");
+  assert.equal(matched[0].to, "TXN-20260630-000002");
+});
+
+test("Mehrdeutigkeit: zwei gleich weit entfernte Gegenstuecke auf verschiedenen Konten -> kein Paar, gemeldet", () => {
+  const transaktionen = [
+    tx("TXN-20260801-000001", "KTO-001", "2026-08-01", "-200.00", "Sparen"),
+    tx("TXN-20260802-000002", "KTO-004", "2026-08-02", "200.00", "Sparen"),
+    tx("TXN-20260802-000003", "KTO-005", "2026-08-02", "200.00", "Sparen"),
+  ];
+  const out = matchTransfers(transaktionen, []);
+  assert.equal(out.matched.length, 0);
+  assert.equal(out.transfers.length, 0);
+  assert.ok(transaktionen.every((t) => t.ist_transfer === false && t.transfer_id === undefined));
+  assert.equal(out.mehrdeutig.length, 1);
+  assert.equal(out.mehrdeutig[0].transaktion_id, "TXN-20260801-000001");
+  assert.deepEqual(out.mehrdeutig[0].kandidaten, ["TXN-20260802-000002", "TXN-20260802-000003"]);
+  assert.equal(out.mehrdeutig[0].tage, 1);
+});
+
+test("Mehrdeutigkeit: Gegenstuecke davor und danach im gleichen Abstand -> kein Paar, gemeldet", () => {
+  const transaktionen = [
+    tx("TXN-20260801-000001", "KTO-004", "2026-08-01", "200.00", "Sparen"),
+    tx("TXN-20260802-000002", "KTO-001", "2026-08-02", "-200.00", "Sparen"),
+    tx("TXN-20260803-000003", "KTO-004", "2026-08-03", "200.00", "Sparen"),
+  ];
+  const out = matchTransfers(transaktionen, []);
+  assert.equal(out.matched.length, 0);
+  assert.equal(out.mehrdeutig.length, 1);
+  assert.equal(out.mehrdeutig[0].transaktion_id, "TXN-20260802-000002");
+});
+
+test("ohne Mehrdeutigkeit ist das Feld mehrdeutig leer", () => {
+  const transaktionen = [
+    tx("TXN-20260505-000001", "KTO-001", "2026-05-05", "-500.00", "Sparen"),
+    tx("TXN-20260506-000002", "KTO-004", "2026-05-06", "500.00", "Sparen"),
+  ];
+  assert.deepEqual(matchTransfers(transaktionen, []).mehrdeutig, []);
+});

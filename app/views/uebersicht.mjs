@@ -54,7 +54,7 @@ export function renderOverview() {
           <p class="page-lead">${escapeHtml(t("chrome.copyAgentPrompt"))}</p>
         </section>
         <section class="panel panel-pad checks-rail">
-          <h2 class="section-title">${escapeHtml(t("overview.checksPreview"))}</h2>
+          <h2 class="section-title"><button class="linkish" data-action="show-checks">${escapeHtml(t("overview.checksPreview"))}</button></h2>
           <div class="rail-list">${renderCheckItems(overviewCheckPreviewItems())}</div>
         </section>
       </aside>

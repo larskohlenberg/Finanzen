@@ -18,7 +18,7 @@ test("routeFromState adressiert den Konto-Stammsatz und Vermögens-Positionen", 
 test("routeFromState bildet reine Views auf Slugs ab", () => {
   assert.equal(routeFromState({ view: "overview" }), "#/uebersicht");
   assert.equal(routeFromState({ view: "liquiditaet" }), "#/liquiditaet");
-  assert.equal(routeFromState({ view: "masterdata" }), "#/stammdaten");
+  assert.equal(routeFromState({ view: "masterdata" }), "#/administration");
 });
 
 test("parseRoute liest Transaktions- und Konto-Deeplinks", () => {
@@ -29,7 +29,7 @@ test("parseRoute liest Transaktions- und Konto-Deeplinks", () => {
 
 test("parseRoute liest reine Views und faellt sauber zurueck", () => {
   assert.deepEqual(parseRoute("#/liquiditaet"), { view: "liquiditaet" });
-  assert.deepEqual(parseRoute("#/stammdaten"), { view: "masterdata" });
+  assert.deepEqual(parseRoute("#/stammdaten"), { view: "masterdata", masterSection: "konten" });
   assert.deepEqual(parseRoute("#/konten"), { view: "masterdata", masterSection: "konten" });
   assert.deepEqual(parseRoute(""), { view: "overview" });
   assert.deepEqual(parseRoute("#/unsinn"), { view: "overview" });
@@ -43,6 +43,18 @@ test("parseRoute erkennt Regel-Liste", () => {
 });
 test("routeFromState erzeugt Regel-Detail-Hash", () => {
   assert.equal(routeFromState({ view: "masterdata", masterSection: "regeln", selectedRegel: "REG-001" }), "#/regeln/REG-001");
+});
+
+test("Administration: Bereiche sind adressierbar, alte Slugs bleiben gueltig", () => {
+  assert.equal(routeFromState({ view: "masterdata", masterSection: "konten" }), "#/administration");
+  assert.equal(routeFromState({ view: "masterdata", masterSection: "checks" }), "#/administration/checks");
+  assert.equal(routeFromState({ view: "masterdata", masterSection: "export" }), "#/administration/export");
+  assert.equal(routeFromState({ view: "masterdata", masterSection: "regeln" }), "#/administration/regeln");
+  assert.deepEqual(parseRoute("#/administration"), { view: "masterdata", masterSection: "konten" });
+  assert.deepEqual(parseRoute("#/administration/checks"), { view: "masterdata", masterSection: "checks" });
+  assert.deepEqual(parseRoute("#/administration/unsinn"), { view: "masterdata", masterSection: "konten" });
+  assert.deepEqual(parseRoute("#/checks"), { view: "masterdata", masterSection: "checks" });
+  assert.deepEqual(parseRoute("#/export"), { view: "masterdata", masterSection: "export" });
 });
 
 test("routeFromState und parseRoute sind für Deeplinks invers", () => {

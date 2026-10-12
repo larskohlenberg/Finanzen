@@ -12,8 +12,7 @@ import { renderLiquiditaet } from "./views/liquiditaet.mjs";
 import { renderRegelzahlungen } from "./views/regelzahlungen.mjs";
 import { renderOverview } from "./views/uebersicht.mjs";
 import { renderMasterdata } from "./views/stammdaten.mjs";
-import { renderChecks } from "./views/checks.mjs";
-import { renderExport } from "./views/export.mjs";
+import { offeneChecksAnzahl } from "./views/checks.mjs";
 import { renderUpload, dateienEinreihen, ladeInbox, inboxBeiBedarfLaden } from "./views/upload.mjs";
 import {
   renderBelege, belegeBeiBedarfLaden, ladeBelege, setBelegeSuche, setBelegeZwillinge,
@@ -294,6 +293,7 @@ function renderTopbar() {
           : `<button class="chip danger linkish" data-action="show-validation" title="${escapeHtml(t("chrome.validationFailedHint"))}">${iconSvg("warning")}${data.validation?.errors.length ?? 0} ${escapeHtml(t("chrome.validationFailed"))}</button>`}
         <button class="chip neutral linkish" data-action="reload-data" aria-label="${escapeHtml(t("chrome.reloadData"))}" title="${escapeHtml(t("chrome.reloadData"))}">${iconSvg("regelzahlungen")}${escapeHtml(t("chrome.reloadData"))}</button>
         <button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
+        ${offeneChecksAnzahl() > 0 ? `<button class="chip review linkish" data-action="show-checks">${iconSvg("review")}${offeneChecksAnzahl()} ${escapeHtml(t("chrome.openChecks"))}</button>` : ""}
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
         ${renderNextActionButton()}
       </div>
@@ -412,8 +412,6 @@ function renderView() {
   if (state.view === "vorsorge") return renderVorsorge();
   if (state.view === "szenarien") return renderSzenarien();
   if (state.view === "masterdata") return renderMasterdata();
-  if (state.view === "checks") return renderChecks();
-  if (state.view === "export") return renderExport();
   if (state.view === "upload") return renderUpload();
   if (state.view === "belege") return renderBelege();
   return renderOverview();
@@ -781,8 +779,8 @@ async function handleAction(element) {
     commitNavigation();
     return;
   }
-  if (action === "show-import-errors") {
-    state.view = "checks";
+  if (action === "show-import-errors" || action === "show-checks") {
+    zeigeChecks();
     commitNavigation();
     return;
   }
@@ -1151,7 +1149,7 @@ async function handleAction(element) {
       state.transactionFilters.transfer = "";
       state.transactionPage = 1;
     } else {
-      state.view = "checks";
+      zeigeChecks();
     }
     commitNavigation();
   }
@@ -1169,6 +1167,14 @@ function oeffneSzenario(id) {
   state.szenarioNettoOffen = false;
   state.szenarioGrundlageOffen = false;
   state.szenarioBasisExpanded = false;
+}
+
+// Checks sind ein Bereich der Administration, keine eigene Seite.
+function zeigeChecks() {
+  state.view = "masterdata";
+  state.masterSection = "checks";
+  state.selectedKonto = "";
+  state.selectedRegel = "";
 }
 
 function snapshotState() {
@@ -1193,6 +1199,11 @@ function snapshotState() {
 function restoreState(snapshot) {
   if (!snapshot) return;
   state.view = snapshot.view || "overview";
+  // History-Eintraege aus der Zeit, als Checks und Export eigene Seiten waren.
+  if (state.view === "checks" || state.view === "export") {
+    snapshot = { ...snapshot, masterSection: state.view };
+    state.view = "masterdata";
+  }
   state.transactionFilters = { ...state.transactionFilters, ...(snapshot.transactionFilters || {}) };
   state.selectedTransactionId = snapshot.selectedTransactionId || "";
   state.transactionPage = snapshot.transactionPage || 1;

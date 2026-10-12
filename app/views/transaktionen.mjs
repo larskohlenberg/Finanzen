@@ -553,7 +553,7 @@ export function renderTransactionDetail(tx) {
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("transactions.coreData"))}</div>
       <div class="detail-list">
-        ${transactionDetailRow(t("labels.date"), formatDate(tx.buchungsdatum))}
+        ${transactionDetailRow(t("transactions.bookingDate"), formatDate(tx.buchungsdatum))}
         ${transactionDetailRow(t("labels.counterparty"), tx.gegenpartei)}
         ${transactionDetailRow(t("labels.purpose"), tx.verwendungszweck)}
         ${transactionDetailRow(t("labels.amount"), formatMoney(cents(tx.betrag)))}

@@ -96,7 +96,7 @@ test("Detail: andere Datensaetze einzeln mit Detailroute", () => {
   state.selectedBeleg = PDF;
   const html = view.renderBelege();
   assert.match(html, /Verknüpfte Datensätze/);
-  assert.match(html, new RegExp(`href="#/vermoegen/konto:${kontoId}"`));
+  assert.match(html, new RegExp(`href="#/vermoegen/konten/${kontoId}"`));
   assert.match(html, /Textzwilling/);
 });
 

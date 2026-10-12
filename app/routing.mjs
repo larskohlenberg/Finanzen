@@ -4,6 +4,7 @@
 // Checks (M8) und Laufprotokolle auf konkrete Datensätze verlinken können.
 // Getestet ueber parseRoute/routeFromState; die DOM-Anbindung liegt in main.js.
 import { dokumentRoute, belegPfadAusRoute, kodierePfad } from "./belege.mjs";
+import { KLASSE_FUER_TAB, TAB_FUER_KLASSE, VERMOEGEN_TABS, vermoegenRoute } from "./vermoegen-routen.mjs";
 
 const VIEW_SLUG = {
   overview: "uebersicht",
@@ -44,9 +45,13 @@ export function routeFromState(state) {
   if (state.view === "masterdata" && state.masterSection === "regeln" && state.selectedRegel) {
     return `#/regeln/${encodeURIComponent(state.selectedRegel)}`;
   }
-  if (state.view === "vermoegen" && state.selectedVermoegenId) {
-    const [klasse, id] = state.selectedVermoegenId.split(":");
-    if (klasse && id) return `#/vermoegen/${encodeURIComponent(klasse)}:${encodeURIComponent(id)}`;
+  // Vermoegen: Tab und ggf. ausgewaehltes Objekt (#/vermoegen/immobilien/IMM-004).
+  if (state.view === "vermoegen") {
+    const [klasse, id] = String(state.selectedVermoegenId ?? "").split(":");
+    if (klasse && id && TAB_FUER_KLASSE[klasse]) return vermoegenRoute(klasse, id);
+    const tab = state.vermoegenTab;
+    if (tab && tab !== "uebersicht" && VERMOEGEN_TABS.includes(tab)) return `#/vermoegen/${tab}`;
+    return "#/vermoegen";
   }
   if (state.view === "szenarien" && state.selectedSzenarioId) {
     return `#/szenarien/${encodeURIComponent(state.selectedSzenarioId)}`;
@@ -91,9 +96,7 @@ export function parseRoute(hash) {
       ? { view: "masterdata", masterSection: "regeln", selectedRegel: tail }
       : { view: "masterdata", masterSection: "regeln" };
   }
-  if (head === "vermoegen") {
-    return tail ? { view: "vermoegen", selectedVermoegenId: tail } : { view: "vermoegen" };
-  }
+  if (head === "vermoegen") return vermoegenAusRoute(rest.map((teil) => decodeURIComponent(teil)));
   if (head === "vorsorge") {
     return tail ? { view: "vorsorge", selectedVorsorgeId: tail } : { view: "vorsorge" };
   }
@@ -105,4 +108,18 @@ export function parseRoute(hash) {
   }
   if (SLUG_VIEW[head]) return { view: SLUG_VIEW[head] };
   return { view: "overview" };
+}
+
+// #/vermoegen[/<tab>[/<ID>]] und die alte Form #/vermoegen/<klasse>:<id>
+// (Links aus Checks, Dokumenten und Protokollen bleiben gueltig).
+function vermoegenAusRoute([erster = "", zweiter = ""]) {
+  if (erster.includes(":")) {
+    const [klasse, id] = erster.split(":");
+    if (klasse === "vorsorge" && id) return { view: "vorsorge", selectedVorsorgeId: id };
+    if (TAB_FUER_KLASSE[klasse] && id) return { view: "vermoegen", vermoegenTab: TAB_FUER_KLASSE[klasse], selectedVermoegenId: `${klasse}:${id}` };
+    return { view: "vermoegen", vermoegenTab: "uebersicht" };
+  }
+  if (!VERMOEGEN_TABS.includes(erster)) return { view: "vermoegen", vermoegenTab: "uebersicht" };
+  if (zweiter && KLASSE_FUER_TAB[erster]) return { view: "vermoegen", vermoegenTab: erster, selectedVermoegenId: `${KLASSE_FUER_TAB[erster]}:${zweiter}` };
+  return { view: "vermoegen", vermoegenTab: erster };
 }

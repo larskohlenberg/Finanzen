@@ -7,7 +7,7 @@ import { formatMoney, formatDate, formatMonth, detailRow, categoryName } from ".
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
 import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, immobilienMonate } from "../vermoegen-details.mjs";
 import {
-  dokumenteHtml, geld, kennzahl, laufzeitText, prozent, qualitaetChip, rateJeMonatCents,
+  balkenSvg, dokumenteHtml, geld, kennzahl, laufzeitText, prozent, qualitaetChip, rateJeMonatCents,
   renderPositionWertstaende, rhythmusLabel, sondertilgungenRow, tf,
 } from "./vermoegen-teile.mjs";
 
@@ -20,17 +20,30 @@ function gewaehlt(klasse, liste, idFeld) {
   return (k === klasse && liste.find((e) => e[idFeld] === id)) || liste[0] || null;
 }
 
+// Bemerkungen sind oft lange Arbeitsnotizen: eingeklappt, damit die Stammdaten lesbar bleiben.
+function bemerkungHtml(text) {
+  if (!text) return "";
+  return `<details class="bemerkung"><summary>${escapeHtml(t("vermoegen.immobilie.bemerkung"))}</summary><p>${escapeHtml(text)}</p></details>`;
+}
+
 function karte({ klasse, id, aktiv, titel, chip = "", wertHtml, zeilen = [], fortschritt = null }) {
   return `
     <button class="objekt-karte ${aktiv ? "active" : ""}" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`${klasse}:${id}`)}" aria-pressed="${aktiv}">
       <span class="objekt-karte-kopf"><strong>${escapeHtml(titel)}</strong>${chip}</span>
       <span class="objekt-karte-wert">${wertHtml}</span>
-      ${fortschritt === null ? "" : `<span class="fortschritt" aria-hidden="true"><span style="width:${Math.max(0, Math.min(100, fortschritt * 100)).toFixed(1)}%"></span></span>`}
+      ${fortschritt === null ? "" : balkenSvg([{ anteil: Math.max(0, fortschritt), klasse: "fortschritt-wert" }], { klasse: "fortschritt" })}
       ${zeilen.map((z) => `<span class="objekt-karte-zeile">${z}</span>`).join("")}
     </button>`;
 }
 
 // ------------------------------------------------------------- Immobilien
+
+// "Okt 25" fuer die Achse; die Tabelle nutzt den vollen Monatsnamen.
+function kurzMonat(monat) {
+  const [jahr, mon] = monat.split("-").map(Number);
+  const name = new Intl.DateTimeFormat(state.lang === "en" ? "en-GB" : "de-DE", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(jahr, mon - 1, 1)));
+  return `${name.replace(".", "")} ${String(jahr).slice(2)}`;
+}
 
 function nutzungLabel(nutzung) {
   return nutzung ? t(`vermoegen.immobilie.nutzungen.${nutzung}`) : "";
@@ -102,7 +115,7 @@ function renderImmobilieDetail(imm, today) {
   const formatMonat = (monat) => formatMonth(monat);
   const diagramm = monatsBalken({
     monate: m.monate, einnahmen: m.einnahmen, ausgaben: m.ausgaben, saldo: m.saldo,
-    formatWert: (c) => formatMoney(c), formatMonat,
+    formatWert: (c) => formatMoney(c), formatMonat: kurzMonat,
     ariaLabel: t("vermoegen.immobilie.monateTitel"),
   });
   const kategorien = m.kategorien;
@@ -158,7 +171,7 @@ function renderImmobilieDetail(imm, today) {
       ${imm.anschaffungsdatum || imm.anschaffungskosten ? detailRow(t("vermoegen.immobilie.angeschafft"), [imm.anschaffungsdatum ? escapeHtml(formatDate(imm.anschaffungsdatum)) : "", imm.anschaffungskosten ? escapeHtml(formatMoney(cents(imm.anschaffungskosten))) : ""].filter(Boolean).join(" · ")) : ""}
       ${k.wertaenderung_cents !== null ? detailRow(t("vermoegen.immobilie.wertaenderung"), geld(k.wertaenderung_cents, { negativ: true })) : ""}
       ${darlehenLinks.length ? detailRow(t("vermoegen.immobilie.darlehen"), darlehenLinks.join("<br>")) : ""}
-      ${imm.bemerkung ? detailRow(t("vermoegen.immobilie.bemerkung"), escapeHtml(imm.bemerkung)) : ""}
+      ${bemerkungHtml(imm.bemerkung)}
       ${renderPositionWertstaende({ klasse: "immobilie", id })}
       <h3 class="section-subtitle">${escapeHtml(t("vermoegen.dokumente.titel"))}</h3>
       ${dokumenteHtml([id, ...k.darlehen_ids])}
@@ -294,7 +307,7 @@ function renderDarlehenDetail(d, k, today) {
       ${d.zinsbindung_bis ? detailRow(t("vermoegen.zinsbindungBis"), escapeHtml(formatDate(d.zinsbindung_bis))) : ""}
       ${d.laufzeit_bis ? detailRow(t("vermoegen.laufzeit"), `${escapeHtml(laufzeitText(d.anfangsdatum, d.laufzeit_bis))}<br><span class="muted">${escapeHtml(t("vermoegen.bis"))} ${escapeHtml(formatDate(d.laufzeit_bis))}</span>`) : ""}
       ${verknuepft.length ? detailRow(t("vermoegen.verknuepft"), verknuepft.join("<br>")) : ""}
-      ${d.bemerkung ? detailRow(t("vermoegen.immobilie.bemerkung"), escapeHtml(d.bemerkung)) : ""}
+      ${bemerkungHtml(d.bemerkung)}
       ${sondertilgungenRow(id)}
       ${renderPositionWertstaende({ klasse: "darlehen", id })}
       <h3 class="section-subtitle">${escapeHtml(t("vermoegen.dokumente.titel"))}</h3>

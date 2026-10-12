@@ -2633,22 +2633,20 @@ a.linkish {
   font-variant-numeric: tabular-nums;
 }
 .vermoegen-balken {
-  display: flex;
+  display: block;
   height: 12px;
   margin-top: 8px;
   border-radius: var(--radius-tight);
-  overflow: hidden;
-  background: var(--surface-2);
 }
-.vermoegen-balken span { display: block; height: 100%; }
-.segment-konto { background: var(--accent); }
-.segment-immobilie { background: #3b6fb6; }
-.segment-vermoegenswert { background: #a07a1c; }
-.segment-vorsorge { background: #8a5cc2; }
-.segment-darlehen { background: var(--danger); }
-:root[data-theme="dark"] .segment-immobilie { background: #7fa8e8; }
-:root[data-theme="dark"] .segment-vermoegenswert { background: #e0b84f; }
-:root[data-theme="dark"] .segment-vorsorge { background: #c39bf0; }
+.balken-grund { fill: var(--surface-2); }
+.segment-konto { fill: var(--accent); background: var(--accent); }
+.segment-immobilie { fill: #3b6fb6; background: #3b6fb6; }
+.segment-vermoegenswert { fill: #a07a1c; background: #a07a1c; }
+.segment-vorsorge { fill: #8a5cc2; background: #8a5cc2; }
+.segment-darlehen { fill: var(--danger); background: var(--danger); }
+:root[data-theme="dark"] .segment-immobilie { fill: #7fa8e8; background: #7fa8e8; }
+:root[data-theme="dark"] .segment-vermoegenswert { fill: #e0b84f; background: #e0b84f; }
+:root[data-theme="dark"] .segment-vorsorge { fill: #c39bf0; background: #c39bf0; }
 .vermoegen-legende {
   display: flex;
   flex-wrap: wrap;
@@ -2736,8 +2734,8 @@ a.linkish {
 .objekt-karte-kopf { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
 .objekt-karte-wert { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .objekt-karte-zeile { color: var(--muted); font-size: 12px; }
-.fortschritt { display: block; height: 6px; margin: 4px 0 2px; border-radius: 3px; overflow: hidden; background: var(--surface-2); }
-.fortschritt span { display: block; height: 100%; background: var(--accent); }
+.fortschritt { display: block; width: 100%; height: 6px; margin: 4px 0 2px; border-radius: 3px; }
+.fortschritt-wert { fill: var(--accent); }
 
 .kennzahl-raster {
   display: grid;
@@ -2778,6 +2776,7 @@ a.linkish {
   cursor: pointer;
 }
 .segment button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.monats-tabelle { min-width: 0; }
 .monats-tabelle td, .monats-tabelle th { white-space: nowrap; }
 .dokument-liste { margin: 0 0 8px; padding: 0; list-style: none; }
 .dokument-liste li { margin: 4px 0; }
@@ -2814,3 +2813,6 @@ a.linkish {
   .vermoegen-kopf { grid-template-columns: minmax(0, 1fr); }
   .kennzahl-raster { grid-template-columns: minmax(0, 1fr); }
 }
+.bemerkung { margin: 8px 0; }
+.bemerkung summary { color: var(--muted); font-size: 12px; cursor: pointer; }
+.bemerkung p { margin: 6px 0 0; font-size: 13px; white-space: pre-wrap; }

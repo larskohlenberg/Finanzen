@@ -1177,6 +1177,7 @@ function applyRoute(route) {
   if (route.view === "vermoegen") {
     state.vermoegenTab = route.vermoegenTab || "uebersicht";
     state.selectedVermoegenId = route.selectedVermoegenId || "";
+    if (state.selectedVermoegenId.startsWith("konto:")) state.selectedKonto = state.selectedVermoegenId.slice("konto:".length);
     state.vermoegenRailMode = "position";
     state.vermoegenRailWide = false;
     state.vermoegenDetailRailClosed = false;

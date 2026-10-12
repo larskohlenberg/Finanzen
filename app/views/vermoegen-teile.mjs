@@ -29,7 +29,7 @@ export function kennzahl(label, wertHtml, notizHtml = "") {
 
 export function geld(centsWert, { negativ = false } = {}) {
   if (centsWert === null || centsWert === undefined) return `<span class="muted">—</span>`;
-  return `<span class="${negativ && centsWert !== 0 ? "betrag-negativ" : ""}">${escapeHtml(formatMoney(centsWert))}</span>`;
+  return `<span class="${negativ && centsWert < 0 ? "betrag-negativ" : ""}">${escapeHtml(formatMoney(centsWert))}</span>`;
 }
 
 export function prozent(anteil, stellen = 0) {
@@ -129,6 +129,21 @@ const PERIODEN_PRO_JAHR = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 export function rateJeMonatCents(darlehen) {
   const ppj = (PERIODEN_PRO_JAHR[darlehen.rhythmus_einheit] ?? 12) / (Number(darlehen.rhythmus_intervall) || 1);
   return Math.round((cents(darlehen.sollrate) * ppj) / 12);
+}
+
+// Gestapelter Balken als SVG: die CSP der App verbietet style-Attribute, SVG-
+// Geometrie ist davon nicht betroffen. teile: [{ anteil 0..1, klasse, titel? }],
+// laenge: Anteil der vollen Breite (Passiva im Massstab der Aktiva).
+export function balkenSvg(teile, { klasse = "vermoegen-balken", laenge = 1 } = {}) {
+  let x = 0;
+  const rects = teile.filter((tl) => tl.anteil > 0).map((tl) => {
+    const breite = Math.min(tl.anteil, 1 - x) * 100;
+    const rect = `<rect x="${(x * 100).toFixed(3)}" y="0" width="${breite.toFixed(3)}" height="10" class="${tl.klasse}">${tl.titel ? `<title>${escapeHtml(tl.titel)}</title>` : ""}</rect>`;
+    x += breite / 100;
+    return rect;
+  }).join("");
+  const breiteGesamt = (Math.max(0, Math.min(1, laenge)) * 100).toFixed(2);
+  return `<svg class="${klasse}" viewBox="0 0 100 10" preserveAspectRatio="none" width="${breiteGesamt}%" aria-hidden="true"><rect x="0" y="0" width="100" height="10" class="balken-grund" />${rects}</svg>`;
 }
 
 // Der Bestand wird einmal pro Seitenaufruf geladen; der Verweisindex reicht einmal.

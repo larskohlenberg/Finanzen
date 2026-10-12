@@ -107,3 +107,12 @@ test("Immobilie: Monatstabelle und Umschalter ohne Darlehensrate", () => {
     assert.match(html, /Tilgung baut Vermögen auf/);
   });
 });
+
+test("Kein style-Attribut im HTML: die CSP der App wuerde es blockieren", () => {
+  const anker = { entitaet: "darlehen", entitaet_id: "DAR-001", feld: "restschuld", wert: "80000.00", standdatum: "2025-01-31", qualitaet: "belegt" };
+  for (const vermoegenTab of ["uebersicht", "konten", "immobilien", "darlehen"]) {
+    mitDaten({ darlehen: [darlehen("DAR-001")], zeitwerte: [anker] }, { vermoegenTab }, (html) => {
+      assert.doesNotMatch(html, /\sstyle="/, vermoegenTab);
+    });
+  }
+});

@@ -11,7 +11,7 @@ import { immobilienKennzahlen, kontoSaldoVerlauf } from "../vermoegen-details.mj
 import { VERMOEGEN_TABS, TAB_FUER_KLASSE } from "../vermoegen-routen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { renderImmobilienTab, renderDarlehenTab } from "./vermoegen-objekte.mjs";
-import { geld, qualitaetChip, rateJeMonatCents, renderPositionWertstaende, tf } from "./vermoegen-teile.mjs";
+import { balkenSvg, geld, qualitaetChip, rateJeMonatCents, renderPositionWertstaende, tf } from "./vermoegen-teile.mjs";
 
 const KLASSEN = ["konto", "immobilie", "darlehen", "vermoegenswert", "vorsorge"];
 
@@ -85,10 +85,7 @@ export function renderVermoegen() {
 function renderKopf(r, je) {
   const aktiva = Math.max(r.aktiva_cents, 1);
   const segmente = ["konto", "immobilie", "vermoegenswert", "vorsorge"]
-    .filter((k) => je[k].summe > 0)
-    .map((k) => `<span class="segment-${k}" style="width:${((je[k].summe / aktiva) * 100).toFixed(2)}%" title="${escapeHtml(`${t(`vermoegen.klassePlural.${k}`)}: ${formatMoney(je[k].summe)}`)}"></span>`)
-    .join("");
-  const passivaBreite = Math.min(100, (r.passiva_cents / aktiva) * 100).toFixed(2);
+    .map((k) => ({ anteil: je[k].summe / aktiva, klasse: `segment-${k}`, titel: `${t(`vermoegen.klassePlural.${k}`)}: ${formatMoney(je[k].summe)}` }));
   const legende = ["konto", "immobilie", "vermoegenswert", "vorsorge", "darlehen"]
     .filter((k) => je[k].summe !== 0)
     .map((k) => `<span><i class="segment-${k}"></i>${escapeHtml(t(`vermoegen.klassePlural.${k}`))} ${escapeHtml(formatMoney(je[k].summe))}</span>`)
@@ -114,8 +111,8 @@ function renderKopf(r, je) {
         <div class="muted">${escapeHtml(t("vermoegen.netto"))}</div>
         <div class="vermoegen-netto">${escapeHtml(formatMoney(r.netto_cents))}</div>
         <div class="kpi-note">${escapeHtml(t("vermoegen.aktiva"))}: ${escapeHtml(formatMoney(r.aktiva_cents))} · ${escapeHtml(t("vermoegen.passiva"))}: ${escapeHtml(formatMoney(r.passiva_cents))}</div>
-        <div class="vermoegen-balken" aria-hidden="true">${segmente}</div>
-        <div class="vermoegen-balken" aria-hidden="true" style="width:${passivaBreite}%"><span class="segment-darlehen" style="width:100%"></span></div>
+        ${balkenSvg(segmente)}
+        ${balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(r.passiva_cents)}` }], { laenge: r.passiva_cents / aktiva })}
         <div class="vermoegen-legende">${legende}</div>
       </section>
       <section class="panel panel-pad">

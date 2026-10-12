@@ -27,6 +27,8 @@
       "adresse": { "type": "string" },
       "anschaffungsdatum": { "type": "string", "format": "date" },
       "anschaffungskosten": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.\\d{2}$" },
+      "nutzung": { "type": "string", "enum": ["selbstgenutzt", "vermietet", "teilvermietet"] },
+      "wohnflaeche": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.\\d{2}$", "description": "Wohnflaeche in m2 als Decimal-String" },
       "quelle_hinweis": { "type": "string" },
       "quelle_standdatum": { "type": "string", "format": "date" },
       "aktiv_bis": { "type": "string", "format": "date" },

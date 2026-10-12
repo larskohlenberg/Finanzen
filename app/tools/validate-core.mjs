@@ -145,6 +145,9 @@ const schemas = {
       adresse: { type: "string" },
       anschaffungsdatum: { type: "string", format: "date" },
       anschaffungskosten: { type: "string", money: true, nonNegative: true },
+      nutzung: { type: "string", enum: ["selbstgenutzt", "vermietet", "teilvermietet"] },
+      // Wohnflaeche in m2, gleiches Format wie Betraege (Decimal-String, zwei Nachkommastellen).
+      wohnflaeche: { type: "string", money: true, nonNegative: true },
       quelle_hinweis: { type: "string" },
       quelle_standdatum: { type: "string", format: "date" },
       aktiv_bis: { type: "string", format: "date" },

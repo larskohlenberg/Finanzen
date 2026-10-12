@@ -1,5 +1,5 @@
 // app/views/stammdaten.mjs
-// Stammdaten: Personen, Konten, Kategorien, Regeln.
+// Administration: Stammdaten (Personen, Konten, Kategorien, Regeln), Checks und Export.
 import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { renderPageHead, renderMasterAccountTable, regelKlartext, categoryName } from "../komponenten.mjs";
@@ -7,9 +7,12 @@ import { missingReferenceChecks, regelWirkung } from "../selektoren.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { kontoWert } from "../vermoegen.mjs";
 import { renderVermoegenDetail } from "./vermoegen.mjs";
+import { renderChecks, offeneChecksAnzahl } from "./checks.mjs";
+import { renderExport } from "./export.mjs";
 
 export function renderMasterdata() {
   const missingRefs = missingReferenceChecks().length;
+  const offeneChecks = offeneChecksAnzahl();
   return `
     ${renderPageHead(t("masterdata.title"), t("masterdata.lead"))}
     <div class="tile-grid">
@@ -33,8 +36,18 @@ export function renderMasterdata() {
         <div class="count">${data.kategorisierungsregeln.length}</div>
         <span class="chip success">${iconSvg("success")}${escapeHtml(t("masterdata.active"))}</span>
       </button>
+      <button class="tile ${state.masterSection === "checks" ? "active" : ""}" data-master-section="checks">
+        <strong>${escapeHtml(t("checksPage.title"))}</strong>
+        <div class="count">${offeneChecks}</div>
+        <span class="chip ${offeneChecks ? "review" : "success"}">${iconSvg(offeneChecks ? "review" : "success")}${escapeHtml(offeneChecks ? t("chrome.openChecks") : t("status.success"))}</span>
+      </button>
+      <button class="tile ${state.masterSection === "export" ? "active" : ""}" data-master-section="export">
+        <strong>${escapeHtml(t("exportPage.title"))}</strong>
+        <div class="count">ZIP</div>
+        <span class="chip neutral">${iconSvg("download")}${escapeHtml(t("exportPage.herunterladen"))}</span>
+      </button>
     </div>
-    ${state.masterSection === "regeln" ? renderRegelSection() : state.masterSection === "konten" ? renderKontoSection() : `
+    ${state.masterSection === "checks" ? renderChecks() : state.masterSection === "export" ? renderExport() : state.masterSection === "regeln" ? renderRegelSection() : state.masterSection === "konten" ? renderKontoSection() : `
     <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(sectionTitle())}</h2>
       ${renderMasterSection()}

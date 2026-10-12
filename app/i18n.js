@@ -10,7 +10,7 @@ window.FINANCE_I18N = {
       vermoegen: "Vermögen",
       vorsorge: "Vorsorge",
       szenarien: "Szenarien",
-      masterdata: "Stammdaten",
+      masterdata: "Administration",
       checks: "Checks",
       export: "Export",
       upload: "Hochladen",
@@ -22,6 +22,7 @@ window.FINANCE_I18N = {
       dismiss: "Schließen",
     },
     chrome: {
+      openChecks: "Checks offen",
       workStatus: "Arbeitsstatus",
       validationPassed: "Validierung: bestanden",
       validationPassedHint: "Die App hat den geladenen Bestand mit derselben Logik wie das CLI geprüft.",
@@ -171,8 +172,8 @@ window.FINANCE_I18N = {
       originUnknown: "Regel (Quelle unbekannt)",
     },
     masterdata: {
-      title: "Stammdaten",
-      lead: "Stabile Bezugsdaten für Personen, Konten, Depots und Kategorien.",
+      title: "Administration",
+      lead: "Stammdaten, Checks und Export — alles, was den Datenbestand pflegt.",
       people: "Personen",
       accounts: "Konten",
       categories: "Kategorien",
@@ -208,6 +209,7 @@ window.FINANCE_I18N = {
       transfersLead: "Automatisch gepaarte Transfers aus dem Import. Externe Transfers markiert der Nutzer manuell.",
       transferOk: "Vollständig gepaart",
       transferIncomplete: "Unvollständig",
+      transfersAllOk: "Alle {n} Transfers sind vollständig gepaart.",
     },
     liquiditaet: {
       title: "Liquidität",
@@ -816,7 +818,7 @@ window.FINANCE_I18N = {
       vermoegen: "Wealth",
       vorsorge: "Pension plans",
       szenarien: "Scenarios",
-      masterdata: "Master Data",
+      masterdata: "Administration",
       checks: "Checks",
       export: "Export",
       upload: "Upload",
@@ -828,6 +830,7 @@ window.FINANCE_I18N = {
       dismiss: "Dismiss",
     },
     chrome: {
+      openChecks: "open checks",
       workStatus: "Work Status",
       validationPassed: "Validation: passed",
       validationPassedHint: "The app checked the loaded data with the same logic as the CLI.",
@@ -977,8 +980,8 @@ window.FINANCE_I18N = {
       originUnknown: "Rule (origin unknown)",
     },
     masterdata: {
-      title: "Master Data",
-      lead: "Stable reference data for people, accounts, depots, and categories.",
+      title: "Administration",
+      lead: "Master data, checks and export — everything that maintains the data.",
       people: "People",
       accounts: "Accounts",
       categories: "Categories",
@@ -1014,6 +1017,7 @@ window.FINANCE_I18N = {
       transfersLead: "Auto-paired transfers from import. External transfers are marked manually by the user.",
       transferOk: "Fully paired",
       transferIncomplete: "Incomplete",
+      transfersAllOk: "All {n} transfers are fully paired.",
     },
     liquiditaet: {
       title: "Liquidity",

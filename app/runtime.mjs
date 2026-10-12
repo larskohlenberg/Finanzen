@@ -66,11 +66,10 @@ export const navItems = [
   ["vorsorge", "nav.vorsorge", "vermoegen"],
   ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
   ["szenarien", "nav.szenarien", "szenarien"],
-  ["masterdata", "nav.masterdata", "masterdata"],
-  ["checks", "nav.checks", "checks"],
   ["belege", "nav.belege", "belege"],
   ["upload", "nav.upload", "upload"],
-  ["export", "nav.export", "export"],
+  // Administration buendelt Stammdaten, Checks und Export (Bereiche der Seite).
+  ["masterdata", "nav.masterdata", "masterdata"],
 ];
 
 // Mobile Bottom-Tab-Bar: die vier Kernsichten als Tabs, der Rest im Mehr-Menü.

@@ -14,13 +14,12 @@ const VIEW_SLUG = {
   vorsorge: "vorsorge",
   regelzahlungen: "regelzahlungen",
   szenarien: "szenarien",
-  masterdata: "stammdaten",
-  checks: "checks",
-  export: "export",
+  masterdata: "administration",
   upload: "hochladen",
   belege: "dokumente",
 };
 const SLUG_VIEW = Object.fromEntries(Object.entries(VIEW_SLUG).map(([view, slug]) => [slug, view]));
+export const ADMIN_BEREICHE = ["personen", "konten", "kategorien", "regeln", "checks", "export"];
 
 // Zustand -> Hash. Auswahl hat Vorrang, damit ein geöffnetes Detail teilbar ist.
 export function routeFromState(state) {
@@ -44,6 +43,11 @@ export function routeFromState(state) {
   // Regel-Stammsatz (Stammdaten -> Regeln, angesteuerter Datensatz).
   if (state.view === "masterdata" && state.masterSection === "regeln" && state.selectedRegel) {
     return `#/regeln/${encodeURIComponent(state.selectedRegel)}`;
+  }
+  // Administration: Bereich adressierbar (#/administration/checks); Konten sind der Standard.
+  if (state.view === "masterdata") {
+    const bereich = state.masterSection;
+    return bereich && bereich !== "konten" && ADMIN_BEREICHE.includes(bereich) ? `#/administration/${bereich}` : "#/administration";
   }
   // Vermoegen: Tab und ggf. ausgewaehltes Objekt (#/vermoegen/immobilien/IMM-004).
   if (state.view === "vermoegen") {
@@ -102,6 +106,12 @@ export function parseRoute(hash) {
       ? { view: "masterdata", masterSection: "regeln", selectedRegel: tail }
       : { view: "masterdata", masterSection: "regeln" };
   }
+  if (head === "administration") {
+    return ADMIN_BEREICHE.includes(rest[0]) ? { view: "masterdata", masterSection: rest[0] } : { view: "masterdata", masterSection: "konten" };
+  }
+  // Alte Slugs aus der Zeit vor der Administration bleiben gueltig.
+  if (head === "stammdaten") return { view: "masterdata", masterSection: "konten" };
+  if (head === "checks" || head === "export") return { view: "masterdata", masterSection: head };
   if (head === "vermoegen") return vermoegenAusRoute(rest.map((teil) => decodeURIComponent(teil)));
   if (head === "vorsorge") {
     return tail ? { view: "vorsorge", selectedVorsorgeId: tail } : { view: "vorsorge" };

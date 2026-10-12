@@ -605,7 +605,7 @@ function rechengrundlage(szenario, today) {
   const hinweis = guardrails.length ? `
     <p class="page-lead">
       <span class="chip neutral">${iconSvg("review")}${escapeHtml(t("szenarien.prognosebasisHinweis").replace("{n}", String(guardrails.length)))}</span>
-      <button class="linkish" data-view="checks">${escapeHtml(t("szenarien.zuChecks"))}</button>
+      <button class="linkish" data-action="show-checks">${escapeHtml(t("szenarien.zuChecks"))}</button>
     </p>` : "";
   return `
     <section class="panel panel-pad section-spacing">

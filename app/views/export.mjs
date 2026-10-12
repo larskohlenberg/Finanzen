@@ -1,9 +1,8 @@
 // app/views/export.mjs
-// Export (#/export): Backup zum Herunterladen. Die ZIPs baut der App-Server
+// Export (#/administration/export): Backup zum Herunterladen. Die ZIPs baut der App-Server
 // beim Klick (GET /api/export/<art>, app/export.mjs). Im Demomodus kommen die
 // Daten aus data/demo; die Dokumente sind immer die unter Belege/.
 import { state, t, escapeHtml } from "../runtime.mjs";
-import { renderPageHead } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 
 const ARTEN = ["komplett", "dokumente", "daten"];
@@ -24,7 +23,7 @@ function karte(art) {
 
 export function renderExport() {
   return `
-    ${renderPageHead(t("exportPage.title"), t("exportPage.lead"))}
+    <p class="page-lead section-spacing">${escapeHtml(t("exportPage.lead"))}</p>
     <div class="export-karten">${ARTEN.map(karte).join("")}</div>
     ${state.dataMode === "demo" ? `<p class="muted">${escapeHtml(t("exportPage.demoHinweis"))}</p>` : ""}
   `;

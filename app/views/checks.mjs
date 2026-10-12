@@ -1,8 +1,9 @@
 // app/views/checks.mjs
-// Prüfungen: Transfer-Checks + Vermögens-Checks.
+// Prüfungen: Transfer-Checks + Vermögens-Checks. Bereich der Administration
+// (#/administration/checks), keine eigene Seite mehr.
 import { data, t, escapeHtml, cents, transaktionenById, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, categoryName, renderPageHead } from "../komponenten.mjs";
+import { formatMoney, categoryName } from "../komponenten.mjs";
 import { currentVermoegenChecks } from "../selektoren.mjs";
 import { guardrailWarnungen } from "../szenarien.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -46,33 +47,28 @@ function transferChecks() {
   });
 }
 
+// Zähler für die obere Leiste: was nur hier sichtbar ist. Offene Kategorien und
+// Importfehler haben dort eigene Chips und zählen deshalb nicht mit.
+export function offeneChecksAnzahl() {
+  const datenChecks = data.checks.filter((check) => check.severity === "review" && check.scope !== "transaktion").length;
+  const transfers = transferChecks().filter((tc) => !tc.ok).length;
+  return datenChecks + transfers + currentVermoegenChecks().length + guardrailWarnungen(data, localTodayIso()).length;
+}
+
 export function renderChecks() {
   const transferResults = transferChecks();
+  // Gepaarte Transfers sind der Normalfall; aufgelistet wird nur, was hakt.
+  const unvollstaendig = transferResults.filter((tc) => !tc.ok);
   const m5 = currentVermoegenChecks();
   const guardrails = guardrailWarnungen(data, localTodayIso());
-  const groups = [
-    [t("checksPage.validation"), data.checks.filter((check) => check.scope === "datenstand")],
-    [t("checksPage.categories"), data.checks.filter((check) => check.scope === "transaktion")],
-    [t("checksPage.accountReferences"), data.checks.filter((check) => check.scope === "konto")],
-    [t("checksPage.transfers"), transferResults.map((tc) => ({ severity: tc.ok ? "success" : "review" }))],
-    [t("nav.vermoegen"), m5.map(() => ({ severity: "review" }))],
-    [t("checksPage.prognoseRealismus"), guardrails.map(() => ({ severity: "review" }))],
-  ];
   return `
-    ${renderPageHead(t("checksPage.title"), t("checksPage.lead"))}
-    <div class="tile-grid">
-      ${groups.map(([label, checks]) => `
-        <div class="tile tile-static">
-          <strong>${escapeHtml(label)}</strong>
-          <div class="count">${checks.length}</div>
-          <span class="chip ${checks.some((check) => check.severity === "review") ? "review" : "success"}">${checks.some((check) => check.severity === "review") ? iconSvg("review") : iconSvg("success")}${escapeHtml(checks.some((check) => check.severity === "review") ? t("status.review") : t("status.success"))}</span>
-        </div>
-      `).join("")}
-    </div>
-    <section class="panel panel-pad section-spacing">
-      <h2 class="section-title">${escapeHtml(t("checksPage.title"))}</h2>
-      <div class="rail-list">${renderCheckItems(data.checks)}</div>
-    </section>
+    <p class="page-lead section-spacing">${escapeHtml(t("checksPage.lead"))}</p>
+    ${data.checks.length > 0 ? `
+      <section class="panel panel-pad section-spacing">
+        <h2 class="section-title">${escapeHtml(t("checksPage.title"))}</h2>
+        <div class="rail-list">${renderCheckItems(data.checks)}</div>
+      </section>
+    ` : ""}
     ${(data.importfehler?.length ?? 0) > 0 ? `
       <section class="panel panel-pad section-spacing">
         <h2 class="section-title">${escapeHtml(t("checksPage.importErrors"))}</h2>
@@ -92,14 +88,15 @@ export function renderChecks() {
       <section class="panel panel-pad section-spacing">
         <h2 class="section-title">${escapeHtml(t("checksPage.transfers"))}</h2>
         <p class="page-lead">${escapeHtml(t("checksPage.transfersLead"))}</p>
+        ${unvollstaendig.length === 0 ? `<p class="muted">${escapeHtml(t("checksPage.transfersAllOk").replace("{n}", String(transferResults.length)))}</p>` : `
         <div class="rail-list">
-          ${transferResults.map((tc) => `
+          ${unvollstaendig.map((tc) => `
             <div class="rail-item">
-              <span class="chip ${tc.ok ? "success" : "review"}">${tc.ok ? iconSvg("success") : iconSvg("review")}${escapeHtml(tc.ok ? t("checksPage.transferOk") : t("checksPage.transferIncomplete"))}</span>
+              <span class="chip review">${iconSvg("review")}${escapeHtml(t("checksPage.transferIncomplete"))}</span>
               <span>${escapeHtml(tc.transfer_id)} · ${escapeHtml(formatMoney(cents(tc.betrag)))}</span>
             </div>
           `).join("")}
-        </div>
+        </div>`}
       </section>
     ` : ""}
     ${m5.length > 0 ? `

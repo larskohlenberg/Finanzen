@@ -217,3 +217,118 @@ export function linienDiagramm(punkte, options = {}) {
     ${labelLinks}${labelRechts}${labelTief}
   </svg>`;
 }
+
+// --- Balken fuer die Vermoegensseite -------------------------------------------
+// Gemeinsam: feste viewBox, Theming ueber CSS-Klassen, Werte in Cent; Tooltips
+// als <title>, damit jede Saeule ohne Skript lesbar ist.
+
+const BREITE = 640;
+const runde = (n) => n.toFixed(2);
+
+function achsenText(x, y, text, anchor = "middle") {
+  return `<text x="${runde(x)}" y="${runde(y)}" text-anchor="${anchor}" font-size="11" class="diagramm-achse-label">${esc(text)}</text>`;
+}
+
+// Ein- und Ausgaben je Monat: Einnahmen nach oben, Ausgaben nach unten, der
+// Saldo als Linie mit Punkten. Leer (alle 0) -> "".
+export function monatsBalken({ monate, einnahmen, ausgaben, saldo, formatWert = String, formatMonat = String, ariaLabel = "" }) {
+  if (!monate?.length || ![...einnahmen, ...ausgaben].some((w) => w)) return "";
+  const hoehe = 220;
+  const links = 56;
+  const rechts = 8;
+  const oben = 10;
+  const unten = 24;
+  const max = Math.max(...einnahmen, ...ausgaben, ...saldo.map(Math.abs), 1) * 1.08;
+  const mitte = oben + (hoehe - oben - unten) / 2;
+  const skala = (hoehe - oben - unten) / 2 / max;
+  const spalte = (BREITE - links - rechts) / monate.length;
+  const mx = (i) => links + spalte * i + spalte / 2;
+  const breite = Math.max(4, spalte * 0.62);
+  const teile = [
+    `<line x1="${links}" x2="${BREITE - rechts}" y1="${runde(mitte)}" y2="${runde(mitte)}" class="diagramm-achse" />`,
+    achsenText(links - 6, oben + 9, `+${formatWert(max)}`, "end"),
+    achsenText(links - 6, hoehe - unten, `−${formatWert(max)}`, "end"),
+  ];
+  monate.forEach((monat, i) => {
+    const x = mx(i) - breite / 2;
+    if (einnahmen[i]) teile.push(`<rect x="${runde(x)}" y="${runde(mitte - einnahmen[i] * skala)}" width="${runde(breite)}" height="${runde(einnahmen[i] * skala)}" class="balken-einnahme"><title>${esc(`${formatMonat(monat)}: +${formatWert(einnahmen[i])}`)}</title></rect>`);
+    if (ausgaben[i]) teile.push(`<rect x="${runde(x)}" y="${runde(mitte)}" width="${runde(breite)}" height="${runde(ausgaben[i] * skala)}" class="balken-ausgabe"><title>${esc(`${formatMonat(monat)}: −${formatWert(ausgaben[i])}`)}</title></rect>`);
+    if (monate.length <= 12 || i % 2 === 0) teile.push(achsenText(mx(i), hoehe - 6, formatMonat(monat)));
+  });
+  const punkte = saldo.map((w, i) => `${runde(mx(i))},${runde(mitte - w * skala)}`);
+  teile.push(`<polyline points="${punkte.join(" ")}" class="balken-saldo" fill="none" />`);
+  saldo.forEach((w, i) => teile.push(`<circle cx="${runde(mx(i))}" cy="${runde(mitte - w * skala)}" r="2.5" class="balken-saldo-punkt"><title>${esc(`${formatMonat(monate[i])}: ${formatWert(w)}`)}</title></circle>`));
+  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}">${teile.join("")}</svg>`;
+}
+
+// Zins und Tilgung je Jahr als gestapelte Saeulen; Planjahre heller.
+export function jahresBalken({ jahre, formatWert = String, ariaLabel = "" }) {
+  if (!jahre?.length) return "";
+  const hoehe = 160;
+  const links = 56;
+  const rechts = 8;
+  const oben = 8;
+  const unten = 22;
+  const max = Math.max(...jahre.map((j) => j.zins_cents + Math.max(0, j.tilgung_cents)), 1);
+  const skala = (hoehe - oben - unten) / max;
+  const spalte = (BREITE - links - rechts) / jahre.length;
+  const breite = Math.max(3, spalte * 0.66);
+  const boden = hoehe - unten;
+  const schritt = Math.ceil(jahre.length / 12);
+  const teile = [
+    `<line x1="${links}" x2="${BREITE - rechts}" y1="${boden}" y2="${boden}" class="diagramm-achse" />`,
+    achsenText(links - 6, oben + 9, formatWert(max), "end"),
+  ];
+  jahre.forEach((j, i) => {
+    const x = links + spalte * i + (spalte - breite) / 2;
+    const tilgung = Math.max(0, j.tilgung_cents);
+    const plan = j.ist ? "" : " plan";
+    teile.push(`<rect x="${runde(x)}" y="${runde(boden - tilgung * skala)}" width="${runde(breite)}" height="${runde(tilgung * skala)}" class="balken-tilgung${plan}"><title>${esc(`${j.jahr}: Tilgung ${formatWert(tilgung)}`)}</title></rect>`);
+    teile.push(`<rect x="${runde(x)}" y="${runde(boden - (tilgung + j.zins_cents) * skala)}" width="${runde(breite)}" height="${runde(j.zins_cents * skala)}" class="balken-zins${plan}"><title>${esc(`${j.jahr}: Zins ${formatWert(j.zins_cents)}`)}</title></rect>`);
+    if (i % schritt === 0) teile.push(achsenText(links + spalte * i + spalte / 2, hoehe - 6, String(j.jahr)));
+  });
+  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}">${teile.join("")}</svg>`;
+}
+
+const tageSeit1970 = (iso) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / 86400000;
+
+// Restschuld ueber die Zeit: Ist (bis heute) durchgezogen, Plan gestrichelt,
+// Marker fuer heute und das Zinsbindungsende, belegte Staende als Kreise.
+// punkte: [{ datum, wert_cents }] aufsteigend.
+export function restschuldVerlauf({ punkte, heute, zinsbindungBis = null, belegte = [], formatWert = String, labels = {}, ariaLabel = "" }) {
+  if (!punkte || punkte.length < 2) return "";
+  const hoehe = 220;
+  const links = 64;
+  const rechts = 10;
+  const oben = 22;
+  const unten = 24;
+  const t0 = tageSeit1970(punkte[0].datum);
+  const t1 = Math.max(tageSeit1970(punkte.at(-1).datum), t0 + 1);
+  const max = Math.max(...punkte.map((p) => p.wert_cents), ...belegte.map((b) => b.wert_cents), 1);
+  const x = (iso) => links + ((tageSeit1970(iso) - t0) / (t1 - t0)) * (BREITE - links - rechts);
+  const y = (w) => oben + (1 - w / max) * (hoehe - oben - unten);
+  const linie = (liste, klasse) => (liste.length > 1 ? `<polyline points="${liste.map((p) => `${runde(x(p.datum))},${runde(y(p.wert_cents))}`).join(" ")}" class="${klasse}" fill="none" />` : "");
+  const ist = punkte.filter((p) => p.datum <= heute);
+  const plan = punkte.filter((p) => p.datum >= (ist.at(-1)?.datum ?? punkte[0].datum));
+  const teile = [
+    `<line x1="${links}" x2="${BREITE - rechts}" y1="${runde(y(0))}" y2="${runde(y(0))}" class="diagramm-achse" />`,
+    achsenText(links - 6, y(max) + 4, formatWert(max), "end"),
+    achsenText(links - 6, y(0), formatWert(0), "end"),
+  ];
+  const jahrA = Number(punkte[0].datum.slice(0, 4));
+  const jahrB = Number(punkte.at(-1).datum.slice(0, 4));
+  const schritt = Math.max(1, Math.ceil((jahrB - jahrA) / 8));
+  for (let jahr = jahrA + 1; jahr <= jahrB; jahr += schritt) teile.push(achsenText(x(`${jahr}-01-01`), hoehe - 6, String(jahr)));
+  teile.push(linie(plan, "restschuld-plan"), linie(ist, "restschuld-ist"));
+  const marker = (iso, klasse, text, zeile) => {
+    if (!iso || iso < punkte[0].datum || iso > punkte.at(-1).datum) return "";
+    return `<line x1="${runde(x(iso))}" x2="${runde(x(iso))}" y1="${oben}" y2="${hoehe - unten}" class="${klasse}" />${achsenText(x(iso) + 4, 12 + zeile * 12, text, "start")}`;
+  };
+  teile.push(marker(heute, "marker-heute", labels.heute ?? "heute", 0));
+  teile.push(marker(zinsbindungBis, "marker-zinsbindung", labels.zinsbindung ?? "Zinsbindung", 1));
+  for (const b of belegte) {
+    if (b.datum < punkte[0].datum || b.datum > punkte.at(-1).datum) continue;
+    teile.push(`<circle cx="${runde(x(b.datum))}" cy="${runde(y(b.wert_cents))}" r="4" class="restschuld-beleg"><title>${esc(`${b.datum}: ${formatWert(b.wert_cents)}`)}</title></circle>`);
+  }
+  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}">${teile.join("")}</svg>`;
+}

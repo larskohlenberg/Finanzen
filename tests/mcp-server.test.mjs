@@ -252,6 +252,7 @@ test("beleg_ablegen: verschiebt mit Zwilling, ueberschreibt nie, nur inbox -> Be
       ["data/inbox/scan0002.pdf", "Belege/Kontoauszuege/KTO-002/x.pdf"],
       ["data/inbox/scan0002.pdf", "Belege/Konten/KTO-002/x.pdf"],
       ["data/inbox/scan0002.pdf", "Belege/Konten/x.pdf"],
+      ["data/inbox/scan0002.pdf", "Belege/Vermoegenswerte/Auto/2026/x.pdf"],
     ]) {
       const r = await s.werkzeug("beleg_ablegen", { quelle, ziel: z });
       assert.equal(r.isError, true, `${quelle} -> ${z} muss abgewiesen werden`);

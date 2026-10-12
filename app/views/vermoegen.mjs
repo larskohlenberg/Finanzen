@@ -11,7 +11,7 @@ import { immobilienKennzahlen, kontoSaldoVerlauf } from "../vermoegen-details.mj
 import { VERMOEGEN_TABS, TAB_FUER_KLASSE } from "../vermoegen-routen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { renderImmobilienTab, renderDarlehenTab } from "./vermoegen-objekte.mjs";
-import { balkenSvg, geld, qualitaetChip, rateJeMonatCents, renderPositionWertstaende, tf } from "./vermoegen-teile.mjs";
+import { balkenSvg, dokumenteHtml, geld, qualitaetChip, rateJeMonatCents, renderPositionWertstaende, tf } from "./vermoegen-teile.mjs";
 import { renderWertstaendeTabelle } from "./vermoegen-wertstaende.mjs";
 
 const KLASSEN = ["konto", "immobilie", "darlehen", "vermoegenswert", "vorsorge"];
@@ -309,7 +309,8 @@ export function renderVermoegenDetail(p, today) {
       + (entity?.eigentumsanteile ? detailRow(t("vermoegen.eigentumsanteile"), anteileHtml(entity.eigentumsanteile, mwCents)) : "")
       + detailRow(t("vermoegen.anteiligerWert"),
           p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : `<strong>${escapeHtml(formatMoney(p.wert_cents))}</strong>`)
-      + renderPositionWertstaende(p);
+      + renderPositionWertstaende(p)
+      + (p.klasse === "vermoegenswert" ? detailRow(t("vermoegen.dokumente.titel"), dokumenteHtml([p.id])) : "");
   }
 
   return head;

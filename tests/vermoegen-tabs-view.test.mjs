@@ -46,10 +46,30 @@ test("Tab-Leiste: vier Tabs, kein Vorsorge-Tab, Sonstige nur mit aktiven Werten"
   });
 });
 
-test("Kopf: Punkt am Tab und Eintrag in den offenen Punkten bei fehlendem Wert", () => {
+test("Kopf ohne Datenqualitaets-Kachel; offener Punkt an Tab und Klassenkarte", () => {
   mitDaten({ darlehen: [darlehen("DAR-001")] }, {}, (html) => {
     assert.match(html, /data-tab="darlehen">\s*<span class="vermoegen-tab-titel">Darlehen<span class="tab-punkt"/);
-    assert.match(html, /<ul class="luecken-liste">[\s\S]*data-tab="darlehen">Darlehen<\/button>:\s*1 offen/);
+    assert.match(html, /class="tile klassen-karte" data-action="vermoegen-tab" data-tab="darlehen">[\s\S]*?1 offen/);
+    assert.doesNotMatch(html, /Datenqualität|luecken-liste/);
+  });
+});
+
+test("Uebersicht: Wertstaende als filter- und sortierbare Tabelle, keine Rail", () => {
+  const zw = (id, wert, standdatum, qualitaet) => ({ entitaet: "darlehen", entitaet_id: id, feld: "restschuld", wert, standdatum, qualitaet });
+  const teil = { darlehen: [darlehen("DAR-001"), darlehen("DAR-002")], zeitwerte: [zw("DAR-001", "1000.00", "2025-01-31", "belegt"), zw("DAR-002", "2000.00", "2026-01-31", "geschaetzt")] };
+  mitDaten(teil, {}, (html) => {
+    assert.match(html, /id="vermoegen-wertstaende"/);
+    assert.match(html, /data-wertstaende-sort="wert"/);
+    assert.match(html, /data-wertstaende-filter="klasse"/);
+    assert.doesNotMatch(html, /layout-with-rail/);
+    assert.ok(html.indexOf("DAR-002</span>") < html.indexOf("DAR-001</span>"), "neuester Stand zuerst");
+  });
+  mitDaten(teil, { wertstaendeSort: { key: "wert", dir: "asc" }, wertstaendeFilters: { search: "", klasse: "", qualitaet: "" } }, (html) => {
+    assert.ok(html.indexOf("DAR-001</span>") < html.indexOf("DAR-002</span>"));
+  });
+  mitDaten(teil, { wertstaendeFilters: { search: "", klasse: "", qualitaet: "belegt" } }, (html) => {
+    assert.match(html, /1 von 2 Treffer/);
+    assert.doesNotMatch(html, /DAR-002<\/span>/);
   });
 });
 
@@ -68,6 +88,9 @@ test("Darlehen mit Anker: Verlauf, Zins/Tilgung und Rest zum Zinsbindungsende", 
     assert.match(html, /class="restschuld-ist"/);
     assert.match(html, /class="balken-tilgung/);
     assert.match(html, /Rest zum Zinsbindungsende/);
+    // Kennzahlen und Stammdaten ueber den Diagrammen, Bemerkung/Wertstaende darunter.
+    assert.ok(html.indexOf("darlehen-kopf") < html.indexOf("restschuld-ist"));
+    assert.ok(html.indexOf("restschuld-ist") < html.indexOf("objekt-anhang"));
   });
 });
 
@@ -99,6 +122,10 @@ test("Immobilie: Monatstabelle und Umschalter ohne Darlehensrate", () => {
     assert.match(html, /data-action="immobilie-rate" data-rate="ohne"/);
     assert.match(html, /class="monats-tabelle"/);
     assert.match(html, /-850,00/);
+    // Stammdaten ueber Diagramm und Tabelle, Wertstaende und Dokumente darunter.
+    assert.ok(html.indexOf("stammdaten-raster") < html.indexOf("monats-tabelle"));
+    assert.ok(html.indexOf("monats-tabelle") < html.indexOf("objekt-anhang"));
+    assert.match(html, /data-spalten="/);
   });
   mitDaten(teil, { vermoegenTab: "immobilien", immobilieOhneRate: true }, (html) => {
     const tabelle = html.slice(html.indexOf('class="monats-tabelle"'));

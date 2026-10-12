@@ -219,118 +219,170 @@ export function linienDiagramm(punkte, options = {}) {
 }
 
 // --- Balken fuer die Vermoegensseite -------------------------------------------
-// Gemeinsam: feste viewBox, Theming ueber CSS-Klassen, Werte in Cent; Tooltips
-// als <title>, damit jede Saeule ohne Skript lesbar ist.
+// Gemeinsam: feste viewBox, Theming ueber CSS-Klassen, Werte in Cent. Y-Achse
+// mit gerundeten Ticks, Gitter und Achsentitel; der linke Rand richtet sich
+// nach der breitesten Beschriftung, damit nichts aus dem Bild ragt. Hover-Daten
+// (data-spalten / data-plot) liest diagramm-hover.mjs: je Spalte ein Titel und
+// fertig formatierte Zeilen.
 
-const BREITE = 640;
+const BREITE = 960;
+const SCHRIFT = 13;
 const runde = (n) => n.toFixed(2);
 
 function achsenText(x, y, text, anchor = "middle") {
-  return `<text x="${runde(x)}" y="${runde(y)}" text-anchor="${anchor}" font-size="11" class="diagramm-achse-label">${esc(text)}</text>`;
+  return `<text x="${runde(x)}" y="${runde(y)}" text-anchor="${anchor}" font-size="${SCHRIFT}" class="diagramm-achse-label">${esc(text)}</text>`;
+}
+
+// Linker Rand aus der laengsten Y-Beschriftung, plus Platz fuer den gedrehten Achsentitel.
+function linkerRand(texte, mitTitel) {
+  return Math.ceil(Math.max(...texte.map((s) => s.length)) * SCHRIFT * 0.6) + 12 + (mitTitel ? 20 : 0);
+}
+
+function yAchse({ ticks, y, links, rechts, titel, oben, unten }) {
+  const teile = ticks.map((w) => `<line x1="${links}" x2="${BREITE - rechts}" y1="${runde(y(w))}" y2="${runde(y(w))}" class="${w === 0 ? "diagramm-achse" : "diagramm-gitter"}" />`);
+  if (titel) {
+    const mitte = (oben + unten) / 2;
+    teile.push(`<text x="14" y="${runde(mitte)}" transform="rotate(-90 14 ${runde(mitte)})" text-anchor="middle" font-size="${SCHRIFT}" class="diagramm-achse-titel">${esc(titel)}</text>`);
+  }
+  return teile;
+}
+
+function hoverAttrs(spalten, plot) {
+  return `data-spalten="${esc(JSON.stringify(spalten))}" data-plot="${esc(JSON.stringify(plot))}"`;
 }
 
 // Ein- und Ausgaben je Monat: Einnahmen nach oben, Ausgaben nach unten, der
 // Saldo als Linie mit Punkten. Leer (alle 0) -> "".
-export function monatsBalken({ monate, einnahmen, ausgaben, saldo, formatWert = String, formatMonat = String, ariaLabel = "" }) {
+export function monatsBalken({ monate, einnahmen, ausgaben, saldo, formatWert = String, formatAchse = formatWert, formatMonat = String, formatTitel = formatMonat, labels = {}, achsenTitel = "", ariaLabel = "" }) {
   if (!monate?.length || ![...einnahmen, ...ausgaben].some((w) => w)) return "";
-  const hoehe = 220;
-  const links = 56;
-  const rechts = 8;
-  const oben = 10;
-  const unten = 24;
-  const max = Math.max(...einnahmen, ...ausgaben, ...saldo.map(Math.abs), 1) * 1.08;
-  const mitte = oben + (hoehe - oben - unten) / 2;
-  const skala = (hoehe - oben - unten) / 2 / max;
+  const hoehe = 300;
+  const rechts = 10;
+  const oben = 12;
+  const unten = 28;
+  const max = Math.max(...einnahmen, ...saldo, 1);
+  const min = Math.min(...ausgaben.map((w) => -w), ...saldo, -1);
+  const achse = achsenTicks(min, max, 6);
+  const yTexte = achse.ticks.map((w) => formatAchse(w));
+  const links = linkerRand(yTexte, Boolean(achsenTitel));
+  const y = (w) => oben + ((achse.max - w) / (achse.max - achse.min)) * (hoehe - oben - unten);
   const spalte = (BREITE - links - rechts) / monate.length;
   const mx = (i) => links + spalte * i + spalte / 2;
   const breite = Math.max(4, spalte * 0.62);
   const teile = [
-    `<line x1="${links}" x2="${BREITE - rechts}" y1="${runde(mitte)}" y2="${runde(mitte)}" class="diagramm-achse" />`,
-    achsenText(links - 6, oben + 9, `+${formatWert(max)}`, "end"),
-    achsenText(links - 6, hoehe - unten, `−${formatWert(max)}`, "end"),
+    ...yAchse({ ticks: achse.ticks, y, links, rechts, titel: achsenTitel, oben, unten: hoehe - unten }),
+    ...achse.ticks.map((w, i) => achsenText(links - 8, y(w) + 4, yTexte[i], "end")),
   ];
   monate.forEach((monat, i) => {
     const x = mx(i) - breite / 2;
-    if (einnahmen[i]) teile.push(`<rect x="${runde(x)}" y="${runde(mitte - einnahmen[i] * skala)}" width="${runde(breite)}" height="${runde(einnahmen[i] * skala)}" class="balken-einnahme"><title>${esc(`${formatMonat(monat)}: +${formatWert(einnahmen[i])}`)}</title></rect>`);
-    if (ausgaben[i]) teile.push(`<rect x="${runde(x)}" y="${runde(mitte)}" width="${runde(breite)}" height="${runde(ausgaben[i] * skala)}" class="balken-ausgabe"><title>${esc(`${formatMonat(monat)}: −${formatWert(ausgaben[i])}`)}</title></rect>`);
-    if (monate.length <= 12 || i % 2 === 0) teile.push(achsenText(mx(i), hoehe - 6, formatMonat(monat)));
+    if (einnahmen[i]) teile.push(`<rect x="${runde(x)}" y="${runde(y(einnahmen[i]))}" width="${runde(breite)}" height="${runde(y(0) - y(einnahmen[i]))}" class="balken-einnahme" />`);
+    if (ausgaben[i]) teile.push(`<rect x="${runde(x)}" y="${runde(y(0))}" width="${runde(breite)}" height="${runde(y(-ausgaben[i]) - y(0))}" class="balken-ausgabe" />`);
+    if (monate.length <= 12 || i % 2 === 0) teile.push(achsenText(mx(i), hoehe - 8, formatMonat(monat)));
   });
-  const punkte = saldo.map((w, i) => `${runde(mx(i))},${runde(mitte - w * skala)}`);
-  teile.push(`<polyline points="${punkte.join(" ")}" class="balken-saldo" fill="none" />`);
-  saldo.forEach((w, i) => teile.push(`<circle cx="${runde(mx(i))}" cy="${runde(mitte - w * skala)}" r="2.5" class="balken-saldo-punkt"><title>${esc(`${formatMonat(monate[i])}: ${formatWert(w)}`)}</title></circle>`));
-  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}">${teile.join("")}</svg>`;
+  teile.push(`<polyline points="${saldo.map((w, i) => `${runde(mx(i))},${runde(y(w))}`).join(" ")}" class="balken-saldo" fill="none" />`);
+  saldo.forEach((w, i) => teile.push(`<circle cx="${runde(mx(i))}" cy="${runde(y(w))}" r="3" class="balken-saldo-punkt" />`));
+  const spalten = monate.map((monat, i) => ({
+    x: Math.round(mx(i)),
+    titel: formatTitel(monat),
+    zeilen: [
+      { klasse: "einnahme", label: labels.einnahmen ?? "Einnahmen", wert: formatWert(einnahmen[i]) },
+      { klasse: "ausgabe", label: labels.ausgaben ?? "Ausgaben", wert: formatWert(-ausgaben[i]) },
+      { klasse: "saldo", label: labels.saldo ?? "Saldo", wert: formatWert(saldo[i]) },
+    ],
+  }));
+  const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };
+  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(spalten, plot)}>${teile.join("")}</svg>`;
 }
 
 // Zins und Tilgung je Jahr als gestapelte Saeulen; Planjahre heller.
-export function jahresBalken({ jahre, formatWert = String, ariaLabel = "" }) {
+export function jahresBalken({ jahre, formatWert = String, formatAchse = formatWert, labels = {}, achsenTitel = "", ariaLabel = "" }) {
   if (!jahre?.length) return "";
-  const hoehe = 160;
-  const links = 56;
-  const rechts = 8;
-  const oben = 8;
-  const unten = 22;
+  const hoehe = 240;
+  const rechts = 10;
+  const oben = 10;
+  const unten = 26;
   const max = Math.max(...jahre.map((j) => j.zins_cents + Math.max(0, j.tilgung_cents)), 1);
-  const skala = (hoehe - oben - unten) / max;
+  const achse = achsenTicks(0, max, 4);
+  const yTexte = achse.ticks.map((w) => formatAchse(w));
+  const links = linkerRand(yTexte, Boolean(achsenTitel));
+  const y = (w) => oben + ((achse.max - w) / (achse.max - achse.min)) * (hoehe - oben - unten);
   const spalte = (BREITE - links - rechts) / jahre.length;
   const breite = Math.max(3, spalte * 0.66);
-  const boden = hoehe - unten;
-  const schritt = Math.ceil(jahre.length / 12);
+  const schritt = Math.ceil(jahre.length / 16);
   const teile = [
-    `<line x1="${links}" x2="${BREITE - rechts}" y1="${boden}" y2="${boden}" class="diagramm-achse" />`,
-    achsenText(links - 6, oben + 9, formatWert(max), "end"),
+    ...yAchse({ ticks: achse.ticks, y, links, rechts, titel: achsenTitel, oben, unten: hoehe - unten }),
+    ...achse.ticks.map((w, i) => achsenText(links - 8, y(w) + 4, yTexte[i], "end")),
   ];
   jahre.forEach((j, i) => {
     const x = links + spalte * i + (spalte - breite) / 2;
     const tilgung = Math.max(0, j.tilgung_cents);
     const plan = j.ist ? "" : " plan";
-    teile.push(`<rect x="${runde(x)}" y="${runde(boden - tilgung * skala)}" width="${runde(breite)}" height="${runde(tilgung * skala)}" class="balken-tilgung${plan}"><title>${esc(`${j.jahr}: Tilgung ${formatWert(tilgung)}`)}</title></rect>`);
-    teile.push(`<rect x="${runde(x)}" y="${runde(boden - (tilgung + j.zins_cents) * skala)}" width="${runde(breite)}" height="${runde(j.zins_cents * skala)}" class="balken-zins${plan}"><title>${esc(`${j.jahr}: Zins ${formatWert(j.zins_cents)}`)}</title></rect>`);
-    if (i % schritt === 0) teile.push(achsenText(links + spalte * i + spalte / 2, hoehe - 6, String(j.jahr)));
+    teile.push(`<rect x="${runde(x)}" y="${runde(y(tilgung))}" width="${runde(breite)}" height="${runde(y(0) - y(tilgung))}" class="balken-tilgung${plan}" />`);
+    teile.push(`<rect x="${runde(x)}" y="${runde(y(tilgung + j.zins_cents))}" width="${runde(breite)}" height="${runde(y(tilgung) - y(tilgung + j.zins_cents))}" class="balken-zins${plan}" />`);
+    if (i % schritt === 0) teile.push(achsenText(links + spalte * i + spalte / 2, hoehe - 8, String(j.jahr)));
   });
-  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}">${teile.join("")}</svg>`;
+  const spalten = jahre.map((j, i) => ({
+    x: Math.round(links + spalte * i + spalte / 2),
+    titel: j.ist ? String(j.jahr) : `${j.jahr} (${labels.plan ?? "Plan"})`,
+    zeilen: [
+      { klasse: "tilgung", label: labels.tilgung ?? "Tilgung", wert: formatWert(Math.max(0, j.tilgung_cents)) },
+      { klasse: "zins", label: labels.zins ?? "Zins", wert: formatWert(j.zins_cents) },
+      { klasse: "summe", label: labels.summe ?? "Summe", wert: formatWert(Math.max(0, j.tilgung_cents) + j.zins_cents) },
+    ],
+  }));
+  const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };
+  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(spalten, plot)}>${teile.join("")}</svg>`;
 }
 
 const tageSeit1970 = (iso) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / 86400000;
 
 // Restschuld ueber die Zeit: Ist (bis heute) durchgezogen, Plan gestrichelt,
 // Marker fuer heute und das Zinsbindungsende, belegte Staende als Kreise.
-// punkte: [{ datum, wert_cents }] aufsteigend.
-export function restschuldVerlauf({ punkte, heute, zinsbindungBis = null, belegte = [], formatWert = String, labels = {}, ariaLabel = "" }) {
+// punkte: [{ datum, wert_cents, tilgung_cents?, zins_cents? }] aufsteigend.
+export function restschuldVerlauf({ punkte, heute, zinsbindungBis = null, belegte = [], formatWert = String, formatAchse = formatWert, formatDatum = String, labels = {}, achsenTitel = "", ariaLabel = "" }) {
   if (!punkte || punkte.length < 2) return "";
-  const hoehe = 220;
-  const links = 64;
-  const rechts = 10;
-  const oben = 22;
-  const unten = 24;
+  const hoehe = 300;
+  const rechts = 12;
+  const oben = 30;
+  const unten = 28;
   const t0 = tageSeit1970(punkte[0].datum);
   const t1 = Math.max(tageSeit1970(punkte.at(-1).datum), t0 + 1);
-  const max = Math.max(...punkte.map((p) => p.wert_cents), ...belegte.map((b) => b.wert_cents), 1);
+  const achse = achsenTicks(0, Math.max(...punkte.map((p) => p.wert_cents), ...belegte.map((b) => b.wert_cents), 1), 5);
+  const yTexte = achse.ticks.map((w) => formatAchse(w));
+  const links = linkerRand(yTexte, Boolean(achsenTitel));
   const x = (iso) => links + ((tageSeit1970(iso) - t0) / (t1 - t0)) * (BREITE - links - rechts);
-  const y = (w) => oben + (1 - w / max) * (hoehe - oben - unten);
+  const y = (w) => oben + ((achse.max - w) / (achse.max - achse.min)) * (hoehe - oben - unten);
   const linie = (liste, klasse) => (liste.length > 1 ? `<polyline points="${liste.map((p) => `${runde(x(p.datum))},${runde(y(p.wert_cents))}`).join(" ")}" class="${klasse}" fill="none" />` : "");
   const ist = punkte.filter((p) => p.datum <= heute);
   const plan = punkte.filter((p) => p.datum >= (ist.at(-1)?.datum ?? punkte[0].datum));
   const teile = [
-    `<line x1="${links}" x2="${BREITE - rechts}" y1="${runde(y(0))}" y2="${runde(y(0))}" class="diagramm-achse" />`,
-    achsenText(links - 6, y(max) + 4, formatWert(max), "end"),
-    achsenText(links - 6, y(0), formatWert(0), "end"),
+    ...yAchse({ ticks: achse.ticks, y, links, rechts, titel: achsenTitel, oben, unten: hoehe - unten }),
+    ...achse.ticks.map((w, i) => achsenText(links - 8, y(w) + 4, yTexte[i], "end")),
   ];
   const jahrA = Number(punkte[0].datum.slice(0, 4));
   const jahrB = Number(punkte.at(-1).datum.slice(0, 4));
-  const schritt = Math.max(1, Math.ceil((jahrB - jahrA) / 8));
-  for (let jahr = jahrA + 1; jahr <= jahrB; jahr += schritt) teile.push(achsenText(x(`${jahr}-01-01`), hoehe - 6, String(jahr)));
+  const schritt = Math.max(1, Math.ceil((jahrB - jahrA) / 12));
+  for (let jahr = jahrA + 1; jahr <= jahrB; jahr += schritt) teile.push(achsenText(x(`${jahr}-01-01`), hoehe - 8, String(jahr)));
   teile.push(linie(plan, "restschuld-plan"), linie(ist, "restschuld-ist"));
   const marker = (iso, klasse, text, zeile) => {
     if (!iso || iso < punkte[0].datum || iso > punkte.at(-1).datum) return "";
-    return `<line x1="${runde(x(iso))}" x2="${runde(x(iso))}" y1="${oben}" y2="${hoehe - unten}" class="${klasse}" />${achsenText(x(iso) + 4, 12 + zeile * 12, text, "start")}`;
+    return `<line x1="${runde(x(iso))}" x2="${runde(x(iso))}" y1="${oben}" y2="${hoehe - unten}" class="${klasse}" />${achsenText(x(iso) + 4, 12 + zeile * 14, text, "start")}`;
   };
   teile.push(marker(heute, "marker-heute", labels.heute ?? "heute", 0));
   teile.push(marker(zinsbindungBis, "marker-zinsbindung", labels.zinsbindung ?? "Zinsbindung", 1));
   for (const b of belegte) {
     if (b.datum < punkte[0].datum || b.datum > punkte.at(-1).datum) continue;
-    teile.push(`<circle cx="${runde(x(b.datum))}" cy="${runde(y(b.wert_cents))}" r="4" class="restschuld-beleg"><title>${esc(`${b.datum}: ${formatWert(b.wert_cents)}`)}</title></circle>`);
+    teile.push(`<circle cx="${runde(x(b.datum))}" cy="${runde(y(b.wert_cents))}" r="4" class="restschuld-beleg" />`);
   }
-  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}">${teile.join("")}</svg>`;
+  const spalten = punkte.map((p) => {
+    const zeilen = [{ klasse: p.datum <= heute ? "restschuld" : "restschuld-plan", label: p.datum <= heute ? (labels.restschuld ?? "Restschuld") : (labels.restschuldPlan ?? "Restschuld (Plan)"), wert: formatWert(p.wert_cents) }];
+    if (p.tilgung_cents != null) zeilen.push({ klasse: "tilgung", label: labels.tilgung ?? "Tilgung", wert: formatWert(p.tilgung_cents) });
+    if (p.zins_cents != null) zeilen.push({ klasse: "zins", label: labels.zins ?? "Zins", wert: formatWert(p.zins_cents) });
+    const beleg = belegte.find((b) => b.datum === p.datum);
+    if (beleg) zeilen.push({ klasse: "beleg", label: labels.beleg ?? "Belegt", wert: formatWert(beleg.wert_cents) });
+    return { x: Math.round(x(p.datum)), titel: formatDatum(p.datum), zeilen };
+  });
+  const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };
+  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(spalten, plot)}>${teile.join("")}</svg>`;
 }
 
 // --- Saldo-Diagramm (Liquiditaet) ------------------------------------------

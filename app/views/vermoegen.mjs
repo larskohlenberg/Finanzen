@@ -1,5 +1,5 @@
 // app/views/vermoegen.mjs
-// Vermoegensseite: Kopf (Nettovermoegen, offene Punkte) ueber allen Tabs, darunter
+// Vermoegensseite: Kopf (Nettovermoegen) ueber allen Tabs, darunter
 // je Klasse ein Tab (Uebersicht, Konten & Depots, Immobilien, Darlehen, Sonstige
 // Werte). Vorsorge hat keinen Tab: die Vorsorge-Seite traegt die Details, hier
 // steht nur der Verweis. Immobilien und Darlehen rendert vermoegen-objekte.mjs.
@@ -12,17 +12,9 @@ import { VERMOEGEN_TABS, TAB_FUER_KLASSE } from "../vermoegen-routen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { renderImmobilienTab, renderDarlehenTab } from "./vermoegen-objekte.mjs";
 import { balkenSvg, geld, qualitaetChip, rateJeMonatCents, renderPositionWertstaende, tf } from "./vermoegen-teile.mjs";
+import { renderWertstaendeTabelle } from "./vermoegen-wertstaende.mjs";
 
 const KLASSEN = ["konto", "immobilie", "darlehen", "vermoegenswert", "vorsorge"];
-
-// Worst-of-Badge: traegt die schlechteste Qualitaet aller Positionen als eine
-// ehrliche Gesamtaussage (belegt < geschaetzt < offen). Quelle: vermoegen.mjs.
-function gesamtQualitaetChip(gesamt) {
-  if (!gesamt) return "";
-  const stil = { belegt: ["success", "success", "Belegt"], geschaetzt: ["neutral", null, "Geschaetzt"], offen: ["review", "review", "Offen"] };
-  const [cls, icon, wort] = stil[gesamt];
-  return `<span class="chip ${cls}">${icon ? iconSvg(icon) : ""}${escapeHtml(t("vermoegen.qualityOverall"))}: ${escapeHtml(t(`vermoegen.quality${wort}`))}</span>`;
-}
 
 // Je Klasse: Summe, Anzahl, fehlende Positionen und Objekte mit offenen Checks.
 function klassenUebersicht(r, checks) {
@@ -91,20 +83,6 @@ function renderKopf(r, je) {
     .map((k) => `<span><i class="segment-${k}"></i>${escapeHtml(t(`vermoegen.klassePlural.${k}`))} ${escapeHtml(formatMoney(je[k].summe))}</span>`)
     .join("");
 
-  const luecken = KLASSEN
-    .filter((k) => je[k].offen.size)
-    .map((k) => {
-      const arten = [...je[k].arten].map((a) => t(`vermoegen.checkArt.${a}`));
-      if (je[k].fehlend && !je[k].arten.size) arten.push(t("vermoegen.ohneWert"));
-      return `
-        <li>
-          <button class="linkish" ${tabZiel(k)}>${escapeHtml(t(`vermoegen.klassePlural.${k}`))}</button>:
-          ${escapeHtml(tf("vermoegen.offenAnzahl", { n: je[k].offen.size }))}
-          <span class="muted">(${escapeHtml(arten.join(", "))})</span>
-        </li>`;
-    })
-    .join("");
-
   return `
     <div class="vermoegen-kopf">
       <section class="panel panel-pad">
@@ -114,18 +92,6 @@ function renderKopf(r, je) {
         ${balkenSvg(segmente)}
         ${balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(r.passiva_cents)}` }], { laenge: r.passiva_cents / aktiva })}
         <div class="vermoegen-legende">${legende}</div>
-      </section>
-      <section class="panel panel-pad">
-        <div class="panel-kopf">
-          <div class="muted">${escapeHtml(t("vermoegen.qualitaetTitle"))}</div>
-          ${gesamtQualitaetChip(r.qualitaet.gesamt)}
-        </div>
-        <div class="chip-zeile">
-          <span class="chip success">${iconSvg("success")}${r.qualitaet.belegt} ${escapeHtml(t("vermoegen.qualityBelegt"))}</span>
-          <span class="chip neutral">${r.qualitaet.geschaetzt} ${escapeHtml(t("vermoegen.qualityGeschaetzt"))}</span>
-          ${r.qualitaet.fehlend > 0 ? `<span class="chip review">${iconSvg("review")}${r.qualitaet.fehlend} ${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : ""}
-        </div>
-        ${luecken ? `<ul class="luecken-liste">${luecken}</ul>` : `<p class="muted">${escapeHtml(t("vermoegen.keineLuecken"))}</p>`}
       </section>
     </div>`;
 }
@@ -153,17 +119,15 @@ function renderTabs(aktiv, je) {
 
 // ------------------------------------------------------------- Rail (Konten, Sonstige, Wertstaende)
 
-function mitRail(inhalt, railHtml, titel, { breitSchalter = false } = {}) {
+function mitRail(inhalt, railHtml, titel) {
   if (!railHtml || state.vermoegenDetailRailClosed) return inhalt;
-  const railWide = breitSchalter && state.vermoegenRailWide;
   return `
-    <div class="layout-with-rail ${railWide ? "rail-wide" : ""}">
+    <div class="layout-with-rail">
       <div class="stack">${inhalt}</div>
       <aside class="panel panel-pad detail-panel">
         <div class="detail-head">
           <h2 class="section-title">${escapeHtml(titel)}</h2>
           <div class="detail-actions">
-            ${breitSchalter ? `<button class="icon-button" data-action="toggle-vermoegen-rail-width" aria-label="${escapeHtml(railWide ? t("vermoegen.railNarrow") : t("vermoegen.railWide"))}" title="${escapeHtml(railWide ? t("vermoegen.railNarrow") : t("vermoegen.railWide"))}">${iconSvg(railWide ? "chevronRight" : "chevronLeft")}</button>` : ""}
             <button class="icon-button" data-action="close-vermoegen-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
           </div>
         </div>
@@ -213,17 +177,9 @@ function renderUebersichtTab(r, je, today) {
     karte("vorsorge", tf("vermoegen.karte.vorsorge", { mit: mitWert, gesamt: kapitalbildend.length }), `<div class="kpi-note">${escapeHtml(t("vermoegen.karte.vorsorgeHinweis"))}</div>`),
   ].join("");
 
-  const inhalt = `
-    <div class="tile-grid klassen-karten">${karten}</div>
-    <section class="panel panel-pad section-spacing">
-      <div class="panel-kopf">
-        <h2 class="section-title">${escapeHtml(t("vermoegen.wertstaende"))}</h2>
-        <button class="linkish" data-action="show-vermoegen-wertstaende">${escapeHtml(tf("vermoegen.alleWertstaendeAnzahl", { n: data.zeitwerte?.length ?? 0 }))}</button>
-      </div>
-      <p class="muted">${escapeHtml(t("vermoegen.wertstaendeLead"))}</p>
-    </section>`;
-  const rail = state.vermoegenRailMode === "wertstaende" ? renderWertstaendeRail() : "";
-  return mitRail(inhalt, rail, t("vermoegen.wertstaende"), { breitSchalter: true });
+  return `
+    <div class="klassen-karten">${karten}</div>
+    ${renderWertstaendeTabelle()}`;
 }
 
 // ------------------------------------------------------------- Konten & Depots
@@ -231,7 +187,6 @@ function renderUebersichtTab(r, je, today) {
 function renderKontenTab(r, today) {
   const p = ausgewaehltePosition(r, "konto");
   const inhalt = `<div class="stack">${renderAccountPanels({ rowAction: "select-vermoegen-konto" })}</div>`;
-  if (state.vermoegenRailMode === "wertstaende") return mitRail(inhalt, renderWertstaendeRail(), t("vermoegen.wertstaende"), { breitSchalter: true });
   if (!p) return inhalt;
   const konto = kontenById.get(p.id);
   const verlauf = konto ? kontoSaldoVerlauf(data, konto, today) : [];
@@ -279,50 +234,6 @@ function renderSonstigeTab(r, today) {
     </section>`;
   const p = ausgewaehltePosition(r, "vermoegenswert");
   return p ? mitRail(inhalt, renderVermoegenDetail(p, today), t("vermoegen.detailTitle")) : inhalt;
-}
-
-// ------------------------------------------------------------- Wertstaende (Rail)
-
-function entityLabel(entitaet, entitaetId) {
-  if (entitaet === "konto") return kontenById.get(entitaetId)?.name || entitaetId;
-  if (entitaet === "immobilie") return data.immobilien?.find((i) => i.immobilie_id === entitaetId)?.bezeichnung || entitaetId;
-  if (entitaet === "vermoegenswert") return data.vermoegenswerte?.find((v) => v.vermoegenswert_id === entitaetId)?.bezeichnung || entitaetId;
-  if (entitaet === "darlehen") return data.darlehen?.find((d) => d.darlehen_id === entitaetId)?.bezeichnung || entitaetId;
-  return entitaetId;
-}
-
-function zeitwertLabel(zw) {
-  const fieldKey = `vermoegen.feld.${zw.feld}`;
-  const field = t(fieldKey) === fieldKey ? zw.feld : t(fieldKey);
-  return `${entityLabel(zw.entitaet, zw.entitaet_id)} · ${field}`;
-}
-
-function renderWertstaendeRail() {
-  const rows = (data.zeitwerte ?? [])
-    .slice()
-    .sort((a, b) => b.standdatum.localeCompare(a.standdatum) || zeitwertLabel(a).localeCompare(zeitwertLabel(b)))
-    .map((zw) => `
-      <tr>
-        <td>${escapeHtml(zeitwertLabel(zw))}<br><span class="muted">${escapeHtml(zw.entitaet_id)}</span></td>
-        <td>${escapeHtml(formatDate(zw.standdatum))}</td>
-        <td class="amount">${escapeHtml(formatMoney(cents(zw.wert)))}</td>
-        <td>${qualitaetChip({ qualitaet: zw.qualitaet, fehlt: false })}</td>
-        <td>${zw.quelle_hinweis ? quelleHtml(zw.quelle_hinweis) : "—"}</td>
-      </tr>`).join("");
-  return `
-    <p class="page-lead">${escapeHtml(t("vermoegen.wertstaendeLead"))}</p>
-    <div class="table-wrap wertstaende-table">
-      <table>
-        <thead><tr>
-          <th>${escapeHtml(t("vermoegen.position"))}</th>
-          <th>${escapeHtml(t("vermoegen.stand"))}</th>
-          <th class="amount">${escapeHtml(t("vermoegen.wert"))}</th>
-          <th>${escapeHtml(t("vermoegen.qualitaetHead"))}</th>
-          <th>${escapeHtml(t("transactions.rawSource"))}</th>
-        </tr></thead>
-        <tbody>${rows || `<tr><td colspan="5" class="muted">${escapeHtml(t("vermoegen.noWertstaende"))}</td></tr>`}</tbody>
-      </table>
-    </div>`;
 }
 
 // ------------------------------------------------------------- Detail einer Position (Konto, Sonstige)

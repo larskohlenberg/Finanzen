@@ -5,6 +5,7 @@ import { routeFromState, parseRoute } from "./routing.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
 import { TAB_FUER_KLASSE } from "./vermoegen-routen.mjs";
 import { renderVorsorge, setVorsorgeFilter, resetVorsorgeFilters, toggleVorsorgeSort } from "./views/vorsorge.mjs";
+import { setWertstaendeFilter, resetWertstaendeFilters, toggleWertstaendeSort } from "./views/vermoegen-wertstaende.mjs";
 import { renderSzenarien } from "./views/szenarien.mjs";
 import { renderTransactions, filteredTransactions, transactionPageForId, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
@@ -26,6 +27,7 @@ import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
 import { bindDiagrammHover } from "./diagramm-hover.mjs";
+import { anwendenBaumBreite, bindBelegeTrenner } from "./belege-trenner.mjs";
 import { versionAnzeige, ladeVersion } from "./version.mjs";
 import {
   AKTIVITAETS_EREIGNISSE, PRUEF_INTERVALL_MS, erstelleSitzungswaechter, ladeSitzungKonfig, zielNachSperre,
@@ -49,7 +51,7 @@ function applyTheme() {
 const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
   "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
-  "data-tab", "data-vorsorge-sort", "data-vorsorge-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
+  "data-tab", "data-vorsorge-sort", "data-vorsorge-filter", "data-wertstaende-sort", "data-wertstaende-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
   "data-rule", "data-regel-sort", "data-next-action-type", "data-vorsorge",
   "data-beleg", "data-beleg-sort", "data-beleg-ordner",
 ];
@@ -154,6 +156,7 @@ function render() {
     ${renderTabbar()}
   `;
   restoreScroll(scrollSnap);
+  anwendenBaumBreite(app);
   restoreFocus(focusSnap);
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
@@ -176,8 +179,6 @@ function oeffneVermoegenObjekt(schluessel) {
   state.vermoegenTab = TAB_FUER_KLASSE[klasse] ?? "uebersicht";
   state.selectedVermoegenId = TAB_FUER_KLASSE[klasse] && id ? `${klasse}:${id}` : "";
   if (klasse === "konto") state.selectedKonto = id || "";
-  state.vermoegenRailMode = "position";
-  state.vermoegenRailWide = false;
   state.vermoegenDetailRailClosed = false;
   commitNavigation();
 }
@@ -457,6 +458,13 @@ app.addEventListener("click", guard((event) => {
     return;
   }
 
+  const wertstaendeSort = event.target.closest("[data-wertstaende-sort]");
+  if (wertstaendeSort) {
+    toggleWertstaendeSort(wertstaendeSort.dataset.wertstaendeSort);
+    render();
+    return;
+  }
+
   const vorsorgeSort = event.target.closest("[data-vorsorge-sort]");
   if (vorsorgeSort) {
     toggleVorsorgeSort(vorsorgeSort.dataset.vorsorgeSort);
@@ -517,7 +525,7 @@ app.addEventListener("click", guard((event) => {
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
-const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vorsorge-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vorsorge-sort], [data-wertstaende-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
 app.addEventListener("keydown", guard((event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
@@ -541,6 +549,12 @@ app.addEventListener("input", guard((event) => {
   const vorsorgeFilter = event.target.closest("input[data-vorsorge-filter]");
   if (vorsorgeFilter) {
     setVorsorgeFilter(vorsorgeFilter.dataset.vorsorgeFilter, vorsorgeFilter.value);
+    render();
+    return;
+  }
+  const wertstaendeFilter = event.target.closest("input[data-wertstaende-filter]");
+  if (wertstaendeFilter) {
+    setWertstaendeFilter(wertstaendeFilter.dataset.wertstaendeFilter, wertstaendeFilter.value);
     render();
     return;
   }
@@ -615,6 +629,13 @@ app.addEventListener("change", guard((event) => {
     setVorsorgeFilter(vorsorgeFilter.dataset.vorsorgeFilter, vorsorgeFilter.value);
     state.view = "vorsorge";
     render();
+    return;
+  }
+
+  const wertstaendeFilter = event.target.closest("select[data-wertstaende-filter]");
+  if (wertstaendeFilter) {
+    setWertstaendeFilter(wertstaendeFilter.dataset.wertstaendeFilter, wertstaendeFilter.value);
+    render();
   }
 }, setUiError, "change"));
 
@@ -647,6 +668,7 @@ for (const typ of ["dragover", "drop"]) {
 
 // Diagramm-Hover: delegierter pointermove-Handler auf dem App-Container.
 bindDiagrammHover(app);
+bindBelegeTrenner(app);
 
 async function copyNextAgentPrompt(type = "") {
   const nextActionActions = buildNextAgentActions(data);
@@ -919,12 +941,6 @@ async function handleAction(element) {
     commitNavigation();
     return;
   }
-  if (action === "toggle-vermoegen-rail-width") {
-    state.vermoegenRailWide = !state.vermoegenRailWide;
-    state.vermoegenDetailRailClosed = false;
-    commitNavigation();
-    return;
-  }
   if (action === "page-first" || action === "page-prev" || action === "page-next" || action === "page-last" || action === "page-jump") {
     state.view = "transactions";
     if (action === "page-first") state.transactionPage = 1;
@@ -955,8 +971,6 @@ async function handleAction(element) {
   if (action === "select-vermoegen") {
     state.selectedVermoegenId = element.dataset.vermoegen;
     state.vermoegenTab = TAB_FUER_KLASSE[String(element.dataset.vermoegen).split(":")[0]] ?? state.vermoegenTab;
-    state.vermoegenRailMode = "position";
-    state.vermoegenRailWide = false;
     state.vermoegenDetailRailClosed = false;
     commitNavigation();
     return;
@@ -1018,13 +1032,24 @@ async function handleAction(element) {
     return;
   }
   if (action === "show-vermoegen-wertstaende") {
-    // Die Gesamtliste der Wertstaende sitzt als Rail an der Uebersicht bzw. den Konten.
-    if (state.vermoegenTab !== "konten") state.vermoegenTab = "uebersicht";
+    // Die Gesamtliste der Wertstaende steht als Tabelle auf der Uebersicht; gefiltert auf das Objekt.
+    state.view = "vermoegen";
+    state.vermoegenTab = "uebersicht";
     state.selectedVermoegenId = "";
-    state.vermoegenRailMode = "wertstaende";
-    state.vermoegenRailWide = true;
-    state.vermoegenDetailRailClosed = false;
+    resetWertstaendeFilters();
+    setWertstaendeFilter("search", element.dataset.entity || "");
     commitNavigation();
+    document.getElementById("vermoegen-wertstaende")?.scrollIntoView({ block: "start" });
+    return;
+  }
+  if (action === "clear-wertstaende-filter") {
+    setWertstaendeFilter(element.dataset.filterName, "");
+    render();
+    return;
+  }
+  if (action === "reset-wertstaende-filters") {
+    resetWertstaendeFilters();
+    render();
     return;
   }
   if (action === "clear-vorsorge-filter") {
@@ -1041,8 +1066,6 @@ async function handleAction(element) {
     state.view = "vermoegen";
     state.vermoegenTab = element.dataset.tab || "uebersicht";
     state.selectedVermoegenId = "";
-    state.vermoegenRailMode = "position";
-    state.vermoegenRailWide = false;
     state.vermoegenDetailRailClosed = false;
     commitNavigation();
     return;
@@ -1101,8 +1124,6 @@ function snapshotState() {
     selectedVorsorgeId: state.selectedVorsorgeId,
     selectedSzenarioId: state.selectedSzenarioId,
     selectedBeleg: state.selectedBeleg,
-    vermoegenRailMode: state.vermoegenRailMode,
-    vermoegenRailWide: state.vermoegenRailWide,
   };
 }
 
@@ -1120,8 +1141,6 @@ function restoreState(snapshot) {
   state.selectedVorsorgeId = snapshot.selectedVorsorgeId || "";
   state.selectedSzenarioId = snapshot.selectedSzenarioId || "";
   state.selectedBeleg = snapshot.selectedBeleg || "";
-  state.vermoegenRailMode = snapshot.vermoegenRailMode || "position";
-  state.vermoegenRailWide = Boolean(snapshot.vermoegenRailWide);
 }
 
 // Neuer History-Eintrag nur bei echtem View-Wechsel. Zustandsaenderungen
@@ -1178,8 +1197,6 @@ function applyRoute(route) {
     state.vermoegenTab = route.vermoegenTab || "uebersicht";
     state.selectedVermoegenId = route.selectedVermoegenId || "";
     if (state.selectedVermoegenId.startsWith("konto:")) state.selectedKonto = state.selectedVermoegenId.slice("konto:".length);
-    state.vermoegenRailMode = "position";
-    state.vermoegenRailWide = false;
     state.vermoegenDetailRailClosed = false;
   }
   if (route.view === "vorsorge") {

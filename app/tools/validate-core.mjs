@@ -236,7 +236,7 @@ const schemas = {
     fields: {
       entitaet: { type: "string", enum: ["konto", "immobilie", "vermoegenswert", "darlehen", "vorsorge"] },
       entitaet_id: { type: "string", minLength: 1 },
-      feld: { type: "string", enum: ["kontostand", "depotwert", "marktwert", "restschuld", "rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung"] },
+      feld: { type: "string", enum: ["kontostand", "depotwert", "marktwert", "restschuld", "rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "vertragswert"] },
       wert: { type: "string", money: true },
       standdatum: { type: "string", format: "date" },
       qualitaet: { type: "string", enum: ["belegt", "geschaetzt"] },
@@ -527,7 +527,7 @@ function validateCrossFieldRules(data, errors) {
     immobilie: ["marktwert"],
     vermoegenswert: ["marktwert"],
     darlehen: ["restschuld"],
-    vorsorge: ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung"],
+    vorsorge: ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "vertragswert"],
   };
   data.zeitwerte?.forEach((zw, i) => {
     const map = zeitwertEntitaeten[zw.entitaet];

@@ -5,6 +5,7 @@ import { formatMoney, formatDate, renderPageHead, renderTableFilters, detailRow,
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert } from "../vermoegen.mjs";
 import { matchesQuery } from "../tools/lib/text.mjs";
+import { dokumenteHtml } from "./vermoegen-teile.mjs";
 
 const VORSORGE_ARTEN = ["lebensversicherung", "rentenversicherung", "gesetzliche-rente", "betriebsrente", "riester", "ruerup", "schutzversicherung", "sonstig"];
 const VORSORGE_STATUS = ["aktiv", "gekuendigt", "ruhend", "geplant", "laufend", "beendet"];
@@ -133,19 +134,28 @@ function vorsorgeBadges(vs) {
   `;
 }
 
+// Vertragswert: Guthaben laut Versicherer/Portal, nie im Nettovermoegen.
+function vertragswertHtml(vs) {
+  const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "vertragswert");
+  if (!zw) return "";
+  return `<div class="muted">${escapeHtml(t("vorsorge.vertragswert"))} · ${escapeHtml(formatMoney(cents(zw.wert)))} · ${escapeHtml(formatDate(zw.standdatum))}</div>`;
+}
+
 function wertHtml(vs) {
   const zw = vorsorgeWert(vs);
-  if (!zw) return `<span class="muted">—</span>`;
+  if (!zw) return vertragswertHtml(vs) || `<span class="muted">—</span>`;
   if (vs.kapitalbildend) {
     return `
       <strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong>
       <div class="muted">${escapeHtml(t("vorsorge.rueckkaufswert"))} · ${escapeHtml(formatDate(zw.standdatum))}</div>
+      ${vertragswertHtml(vs)}
     `;
   }
   const labelKey = zw.feld === "erwartete_rente" ? "vorsorge.erwarteteRente" : "vorsorge.erwarteteKapitalleistung";
   return `
     <strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong>
     <div class="muted">${escapeHtml(t(labelKey))} · ${escapeHtml(t("vorsorge.anwartschaft"))} · ${escapeHtml(formatDate(zw.standdatum))}</div>
+    ${vertragswertHtml(vs)}
   `;
 }
 
@@ -303,11 +313,12 @@ export function renderVorsorgeDetail(vs) {
     ${vs.bemerkung ? detailRow(t("vorsorge.bemerkung"), escapeHtml(vs.bemerkung)) : ""}
     ${renderErwarteteBeitraege(beitraege)}
     ${renderGebuchteBeitraege(gebuchte)}
+    ${detailRow(t("vermoegen.dokumente.titel"), dokumenteHtml([vs.vorsorge_id]))}
   `;
 }
 
 function aktuelleVorsorgeZeitwerte(vorsorgeId) {
-  return ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung"]
+  return ["rueckkaufswert", "vertragswert", "erwartete_rente", "erwartete_kapitalleistung"]
     .map((feld) => aktuellerZeitwert(data.zeitwerte, "vorsorge", vorsorgeId, feld))
     .filter(Boolean);
 }
@@ -326,6 +337,7 @@ function renderVorsorgeZeitwerte(zeitwerte) {
   if (!zeitwerte.length) return "";
   const feldLabel = {
     rueckkaufswert: t("vorsorge.rueckkaufswert"),
+    vertragswert: `${t("vorsorge.vertragswert")} (${t("vorsorge.nichtImVermoegen")})`,
     erwartete_rente: t("vorsorge.erwarteteRente"),
     erwartete_kapitalleistung: t("vorsorge.erwarteteKapitalleistung"),
   };
@@ -334,6 +346,7 @@ function renderVorsorgeZeitwerte(zeitwerte) {
       <strong>${escapeHtml(feldLabel[zw.feld] || zw.feld)}</strong>
       <span>${escapeHtml(formatMoney(cents(zw.wert)))}</span>
       <span class="muted">${escapeHtml(formatDate(zw.standdatum))} · ${escapeHtml(t(`vorsorge.qualitaet.${zw.qualitaet}`))}</span>
+      ${zw.quelle_hinweis ? `<span class="muted">${quelleHtml(zw.quelle_hinweis)}</span>` : ""}
     </div>`).join("");
   return detailRow(t("vorsorge.zeitwerte"), `<div class="rail-list">${rows}</div>`);
 }

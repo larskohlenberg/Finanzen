@@ -198,8 +198,9 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
             : konto.kontoreferenz
               ? t("labels.accountStatusMissing")
               : t("labels.referenceMissing");
-      const chipClass = !hatWert || zeile.veraltet ? "review" : zeile.qualitaet === "belegt" ? "success" : "neutral";
-      const chipIcon = chipClass;
+      // Rot = kein Beleg (fehlt im Nettovermoegen), Gelb = belegt, aber veraltet.
+      const chipClass = !hatWert ? "danger" : zeile.veraltet ? "review" : zeile.qualitaet === "belegt" ? "success" : "neutral";
+      const chipIcon = chipClass === "danger" ? "review" : chipClass;
       const selectableAttrs = rowAction === "select-master-account"
         ? ` tabindex="0" role="button" aria-label="${escapeHtml(konto.name)}"`
         : "";

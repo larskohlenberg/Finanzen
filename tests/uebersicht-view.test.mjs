@@ -90,7 +90,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.match(zeile("KTO-901"), /15\.9\.2026/);
   assert.doesNotMatch(zeile("KTO-901"), /noch nicht belegt/);
 
-  assert.match(zeile("KTO-902"), /Depotwert noch nicht belegt/);
+  assert.match(zeile("KTO-902"), /chip danger[\s\S]*Depotwert noch nicht belegt/);
 
   assert.match(zeile("KTO-903"), /1\.150,00/);
   assert.doesNotMatch(zeile("KTO-903"), /-4\.050,00|−4\.050,00/);
@@ -98,5 +98,6 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.doesNotMatch(html, /Letzte Buchung/);
   assert.doesNotMatch(zeile("KTO-903"), /noch nicht belegt/);
 
-  assert.match(zeile("KTO-904"), /Kontostand noch nicht belegt/);
+  assert.match(zeile("KTO-904"), /chip danger[\s\S]*Kontostand noch nicht belegt/);
+  assert.match(zeile("KTO-903"), /chip review/);
 });

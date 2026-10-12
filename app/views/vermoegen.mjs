@@ -1,8 +1,8 @@
 // app/views/vermoegen.mjs
 // Vermoegensseite: Kopf (Nettovermoegen) ueber allen Tabs, darunter
 // je Klasse ein Tab (Uebersicht, Konten & Depots, Immobilien, Darlehen, Sonstige
-// Werte). Vorsorge hat keinen Tab: die Vorsorge-Seite traegt die Details, hier
-// steht nur der Verweis. Immobilien und Darlehen rendert vermoegen-objekte.mjs.
+// Werte). Vorsorge hat nur einen Verweis-Reiter auf die Vorsorge-Seite, die die
+// Details traegt. Immobilien und Darlehen rendert vermoegen-objekte.mjs.
 import { data, state, t, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie } from "../komponenten.mjs";
@@ -114,7 +114,13 @@ function renderTabs(aktiv, je) {
         <span class="vermoegen-tab-unter">${escapeHtml(unter)}</span>
       </button>`;
   }).join("");
-  return `<div class="vermoegen-tabs" role="tablist" aria-label="${escapeHtml(t("vermoegen.title"))}">${knoepfe}</div>`;
+  // Vorsorge hat keinen eigenen Tab-Inhalt: der Reiter fuehrt auf die Vorsorge-Seite.
+  const vorsorge = `
+      <button class="vermoegen-tab vermoegen-tab-verweis" data-view="vorsorge" title="${escapeHtml(t("vermoegen.tabVorsorgeHinweis"))}">
+        <span class="vermoegen-tab-titel">${escapeHtml(t("vermoegen.klassePlural.vorsorge"))}${iconSvg("chevronRight")}</span>
+        <span class="vermoegen-tab-unter">${escapeHtml(`${je.vorsorge.anzahl} · ${formatMoney(je.vorsorge.summe)}`)}</span>
+      </button>`;
+  return `<div class="vermoegen-tabs" role="tablist" aria-label="${escapeHtml(t("vermoegen.title"))}">${knoepfe}${vorsorge}</div>`;
 }
 
 // ------------------------------------------------------------- Rail (Konten, Sonstige, Wertstaende)

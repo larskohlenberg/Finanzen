@@ -2769,6 +2769,8 @@ a.linkish {
   background: var(--bg);
 }
 .vermoegen-tab-titel { color: var(--text); font-weight: 600; }
+.vermoegen-tab-verweis .vermoegen-tab-titel { display: inline-flex; align-items: center; gap: 2px; }
+.vermoegen-tab-verweis .icon { width: 14px; height: 14px; color: var(--muted); }
 .vermoegen-tab.active .vermoegen-tab-titel { color: var(--accent); }
 .vermoegen-tab-unter { font-size: 12px; font-variant-numeric: tabular-nums; }
 .tab-punkt {

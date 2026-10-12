@@ -106,19 +106,21 @@ function renderTabs(aktiv, je) {
   ];
   const knoepfe = tabs.map(([tab, klasse]) => {
     const e = klasse ? je[klasse] : null;
-    const unter = e ? `${e.anzahl} · ${formatMoney(e.summe)}` : t("vermoegen.tabUebersichtUnter");
+    // Anzahl vor dem Titel ("4 Immobilien"), darunter nur die Summe.
+    const titel = e ? `${e.anzahl} ${t(`vermoegen.tabs.${tab}`)}` : t(`vermoegen.tabs.${tab}`);
+    const unter = e ? formatMoney(e.summe) : t("vermoegen.tabUebersichtUnter");
     const punkt = e && e.offen.size ? `<span class="tab-punkt" title="${escapeHtml(tf("vermoegen.offenAnzahl", { n: e.offen.size }))}"></span>` : "";
     return `
       <button class="vermoegen-tab ${tab === aktiv ? "active" : ""}" role="tab" aria-selected="${tab === aktiv}" aria-controls="vermoegen-tab-${tab}" data-action="vermoegen-tab" data-tab="${tab}">
-        <span class="vermoegen-tab-titel">${escapeHtml(t(`vermoegen.tabs.${tab}`))}${punkt}</span>
+        <span class="vermoegen-tab-titel">${escapeHtml(titel)}${punkt}</span>
         <span class="vermoegen-tab-unter">${escapeHtml(unter)}</span>
       </button>`;
   }).join("");
   // Vorsorge hat keinen eigenen Tab-Inhalt: der Reiter fuehrt auf die Vorsorge-Seite.
   const vorsorge = `
       <button class="vermoegen-tab vermoegen-tab-verweis" data-view="vorsorge" title="${escapeHtml(t("vermoegen.tabVorsorgeHinweis"))}">
-        <span class="vermoegen-tab-titel">${escapeHtml(t("vermoegen.klassePlural.vorsorge"))}${iconSvg("chevronRight")}</span>
-        <span class="vermoegen-tab-unter">${escapeHtml(`${je.vorsorge.anzahl} · ${formatMoney(je.vorsorge.summe)}`)}</span>
+        <span class="vermoegen-tab-titel">${escapeHtml(`${je.vorsorge.anzahl} ${t("vermoegen.klassePlural.vorsorge")}`)}${iconSvg("chevronRight")}</span>
+        <span class="vermoegen-tab-unter">${escapeHtml(formatMoney(je.vorsorge.summe))}</span>
       </button>`;
   return `<div class="vermoegen-tabs" role="tablist" aria-label="${escapeHtml(t("vermoegen.title"))}">${knoepfe}${vorsorge}</div>`;
 }

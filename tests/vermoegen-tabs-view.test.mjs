@@ -49,7 +49,8 @@ test("Tab-Leiste: vier Tabs, Vorsorge nur als Verweis, Sonstige nur mit aktiven 
 
 test("Kopf ohne Datenqualitaets-Kachel; offener Punkt an Tab und Klassenkarte", () => {
   mitDaten({ darlehen: [darlehen("DAR-001")] }, {}, (html) => {
-    assert.match(html, /data-tab="darlehen">\s*<span class="vermoegen-tab-titel">Darlehen<span class="tab-punkt"/);
+    assert.match(html, /data-tab="darlehen">\s*<span class="vermoegen-tab-titel">1 Darlehen<span class="tab-punkt"/);
+    assert.match(html, /<span class="vermoegen-tab-titel">0 Immobilien<\/span>\s*<span class="vermoegen-tab-unter">0,00\s€<\/span>/);
     assert.match(html, /class="tile klassen-karte" data-action="vermoegen-tab" data-tab="darlehen">[\s\S]*?1 offen/);
     assert.doesNotMatch(html, /Datenqualität|luecken-liste/);
   });

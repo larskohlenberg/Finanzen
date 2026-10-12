@@ -59,8 +59,11 @@ Vorschlagen ist Agent-Urteil, Matchen und Rechnen ist Tool (ADR 0003, 0010).
 
 ## Arbeitsweise
 
-- **Feature-Branch ja, gemerged wird von Lars.** Quellcode und Doku duerfen
-  ohne Rueckfrage committet werden; nur Echtdaten sind tabu.
+- **Feature-Branch und PR, gemerged wird vom Agenten.** Lars merged nicht
+  selbst. Auf seine Ansage ("merge", "deploy", "aktualisier die VM") fuehrt der
+  Agent den ganzen Weg aus: PR mergen (`gh pr merge <nr> --merge`, immer mit
+  Nummer), dann `ssh finanzen-vm sudo finanzen-aktualisieren`. Quellcode und
+  Doku duerfen ohne Rueckfrage committet werden; nur Echtdaten sind tabu.
 - **Commits auf Deutsch, ohne Umlaute** (`ue`, `ae`, `oe`, `ss`).
 - **Kategorisieren ohne Vorab-Bestaetigung.** Regeln nur mit Beleg; was ohne
   Beleg bleibt, schaetzt der Agent als Einzelvorschlag und gibt es frei

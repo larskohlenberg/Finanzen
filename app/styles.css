@@ -2011,7 +2011,8 @@ tr.clickable.selected td:first-child {
 .diagramm-hover-linie {
   position: absolute;
   width: 0;
-  border-left: 1px dashed var(--border-strong);
+  /* Kraeftig genug fuer weisse Diagrammflaechen (Light Mode), nicht nur auf Grau. */
+  border-left: 1.5px solid var(--muted);
   transform: translateX(-50%);
 }
 

@@ -6,7 +6,7 @@ import { iconSvg } from "./icons.js";
 import { linienDiagramm } from "./charts.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
 import { formatIban } from "./tools/lib/text.mjs";
-import { accountBalance, overviewAccountStandDate, sortedOverviewAccounts } from "./selektoren.mjs";
+import { overviewAccountRow, sortedOverviewAccounts } from "./selektoren.mjs";
 import { belegTextHtml } from "./belege.mjs";
 
 export function formatMoney(amountInCents) {
@@ -168,9 +168,9 @@ export function renderAccountTable({ showId = false, rowAction = "account-transa
             <th>${escapeHtml(t("labels.accountReference"))}</th>
             <th>${escapeHtml(t("labels.owner"))}</th>
             <th>${escapeHtml(t("labels.type"))}</th>
-            <th>${escapeHtml(t("labels.stand"))}</th>
-            <th class="amount">${escapeHtml(t("labels.loadedBalance"))}</th>
-            <th>${escapeHtml(t("labels.status"))}</th>
+            <th>${escapeHtml(t("labels.lastBooking"))}</th>
+            <th class="amount" title="${escapeHtml(t("labels.valueTodayHint"))}">${escapeHtml(t("labels.valueToday"))}</th>
+            <th>${escapeHtml(t("labels.evidence"))}</th>
           </tr>
         </thead>
         <tbody>
@@ -185,17 +185,23 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
   return accounts
     .map((konto) => {
       const isDepot = konto.kontotyp === "depot";
-      const latestDate = overviewAccountStandDate(konto);
-      const balanceCell = isDepot
-        ? `<span class="muted">—</span>`
-        : escapeHtml(formatMoney(accountBalance(konto.konto_id)));
-      const status = isDepot
-        ? t("labels.depotValueMissing")
-        : konto.kontoreferenz
-          ? t("labels.accountStatusMissing")
-          : t("labels.referenceMissing");
-      const chipClass = isDepot ? "neutral" : konto.kontoreferenz ? "neutral" : "review";
-      const chipIcon = isDepot || konto.kontoreferenz ? "neutral" : "review";
+      const zeile = overviewAccountRow(konto);
+      const hatWert = zeile.wert_cents !== null;
+      const balanceCell = hatWert
+        ? escapeHtml(formatMoney(zeile.wert_cents))
+        : `<span class="muted">—</span>`;
+      const status = hatWert
+        ? `${t(zeile.qualitaet === "belegt" ? "vermoegen.qualityBelegt" : "vermoegen.qualityGeschaetzt")} · ${formatDate(zeile.belegdatum)}`
+        : zeile.basis === "bar-ignoriert"
+          ? t("labels.cashNotValued")
+          : isDepot
+            ? t("labels.depotValueMissing")
+            : konto.kontoreferenz
+              ? t("labels.accountStatusMissing")
+              : t("labels.referenceMissing");
+      const chipClass = !hatWert ? "review" : zeile.qualitaet === "belegt" ? "success" : "neutral";
+      const chipIcon = !hatWert ? "review" : zeile.qualitaet === "belegt" ? "success" : "neutral";
+      const lastBooking = isDepot ? "" : zeile.letzteBuchung;
       const selectableAttrs = rowAction === "select-master-account"
         ? ` tabindex="0" role="button" aria-label="${escapeHtml(konto.name)}"`
         : "";
@@ -209,7 +215,7 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
           <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
           <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
-          <td>${latestDate ? escapeHtml(formatDate(latestDate)) : `<span class="muted">${escapeHtml(t("labels.noStand"))}</span>`}</td>
+          <td>${lastBooking ? escapeHtml(formatDate(lastBooking)) : `<span class="muted">—</span>`}</td>
           <td class="amount">${balanceCell}</td>
           <td><span class="chip ${chipClass}">${iconSvg(chipIcon)}${escapeHtml(status)}</span></td>
         </tr>

@@ -222,9 +222,9 @@ Beispiele:
 - `Riester_MusterversicherungA_Vertragsstand_2026-01-01.pdf`
 - `KFZ_MusterversicherungB_Beitragsrechnung_2026.pdf`
 
-Ablage in `Belege/`:
-- **Kontoauszuege**: `Belege/Kontoauszuege/<Konto>/` (Serie je Konto, jahresuebergreifend).
-- **Sonstige Belege**: nach bestehender `Belege/<Jahr>/<Kategorie>`-Struktur (Immobilien, Rente, Versicherungen, Sonstiges, Steuern, Depots, Kredite).
+Ablage in `Belege/` nach Objekt, darunter je Jahr, z. B. `Belege/Konten/KTO-001_Bank-Giro/2026/`
+oder `Belege/Darlehen/DAR-001_Bank-Baufinanzierung/2025/`. Die vollstaendige
+Regel steht in `agent-context.md`, Abschnitt „Ablage nach Objekt".
 
 Zu jedem abgelegten PDF und Foto (png/jpg/jpeg) gehoert ein **Textzwilling**
 mit gleichem Basisname und Endung `.txt` im selben Ordner; Fotos und Bildscans

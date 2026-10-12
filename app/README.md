@@ -40,4 +40,14 @@ Lokal ist das der Entwicklungsbetrieb mit Demodaten. Produktiv laeuft der App-Se
 
 Aktualisiert wird die VM mit `sudo finanzen-aktualisieren [branch]` (Default `main`), einer root-eigenen Kopie von `ops/aktualisieren.sh` unter `/usr/local/sbin` (Installation steht im Skriptkopf; neue Fassungen im Repo meldet das Skript nur): Fast-Forward auf `origin/<branch>`, Neustart des Dienstes und `app/version.json` (gitignored), deren Stand die App unten in der Sidebar zeigt (Kurz-Hash mit Link zum Commit, Datum, Branch ausser `main`); ohne die Datei steht dort „lokal“.
 
+### Sitzungsschutz
+
+Weil die App alle Daten beim Start in den Browser laedt, schuetzt `app/sitzung.mjs` die offene Seite:
+
+- **Inaktivitaetssperre:** Nach `sperre_minuten` (Standard 5) ohne Maus-, Tastatur-, Touch- oder Scroll-Ereignis verwirft die App den geladenen Bestand, ersetzt die Oberflaeche und meldet beim Auth-Dienst ab. Ein verborgener Tab zaehlt als inaktiv; gemessen wird per Uhrzeit-Differenz, weil Browser Timer im Hintergrund drosseln.
+- **Anmeldepruefung:** Jede Minute und bei Rueckkehr in den Tab fragt die App `version.json` ohne Weiterleitung ab. Eine Weiterleitung zur Anmeldeseite oder 401/403 heisst: Anmeldung abgelaufen, Bestand verwerfen und neu laden. 404 (lokal ohne `version.json`) und Netzwerkfehler sperren nicht.
+- **Abmelden:** Knopf unten in der Sidebar (mobil im Mehr-Menue), nur mit konfigurierter Logout-URL.
+
+Die Werte stehen in `app/sitzung.json` (gitignored, `{"abmelden_url": "...", "sperre_minuten": 5}`). Auf der VM schreibt sie `finanzen-aktualisieren` aus `FINANZEN_ABMELDEN_URL` und `FINANZEN_SPERRE_MINUTEN` in `/etc/finanzen/app.env` (Vorlage `ops/systemd/app.env.beispiel`). Die Logout-URL hat die Form `https://auth.<domain>/logout?rd=<url-kodierte App-URL>`; der Auth-Dienst folgt `rd` nur innerhalb seiner geschuetzten Domain. Lokal fehlt die Datei: Die App sperrt dann nur und laedt neu, ohne Abmelden-Knopf.
+
 Das alte `review-data.js`-Bundle ist nicht mehr der fuehrende Betriebsmodus; die App liest einzelne Masterdateien direkt aus `data/master/`.

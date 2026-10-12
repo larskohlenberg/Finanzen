@@ -247,6 +247,31 @@ button {
   text-decoration: underline;
 }
 
+/* Fuss der Sidebar: Arbeitsstand und (mit Sitzungskonfiguration) Abmelden. */
+.sidebar-fuss {
+  display: grid;
+  gap: 10px;
+}
+
+.sidebar-collapsed .sidebar-abmelden {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+/* Sitzungssperre: Bestand verworfen, nur noch dieser Hinweis bis zum Neuladen. */
+.app-shell.sitzung-gesperrt {
+  display: grid;
+  grid-template-columns: 1fr;
+  place-items: center;
+}
+
+.sitzung-hinweis {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+}
+
 /* In der schmalen Schiene hat der Arbeitsstand-Text keinen Platz —
    komplett ausblenden statt zweizeilig umzubrechen. */
 .sidebar-collapsed .sidebar-meta {
@@ -1466,7 +1491,7 @@ tr.clickable.selected td:first-child {
     position: sticky;
     top: 0;
     z-index: 3;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     grid-template-rows: auto;
     align-items: center;
     gap: 12px;
@@ -1489,8 +1514,15 @@ tr.clickable.selected td:first-child {
   }
 
   .sidebar-toggle,
-  .sidebar-meta {
+  .sidebar-meta,
+  .sidebar-abmelden .nav-label {
     display: none;
+  }
+
+  .sidebar-abmelden {
+    width: auto;
+    min-width: 44px;
+    justify-content: center;
   }
 
   .nav {
@@ -1603,6 +1635,11 @@ tr.clickable.selected td:first-child {
   }
 
   .sidebar .nav {
+    display: none;
+  }
+
+  /* Abmelden wandert ins Mehr-Menue der Tab-Bar. */
+  .sidebar-fuss {
     display: none;
   }
 
@@ -2178,6 +2215,37 @@ tr.clickable.selected td:first-child {
   min-width: 0;
   overflow-wrap: anywhere;
   font-weight: 600;
+}
+
+a.upload-name {
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+
+a.upload-name:hover,
+a.upload-name:focus-visible {
+  text-decoration: underline;
+}
+
+.upload-herunterladen {
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+
+.upload-herunterladen:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+a.upload-name:focus-visible,
+.upload-herunterladen:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .upload-status {

@@ -6,7 +6,7 @@
 import { state, t, escapeHtml } from "../runtime.mjs";
 import { renderPageHead } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
-import { ERLAUBTE_ENDUNGEN, vorpruefeDatei } from "../upload-regeln.mjs";
+import { ERLAUBTE_ENDUNGEN, inboxDateiUrl, vorpruefeDatei } from "../upload-regeln.mjs";
 
 const ACCEPT = ERLAUBTE_ENDUNGEN.map((endung) => `.${endung}`).join(",");
 
@@ -66,9 +66,12 @@ function renderInbox() {
     <ul class="upload-liste">
       ${dateien.map((d) => `
         <li class="upload-zeile">
-          <span class="upload-name">${escapeHtml(d.name)}</span>
+          <a class="upload-name upload-oeffnen" href="${escapeHtml(inboxDateiUrl(d.name))}" target="_blank" rel="noopener" title="${escapeHtml(t("uploadPage.oeffnen"))}">${escapeHtml(d.name)}</a>
           <span class="upload-groesse muted">${escapeHtml(formatGroesse(d.groesse))}</span>
-          <span class="upload-status muted">${escapeHtml(formatZeit(d.geaendert))}</span>
+          <span class="upload-status muted">
+            ${escapeHtml(formatZeit(d.geaendert))}
+            <a class="upload-herunterladen" href="${escapeHtml(inboxDateiUrl(d.name))}" download="${escapeHtml(d.name)}" aria-label="${escapeHtml(`${t("uploadPage.herunterladen")}: ${d.name}`)}" title="${escapeHtml(t("uploadPage.herunterladen"))}">${iconSvg("download")}</a>
+          </span>
         </li>`).join("")}
     </ul>`;
 }

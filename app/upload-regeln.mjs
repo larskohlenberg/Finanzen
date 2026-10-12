@@ -9,6 +9,12 @@ export const ERLAUBTE_ENDUNGEN = Object.freeze(["pdf", "csv", "xlsx", "xls", "tx
 export const HEIC_ENDUNGEN = Object.freeze(["heic", "heif"]);
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
+// Link auf eine wartende Inbox-Datei (statisch ausgeliefert, hinter derselben
+// Anmeldung wie die App). Relativ zur App, jedes Segment kodiert.
+export function inboxDateiUrl(name) {
+  return `data/inbox/${String(name ?? "").split("/").map(encodeURIComponent).join("/")}`;
+}
+
 export function endungVon(name) {
   const punkt = String(name).lastIndexOf(".");
   return punkt > 0 ? String(name).slice(punkt + 1).toLowerCase() : "";

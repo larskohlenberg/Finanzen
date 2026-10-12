@@ -184,7 +184,14 @@ test("Immobilie: Einnahmen und Ausgaben zusammengefasst, Drill-down nach Kategor
   });
   mitDaten(teil, { vermoegenTab: "immobilien", immobilieDrill: `${vormonat}:aus` }, (html) => {
     const zeile = html.slice(html.indexOf('class="drill-zeile"'));
-    const drill = zeile.slice(0, zeile.indexOf("</tr>"));
+    const drill = (html.match(/<tr class="drill-zeile">[\s\S]*?<\/tr>/g) ?? []).join("");
+    assert.equal((drill.match(/drill-zeile/g) ?? []).length, 2);
+    // Je Kategorie eine Zeile, Betrag in der Ausgaben-Spalte (3. Zelle).
+    const erste = drill.slice(0, drill.indexOf("</tr>"));
+    const zellen = erste.split("<td").slice(1);
+    assert.match(zellen[0], /drill-name/);
+    assert.equal(zellen[1].includes("betrag-link"), false);
+    assert.match(zellen[2], /data-kategorie="KAT-003"/);
     assert.match(drill, /data-kategorie="KAT-003"[\s\S]*?-50,00/);
     assert.match(drill, /data-kategorie="KAT-004"[\s\S]*?-7,00/);
     assert.ok(drill.indexOf("KAT-003") < drill.indexOf("KAT-004"));

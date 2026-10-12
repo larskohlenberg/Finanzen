@@ -19,7 +19,7 @@ await import("../app/i18n.js");
 const { data, state } = await import("../app/runtime.mjs");
 const { renderVermoegen } = await import("../app/views/vermoegen.mjs");
 
-test("Vorsorgeklasse erscheint in Tabelle und Filter lokalisiert", () => {
+test("Vorsorge erscheint lokalisiert als Verweis-Karte, nicht als Tab", () => {
   const originalData = {
     konten: data.konten,
     immobilien: data.immobilien,
@@ -65,9 +65,9 @@ test("Vorsorgeklasse erscheint in Tabelle und Filter lokalisiert", () => {
     for (const [lang, label] of [["de", "Vorsorge"], ["en", "Pension"]]) {
       state.lang = lang;
       const html = renderVermoegen();
-      assert.match(html, new RegExp(`<td>${label}</td>`));
-      assert.match(html, new RegExp(`<option value="vorsorge" >${label}</option>`));
-      assert.doesNotMatch(html, /vermoegen\.klasse\.vorsorge/);
+      assert.match(html, new RegExp(`<button class="tile klassen-karte" data-view="vorsorge">\\s*<strong>${label}</strong>`));
+      assert.doesNotMatch(html, /data-tab="vorsorge"/);
+      assert.doesNotMatch(html, /vermoegen\.klasse/);
     }
   } finally {
     Object.assign(data, originalData);
@@ -75,7 +75,7 @@ test("Vorsorgeklasse erscheint in Tabelle und Filter lokalisiert", () => {
   }
 });
 
-test("Immobilien-Rail bietet den lokalisierten Ruecklink zu Transaktionen", () => {
+test("Immobilien-Tab bietet den lokalisierten Ruecklink zu den Buchungen", () => {
   const originalData = {
     konten: data.konten,
     immobilien: data.immobilien,
@@ -120,7 +120,7 @@ test("Immobilien-Rail bietet den lokalisierten Ruecklink zu Transaktionen", () =
       vermoegenRailMode: "position",
     });
 
-    for (const [lang, label] of [["de", "Transaktionen anzeigen"], ["en", "Show transactions"]]) {
+    for (const [lang, label] of [["de", "Alle Buchungen"], ["en", "All transactions"]]) {
       state.lang = lang;
       const html = renderVermoegen();
       assert.match(html, /data-action="immobilie-transactions" data-immobilie="IMM-001"/);

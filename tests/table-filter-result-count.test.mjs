@@ -57,14 +57,3 @@ test("transactions show filtered hits out of total hits even without active filt
   assert.match(renderTransactions(), new RegExp(`${filtered} von ${total} Treffer`));
 });
 
-test("vermoegen filter table shows filtered positions out of total positions", () => {
-  state.vermoegenFilters = { klasse: "", qualitaet: "" };
-  const positions = computeNettovermoegen(data, localTodayIso()).positionen;
-  const total = positions.length;
-
-  assert.match(renderVermoegen(), new RegExp(`${total} von ${total} Treffer`));
-
-  state.vermoegenFilters = { klasse: "darlehen", qualitaet: "" };
-  const filtered = positions.filter((position) => position.klasse === "darlehen").length;
-  assert.match(renderVermoegen(), new RegExp(`${filtered} von ${total} Treffer`));
-});

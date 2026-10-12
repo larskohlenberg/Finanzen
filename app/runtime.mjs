@@ -117,12 +117,10 @@ export const state = {
     bisDatum: defaultHorizonEnd(data.regelzahlungen, localTodayIso()),
   },
   liquiditaetExpanded: new Set(),
-  vermoegenFilters: {
-    klasse: "",
-    qualitaet: "",
-  },
-  vermoegenSort: { key: "klasse", dir: "asc" },
+  // Vermoegensseite: aktiver Tab und ausgewaehltes Objekt ("klasse:id").
+  vermoegenTab: "uebersicht",
   selectedVermoegenId: "",
+  immobilieOhneRate: false,
   vorsorgeFilters: { search: "", art: "", person: "", status: "", pruefstatus: "" },
   vorsorgeSort: { key: "id", dir: "asc" },
   selectedVorsorgeId: "",

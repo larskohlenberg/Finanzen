@@ -3,6 +3,7 @@ import { iconSvg } from "./icons.js";
 import { buildNextAgentActions } from "./next-action.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
+import { TAB_FUER_KLASSE } from "./vermoegen-routen.mjs";
 import { renderVorsorge, setVorsorgeFilter, resetVorsorgeFilters, toggleVorsorgeSort } from "./views/vorsorge.mjs";
 import { renderSzenarien } from "./views/szenarien.mjs";
 import { renderTransactions, filteredTransactions, transactionPageForId, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
@@ -48,7 +49,7 @@ function applyTheme() {
 const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
   "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
-  "data-vermoegen-sort", "data-vorsorge-sort", "data-vorsorge-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
+  "data-tab", "data-vorsorge-sort", "data-vorsorge-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
   "data-rule", "data-regel-sort", "data-next-action-type", "data-vorsorge",
   "data-beleg", "data-beleg-sort", "data-beleg-ordner",
 ];
@@ -157,6 +158,28 @@ function render() {
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
   if (state.view === "belege") belegeBeiBedarfLaden(render);
+  // Dokumente je Objekt auf den Tabs Immobilien und Darlehen.
+  if (state.view === "vermoegen" && ["immobilien", "darlehen"].includes(state.vermoegenTab)) belegeBeiBedarfLaden(render);
+}
+
+// Ein Objekt der Vermoegensseite oeffnen ("klasse:id"); Vorsorge hat ihre eigene Seite.
+function oeffneVermoegenObjekt(schluessel) {
+  const [klasse, id] = String(schluessel ?? "").split(":");
+  if (klasse === "vorsorge") {
+    resetVorsorgeFilters();
+    state.view = "vorsorge";
+    state.selectedVorsorgeId = id || "";
+    commitNavigation();
+    return;
+  }
+  state.view = "vermoegen";
+  state.vermoegenTab = TAB_FUER_KLASSE[klasse] ?? "uebersicht";
+  state.selectedVermoegenId = TAB_FUER_KLASSE[klasse] && id ? `${klasse}:${id}` : "";
+  if (klasse === "konto") state.selectedKonto = id || "";
+  state.vermoegenRailMode = "position";
+  state.vermoegenRailWide = false;
+  state.vermoegenDetailRailClosed = false;
+  commitNavigation();
 }
 
 function renderSidebar() {
@@ -434,18 +457,6 @@ app.addEventListener("click", guard((event) => {
     return;
   }
 
-  const vermoegenSort = event.target.closest("[data-vermoegen-sort]");
-  if (vermoegenSort) {
-    const key = vermoegenSort.dataset.vermoegenSort;
-    if (state.vermoegenSort.key === key) {
-      state.vermoegenSort.dir = state.vermoegenSort.dir === "asc" ? "desc" : "asc";
-    } else {
-      state.vermoegenSort = { key, dir: "asc" };
-    }
-    render();
-    return;
-  }
-
   const vorsorgeSort = event.target.closest("[data-vorsorge-sort]");
   if (vorsorgeSort) {
     toggleVorsorgeSort(vorsorgeSort.dataset.vorsorgeSort);
@@ -506,7 +517,7 @@ app.addEventListener("click", guard((event) => {
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
-const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vermoegen-sort], [data-vorsorge-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vorsorge-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
 app.addEventListener("keydown", guard((event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
@@ -596,14 +607,6 @@ app.addEventListener("change", guard((event) => {
     state.view = "transactions";
     state.transactionPage = 1;
     commitNavigation();
-    return;
-  }
-
-  const vermoegenFilter = event.target.closest("[data-vermoegen-filter]");
-  if (vermoegenFilter) {
-    state.vermoegenFilters[vermoegenFilter.dataset.vermoegenFilter] = vermoegenFilter.value;
-    state.view = "vermoegen";
-    render();
     return;
   }
 
@@ -951,6 +954,7 @@ async function handleAction(element) {
   }
   if (action === "select-vermoegen") {
     state.selectedVermoegenId = element.dataset.vermoegen;
+    state.vermoegenTab = TAB_FUER_KLASSE[String(element.dataset.vermoegen).split(":")[0]] ?? state.vermoegenTab;
     state.vermoegenRailMode = "position";
     state.vermoegenRailWide = false;
     state.vermoegenDetailRailClosed = false;
@@ -1014,17 +1018,13 @@ async function handleAction(element) {
     return;
   }
   if (action === "show-vermoegen-wertstaende") {
+    // Die Gesamtliste der Wertstaende sitzt als Rail an der Uebersicht bzw. den Konten.
+    if (state.vermoegenTab !== "konten") state.vermoegenTab = "uebersicht";
+    state.selectedVermoegenId = "";
     state.vermoegenRailMode = "wertstaende";
     state.vermoegenRailWide = true;
     state.vermoegenDetailRailClosed = false;
     commitNavigation();
-    return;
-  }
-  if (action === "clear-vermoegen-filter") {
-    if (Object.hasOwn(state.vermoegenFilters, element.dataset.filterName)) {
-      state.vermoegenFilters[element.dataset.filterName] = "";
-      commitNavigation();
-    }
     return;
   }
   if (action === "clear-vorsorge-filter") {
@@ -1037,22 +1037,31 @@ async function handleAction(element) {
     render();
     return;
   }
-  if (action === "reset-vermoegen-filters") {
-    state.vermoegenFilters = {
-      klasse: "",
-      qualitaet: "",
-    };
-    commitNavigation();
-    return;
-  }
-  if (action === "open-vermoegen-entity") {
+  if (action === "vermoegen-tab") {
     state.view = "vermoegen";
-    state.vermoegenFilters = { klasse: "", qualitaet: "" };
-    state.selectedVermoegenId = `${element.dataset.vklasse}:${element.dataset.vid}`;
+    state.vermoegenTab = element.dataset.tab || "uebersicht";
+    state.selectedVermoegenId = "";
     state.vermoegenRailMode = "position";
     state.vermoegenRailWide = false;
     state.vermoegenDetailRailClosed = false;
     commitNavigation();
+    return;
+  }
+  if (action === "select-vermoegen-objekt") {
+    oeffneVermoegenObjekt(element.dataset.vermoegen);
+    return;
+  }
+  if (action === "select-vermoegen-konto") {
+    oeffneVermoegenObjekt(`konto:${element.dataset.account}`);
+    return;
+  }
+  if (action === "immobilie-rate") {
+    state.immobilieOhneRate = element.dataset.rate === "ohne";
+    render();
+    return;
+  }
+  if (action === "open-vermoegen-entity") {
+    oeffneVermoegenObjekt(`${element.dataset.vklasse}:${element.dataset.vid}`);
     return;
   }
   if (action === "show-checks-for" || action === "open-entity") {
@@ -1088,6 +1097,7 @@ function snapshotState() {
     selectedKonto: state.selectedKonto,
     selectedRegel: state.selectedRegel,
     selectedVermoegenId: state.selectedVermoegenId,
+    vermoegenTab: state.vermoegenTab,
     selectedVorsorgeId: state.selectedVorsorgeId,
     selectedSzenarioId: state.selectedSzenarioId,
     selectedBeleg: state.selectedBeleg,
@@ -1106,6 +1116,7 @@ function restoreState(snapshot) {
   state.selectedKonto = snapshot.selectedKonto || "";
   state.selectedRegel = snapshot.selectedRegel || "";
   state.selectedVermoegenId = snapshot.selectedVermoegenId || "";
+  state.vermoegenTab = snapshot.vermoegenTab || "uebersicht";
   state.selectedVorsorgeId = snapshot.selectedVorsorgeId || "";
   state.selectedSzenarioId = snapshot.selectedSzenarioId || "";
   state.selectedBeleg = snapshot.selectedBeleg || "";
@@ -1163,10 +1174,9 @@ function applyRoute(route) {
   }
   if (route.view === "belege") state.selectedBeleg = route.selectedBeleg || "";
 
-  if (route.selectedVermoegenId) {
-    state.vermoegenFilters.klasse = "";
-    state.vermoegenFilters.qualitaet = "";
-    state.selectedVermoegenId = route.selectedVermoegenId;
+  if (route.view === "vermoegen") {
+    state.vermoegenTab = route.vermoegenTab || "uebersicht";
+    state.selectedVermoegenId = route.selectedVermoegenId || "";
     state.vermoegenRailMode = "position";
     state.vermoegenRailWide = false;
     state.vermoegenDetailRailClosed = false;

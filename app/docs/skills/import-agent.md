@@ -307,6 +307,20 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
   eingebautem Datum (`..._<T_M_JJJJ>.pdf`) treffen den Belegmonat nicht genau.
   Zeitraum bzw. Monat immer aus dem Beleg nehmen (Auszugsnummer, Abrechnungstag,
   Erstellungsdatum im Kopf).
+- **Vertragsuebersicht aus einem Vermittlerportal**: Browser-Ausdrucke von
+  Vertragsdetailseiten (Browserkopf mit Seitentitel und Abrufzeit, Portal-URL im
+  Seitenfuss) enthalten keine Buchungen und sind kein Kontoauszug. Nicht
+  importieren, sondern ueber die Vertragsnummer dem Vorsorgevertrag zuordnen und
+  unter `Belege/Vorsorge/<VS-ID>_.../<Jahr>/` ablegen. Datum im Belegnamen ist
+  der „Stand" bzw. das „Datum Rueckkaufswert", nicht die Abrufzeit. Mehrere
+  Ausdrucke derselben Sitzung tragen denselben generischen Namen mit Suffix
+  (`_2`) und dieselbe Abrufzeit und sind trotzdem verschiedene Vertraege; ein
+  Duplikat erst annehmen, wenn Vertragsnummer und Stand uebereinstimmen. Das
+  Portalfeld „Rueckkaufswert" ist dort ein generisches Feld (gleich dem
+  „Vertragswert") und erscheint auch bei nicht kuendbaren Vertraegen: den Wert
+  als Zeitwert `vertragswert` mit `quelle_hinweis` auf den abgelegten Beleg
+  erfassen, **nie** als `rueckkaufswert`. Der Rueckkaufswert bleibt der
+  Kuendigungsbetrag aus der Standmitteilung des Versicherers.
 
 ## Belege benennen und ablegen
 

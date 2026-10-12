@@ -164,29 +164,8 @@ export function accountGroupCoverage(gruppe) {
   return teile.join(" · ");
 }
 
-export function renderAccountTable({ showId = false, rowAction = "account-transactions" } = {}) {
-  const gruppen = overviewAccountGroups();
-  const spalten = showId ? 7 : 6;
-  const block = (gruppe, titelKey, summeKey, options = {}) => {
-    if (!gruppe.zeilen.length) return "";
-    const summe = summeKey
-      ? `
-        <tr class="table-sum">
-          <td colspan="${spalten - 2}">${escapeHtml(t(summeKey))}</td>
-          <td class="amount">${escapeHtml(formatMoney(gruppe.summe_cents))}</td>
-          <td>${escapeHtml(accountGroupCoverage(gruppe))}</td>
-        </tr>`
-      : "";
-    return `
-        <tbody>
-          <tr class="group-row"><td colspan="${spalten}">${escapeHtml(t(titelKey))}</td></tr>
-          ${renderAccountRows(gruppe.zeilen.map((z) => z.konto), { showId, rowAction, ...options })}
-          ${summe}
-        </tbody>`;
-  };
+function accountTableHead(showId) {
   return `
-    <div class="table-wrap">
-      <table>
         <thead>
           <tr>
             ${showId ? `<th>${escapeHtml(t("labels.id"))}</th>` : ""}
@@ -197,13 +176,67 @@ export function renderAccountTable({ showId = false, rowAction = "account-transa
             <th class="amount" title="${escapeHtml(t("labels.valueTodayHint"))}">${escapeHtml(t("labels.valueToday"))}</th>
             <th>${escapeHtml(t("labels.evidence"))}</th>
           </tr>
-        </thead>
-        ${block(gruppen.konten, "overview.accounts", "overview.sumAccounts", { markNotIncluded: true })}
-        ${block(gruppen.depots, "overview.depots", "overview.sumDepots")}
-        ${block(gruppen.weitere, "overview.otherAccounts", null)}
+        </thead>`;
+}
+
+// tbody eines Kontenblocks; titelKey = Gruppenzeile (gemeinsame Tabelle),
+// summeKey = Summenzeile mit Abdeckung.
+function accountGroupBody(gruppe, { showId = false, rowAction = "account-transactions", titelKey = null, summeKey = null, markNotIncluded = false } = {}) {
+  const spalten = showId ? 7 : 6;
+  const titel = titelKey ? `<tr class="group-row"><td colspan="${spalten}">${escapeHtml(t(titelKey))}</td></tr>` : "";
+  const summe = summeKey
+    ? `
+        <tr class="table-sum">
+          <td colspan="${spalten - 2}">${escapeHtml(t(summeKey))}</td>
+          <td class="amount">${escapeHtml(formatMoney(gruppe.summe_cents))}</td>
+          <td>${escapeHtml(accountGroupCoverage(gruppe))}</td>
+        </tr>`
+    : "";
+  return `
+        <tbody>
+          ${titel}
+          ${renderAccountRows(gruppe.zeilen.map((z) => z.konto), { showId, rowAction, markNotIncluded })}
+          ${summe}
+        </tbody>`;
+}
+
+const ACCOUNT_GROUPS = [
+  { schluessel: "konten", titelKey: "overview.accounts", summeKey: "overview.sumAccounts", markNotIncluded: true },
+  { schluessel: "depots", titelKey: "overview.depots", summeKey: "overview.sumDepots" },
+  { schluessel: "weitere", titelKey: "overview.otherAccounts", summeKey: null },
+];
+
+// Gemeinsame Tabelle mit Gruppenzeilen (Stammdaten).
+export function renderAccountTable({ showId = false, rowAction = "account-transactions" } = {}) {
+  const gruppen = overviewAccountGroups();
+  const bloecke = ACCOUNT_GROUPS
+    .filter((g) => gruppen[g.schluessel].zeilen.length)
+    .map((g) => accountGroupBody(gruppen[g.schluessel], { showId, rowAction, ...g }))
+    .join("");
+  return `
+    <div class="table-wrap">
+      <table>${accountTableHead(showId)}${bloecke}
       </table>
     </div>
   `;
+}
+
+// Uebersicht: je Block eine eigene Kachel mit eigener Tabelle.
+export function renderAccountPanels({ rowAction = "account-transactions" } = {}) {
+  const gruppen = overviewAccountGroups();
+  return ACCOUNT_GROUPS
+    .filter((g) => gruppen[g.schluessel].zeilen.length)
+    .map((g) => `
+        <section class="panel panel-pad">
+          <h2 class="section-title">${escapeHtml(t(g.titelKey))}</h2>
+          <div class="table-wrap">
+            <table class="account-table">
+              <colgroup><col class="col-konto"><col class="col-referenz"><col class="col-inhaber"><col class="col-typ"><col class="col-wert"><col class="col-stand"></colgroup>
+              ${accountTableHead(false)}${accountGroupBody(gruppen[g.schluessel], { rowAction, summeKey: g.summeKey, markNotIncluded: g.markNotIncluded })}
+            </table>
+          </div>
+        </section>`)
+    .join("");
 }
 
 export function renderAccountRows(accounts, { showId = false, rowAction = "account-transactions", markNotIncluded = false } = {}) {

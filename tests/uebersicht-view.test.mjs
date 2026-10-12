@@ -103,7 +103,8 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.match(zeile("KTO-904"), /chip danger[\s\S]*Kontostand noch nicht belegt · nicht enthalten/);
 
   // Kachel = Summenzeile der Konten (nur KTO-903, KTO-904 ohne Beleg), Depots getrennt summiert.
-  assert.match(html, /Verfügbares Geld[\s\S]*?1\.150,00[\s\S]*?= Summe Konten in der Tabelle · 1 von 2 belegt · ältester Stand 10\.6\.2026/);
+  assert.match(html, /Verfügbares Geld[\s\S]*?1\.150,00[\s\S]*?Stand 10\.6\.2026 · <button class="linkish" data-view="liquiditaet">Zur Liquidität<\/button>/);
+  assert.doesNotMatch(html, /in der Tabelle/);
   assert.match(html, /<tr class="table-sum"[\s\S]*?Summe Konten = Verfügbares Geld[\s\S]*?1\.150,00/);
   assert.match(html, /<tr class="table-sum"[\s\S]*?Summe Depots[\s\S]*?4\.321,09/);
   assert.doesNotMatch(html, /Summe geladener Bewegungen/);
@@ -121,7 +122,8 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
 
   // Drei Kacheln oben: Verfuegbares Geld, Depotstand (= Summe Depots), Vermoegen.
   assert.equal((html.match(/class="panel hero-kpi"/g) ?? []).length, 3);
-  assert.match(html, /Depotstand[\s\S]*?4\.321,09[\s\S]*?= Summe Depots in der Tabelle · 1 von 2 belegt · ältester Stand 15\.9\.2026/);
+  assert.match(html, /Depotstand[\s\S]*?4\.321,09[\s\S]*?Stand 15\.9\.2026 · <button class="linkish" data-view="vermoegen">Zur Vermögensseite<\/button>/);
+  assert.match(html, /id="kpi-networth-label"[\s\S]*?<div class="kpi-note">Stand [\d.]+ · <button class="linkish" data-view="vermoegen">Zur Vermögensseite<\/button>/);
 
   // Stammdaten: nur Stammdaten, keine Werte, Belegstaende oder Summen.
   state.view = "masterdata";

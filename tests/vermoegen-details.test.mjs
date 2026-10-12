@@ -110,6 +110,27 @@ test("immobilienMonate: abgeschlossene Monate, Transfers raus, Kategorien und Sa
   assert.ok(!ohne.kategorien.some((k) => k.kategorie_id === "KAT-024"));
 });
 
+test("immobilienMonate: Eigenanteil = Transfers aufs Hauskonto, nur mit mitEigenanteil", () => {
+  const d = daten();
+  d.darlehen[0] = { ...darlehen, konto_id: "KTO-006" };
+  d.transaktionen.push(
+    { konto_id: "KTO-006", immobilie_id: "IMM-001", buchungsdatum: "2026-01-02", betrag: "666.00", kategorie_id: "KAT-011", ist_transfer: true },
+    { konto_id: "KTO-006", immobilie_id: "IMM-001", buchungsdatum: "2026-02-02", betrag: "666.00", kategorie_id: "KAT-011", ist_transfer: true },
+  );
+  const ohne = immobilienMonate(d, "IMM-001", "2026-03-15", { anzahl: 3 });
+  assert.deepEqual(ohne.saldo, [0, -10000, -12050]);
+  assert.ok(!ohne.kategorien.some((k) => k.eigenanteil));
+
+  const m = immobilienMonate(d, "IMM-001", "2026-03-15", { anzahl: 3, mitEigenanteil: true });
+  assert.deepEqual(m.einnahmen, [0, 156600, 66600]);
+  assert.deepEqual(m.saldo, [0, 56600, 54550]);
+  const spalte = m.kategorien.find((k) => k.eigenanteil);
+  assert.equal(spalte.kategorie_id, "KAT-011");
+  assert.deepEqual(spalte.werte, [0, 66600, 66600]);
+  // Der Transfer vom Girokonto (KTO-001, nicht Hauskonto) bleibt draussen.
+  assert.equal(m.anzahl_buchungen, 5);
+});
+
 test("darlehensKategorien: Kategorien der Regelzahlungen dieser Darlehen", () => {
   assert.deepEqual([...darlehensKategorien(daten(), ["DAR-001"])], ["KAT-024"]);
   assert.deepEqual([...darlehensKategorien(daten(), [])], []);

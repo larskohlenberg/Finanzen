@@ -121,7 +121,7 @@ function renderImmobilieDetail(imm, today) {
   const k = immobilienKennzahlen(data, id, today);
   const ohneRate = state.immobilieOhneRate;
   const rateKategorien = darlehensKategorien(data, k.darlehen_ids);
-  const m = immobilienMonate(data, id, today, { ohneKategorien: ohneRate ? rateKategorien : [] });
+  const m = immobilienMonate(data, id, today, { ohneKategorien: ohneRate ? rateKategorien : [], mitEigenanteil: !ohneRate });
   const mitBuchungen = immobilienMonate(data, id, today);
 
   const durchschnitt = m.anzahl_buchungen ? Math.round(m.summe.saldo / m.monate.length) : null;
@@ -152,7 +152,8 @@ function renderImmobilieDetail(imm, today) {
     ariaLabel: t("vermoegen.immobilie.monateTitel"),
   });
   const kategorien = m.kategorien;
-  const kopf = kategorien.map((kat) => `<th class="amount">${escapeHtml(kat.kategorie_id ? categoryName(kat.kategorie_id) : t("vermoegen.immobilie.ohneKategorie"))}</th>`).join("");
+  const spaltenName = (kat) => kat.eigenanteil ? t("vermoegen.immobilie.eigenanteil") : kat.kategorie_id ? categoryName(kat.kategorie_id) : t("vermoegen.immobilie.ohneKategorie");
+  const kopf = kategorien.map((kat) => `<th class="amount"${kat.eigenanteil ? ` title="${escapeHtml(t("vermoegen.immobilie.eigenanteilHinweis"))}"` : ""}>${escapeHtml(spaltenName(kat))}</th>`).join("");
   const zeitraum = { von: `${m.monate[0]}-01`, bis: `${m.monate.at(-1)}-31` };
   const zeilen = m.monate.map((monat, i) => `
     <tr>
@@ -189,7 +190,8 @@ function renderImmobilieDetail(imm, today) {
           </table>
         </div>
         <p class="muted">${escapeHtml(t("vermoegen.immobilie.tabelleHinweis"))}</p>
-        ${ohneRate ? `<p class="muted">${escapeHtml(t("vermoegen.immobilie.rateHinweis"))}</p>` : ""}`
+        ${ohneRate ? `<p class="muted">${escapeHtml(t("vermoegen.immobilie.rateHinweis"))}</p>` : ""}
+        ${kategorien.some((kat) => kat.eigenanteil) ? `<p class="muted">${escapeHtml(t("vermoegen.immobilie.eigenanteilHinweis"))}</p>` : ""}`
         : `<p class="muted">${escapeHtml(t("vermoegen.immobilie.keineBuchungen"))}</p>`}
     </section>`;
 

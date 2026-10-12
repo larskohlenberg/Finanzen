@@ -89,3 +89,11 @@ test("Vermoegen: Tabs adressierbar, alte Klassen-Links landen im richtigen Tab",
     assert.equal(parseRoute(routeFromState({ view: "vermoegen", selectedVermoegenId: id })).selectedVermoegenId, id);
   }
 });
+
+test("Szenarien: Detail gegen ein anderes Szenario und Vergleich mehrerer", () => {
+  assert.equal(routeFromState({ view: "szenarien", selectedSzenarioId: "SZN-001", szenarioVergleichMit: "SZN-002" }), "#/szenarien/SZN-001/gegen/SZN-002");
+  assert.deepEqual(parseRoute("#/szenarien/SZN-001/gegen/SZN-002"), { view: "szenarien", selectedSzenarioId: "SZN-001", szenarioVergleichMit: "SZN-002" });
+  assert.equal(routeFromState({ view: "szenarien", szenarioVergleichIds: ["SZN-001", "SZN-003"] }), "#/szenarien/vergleich/SZN-001,SZN-003");
+  assert.deepEqual(parseRoute("#/szenarien/vergleich/SZN-001,SZN-003"), { view: "szenarien", szenarioVergleichIds: ["SZN-001", "SZN-003"] });
+  assert.deepEqual(parseRoute("#/szenarien/vergleich/"), { view: "szenarien" });
+});

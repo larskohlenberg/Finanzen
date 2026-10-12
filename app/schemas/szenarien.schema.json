@@ -14,7 +14,19 @@
       "stand": { "type": "string", "format": "date" },
       "reichweite_bis": { "type": "string", "format": "date" },
       "erstellt_am": { "type": "string", "format": "date" },
-      "annahmen": { "type": "array" }
+      "annahmen": { "type": "array" },
+      "phasen": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["name", "ab"],
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "ab": { "type": "string", "format": "date" }
+          }
+        }
+      }
     }
   }
 }

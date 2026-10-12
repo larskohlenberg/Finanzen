@@ -78,3 +78,23 @@ test("doppelter Verkauf derselben Position ist Fehler", () => {
   ]);
   assert.ok(validateMasterData(data).errors.some((e) => e.includes("IMM-001")));
 });
+
+test("Phasen: gueltige, aufsteigende Phasen sind valide", () => {
+  const data = basis([], { phasen: [{ name: "Arbeit", ab: "2026-06-01" }, { name: "Rente", ab: "2029-01-01" }] });
+  assert.deepEqual(validateMasterData(data).errors, []);
+});
+
+test("Phasen: absteigend oder doppelt ist Fehler", () => {
+  const ab = basis([], { phasen: [{ name: "B", ab: "2028-01-01" }, { name: "A", ab: "2027-01-01" }] });
+  assert.ok(validateMasterData(ab).errors.some((e) => e.includes("phasen[1].ab")));
+  const doppelt = basis([], { phasen: [{ name: "A", ab: "2027-01-01" }, { name: "B", ab: "2027-01-01" }] });
+  assert.ok(validateMasterData(doppelt).errors.some((e) => e.includes("phasen[1].ab")));
+});
+
+test("Phasen: Start nach reichweite_bis, fehlender Name, Zusatzfeld sind Fehler", () => {
+  const data = basis([], { phasen: [{ name: "", ab: "2027-01-01" }, { name: "X", ab: "2031-01-01" }, { name: "Y", ab: "2032-01-01", farbe: "rot" }] });
+  const errors = validateMasterData(data).errors;
+  assert.ok(errors.some((e) => e.includes("phasen[0].name")));
+  assert.ok(errors.some((e) => e.includes("phasen[1].ab") && e.includes("reichweite_bis")));
+  assert.ok(errors.some((e) => e.includes("phasen[2].farbe")));
+});

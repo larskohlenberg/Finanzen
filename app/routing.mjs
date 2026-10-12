@@ -53,8 +53,14 @@ export function routeFromState(state) {
     if (tab && tab !== "uebersicht" && VERMOEGEN_TABS.includes(tab)) return `#/vermoegen/${tab}`;
     return "#/vermoegen";
   }
+  // Szenarien: Vergleich mehrerer (#/szenarien/vergleich/SZN-001,SZN-003) oder Detail,
+  // optional gegen ein anderes Szenario statt der Basis (#/szenarien/SZN-001/gegen/SZN-002).
+  if (state.view === "szenarien" && state.szenarioVergleichIds?.length) {
+    return `#/szenarien/vergleich/${state.szenarioVergleichIds.map(encodeURIComponent).join(",")}`;
+  }
   if (state.view === "szenarien" && state.selectedSzenarioId) {
-    return `#/szenarien/${encodeURIComponent(state.selectedSzenarioId)}`;
+    const gegen = state.szenarioVergleichMit ? `/gegen/${encodeURIComponent(state.szenarioVergleichMit)}` : "";
+    return `#/szenarien/${encodeURIComponent(state.selectedSzenarioId)}${gegen}`;
   }
   // Regelzahlung als adressierbares Ziel (Querlink aus der Szenario-Rechengrundlage).
   if (state.view === "regelzahlungen" && state.selectedRegelzahlungId) {
@@ -101,7 +107,14 @@ export function parseRoute(hash) {
     return tail ? { view: "vorsorge", selectedVorsorgeId: tail } : { view: "vorsorge" };
   }
   if (head === "szenarien") {
-    return tail ? { view: "szenarien", selectedSzenarioId: tail } : { view: "szenarien" };
+    if (!tail) return { view: "szenarien" };
+    const teile = tail.split("/");
+    if (teile[0] === "vergleich") {
+      const ids = (teile[1] ?? "").split(",").filter(Boolean);
+      return ids.length ? { view: "szenarien", szenarioVergleichIds: ids } : { view: "szenarien" };
+    }
+    if (teile[1] === "gegen" && teile[2]) return { view: "szenarien", selectedSzenarioId: teile[0], szenarioVergleichMit: teile[2] };
+    return { view: "szenarien", selectedSzenarioId: teile[0] };
   }
   if (head === "regelzahlungen") {
     return tail ? { view: "regelzahlungen", selectedRegelzahlungId: tail } : { view: "regelzahlungen" };

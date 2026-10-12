@@ -132,6 +132,7 @@ const schemas = {
       reichweite_bis: { type: "string", format: "date" },
       erstellt_am: { type: "string", format: "date" },
       annahmen: { type: "array" },
+      phasen: { type: "array" },
     },
   },
   immobilien: {
@@ -634,6 +635,23 @@ function validateTransferReference(prefix, field, transfer, transaktion, errors)
   }
 }
 
+// Phasen sind reine Beschriftung des Zeitstrahls: benannt, aufsteigend, im Horizont.
+function validatePhasen(sz, p, errors) {
+  if (sz.phasen === undefined) return;
+  if (!Array.isArray(sz.phasen)) return;
+  let vorher = null;
+  sz.phasen.forEach((ph, i) => {
+    const pp = `${p}.phasen[${i}]`;
+    if (!ph || typeof ph !== "object") { errors.push(`${pp}: muss ein Objekt sein`); return; }
+    for (const feld of Object.keys(ph)) if (feld !== "name" && feld !== "ab") errors.push(`${pp}.${feld}: unbekanntes Feld`);
+    if (typeof ph.name !== "string" || !ph.name.trim()) errors.push(`${pp}.name: fehlt`);
+    if (typeof ph.ab !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(ph.ab)) { errors.push(`${pp}.ab: kein Datum`); return; }
+    if (ph.ab > sz.reichweite_bis) errors.push(`${pp}.ab: liegt nach reichweite_bis`);
+    if (vorher !== null && ph.ab <= vorher) errors.push(`${pp}.ab: Phasen muessen aufsteigend und ohne doppelte Startdaten sein`);
+    vorher = ph.ab;
+  });
+}
+
 function validateSzenarien(data, errors) {
   // Nur AKTIVE Zielpositionen sind gültige Gegenbuchungs-Ziele (Spec).
   const darlehenIds = new Set((data.darlehen ?? []).filter((d) => d.status !== "abgeloest").map((d) => d.darlehen_id));
@@ -647,6 +665,7 @@ function validateSzenarien(data, errors) {
   for (const sz of data.szenarien ?? []) {
     const p = `szenarien.${sz.szenario_id}`;
     if (sz.reichweite_bis < sz.stand) errors.push(`${p}: reichweite_bis liegt vor stand`);
+    validatePhasen(sz, p, errors);
 
     const gesehen = new Set();
     const verkauft = new Set(); // ziel_typ:ziel_id, gegen Doppelverkauf

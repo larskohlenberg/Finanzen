@@ -174,6 +174,33 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
 10. **Beleg sprechend umbenennen und ablegen** (siehe Abschnitt unten): Rohbeleg in `Belege/` einsortieren (im Betrieb: Tool `beleg_ablegen`), **niemals** den Scan-/Mail-Originalnamen behalten. Hat OCR den Text geliefert, nichts weiter tun: `belege_text` erzeugt den Zwilling identisch zum Vorlauf. Nur wenn der Vorlauf leer war oder fehlt (OCR ohne Ergebnis), liest du die PDF-Seiten bzw. das Foto selbst (`datei_lesen` mit `seite`) und schreibst den Zwilling schon beim Ablegen von Hand daneben (per `datei_schreiben` neben die Rohdatei, `beleg_ablegen` nimmt ihn mit): `<Belegname>.txt`, erste Zeile `# Vom Agenten aus dem Bildscan gelesen, <JJJJ-MM-TT>.`, darunter der gelesene Text. Danach `belege_text` mit `schreiben: true` — das legt die Textzwillinge der uebrigen Belege an und raeumt den Vorlauf in `standardized/` ab; einen bereits geschriebenen Zwilling laesst der Lauf unberuehrt. Zwischen-JSONL verwerfen. Bei Fehler: nach `data/inbox/error/` plus strukturierte Begleitdatei.
 11. **Agent-Lauf protokollieren**: Eintrag in `DATENROOT/agent_log.jsonl` mit Zaehlern (importiert, offen, Fehler), betroffene IDs, kurze Notiz. `rohquelle` jeder Buchung zeigt auf den **finalen Beleg-Pfad** in `Belege/`.
 
+## PDF-Kontoauszug mit Soll/Haben-Kennzeichen
+
+Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
+
+- **Kopfzeile je Posten**: `DD.MM. DD.MM. <Vorgang> <Betrag> S|H` — Buchungstag,
+  Wertstellung, Vorgang, Betrag; `S` (Soll) wird negativ, `H` (Haben) positiv. Das
+  Jahr steht nur im Auszugskopf.
+- **Folgezeilen**: die erste ist die Gegenpartei, alle weiteren sind der
+  Verwendungszweck.
+- **Harter Umbruch bei 54 Zeichen**: Der Zweck ist in Monospace bei 54 Zeichen
+  umbrochen, auch mitten im Wort. Eine volle 54-Zeichen-Zeile ohne Leerzeichen an
+  die naechste anhaengen, sonst mit Leerzeichen. Pruefbar bei Darlehensraten: Zins-
+  plus Tilgungsanteil im Text muss den Betrag ergeben.
+- **Felder**: `EREF` → `kundenreferenz`, `MREF` → `mandatsreferenz`, `CRED` →
+  `glaeubiger_id`. Eine IBAN des Gegenuebers nennt der Auszug nicht; das Feld
+  bleibt leer.
+- **Ueberlappung mit einer Umsatzanzeige**: Stammt der Bestand aus einer
+  Umsatzanzeige derselben Bank, faengt der Hash-Dedupe die Ueberlappung nicht —
+  die Anzeige haengt `IBAN: … BIC: …` an den Zweck. Dann ueber Datum, Betrag und
+  Gegenpartei von Hand abgleichen und die bekannten Posten aus der JSONL nehmen,
+  bevor importiert wird.
+- **Rechnungsabschluss**: Das separate Dokument enthaelt keine Buchung. Die
+  Abschlussbuchung (Zinsen, Entgelte) steht im Auszug zum Quartalsende. Der
+  Abschluss nennt keinen Gegenpartei-Namen; die Bank selbst eintragen.
+- **Dateiname**: Im Download-Namen steht das Abrufdatum, nicht das Belegdatum —
+  Zeitraum bzw. Abrechnungstag aus dem Beleg nehmen.
+
 ## Belege benennen und ablegen
 
 Gilt fuer **alle** Belege (Kontoauszuege wie sonstige Informationsbelege). Eingescannte Briefe und Mail-Anhaenge haben unklare oder immer gleiche Namen — deshalb beim Wegsortieren **immer** umbenennen, sodass der Beleg ohne Oeffnen verstaendlich ist.

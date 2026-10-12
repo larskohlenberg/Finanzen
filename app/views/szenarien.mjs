@@ -7,7 +7,7 @@ import { data, state, t, escapeHtml, cents } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead } from "../komponenten.mjs";
 import { zeitstrahlDiagramm, stapelDiagramm } from "../charts.mjs";
-import { computeSzenario, rechneSzenario, guardrailWarnungen, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte } from "../szenarien.mjs";
+import { computeSzenario, rechneSzenario, guardrailWarnungen, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte, szenarioAenderungen } from "../szenarien.mjs";
 import { localTodayIso, addInterval } from "../liquiditaet.mjs";
 
 export const MAX_VERGLEICH = 7;
@@ -310,6 +310,73 @@ function zeitstrahl(szenario, r, v, phasen) {
     </section>`;
 }
 
+// --- Was sich aendert: chronologisch, je Monat mit Summe der Monatswirkung ------
+
+function quelleChip(q) {
+  return `<span class="quelle-chip ${q}">${escapeHtml(t(q === "bestand" ? "szenarien.quelleBestand" : "szenarien.quelleAnnahme"))}</span>`;
+}
+
+function betragText(z) {
+  return `${formatMoney(cents(z.betrag))} / ${rhythmusLabel(z.rhythmus_einheit, z.rhythmus_intervall)}`;
+}
+
+function aenderungZeile(e) {
+  const alt = e.alt ? `<s class="alt-wert">${escapeHtml(betragText(e.alt))}</s>` : "";
+  let wert;
+  if (e.art === "einmalig") wert = `${escapeHtml(vorzeichen(e.einmal_cents))} ${escapeHtml(t("szenarien.einmalig"))}`;
+  else if (e.art === "neu") wert = `<span class="neu-wert">${escapeHtml(betragText(e.neu))}</span> <span class="muted">${escapeHtml(t("szenarien.neuLabel"))}</span>`;
+  else if (e.art === "beendet") wert = `${alt} → ${escapeHtml(t("szenarien.entfaellt"))}`;
+  else if (e.art === "auslauf") wert = `${alt} → ${escapeHtml(t("szenarien.laeuftAus"))}`;
+  else wert = `${alt} → <span class="neu-wert">${escapeHtml(betragText(e.neu))}</span>`;
+  const name = e.art === "ersetzt" && e.alt.name !== e.name
+    ? `<s class="alt-wert">${escapeHtml(e.alt.name)}</s><br>${escapeHtml(e.name)}`
+    : (e.art === "beendet" || e.art === "auslauf" ? `<s class="alt-wert">${escapeHtml(e.name)}</s>` : escapeHtml(e.name));
+  const link = e.regelzahlung_id && e.art !== "einmalig"
+    ? `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(e.regelzahlung_id)}">${name}</button>`
+    : name;
+  const wirkung = e.art === "einmalig"
+    ? ""
+    : `<span class="${e.delta_cents < 0 ? "amount-negativ" : e.delta_cents > 0 ? "amount-positiv" : ""}">${escapeHtml(vorzeichen(e.delta_cents))}</span>`;
+  return `
+    <tr>
+      <td>${link} ${e.quellen.map(quelleChip).join(" ")}</td>
+      <td>${wert}</td>
+      <td class="amount">${wirkung}</td>
+      <td class="muted">${escapeHtml(formatDate(e.datum))}</td>
+    </tr>`;
+}
+
+function aenderungenAbschnitt(szenario, today) {
+  const liste = szenarioAenderungen(data, szenario, today);
+  const monate = [];
+  for (const e of liste) {
+    const monat = e.datum.slice(0, 7);
+    if (monate.at(-1)?.monat !== monat) monate.push({ monat, eintraege: [] });
+    monate.at(-1).eintraege.push(e);
+  }
+  const inhalt = monate.length
+    ? `<div class="table-wrap"><table class="aenderungen-tabelle">
+        <thead><tr>
+          <th>${escapeHtml(t("szenarien.posten"))}</th>
+          <th>${escapeHtml(t("szenarien.vorherNachher"))}</th>
+          <th class="amount">${escapeHtml(t("szenarien.wirkungMonat"))}</th>
+          <th>${escapeHtml(t("szenarien.ab"))}</th>
+        </tr></thead>
+        <tbody>${monate.map((m) => {
+          const summe = m.eintraege.reduce((s, e) => s + e.delta_cents, 0);
+          const kopf = `<tr class="aenderung-monat"><th colspan="2">${escapeHtml(formatMonth(m.monat))}</th><th class="amount">${summe ? `<span class="${summe < 0 ? "amount-negativ" : "amount-positiv"}">${escapeHtml(vorzeichen(summe))}</span>` : ""}</th><th></th></tr>`;
+          return kopf + m.eintraege.map(aenderungZeile).join("");
+        }).join("")}</tbody>
+      </table></div>`
+    : `<p class="muted">${escapeHtml(t("szenarien.keineAenderungen"))}</p>`;
+  return `
+    <section class="panel panel-pad section-spacing">
+      <h2 class="section-title">${escapeHtml(t("szenarien.aenderungenTitle"))}</h2>
+      <p class="muted">${escapeHtml(t("szenarien.aenderungenLead"))}</p>
+      ${inhalt}
+    </section>`;
+}
+
 function annahmeZeile(a) {
   const q = qualitaetChip(a.qualitaet);
   const begr = a.begruendung ? `<div class="muted annahme-begruendung">${escapeHtml(a.begruendung)}</div>` : "";
@@ -488,8 +555,13 @@ function renderObjektwirkungen(c) {
     <div class="rail-list section-spacing">${items.join("")}</div>`;
 }
 
-function renderBasisRegelzahlungen(r, endeMonat) {
+function renderBasisRegelzahlungen(r, endeMonat, aenderungen = []) {
   const rz = r.basisRegelzahlungen ?? [];
+  const markiert = new Map();
+  for (const e of aenderungen) {
+    if (e.art === "beendet" || e.art === "geaendert") markiert.set(e.regelzahlung_id, e);
+    if (e.art === "ersetzt" && e.ersetzt_regelzahlung_id) markiert.set(e.ersetzt_regelzahlung_id, e);
+  }
   const expanded = state.szenarioBasisExpanded;
   const kopf = klappKopf("toggle-szenario-basis", expanded, t("szenarien.basisRzTitle"), ` <span class="muted">· ${rz.length} ${escapeHtml(t("szenarien.ausDerBasis"))}</span>`);
   if (!expanded) return kopf;
@@ -498,7 +570,13 @@ function renderBasisRegelzahlungen(r, endeMonat) {
     return `
     <tr>
       <td><button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(x.regelzahlung_id)}">${escapeHtml(x.bezeichnung)}</button></td>
-      <td class="amount">${escapeHtml(formatMoney(cents(x.betrag)))} / ${escapeHtml(rhythmusLabel(x.rhythmus_einheit, x.rhythmus_intervall))}</td>
+      <td class="amount">${(() => {
+        const e = markiert.get(x.regelzahlung_id);
+        const basis = `${formatMoney(cents(x.betrag))} / ${rhythmusLabel(x.rhythmus_einheit, x.rhythmus_intervall)}`;
+        if (!e) return escapeHtml(basis);
+        const nachher = e.art === "beendet" ? t("szenarien.entfaellt") : e.art === "ersetzt" ? `${e.name}: ${betragText(e.neu)}` : betragText(e.neu);
+        return `<s class="alt-wert">${escapeHtml(basis)}</s><br><span class="neu-wert">${escapeHtml(nachher)}</span> <span class="muted">${escapeHtml(t("szenarien.ab"))} ${escapeHtml(formatDate(e.datum))}</span>`;
+      })()}</td>
       <td>${x.kategorie_id ? escapeHtml(categoryName(x.kategorie_id)) : "—"}</td>
       <td>${escapeHtml(bis)}</td>
     </tr>`;
@@ -533,7 +611,7 @@ function rechengrundlage(szenario, today) {
     <section class="panel panel-pad section-spacing">
       ${kopf}
       ${renderObjektwirkungen(c)}
-      <div class="section-spacing">${renderBasisRegelzahlungen(c.szenario, monatLabel(szenario.reichweite_bis))}</div>
+      <div class="section-spacing">${renderBasisRegelzahlungen(c.szenario, monatLabel(szenario.reichweite_bis), szenarioAenderungen(data, szenario, today))}</div>
       ${hinweis}
     </section>`;
 }
@@ -565,6 +643,7 @@ function renderDetail(szenario, today) {
     ${warnungenHtml(r.warnungen ?? [])}
     ${antwortZeile(szenario, r, v, today)}
     ${zeitstrahl(szenario, r, v, phasen)}
+    ${aenderungenAbschnitt(szenario, today)}
     ${phasenTabelle(szenario, phasen)}
     ${nettoAbschnitt(r)}
     ${rechengrundlage(szenario, today)}`;

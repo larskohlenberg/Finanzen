@@ -165,6 +165,8 @@ function sachwertBezeichnung(data, ziel_typ, ziel_id) {
   if (ziel_typ === "immobilie") return (data.immobilien ?? []).find((i) => i.immobilie_id === ziel_id)?.bezeichnung ?? ziel_id;
   if (ziel_typ === "vermoegenswert") return (data.vermoegenswerte ?? []).find((v) => v.vermoegenswert_id === ziel_id)?.bezeichnung ?? ziel_id;
   if (ziel_typ === "vorsorge") return (data.vorsorge ?? []).find((v) => v.vorsorge_id === ziel_id)?.name ?? ziel_id;
+  if (ziel_typ === "darlehen") return (data.darlehen ?? []).find((d) => d.darlehen_id === ziel_id)?.bezeichnung ?? ziel_id;
+  if (ziel_typ === "depot") return (data.konten ?? []).find((k) => k.konto_id === ziel_id)?.name ?? ziel_id;
   return ziel_id;
 }
 
@@ -588,4 +590,85 @@ export function jahresWerte(punkte) {
     j.einmal_cents += p.einmal_cents ?? 0;
   }
   return jahre;
+}
+
+// --- Was sich aendert: chronologische Liste fuer die Detailseite ---------------
+// Fuehrt Annahmen und das Auslaufen/Beginnen von Bestands-Regelzahlungen im
+// Horizont zusammen. Endet eine Zahlung und beginnt im selben oder naechsten
+// Monat eine neue derselben Kategorie, wird daraus eine Zeile "ersetzt".
+// Eintrag: { datum, art, name, alt?, neu?, delta_cents (Monatsaequivalent),
+// einmal_cents, quellen, kategorie_id }; art = neu|beendet|geaendert|auslauf|ersetzt|einmalig.
+const monatsAequivalent = (betrag, einheit, intervall) => Math.round((toCents(betrag) * PPJ[einheit ?? "monat"]) / 12 / Number(intervall || 1));
+const zahlung = (name, betrag, einheit, intervall) => ({ name, betrag, rhythmus_einheit: einheit ?? "monat", rhythmus_intervall: Number(intervall || 1) });
+
+export function szenarioAenderungen(data, szenario, today) {
+  const horizon = szenario.reichweite_bis;
+  const imZeitraum = (d) => d && d > today && d <= horizon;
+  const { szenario: expandiert } = expandVorsorgeLeistungen(data, szenario, today);
+  const annahmen = expandiert.annahmen ?? [];
+  const rzById = new Map((data.regelzahlungen ?? []).filter((r) => r.status === "bestaetigt").map((r) => [r.regelzahlung_id, r]));
+  const roh = [];
+
+  for (const a of annahmen) {
+    if (String(a.annahme_id).endsWith("~abbau")) continue;
+    if (a.art === "einmalzahlung") {
+      if (!imZeitraum(a.datum)) continue;
+      const g = a.gegenbuchung;
+      const name = a.name ?? (g ? sachwertBezeichnung(data, g.ziel_typ, g.ziel_id) ?? g.neue_position?.bezeichnung : null) ?? a.begruendung ?? "Einmalzahlung";
+      roh.push({ datum: a.datum, art: "einmalig", name, delta_cents: 0, einmal_cents: toCents(a.betrag), quellen: ["annahme"], annahme_id: a.annahme_id, gegenbuchung: g ?? null });
+    } else if (a.art === "regelzahlung-neu") {
+      const neu = zahlung(a.name ?? "Szenario-Zahlung", a.betrag, a.rhythmus_einheit, a.rhythmus_intervall);
+      const monat = monatsAequivalent(a.betrag, a.rhythmus_einheit, a.rhythmus_intervall);
+      if (imZeitraum(a.ab)) roh.push({ datum: a.ab, art: "neu", name: neu.name, neu, delta_cents: monat, einmal_cents: 0, quellen: ["annahme"], annahme_id: a.annahme_id, kategorie_id: a.kategorie_id ?? null });
+      const ende = a.bis ? addInterval(a.bis, "tag", 1) : null;
+      if (imZeitraum(ende)) roh.push({ datum: ende, art: "auslauf", name: neu.name, alt: neu, delta_cents: -monat, einmal_cents: 0, quellen: ["annahme"], annahme_id: a.annahme_id, kategorie_id: a.kategorie_id ?? null });
+    } else if (a.art === "regelzahlung-aenderung") {
+      const r = rzById.get(a.regelzahlung_id);
+      if (!r || !imZeitraum(a.ab)) continue;
+      if (r.aktiv_bis && r.aktiv_bis < a.ab) continue;
+      const alt = zahlung(r.bezeichnung, r.betrag, r.rhythmus_einheit, r.rhythmus_intervall);
+      const altMonat = monatsAequivalent(r.betrag, r.rhythmus_einheit, r.rhythmus_intervall);
+      if (a.aktion === "beenden") {
+        roh.push({ datum: a.ab, art: "beendet", name: r.bezeichnung, alt, delta_cents: -altMonat, einmal_cents: 0, quellen: ["annahme"], annahme_id: a.annahme_id, regelzahlung_id: r.regelzahlung_id, kategorie_id: r.kategorie_id ?? null });
+      } else {
+        const neu = zahlung(r.bezeichnung, a.betrag, r.rhythmus_einheit, r.rhythmus_intervall);
+        roh.push({ datum: a.ab, art: "geaendert", name: r.bezeichnung, alt, neu, delta_cents: monatsAequivalent(a.betrag, r.rhythmus_einheit, r.rhythmus_intervall) - altMonat, einmal_cents: 0, quellen: ["annahme"], annahme_id: a.annahme_id, regelzahlung_id: r.regelzahlung_id, kategorie_id: r.kategorie_id ?? null });
+      }
+    }
+  }
+
+  // Bestand: Regelzahlungen, die im Horizont beginnen oder auslaufen. Ein Auslaufen
+  // entfaellt, wenn eine Annahme die Zahlung vorher beendet; nach einer
+  // Betragsaenderung laeuft der neue Betrag aus.
+  for (const r of rzById.values()) {
+    if (r.darlehen_id) continue;
+    const eigene = annahmen.filter((a) => a.art === "regelzahlung-aenderung" && a.regelzahlung_id === r.regelzahlung_id && a.ab > today);
+    if (imZeitraum(r.anker_datum)) {
+      const neu = zahlung(r.bezeichnung, r.betrag, r.rhythmus_einheit, r.rhythmus_intervall);
+      roh.push({ datum: r.anker_datum, art: "neu", name: r.bezeichnung, neu, delta_cents: monatsAequivalent(r.betrag, r.rhythmus_einheit, r.rhythmus_intervall), einmal_cents: 0, quellen: ["bestand"], regelzahlung_id: r.regelzahlung_id, kategorie_id: r.kategorie_id ?? null });
+    }
+    if (!r.aktiv_bis) continue;
+    const ende = addInterval(r.aktiv_bis, "tag", 1);
+    if (!imZeitraum(ende)) continue;
+    if (eigene.some((a) => a.aktion === "beenden" && a.ab <= r.aktiv_bis)) continue;
+    const letzte = eigene.filter((a) => a.aktion === "betrag-aendern" && a.ab <= r.aktiv_bis).sort((x, y) => x.ab.localeCompare(y.ab)).at(-1);
+    const betrag = letzte ? letzte.betrag : r.betrag;
+    const alt = zahlung(r.bezeichnung, betrag, r.rhythmus_einheit, r.rhythmus_intervall);
+    roh.push({ datum: ende, art: "auslauf", name: r.bezeichnung, alt, delta_cents: -monatsAequivalent(betrag, r.rhythmus_einheit, r.rhythmus_intervall), einmal_cents: 0, quellen: [letzte ? "annahme" : "bestand"], regelzahlung_id: r.regelzahlung_id, kategorie_id: r.kategorie_id ?? null });
+  }
+
+  // Ersetzung: Ende + Beginn derselben Kategorie im selben oder naechsten Monat.
+  const monatsNr = (d) => Number(d.slice(0, 4)) * 12 + Number(d.slice(5, 7));
+  const verbraucht = new Set();
+  const liste = [];
+  for (const e of roh) {
+    if (e.art !== "neu" || !e.kategorie_id) continue;
+    const vorher = roh.find((o) => !verbraucht.has(o) && (o.art === "auslauf" || o.art === "beendet") && o.kategorie_id === e.kategorie_id
+      && Math.sign(o.delta_cents) === -Math.sign(e.delta_cents) && Math.abs(monatsNr(o.datum) - monatsNr(e.datum)) <= 1);
+    if (!vorher) continue;
+    verbraucht.add(vorher).add(e);
+    liste.push({ ...e, art: "ersetzt", alt: vorher.alt, delta_cents: e.delta_cents + vorher.delta_cents, quellen: [...new Set([...vorher.quellen, ...e.quellen])], ersetzt_regelzahlung_id: vorher.regelzahlung_id ?? null });
+  }
+  for (const e of roh) if (!verbraucht.has(e)) liste.push(e);
+  return liste.sort((x, y) => x.datum.localeCompare(y.datum) || x.name.localeCompare(y.name));
 }

@@ -51,8 +51,8 @@ test("kennzahlen liefert dieselben Werte wie die Uebersicht", async () => {
     for (const [i, konto] of konten.entries()) {
       const z = selektoren.overviewAccountRow(konto);
       if (z.wert_cents === null) assert.ok(kontoZeilen[i].includes(`kein Wert (${z.basis})`), kontoZeilen[i]);
-      else assert.ok(kontoZeilen[i].includes(`${eur(z.wert_cents)}, ${z.qualitaet} zum ${z.belegdatum}`), kontoZeilen[i]);
-      if (konto.kontotyp !== "depot") assert.ok(kontoZeilen[i].includes(`letzte Buchung ${z.letzteBuchung || "-"}`), kontoZeilen[i]);
+      else assert.ok(kontoZeilen[i].includes(`${eur(z.wert_cents)}, ${z.qualitaet} zum ${z.belegdatum}${z.veraltet ? ", veraltet" : ""}`), kontoZeilen[i]);
+      assert.doesNotMatch(kontoZeilen[i], /letzte Buchung/);
     }
 
     const aktion = buildNextAgentAction(data);

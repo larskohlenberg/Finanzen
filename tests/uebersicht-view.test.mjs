@@ -85,7 +85,8 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   const zeile = (id) => html.match(new RegExp(`<tr[^>]*id="konto-${id}"[\\s\\S]*?</tr>`))[0];
 
   assert.match(zeile("KTO-901"), /4\.321,09/);
-  assert.match(zeile("KTO-901"), /belegt · 15\.9\.2026/);
+  assert.match(zeile("KTO-901"), /chip success[^"]*"[\s\S]*belegt · 15\.9\.2026/);
+  assert.doesNotMatch(zeile("KTO-901"), /veraltet/);
   assert.match(zeile("KTO-901"), /15\.9\.2026/);
   assert.doesNotMatch(zeile("KTO-901"), /noch nicht belegt/);
 
@@ -93,7 +94,8 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
 
   assert.match(zeile("KTO-903"), /1\.150,00/);
   assert.doesNotMatch(zeile("KTO-903"), /-4\.050,00|−4\.050,00/);
-  assert.match(zeile("KTO-903"), /belegt · 10\.6\.2026/);
+  assert.match(zeile("KTO-903"), /belegt · 10\.6\.2026 · veraltet/);
+  assert.doesNotMatch(html, /Letzte Buchung/);
   assert.doesNotMatch(zeile("KTO-903"), /noch nicht belegt/);
 
   assert.match(zeile("KTO-904"), /Kontostand noch nicht belegt/);

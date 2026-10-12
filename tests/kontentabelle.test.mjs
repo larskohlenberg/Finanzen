@@ -11,7 +11,7 @@ const tx = (id, buchungsdatum, betrag) => ({ konto_id: id, buchungsdatum, betrag
 test("Depot mit belegtem Depotwert: Wert, Qualitaet und Belegdatum", () => {
   const data = { transaktionen: [], zeitwerte: [zw("KTO-D", "depotwert", "2026-08-14", "12000.00"), zw("KTO-D", "depotwert", "2026-09-15", "4321.09")] };
   const z = kontoZeile(data, konto("KTO-D", "depot"), "2026-10-12");
-  assert.deepEqual({ ...z }, { wert_cents: 432109, qualitaet: "belegt", belegdatum: "2026-09-15", basis: "depotwert", letzteBuchung: "" });
+  assert.deepEqual({ ...z }, { wert_cents: 432109, qualitaet: "belegt", belegdatum: "2026-09-15", basis: "depotwert", veraltet: false });
 });
 
 test("Girokonto: Stand gilt bis zur letzten eingerechneten Buchung, nicht nur bis zum Anker", () => {
@@ -25,7 +25,7 @@ test("Girokonto: Stand gilt bis zur letzten eingerechneten Buchung, nicht nur bi
   // Importierte Buchungen sind selbst belegt: der Stand reicht bis zur letzten
   // Buchung bis heute (2026-06-10); die kuenftige vom 2026-11-01 zaehlt nicht.
   assert.equal(z.belegdatum, "2026-06-10");
-  assert.equal(z.letzteBuchung, "2026-11-01");
+  assert.equal(z.veraltet, true);
 });
 
 test("Geschaetzter Anker bleibt geschaetzt", () => {
@@ -39,11 +39,27 @@ test("Ohne Zeitwert: kein Wert, Basis nennt den fehlenden Beleg", () => {
   assert.equal(giro.wert_cents, null);
   assert.equal(giro.qualitaet, null);
   assert.equal(giro.basis, "anker-fehlt");
-  assert.equal(giro.letzteBuchung, "2026-07-30");
+  assert.equal(giro.veraltet, false);
   assert.equal(kontoZeile(data, konto("KTO-D", "depot"), "2026-10-12").basis, "depotwert-fehlt");
 });
 
 test("Ohne Buchungen nach dem Anker bleibt das Ankerdatum der Stand", () => {
   const data = { transaktionen: [tx("KTO-G", "2026-06-01", "-5.00")], zeitwerte: [zw("KTO-G", "kontostand", "2026-06-08", "100.00")] };
   assert.equal(kontoZeile(data, konto("KTO-G", "giro"), "2026-10-12").belegdatum, "2026-06-08");
+});
+
+test("Konto: Stand gilt ab einem Monat Alter als veraltet", () => {
+  const data = (standdatum) => ({ transaktionen: [], zeitwerte: [zw("KTO-G", "kontostand", standdatum, "100.00")] });
+  assert.equal(kontoZeile(data("2026-09-13"), konto("KTO-G", "giro"), "2026-10-12").veraltet, false);
+  assert.equal(kontoZeile(data("2026-09-12"), konto("KTO-G", "giro"), "2026-10-12").veraltet, true);
+});
+
+test("Depot: ruhig nach drei Monaten veraltet, mit Bewegung im letzten Monat schon nach einem", () => {
+  const depot = konto("KTO-D", "depot");
+  const ruhig = { transaktionen: [], zeitwerte: [zw("KTO-D", "depotwert", "2026-08-14", "100.00")] };
+  assert.equal(kontoZeile(ruhig, depot, "2026-10-12").veraltet, false);
+  const alt = { transaktionen: [], zeitwerte: [zw("KTO-D", "depotwert", "2026-06-30", "100.00")] };
+  assert.equal(kontoZeile(alt, depot, "2026-10-12").veraltet, true);
+  const aktiv = { transaktionen: [tx("KTO-D", "2026-10-01", "-50.00")], zeitwerte: [zw("KTO-D", "depotwert", "2026-08-14", "100.00")] };
+  assert.equal(kontoZeile(aktiv, depot, "2026-10-12").veraltet, true);
 });

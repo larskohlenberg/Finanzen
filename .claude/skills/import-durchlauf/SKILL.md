@@ -21,7 +21,8 @@ Lauf eine Vorschau.
 1. `lernen` — Metriken vor den Lauf stellen.
 2. Je Rohdatei den Subagenten **`import-normalisierung`** beauftragen. Der
    Inbox-Lauf legt fuer PDFs und Fotos den Textvorlauf an (Scans und Fotos per
-   OCR); Bild oder Scan selbst ansehen nur, wenn OCR nichts taugt.
+   OCR); Bild oder Scan selbst ansehen nur, wenn OCR nichts taugt. Erkannte
+   Duplikate per `inbox_verwerfen` (mit `grund`) in den Papierkorb schieben.
 3. Den Subagenten **`regel-recherche`** auf den Offen-Stapel ansetzen. Er
    verregelt, was belegt ist, und schaetzt den Rest als Einzelvorschlag.
 4. `freigabe` mit `schreiben: true`.

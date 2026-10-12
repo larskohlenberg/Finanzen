@@ -3,8 +3,8 @@
 // - Lese-Tools (status, kennzahlen, transaktionen_abfragen, datei_lesen, dateien_suchen),
 // - 1:1-Wrapper um die CLIs in app/tools/ (Vorschau ist Default, schreiben:true
 //   setzt das Schreib-Flag der CLI und braucht --recht=schreiben),
-// - Datei-Schreiben (datei_schreiben, datei_ersetzen, beleg_ablegen), nur mit
-//   --recht=schreiben.
+// - Datei-Schreiben (datei_schreiben, datei_ersetzen, beleg_ablegen,
+//   inbox_verwerfen, inbox_zurueckholen), nur mit --recht=schreiben.
 // Jeder schreibende Vorgang laeuft durch mitRollback (Validator + Rueckspielen).
 import { execFile } from "node:child_process";
 import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
@@ -651,7 +651,111 @@ const belegAblegen = {
   },
 };
 
-export const WERKZEUGE = [status, kennzahlen, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen];
+// Eine Protokollzeile im Format der CLIs (inbox.mjs) ans agent_log.jsonl.
+async function protokolliere(ctx, eintrag) {
+  const absolut = path.join(ctx.datenroot, "agent_log.jsonl");
+  const bisher = await readFile(absolut, "utf8").catch((error) => {
+    if (error.code === "ENOENT") return "";
+    throw error;
+  });
+  const zeile = { zeitpunkt: new Date().toISOString(), ...eintrag, anzahl_importiert: 0, anzahl_offen: 0, anzahl_fehler: 0 };
+  await schreibeAtomar(absolut, `${bisher.replace(/\n*$/, bisher ? "\n" : "")}${JSON.stringify(zeile)}\n`);
+}
+
+const istDatei = async (absolut) => Boolean((await lstat(absolut).catch(() => null))?.isFile());
+const TEXTVORLAUF = /\.(pdf|png|jpe?g|gif|webp|heic)$/i;
+
+const inboxVerwerfen = {
+  name: "inbox_verwerfen",
+  description: "Datei aus data/inbox/ (auch error/, standardized/, processed/) in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/ verschieben, z. B. ein erkanntes Duplikat. Nichts wird geloescht: die Unterstruktur unterhalb von data/inbox/ bleibt erhalten, bei Namenskollision bekommt die Datei ein Suffix (-2, -3 ...), ueberschrieben wird nie. Mit wandern: der gleichnamige .txt-Zwilling daneben, der Textvorlauf in standardized/ und eine Fehlernotiz <name>.fehler.txt in error/. grund wird als notiz in agent_log.jsonl protokolliert. Den Papierkorb leert nur der Nutzer. Wird bei einem Rollback nicht zurueckgenommen.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      pfad: { type: "string", description: "z. B. data/inbox/auszug-2.pdf oder data/inbox/error/auszug.csv" },
+      grund: { type: "string", maxLength: 300, description: "Kurz, z. B. \"Duplikat von data/inbox/processed/auszug.pdf\"" },
+    },
+    required: ["pfad"],
+    additionalProperties: false,
+  },
+  nurSchreiben: true,
+  async ausfuehren(ctx, args) {
+    const quelle = await loesePfad(ctx.app, args.pfad, ["data/inbox"]);
+    if (!(await istDatei(quelle.absolut))) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
+    const inbox = path.join(ctx.app, "data", "inbox");
+    const unter = path.relative(inbox, quelle.absolut);
+    const ordner = path.dirname(unter);
+    const name = path.basename(unter);
+    const endung = path.extname(name);
+    const stamm = name.slice(0, name.length - endung.length);
+    // Jedes Mitglied der Gruppe: Quelle (relativ zu data/inbox) und Name als
+    // Stamm + Rest, damit ein Suffix alle Mitglieder gleich trifft.
+    const gruppe = [{ unter, ordner, rest: endung }];
+    const kandidaten = [];
+    if (endung.toLowerCase() !== ".txt") kandidaten.push({ unter: path.join(ordner, `${stamm}.txt`), ordner, rest: ".txt" });
+    if (TEXTVORLAUF.test(name) && ordner !== "standardized") kandidaten.push({ unter: path.join("standardized", `${stamm}.txt`), ordner: "standardized", rest: ".txt" });
+    if (ordner === "error") kandidaten.push({ unter: path.join(ordner, `${name}.fehler.txt`), ordner, rest: `${endung}.fehler.txt` });
+    for (const k of kandidaten) {
+      // Auch die Mitlaeufer muessen durch den Pfadschutz (Symlink daneben).
+      const geprueft = await loesePfad(ctx.app, path.join("data", "inbox", k.unter), ["data/inbox"]).catch(() => null);
+      if (geprueft && (await istDatei(geprueft.absolut))) gruppe.push(k);
+    }
+    const korb = path.join("data", "papierkorb", localTodayIso());
+    const zielFuer = (g, n) => path.join(korb, g.ordner, `${stamm}${n > 1 ? `-${n}` : ""}${g.rest}`);
+    let n = 1;
+    for (;;) {
+      const belegt = await Promise.all(gruppe.map((g) => lstat(path.join(ctx.app, zielFuer(g, n))).then(() => true, () => false)));
+      if (!belegt.some(Boolean)) break;
+      n += 1;
+    }
+    const paare = [];
+    for (const g of gruppe) {
+      paare.push([
+        { absolut: path.join(inbox, g.unter), relativ: path.join("data", "inbox", g.unter).split(path.sep).join("/") },
+        await loesePfad(ctx.app, zielFuer(g, n), ["data/papierkorb"]),
+      ]);
+    }
+    return mitRollback(ctx.datenroot, async () => {
+      for (const [q, z] of paare) {
+        await mkdir(path.dirname(z.absolut), { recursive: true });
+        await rename(q.absolut, z.absolut);
+      }
+      await protokolliere(ctx, {
+        anlass: "inbox-verwerfen",
+        inputs: paare.map(([q]) => q.relativ),
+        papierkorb: paare.map(([, z]) => z.relativ),
+        notiz: args.grund?.trim() || "Datei aus der Inbox verworfen",
+      });
+      return ergebnis(`Verworfen (Papierkorb):\n${paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n")}`);
+    });
+  },
+};
+
+const inboxZurueckholen = {
+  name: "inbox_zurueckholen",
+  description: "Datei aus data/inbox/error/ zurueck in die Inbox-Wurzel data/inbox/ verschieben, damit der naechste inbox-Lauf sie wieder aufnimmt. Existiert dort schon eine Datei gleichen Namens, bricht das Tool ab (nichts ueberschrieben). Eine Fehlernotiz <name>.fehler.txt bleibt in error/ liegen.",
+  inputSchema: {
+    type: "object",
+    properties: { pfad: { type: "string", description: "z. B. data/inbox/error/auszug.csv" } },
+    required: ["pfad"],
+    additionalProperties: false,
+  },
+  nurSchreiben: true,
+  async ausfuehren(ctx, args) {
+    const quelle = await loesePfad(ctx.app, args.pfad, ["data/inbox/error"]);
+    if (!(await istDatei(quelle.absolut))) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
+    const name = path.basename(quelle.absolut);
+    if (name.endsWith(".fehler.txt")) return ergebnis(`${quelle.relativ} ist eine Fehlernotiz, keine Eingangsdatei`, true);
+    const ziel = await loesePfad(ctx.app, path.join("data", "inbox", name), ["data/inbox"]);
+    if (await lstat(ziel.absolut).catch(() => null)) return ergebnis(`${ziel.relativ} existiert bereits — nichts verschoben`, true);
+    return mitRollback(ctx.datenroot, async () => {
+      await rename(quelle.absolut, ziel.absolut);
+      await protokolliere(ctx, { anlass: "inbox-zurueckholen", inputs: [quelle.relativ], notiz: `Aus error/ zurueck nach ${ziel.relativ}` });
+      return ergebnis(`${quelle.relativ} -> ${ziel.relativ}`);
+    });
+  },
+};
+
+export const WERKZEUGE = [status, kennzahlen, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, inboxVerwerfen, inboxZurueckholen];
 
 export function sichtbareWerkzeuge(ctx) {
   return WERKZEUGE

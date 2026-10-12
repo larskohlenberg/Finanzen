@@ -99,3 +99,16 @@ test("Vergleich: eine Linie je Szenario und Kennzahlentabelle", () => {
   assert.match(html, /zeitstrahl-linie serie-1/);
   assert.match(html, /data-action="open-szenario" data-szenario="SZN-002"/);
 });
+
+test("Detail: Abschnitt 'Was sich aendert' mit Monatsgruppe, Ersetzung und Durchstreichung", () => {
+  setDaten();
+  data.regelzahlungen[0].aktiv_bis = `${JAHR + 1}-12-31`;
+  data.szenarien[0].annahmen.push({ annahme_id: "A3", art: "regelzahlung-neu", qualitaet: "geschaetzt", name: "Gehalt neu", kategorie_id: "KAT-001", betrag: "3500.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, ab: `${JAHR + 2}-01-27` });
+  state.selectedSzenarioId = "SZN-001";
+  const html = renderSzenarien();
+  assert.match(html, /Was sich ändert/);
+  assert.match(html, /<s class="alt-wert">Gehalt<\/s><br>Gehalt neu/);
+  assert.match(html, /class="quelle-chip bestand">Bestand/);
+  assert.match(html, /class="aenderung-monat"><th colspan="2">Januar/);
+  assert.match(html, /\+500,00\s€/);
+});

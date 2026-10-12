@@ -3011,3 +3011,10 @@ a.linkish {
 .legende-linie { display: inline-block; width: 18px; height: 0; border-top: 2.5px solid var(--accent); margin-right: 6px; vertical-align: middle; }
 .legende-linie.vergleich { border-top: 2px dashed var(--muted); }
 .legende-linie.differenz { border-top-color: var(--review); }
+.alt-wert { color: var(--muted); text-decoration-thickness: 1.5px; }
+.neu-wert { font-weight: 600; }
+.quelle-chip { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: var(--radius-tight); font-size: 11px; line-height: 18px; vertical-align: 1px; background: var(--accent-soft); color: var(--accent-strong); }
+.quelle-chip.bestand { background: var(--surface-2); color: var(--muted); }
+.aenderungen-tabelle td { vertical-align: top; }
+.aenderung-monat th { background: var(--surface); text-align: left; font-weight: 700; }
+.aenderung-monat th.amount { text-align: right; }

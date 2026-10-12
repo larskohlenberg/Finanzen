@@ -63,3 +63,32 @@ test("Depot: ruhig nach drei Monaten veraltet, mit Bewegung im letzten Monat sch
   const aktiv = { transaktionen: [tx("KTO-D", "2026-10-01", "-50.00")], zeitwerte: [zw("KTO-D", "depotwert", "2026-08-14", "100.00")] };
   assert.equal(kontoZeile(aktiv, depot, "2026-10-12").veraltet, true);
 });
+
+test("kontenGruppen: Verfuegbares Geld nur aus liquiden Konten mit Wert, Depots und Weitere getrennt", async () => {
+  const { kontenGruppen } = await import("../app/uebersicht-rechnung.mjs");
+  const data = {
+    konten: [
+      konto("KTO-A", "giro"),
+      konto("KTO-B", "tagesgeld"),
+      konto("KTO-C", "spar", { liquiditaetsrelevant: false }),
+      konto("KTO-D", "depot", { liquiditaetsrelevant: false }),
+      konto("KTO-E", "giro", { status: "geschlossen" }),
+    ],
+    transaktionen: [],
+    zeitwerte: [
+      zw("KTO-A", "kontostand", "2026-09-20", "100.00"),
+      zw("KTO-C", "kontostand", "2026-09-20", "7.00"),
+      zw("KTO-D", "depotwert", "2026-09-01", "50.00"),
+      zw("KTO-E", "kontostand", "2026-09-20", "9.00"),
+    ],
+  };
+  const g = kontenGruppen(data, "2026-10-12");
+  assert.deepEqual(g.konten.zeilen.map((z) => z.konto.konto_id), ["KTO-A", "KTO-B"]);
+  assert.equal(g.konten.summe_cents, 10000);
+  assert.equal(g.konten.belegt, 1);
+  assert.equal(g.konten.gesamt, 2);
+  assert.equal(g.konten.aeltester, "2026-09-20");
+  assert.deepEqual(g.depots.zeilen.map((z) => z.konto.konto_id), ["KTO-D"]);
+  assert.equal(g.depots.summe_cents, 5000);
+  assert.deepEqual(g.weitere.zeilen.map((z) => z.konto.konto_id).sort(), ["KTO-C", "KTO-E"]);
+});

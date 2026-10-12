@@ -6,7 +6,7 @@ import { iconSvg } from "./icons.js";
 import { linienDiagramm } from "./charts.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
 import { formatIban } from "./tools/lib/text.mjs";
-import { overviewAccountRow, sortedOverviewAccounts } from "./selektoren.mjs";
+import { overviewAccountGroups, overviewAccountRow } from "./selektoren.mjs";
 import { belegTextHtml } from "./belege.mjs";
 
 export function formatMoney(amountInCents) {
@@ -157,7 +157,33 @@ export function renderFilterSelect({ name, label, options, type, placeholder, fi
   `;
 }
 
+// "8 von 9 belegt · ältester Stand 8.6.2026" — Abdeckung eines Tabellenblocks.
+export function accountGroupCoverage(gruppe) {
+  const teile = [t("overview.groupCoverage").replace("{belegt}", gruppe.belegt).replace("{gesamt}", gruppe.gesamt)];
+  if (gruppe.aeltester) teile.push(t("overview.oldestStand").replace("{datum}", formatDate(gruppe.aeltester)));
+  return teile.join(" · ");
+}
+
 export function renderAccountTable({ showId = false, rowAction = "account-transactions" } = {}) {
+  const gruppen = overviewAccountGroups();
+  const spalten = showId ? 7 : 6;
+  const block = (gruppe, titelKey, summeKey, options = {}) => {
+    if (!gruppe.zeilen.length) return "";
+    const summe = summeKey
+      ? `
+        <tr class="table-sum">
+          <td colspan="${spalten - 2}">${escapeHtml(t(summeKey))}</td>
+          <td class="amount">${escapeHtml(formatMoney(gruppe.summe_cents))}</td>
+          <td>${escapeHtml(accountGroupCoverage(gruppe))}</td>
+        </tr>`
+      : "";
+    return `
+        <tbody>
+          <tr class="group-row"><td colspan="${spalten}">${escapeHtml(t(titelKey))}</td></tr>
+          ${renderAccountRows(gruppe.zeilen.map((z) => z.konto), { showId, rowAction, ...options })}
+          ${summe}
+        </tbody>`;
+  };
   return `
     <div class="table-wrap">
       <table>
@@ -172,15 +198,15 @@ export function renderAccountTable({ showId = false, rowAction = "account-transa
             <th>${escapeHtml(t("labels.evidence"))}</th>
           </tr>
         </thead>
-        <tbody>
-          ${renderAccountRows(sortedOverviewAccounts(), { showId, rowAction })}
-        </tbody>
+        ${block(gruppen.konten, "overview.accounts", "overview.sumAccounts", { markNotIncluded: true })}
+        ${block(gruppen.depots, "overview.depots", "overview.sumDepots")}
+        ${block(gruppen.weitere, "overview.otherAccounts", null)}
       </table>
     </div>
   `;
 }
 
-export function renderAccountRows(accounts, { showId = false, rowAction = "account-transactions" } = {}) {
+export function renderAccountRows(accounts, { showId = false, rowAction = "account-transactions", markNotIncluded = false } = {}) {
   return accounts
     .map((konto) => {
       const isDepot = konto.kontotyp === "depot";
@@ -198,8 +224,10 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
             : konto.kontoreferenz
               ? t("labels.accountStatusMissing")
               : t("labels.referenceMissing");
+      const statusText = !hatWert && markNotIncluded ? `${status} · ${t("overview.notIncluded")}` : status;
       // Rot = kein Beleg (fehlt im Nettovermoegen), Gelb = belegt, aber veraltet.
-      const chipClass = !hatWert ? "danger" : zeile.veraltet ? "review" : zeile.qualitaet === "belegt" ? "success" : "neutral";
+      // Bargeld ist bewusst unbewertet: neutral, kein fehlender Beleg.
+      const chipClass = zeile.basis === "bar-ignoriert" ? "neutral" : !hatWert ? "danger" : zeile.veraltet ? "review" : zeile.qualitaet === "belegt" ? "success" : "neutral";
       const chipIcon = chipClass === "danger" ? "review" : chipClass;
       const selectableAttrs = rowAction === "select-master-account"
         ? ` tabindex="0" role="button" aria-label="${escapeHtml(konto.name)}"`
@@ -215,7 +243,7 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
           <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
           <td class="amount">${balanceCell}</td>
-          <td><span class="chip ${chipClass}">${iconSvg(chipIcon)}${escapeHtml(status)}</span></td>
+          <td><span class="chip ${chipClass}">${iconSvg(chipIcon)}${escapeHtml(statusText)}</span></td>
         </tr>
       `;
     })

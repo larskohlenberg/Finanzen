@@ -6,7 +6,7 @@ import { iconSvg } from "./icons.js";
 import { linienDiagramm } from "./charts.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
 import { formatIban } from "./tools/lib/text.mjs";
-import { overviewAccountGroups, overviewAccountRow } from "./selektoren.mjs";
+import { overviewAccountGroups, overviewAccountRow, sortedOverviewAccounts } from "./selektoren.mjs";
 import { belegTextHtml } from "./belege.mjs";
 
 export function formatMoney(amountInCents) {
@@ -179,11 +179,9 @@ function accountTableHead(showId) {
         </thead>`;
 }
 
-// tbody eines Kontenblocks; titelKey = Gruppenzeile (gemeinsame Tabelle),
-// summeKey = Summenzeile mit Abdeckung.
-function accountGroupBody(gruppe, { showId = false, rowAction = "account-transactions", titelKey = null, summeKey = null, markNotIncluded = false } = {}) {
+// tbody eines Kontenblocks; summeKey = Summenzeile mit Abdeckung.
+function accountGroupBody(gruppe, { showId = false, rowAction = "account-transactions", summeKey = null, markNotIncluded = false } = {}) {
   const spalten = showId ? 7 : 6;
-  const titel = titelKey ? `<tr class="group-row"><td colspan="${spalten}">${escapeHtml(t(titelKey))}</td></tr>` : "";
   const summe = summeKey
     ? `
         <tr class="table-sum">
@@ -194,28 +192,55 @@ function accountGroupBody(gruppe, { showId = false, rowAction = "account-transac
     : "";
   return `
         <tbody>
-          ${titel}
           ${renderAccountRows(gruppe.zeilen.map((z) => z.konto), { showId, rowAction, markNotIncluded })}
           ${summe}
         </tbody>`;
 }
 
+// Bloecke der Uebersicht: je eine Kachel mit eigener Tabelle.
 const ACCOUNT_GROUPS = [
   { schluessel: "konten", titelKey: "overview.accounts", summeKey: "overview.sumAccounts", markNotIncluded: true },
   { schluessel: "depots", titelKey: "overview.depots", summeKey: "overview.sumDepots" },
   { schluessel: "weitere", titelKey: "overview.otherAccounts", summeKey: null },
 ];
 
-// Gemeinsame Tabelle mit Gruppenzeilen (Stammdaten).
-export function renderAccountTable({ showId = false, rowAction = "account-transactions" } = {}) {
-  const gruppen = overviewAccountGroups();
-  const bloecke = ACCOUNT_GROUPS
-    .filter((g) => gruppen[g.schluessel].zeilen.length)
-    .map((g) => accountGroupBody(gruppen[g.schluessel], { showId, rowAction, ...g }))
+// Stammdaten: nur die angelegten Daten eines Kontos, ohne Werte und Belegstaende.
+export function renderMasterAccountTable() {
+  const rows = sortedOverviewAccounts()
+    .map((konto) => {
+      const referenz = konto.kontoreferenz
+        ? escapeHtml(formatIban(konto.kontoreferenz))
+        : konto.kontotyp === "depot"
+          ? `<span class="muted">—</span>`
+          : `<span class="chip review">${iconSvg("review")}${escapeHtml(t("labels.referenceMissing"))}</span>`;
+      return `
+        <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="select-master-account" data-account="${escapeHtml(konto.konto_id)}" tabindex="0" role="button" aria-label="${escapeHtml(konto.name)}">
+          <td>${escapeHtml(konto.konto_id)}</td>
+          <td><span class="linkish">${escapeHtml(konto.name)}</span></td>
+          <td>${referenz}</td>
+          <td>${escapeHtml(accountOwnerNames(konto))}</td>
+          <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
+          <td>${escapeHtml(t(konto.liquiditaetsrelevant ? "labels.yes" : "labels.no"))}</td>
+          <td>${escapeHtml(t(`status.${konto.status}`))}</td>
+        </tr>`;
+    })
     .join("");
   return `
     <div class="table-wrap">
-      <table>${accountTableHead(showId)}${bloecke}
+      <table class="master-account-table">
+        <thead>
+          <tr>
+            <th>${escapeHtml(t("labels.id"))}</th>
+            <th>${escapeHtml(t("labels.account"))}</th>
+            <th>${escapeHtml(t("labels.accountReference"))}</th>
+            <th>${escapeHtml(t("labels.owner"))}</th>
+            <th>${escapeHtml(t("labels.type"))}</th>
+            <th>${escapeHtml(t("labels.liquidityRelevant"))}</th>
+            <th>${escapeHtml(t("labels.status"))}</th>
+          </tr>
+        </thead>
+        <tbody>${rows}
+        </tbody>
       </table>
     </div>
   `;
@@ -262,14 +287,9 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
       // Bargeld ist bewusst unbewertet: neutral, kein fehlender Beleg.
       const chipClass = zeile.basis === "bar-ignoriert" ? "neutral" : !hatWert ? "danger" : zeile.veraltet ? "review" : zeile.qualitaet === "belegt" ? "success" : "neutral";
       const chipIcon = chipClass === "danger" ? "review" : chipClass;
-      const selectableAttrs = rowAction === "select-master-account"
-        ? ` tabindex="0" role="button" aria-label="${escapeHtml(konto.name)}"`
-        : "";
-      const accountName = rowAction === "select-master-account"
-        ? `<span class="linkish">${escapeHtml(konto.name)}</span>`
-        : `<button class="linkish" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button>`;
+      const accountName = `<button class="linkish" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button>`;
       return `
-        <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}"${selectableAttrs}>
+        <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}">
           ${showId ? `<td>${escapeHtml(konto.konto_id)}</td>` : ""}
           <td>${accountName}</td>
           <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>

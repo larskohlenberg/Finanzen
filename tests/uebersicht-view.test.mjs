@@ -20,6 +20,7 @@ const runtime = await import("../app/runtime.mjs");
 const overviewView = await import("../app/views/uebersicht.mjs");
 const { data, state } = runtime;
 const { renderOverview } = overviewView;
+const { renderMasterdata } = await import("../app/views/stammdaten.mjs");
 
 test("Übersicht zeigt berechnete Vermögens-Checks in der Check-Vorschau", () => {
   const personId = data.personen[0]?.person_id ?? "PER-001";
@@ -117,5 +118,19 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.match(kachel("Weitere Konten \\(nicht im verfügbaren Geld\\)"), /KTO-905/);
   assert.equal((html.match(/<table class="account-table">/g) ?? []).length, 3);
   assert.doesNotMatch(html, /class="group-row"/);
+
+  // Drei Kacheln oben: Verfuegbares Geld, Depotstand (= Summe Depots), Vermoegen.
+  assert.equal((html.match(/class="panel hero-kpi"/g) ?? []).length, 3);
+  assert.match(html, /Depotstand[\s\S]*?4\.321,09[\s\S]*?= Summe Depots in der Tabelle · 1 von 2 belegt · ältester Stand 15\.9\.2026/);
+
+  // Stammdaten: nur Stammdaten, keine Werte, Belegstaende oder Summen.
+  state.view = "masterdata";
+  state.masterSection = "konten";
+  const stamm = renderMasterdata();
+  const kontenTabelle = stamm.match(/<table class="master-account-table">[\s\S]*?<\/table>/)?.[0] ?? "";
+  for (const id of ["KTO-901", "KTO-902", "KTO-903", "KTO-904", "KTO-905"]) assert.match(kontenTabelle, new RegExp(id));
+  assert.match(kontenTabelle, /Liquiditätsrelevant/);
+  assert.doesNotMatch(kontenTabelle, /Wert heute|Belegter Stand|table-sum|1\.150,00|noch nicht belegt/);
+  state.view = "overview";
   assert.match(zeile("KTO-903"), /chip review/);
 });

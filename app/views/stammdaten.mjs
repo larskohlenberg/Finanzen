@@ -2,7 +2,7 @@
 // Stammdaten: Personen, Konten, Kategorien, Regeln.
 import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { renderPageHead, renderAccountTable, regelKlartext, categoryName } from "../komponenten.mjs";
+import { renderPageHead, renderMasterAccountTable, regelKlartext, categoryName } from "../komponenten.mjs";
 import { missingReferenceChecks, regelWirkung } from "../selektoren.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { kontoWert } from "../vermoegen.mjs";
@@ -87,7 +87,7 @@ function renderKontoSection() {
       <div class="stack">
         <section class="panel panel-pad">
           <h2 class="section-title">${escapeHtml(t("masterdata.accounts"))}</h2>
-          ${renderAccountTable({ showId: true, rowAction: "select-master-account" })}
+          ${renderMasterAccountTable()}
         </section>
       </div>
       ${railOpen ? `

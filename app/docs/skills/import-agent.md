@@ -195,6 +195,16 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
   die Anzeige haengt `IBAN: … BIC: …` an den Zweck. Dann ueber Datum, Betrag und
   Gegenpartei von Hand abgleichen und die bekannten Posten aus der JSONL nehmen,
   bevor importiert wird.
+- **Zwei Daten statt eines Buchungstags (Umsatzanzeige)**: Normalerweise steht
+  unter dem Betrag ein Datum, der Buchungstag. Weichen Wertstellungstag und
+  Buchungstag voneinander ab, druckt die Bank stattdessen beide Daten in der Form
+  `Valuta 30.06.2025 - 01.07.2025` (Beispiel erfunden). Das erste Datum ist der Wertstellungstag (ab
+  dann zaehlt das Geld fuer Zinsen), das zweite der Buchungstag (an dem die Bank
+  die Buchung auf dem Konto ausgefuehrt hat). Ins Modell gehoert der Buchungstag
+  als `buchungsdatum`, der Wertstellungstag als `wertstellungsdatum`. Die
+  Reihenfolge ist fest, auch wenn das zweite Datum frueher liegt. Belegt ist das
+  an einer Lastschrift, bei der die umgekehrte Lesart unzulaessig waere: Belastet
+  die Bank ein Konto, darf der Wertstellungstag nicht vor dem Buchungstag liegen.
 - **Rechnungsabschluss**: Das separate Dokument enthaelt keine Buchung. Die
   Abschlussbuchung (Zinsen, Entgelte) steht im Auszug zum Quartalsende. Der
   Abschluss nennt keinen Gegenpartei-Namen; die Bank selbst eintragen.

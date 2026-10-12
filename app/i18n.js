@@ -295,6 +295,7 @@ window.FINANCE_I18N = {
       lead: "Nettovermögen des Haushalts: Aktiva minus Passiva auf Basis aktueller Zeitwerte.",
       tabs: { uebersicht: "Übersicht", konten: "Konten & Depots", immobilien: "Immobilien", darlehen: "Darlehen", sonstige: "Sonstige Werte" },
       tabUebersichtUnter: "alle Klassen",
+      tabVorsorgeHinweis: "Öffnet die Vorsorge-Seite",
       klassePlural: { konto: "Konten & Depots", immobilie: "Immobilien", darlehen: "Darlehen", vermoegenswert: "Sonstige Werte", vorsorge: "Vorsorge" },
       offenAnzahl: "{n} offen",
       ohneWert: "ohne Wert",
@@ -1022,6 +1023,7 @@ window.FINANCE_I18N = {
     vermoegen: {
       title: "Wealth",
       lead: "Household net wealth: assets minus liabilities based on current valuations.",
+      tabVorsorgeHinweis: "Opens the pension page",
       tabs: { uebersicht: "Overview", konten: "Accounts & depots", immobilien: "Real estate", darlehen: "Loans", sonstige: "Other assets" },
       tabUebersichtUnter: "all classes",
       klassePlural: { konto: "Accounts & depots", immobilie: "Real estate", darlehen: "Loans", vermoegenswert: "Other assets", vorsorge: "Pension" },

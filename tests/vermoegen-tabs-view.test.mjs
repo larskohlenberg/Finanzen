@@ -35,10 +35,11 @@ const darlehen = (id, extra = {}) => ({
   zinssatz: "2.00", sollrate: "800.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, laufzeit_bis: "2035-01-31", ...extra,
 });
 
-test("Tab-Leiste: vier Tabs, kein Vorsorge-Tab, Sonstige nur mit aktiven Werten", () => {
+test("Tab-Leiste: vier Tabs, Vorsorge nur als Verweis, Sonstige nur mit aktiven Werten", () => {
   mitDaten({}, {}, (html) => {
     for (const tab of ["uebersicht", "konten", "immobilien", "darlehen"]) assert.match(html, new RegExp(`data-tab="${tab}"`));
     assert.doesNotMatch(html, /data-tab="vorsorge"/);
+    assert.match(html, /class="vermoegen-tab vermoegen-tab-verweis" data-view="vorsorge"/);
     assert.doesNotMatch(html, /data-tab="sonstige"/);
   });
   mitDaten({ vermoegenswerte: [{ vermoegenswert_id: "VMW-001", bezeichnung: "Gold", typ: "edelmetall", status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] }] }, {}, (html) => {

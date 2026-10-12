@@ -2,7 +2,7 @@
 // Papierkorb schieben bzw. aus error/ zurueckholen. Nie loeschen, nie
 // ueberschreiben, nichts ausserhalb von data/inbox/.
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test, { after, before } from "node:test";
 import { localTodayIso } from "../app/liquiditaet.mjs";
@@ -40,6 +40,9 @@ test("inbox_verwerfen: aus der Wurzel samt Zwilling und Textvorlauf in den Papie
     assert.ok(!existsSync(join(inbox, "duplikat.txt")));
     assert.ok(!existsSync(join(inbox, "standardized", "duplikat.txt")));
     assert.ok(existsSync(join(inbox, "bleibt.pdf")));
+    // Papierkorb-Ordner wie data/ selbst: nicht fuer alle lesbar.
+    assert.equal(statSync(korb).mode & 0o777, 0o750);
+    assert.equal(statSync(join(korb, "..")).mode & 0o777, 0o750);
 
     const eintrag = logZeilen().at(-1);
     assert.equal(eintrag.anlass, "inbox-verwerfen");

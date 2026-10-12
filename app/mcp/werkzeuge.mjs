@@ -716,7 +716,8 @@ const inboxVerwerfen = {
     }
     return mitRollback(ctx.datenroot, async () => {
       for (const [q, z] of paare) {
-        await mkdir(path.dirname(z.absolut), { recursive: true });
+        // Wie data/ selbst: nicht fuer alle lesbar (die umask allein liesse 775 zu).
+        await mkdir(path.dirname(z.absolut), { recursive: true, mode: 0o750 });
         await rename(q.absolut, z.absolut);
       }
       await protokolliere(ctx, {

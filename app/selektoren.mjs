@@ -11,6 +11,7 @@ import {
   kontoRang,
   kontoSaldoGeladen,
   kontoStandDatum,
+  kontoZeile,
   saldoGeladenerKonten,
   sortierteKonten,
   vermoegenCheckItem,
@@ -55,6 +56,10 @@ export function loadedTotalAccountsBalance() {
 
 export function currentNettovermoegen() {
   return computeNettovermoegen(data, localTodayIso());
+}
+
+export function overviewAccountRow(konto) {
+  return kontoZeile(data, konto, localTodayIso());
 }
 
 export function overviewAccountStandDate(konto) {

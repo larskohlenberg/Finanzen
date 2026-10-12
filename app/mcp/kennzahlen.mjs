@@ -5,7 +5,7 @@
 // next-action.mjs); hier wird nur formatiert. Betraege als Decimal-String.
 import { buildNextAgentAction } from "../next-action.mjs";
 import { centsToDecimal } from "../tools/lib/text.mjs";
-import { checkItems, checkVorschau, kontoSaldoGeladen, kontoStandDatum, saldoGeladenerKonten, sortierteKonten } from "../uebersicht-rechnung.mjs";
+import { checkItems, checkVorschau, kontoZeile, saldoGeladenerKonten, sortierteKonten } from "../uebersicht-rechnung.mjs";
 import { computeNettovermoegen } from "../vermoegen.mjs";
 
 const eur = (cents) => `${centsToDecimal(cents)} EUR`;
@@ -43,11 +43,12 @@ export function kennzahlenText(data, stichtag) {
     `Summe geladener Bewegungen (Konten): ${eur(saldoGeladenerKonten(data))}`,
     "  Nur geladene Buchungen liquiditaetsrelevanter Konten ohne Depots, kein Anfangssaldo, ohne Stichtagsbezug.",
     "",
-    "Konten (Tabelle der Uebersicht; Saldo = Summe geladener Buchungen):",
+    "Konten (Tabelle der Uebersicht; Wert = Depotwert bzw. belegter Anker + Buchungen danach, wie im Nettovermoegen):",
     ...sortierteKonten(data).map((k) => {
-      const stand = kontoStandDatum(data, k);
-      const saldo = k.kontotyp === "depot" ? "kein geladener Saldo" : eur(kontoSaldoGeladen(data, k.konto_id));
-      return `- ${k.konto_id} ${k.name} (${k.kontotyp}${k.status === "geschlossen" ? ", geschlossen" : ""}), ${stand ? `Stand ${stand}` : "ohne Stand"}: ${saldo}`;
+      const z = kontoZeile(data, k, stichtag);
+      const wert = z.wert_cents === null ? `kein Wert (${z.basis})` : `${eur(z.wert_cents)}, ${z.qualitaet ?? "offen"} zum ${z.belegdatum}`;
+      const buchung = k.kontotyp === "depot" ? "" : `, letzte Buchung ${z.letzteBuchung || "-"}`;
+      return `- ${k.konto_id} ${k.name} (${k.kontotyp}${k.status === "geschlossen" ? ", geschlossen" : ""}): ${wert}${buchung}`;
     }),
     "",
     aktion.type === "none" ? "Naechste Aktion: keine" : `Naechste Aktion: ${aktion.label} (${aktion.count})`,

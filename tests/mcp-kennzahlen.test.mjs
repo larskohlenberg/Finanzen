@@ -49,10 +49,10 @@ test("kennzahlen liefert dieselben Werte wie die Uebersicht", async () => {
     const konten = selektoren.sortedOverviewAccounts();
     assert.deepEqual(kontoZeilen.map((z) => z.slice(2).split(" ")[0]), konten.map((k) => k.konto_id));
     for (const [i, konto] of konten.entries()) {
-      if (konto.kontotyp === "depot") assert.match(kontoZeilen[i], /kein geladener Saldo/);
-      else assert.ok(kontoZeilen[i].includes(eur(selektoren.accountBalance(konto.konto_id))), kontoZeilen[i]);
-      const stand = selektoren.overviewAccountStandDate(konto);
-      if (stand) assert.ok(kontoZeilen[i].includes(`Stand ${stand}`), kontoZeilen[i]);
+      const z = selektoren.overviewAccountRow(konto);
+      if (z.wert_cents === null) assert.ok(kontoZeilen[i].includes(`kein Wert (${z.basis})`), kontoZeilen[i]);
+      else assert.ok(kontoZeilen[i].includes(`${eur(z.wert_cents)}, ${z.qualitaet} zum ${z.belegdatum}`), kontoZeilen[i]);
+      if (konto.kontotyp !== "depot") assert.ok(kontoZeilen[i].includes(`letzte Buchung ${z.letzteBuchung || "-"}`), kontoZeilen[i]);
     }
 
     const aktion = buildNextAgentAction(data);

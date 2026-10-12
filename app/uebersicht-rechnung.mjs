@@ -3,7 +3,7 @@
 // kommt als Argument. Die Uebersicht (ueber selektoren.mjs) und das MCP-Tool
 // `kennzahlen` rufen dieselben Funktionen, damit beide gleich rechnen.
 import { toCents } from "./tools/lib/text.mjs";
-import { aktuellerZeitwert, computeVermoegenChecks } from "./vermoegen.mjs";
+import { aktuellerZeitwert, computeVermoegenChecks, kontoWert } from "./vermoegen.mjs";
 
 // Summe aller geladenen Buchungen eines Kontos (kein Anfangssaldo, kein Stichtag).
 export function kontoSaldoGeladen(data, kontoId) {
@@ -22,14 +22,31 @@ export function saldoGeladenerKonten(data) {
     .reduce((sum, tx) => sum + toCents(tx.betrag), 0);
 }
 
+function letzteBuchung(data, kontoId) {
+  return data.transaktionen
+    .filter((tx) => tx.konto_id === kontoId)
+    .reduce((latest, tx) => (String(tx.buchungsdatum ?? "") > latest ? String(tx.buchungsdatum ?? "") : latest), "");
+}
+
+// Eine Zeile der Kontentabelle: Wert zum Stichtag aus derselben Rechnung wie das
+// Nettovermoegen (Depot = Depotwert, sonst belegter Anker + Buchungen danach),
+// dazu Qualitaet und Datum des Belegs. wert_cents null = kein Zeitwert.
+export function kontoZeile(data, konto, today) {
+  const w = kontoWert(konto, data.zeitwerte, data.transaktionen, today);
+  return {
+    wert_cents: w.wert_cents,
+    qualitaet: w.qualitaet,
+    belegdatum: w.standdatum ?? "",
+    basis: w.basis,
+    letzteBuchung: letzteBuchung(data, konto.konto_id),
+  };
+}
+
 export function kontoStandDatum(data, konto) {
   if (konto.kontotyp === "depot") {
     return aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert")?.standdatum || "";
   }
-  const latestBookingDate = data.transaktionen
-    .filter((tx) => tx.konto_id === konto.konto_id)
-    .reduce((latest, tx) => (String(tx.buchungsdatum ?? "") > latest ? String(tx.buchungsdatum ?? "") : latest), "");
-  return latestBookingDate || aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand")?.standdatum || "";
+  return letzteBuchung(data, konto.konto_id) || aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand")?.standdatum || "";
 }
 
 export function kontoRang(konto) {

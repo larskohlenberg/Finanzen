@@ -285,3 +285,15 @@ export function computeLiquiditaetPrognoseDetail(data, { today, horizonEnd, gran
     qualitaet: prognose.qualitaet,
   };
 }
+
+// Saldo-Verlauf je Tag fuer Diagramme: mehrere Buchungen eines Tages ergeben
+// einen Punkt mit dem Saldo am Tagesende. Eingabe aufsteigend nach Datum.
+export function saldoJeTag(verlauf) {
+  const punkte = [];
+  for (const eintrag of verlauf ?? []) {
+    const letzter = punkte.at(-1);
+    if (letzter && letzter.datum === eintrag.datum) letzter.wert = eintrag.saldo_cents;
+    else punkte.push({ datum: eintrag.datum, wert: eintrag.saldo_cents });
+  }
+  return punkte;
+}

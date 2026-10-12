@@ -1,7 +1,7 @@
 // app/views/uebersicht.mjs
-// Übersicht: KPIs (Nettovermögen, geladene Salden) + Konten-Tabelle.
+// Übersicht: KPIs (Verfügbares Geld, Nettovermögen) + Kacheln für Konten und Depots.
 import { data, t, escapeHtml } from "../runtime.mjs";
-import { accountGroupCoverage, formatMoney, renderPageHead, renderAccountTable } from "../komponenten.mjs";
+import { accountGroupCoverage, formatMoney, renderPageHead, renderAccountPanels } from "../komponenten.mjs";
 import { buildNextAgentAction } from "../next-action.mjs";
 import { currentNettovermoegen, overviewAccountGroups, overviewCheckPreviewItems } from "../selektoren.mjs";
 import { renderCheckItems } from "./checks.mjs";
@@ -29,10 +29,7 @@ export function renderOverview() {
             </div>
           </section>
         </div>
-        <section class="panel panel-pad">
-          <h2 class="section-title">${escapeHtml(t("overview.accountBalances"))}</h2>
-          ${renderAccountTable()}
-        </section>
+        ${renderAccountPanels()}
       </div>
       <aside class="rail overview-rail">
         <section class="panel panel-pad next-action">

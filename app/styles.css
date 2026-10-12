@@ -698,6 +698,19 @@ tbody tr.transaction-row:focus-within td {
   font-size: 12px;
 }
 
+/* Konten- und Depot-Kachel der Uebersicht: gleiche Spaltenbreiten, damit die
+   Tabellen untereinander fluchten. */
+.account-table {
+  table-layout: fixed;
+}
+
+.account-table .col-konto { width: 20%; }
+.account-table .col-referenz { width: 18%; }
+.account-table .col-inhaber { width: 19%; }
+.account-table .col-typ { width: 10%; }
+.account-table .col-wert { width: 13%; }
+.account-table .col-stand { width: 20%; }
+
 /* Summenzeile eines Tabellenblocks (Kontentabelle der Uebersicht). */
 .table-sum td {
   border-top: 2px solid var(--border);

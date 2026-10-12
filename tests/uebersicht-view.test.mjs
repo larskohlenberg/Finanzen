@@ -107,5 +107,15 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.match(html, /<tr class="table-sum"[\s\S]*?Summe Depots[\s\S]*?4\.321,09/);
   assert.doesNotMatch(html, /Summe geladener Bewegungen/);
   assert.match(zeile("KTO-905"), /chip neutral[\s\S]*Bargeld wird nicht bewertet/);
+
+  // Konten, Depots und Weitere als eigene Kacheln mit je eigener Tabelle.
+  const kachel = (titel) => html.match(new RegExp(`<section class="panel panel-pad">\\s*<h2 class="section-title">${titel}</h2>[\\s\\S]*?</section>`))?.[0] ?? "";
+  assert.match(kachel("Konten"), /KTO-903[\s\S]*Summe Konten = Verfügbares Geld/);
+  assert.doesNotMatch(kachel("Konten"), /KTO-901|KTO-905/);
+  assert.match(kachel("Depots"), /KTO-901[\s\S]*Summe Depots/);
+  assert.doesNotMatch(kachel("Depots"), /KTO-903/);
+  assert.match(kachel("Weitere Konten \\(nicht im verfügbaren Geld\\)"), /KTO-905/);
+  assert.equal((html.match(/<table class="account-table">/g) ?? []).length, 3);
+  assert.doesNotMatch(html, /class="group-row"/);
   assert.match(zeile("KTO-903"), /chip review/);
 });

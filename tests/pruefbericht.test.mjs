@@ -229,3 +229,15 @@ test("Depots und geschlossene Konten werden nicht nachgerechnet", () => {
   });
   assert.deepEqual(out.salden_drift, []);
 });
+
+test("Altformat ohne konto_id wird ueber das Konto im Anlass abgehakt", () => {
+  const alt = { anlass: "Erstimport KTO-006 aus einer Umsatzanzeige", normalisierung: { reconciliation_differenz: { betrag: "45.67", grund: "Buchungen ohne Datum" } } };
+  const out = pruefbericht({ ...leer, log: [alt, erledigt("KTO-006")] });
+  assert.deepEqual(out.reconciliation, []);
+});
+
+test("Anlass mit mehreren Konten bleibt ohne eindeutige Zuordnung sichtbar", () => {
+  const alt = { anlass: "Import KTO-002 und KTO-006", normalisierung: { reconciliation_differenz: { betrag: "1.00" } } };
+  const out = pruefbericht({ ...leer, log: [alt, erledigt("KTO-006")] });
+  assert.equal(out.reconciliation.length, 1);
+});

@@ -865,19 +865,23 @@ async function handleAction(element) {
     return;
   }
   if (action === "immobilie-transactions") {
+    // Aus der Monatstabelle einer Immobilie: optional auf Monat bzw. Zeitraum und
+    // Kategorie eingeschraenkt; Transfers fehlen dort, also auch hier.
+    const { monat = "", von = "", bis = "", kategorie = "" } = element.dataset;
+    const mitZeit = Boolean(monat || von);
     state.view = "transactions";
     state.transactionFilters = {
       account: "",
       status: "",
-      category: "",
-      transfer: "",
+      category: kategorie,
+      transfer: mitZeit ? "without" : "",
       origin: "",
       search: element.dataset.immobilie || "",
       beleg: "",
-      timeMode: "none",
-      dateFrom: "",
-      dateTo: "",
-      month: "",
+      timeMode: monat ? "month" : von ? "range" : "none",
+      dateFrom: von,
+      dateTo: bis,
+      month: monat,
       quarterYear: "",
       quarter: "1",
       year: "",

@@ -2,7 +2,7 @@
 // Alle Wertstaende (zeitwerte) als filter- und sortierbare Tabelle auf dem
 // Uebersichts-Tab der Vermoegensseite. Filter und Sortierung wie bei Vorsorge.
 import { data, state, t, escapeHtml, cents, kontenById } from "../runtime.mjs";
-import { formatMoney, formatDate, renderTableFilters, quelleHtml } from "../komponenten.mjs";
+import { formatMoney, formatDate, renderTableFilters } from "../komponenten.mjs";
 import { matchesQuery } from "../tools/lib/text.mjs";
 import { qualitaetChip } from "./vermoegen-teile.mjs";
 
@@ -105,7 +105,6 @@ export function renderWertstaendeTabelle() {
       <td>${escapeHtml(formatDate(z.zw.standdatum))}</td>
       <td class="amount">${escapeHtml(formatMoney(z.wert))}</td>
       <td>${qualitaetChip({ qualitaet: z.zw.qualitaet })}</td>
-      <td>${z.zw.quelle_hinweis ? quelleHtml(z.zw.quelle_hinweis) : "—"}</td>
     </tr>`).join("");
   const leer = (data.zeitwerte ?? []).length ? t("vermoegen.keineWertstaendeTreffer") : t("vermoegen.noWertstaende");
   return `
@@ -125,7 +124,6 @@ export function renderWertstaendeTabelle() {
               ${sortKopf("stand", t("vermoegen.stand"))}
               ${sortKopf("wert", t("vermoegen.wert"), true)}
               ${sortKopf("qualitaet", t("vermoegen.qualitaetHead"))}
-              <th>${escapeHtml(t("transactions.rawSource"))}</th>
             </tr></thead>
             <tbody>${body}</tbody>
           </table>

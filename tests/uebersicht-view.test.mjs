@@ -122,8 +122,8 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
 
   // Drei Kacheln oben: Verfuegbares Geld, Depotstand (= Summe Depots), Vermoegen.
   assert.equal((html.match(/class="panel hero-kpi"/g) ?? []).length, 3);
-  assert.match(html, /Depotstand[\s\S]*?4\.321,09[\s\S]*?Stand 15\.9\.2026 · <button class="linkish" data-view="vermoegen">Zur Vermögensseite<\/button>/);
-  assert.match(html, /id="kpi-networth-label"[\s\S]*?<div class="kpi-note">Stand [\d.]+ · <button class="linkish" data-view="vermoegen">Zur Vermögensseite<\/button>/);
+  assert.match(html, /Depotstand[\s\S]*?4\.321,09[\s\S]*?Stand 15\.9\.2026 · <button class="linkish" data-view="vermoegen">Zum Vermögen<\/button>/);
+  assert.match(html, /id="kpi-networth-label"[\s\S]*?<div class="kpi-note">Stand [\d.]+ · <button class="linkish" data-view="vermoegen">Zum Vermögen<\/button>/);
 
   // Stammdaten: nur Stammdaten, keine Werte, Belegstaende oder Summen.
   state.view = "masterdata";

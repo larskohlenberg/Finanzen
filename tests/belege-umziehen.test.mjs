@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, writeFile, readdir, stat } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, readdir, stat, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -128,4 +128,23 @@ test("main: Fehler im Plan bricht vor jeder Aenderung ab", async () => {
   assert.equal(bericht.fehler.length, 1);
   assert.equal(bericht.verschoben.length, 0);
   assert.ok(await stat(path.join(belege, "2025", "Kredite", "a.pdf")));
+});
+
+test("main: Ziel hinter einem Symlink wird weder ueberschrieben noch ausserhalb angelegt", async () => {
+  const { basis, belege, daten } = await aufbau();
+  const draussen = path.join(basis, "draussen");
+  await mkdir(draussen, { recursive: true });
+  await writeFile(path.join(draussen, "a.pdf"), "FREMD");
+  await symlink(draussen, path.join(belege, "Link"));
+  const plan = path.join(basis, "link.json");
+  await writeFile(plan, JSON.stringify([{ von: "Belege/2025/Kredite/a.pdf", nach: "Belege/Link/a.pdf" }]));
+  const bericht = await main({ datenRoot: urlVon(daten), belegeRoot: urlVon(belege), planDatei: plan, schreiben: true });
+  assert.ok(bericht.fehler.some((f) => /existiert bereits|aus Belege\/ heraus/.test(f.grund)));
+  assert.equal(await readFile(path.join(draussen, "a.pdf"), "utf8"), "FREMD");
+  assert.ok(await stat(path.join(belege, "2025", "Kredite", "a.pdf")));
+
+  await writeFile(plan, JSON.stringify([{ von: "Belege/2025/Kredite/a.pdf", nach: "Belege/Link/neu/b.pdf" }]));
+  const raus = await main({ datenRoot: urlVon(daten), belegeRoot: urlVon(belege), planDatei: plan, schreiben: true });
+  assert.ok(raus.fehler.some((f) => /aus Belege\/ heraus/.test(f.grund)));
+  assert.deepEqual(await readdir(draussen), ["a.pdf"]);
 });

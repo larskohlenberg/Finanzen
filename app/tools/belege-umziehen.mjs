@@ -13,7 +13,7 @@
 //
 //   node tools/belege-umziehen.mjs <datenroot> <plan.json> [--schreiben]
 
-import { mkdir, readFile, readdir, rename, rmdir, writeFile } from "node:fs/promises";
+import { link, lstat, mkdir, readFile, readdir, realpath, rmdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
@@ -124,6 +124,41 @@ async function datenDateien(datenRoot) {
   return Promise.all(namen.map(async (name) => ({ name, text: await readFile(new URL(name, datenRoot), "utf8") })));
 }
 
+async function echterPfad(absolut) {
+  // Fuer noch nicht existierende Ziele: naechsten existierenden Vorfahren aufloesen.
+  const rest = [];
+  let kopf = absolut;
+  for (;;) {
+    try {
+      return path.join(await realpath(kopf), ...rest);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      const eltern = path.dirname(kopf);
+      if (eltern === kopf) return absolut;
+      rest.unshift(path.basename(kopf));
+      kopf = eltern;
+    }
+  }
+}
+
+// Quelle: echte Datei, kein Symlink, innerhalb von Belege/. Ziel: frei und
+// auch nach Aufloesen aller Symlinks innerhalb von Belege/.
+async function pruefeDateisystem(belegeRoot, verschiebungen) {
+  const wurzel = await realpath(fileURLToPath(belegeRoot));
+  const innen = (p) => p === wurzel || p.startsWith(`${wurzel}${path.sep}`);
+  const sperren = [];
+  for (const { von, nach } of verschiebungen) {
+    const quelle = absolutUnter(belegeRoot, von);
+    const ziel = absolutUnter(belegeRoot, nach);
+    const info = await lstat(quelle).catch(() => null);
+    if (!info?.isFile()) sperren.push({ von, nach, grund: `${von} ist keine regulaere Datei` });
+    else if (!innen(await echterPfad(quelle))) sperren.push({ von, nach, grund: `${von} fuehrt aus Belege/ heraus` });
+    if (await lstat(ziel).catch(() => null)) sperren.push({ von, nach, grund: `${nach} existiert bereits` });
+    else if (!innen(await echterPfad(ziel))) sperren.push({ von, nach, grund: `${nach} fuehrt aus Belege/ heraus` });
+  }
+  return sperren;
+}
+
 // Leere Ordner, die der Umzug hinterlassen hat, entfernen (bis hinauf zu Belege/).
 async function raeumeLeereOrdner(belegeRoot, verschiebungen) {
   const wurzel = fileURLToPath(belegeRoot).replace(/[/\\]$/, "");
@@ -167,11 +202,24 @@ export async function main({
     return bericht;
   }
 
+  // Vor dem ersten Schreiben auf dem Dateisystem nachpruefen: Die Liste oben
+  // kennt keine Symlinks, und ein Ziel kann seither entstanden sein.
+  const sperren = await pruefeDateisystem(belegeRoot, plan.verschiebungen);
+  if (sperren.length) {
+    bericht.verschoben = [];
+    bericht.fehler = sperren;
+    console.log(JSON.stringify(bericht, null, 2));
+    console.log("\nPlan fehlerhaft — nichts verschoben, nichts umgeschrieben.");
+    return bericht;
+  }
+
   if (schreiben) {
     for (const { von, nach } of plan.verschiebungen) {
       const ziel = absolutUnter(belegeRoot, nach);
       await mkdir(path.dirname(ziel), { recursive: true });
-      await rename(absolutUnter(belegeRoot, von), ziel);
+      // link statt rename: link bricht mit EEXIST ab, rename wuerde still ueberschreiben.
+      await link(absolutUnter(belegeRoot, von), ziel);
+      await unlink(absolutUnter(belegeRoot, von));
     }
     await raeumeLeereOrdner(belegeRoot, plan.verschiebungen);
   }

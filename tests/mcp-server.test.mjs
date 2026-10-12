@@ -258,6 +258,37 @@ test("beleg_ablegen: verschiebt mit Zwilling, ueberschreibt nie, nur inbox -> Be
   }
 });
 
+test("belege_umziehen: Vorschau, dann Umzug samt Zwilling und Verweis", async () => {
+  const alt = "Belege/2021/Kredite/DAR-001_Demo_Jahresauszug_2021.pdf";
+  const neu = "Belege/Darlehen/DAR-001_Wohnungsdarlehen/2021/DAR-001_Demo_Jahresauszug_2021.pdf";
+  mkdirSync(join(abzug.app, "Belege", "2021", "Kredite"), { recursive: true });
+  writeFileSync(join(abzug.app, alt), "%PDF-1.4 d");
+  writeFileSync(join(abzug.app, alt.replace(".pdf", ".txt")), "Jahresauszug\n");
+  const darlehenPfad = join(abzug.master, "darlehen.json");
+  writeFileSync(darlehenPfad, readFileSync(darlehenPfad, "utf8").replace("\"Demo-Darlehensauszug\"", JSON.stringify(alt)));
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const vorschau = await s.werkzeug("belege_umziehen", { umzuege: [{ von: alt, nach: neu }] });
+    assert.ok(!vorschau.isError, vorschau.text);
+    assert.match(vorschau.text, /Modus: Vorschau/);
+    assert.match(vorschau.text, /"darlehen\.json": 1/);
+    assert.ok(readFileSync(join(abzug.app, alt)));
+
+    const kaputt = await s.werkzeug("belege_umziehen", { umzuege: [{ von: alt, nach: "Belege/x.csv" }], schreiben: true });
+    assert.equal(kaputt.isError, true);
+    assert.ok(readFileSync(join(abzug.app, alt)));
+
+    const r = await s.werkzeug("belege_umziehen", { umzuege: [{ von: alt, nach: neu }], schreiben: true });
+    assert.ok(!r.isError, r.text);
+    assert.match(r.text, /Validator nach dem Schreiben: gueltig/);
+    assert.equal(readFileSync(join(abzug.app, neu.replace(".pdf", ".txt")), "utf8"), "Jahresauszug\n");
+    assert.ok(readFileSync(darlehenPfad, "utf8").includes(neu));
+    assert.ok(!readdirSync(join(abzug.app, "Belege")).includes("2021"), "leerer Jahresordner ist weg");
+  } finally {
+    await s.beenden();
+  }
+});
+
 test("Schreib-Lauf einer CLI validiert danach", async () => {
   const s = starteServer(abzug, "schreiben");
   try {

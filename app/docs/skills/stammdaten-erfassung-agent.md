@@ -90,7 +90,7 @@ Gilt fuer **alle** Belege (Kontoauszuege, Vertraege, Policen, Gutachten, Informa
 
 Schema: `<Entitaet/Konto>_<Quelle/Gesellschaft>_<Belegart>_<Datum oder Zeitraum>.<ext>` — z. B. `TESTREF-062.csv`, `Riester_MusterversicherungA_Vertragsstand_2026-01-01.pdf`.
 
-Ablage in `Belege/` (MCP: `beleg_ablegen`): Kontoauszuege unter `Belege/Kontoauszuege/<Konto>/`; sonstige Belege nach bestehender `Belege/<Jahr>/<Kategorie>`-Struktur. `quelle_hinweis`/`rohquelle` zeigen auf den finalen Beleg-Pfad.
+Ablage in `Belege/` (MCP: `beleg_ablegen`) nach Objekt, darunter je Jahr, z. B. `Belege/Immobilien/IMM-001_Musterweg/2019/` (Regel: `agent-context.md`, „Ablage nach Objekt"). `quelle_hinweis`/`rohquelle` zeigen auf den finalen Beleg-Pfad.
 
 Hat der Beleg keine Textebene (leerer Textvorlauf), beim Ablegen die Seiten
 selbst lesen und den Zwilling von Hand schreiben, erste Zeile

@@ -63,6 +63,7 @@ die lokalen Demodaten.
 | `tools/freigabe.mjs` | `freigabe` |
 | `tools/lernen.mjs` | `lernen` (`schreiben: true` = `--anwenden`) |
 | `tools/belege-text.mjs` | `belege_text` |
+| `tools/belege-umziehen.mjs` | `belege_umziehen` (Umzugsplan als Liste `umzuege` oder `plan_datei` unter `data/`) |
 | `tools/pruefbericht.mjs` | `pruefbericht` |
 | Datei lesen, suchen | `datei_lesen`, `dateien_suchen`, `transaktionen_abfragen` |
 | Datei schreiben, editieren | `datei_schreiben`, `datei_ersetzen` (nur unter `data/`) |
@@ -597,6 +598,30 @@ und Annahmen entstehen ausschliesslich ueber den Agenten. Siehe Skill
 
 Belege werden sprechend benannt und unter `Belege/` abgelegt. Datenfelder wie
 `rohquelle` und `quelle_hinweis` zeigen auf den finalen App-relativen Belegpfad.
+
+### Ablage nach Objekt
+
+Belege liegen beim Objekt, zu dem sie gehoeren, darunter je Jahr. Das Jahr ist
+das Datum des Belegs; bei Auszuegen ueber einen Zeitraum das Ende des Zeitraums.
+
+| Klasse | Ordner |
+| --- | --- |
+| Konten und Depots | `Belege/Konten/<KTO-ID>_<Kurzname>/<Jahr>/` (Kontoauszuege, Umsatzlisten, Depotberichte, Bankpost zum Konto) |
+| Immobilien | `Belege/Immobilien/<IMM-ID>_<Kurzname>/<Jahr>/` (Kaufvertrag, Grundbuch, Grundsteuer, Handwerker, Nebenkosten) |
+| Darlehen | `Belege/Darlehen/<DAR-ID>_<Kurzname>/<Jahr>/` (Vertrag, Auszuege, Vertragsuebersichten) |
+| Vorsorge | `Belege/Vorsorge/<VS-ID>_<Kurzname>/<Jahr>/` (Police, Standmitteilungen, Nachtraege) |
+| Versicherungen | `Belege/Versicherungen/<Sparte>_<Versicherer>_<Vertragsnr>/<Jahr>/` (kein Stammsatz, deshalb ohne ID) |
+| Steuern | `Belege/Steuern/<Steuerjahr>/` |
+| Sonstiges | `Belege/Sonstiges/<Jahr>/` (Belege ohne Objekt) |
+
+- Die ID im Ordnernamen haelt die Zuordnung eindeutig, der Kurzname macht den
+  Ordner lesbar (ohne Leerzeichen, Teile mit `-`, z. B. `KTO-001_Bank-Giro`).
+- Belege zu mehreren Objekten einer Klasse liegen unter
+  `Belege/<Klasse>/Allgemein/<Jahr>/`.
+- Ein Darlehen hat seinen eigenen Ordner, auch wenn es zu einer Immobilie
+  gehoert; die Immobilie findet seine Belege ueber `immobilie_id`.
+- Neue Belege legt `beleg_ablegen` direkt dort ab. Liegt ein Beleg falsch,
+  zieht `belege_umziehen` ihn um und ersetzt alle Verweise in den Daten.
 
 Jedes PDF und jedes Bild (png/jpg/jpeg) unter `Belege/` hat einen
 **Textzwilling**: gleicher Ordner, gleicher Basisname, Endung `.txt`. Der

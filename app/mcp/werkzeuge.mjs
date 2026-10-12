@@ -249,6 +249,42 @@ const CLI_WERKZEUGE = [
     schreibFlag: "--schreiben",
     argv: async () => [],
   }),
+  cli({
+    name: "belege_umziehen",
+    skript: "belege-umziehen.mjs",
+    beschreibung: "Belege innerhalb von Belege/ umziehen (tools/belege-umziehen.mjs): Datei samt .txt-Zwilling verschieben und jeden Pfad in Stamm- und Bewegungsdaten (rohquelle, quelle_hinweis, Freitext) ersetzen; agent_log.jsonl bleibt unveraendert. Plan als Liste umzuege [{ von, nach }] oder als JSON-Datei unter data/ (plan_datei). Ein fehlerhafter Plan aendert nichts; ein schon erledigter Umzug zaehlt als erledigt. Meldet verwaiste Verweise. Vorschau ist Default; Verschiebungen werden bei einem Rollback nicht zurueckgenommen.",
+    eigenschaften: {
+      umzuege: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            von: { type: "string", description: "z. B. Belege/2025/Kredite/DAR-001_Bank_Jahresauszug_2025.pdf" },
+            nach: { type: "string", description: "z. B. Belege/Darlehen/DAR-001_Bank-Baufinanzierung/2025/DAR-001_Bank_Jahresauszug_2025.pdf" },
+          },
+          required: ["von", "nach"],
+          additionalProperties: false,
+        },
+      },
+      plan_datei: { type: "string", description: "Alternativ: JSON-Datei unter data/ mit derselben Liste" },
+    },
+    schreibFlag: "--schreiben",
+    argv: async (ctx, a, root) => {
+      let datei;
+      if (a.umzuege) {
+        const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-umzug-"));
+        datei = path.join(ordner, "plan.json");
+        await writeFile(datei, JSON.stringify(a.umzuege));
+      } else if (a.plan_datei) {
+        datei = (await loesePfad(ctx.app, a.plan_datei, SCHREIB_WURZELN)).absolut;
+      } else {
+        throw new PfadFehler("umzuege oder plan_datei angeben");
+      }
+      const out = [root, datei];
+      if (a.umzuege) out.aufraeumen = () => rm(path.dirname(datei), { recursive: true, force: true });
+      return out;
+    },
+  }),
 ];
 
 // ---------------------------------------------------------------- Lese-Tools
@@ -615,12 +651,12 @@ const dateiErsetzen = {
 
 const belegAblegen = {
   name: "beleg_ablegen",
-  description: "Rohbeleg aus data/inbox/ (auch processed/, error/) sprechend benannt unter Belege/ ablegen, z. B. Belege/Kontoauszuege/<Konto>/... oder Belege/<Jahr>/<Rubrik>/... Verschiebt, legt fehlende Ordner an, ueberschreibt nie, Endung bleibt gleich. Ein .txt-Zwilling gleichen Namens neben der Quelle wird mitgenommen (so kommt ein von Hand geschriebener Bildscan-Zwilling an den Beleg: erst per datei_schreiben neben die Quelle legen). Wird bei einem Rollback nicht zurueckgenommen.",
+  description: "Rohbeleg aus data/inbox/ (auch processed/, error/) sprechend benannt unter Belege/ ablegen, nach Objekt und Jahr, z. B. Belege/Konten/<KTO-ID>_<Kurzname>/<Jahr>/... (Regel: agent-context, Ablage nach Objekt) Verschiebt, legt fehlende Ordner an, ueberschreibt nie, Endung bleibt gleich. Ein .txt-Zwilling gleichen Namens neben der Quelle wird mitgenommen (so kommt ein von Hand geschriebener Bildscan-Zwilling an den Beleg: erst per datei_schreiben neben die Quelle legen). Wird bei einem Rollback nicht zurueckgenommen.",
   inputSchema: {
     type: "object",
     properties: {
       quelle: { type: "string", description: "z. B. data/inbox/processed/scan0001.pdf" },
-      ziel: { type: "string", description: "z. B. Belege/2026/Versicherungen/KFZ_MusterversicherungB_Beitragsrechnung_2026.pdf" },
+      ziel: { type: "string", description: "z. B. Belege/Versicherungen/KFZ_MusterversicherungB_12345/2026/KFZ_MusterversicherungB_Beitragsrechnung_2026.pdf" },
     },
     required: ["quelle", "ziel"],
     additionalProperties: false,

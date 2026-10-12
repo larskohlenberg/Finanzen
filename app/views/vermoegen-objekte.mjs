@@ -61,9 +61,10 @@ function detailTitel(name) {
 }
 
 // Betrag in der Monatstabelle als Sprung in die gefilterten Transaktionen.
-function buchungenLink(html, { immobilie, monat = "", von = "", bis = "", kategorie = "" }) {
+// transfer: "only" fuer die Eigenanteil-Spalte, "all" wenn der Saldo Eigenanteil enthaelt.
+function buchungenLink(html, { immobilie, monat = "", von = "", bis = "", kategorie = "", transfer = "" }) {
   const attr = (name, wert) => (wert ? ` data-${name}="${escapeHtml(wert)}"` : "");
-  return `<button class="linkish betrag-link" data-action="immobilie-transactions"${attr("immobilie", immobilie)}${attr("monat", monat)}${attr("von", von)}${attr("bis", bis)}${attr("kategorie", kategorie)} title="${escapeHtml(t("vermoegen.immobilie.buchungenZeigen"))}">${html}</button>`;
+  return `<button class="linkish betrag-link" data-action="immobilie-transactions"${attr("immobilie", immobilie)}${attr("monat", monat)}${attr("von", von)}${attr("bis", bis)}${attr("kategorie", kategorie)}${attr("transfer", transfer)} title="${escapeHtml(t("vermoegen.immobilie.buchungenZeigen"))}">${html}</button>`;
 }
 
 // Wertstaende und Dokumente unter Tabelle und Diagramm, nebeneinander.
@@ -155,17 +156,19 @@ function renderImmobilieDetail(imm, today) {
   const spaltenName = (kat) => kat.eigenanteil ? t("vermoegen.immobilie.eigenanteil") : kat.kategorie_id ? categoryName(kat.kategorie_id) : t("vermoegen.immobilie.ohneKategorie");
   const kopf = kategorien.map((kat) => `<th class="amount"${kat.eigenanteil ? ` title="${escapeHtml(t("vermoegen.immobilie.eigenanteilHinweis"))}"` : ""}>${escapeHtml(spaltenName(kat))}</th>`).join("");
   const zeitraum = { von: `${m.monate[0]}-01`, bis: `${m.monate.at(-1)}-31` };
+  const mitTransfer = kategorien.some((kat) => kat.eigenanteil) ? { transfer: "all" } : {};
+  const spaltenFilter = (kat) => (kat.eigenanteil ? { kategorie: kat.kategorie_id, transfer: "only" } : { kategorie: kat.kategorie_id });
   const zeilen = m.monate.map((monat, i) => `
     <tr>
-      <td>${buchungenLink(escapeHtml(formatMonat(monat)), { immobilie: id, monat })}</td>
-      ${kategorien.map((kat) => `<td class="amount">${kat.werte[i] ? buchungenLink(geld(kat.werte[i], { negativ: true }), { immobilie: id, monat, kategorie: kat.kategorie_id }) : `<span class="muted">—</span>`}</td>`).join("")}
-      <td class="amount"><strong>${buchungenLink(geld(m.saldo[i], { negativ: true }), { immobilie: id, monat })}</strong></td>
+      <td>${buchungenLink(escapeHtml(formatMonat(monat)), { immobilie: id, monat, ...mitTransfer })}</td>
+      ${kategorien.map((kat) => `<td class="amount">${kat.werte[i] ? buchungenLink(geld(kat.werte[i], { negativ: true }), { immobilie: id, monat, ...spaltenFilter(kat) }) : `<span class="muted">—</span>`}</td>`).join("")}
+      <td class="amount"><strong>${buchungenLink(geld(m.saldo[i], { negativ: true }), { immobilie: id, monat, ...mitTransfer })}</strong></td>
     </tr>`).join("");
   const summenZeile = `
     <tr class="table-sum">
-      <td>${buchungenLink(escapeHtml(t("vermoegen.immobilie.summe12")), { immobilie: id, ...zeitraum })}</td>
-      ${kategorien.map((kat) => `<td class="amount">${buchungenLink(geld(kat.summe_cents, { negativ: true }), { immobilie: id, ...zeitraum, kategorie: kat.kategorie_id })}</td>`).join("")}
-      <td class="amount"><strong>${buchungenLink(geld(m.summe.saldo, { negativ: true }), { immobilie: id, ...zeitraum })}</strong></td>
+      <td>${buchungenLink(escapeHtml(t("vermoegen.immobilie.summe12")), { immobilie: id, ...zeitraum, ...mitTransfer })}</td>
+      ${kategorien.map((kat) => `<td class="amount">${buchungenLink(geld(kat.summe_cents, { negativ: true }), { immobilie: id, ...zeitraum, ...spaltenFilter(kat) })}</td>`).join("")}
+      <td class="amount"><strong>${buchungenLink(geld(m.summe.saldo, { negativ: true }), { immobilie: id, ...zeitraum, ...mitTransfer })}</strong></td>
     </tr>`;
   const umschalter = rateKategorien.size
     ? `<div class="segment" role="group" aria-label="${escapeHtml(t("vermoegen.immobilie.monateTitel"))}">

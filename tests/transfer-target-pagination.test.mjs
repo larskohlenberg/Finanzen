@@ -236,6 +236,15 @@ test("Immobilien-Ruecklink oeffnet die Transaktionssuche nur mit der Immobilien-
   assert.equal(state.selectedTransactionId, "");
   assert.equal(state.detailRailClosed, false);
   assert.equal(location.hash, "#/transaktionen");
+
+  // Monat ohne Angabe: Transfers aus. Eigenanteil-Spalte: nur Transfers. Saldo mit Eigenanteil: alle.
+  clickAction({ action: "immobilie-transactions", immobilie: "IMM-004", monat: "2026-01" });
+  assert.equal(state.transactionFilters.transfer, "without");
+  clickAction({ action: "immobilie-transactions", immobilie: "IMM-004", monat: "2026-01", kategorie: "KAT-011", transfer: "only" });
+  assert.equal(state.transactionFilters.transfer, "only");
+  assert.equal(state.transactionFilters.category, "KAT-011");
+  clickAction({ action: "immobilie-transactions", immobilie: "IMM-004", monat: "2026-01", transfer: "all" });
+  assert.equal(state.transactionFilters.transfer, "");
 });
 
 test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zur Vorsorge-Rail zurück", () => {

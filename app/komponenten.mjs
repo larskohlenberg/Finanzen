@@ -3,7 +3,7 @@
 // i18n und Nachschlage-Maps aus runtime.mjs; kein view-spezifisches Wissen.
 import { state, t, escapeHtml, personenById, kategorienById } from "./runtime.mjs";
 import { iconSvg } from "./icons.js";
-import { linienDiagramm } from "./charts.mjs";
+import { linienDiagramm, saldoDiagramm } from "./charts.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
 import { formatIban } from "./tools/lib/text.mjs";
 import { overviewAccountGroups, overviewAccountRow, sortedOverviewAccounts } from "./selektoren.mjs";
@@ -94,11 +94,34 @@ export function heuteIso() {
   return localTodayIso();
 }
 
-// Saldo-Punktserie als Liniendiagramm (Beträge in Cent). Leere/zu kurze Serien
+// Achsenbeschriftung: ganze Euro, ohne Cent ("15.000 €").
+function formatMoneyAchse(amountInCents) {
+  return new Intl.NumberFormat(state.lang === "de" ? "de-DE" : "en-US", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(amountInCents / 100);
+}
+
+// Marke der X-Achse je Art: "1.10." (tag), "Nov" (monat), "Jan 2027" (monatJahr), "2030" (jahr).
+function formatAchsenMarke(isoDate, art) {
+  const optionen = {
+    tag: { day: "numeric", month: "numeric" },
+    monat: { month: "short" },
+    monatJahr: { month: "short", year: "numeric" },
+    jahr: { year: "numeric" },
+  }[art] ?? { month: "short" };
+  return new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", optionen).format(new Date(`${isoDate}T00:00:00`));
+}
+
+// Saldo-Punktserie als Liniendiagramm (Beträge in Cent). Tragen die Punkte ein
+// Datum, wird es ein Saldo-Diagramm mit Achsen und Hover. Leere/zu kurze Serien
 // liefern nichts — die zugehörige Tabelle bleibt die Quelle der Wahrheit.
 export function saldoLinie(punkte, ariaLabel) {
   if (!punkte || punkte.length < 2) return "";
-  const svg = linienDiagramm(punkte, { formatWert: (cents) => formatMoney(cents), ariaLabel });
+  const svg = punkte.every((p) => typeof p.datum === "string")
+    ? saldoDiagramm(punkte, { formatWert: (cents) => formatMoney(cents), formatAchse: formatMoneyAchse, formatTick: formatAchsenMarke, ariaLabel })
+    : linienDiagramm(punkte, { formatWert: (cents) => formatMoney(cents), ariaLabel });
   return svg ? `<div class="diagramm-wrap">${svg}</div>` : "";
 }
 

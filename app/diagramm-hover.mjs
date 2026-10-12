@@ -4,7 +4,8 @@
 // Wurzel-<svg> ein; hier lebt ausschliesslich das DOM-Verhalten (ADR 0022).
 // Der Overlay liegt in document.body, weil render() den #app-Inhalt komplett
 // ersetzt und dort platzierte Knoten sonst weggewischt wuerden.
-import { formatMoney, formatMonth } from "./komponenten.mjs";
+import { punktBeiX } from "./charts.mjs";
+import { formatDate, formatMoney, formatMonth } from "./komponenten.mjs";
 
 let overlay = null;
 
@@ -26,9 +27,11 @@ function hide() {
   if (overlay) overlay.hidden = true;
 }
 
-// Wertebereich exakt wie charts.mjs: 0 immer einschliessen, Szenario- und
+// Wertebereich exakt wie charts.mjs: liefert das Diagramm ihn mit (gerundete
+// Achse, saldoDiagramm), gilt der; sonst 0 einschliessen, Szenario- und
 // Basis-Serie beruecksichtigen. So sitzen die Snap-Punkte auf den Linien.
-function grenzen(punkte) {
+function grenzen(punkte, plot) {
+  if (typeof plot.min === "number" && typeof plot.max === "number" && plot.max > plot.min) return { min: plot.min, max: plot.max };
   let min = 0;
   let max = 0;
   for (const p of punkte) {
@@ -80,18 +83,16 @@ export function bindDiagrammHover(root) {
       return;
     }
 
-    let nah = punkte[0];
-    for (const p of punkte) {
-      if (Math.abs(p.x - vbX) < Math.abs(nah.x - vbX)) nah = p;
-    }
-
-    const { min, max } = grenzen(punkte);
+    const nah = punktBeiX(punkte, vbX, plot.stufe === true);
+    const { min, max } = grenzen(punkte, plot);
     const yVon = (wert) => plot.top + (1 - (wert - min) / (max - min)) * (plot.bottom - plot.top);
 
     const el = ensureOverlay();
     el.hidden = false;
 
-    const clientX = rect.left + nah.x * sx + window.scrollX;
+    // Stufen: Fadenkreuz folgt dem Zeiger (der Saldo gilt bis zum naechsten Punkt), sonst Snap auf den Punkt.
+    const fadenX = plot.stufe === true ? Math.min(plot.right, Math.max(plot.left, vbX)) : nah.x;
+    const clientX = rect.left + fadenX * sx + window.scrollX;
     const topPx = rect.top + plot.top * sy + window.scrollY;
     const hoehePx = (plot.bottom - plot.top) * sy;
 
@@ -116,7 +117,8 @@ export function bindDiagrammHover(root) {
 
     const box = el.querySelector(".diagramm-hover-box");
     const zeilen = [];
-    if (nah.monat) zeilen.push(`<div class="diagramm-hover-monat">${formatMonth(nah.monat)}</div>`);
+    if (nah.datum) zeilen.push(`<div class="diagramm-hover-monat">${formatDate(nah.datum)}</div>`);
+    else if (nah.monat) zeilen.push(`<div class="diagramm-hover-monat">${formatMonth(nah.monat)}</div>`);
     zeilen.push(`<div><span class="diagramm-hover-swatch szenario"></span>${formatMoney(nah.wert)}</div>`);
     if (nah.basis != null) {
       zeilen.push(`<div><span class="diagramm-hover-swatch basis"></span>${formatMoney(nah.basis)}</div>`);

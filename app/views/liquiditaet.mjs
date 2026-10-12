@@ -3,15 +3,25 @@
 import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, renderPageHead, saldoLinie, heuteIso } from "../komponenten.mjs";
-import { computeLiquiditaetIst, computeLiquiditaetPrognoseDetail } from "../liquiditaet.mjs";
+import { computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, saldoJeTag } from "../liquiditaet.mjs";
 
-function prognosePunkte(prognose) {
-  const punkte = [{ wert: prognose.start_saldo_cents }];
+// Prognose ab heute: Startsaldo, dann je Buchungstag der Saldo am Tagesende.
+function prognosePunkte(prognose, today) {
+  const verlauf = [{ datum: today, saldo_cents: prognose.start_saldo_cents }];
   for (const periode of prognose.perioden) {
     for (const monat of periode.monate) {
-      for (const posten of monat.posten) punkte.push({ wert: posten.saldo_cents });
+      for (const posten of monat.posten) verlauf.push({ datum: posten.datum, saldo_cents: posten.saldo_cents });
     }
   }
+  return saldoJeTag(verlauf);
+}
+
+// Ist im laufenden Monat: je Buchungstag der Saldo, bis heute fortgeschrieben
+// (der letzte Saldo gilt bis heute).
+function istPunkte(verlauf, today) {
+  const punkte = saldoJeTag(verlauf);
+  const letzter = punkte.at(-1);
+  if (letzter && letzter.datum < today) punkte.push({ datum: today, wert: letzter.wert });
   return punkte;
 }
 
@@ -80,7 +90,7 @@ export function renderLiquiditaet() {
     <p class="page-lead section-note">${escapeHtml(t("liquiditaet.incompleteNote"))}</p>
     <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(t("liquiditaet.ist"))} · ${escapeHtml(t("liquiditaet.monthlyTable"))}</h2>
-      ${saldoLinie(ist.monatsverlauf.map((p) => ({ wert: p.saldo_cents })), `${t("liquiditaet.balance")}: ${formatMoney(ist.monatsverlauf.at(0)?.saldo_cents ?? 0)} → ${formatMoney(ist.monatsverlauf.at(-1)?.saldo_cents ?? 0)}`)}
+      ${saldoLinie(istPunkte(ist.monatsverlauf, today), `${t("liquiditaet.balance")}: ${formatMoney(ist.monatsverlauf.at(0)?.saldo_cents ?? 0)} → ${formatMoney(ist.monatsverlauf.at(-1)?.saldo_cents ?? 0)}`)}
       ${renderSaldoVerlauf(ist.monatsverlauf, "liquiditaet.emptyIst")}
     </section>
     <section class="panel panel-pad section-spacing">
@@ -91,7 +101,7 @@ export function renderLiquiditaet() {
           <input type="date" data-control="liquiditaet-bis" value="${escapeHtml(state.liquiditaet.bisDatum)}" />
         </label>
       </div>
-      ${saldoLinie(prognosePunkte(prognose), `${t("liquiditaet.prognose")}: ${formatMoney(prognose.start_saldo_cents)} → ${formatMoney(prognose.end_saldo_cents)}`)}
+      ${saldoLinie(prognosePunkte(prognose, today), `${t("liquiditaet.prognose")}: ${formatMoney(prognose.start_saldo_cents)} → ${formatMoney(prognose.end_saldo_cents)}`)}
       ${renderLiquiditaetPrognoseDetail(prognose)}
     </section>
   `;

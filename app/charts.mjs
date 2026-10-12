@@ -217,3 +217,162 @@ export function linienDiagramm(punkte, options = {}) {
     ${labelLinks}${labelRechts}${labelTief}
   </svg>`;
 }
+
+// --- Saldo-Diagramm (Liquiditaet) ------------------------------------------
+// Fuer Saldo-Verlaeufe mit Datum: X zeitproportional mit Monatsmarken, Y mit
+// gerundeten Ticks und dezentem Gitter, Linie in Stufen (ein Kontostand springt
+// zum Buchungstag, er gleitet nicht). Hover-Daten wie im Zeit-Modus, dazu der
+// Wertebereich der Achse und stufe:true fuer diagramm-hover.mjs.
+
+// Gerundete Achsenteilung: Schritt aus {1, 2, 2,5, 5} x 10^n, Bereich umschliesst min..max.
+export function achsenTicks(min, max, ziel = 4) {
+  if (min === max) max = min + 1;
+  const roh = (max - min) / ziel;
+  const mag = 10 ** Math.floor(Math.log10(roh));
+  const schritt = [1, 2, 2.5, 5, 10].map((f) => f * mag).find((s) => s >= roh - 1e-9);
+  const von = Math.floor(min / schritt + 1e-9) * schritt;
+  const bis = Math.ceil(max / schritt - 1e-9) * schritt;
+  const ticks = [];
+  for (let k = 0; von + k * schritt <= bis + schritt / 2; k++) ticks.push(Math.round(von + k * schritt));
+  return { min: Math.round(von), max: Math.round(bis), ticks };
+}
+
+// Punkt unter dem Zeiger: bei Stufen der letzte Punkt links davon (dessen Saldo
+// gilt bis zum naechsten), sonst der naechstgelegene.
+export function punktBeiX(punkte, vbX, stufe = false) {
+  if (stufe) {
+    let treffer = punkte[0];
+    for (const p of punkte) if (p.x <= vbX) treffer = p;
+    return treffer;
+  }
+  let nah = punkte[0];
+  for (const p of punkte) if (Math.abs(p.x - vbX) < Math.abs(nah.x - vbX)) nah = p;
+  return nah;
+}
+
+function tagNr(iso) {
+  const [j, m, t] = String(iso).split("-").map(Number);
+  return Date.UTC(j, m - 1, t) / 86400000;
+}
+
+function monatsanfaengeZwischen(vonIso, bisIso) {
+  const [j, m] = vonIso.split("-").map(Number);
+  const liste = [];
+  let jahr = j;
+  let monat = m + 1;
+  for (;;) {
+    if (monat > 12) { monat = 1; jahr += 1; }
+    const iso = `${jahr}-${String(monat).padStart(2, "0")}-01`;
+    if (iso > bisIso) break;
+    liste.push(iso);
+    monat += 1;
+  }
+  return liste;
+}
+
+function isoPlusTage(iso, tage) {
+  const d = new Date((tagNr(iso) + tage) * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
+// Marken der X-Achse: [{ iso, art }] mit art = "tag" | "monat" | "monatJahr" | "jahr".
+export function xMarken(vonIso, bisIso, maxLabels) {
+  const spanne = tagNr(bisIso) - tagNr(vonIso);
+  if (spanne <= 62) {
+    const schritt = [7, 14].find((k) => Math.floor(spanne / k) + 1 <= maxLabels) ?? 14;
+    const marken = [];
+    for (let k = 0; k <= spanne; k += schritt) marken.push({ iso: isoPlusTage(vonIso, k), art: "tag" });
+    return marken;
+  }
+  const anfaenge = monatsanfaengeZwischen(vonIso, bisIso);
+  const monatsIntervall = [1, 2, 3, 6].find((k) => Math.ceil(anfaenge.length / k) <= maxLabels);
+  if (monatsIntervall) {
+    return anfaenge
+      .filter((iso) => (Number(iso.slice(5, 7)) - 1) % monatsIntervall === 0)
+      .map((iso, i) => ({ iso, art: i === 0 || iso.slice(5, 7) === "01" ? "monatJahr" : "monat" }));
+  }
+  const jahre = anfaenge.filter((iso) => iso.slice(5, 7) === "01");
+  const jahresIntervall = [1, 2, 5, 10, 20].find((k) => Math.ceil(jahre.length / k) <= maxLabels) ?? 20;
+  return jahre
+    .filter((iso) => Number(iso.slice(0, 4)) % jahresIntervall === 0)
+    .map((iso) => ({ iso, art: "jahr" }));
+}
+
+// punkte: [{ datum: "YYYY-MM-DD", wert: number }] aufsteigend nach Datum.
+export function saldoDiagramm(punkte, options = {}) {
+  if (!Array.isArray(punkte) || punkte.length < 2) return "";
+  const {
+    width = 640,
+    height = 260,
+    formatWert = (n) => String(n),
+    formatAchse = formatWert,
+    formatTick = (iso) => iso,
+    ariaLabel = "",
+  } = options;
+
+  const achseFont = 13;
+  const charBreite = achseFont * 0.62;
+  const werte = punkte.map((p) => p.wert);
+  // Nulllinie immer im Bereich: der Abstand zur 0 ist die Kernfrage der Kurve.
+  const { min, max, ticks } = achsenTicks(Math.min(0, ...werte), Math.max(0, ...werte));
+  const yTexte = ticks.map((w) => formatAchse(w));
+  const padLeft = Math.ceil(Math.max(...yTexte.map((s) => s.length)) * charBreite) + 12;
+  const padRight = 14;
+  const padTop = 12;
+  const padBottom = 30;
+  const innerW = width - padLeft - padRight;
+  const innerH = height - padTop - padBottom;
+  const baseY = padTop + innerH;
+
+  const t0 = tagNr(punkte[0].datum);
+  const tEnde = tagNr(punkte.at(-1).datum);
+  const t1 = tEnde > t0 ? tEnde : t0 + 1;
+  const x = (iso) => padLeft + ((tagNr(iso) - t0) / (t1 - t0)) * innerW;
+  const y = (w) => padTop + (1 - (w - min) / (max - min)) * innerH;
+  const f = (n) => n.toFixed(2);
+
+  // Stufenlinie: vom Punkt waagrecht bis zum naechsten Datum, dann senkrecht.
+  let linie = `M ${f(x(punkte[0].datum))},${f(y(punkte[0].wert))}`;
+  for (let i = 1; i < punkte.length; i++) linie += ` H ${f(x(punkte[i].datum))} V ${f(y(punkte[i].wert))}`;
+  const flaeche = `${linie} V ${f(baseY)} H ${f(x(punkte[0].datum))} Z`;
+
+  const gitter = ticks
+    .map((w) => `<line x1="${padLeft}" y1="${f(y(w))}" x2="${f(padLeft + innerW)}" y2="${f(y(w))}" class="${w === 0 && min < 0 ? "diagramm-nulllinie" : "diagramm-gitter"}" />`)
+    .join("");
+  const yLabels = ticks
+    .map((w, i) => `<text x="${padLeft - 8}" y="${f(y(w) + 4)}" text-anchor="end" font-size="${achseFont}" class="diagramm-achse-label y">${esc(yTexte[i])}</text>`)
+    .join("");
+
+  // X-Achse nach Zeitraum gestaffelt: bis ~2 Monate Wochenmarken (Tag), sonst
+  // Monatsanfaenge (jeder 1./2./3./6.), bei langen Horizonten nur Jahre (jedes
+  // 1./2./5./10.). Die Anzahl richtet sich nach der Breite.
+  const labelBreite = 9 * charBreite + 14;
+  const maxLabels = Math.max(2, Math.floor(innerW / labelBreite));
+  const marken = xMarken(punkte[0].datum, punkte.at(-1).datum, maxLabels);
+  const xLabels = marken
+    .map(({ iso, art }) => {
+      const px = x(iso);
+      const anchor = px - padLeft < labelBreite / 2 ? "start" : padLeft + innerW - px < labelBreite / 2 ? "end" : "middle";
+      return `<line x1="${f(px)}" y1="${f(baseY)}" x2="${f(px)}" y2="${f(baseY + 4)}" class="diagramm-achse" />` +
+        `<text x="${f(px)}" y="${f(baseY + 19)}" text-anchor="${anchor}" font-size="${achseFont}" class="diagramm-achse-label x">${esc(formatTick(iso, art))}</text>`;
+    })
+    .join("");
+
+  const minWert = Math.min(...werte);
+  const tief = punkte[werte.indexOf(minWert)];
+  const tiefpunkt = `<circle cx="${f(x(tief.datum))}" cy="${f(y(minWert))}" r="3" class="diagramm-tiefpunkt ${minWert < 0 ? "negativ" : ""}" />`;
+
+  const dataPunkte = punkte.map((p, i) => ({ i, x: Math.round(x(p.datum)), datum: p.datum, wert: p.wert, basis: null }));
+  const dataPlot = { left: Math.round(padLeft), right: Math.round(padLeft + innerW), top: Math.round(padTop), bottom: Math.round(baseY), min, max, stufe: true };
+  const hoverAttrs = `data-punkte="${esc(JSON.stringify(dataPunkte))}" data-plot="${esc(JSON.stringify(dataPlot))}"`;
+
+  return `<svg class="linien-diagramm linien-diagramm-zeit saldo-diagramm" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs}>
+    ${gitter}
+    <path d="${flaeche}" class="diagramm-flaeche" />
+    <path d="${linie}" class="diagramm-linie" fill="none" vector-effect="non-scaling-stroke" />
+    ${tiefpunkt}
+    <line x1="${padLeft}" y1="${f(baseY)}" x2="${f(padLeft + innerW)}" y2="${f(baseY)}" class="diagramm-achse" />
+    ${yLabels}
+    ${xLabels}
+  </svg>`;
+}

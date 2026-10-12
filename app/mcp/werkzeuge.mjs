@@ -652,7 +652,7 @@ const dateiErsetzen = {
 // Ablage nach Objekt (agent-context, "Ablage nach Objekt"): Belege/<Klasse>/...
 // Klassen mit Stammsatz verlangen <ID>_<Kurzname> oder Allgemein als Ordner.
 const BELEG_KLASSEN = {
-  Konten: "KTO", Immobilien: "IMM", Darlehen: "DAR", Vorsorge: "VS",
+  Konten: "KTO", Immobilien: "IMM", Darlehen: "DAR", Vorsorge: "VS", Vermoegenswerte: "VMW",
   Versicherungen: null, Steuern: null, Sonstiges: null,
 };
 

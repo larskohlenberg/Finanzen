@@ -47,6 +47,13 @@ test("Tab-Leiste: vier Tabs, Vorsorge nur als Verweis, Sonstige nur mit aktiven 
   });
 });
 
+test("Sonstiger Vermoegenswert: Detail zeigt den Dokumentbereich", () => {
+  const vmw = { vermoegenswert_id: "VMW-001", bezeichnung: "Gold", typ: "edelmetall", status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] };
+  mitDaten({ vermoegenswerte: [vmw] }, { vermoegenTab: "sonstige", selectedVermoegenId: "vermoegenswert:VMW-001" }, (html) => {
+    assert.match(html, /<div class="detail-label">Dokumente<\/div>/);
+  });
+});
+
 test("Kopf ohne Datenqualitaets-Kachel; offener Punkt an Tab und Klassenkarte", () => {
   mitDaten({ darlehen: [darlehen("DAR-001")] }, {}, (html) => {
     assert.match(html, /data-tab="darlehen">\s*<span class="vermoegen-tab-titel">1 Darlehen<span class="tab-punkt"/);

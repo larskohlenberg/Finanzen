@@ -23,7 +23,7 @@ globalThis.document = {
   querySelector: (selector) => selector === "#app" ? app : null,
 };
 document.activeElement = document.body;
-globalThis.localStorage = { getItem: () => null, setItem: () => {} };
+globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");

@@ -51,8 +51,8 @@ test("next action priority returns validation before every other work item", () 
   assert.equal(action.type, "validation-errors");
   assert.equal(action.count, 1);
   assert.equal(action.skillPath, "docs/skills/validierung-agent.md");
-  assert.match(action.prompt, /tools\/validator\.mjs/);
-  assert.match(action.prompt, /docs\/skills\/validierung-agent\.md/);
+  assert.match(action.prompt, /Tool `status`/);
+  assert.match(action.prompt, /- validierung-agent$/m);
 });
 
 test("validation action does not inspect malformed lower-priority collections", () => {
@@ -94,11 +94,11 @@ test("next action priority orders all supported action types", () => {
     },
     {
       data: baseData({ transaktionen: [{ kategorisierung_status: "offen" }, { kategorisierung_status: "vorgeschlagen" }] }),
-      expected: ["suggested-categories", "docs/skills/kategorisierung-review.md"],
+      expected: ["suggested-categories", "docs/skills/import-durchlauf.md"],
     },
     {
       data: baseData({ transaktionen: [{ kategorisierung_status: "vorgeschlagen" }] }),
-      expected: ["suggested-categories", "docs/skills/kategorisierung-review.md"],
+      expected: ["suggested-categories", "docs/skills/import-durchlauf.md"],
     },
     {
       data: baseData({ regelzahlungen: [{ status: "vorgeschlagen" }] }),
@@ -135,7 +135,7 @@ test("next action candidates include every available prompt in priority order", 
     "open-categories",
     "wealth-checks",
   ]);
-  assert.ok(actions.every((action) => action.prompt.includes(action.skillPath)));
+  assert.ok(actions.every((action) => action.prompt.includes(`- ${action.skillPath.replace(/^.*\//, "").replace(/\.md$/, "")}`)));
 });
 
 test("suggested category review outranks open category rule work", () => {
@@ -147,22 +147,23 @@ test("suggested category review outranks open category rule work", () => {
   }), { vermoegenChecks: [] });
 
   assert.equal(action.type, "suggested-categories");
-  assert.match(action.prompt, /docs\/skills\/kategorisierung-review\.md/);
+  assert.match(action.prompt, /- import-durchlauf$/m);
 });
 
-test("prompts use app-relative documentation paths for Hermes agents", () => {
+test("demo prompts use app-relative documentation paths", () => {
   const action = buildNextAgentAction(baseData({
+    metadata: { dataMode: "demo" },
     transaktionen: [{ kategorisierung_status: "vorgeschlagen" }],
   }), { vermoegenChecks: [] });
 
   assert.match(action.prompt, /docs\/agent-context\.md/);
-  assert.match(action.prompt, /docs\/skills\/kategorisierung-review\.md/);
+  assert.match(action.prompt, /docs\/skills\/import-durchlauf\.md/);
   assert.doesNotMatch(action.prompt, /app\/docs\/agent-context\.md/);
-  assert.doesNotMatch(action.prompt, /app\/docs\/skills\/kategorisierung-review\.md/);
+  assert.doesNotMatch(action.prompt, /app\/docs\/skills\/import-durchlauf\.md/);
   assert.doesNotMatch(action.prompt, /app\/(?:data|schemas|tools)\//);
 });
 
-test("agent prompts expose the active data root for live data", () => {
+test("live prompts send the agent to the finanzen MCP server instead of the local CLI", () => {
   const action = buildNextAgentAction(baseData({
     metadata: { dataMode: "live" },
     transaktionen: [{ kategorisierung_status: "offen" }],
@@ -170,7 +171,11 @@ test("agent prompts expose the active data root for live data", () => {
 
   assert.match(action.prompt, /DATENMODUS: live/);
   assert.match(action.prompt, /DATENROOT: data\/master/);
-  assert.match(action.prompt, /node tools\/validator\.mjs data\/master/);
+  assert.match(action.prompt, /ausschliesslich ueber den MCP-Server `finanzen`/);
+  assert.match(action.prompt, /Resource `finanzen:\/\/docs\/agent-context`/);
+  assert.match(action.prompt, /Tool `status`/);
+  assert.doesNotMatch(action.prompt, /node tools\//);
+  assert.doesNotMatch(action.prompt, /docs\/skills\//);
 });
 
 test("agent prompts expose demo data root and avoid master write targets in demo mode", () => {
@@ -206,13 +211,18 @@ test("all action prompts omit forbidden root documentation patterns", () => {
     { vermoegenChecks: [{ art: "anker-fehlt", entitaet: "konto", entitaet_id: "KTO-1" }] },
   ];
 
-  for (const [index, data] of cases.entries()) {
-    const action = buildNextAgentAction(data, options[index]);
+  for (const dataMode of ["live", "demo"]) {
+    for (const [index, data] of cases.entries()) {
+      const action = buildNextAgentAction({ ...data, metadata: { dataMode } }, options[index]);
 
-    assert.notEqual(action.prompt, "");
-    assert.doesNotMatch(action.prompt, /app\/(?:docs|data|schemas|tools)\//);
-    for (const pattern of forbiddenPromptPatterns) {
-      assert.doesNotMatch(action.prompt, pattern);
+      assert.notEqual(action.prompt, "");
+      assert.doesNotMatch(action.prompt, /app\/(?:docs|data|schemas|tools)\//);
+      for (const pattern of forbiddenPromptPatterns) {
+        assert.doesNotMatch(action.prompt, pattern);
+      }
+      if (dataMode === "live") {
+        assert.doesNotMatch(action.prompt, /node tools\/|--schreiben|docs\/skills\//, action.type);
+      }
     }
   }
 });
@@ -234,10 +244,10 @@ test("open category prompt injects app context and exact app skill only", () => 
   }), { vermoegenChecks: [] });
 
   assert.equal(action.type, "open-categories");
-  assert.match(action.prompt, /docs\/agent-context\.md/);
-  assert.match(action.prompt, /docs\/skills\/kategorisierungsregel-pflege\.md/);
+  assert.match(action.prompt, /finanzen:\/\/docs\/agent-context/);
+  assert.match(action.prompt, /- kategorisierungsregel-pflege$/m);
   assert.match(action.prompt, /2 offene Kategorien/);
-  assert.doesNotMatch(action.prompt, /docs\/skills\/kategorisierung-review\.md/);
+  assert.doesNotMatch(action.prompt, /kategorisierung-review/);
   for (const pattern of forbiddenPromptPatterns) {
     assert.doesNotMatch(action.prompt, pattern);
   }
@@ -249,8 +259,8 @@ test("loan-without-rate check prompt also names regelzahlung skill", () => {
   });
 
   assert.equal(action.type, "wealth-checks");
-  assert.match(action.prompt, /docs\/skills\/stammdaten-erfassung-agent\.md/);
-  assert.match(action.prompt, /docs\/skills\/regelzahlung-agent\.md/);
+  assert.match(action.prompt, /- stammdaten-erfassung-agent$/m);
+  assert.match(action.prompt, /- regelzahlung-agent$/m);
 });
 
 test("vorsorge check prompt also names vorsorge skill", () => {
@@ -259,8 +269,8 @@ test("vorsorge check prompt also names vorsorge skill", () => {
   });
 
   assert.equal(action.type, "wealth-checks");
-  assert.match(action.prompt, /docs\/skills\/stammdaten-erfassung-agent\.md/);
-  assert.match(action.prompt, /docs\/skills\/vorsorge-erfassung-agent\.md/);
+  assert.match(action.prompt, /- stammdaten-erfassung-agent$/m);
+  assert.match(action.prompt, /- vorsorge-erfassung-agent$/m);
   assert.deepEqual(action.extraSkillPaths, ["docs/skills/vorsorge-erfassung-agent.md"]);
 });
 
@@ -287,7 +297,7 @@ test("Kategorie-Prompts verlangen keine Vorab-Bestaetigung", () => {
   for (const action of [vorgeschlagen, offen]) {
     assert.doesNotMatch(action.prompt, /ohne Bestaetigung|erst nach meiner Entscheidung|vor fachlichen Schreibentscheidungen/);
   }
-  assert.match(vorgeschlagen.prompt, /tools\/freigabe\.mjs/);
+  assert.match(vorgeschlagen.prompt, /Tool `freigabe` mit `schreiben: true`/);
   assert.match(offen.prompt, /nur mit Beleg/);
   assert.match(offen.prompt, /schaetze den Rest/);
 });

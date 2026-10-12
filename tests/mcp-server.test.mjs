@@ -303,3 +303,59 @@ test("datei_ersetzen parallel auf dieselbe Datei verliert keine Aenderung", asyn
     await s.beenden();
   }
 });
+
+test("datei_lesen: Bild liefert den Textzwilling, seite:1 das Bild; Groessengrenze und Pfadschutz", async () => {
+  const ordner = join(abzug.app, "Belege", "2026", "Bilder");
+  mkdirSync(ordner, { recursive: true });
+  const png = Buffer.from("89504e470d0a1a0a0000000d49484452", "hex");
+  writeFileSync(join(ordner, "quittung.png"), png);
+  writeFileSync(join(ordner, "quittung.txt"), "# Per OCR (tesseract) erkannt, 2026-10-11.\nSumme 1,00\n");
+  writeFileSync(join(ordner, "ohne.jpg"), png);
+  writeFileSync(join(ordner, "riesig.jpeg"), Buffer.alloc(5 * 1024 * 1024 + 1));
+  mkdirSync(join(abzug.wurzel, "geheim-bild"), { recursive: true });
+  writeFileSync(join(abzug.wurzel, "geheim-bild", "z.txt"), "GEHEIM-ZWILLING\n");
+  symlinkSync(join(abzug.wurzel, "geheim-bild", "z.txt"), join(ordner, "ausbruch.txt"));
+  writeFileSync(join(ordner, "ausbruch.png"), png);
+  const s = starteServer(abzug);
+  try {
+    const text = await s.werkzeug("datei_lesen", { pfad: "Belege/2026/Bilder/quittung.png" });
+    assert.ok(!text.isError, text.text);
+    assert.match(text.text, /^# Textzwilling Belege\/2026\/Bilder\/quittung\.txt \(das Bild selbst: datei_lesen mit seite:1\)/);
+    assert.match(text.text, /Summe 1,00/);
+
+    const bild = await s.werkzeug("datei_lesen", { pfad: "Belege/2026/Bilder/quittung.png", seite: 1 });
+    assert.deepEqual(bild.content, [{ type: "image", data: png.toString("base64"), mimeType: "image/png" }]);
+
+    const ohne = await s.werkzeug("datei_lesen", { pfad: "Belege/2026/Bilder/ohne.jpg" });
+    assert.equal(ohne.content[0].type, "image");
+    assert.equal(ohne.content[0].mimeType, "image/jpeg");
+
+    const gross = await s.werkzeug("datei_lesen", { pfad: "Belege/2026/Bilder/riesig.jpeg" });
+    assert.equal(gross.isError, true);
+
+    // Zwilling als Symlink nach draussen wird nicht gelesen; das Bild kommt stattdessen.
+    const ausbruch = await s.werkzeug("datei_lesen", { pfad: "Belege/2026/Bilder/ausbruch.png" });
+    assert.doesNotMatch(ausbruch.text, /GEHEIM/);
+    assert.equal(ausbruch.content[0].type, "image");
+  } finally {
+    await s.beenden();
+  }
+});
+
+test("beleg_ablegen: Foto aus der Inbox samt Zwilling", async () => {
+  const inbox = join(abzug.app, "data", "inbox");
+  writeFileSync(join(inbox, "IMG_0001.jpg"), "jpeg");
+  writeFileSync(join(inbox, "IMG_0001.txt"), "# Vom Agenten aus dem Bildscan gelesen, 2026-10-11.\nText\n");
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const ziel = "Belege/2026/Sonstiges/Quittung_Musterladen_2026-10-01.jpg";
+    const r = await s.werkzeug("beleg_ablegen", { quelle: "data/inbox/IMG_0001.jpg", ziel });
+    assert.ok(!r.isError, r.text);
+    assert.equal(readFileSync(join(abzug.app, ziel), "utf8"), "jpeg");
+    assert.match(readFileSync(join(abzug.app, ziel.replace(/\.jpg$/, ".txt")), "utf8"), /Text/);
+    const falsch = await s.werkzeug("beleg_ablegen", { quelle: "data/inbox/IMG_0001.jpg", ziel: "Belege/x.png" });
+    assert.equal(falsch.isError, true);
+  } finally {
+    await s.beenden();
+  }
+});

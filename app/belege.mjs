@@ -11,7 +11,15 @@ const OCR_KOPF = "# Kein Textlayer";
 // letzten passenden Endung, damit "a.pdf.txt" ganz erfasst wird; Leerraum,
 // Anfuehrungszeichen, Komma, Semikolon und Klammern beenden den Pfad,
 // ein Satzpunkt am Ende faellt durch das Endungs-Lookahead heraus.
-const PFAD_MUSTER = /Belege\/[^\s"'`;,()<>]+\.(?:pdf|csv|xlsx|xls|txt)(?![\p{L}\p{N}_-])/giu;
+const PFAD_MUSTER = /Belege\/[^\s"'`;,()<>]+\.(?:pdf|csv|xlsx|xls|txt|png|jpe?g|heic|heif)(?![\p{L}\p{N}_-])/giu;
+
+// Bildformate unter Belege/ (Fotos von Belegen). Sie haben wie PDFs einen
+// Textzwilling, meist per OCR.
+const BILD_TYPEN = new Set(["png", "jpg", "jpeg", "heic", "heif"]);
+export function istBildTyp(typ) {
+  return BILD_TYPEN.has(String(typ ?? "").toLowerCase());
+}
+const hatZwilling = (typ) => typ === "pdf" || istBildTyp(typ);
 
 export function belegSchluessel(pfad) {
   return String(pfad ?? "").normalize("NFC");
@@ -91,12 +99,12 @@ export function ordneZwillingeZu(liste) {
   for (const d of liste) {
     const basis = belegSchluessel(ohneEndung(d.pfad));
     if (d.typ === "txt") txtNachBasis.set(basis, d);
-    if (d.typ === "pdf") pdfNachBasis.set(basis, d);
+    if (hatZwilling(d.typ) && !pdfNachBasis.has(basis)) pdfNachBasis.set(basis, d);
   }
   return liste.map((d) => {
     const basis = belegSchluessel(ohneEndung(d.pfad));
     const eintrag = { ...d, name: dateiName(d.pfad), ordner: ordnerVon(d.pfad), textStatus: "", zwilling: "", istZwilling: false, zwillingVon: "" };
-    if (d.typ === "pdf") {
+    if (hatZwilling(d.typ)) {
       const txt = txtNachBasis.get(basis);
       if (txt) {
         eintrag.zwilling = txt.pfad;

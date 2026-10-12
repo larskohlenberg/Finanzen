@@ -130,14 +130,30 @@ test("Pipeline-Ordner melden sich nicht — sie sind das Ziel, nicht der Eingang
   assert.deepEqual(plan.unterordner, []);
 });
 
-test("Unterordner ohne verarbeitbare Datei schweigt — nur CSV und PDF sind Buchungsquellen", () => {
+test("Unterordner ohne verarbeitbare Datei schweigt — nur CSV, PDF und Belegfotos sind Quellen", () => {
   const plan = planInbox({
     dateien: [],
-    unterordner: [{ name: "Notizen", dateien: ["merkzettel.txt", ".DS_Store", "bild.png"] }],
+    unterordner: [{ name: "Notizen", dateien: ["merkzettel.txt", ".DS_Store", "animation.gif"] }],
     profile,
   });
 
   assert.deepEqual(plan.unterordner, []);
+});
+
+test("Bilder bekommen einen OCR-Textvorlauf und landen nie als offen oder Fehler", () => {
+  const plan = planInbox({
+    dateien: ["Quittung.JPG", "foto.png", "scan.jpeg", "animation.gif"],
+    unterordner: [{ name: "Fotos", dateien: ["a.png", "b.jpg"] }],
+    profile,
+  });
+
+  assert.deepEqual(plan.auftraege, [
+    { datei: "Quittung.JPG", art: "bild-text", profil_id: null },
+    { datei: "foto.png", art: "bild-text", profil_id: null },
+    { datei: "scan.jpeg", art: "bild-text", profil_id: null },
+  ]);
+  assert.deepEqual(plan.offen, [{ datei: "animation.gif", grund: "Dateityp .gif wird nicht verarbeitet" }]);
+  assert.deepEqual(plan.unterordner, [{ ordner: "Fotos", dateien: 2 }]);
 });
 
 test("zaehlt verschachtelte Dateien mit und meldet den Ordnernamen in NFC", () => {

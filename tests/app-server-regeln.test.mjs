@@ -20,13 +20,15 @@ import {
 } from "../app/server.mjs";
 
 test("Upload-Regeln: Endungen und Grenze", () => {
-  assert.deepEqual([...ERLAUBTE_ENDUNGEN].sort(), ["csv", "pdf", "txt", "xls", "xlsx"]);
+  assert.deepEqual([...ERLAUBTE_ENDUNGEN].sort(), ["csv", "heic", "heif", "jpeg", "jpg", "pdf", "png", "txt", "xls", "xlsx"]);
   assert.equal(MAX_UPLOAD_BYTES, 25 * 1024 * 1024);
 });
 
 test("vorpruefeDatei: Endung case-insensitiv, Groesse begrenzt", () => {
   assert.deepEqual(vorpruefeDatei({ name: "Auszug.CSV", size: 10 }), { ok: true });
   assert.deepEqual(vorpruefeDatei({ name: "scan.pdf", size: MAX_UPLOAD_BYTES }), { ok: true });
+  assert.deepEqual(vorpruefeDatei({ name: "Foto.PNG", size: 10 }), { ok: true });
+  assert.deepEqual(vorpruefeDatei({ name: "IMG_0001.HEIC", size: 10 }), { ok: true });
   assert.deepEqual(vorpruefeDatei({ name: "tool.exe", size: 10 }), { ok: false, grund: "endung-nicht-erlaubt" });
   assert.deepEqual(vorpruefeDatei({ name: "ohne-endung", size: 10 }), { ok: false, grund: "endung-nicht-erlaubt" });
   assert.deepEqual(vorpruefeDatei({ name: "gross.pdf", size: MAX_UPLOAD_BYTES + 1 }), { ok: false, grund: "zu-gross" });
@@ -77,7 +79,7 @@ test("bereinigeDateiname: Laenge maximal 200 Zeichen", () => {
 });
 
 test("bereinigeDateiname: falsche Endung -> 415", () => {
-  for (const roh of ["programm.exe", "bild.png", "ohne", "csv", "archiv.csv.zip"]) {
+  for (const roh of ["programm.exe", "bild.gif", "ohne", "csv", "archiv.csv.zip", "foto.png.exe"]) {
     assert.deepEqual(bereinigeDateiname(roh), { ok: false, status: 415, grund: "endung-nicht-erlaubt" }, roh);
   }
 });

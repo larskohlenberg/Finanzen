@@ -20,13 +20,14 @@
 // Nur node:-Module. Reine Funktionen sind exportiert und getestet
 // (tests/app-server*.test.mjs); der CLI-Einstieg laeuft nur bei Direktaufruf.
 import http from "node:http";
+import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { open, link, mkdir, lstat, readdir, realpath, rm, stat } from "node:fs/promises";
+import { chmod, open, link, mkdir, mkdtemp, lstat, readdir, realpath, rm, stat } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt } from "./upload-regeln.mjs";
+import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt, istHeic } from "./upload-regeln.mjs";
 
 const MAX_NAME_LAENGE = 200;
 const API_INBOX = "/api/inbox";
@@ -44,6 +45,8 @@ const MIME = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
   ".ico": "image/x-icon",
   ".pdf": "application/pdf",
   ".txt": "text/plain; charset=utf-8",
@@ -66,6 +69,14 @@ const BASIS_KOPFZEILEN = {
   // Die App kommt ohne Inline-Skripte, Inline-Styles und fremde Quellen aus.
   "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
 };
+
+// Rasterbilder (Belegfotos) im eigenen Tab: der Browser baut dafuer ein
+// Bild-Dokument mit eigenen Inline-Styles (Zentrieren, Zoomen), die die
+// App-CSP blockiert. Rasterbilder fuehren keinen Code aus; fuer sie gilt
+// eine engere CSP ohne Skripte, nur mit Inline-Styles. SVG bleibt bei der
+// App-CSP, weil es Skripte enthalten kann.
+const RASTERBILD_CSP = "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
+const RASTERBILDER = new Set([".png", ".jpg", ".jpeg", ".heic", ".heif"]);
 
 // --- Reine Funktionen ------------------------------------------------------
 
@@ -93,6 +104,31 @@ export function kandidatenName(name, versuch) {
   if (versuch <= 1) return name;
   const punkt = name.lastIndexOf(".");
   return `${name.slice(0, punkt)}-${versuch}${name.slice(punkt)}`;
+}
+
+// HEIC/HEIF-Upload -> Name der abgelegten JPEG-Datei.
+export function jpegNameFuer(name) {
+  const punkt = name.lastIndexOf(".");
+  return `${punkt > 0 ? name.slice(0, punkt) : name}.jpg`;
+}
+
+// Standard-Konverter: heif-convert (Debian: libheif-examples) bestimmt das
+// Ausgabeformat ueber die Endung von aus. Fehlt das Programm, kommt ENOENT.
+// Nebenbilder (Tiefe, Hilfsbilder, Sequenzen) schreibt es nur auf Wunsch;
+// der Aufrufer laesst ohnehin in ein eigenes Temp-Verzeichnis schreiben.
+export const HEIC_TIMEOUT_MS = 60000;
+export function heifConvert(ein, aus) {
+  return new Promise((resolve, reject) => {
+    execFile("heif-convert", ["--quiet", "-q", "90", ein, aus], { timeout: HEIC_TIMEOUT_MS, killSignal: "SIGKILL", maxBuffer: 1024 * 1024 }, (fehler) => (fehler ? reject(fehler) : resolve()));
+  });
+}
+
+// Hauptbild aus dem Konverter-Verzeichnis: die verlangte Ausgabe, sonst das
+// erste JPEG (mehrbildrige Dateien nummerieren ihre Ausgaben).
+export async function hauptbildIn(ordner, wunschName) {
+  const namen = (await readdir(ordner)).filter((n) => /\.jpe?g$/i.test(n)).sort();
+  const name = namen.includes(wunschName) ? wunschName : namen[0];
+  return name ? join(ordner, name) : null;
 }
 
 export function normalisiereIp(adresse) {
@@ -216,9 +252,11 @@ async function liefereStatik(req, res, appWurzel) {
   // Symlinks, die aus app/ hinauszeigen, werden nicht ausgeliefert.
   if (!innerhalb(appWurzel, echt) || !info.isFile()) return nichtGefunden(res);
 
+  const endung = extname(echt).toLowerCase();
   res.writeHead(200, {
-    "Content-Type": MIME[extname(echt).toLowerCase()] ?? "application/octet-stream",
+    "Content-Type": MIME[endung] ?? "application/octet-stream",
     "Content-Length": info.size,
+    ...(RASTERBILDER.has(endung) ? { "Content-Security-Policy": RASTERBILD_CSP } : {}),
   });
   if (req.method === "HEAD") {
     res.end();
@@ -302,6 +340,14 @@ async function sha256Datei(pfad) {
 
 class ZuGross extends Error {}
 
+class Umwandlung extends Error {
+  constructor(status, grund, ursache) {
+    super(`${grund}: ${ursache?.message ?? ""}`);
+    this.status = status;
+    this.grund = grund;
+  }
+}
+
 // FileHandle.write darf weniger Bytes schreiben als verlangt (z. B. bei
 // knappem Speicher): so lange nachschreiben, bis der ganze Puffer drin ist.
 export async function schreibeVoll(datei, puffer) {
@@ -326,7 +372,7 @@ export async function legeAbOhneUeberschreiben(temp, ziel) {
   }
 }
 
-export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, log = console.log }) {
+export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
   let appWurzel = null;
   // Uploads nacheinander abschliessen: Namenswahl ohne Wettlauf untereinander.
   let kette = Promise.resolve();
@@ -366,6 +412,13 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     await mkdir(inboxDir, { recursive: true });
     // Dotfile: inbox.mjs ignoriert alles mit fuehrendem Punkt, ebenso GET /api/inbox.
     const temp = join(inboxDir, `.upload-${randomBytes(8).toString("hex")}.part`);
+    // HEIC/HEIF: Umwandlung in ein eigenes, frisch angelegtes Dot-Verzeichnis
+    // (mkdtemp: eindeutig auch bei parallelen Uploads), das am Ende samt aller
+    // Nebendateien des Konverters entfernt wird.
+    const heic = istHeic(name);
+    let heicOrdner = null;
+    const zielName = heic ? jpegNameFuer(name) : name;
+    let ablage = temp;
     let groesse = 0;
     // Antwort erst nach dem Aufraeumen der Temp-Datei senden.
     let antworte = null;
@@ -383,13 +436,33 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       } finally {
         await datei.close();
       }
-      const inhaltHash = hash.digest("hex");
+      let inhaltHash = hash.digest("hex");
+
+      if (heic) {
+        heicOrdner = await mkdtemp(join(inboxDir, ".heic-"));
+        try {
+          await heicKonverter(temp, join(heicOrdner, "bild.jpg"));
+        } catch (fehler) {
+          throw fehler.code === "ENOENT"
+            ? new Umwandlung(415, "heic-konverter-fehlt", fehler)
+            : new Umwandlung(422, "heic-unlesbar", fehler);
+        }
+        const jpeg = await hauptbildIn(heicOrdner, "bild.jpg");
+        const info = jpeg ? await lstat(jpeg) : null;
+        if (!info?.isFile() || info.size === 0) throw new Umwandlung(422, "heic-unlesbar", new Error("keine JPEG-Ausgabe"));
+        if (info.size > maxBytes) throw new Umwandlung(413, "zu-gross", new Error(`JPEG ${info.size} Bytes`));
+        // Gleiche Rechte wie ein direkter Upload, unabhaengig von der umask des Konverters.
+        await chmod(jpeg, 0o640);
+        ablage = jpeg;
+        groesse = info.size;
+        inhaltHash = await sha256Datei(jpeg);
+      }
 
       const ergebnis = await exklusiv(async () => {
         for (let versuch = 1; versuch < 1000; versuch += 1) {
-          const kandidat = kandidatenName(name, versuch);
+          const kandidat = kandidatenName(zielName, versuch);
           const ziel = join(inboxDir, kandidat);
-          if (await legeAbOhneUeberschreiben(temp, ziel)) {
+          if (await legeAbOhneUeberschreiben(ablage, ziel)) {
             return { code: 201, status: "hochgeladen", name: kandidat };
           }
           const vorhanden = await lstat(ziel).catch(() => null);
@@ -399,10 +472,14 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
         }
         throw new Error("kein freier Dateiname");
       });
-      protokolliere(ergebnis.name, groesse, ergebnis.status);
-      antworte = () => sendeJson(res, ergebnis.code, { status: ergebnis.status, name: ergebnis.name });
+      protokolliere(ergebnis.name, groesse, heic ? `${ergebnis.status}:umgewandelt-aus=${JSON.stringify(name)}` : ergebnis.status);
+      const antwort = { status: ergebnis.status, name: ergebnis.name, ...(heic ? { umgewandelt_aus: name } : {}) };
+      antworte = () => sendeJson(res, ergebnis.code, antwort);
     } catch (fehler) {
-      if (fehler instanceof ZuGross) {
+      if (fehler instanceof Umwandlung) {
+        protokolliere(name, groesse, `abgelehnt:${fehler.grund} (${fehler.message})`);
+        antworte = () => abgelehnt(res, fehler.status, fehler.grund);
+      } else if (fehler instanceof ZuGross) {
         protokolliere(name, groesse, "abgelehnt:zu-gross");
         antworte = () => abgelehnt(res, 413, "zu-gross", { Connection: "close" });
       } else if (req.destroyed || req.aborted || fehler.code === "ECONNRESET" || fehler.code === "ERR_STREAM_PREMATURE_CLOSE") {
@@ -414,6 +491,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       }
     } finally {
       await rm(temp, { force: true });
+      if (heicOrdner) await rm(heicOrdner, { recursive: true, force: true });
     }
     antworte?.();
   }

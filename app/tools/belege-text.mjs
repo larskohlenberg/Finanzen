@@ -1,9 +1,13 @@
 // app/tools/belege-text.mjs
 //
-// Textzwilling der Belege: Jedes PDF unter `Belege/` hat eine gleichnamige
-// `.txt` daneben. Der Zwilling ist rohes `pdftotext -layout`-Ergebnis und
-// deshalb jederzeit aus dem Beleg wiederherstellbar — er wird neu erzeugt,
-// nicht verschoben.
+// Textzwilling der Belege: Jedes PDF und Bild (png/jpg/jpeg) unter `Belege/`
+// hat eine gleichnamige `.txt` daneben. Der Zwilling ist rohes
+// `pdftotext -layout`-Ergebnis und deshalb jederzeit aus dem Beleg
+// wiederherstellbar — er wird neu erzeugt, nicht verschoben. Bilder und PDFs
+// ohne Textlayer gehen durch OCR (lib/ocr.mjs, dieselbe Erkennung wie der
+// Inbox-Vorlauf); deren Zwilling traegt die OCR-Kopfzeile. Bringt OCR nichts,
+// bleibt der Marker "Kein Textlayer" und der Fall "OCR ausstehend". Alte
+// Marker werden bei jedem Lauf per OCR nachgeholt.
 //
 // `data/inbox/standardized/` wird ueber den Inhalts-Hash aufgeraeumt, nicht
 // ueber den Dateinamen: Der Agent benennt Belege beim Ablegen um, Namen
@@ -14,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
+import { erkenneText, istBild, ocrRumpf, OCR_KOPF } from "./lib/ocr.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -24,32 +29,45 @@ const nfc = (wert) => wert.normalize("NFC");
 const nachPfad = (a, b) => a.pfad.localeCompare(b.pfad);
 const istPdf = (pfad) => /\.pdf$/i.test(pfad);
 const istTxt = (pfad) => /\.txt$/i.test(pfad);
-const zielFuer = (pfad) => pfad.replace(/\.pdf$/i, ".txt");
+const istQuelle = (pfad) => istPdf(pfad) || istBild(pfad);
+const zielFuer = (pfad) => pfad.replace(/\.(pdf|png|jpe?g)$/i, ".txt");
+// Auftrag: { pdf, ziel } fuer PDFs, { bild, ziel } fuer Bilder.
+const auftragFuer = (quelle) => ({ [istPdf(quelle) ? "pdf" : "bild"]: quelle, ziel: zielFuer(quelle) });
+export const quelleVon = (auftrag) => auftrag.pdf ?? auftrag.bild;
 
 export function planZwillinge({ belege }) {
   // Originalpfade (z.B. von macOS readdir in NFD-Form) behalten wir wie gegeben.
   // Nur fuer Vergleiche normalisieren wir temporaer (Typ-Pruefung, Map-Keys, Set).
   const dateien = [...belege].sort(nachPfad);
-  const pdfs = dateien.filter((datei) => istPdf(nfc(datei.pfad)));
+  const quellen = dateien.filter((datei) => istQuelle(nfc(datei.pfad)));
   const zwillinge = dateien.filter((datei) => istTxt(nfc(datei.pfad)));
   const zwillingNachPfad = new Map(zwillinge.map((zwilling) => [nfc(zwilling.pfad), zwilling]));
-  const erwarteteZwillinge = new Set(pdfs.map((pdf) => zielFuer(nfc(pdf.pfad))));
+  const erwarteteZwillinge = new Set(quellen.map((quelle) => zielFuer(nfc(quelle.pfad))));
 
   const erzeugen = [];
+  const ocrNachholen = [];
   const offen = [];
+  const vergeben = new Set();
 
-  for (const pdf of pdfs) {
-    const zielNorm = zielFuer(nfc(pdf.pfad));
-    const vorhanden = zwillingNachPfad.get(zielNorm);
-    if (!vorhanden) {
-      erzeugen.push({ pdf: pdf.pfad, ziel: zielFuer(pdf.pfad) });
+  for (const quelle of quellen) {
+    const zielNorm = zielFuer(nfc(quelle.pfad));
+    // a.pdf und a.jpg teilten sich a.txt: der erste gewinnt, der zweite wird gemeldet.
+    if (vergeben.has(zielNorm)) {
+      offen.push({ ort: quelle.pfad, grund: "Zwilling mehrdeutig (gleicher Basisname)" });
       continue;
     }
-    // Der Marker bleibt so lange stehen, bis der Agent den Scan gelesen hat.
-    // Ihn bei jedem Lauf zu melden macht daraus eine Restliste, die nicht
-    // veralten kann, weil sie aus dem Dateisystem hergeleitet wird.
+    vergeben.add(zielNorm);
+    const vorhanden = zwillingNachPfad.get(zielNorm);
+    if (!vorhanden) {
+      erzeugen.push(auftragFuer(quelle.pfad));
+      continue;
+    }
+    // Der Marker bleibt so lange stehen, bis OCR oder der Agent den Scan
+    // gelesen hat. Ihn bei jedem Lauf zu melden macht daraus eine Restliste,
+    // die nicht veralten kann, weil sie aus dem Dateisystem hergeleitet wird.
     if ((vorhanden.kopf ?? "").startsWith(MARKER_KOPF)) {
       offen.push({ ort: vorhanden.pfad, grund: "OCR ausstehend" });
+      ocrNachholen.push({ ...auftragFuer(quelle.pfad), ziel: vorhanden.pfad });
     }
   }
 
@@ -60,7 +78,7 @@ export function planZwillinge({ belege }) {
   }
 
   offen.sort((a, b) => a.ort.localeCompare(b.ort));
-  return { erzeugen, offen };
+  return { erzeugen, ocrNachholen, offen };
 }
 
 export function planAufraeumen({ zwillinge, staging }) {
@@ -139,7 +157,8 @@ export function seitenZahl(text) {
   return (text.match(/\f/g) ?? []).length;
 }
 
-export function markerText(seiten) {
+export function markerText(seiten, { bild = false } = {}) {
+  if (bild) return `${MARKER_KOPF} — Bild. Inhalt nur in der Bilddatei.\n`;
   return `${MARKER_KOPF} — Bildscan, ${seiten} Seiten. Inhalt nur im PDF.\n`;
 }
 
@@ -200,7 +219,8 @@ async function ladeStaging(stagingRoot) {
   }
   return Promise.all(namen.sort().map(async (name) => {
     const inhalt = await readFile(new URL(encodeURIComponent(name), stagingRoot));
-    return { name, hash: hashVon(inhalt), zeichen: inhalt.toString("utf8").replace(/\s/g, "").length };
+    const text = inhalt.toString("utf8");
+    return { name, hash: hashVon(inhalt), zeichen: text.replace(/\s/g, "").length, ...(text.startsWith(OCR_KOPF) ? { text } : {}) };
   }));
 }
 
@@ -222,54 +242,112 @@ async function ladeProcessed(processedRoot) {
 // vorhandenen Textvorlaeufen vergleichbar. Siehe tests/belege-text.test.mjs,
 // das genau diese Behauptung gegen echtes pdftotext verifiziert.
 export async function extrahiere(pdfUrl) {
-  const { stdout } = await execFileAsync("pdftotext", ["-layout", fileURLToPath(pdfUrl), "-"], {
+  return pfadExtrahieren(fileURLToPath(pdfUrl));
+}
+
+async function pfadExtrahieren(pdfPfad) {
+  const { stdout } = await execFileAsync("pdftotext", ["-layout", pdfPfad, "-"], {
     maxBuffer: 64 * 1024 * 1024,
     encoding: "utf8",
   });
   return stdout;
 }
 
+// Nach dem ersten "tesseract fehlt" nicht fuer jeden Beleg erneut versuchen.
+const keinOcr = async () => {
+  throw Object.assign(new Error("OCR nicht verfuegbar"), { code: "ENOENT" });
+};
+
 export async function main({
   belegeRoot = BELEGE_STANDARD,
   stagingRoot = STAGING_STANDARD,
   processedRoot = PROCESSED_STANDARD,
   schreiben = process.argv.slice(2).includes("--schreiben"),
+  // Injizierbar fuer Tests: { extrahiere, ocrBild, ocrPdf, heute } (lib/ocr.mjs).
+  erkennung = {},
 } = {}) {
   const belege = await ladeBelege(belegeRoot);
-  const { erzeugen, offen: offeneBelege } = planZwillinge({ belege });
+  const { erzeugen, ocrNachholen, offen: offeneBelege } = planZwillinge({ belege });
+  const staging = await ladeStaging(stagingRoot);
 
   const bericht = {
     modus: schreiben ? "geschrieben" : "vorschau",
-    belege: belege.filter((datei) => istPdf(datei.pfad)).length,
+    belege: belege.filter((datei) => istQuelle(datei.pfad)).length,
     erzeugt: [],
     geloescht: [],
     offen: [],
     fehler: [],
   };
 
+  // OCR-Text eines Belegs, der schon als Vorlauf in standardized/ liegt,
+  // wird samt Kopfzeile (Datum!) uebernommen: nur so bleibt der Zwilling
+  // byte-identisch zum Vorlauf und das Aufraeumen findet ihn.
+  const ocrVorlaeufe = staging.filter((v) => v.text);
+  const uebernimmVorlauf = (inhalt) => {
+    const rumpf = ocrRumpf(inhalt);
+    return ocrVorlaeufe.find((v) => ocrRumpf(v.text) === rumpf)?.text ?? inhalt;
+  };
+  let ocrFehlt = false;
+  const erkenne = async (auftrag) => {
+    if (ocrFehlt) erkennung = { ...erkennung, ocrBild: keinOcr, ocrPdf: keinOcr };
+    const ergebnis = await erkenneText(fileURLToPath(urlUnterBelege(quelleVon(auftrag), belegeRoot)), { extrahiere: pfadExtrahieren, ...erkennung });
+    if (ergebnis.ocrFehlt && !ocrFehlt) {
+      ocrFehlt = true;
+      bericht.ocr = ergebnis.grund;
+    }
+    return ergebnis;
+  };
+
   // Die neu erzeugten Zwillinge fliessen in die zweite Phase ein, auch in der
   // Vorschau. Sonst zeigte der Vorschaulauf jeden Textvorlauf als offen an und
   // waere fuer die Migration wertlos.
   const neueZwillinge = [];
+  const ersetzt = new Set();
 
   for (const auftrag of erzeugen) {
-    let text;
+    let ergebnis;
     try {
-      text = await extrahiere(urlUnterBelege(auftrag.pdf, belegeRoot));
+      ergebnis = await erkenne(auftrag);
     } catch (error) {
-      bericht.fehler.push({ ort: auftrag.pdf, grund: error.message });
+      bericht.fehler.push({ ort: quelleVon(auftrag), grund: error.message });
       continue;
     }
-    const bildscan = istLeer(text);
-    const inhalt = bildscan ? markerText(seitenZahl(text)) : text;
+    let inhalt;
+    let art;
+    if (ergebnis.art === "ohne-text") {
+      inhalt = markerText(ergebnis.seiten, { bild: Boolean(auftrag.bild) });
+      art = "marker";
+    } else {
+      inhalt = ergebnis.art === "ocr" ? uebernimmVorlauf(ergebnis.inhalt) : ergebnis.inhalt;
+      art = ergebnis.art;
+    }
     if (schreiben) await writeFile(urlUnterBelege(auftrag.ziel, belegeRoot), inhalt);
     neueZwillinge.push({ pfad: auftrag.ziel, hash: hashVon(Buffer.from(inhalt, "utf8")) });
-    bericht.erzeugt.push({ ort: auftrag.ziel, art: bildscan ? "marker" : "text" });
-    if (bildscan) bericht.offen.push({ ort: auftrag.ziel, grund: "OCR ausstehend" });
+    bericht.erzeugt.push({ ort: auftrag.ziel, art, ...(art === "marker" && !ergebnis.ocrFehlt ? { ocr: ergebnis.grund } : {}) });
+    if (art === "marker") bericht.offen.push({ ort: auftrag.ziel, grund: "OCR ausstehend" });
   }
 
-  const zwillinge = [...belege.filter((datei) => istTxt(datei.pfad)), ...neueZwillinge];
-  const { loeschen, offen: offenesStaging } = planAufraeumen({ zwillinge, staging: await ladeStaging(stagingRoot) });
+  // Alte Marker nachholen: jetzt verfuegbares OCR ersetzt sie. Klappt es
+  // nicht, bleibt der Marker unveraendert und der Fall offen.
+  for (const auftrag of ocrNachholen) {
+    if (ocrFehlt) break;
+    let ergebnis;
+    try {
+      ergebnis = await erkenne(auftrag);
+    } catch (error) {
+      bericht.fehler.push({ ort: quelleVon(auftrag), grund: error.message });
+      continue;
+    }
+    if (ergebnis.art === "ohne-text") continue;
+    const inhalt = ergebnis.art === "ocr" ? uebernimmVorlauf(ergebnis.inhalt) : ergebnis.inhalt;
+    if (schreiben) await writeFile(urlUnterBelege(auftrag.ziel, belegeRoot), inhalt);
+    ersetzt.add(auftrag.ziel);
+    neueZwillinge.push({ pfad: auftrag.ziel, hash: hashVon(Buffer.from(inhalt, "utf8")) });
+    bericht.erzeugt.push({ ort: auftrag.ziel, art: ergebnis.art, ersetzt: "marker" });
+  }
+
+  const zwillinge = [...belege.filter((datei) => istTxt(datei.pfad) && !ersetzt.has(datei.pfad)), ...neueZwillinge];
+  const { loeschen, offen: offenesStaging } = planAufraeumen({ zwillinge, staging });
 
   for (const auftrag of loeschen) {
     if (schreiben) await rm(new URL(encodeURIComponent(auftrag.name), stagingRoot), { force: true });
@@ -288,7 +366,7 @@ export async function main({
     bericht.geloescht.push(auftrag);
   }
 
-  bericht.offen.push(...offeneBelege, ...offenesStaging, ...offeneRohdateien);
+  bericht.offen.push(...offeneBelege.filter((o) => !ersetzt.has(o.ort)), ...offenesStaging, ...offeneRohdateien);
   console.log(JSON.stringify(bericht, null, 2));
 
   if (!schreiben) console.log("\nVorschau — nichts erzeugt, nichts geloescht. Mit --schreiben anwenden.");

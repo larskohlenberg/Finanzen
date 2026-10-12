@@ -13,7 +13,7 @@ const SKILLS = {
   validationErrors: "docs/skills/validierung-agent.md",
   importErrors: "docs/skills/import-agent.md",
   openCategories: "docs/skills/kategorisierungsregel-pflege.md",
-  suggestedCategories: "docs/skills/kategorisierung-review.md",
+  suggestedCategories: "docs/skills/import-durchlauf.md",
   suggestedRegularPayments: "docs/skills/regelzahlung-agent.md",
   wealthChecks: "docs/skills/stammdaten-erfassung-agent.md",
   regularPayments: "docs/skills/regelzahlung-agent.md",
@@ -77,23 +77,46 @@ function summaryLines(summary) {
   ].join("\n");
 }
 
+// Live-Daten liegen auf dem Server und sind nur ueber den MCP-Server `finanzen`
+// erreichbar; dort heissen die Skills wie ihre Datei ohne `.md`. Die CLI-Fassung
+// gilt fuer die lokalen Demodaten.
+function skillName(skillPath) {
+  return skillPath.replace(/^.*\//, "").replace(/\.md$/, "");
+}
+
 function basePrompt({ title, count, summary, skillPath, extraSkillPaths = [], instructions, dataContext }) {
+  const mcp = dataContext.dataMode === "live";
   const skillLines = [skillPath, ...extraSkillPaths]
     .filter(Boolean)
-    .map((path) => `- ${path}`)
+    .map((path) => `- ${mcp ? skillName(path) : path}`)
     .join("\n");
-  const skillBlock = skillLines ? `\n\nBetriebsanweisung(en):\n${skillLines}` : "";
+  const skillBlock = skillLines
+    ? `\n\n${mcp ? "Betriebsanweisung(en) als MCP-Prompt des Servers `finanzen`" : "Betriebsanweisung(en)"}:\n${skillLines}`
+    : "";
+  const kanal = mcp
+    ? [
+      "Die Daten liegen auf dem Server. Arbeite ausschliesslich ueber den MCP-Server `finanzen` (Tools `mcp__finanzen__*`), nicht per Shell und nicht auf lokalen Dateien. Ist der MCP-Server nicht verbunden, brich ab und melde das.",
+      "",
+    ]
+    : [];
+  const datenroot = mcp
+    ? `- DATENROOT: ${dataContext.dataRoot} (legt der Server fest; das Tool \`status\` nennt ihn)`
+    : `- DATENROOT: ${dataContext.dataRoot}`;
+  const abschluss = mcp
+    ? "Analysiere zuerst read-only (Tool-Laeufe ohne `schreiben: true` sind eine Vorschau), schreibe erst danach mit `schreiben: true`, pruefe nach Schreiblaeufen mit dem Tool `status`, dass der Validator sauber ist, frage nur dort nach meiner Entscheidung, wo die Betriebsanweisung es verlangt, und fasse das Ergebnis am Ende mit Zaehlern zusammen."
+    : `Arbeite im App-Raum. Analysiere zuerst read-only, pruefe vor jedem Schreibzugriff, dass der Zielpfad unter DATENROOT liegt, fuehre nach Schreiblaeufen \`node tools/validator.mjs ${dataContext.dataRoot}\` aus, frage nur dort nach meiner Entscheidung, wo die Betriebsanweisung es verlangt, nutze die vorgesehenen Tools und Validatoren, und fasse das Ergebnis am Ende mit Zaehlern zusammen.`;
   return [
     "Bitte bearbeite die naechste Aktion aus der Finanzmodell-App.",
     "",
+    ...kanal,
     "Alle Pfade in diesem Prompt sind app-relativ.",
     "",
     "Verbindlicher Datenmodus:",
     `- DATENMODUS: ${dataContext.dataMode}`,
-    `- DATENROOT: ${dataContext.dataRoot}`,
+    datenroot,
     "",
-    "Lies zuerst `docs/agent-context.md`.",
-    skillBlock.trim(),
+    mcp ? "Lies zuerst die Resource `finanzen://docs/agent-context`." : "Lies zuerst `docs/agent-context.md`.",
+    skillBlock.trim() || null,
     "",
     "Statuszusammenfassung:",
     summaryLines(summary),
@@ -102,8 +125,8 @@ function basePrompt({ title, count, summary, skillPath, extraSkillPaths = [], in
     "",
     instructions,
     "",
-    `Arbeite im App-Raum. Analysiere zuerst read-only, pruefe vor jedem Schreibzugriff, dass der Zielpfad unter DATENROOT liegt, fuehre nach Schreiblaeufen \`node tools/validator.mjs ${dataContext.dataRoot}\` aus, frage nur dort nach meiner Entscheidung, wo die Betriebsanweisung es verlangt, nutze die vorgesehenen Tools und Validatoren, und fasse das Ergebnis am Ende mit Zaehlern zusammen.`,
-  ].filter(Boolean).join("\n");
+    abschluss,
+  ].filter((line) => line !== null).join("\n");
 }
 
 function action(type, count, label, skillPath, summary, instructions, extraSkillPaths = [], dataContext = promptDataContext({})) {
@@ -128,6 +151,7 @@ function doneAction() {
 export function buildNextAgentActions(data, options = {}) {
   const dataContext = promptDataContext(data);
   const dataPath = (relativePath = "") => relativePath ? `${dataContext.dataRoot}/${relativePath}` : `${dataContext.dataRoot}/`;
+  const mcp = dataContext.dataMode === "live";
 
   if (validationErrorCount(data) > 0) {
     const summary = validationSummary(data);
@@ -137,7 +161,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Validierungsfehler klaeren",
       SKILLS.validationErrors,
       summary,
-      `Pruefe \`${dataPath()}\` mit \`node tools/validator.mjs ${dataContext.dataRoot}\`, lies die betroffenen \`schemas/*\`, erklaere die Fehlerursache und schlage die kleinste valide Korrektur vor.`,
+      mcp
+        ? "Hole die Validatorfehler mit dem Tool `status`, lies die betroffenen `schemas/*` und Datendateien mit `datei_lesen`, erklaere die Fehlerursache und schlage die kleinste valide Korrektur vor."
+        : `Pruefe \`${dataPath()}\` mit \`node tools/validator.mjs ${dataContext.dataRoot}\`, lies die betroffenen \`schemas/*\`, erklaere die Fehlerursache und schlage die kleinste valide Korrektur vor.`,
       [],
       dataContext,
     )];
@@ -154,7 +180,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Importfehler klaeren",
       SKILLS.importErrors,
       summary,
-      `Sichte die Fehler unter \`data/inbox/error/\`, klaere Ursache und Konto-/Formatfragen, und fuehre den Importprozess nach Bestaetigung erneut gemaess Skill gegen \`${dataPath()}\` aus.`,
+      mcp
+        ? "Sichte die Fehler unter `data/inbox/error/` (Tool `status` fuer die Zaehler, `dateien_suchen` und `datei_lesen` fuer Datei und Fehlernotiz), klaere Ursache und Konto-/Formatfragen, hole die Datei nach Bestaetigung mit `inbox_zurueckholen` zurueck und fuehre den Import gemaess Skill erneut ueber `inbox` bzw. `import` aus."
+        : `Sichte die Fehler unter \`data/inbox/error/\`, klaere Ursache und Konto-/Formatfragen, und fuehre den Importprozess nach Bestaetigung erneut gemaess Skill gegen \`${dataPath()}\` aus.`,
       [],
       dataContext,
     ));
@@ -167,7 +195,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Vorgeschlagene Kategorien freigeben",
       SKILLS.suggestedCategories,
       summary,
-      `Fuehre fuer die vorgeschlagenen Buchungen in \`${dataPath("transaktionen.jsonl")}\` die Freigabe aus (\`node tools/freigabe.mjs ${dataContext.dataRoot} --schreiben\`) und zeige danach den Pruefbericht ungekuerzt. Was das Gate zurueckhaelt, ist Regelarbeit — keine Rueckfrage je Bucket.`,
+      mcp
+        ? "Fuehre fuer die vorgeschlagenen Buchungen die Freigabe aus (Tool `freigabe` mit `schreiben: true`) und zeige danach den Pruefbericht (Tool `pruefbericht`) ungekuerzt. Was das Gate zurueckhaelt, ist Regelarbeit — keine Rueckfrage je Bucket."
+        : `Fuehre fuer die vorgeschlagenen Buchungen in \`${dataPath("transaktionen.jsonl")}\` die Freigabe aus (\`node tools/freigabe.mjs ${dataContext.dataRoot} --schreiben\`) und zeige danach den Pruefbericht ungekuerzt. Was das Gate zurueckhaelt, ist Regelarbeit — keine Rueckfrage je Bucket.`,
       [],
       dataContext,
     ));
@@ -180,7 +210,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Regelzahlungsvorschlaege reviewen",
       SKILLS.suggestedRegularPayments,
       summary,
-      `Pruefe \`${dataPath("regelzahlungen.json")}\` auf \`status = vorgeschlagen\`, stelle die Vorschlaege zur Entscheidung vor und schreibe nur bestaetigte Entscheidungen.`,
+      mcp
+        ? `Lies \`${dataPath("regelzahlungen.json")}\` mit \`datei_lesen\` auf \`status = vorgeschlagen\`, stelle die Vorschlaege zur Entscheidung vor und schreibe nur bestaetigte Entscheidungen mit \`datei_ersetzen\`.`
+        : `Pruefe \`${dataPath("regelzahlungen.json")}\` auf \`status = vorgeschlagen\`, stelle die Vorschlaege zur Entscheidung vor und schreibe nur bestaetigte Entscheidungen.`,
       [],
       dataContext,
     ));
@@ -193,7 +225,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Offene Kategorien verregeln",
       SKILLS.openCategories,
       summary,
-      `Analysiere ${summary.openCategories} offene Kategorien in \`${dataPath("transaktionen.jsonl")}\` fuer \`kategorisierung_status = offen\`, bilde Buckets nach Hebel, lege Regeln nur mit Beleg an, schaetze den Rest als Agenten-Einzelvorschlag und starte danach die Nach-Kategorisierung gegen \`${dataPath()}\`.`,
+      mcp
+        ? `Analysiere ${summary.openCategories} offene Kategorien (\`transaktionen_abfragen\` mit \`status: "offen"\`), bilde Buckets nach Hebel, lege Regeln nur mit Beleg an (\`regel_vorschlag\`, \`regel_probelauf\`), schaetze den Rest als Agenten-Einzelvorschlag (\`agent_vorschlag\`) und starte danach die Nach-Kategorisierung (\`nachkategorisieren\`).`
+        : `Analysiere ${summary.openCategories} offene Kategorien in \`${dataPath("transaktionen.jsonl")}\` fuer \`kategorisierung_status = offen\`, bilde Buckets nach Hebel, lege Regeln nur mit Beleg an, schaetze den Rest als Agenten-Einzelvorschlag und starte danach die Nach-Kategorisierung gegen \`${dataPath()}\`.`,
       [],
       dataContext,
     ));
@@ -210,7 +244,9 @@ export function buildNextAgentActions(data, options = {}) {
       "Vermoegens-/Liquiditaetschecks klaeren",
       SKILLS.wealthChecks,
       summary,
-      `Pruefe die sichtbaren Vermoegens- und Liquiditaetschecks in \`${dataPath()}\`, erfasse fehlende belegte Werte oder klaere Reconciliation-Abweichungen mit Belegen und Validatorlauf.`,
+      mcp
+        ? "Pruefe die sichtbaren Vermoegens- und Liquiditaetschecks (Tool `kennzahlen`), erfasse fehlende belegte Werte mit `datei_ersetzen` oder klaere Reconciliation-Abweichungen mit Belegen (`belege_text`, `dateien_suchen`)."
+        : `Pruefe die sichtbaren Vermoegens- und Liquiditaetschecks in \`${dataPath()}\`, erfasse fehlende belegte Werte oder klaere Reconciliation-Abweichungen mit Belegen und Validatorlauf.`,
       extra,
       dataContext,
     ));

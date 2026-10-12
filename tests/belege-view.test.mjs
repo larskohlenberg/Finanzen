@@ -7,7 +7,7 @@ import test from "node:test";
 
 let apiAntwort = null;
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
-globalThis.localStorage = { getItem: () => null, setItem: () => {} };
+globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");

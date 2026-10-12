@@ -40,6 +40,6 @@ test("Todesfall-Szenario SZN-005 rechnet ohne Wertfehler", () => {
 test("CLI-Loader (loadMasterData) traegt die vorsorge-Collection", async () => {
   // sonst ueberspringt `npm run validate:master` alle Vorsorge-Pruefungen,
   // sobald der reale Bestand in app/data/master/vorsorge.json liegt.
-  const master = await loadMasterData();
+  const master = await loadMasterData(new URL("../app/data/demo/", import.meta.url));
   assert.ok(Array.isArray(master.vorsorge), "vorsorge muss als Liste geladen werden, nicht undefined");
 });

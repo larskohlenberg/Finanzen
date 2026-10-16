@@ -4,7 +4,7 @@
 // (Renten, Lebensversicherungen, Versicherungen). Im Tab eine Karte je Vertrag,
 // darunter der gewaehlte Vertrag in voller Breite. Rechnen in vorsorge-rechnung.mjs.
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
-import { formatMoney, formatDate, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel } from "../komponenten.mjs";
+import { formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -453,7 +453,7 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
   // Kein <button>: die Karte enthaelt mit dem Bezug einen eigenen Link.
   return `
     <div class="objekt-karte ${aktiv ? "active" : ""} ${vs.geprueft_am || istBeendet(vs) ? "" : "objekt-karte-ungeprueft"}" role="button" tabindex="0" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" aria-pressed="${aktiv}">
-      <span class="objekt-karte-kopf"><strong>${farben.has(vs.vorsorge_id) ? farbPunkt(farbKlasse(farben, vs.vorsorge_id)) : ""}${mitLogo({ vorsorge: vs }, escapeHtml(vs.name))}</strong>${tab === "versicherungen" ? "" : `<span class="chip neutral">${escapeHtml(vorsorgeArtLabel(vs.art))}</span>`}</span>
+      <span class="objekt-karte-kopf"><strong>${farben.has(vs.vorsorge_id) ? farbPunkt(farbKlasse(farben, vs.vorsorge_id)) : ""}${escapeHtml(vs.name)}</strong><span class="objekt-karte-marke">${tab === "versicherungen" ? "" : `<span class="chip neutral">${escapeHtml(vorsorgeArtLabel(vs.art))}</span>`}${logoMarke({ vorsorge: vs })}</span></span>
       <span class="objekt-karte-wert">${wert}</span>
       ${fortschritt ? `${balkenSvg([{ anteil: fortschritt.anteil, klasse: farbKlasse(farben, vs.vorsorge_id), titel: fortschritt.text }], { klasse: "fortschritt" })}<span class="objekt-karte-zeile">${escapeHtml(fortschritt.text)}</span>` : ""}
       ${zeilen.filter(Boolean).map((z) => `<span class="objekt-karte-zeile">${escapeHtml(z)}</span>`).join("")}
@@ -486,7 +486,7 @@ function renderDetail(vs, tab, today, offen) {
   return `
     <div class="objekt-detail-titel">
       <span class="muted">${escapeHtml(t("vermoegen.detailVon"))}</span>
-      <h2 class="section-title">${mitLogo({ vorsorge: vs }, escapeHtml(vs.name))}</h2>
+      <h2 class="section-title">${escapeHtml(vs.name)}</h2>
     </div>
     <div class="objekt-detail">
       <div class="kennzahl-raster">${tab === "versicherungen" ? kennzahlenVersicherung(vs, today) : kennzahlenVorsorge(vs, today)}</div>
@@ -587,6 +587,7 @@ function renderVertragsdaten(vs, tab, offen) {
   const wiedervorlage = (offen.get(vs.vorsorge_id) ?? []).some((c) => c.art === "vorsorge-wiedervorlage");
   const quelle = [vs.quelle_hinweis ? quelleHtml(vs.quelle_hinweis) : "", vs.quelle_standdatum ? escapeHtml(formatDate(vs.quelle_standdatum)) : ""].filter(Boolean).join(" · ");
   return kachel("vertragsdaten", t("vorsorge.vertragsdaten"), `
+      <div class="vertragsdaten-mit-logo">
       <div class="stammdaten-raster">
         ${detailRow(t("labels.id"), escapeHtml(vs.vorsorge_id))}
         ${detailRow(t("labels.type"), escapeHtml(vorsorgeArtLabel(vs.art)))}
@@ -601,6 +602,8 @@ function renderVertragsdaten(vs, tab, offen) {
         ${bezugLinks(vs).length ? detailRow(t("vorsorge.gehoertZu"), bezugLinks(vs).join("<br>")) : ""}
         ${vorgaenger ? detailRow(t("vorsorge.vorgaenger"), verweis(vorgaenger)) : ""}
         ${nachfolger ? detailRow(t("vorsorge.nachfolger"), verweis(nachfolger)) : ""}
+      </div>
+      ${logoMarke({ vorsorge: vs })}
       </div>
       ${quelle || beitraege.length ? `
         <div class="vorsorge-spalten">

@@ -153,6 +153,13 @@ test("Vererbung: Regelzahlung ueber ihre Buchungen, Vorsorge ueber ihre Regelzah
   assert.equal(v.fuerVorsorge({ vorsorge_id: "VS-009", name: "Riester" }), null);
 });
 
+test("Konto: Logo ueber den Kontonamen", () => {
+  const v = logoVerzeichnis({ logos: LOGOS });
+  assert.equal(v.fuerKonto({ konto_id: "KTO-001", name: "Musterladen Reisen Kreditkarte" })?.logo_id, "LOGO-002");
+  assert.equal(v.fuerKonto({ konto_id: "KTO-002", name: "Gemeinschaftsgiro" }), null);
+  assert.equal(v.fuerKonto(null), null);
+});
+
 // --- Plan, Abruf, Bericht -----------------------------------------------------------
 
 test("Domain: Schema, www., Pfad und Grossschreibung fallen weg", () => {
@@ -191,18 +198,18 @@ test("Plan: neue IDs fortlaufend, gleiche Domain aktualisiert, Fehler je Eintrag
   assert.ok(kaputt.fehler.some((f) => /eintraege\[2\]\.domain: a\.example doppelt/.test(f)));
 });
 
-test("Abruf: PNG wird auf 64 px verkleinert, Quelle ist die Dienst-URL", async () => {
+test("Abruf: PNG wird auf 128 px verkleinert, Quelle ist die Dienst-URL", async () => {
   const aufrufe = [];
   const holen = async (url) => {
     aufrufe.push(url);
-    return pngAntwort(kodierePng(einfarbig(128, 128, [0, 128, 255, 255])));
+    return pngAntwort(kodierePng(einfarbig(256, 256, [0, 128, 255, 255])));
   };
   const r = await holeLogo("musterladen.example", { holen });
   assert.equal(r.ok, true);
   assert.equal(r.quelle, dienstUrl("musterladen.example"));
   assert.deepEqual(aufrufe, ["https://www.google.com/s2/favicons?domain=musterladen.example&sz=128"]);
-  assert.deepEqual([r.breite, r.hoehe], [64, 64]);
-  assert.equal(dekodierePng(r.png).breite, 64);
+  assert.deepEqual([r.breite, r.hoehe], [128, 128]);
+  assert.equal(dekodierePng(r.png).breite, 128);
   assert.equal(r.hinweis, undefined);
 });
 
@@ -229,7 +236,7 @@ test("Abruf: 404, weder PNG noch JPEG, Netzfehler und winzige Bilder", async () 
   assert.match(winzig.hinweis, /16x16/);
 });
 
-test("Bericht: haeufigste Gegenparteien ohne Logo, fehlende Dateien, Regelzahlungen und Vorsorge", () => {
+test("Bericht: haeufigste Gegenparteien ohne Logo, fehlende Dateien, Regelzahlungen, Vorsorge und Konten", () => {
   const bericht = logoBericht({
     logos: LOGOS.slice(0, 1),
     transaktionen: [
@@ -241,6 +248,11 @@ test("Bericht: haeufigste Gegenparteien ohne Logo, fehlende Dateien, Regelzahlun
     ],
     regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "Kiosk", status: "bestaetigt", vorsorge_id: "VS-001" }],
     vorsorge: [{ vorsorge_id: "VS-001", name: "Rente" }],
+    konten: [
+      { konto_id: "KTO-001", name: "Musterladen Karte", kontotyp: "kreditkarte" },
+      { konto_id: "KTO-002", name: "Giro Nord", kontotyp: "giro" },
+      { konto_id: "KTO-003", name: "Bargeld", kontotyp: "bar" },
+    ],
   }, { top: 1, vorhandeneDateien: new Set() });
   assert.equal(bericht.buchungen_mit_gegenpartei, 4);
   assert.equal(bericht.buchungen_mit_logo, 1);
@@ -249,6 +261,7 @@ test("Bericht: haeufigste Gegenparteien ohne Logo, fehlende Dateien, Regelzahlun
   assert.deepEqual(bericht.dateien_fehlen, ["LOGO-001 logos/musterladen.example.png"]);
   assert.deepEqual(bericht.regelzahlungen_ohne_logo, ["RZ-001 Kiosk"]);
   assert.deepEqual(bericht.vorsorge_ohne_logo, ["VS-001 Rente"]);
+  assert.deepEqual(bericht.konten_ohne_logo, ["KTO-002 Giro Nord"]);
 });
 
 // --- Schreiben und Validator -----------------------------------------------------

@@ -712,7 +712,7 @@ Datenbestand, nie im Repo:
   domain, datei, quelle, abgerufen_am }`. `gegenpartei_pattern` wirkt wie bei
   den Kategorisierungsregeln (lose normalisierter Teiltext, `|` trennt
   Alternativen); passen mehrere, gewinnt der laengste passende Teil.
-- `DATENROOT/logos/<domain>.png`: hoechstens 64 px, RGBA.
+- `DATENROOT/logos/<domain>.png`: so gross wie vom Dienst geliefert, hoechstens 128 px, RGBA.
 - Regelzahlungen erben das Logo ueber ihre gebuchten Transaktionen
   (`regelzahlung_id`), Vorsorgevertraege ueber ihre Regelzahlungen
   (`vorsorge_id`). Ohne Treffer zeigt die App ein Kuerzel in fester Farbe.

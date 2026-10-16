@@ -828,6 +828,7 @@ window.FINANCE_I18N = {
     labels: {
       id: "ID",
       account: "Konto",
+      logo: "Logo",
       accountReference: "Kontoreferenz",
       owner: "Inhaber",
       type: "Typ",
@@ -1723,6 +1724,7 @@ window.FINANCE_I18N = {
     labels: {
       id: "ID",
       account: "Account",
+      logo: "Logo",
       accountReference: "Account reference",
       owner: "Owner",
       type: "Type",

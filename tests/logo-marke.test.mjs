@@ -45,3 +45,10 @@ test("Tabellengroesse: eigene Klasse am Logo, auch ueber mitLogo", () => {
   assert.match(mitLogo({ gegenpartei: "Kiosk" }, "Kiosk", { groesse: "tabelle" }), /^<span class="mit-logo"><span class="logo-marke logo-tabelle /);
   assert.doesNotMatch(logoMarke({ gegenpartei: "Kiosk" }), /logo-tabelle/);
 });
+
+test("Konto: Logo ueber den Kontonamen, Groessenklasse frei waehlbar", () => {
+  data.logos = [{ logo_id: "LOGO-001", name: "Musterbank", gegenpartei_pattern: "MUSTERBANK", domain: "musterbank.example", datei: "logos/musterbank.example.png", quelle: "https://x", abgerufen_am: "2026-10-16" }];
+  assert.match(logoMarke({ konto: { konto_id: "KTO-1", name: "Musterbank Girokonto" } }, { groesse: "tabelle" }), /^<span class="logo-marke logo-tabelle kuerzel-farbe-\d" aria-hidden="true">MU<img src="\.\/data\/demo\/logos\/musterbank\.example\.png"/);
+  assert.match(logoMarke({ konto: { konto_id: "KTO-2", name: "Haushaltskasse" } }, { groesse: "vergleich" }), /^<span class="logo-marke logo-vergleich kuerzel-farbe-\d" aria-hidden="true">HA<\/span>$/);
+  data.logos = [];
+});

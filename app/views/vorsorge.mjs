@@ -390,7 +390,7 @@ function renderBeitragsRanking(liste, today) {
       const chip = diff ? `<span class="chip ${diff > 0 ? "review" : "success"}" title="${escapeHtml(`${formatMoney(vj.vorjahr_cents)} → ${formatMoney(vj.letzte_cents)}`)}">${escapeHtml(veraenderungText(vj))}</span>` : `<span class="muted">${diff === 0 ? "±0 %" : "—"}</span>`;
       return `
       <li>
-        <button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" title="${escapeHtml(vs.name)}">${mitLogo({ vorsorge: vs }, escapeHtml(vs.name))}</button>
+        <button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" title="${escapeHtml(vs.name)}">${mitLogo({ vorsorge: vs }, escapeHtml(vs.name), { groesse: "vergleich" })}</button>
         <svg class="ranking-balken" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="1" width="${(jahr / max * 100).toFixed(2)}" height="8" rx="1.5" class="ranking-wert" /></svg>
         <span class="amount">${escapeHtml(formatMoney(jahr))}</span>
         <span class="ranking-aenderung">${chip}</span>

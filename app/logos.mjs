@@ -4,7 +4,8 @@
 // tools/logos.mjs gleich. Ein Logo-Eintrag passt ueber gegenpartei_pattern
 // (wie bei den Kategorisierungsregeln: lose normalisierter Teiltext, "|" trennt
 // Alternativen). Regelzahlungen erben das Logo ueber ihre gebuchten
-// Transaktionen, Vorsorgevertraege ueber ihre Regelzahlungen.
+// Transaktionen, Vorsorgevertraege ueber ihre Regelzahlungen. Konten tragen
+// kein Gegenpartei-Feld; ihr Name nennt die Bank ("<Bank> Girokonto ...").
 import { normalizeLoose } from "./tools/lib/text.mjs";
 
 export const KUERZEL_FARBEN = 8;
@@ -119,5 +120,7 @@ export function logoVerzeichnis({ logos = [], transaktionen = [], regelzahlungen
     return jeVs.get(vs.vorsorge_id);
   };
 
-  return { fuerGegenpartei, fuerRegelzahlung, fuerVorsorge };
+  const fuerKonto = (konto) => (konto ? fuerGegenpartei(konto.name) : null);
+
+  return { fuerGegenpartei, fuerRegelzahlung, fuerVorsorge, fuerKonto };
 }

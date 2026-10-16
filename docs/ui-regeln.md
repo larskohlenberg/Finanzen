@@ -68,16 +68,28 @@ der Kachel "Ein- und Ausgaben je Monat".
 
 ## Logos vor Namen
 
-Wo eine Gegenpartei, eine Regelzahlung oder ein Vorsorgevertrag mit Namen
-erscheint, steht davor `mitLogo` bzw. `logoMarke` aus `app/komponenten.mjs`: ein
-Logo aus dem Logo-Verzeichnis des Datenbestands, sonst ein Kuerzel in fester
-Farbe (ADR 0030). Groesse und Platz je Ort:
+Wo eine Gegenpartei, eine Regelzahlung, ein Konto oder ein Vorsorgevertrag mit
+Namen erscheint, steht davor `mitLogo` bzw. `logoMarke` aus `app/komponenten.mjs`:
+ein Logo aus dem Logo-Verzeichnis des Datenbestands, sonst ein Kuerzel in fester
+Farbe (ADR 0030). Konten finden ihr Logo ueber den Kontonamen, der die Bank
+nennt. Groesse und Platz je Ort:
 
-- Listen und Text: 18 px vor dem Namen; Tabellen (Transaktionen, Regelzahlungen)
-  22 px ueber `{ groesse: "tabelle" }`. Der Text steht vertikal zentriert zum Logo
+- Listen und Text: 20 px vor dem Namen.
+- Tabellen (Transaktionen, Regelzahlungen): 44 px ueber `{ groesse: "tabelle" }`,
+  rund drei Viertel einer zweizeiligen Zeile; das Logo ragt ins Zellpolster,
+  damit die Zeile nicht hoeher wird. Der Text steht vertikal zentriert zum Logo
   (`.mit-logo`), auch bei Umbruch.
-- Vertragskarte: 28 px rechts unter dem Art-Chip, damit der Name links Platz
+- Kontentabellen (Uebersicht, Vermoegen, Stammdaten): eigene erste Spalte
+  `logo-zelle`, gleiche Groesse wie in den anderen Tabellen.
+- Vergleichsliste in einer Kachel (Jahresbeitraege): 24 px ueber
+  `{ groesse: "vergleich" }`.
+- Vertragskarte: 36 px rechts unter dem Art-Chip, damit der Name links Platz
   hat; der Farbpunkt bleibt direkt vor dem Namen.
 - Vertragsdetail: kein Logo im Titel, sondern 48 px rechts oben im Inhalt der
-  Kachel Vertragsdaten (nicht im Kopf, die Kachel ist per Standard zu). Keine eigenen Bild- oder Badge-Varianten je Seite; Farben nur ueber
+  Kachel Vertragsdaten (nicht im Kopf, die Kachel ist per Standard zu).
+
+Mit Bild ist die Flaeche hinter dem Logo weiss, ohne Kuerzelfarbe; sonst scheint
+die Farbe an den gerundeten Kanten durch. Logodateien sind bis 128 px gross und
+werden nur verkleinert angezeigt, nie vergroessert, soweit der Logodienst so
+gross liefert. Keine eigenen Bild- oder Badge-Varianten je Seite; Farben nur ueber
 die Klassen `kuerzel-farbe-<n>`, keine style-Attribute.

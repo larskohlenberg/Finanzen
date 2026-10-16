@@ -3209,22 +3209,26 @@ a.linkish {
   margin: 0;
 }
 
-.mit-logo { display: inline-flex; align-items: center; }
-/* Logo vor Gegenpartei, Regelzahlung und Vertrag (komponenten.mjs logoMarke),
-   in .mit-logo mit dem Text vertikal zentriert.
-   Das Kuerzel liegt immer darunter; das Bild deckt es zu, solange es laedt. */
+.mit-logo { display: inline-flex; align-items: center; vertical-align: middle; }
+.mit-logo > span:last-child { line-height: 1.3; }
+/* Logo vor Gegenpartei, Regelzahlung, Konto und Vertrag (komponenten.mjs
+   logoMarke), in .mit-logo mit dem Text vertikal zentriert.
+   Das Kuerzel liegt darunter, solange kein Bild da ist. Mit Bild ist die
+   Flaeche weiss: sonst scheint die Kuerzelfarbe an den gerundeten Kanten
+   durch (dunkle Ecken). Laedt das Bild nicht, entfernt main.js es, und das
+   Kuerzel kommt wieder. */
 .logo-marke {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 18px;
-  height: 18px;
-  margin-right: 6px;
-  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  border-radius: 5px;
   overflow: hidden;
-  vertical-align: -4px;
+  vertical-align: middle;
   color: #fff;
   background: var(--kuerzel);
   font-size: 9px;
@@ -3233,15 +3237,15 @@ a.linkish {
   letter-spacing: 0;
   text-decoration: none;
 }
+.logo-marke:has(img) { color: transparent; background: #fff; }
 .logo-marke img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #fff;
 }
-:root[data-theme="dark"] .logo-marke img { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%); }
+:root[data-theme="dark"] .logo-marke:has(img) { outline: 1px solid rgb(255 255 255 / 12%); outline-offset: -1px; }
 .kuerzel-farbe-0 { --kuerzel: #1f5fa8; }
 .kuerzel-farbe-1 { --kuerzel: #b4441c; }
 .kuerzel-farbe-2 { --kuerzel: #137a55; }
@@ -3251,11 +3255,19 @@ a.linkish {
 .kuerzel-farbe-6 { --kuerzel: #0f6f80; }
 .kuerzel-farbe-7 { --kuerzel: #5f6427; }
 
-/* Logo-Groessen je Ort: Tabellenzeile, Vertragskarte (rechts unter dem
-   Art-Chip), Vertragsdaten (rechts oben im Inhalt). */
-.logo-marke.logo-tabelle { width: 22px; height: 22px; font-size: 10px; vertical-align: -6px; }
+/* Logo-Groessen je Ort. Tabellenzeile: rund drei Viertel der Zeilenhoehe; die
+   negativen Raender lassen es in das Zellpolster ragen, damit die Zeile nicht
+   hoeher wird. Vergleichsliste (Jahresbeitraege), Vertragskarte (rechts unter
+   dem Art-Chip), Vertragsdaten (rechts oben im Inhalt). Gespeichert sind
+   Logos mit bis zu 128 px, also auch in 48 px auf Retina scharf, soweit der
+   Logodienst so gross liefert. */
+.logo-marke.logo-tabelle { width: 44px; height: 44px; margin-block: -10px; margin-right: 12px; border-radius: 9px; font-size: 14px; }
+.logo-marke.logo-vergleich { width: 24px; height: 24px; border-radius: 5px; font-size: 10px; }
+td.logo-zelle, th.logo-zelle { width: 44px; padding-right: 0; }
+td.logo-zelle .logo-marke { margin-right: 0; }
+.account-table .col-logo { width: 58px; }
 .objekt-karte-marke { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 6px; }
-.objekt-karte-marke .logo-marke { width: 28px; height: 28px; margin-right: 0; border-radius: 6px; font-size: 12px; }
+.objekt-karte-marke .logo-marke { width: 36px; height: 36px; margin-right: 0; border-radius: 8px; font-size: 13px; }
 .vertragsdaten-mit-logo { display: flex; align-items: flex-start; gap: 16px; }
 .vertragsdaten-mit-logo .stammdaten-raster { flex: 1 1 auto; min-width: 0; }
-.vertragsdaten-mit-logo > .logo-marke { width: 48px; height: 48px; margin: 8px 0 0; border-radius: 8px; font-size: 16px; }
+.vertragsdaten-mit-logo > .logo-marke { width: 48px; height: 48px; margin: 8px 0 0; border-radius: 10px; font-size: 16px; }

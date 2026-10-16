@@ -2,6 +2,15 @@
 
 Status: entschieden am 2026-08-11.
 
+Statushinweis 2026-10-16: „Nicht automatisch abgeleitet“ ist gelockert. Das Tool
+`app/tools/regelzahlung-matcher.mjs` setzt `regelzahlung_id` fuer bestaetigte
+Regelzahlungen mit `konto_id`. Es raet nicht aus Betrag, Gegenpartei oder
+Rhythmus allein, sondern folgt einer Ankerbuchung (Konto, Kategorie, Betrag am
+Ankerdatum) ueber deren Mandatsreferenz bzw. Gegenpartei durch die Termine und
+ordnet nur eindeutig zu. Das Erkennen bleibt Agent-Urteil (ADR 0010): der Agent
+bestaetigt die Regelzahlung und setzt ihr Konto. Grund: von Hand verknuepft war
+nach zwei Monaten eine einzige Buchung, die Vorsorgeseite blieb leer.
+
 ## Entscheidung
 
 Eine Transaktion kann optional über `regelzahlung_id` genau eine erwartete

@@ -229,6 +229,14 @@ const CLI_WERKZEUGE = [
     argv: async (ctx, a, root) => [root],
   }),
   cli({
+    name: "regelzahlungen_zuordnen",
+    skript: "regelzahlung-matcher.mjs",
+    beschreibung: "Gebuchte Transaktionen bestaetigten Regelzahlungen mit konto_id zuordnen (tools/regelzahlung-matcher.mjs; setzt regelzahlung_id). Ankerbuchung am anker_datum, dann Mandatsreferenz bzw. Gegenpartei je Termin. details:true listet jede Zuordnung. Vorschau ist Default.",
+    eigenschaften: { details: { type: "boolean" } },
+    schreibFlag: "--schreiben",
+    argv: async (ctx, a, root) => [...(a.details ? ["--details"] : []), root],
+  }),
+  cli({
     name: "freigabe",
     skript: "freigabe.mjs",
     beschreibung: "Vorgeschlagene Buchungen automatisch bestaetigen, soweit ihre Regel das Gate besteht (tools/freigabe.mjs; bestaetigt_durch=auto). Gate-Grund 'anker' = Regel reicht in ein Konto ohne menschlichen Anker. Vorschau ist Default.",

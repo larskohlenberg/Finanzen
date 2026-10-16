@@ -89,6 +89,8 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
    im Regelzahlungs-Dialog mit Nutzerentscheidung vorbereiten.
    Bereits eindeutig geklärte Beitragsbuchungen tragen die `regelzahlung_id` der
    zugehörigen Beitrags-Regelzahlung. Keine `vorsorge_id` an Transaktionen ergänzen.
+   Die Beitrags-Regelzahlung braucht dafür ihr `konto_id`; danach ordnet das Tool
+   `regelzahlungen_zuordnen` die Beitragsbuchungen zu (erst Vorschau).
    Contribution bookings already clarified unambiguously carry the `regelzahlung_id`
    of their contribution recurring payment. Do not add `vorsorge_id` to transactions.
 6. **Review vor Schreiben:** `geprueft_am` erst setzen, nachdem der Nutzer die

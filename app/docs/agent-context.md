@@ -60,6 +60,7 @@ die lokalen Demodaten.
 | `tools/confirm.mjs` | `bestaetigen` |
 | `tools/transaktion-immobilie.mjs` | `immobilienbezug` |
 | `tools/transfer-matcher.mjs` | `transfers` |
+| `tools/regelzahlung-matcher.mjs` | `regelzahlungen_zuordnen` (`details: true` listet jede Zuordnung) |
 | `tools/freigabe.mjs` | `freigabe` |
 | `tools/lernen.mjs` | `lernen` (`schreiben: true` = `--anwenden`) |
 | `tools/belege-text.mjs` | `belege_text` |
@@ -164,14 +165,17 @@ bekommen deterministisch disambiguierte Hashes.
 ## Kategorisierung und Herkunft
 
 Eine tatsächliche Buchung kann optional `regelzahlung_id` tragen. Das bedeutet:
-Diese Buchung erfüllt genau diese erwartete Regelzahlung. Die Zuordnung wird nur
-nach Beleg- oder Nutzerklärung gesetzt; bei Unsicherheit bleibt das Feld weg.
+Diese Buchung erfüllt genau diese erwartete Regelzahlung. Gesetzt wird das Feld
+vom Tool `regelzahlung-matcher.mjs` (siehe „Zuordnung zu Regelzahlungen“) oder
+nach Beleg- bzw. Nutzerklärung; bei Unsicherheit bleibt es weg. Nie allein aus
+Betragsgleichheit oder ähnlicher Gegenpartei zuordnen.
 Ein Vorsorgebezug wird über `Transaktion → Regelzahlung → Vorsorge` abgeleitet.
 
 A posted transaction may optionally carry `regelzahlung_id`. This means that the
-transaction fulfils exactly that expected recurring payment. Set the assignment
-only from documentation or a user decision; leave the field unset when uncertain.
-Derive a retirement-provision relationship through
+transaction fulfils exactly that expected recurring payment. The field is set by
+`regelzahlung-matcher.mjs` or from documentation or a user decision; leave it
+unset when uncertain. Never infer it from an equal amount or a similar
+counterparty alone. Derive a retirement-provision relationship through
 `Transaktion → Regelzahlung → Vorsorge` only.
 
 Eine Transaktion kann optional ueber `immobilie_id` genau einer Immobilie
@@ -370,6 +374,11 @@ Wichtige Tools:
 - `tools/transfer-matcher.mjs`: interne Transfers paaren — als Lauf ueber den
   **Bestand** (`npm run transfers`), nicht nur waehrend eines Imports. Nach einem
   neu angelegten Konto nachziehen, sonst bleiben dessen Gegenbuchungen ungepaart.
+- `tools/regelzahlung-matcher.mjs`: gebuchte Transaktionen bestaetigten
+  Regelzahlungen zuordnen (`regelzahlung_id`), als Lauf ueber den **Bestand**
+  (`npm run regelzahlungen`). Nach jedem Import und nach neu gesetztem
+  `konto_id` an einer Regelzahlung nachziehen. Regeln unter „Zuordnung zu
+  Regelzahlungen".
 - `tools/belege-text.mjs`: Textzwilling (`.txt`) je PDF und Bild unter `Belege/` erzeugen
   und `data/inbox/standardized/` **sowie** `data/inbox/processed/` per
   Inhalts-Hash aufraeumen. Ein `.txt` gilt dabei nie als Nachweis fuer eine
@@ -570,7 +579,42 @@ Bekannte Stufenaenderungen werden als zwei Regelzahlungen modelliert: die alte m
 `konto_id` (optional) nennt das Konto, von dem gezahlt bzw. auf dem eingegangen
 wird. Nur mit Beleg setzen (beobachtete Abbuchung oder Vertrag). Die Uebersicht
 zeigt es bei den anstehenden Jahreszahlungen; die Prognose rechnet weiter auf
-Haushaltsebene.
+Haushaltsebene. Jede Regelzahlung, die eine konkrete Zahlung ist, bekommt ihr
+Konto; Konsumplaene (Durchschnitt ueber viele Buchungen, oft mehrere Konten)
+bekommen keins.
+
+### Zuordnung zu Regelzahlungen
+
+`tools/regelzahlung-matcher.mjs` (MCP `regelzahlungen_zuordnen`) setzt
+`regelzahlung_id` an gebuchten Transaktionen. Das Erkennen bleibt beim Agenten
+(ADR 0010): er bestaetigt die Regelzahlung und setzt ihr `konto_id`. Das Tool
+matcht nur noch:
+
+1. **Nur bestaetigte Regelzahlungen mit `konto_id`.** Ohne Konto meldet das Tool
+   `ohne-konto` — so bleiben Konsumplaene draussen.
+2. **Ankerbuchung.** Am Termin, der `anker_datum` am naechsten liegt (bis zu
+   drei Termine davor oder danach), sucht das Tool die Buchung auf diesem Konto
+   mit gleicher Richtung und Kategorie und cent-genau gleichem Betrag, ersatzweise
+   in 10 % Toleranz. Haben die Kandidaten verschiedene Kennungen, meldet es
+   `anker-mehrdeutig`; ohne Kandidat `ohne-anker`.
+3. **Kennung der Ankerbuchung.** Die `mandatsreferenz`, sonst die Gegenpartei.
+4. **Termine.** Alle Termine aus `anker_datum` und Rhythmus, rueckwaerts bis zur
+   ersten Buchung des Kontos, vorwaerts bis `aktiv_bis` bzw. zur letzten
+   Buchung. Fenster je Termin: ein Viertel des Rhythmus, hoechstens 15 Tage
+   (monatlich 7). Eine Nachfolgerin mit derselben Kennung reicht nicht vor das
+   `aktiv_bis` der Vorgaengerin zurueck.
+5. **Kandidaten je Termin.** Signal `mandat`: gleiche Mandatsreferenz, Betrag in
+   50 % Toleranz (Beitragsdynamik ueber Jahre). Signal `gegenpartei`: gleiche
+   Gegenpartei und Kategorie, Betrag in 10 % Toleranz.
+6. **Eindeutig.** Je Termin hoechstens eine Buchung, je Buchung hoechstens ein
+   Termin. Vergeben werden gegenseitig beste Paare (kleinste Betragsabweichung,
+   dann kleinster Abstand). Gleich gute Alternativen stehen unter `mehrdeutig`.
+   Eine vorhandene `regelzahlung_id` bleibt immer stehen.
+
+Die Vorschau nennt je Regelzahlung Signal, Ankerbuchung, Termine, neue und
+fehlende Buchungen (`je_regelzahlung`) sowie `uebersprungen` mit Grund. Die
+Vorsorgeseite liest daraus gebuchte Beitraege, Beitragsbalken und den
+Vorjahresvergleich.
 
 ## Vorsorge
 

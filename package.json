@@ -18,6 +18,8 @@
     "regelvorschlaege": "node app/tools/regel-vorschlag.mjs app/data/master",
     "transfers": "node app/tools/transfer-matcher.mjs app/data/master",
     "transfers:schreiben": "node app/tools/transfer-matcher.mjs app/data/master --schreiben",
+    "regelzahlungen": "node app/tools/regelzahlung-matcher.mjs app/data/master",
+    "regelzahlungen:schreiben": "node app/tools/regelzahlung-matcher.mjs app/data/master --schreiben",
     "freigabe": "node app/tools/freigabe.mjs app/data/master",
     "freigabe:schreiben": "node app/tools/freigabe.mjs app/data/master --schreiben",
     "pruefbericht": "node app/tools/pruefbericht.mjs app/data/master",

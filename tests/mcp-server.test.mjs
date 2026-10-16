@@ -187,7 +187,7 @@ test("Vorschau schreibt nichts, auch bei Tools ohne eigene Vorschau", async () =
   const s = starteServer(abzug, "schreiben");
   const vorher = pruefsumme(abzug.master);
   try {
-    for (const name of ["freigabe", "transfers", "lernen", "nachkategorisieren", "inbox"]) {
+    for (const name of ["freigabe", "transfers", "regelzahlungen_zuordnen", "lernen", "nachkategorisieren", "inbox"]) {
       const r = await s.werkzeug(name, {});
       assert.ok(!r.isError, `${name}: ${r.text}`);
       assert.match(r.text, /Vorschau/);

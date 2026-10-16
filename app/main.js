@@ -17,7 +17,7 @@ import { offeneChecksAnzahl } from "./views/checks.mjs";
 import { renderUpload, dateienEinreihen, ladeInbox, inboxBeiBedarfLaden } from "./views/upload.mjs";
 import {
   renderBelege, belegeBeiBedarfLaden, ladeBelege, setBelegeSuche, setBelegeZwillinge,
-  toggleBelegeSort, toggleBelegeOrdner, ordnerDerAuswahl,
+  toggleBelegeSort, toggleBelegeOrdner, ordnerDerAuswahl, waehleAusschnittOrdner, toggleAusschnittOrdner,
 } from "./views/belege.mjs";
 import {
   app, data, state, storageKeys, navItems, TABBAR_VIEWS, transaktionenById,
@@ -53,7 +53,7 @@ const FOCUS_ATTRS = [
   "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
   "data-tab", "data-person", "data-wertstaende-sort", "data-wertstaende-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
   "data-rule", "data-regel-sort", "data-next-action-type", "data-vorsorge",
-  "data-beleg", "data-beleg-sort", "data-beleg-ordner",
+  "data-beleg", "data-beleg-sort", "data-beleg-ordner", "data-dok-ausschnitt",
 ];
 const SCROLL_SELECTORS = [".nav", ".table-wrap"];
 
@@ -732,6 +732,16 @@ async function handleAction(element) {
   if (action === "close-beleg") {
     state.selectedBeleg = ordnerDerAuswahl(state.selectedBeleg);
     commitNavigation();
+    return;
+  }
+  if (action === "select-dok-ausschnitt-ordner") {
+    waehleAusschnittOrdner(element.dataset.dokAusschnitt, element.dataset.belegOrdner);
+    render();
+    return;
+  }
+  if (action === "toggle-dok-ausschnitt-ordner") {
+    toggleAusschnittOrdner(element.dataset.dokAusschnitt, element.dataset.belegOrdner);
+    render();
     return;
   }
   if (action === "toggle-beleg-ordner") {

@@ -13,9 +13,9 @@ import { belegOrdnerAusText } from "../belege.mjs";
 import {
   VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsVerlauf, beitragVorjahr, gebuchteBeitraegeAlle,
   gesetzlicherRentenbeginn, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
-  rentenStufen, tabFuerVorsorge,
+  rentenStufen, tabFuerVorsorge, vermoegensBezug,
 } from "../vorsorge-rechnung.mjs";
-import { balkenSvg, dokumenteHtml, geld, kennzahl, qualitaetChip, rhythmusLabel, tf } from "./vermoegen-teile.mjs";
+import { balkenSvg, dokumenteBrowserHtml, geld, kennzahl, qualitaetChip, rhythmusLabel, tf } from "./vermoegen-teile.mjs";
 
 const GRUPPEN_TABS = VORSORGE_TABS.filter((tab) => tab !== "uebersicht");
 
@@ -46,6 +46,14 @@ const jaehrlichGezahlt = (vs, today) => {
   const rz = laufendeBeitraege(data, vs.vorsorge_id, today);
   return rz.length > 0 && rz.every((r) => r.rhythmus_einheit === "jahr" || (r.rhythmus_einheit === "monat" && Number(r.rhythmus_intervall) % 12 === 0));
 };
+
+// Links auf die Vermoegensgegenstaende eines Vertrags (oeffnet das Objekt auf der Vermoegensseite).
+function bezugLinks(vs) {
+  return vermoegensBezug(data, vs.vorsorge_id).map((b) => {
+    const name = (data.immobilien ?? []).find((i) => i.immobilie_id === b.id)?.bezeichnung || b.id;
+    return `<button class="linkish" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`${b.klasse}:${b.id}`)}" title="${escapeHtml(t("vorsorge.bezugOeffnen"))}">${escapeHtml(name)}</button>`;
+  });
+}
 
 export function resetVorsorgeFilters() {
   state.vorsorgeFilters = { person: "" };
@@ -347,13 +355,16 @@ function renderKarte(vs, tab, aktiv, today, offen) {
     checks.some((c) => c.art === "vorsorge-wechsel") ? `<span class="chip review">${escapeHtml(t("vermoegen.checkArt.vorsorge-wechsel"))}</span>` : "",
     vs.kapitalbildend && tab !== "versicherungen" ? `<span class="chip kapitalbildend">${escapeHtml(t("vorsorge.kapitalbildend"))}</span>` : "",
   ].join("");
+  const bezug = bezugLinks(vs);
+  // Kein <button>: die Karte enthaelt mit dem Bezug einen eigenen Link.
   return `
-    <button class="objekt-karte ${aktiv ? "active" : ""} ${vs.geprueft_am || istBeendet(vs) ? "" : "objekt-karte-ungeprueft"}" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" aria-pressed="${aktiv}">
+    <div class="objekt-karte ${aktiv ? "active" : ""} ${vs.geprueft_am || istBeendet(vs) ? "" : "objekt-karte-ungeprueft"}" role="button" tabindex="0" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" aria-pressed="${aktiv}">
       <span class="objekt-karte-kopf"><strong>${escapeHtml(vs.name)}</strong>${tab === "versicherungen" ? "" : `<span class="chip neutral">${escapeHtml(vorsorgeArtLabel(vs.art))}</span>`}</span>
       <span class="objekt-karte-wert">${wert}</span>
       ${zeilen.filter(Boolean).map((z) => `<span class="objekt-karte-zeile">${escapeHtml(z)}</span>`).join("")}
+      ${bezug.length ? `<span class="objekt-karte-zeile objekt-karte-bezug">${iconSvg("vermoegen")}${escapeHtml(t("vorsorge.gehoertZu"))} ${bezug.join(", ")}</span>` : ""}
       ${chips ? `<span class="objekt-karte-chips">${chips}</span>` : ""}
-    </button>`;
+    </div>`;
 }
 
 function veraenderungText(vj) {
@@ -477,6 +488,7 @@ function renderVertragsdaten(vs, tab, offen) {
         ${detailRow(t("vorsorge.geprueftAm"), vs.geprueft_am
           ? `${escapeHtml(formatDate(vs.geprueft_am))}${wiedervorlage ? ` <span class="chip review">${escapeHtml(t("vorsorge.wiedervorlage"))}</span>` : ""}`
           : `<span class="chip ungeprueft">${escapeHtml(t("vorsorge.ungeprueft"))}</span>`)}
+        ${bezugLinks(vs).length ? detailRow(t("vorsorge.gehoertZu"), bezugLinks(vs).join("<br>")) : ""}
         ${vorgaenger ? detailRow(t("vorsorge.vorgaenger"), verweis(vorgaenger)) : ""}
         ${nachfolger ? detailRow(t("vorsorge.nachfolger"), verweis(nachfolger)) : ""}
       </div>
@@ -546,15 +558,9 @@ function renderAnhang(vs) {
     <section class="panel panel-pad objekt-anhang">
       <h2 class="section-title">${escapeHtml(t("vorsorge.anhangTitel"))}</h2>
       ${bemerkung}
-      <div class="objekt-anhang-raster">
-        <div>
-          <h3 class="section-subtitle">${escapeHtml(t("vermoegen.wertstaende"))}</h3>
-          ${wertstaende}
-        </div>
-        <div>
-          <h3 class="section-subtitle">${escapeHtml(t("vermoegen.dokumente.titel"))}</h3>
-          ${dokumenteHtml([vs.vorsorge_id], belegOrdnerAusText(vs.quelle_hinweis))}
-        </div>
-      </div>
+      <h3 class="section-subtitle">${escapeHtml(t("vermoegen.wertstaende"))}</h3>
+      ${wertstaende}
+      <h3 class="section-subtitle">${escapeHtml(t("vermoegen.dokumente.titel"))}</h3>
+      ${dokumenteBrowserHtml([vs.vorsorge_id], belegOrdnerAusText(vs.quelle_hinweis))}
     </section>`;
 }

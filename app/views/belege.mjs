@@ -93,6 +93,47 @@ export function toggleBelegeSort(key) {
     : { key, dir: key === "geaendert" || key === "verknuepft" || key === "groesse" ? "desc" : "asc" };
 }
 
+// Ausschnitt je Objekt (Vorsorgevertrag, Immobilie, Darlehen): gewaehlter Ordner und
+// zugeklappte Ordner, Schluessel ist die Objekt-ID.
+const ausschnitt = { ordner: new Map(), zu: new Set() };
+
+export function waehleAusschnittOrdner(schluessel, pfad) {
+  ausschnitt.ordner.set(schluessel, pfad);
+}
+
+export function toggleAusschnittOrdner(schluessel, pfad) {
+  const key = `${schluessel}|${pfad}`;
+  if (ausschnitt.zu.has(key)) ausschnitt.zu.delete(key);
+  else ausschnitt.zu.add(key);
+}
+
+// Dieselbe Ansicht wie #/dokumente (Ordnerbaum links, Dateitabelle rechts), aber nur
+// mit den Dateien des Objekts. Startet im tiefsten gemeinsamen Ordner. Ein Klick auf
+// eine Datei oeffnet sie in der Dokumentenansicht. Leer, wenn keine Datei bekannt ist.
+export function renderDokumenteAusschnitt({ pfade, schluessel }) {
+  const dateien = pfade.map((p) => ansicht.nachPfad.get(belegSchluessel(p))).filter((d) => d && !d.istZwilling);
+  if (!dateien.length) return "";
+  const baum = baueBaum(dateien);
+  let start = baum;
+  while (!start.dateien.length && start.ordner.length === 1) start = start.ordner[0];
+  const gewaehlt = ausschnitt.ordner.get(schluessel);
+  const ordner = (gewaehlt && findeOrdner(baum, gewaehlt)) || start;
+  const ordnerAttr = (pfad) => `data-action="select-dok-ausschnitt-ordner" data-dok-ausschnitt="${escapeHtml(schluessel)}" data-beleg-ordner="${escapeHtml(pfad)}"`;
+  const zeilen = sortiereDateien(ordner.dateien, ansicht.sort, (d) => verweisAnzahl(verweisFuer(d.pfad)));
+  const kopf = `<p class="belege-kopf"><strong>${escapeHtml(ordner.pfad === BELEGE_WURZEL ? t("dokumente.title") : ordner.pfad.slice(BELEGE_WURZEL.length + 1))}</strong> <span class="muted">· ${ordner.dateien.length}</span></p>`;
+  return `
+    <div class="belege-browser belege-ausschnitt">
+      <nav class="belege-baum" aria-label="${escapeHtml(t("dokumente.ordner"))}">
+        <ul role="tree" class="belege-baum-liste">${renderOrdner(baum, ordner.pfad, schluessel)}</ul>
+      </nav>
+      <div class="belege-trenner" data-belege-trenner role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeHtml(t("dokumente.trenner"))}" title="${escapeHtml(t("dokumente.trenner"))}"></div>
+      <div class="belege-liste">
+        ${kopf}
+        ${zeilen.length || ordner.ordner.length ? renderTabelle({ zeilen, unterordner: ordner.ordner, ordnerAttr }) : `<p class="muted belege-leer">${escapeHtml(t("dokumente.ordnerLeer"))}</p>`}
+      </div>
+    </div>`;
+}
+
 export function toggleBelegeOrdner(pfad) {
   if (ansicht.offen.has(pfad)) ansicht.offen.delete(pfad);
   else ansicht.offen.add(pfad);
@@ -152,23 +193,30 @@ function renderInhalt() {
   `;
 }
 
-function renderOrdner(knoten, aktiverOrdner) {
+// Ordnerbaum; im Ausschnitt eines Objekts mit eigener Auswahl und eigenem Auf-/Zuklappen.
+function renderOrdner(knoten, aktiverOrdner, aus = null) {
   const hatKinder = knoten.ordner.length > 0;
-  const offen = hatKinder && ansicht.offen.has(knoten.pfad);
+  const offen = hatKinder && (aus ? !ausschnitt.zu.has(`${aus}|${knoten.pfad}`) : ansicht.offen.has(knoten.pfad));
+  const toggleAttr = aus
+    ? `data-action="toggle-dok-ausschnitt-ordner" data-dok-ausschnitt="${escapeHtml(aus)}" data-beleg-ordner="${escapeHtml(knoten.pfad)}"`
+    : `data-action="toggle-beleg-ordner" data-beleg-ordner="${escapeHtml(knoten.pfad)}"`;
+  const waehlAttr = aus
+    ? `data-action="select-dok-ausschnitt-ordner" data-dok-ausschnitt="${escapeHtml(aus)}" data-beleg-ordner="${escapeHtml(knoten.pfad)}"`
+    : `data-action="select-beleg" data-beleg="${escapeHtml(knoten.pfad)}"`;
   const aktiv = knoten.pfad === aktiverOrdner;
   const toggleLabel = t(offen ? "dokumente.zuklappen" : "dokumente.aufklappen");
   return `
     <li role="treeitem" ${hatKinder ? `aria-expanded="${offen}"` : ""} aria-selected="${aktiv}">
       <div class="belege-ordner-zeile ${aktiv ? "aktiv" : ""}">
         ${hatKinder
-          ? `<button type="button" class="belege-toggle" data-action="toggle-beleg-ordner" data-beleg-ordner="${escapeHtml(knoten.pfad)}" aria-label="${escapeHtml(`${toggleLabel}: ${knoten.name}`)}" title="${escapeHtml(toggleLabel)}">${iconSvg(offen ? "chevronDown" : "chevronRight")}</button>`
+          ? `<button type="button" class="belege-toggle" ${toggleAttr} aria-label="${escapeHtml(`${toggleLabel}: ${knoten.name}`)}" title="${escapeHtml(toggleLabel)}">${iconSvg(offen ? "chevronDown" : "chevronRight")}</button>`
           : `<span class="belege-toggle-platz"></span>`}
-        <button type="button" class="belege-ordner-knopf" data-action="select-beleg" data-beleg="${escapeHtml(knoten.pfad)}"${aktiv ? ` aria-current="true"` : ""}>
+        <button type="button" class="belege-ordner-knopf" ${waehlAttr}${aktiv ? ` aria-current="true"` : ""}>
           ${iconSvg("folder")}<span class="belege-ordner-name" title="${escapeHtml(knoten.pfad === BELEGE_WURZEL ? t("dokumente.title") : knoten.name)}">${escapeHtml(knoten.pfad === BELEGE_WURZEL ? t("dokumente.title") : knoten.name)}</span>
           <span class="belege-anzahl">${knoten.anzahl}</span>
         </button>
       </div>
-      ${offen ? `<ul role="group">${knoten.ordner.map((kind) => renderOrdner(kind, aktiverOrdner)).join("")}</ul>` : ""}
+      ${offen ? `<ul role="group">${knoten.ordner.map((kind) => renderOrdner(kind, aktiverOrdner, aus)).join("")}</ul>` : ""}
     </li>`;
 }
 
@@ -217,8 +265,12 @@ function renderDateien(sichtbar, ordner, datei) {
   if (zeilen.length === 0 && unterordner.length === 0) {
     return `${kopf}<p class="muted belege-leer">${escapeHtml(t(suche ? "dokumente.keineTreffer" : "dokumente.ordnerLeer"))}</p>`;
   }
+  return `${kopf}${renderTabelle({ zeilen, unterordner, suche, datei })}`;
+}
+
+// Dateitabelle des Ordners; ordnerAttr waehlt Unterordner (Standard: in der Dokumentenansicht).
+function renderTabelle({ zeilen, unterordner, suche = "", datei = null, ordnerAttr = (pfad) => `data-action="select-beleg" data-beleg="${escapeHtml(pfad)}"` }) {
   return `
-    ${kopf}
     <div class="table-wrap belege-tabelle-wrap">
       <table class="belege-tabelle">
         <thead>
@@ -233,17 +285,17 @@ function renderDateien(sichtbar, ordner, datei) {
           </tr>
         </thead>
         <tbody>
-          ${unterordner.map(renderOrdnerZeile).join("")}
+          ${unterordner.map((o) => renderOrdnerZeile(o, ordnerAttr)).join("")}
           ${zeilen.map((d) => renderZeile(d, d === datei, suche)).join("")}
         </tbody>
       </table>
     </div>`;
 }
 
-function renderOrdnerZeile(o) {
+function renderOrdnerZeile(o, ordnerAttr) {
   return `
-    <tr class="clickable belege-ordnerzeile" data-action="select-beleg" data-beleg="${escapeHtml(o.pfad)}">
-      <td class="belege-name"><button type="button" class="linkish" data-action="select-beleg" data-beleg="${escapeHtml(o.pfad)}">${iconSvg("folder")}<span>${escapeHtml(o.name)}</span></button></td>
+    <tr class="clickable belege-ordnerzeile" ${ordnerAttr(o.pfad)}>
+      <td class="belege-name"><button type="button" class="linkish" ${ordnerAttr(o.pfad)}>${iconSvg("folder")}<span>${escapeHtml(o.name)}</span></button></td>
       <td class="muted">${escapeHtml(t("dokumente.ordnerTyp"))}</td>
       <td class="amount muted">${escapeHtml(t("dokumente.dateienAnzahl").replace("{n}", String(o.anzahl)))}</td>
       <td></td>

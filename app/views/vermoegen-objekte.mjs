@@ -8,7 +8,7 @@ import { formatMoney, formatDate, formatMonth, detailRow, categoryName } from ".
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
 import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, immobilienMonate } from "../vermoegen-details.mjs";
 import {
-  balkenSvg, dokumenteHtml, geld, kennzahl, laufzeitText, prozent, qualitaetChip, rateJeMonatCents,
+  balkenSvg, dokumenteBrowserHtml, geld, kennzahl, laufzeitText, prozent, qualitaetChip, rateJeMonatCents,
   renderPositionWertstaende, rhythmusLabel, sondertilgungenRow, tf,
 } from "./vermoegen-teile.mjs";
 
@@ -67,19 +67,16 @@ function buchungenLink(html, { immobilie, monat = "", von = "", bis = "", katego
   return `<button class="linkish betrag-link" data-action="immobilie-transactions"${attr("immobilie", immobilie)}${attr("monat", monat)}${attr("von", von)}${attr("bis", bis)}${attr("kategorie", kategorie)}${attr("transfer", transfer)} title="${escapeHtml(t("vermoegen.immobilie.buchungenZeigen"))}">${html}</button>`;
 }
 
-// Wertstaende und Dokumente unter Tabelle und Diagramm, nebeneinander.
+// Wertstaende unter Tabelle und Diagramm, darunter die Dokumente in voller Breite
+// als Ausschnitt der Dokumentenansicht.
 function anhangPanel(titel, { bemerkung = "", wertstaende, dokumente, extra = "" }) {
   return `
     <section class="panel panel-pad objekt-anhang">
       <h2 class="section-title">${escapeHtml(titel)}</h2>
       ${bemerkung}
-      <div class="objekt-anhang-raster">
-        <div>${wertstaende}${extra}</div>
-        <div>
-          <h3 class="section-subtitle">${escapeHtml(t("vermoegen.dokumente.titel"))}</h3>
-          ${dokumente}
-        </div>
-      </div>
+      <div>${wertstaende}${extra}</div>
+      <h3 class="section-subtitle">${escapeHtml(t("vermoegen.dokumente.titel"))}</h3>
+      ${dokumente}
     </section>`;
 }
 
@@ -253,7 +250,7 @@ function renderImmobilieDetail(imm, today) {
   const anhang = anhangPanel(t("vermoegen.immobilie.wertstaendeDokumente"), {
     bemerkung: bemerkungHtml(imm.bemerkung),
     wertstaende: renderPositionWertstaende({ klasse: "immobilie", id }),
-    dokumente: `${dokumenteHtml([id, ...k.darlehen_ids])}
+    dokumente: `${dokumenteBrowserHtml([id, ...k.darlehen_ids])}
       <p><button class="linkish" data-action="immobilie-transactions" data-immobilie="${escapeHtml(id)}">${escapeHtml(t("vermoegen.dokumente.alleBuchungen"))}</button></p>`,
   });
 
@@ -411,7 +408,7 @@ function renderDarlehenDetail(d, k, today) {
     bemerkung: bemerkungHtml(d.bemerkung),
     wertstaende: renderPositionWertstaende({ klasse: "darlehen", id }),
     extra: sondertilgungenRow(id),
-    dokumente: dokumenteHtml([id]),
+    dokumente: dokumenteBrowserHtml([id]),
   });
 
   return `

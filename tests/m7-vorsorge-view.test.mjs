@@ -201,6 +201,24 @@ test("Versicherung zeigt Jahresbeitrag, naechste Faelligkeit und Vorjahresvergle
   });
 });
 
+test("Versicherung mit Immobilienbezug verlinkt das Objekt auf Karte und im Detail", () => {
+  mitFixture(() => {
+    data.immobilien = [{ immobilie_id: "IMM-001", bezeichnung: "Musterhaus", status: "aktiv" }];
+    data.transaktionen = data.transaktionen.map((tx) => ({ ...tx, immobilie_id: "IMM-001" }));
+    state.selectedVorsorgeId = "VS-005";
+    const html = renderVorsorge();
+    const start = html.indexOf('data-vorsorge="VS-005"');
+    const karte = html.slice(html.lastIndexOf("<div", start), html.indexOf("</div>", start));
+    assert.match(karte, /role="button" tabindex="0" data-action="select-vorsorge"/, "Karte ist kein <button>, damit der Link gueltig darin steht");
+    assert.match(karte, /Gehört zu <button class="linkish" data-action="select-vermoegen-objekt" data-vermoegen="immobilie:IMM-001"[^>]*>Musterhaus<\/button>/);
+    const detail = html.slice(html.indexOf("objekt-detail-titel"));
+    assert.match(detail, /Gehört zu[\s\S]*data-vermoegen="immobilie:IMM-001"/);
+    // Ohne zugeordnete Buchung kein Bezug.
+    state.selectedVorsorgeId = "VS-002";
+    assert.doesNotMatch(renderVorsorge().slice(renderVorsorge().indexOf("objekt-detail-titel")), /Gehört zu/);
+  });
+});
+
 test("gebuchte Beitraege: die fuenf neuesten der eigenen Regelzahlungen", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-002";

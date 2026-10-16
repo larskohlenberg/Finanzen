@@ -47,14 +47,20 @@ der Kachel "Ein- und Ausgaben je Monat".
 
 ## Farben in Grafiken
 
-- Jeder Vorsorgevertrag mit Wert hat eine feste Farbe (`vertragsFarben` in
-  `app/vorsorge-rechnung.mjs`, Klassen `vertrag-farbe-0..5`): dieselbe im
-  Rentenbalken, in den Donuts, auf der Zeitachse, als Punkt in Listen und auf
-  seiner Karte. Weitere Vertraege sind grau (`vertrag-farbe-rest`).
+- Jeder Altersvorsorge-Vertrag (Renten und Lebensversicherungen) hat eine feste
+  Farbe (`vertragsFarben` in `app/vorsorge-rechnung.mjs`, Klassen
+  `vertrag-farbe-0..13`): dieselbe im Rentenbalken, in den Donuts, auf der
+  Zeitachse, als Punkt in Listen und auf seiner Karte. Die Zuordnung steht fest in
+  `DATENROOT/farben.json`; ohne Eintrag gilt die naechste freie Farbe nach ID.
+  Die Palette hat 14 Toene (Slot 0-5 aus der Kategorienpalette, 6-13 mit
+  maximalem Abstand dazu); bei mehr Vertraegen beginnt sie von vorn, Grau ist kein
+  Sammelbecken fuer "Weitere".
 - Bereiche (Tabs) haben eigene Farben (`tab-farbe-*`), die nicht mit Vertragsfarben
   kollidieren; Grau steht fuer Versicherungen ohne Vermoegensaufbau.
-- Farben kommen aus der Kategorienpalette und werden je Modus (hell/dunkel) mit dem
-  Paletten-Validator geprueft. Jede farbige Markierung hat eine sichtbare
-  Beschriftung daneben, Farbe ist nie die einzige Information.
+- Hell und Dunkel nutzen je Slot dieselbe Farbfamilie, auf die jeweilige Flaeche
+  abgestimmt. Massstab ist die Unterscheidbarkeit im normalen Sehen ueber alle
+  Paare; Farbfehlsichtigkeit und Kontrast sind bei 14 Toenen nachrangig. Deshalb hat
+  jede farbige Markierung eine sichtbare Beschriftung daneben, Farbe ist nie die
+  einzige Information.
 - Donuts nur fuer Anteile am Ganzen mit wenigen Teilen; zwei fast gleich grosse
   Werte sind kein Fall fuer einen Donut.

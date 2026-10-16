@@ -116,8 +116,8 @@ test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", () => {
     assert.match(rkw, /data-tab="lebensversicherungen">1 ohne Wert/);
     // Donut der Rueckkaufswerte und Farbpunkte in derselben Vertragsfarbe.
     assert.match(rkw, /class="donut-diagramm"/);
-    assert.match(rkw, /class="donut-segment vertrag-farbe-0"><title>Riester Lena: 20\.000,00\s€ \(63 %\)/);
-    assert.match(rkw, /<i class="farbpunkt vertrag-farbe-0" aria-hidden="true"><\/i><button[^>]*data-vorsorge="VS-002"/);
+    assert.match(rkw, /class="donut-segment vertrag-farbe-1"><title>Riester Lena: 20\.000,00\s€ \(63 %\)/);
+    assert.match(rkw, /<i class="farbpunkt vertrag-farbe-1" aria-hidden="true"><\/i><button[^>]*data-vorsorge="VS-002"/);
     // Kapital auf der Zeitachse mit Rentenbeginn, Beitraege als Donut je Bereich.
     assert.match(kachel("Kapitalleistungen"), /class="zeitachse-klein"[\s\S]*class="zeitachse-bezug"[\s\S]*class="zeitachse-marker vertrag-farbe-\d"/);
     assert.match(kachel("Beiträge"), /class="donut-segment tab-farbe-renten"><title>Renten &amp; Anwartschaften pro Jahr: 1\.800,00/);

@@ -5,7 +5,7 @@
 // Restart-Markern und mehreren Scans. Progressive, arithmetische und
 // CMYK-JPEGs werden abgelehnt. Ergebnis wie dekodierePng: { breite, hoehe, rgba }.
 
-// Logos werden auf 64 px verkleinert; groessere Kanten oder viele Scans
+// Logos werden auf 128 px verkleinert; groessere Kanten oder viele Scans
 // deuten auf eine kaputte oder boesartige Datei und werden abgelehnt.
 const MAX_KANTE = 1024;
 const MAX_SCANS = 8;

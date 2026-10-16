@@ -24,18 +24,20 @@ function logos() {
 // Ohne passenden Eintrag ein Kuerzel in fester, aus dem Namen abgeleiteter
 // Farbe. Das Kuerzel liegt immer darunter: laedt das Bild nicht, entfernt
 // main.js es, und das Kuerzel bleibt sichtbar.
-// groesse "tabelle": etwas groesser fuer Tabellenzeilen (Transaktionen,
-// Regelzahlungen), ohne die Zeilenhoehe spuerbar zu erhoehen.
-export function logoMarke({ gegenpartei, regelzahlung, vorsorge }, { groesse } = {}) {
+// groesse waehlt die Groessenklasse logo-<groesse> (styles.css): "tabelle" fuer
+// Tabellenzeilen, "vergleich" fuer Listen in Kacheln. Vertragskarte und
+// Vertragsdaten setzen die Groesse ueber ihren Rahmen.
+export function logoMarke({ gegenpartei, regelzahlung, vorsorge, konto }, { groesse } = {}) {
   const verzeichnis = logos();
   const logo = regelzahlung ? verzeichnis.fuerRegelzahlung(regelzahlung)
     : vorsorge ? verzeichnis.fuerVorsorge(vorsorge)
-      : verzeichnis.fuerGegenpartei(gegenpartei);
-  const name = logo?.name ?? regelzahlung?.bezeichnung ?? vorsorge?.name ?? gegenpartei ?? "";
+      : konto ? verzeichnis.fuerKonto(konto)
+        : verzeichnis.fuerGegenpartei(gegenpartei);
+  const name = logo?.name ?? regelzahlung?.bezeichnung ?? vorsorge?.name ?? konto?.name ?? gegenpartei ?? "";
   if (!String(name).trim()) return "";
   const basis = (dataModes[data.metadata?.dataMode] ?? dataModes.live).basePath;
   const bild = logo ? `<img src="${escapeHtml(`${basis}/${logo.datei}`)}" alt="" loading="lazy" decoding="async">` : "";
-  return `<span class="logo-marke${groesse === "tabelle" ? " logo-tabelle" : ""} kuerzel-farbe-${kuerzelFarbe(name)}" aria-hidden="true">${escapeHtml(kuerzel(name))}${bild}</span>`;
+  return `<span class="logo-marke${groesse ? ` logo-${groesse}` : ""} kuerzel-farbe-${kuerzelFarbe(name)}" aria-hidden="true">${escapeHtml(kuerzel(name))}${bild}</span>`;
 }
 
 // Logo plus Name als Einheit, Text vertikal zum Logo zentriert: bricht der
@@ -253,6 +255,7 @@ function accountTableHead(showId) {
   return `
         <thead>
           <tr>
+            <th class="logo-zelle"><span class="sr-only">${escapeHtml(t("labels.logo"))}</span></th>
             ${showId ? `<th>${escapeHtml(t("labels.id"))}</th>` : ""}
             <th>${escapeHtml(t("labels.account"))}</th>
             <th>${escapeHtml(t("labels.accountReference"))}</th>
@@ -266,7 +269,7 @@ function accountTableHead(showId) {
 
 // tbody eines Kontenblocks; summeKey = Summenzeile mit Abdeckung.
 function accountGroupBody(gruppe, { showId = false, rowAction = "account-transactions", summeKey = null, markNotIncluded = false } = {}) {
-  const spalten = showId ? 7 : 6;
+  const spalten = showId ? 8 : 7;
   const summe = summeKey
     ? `
         <tr class="table-sum">
@@ -300,7 +303,8 @@ export function renderMasterAccountTable() {
           : `<span class="chip review">${iconSvg("review")}${escapeHtml(t("labels.referenceMissing"))}</span>`;
       return `
         <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="select-master-account" data-account="${escapeHtml(konto.konto_id)}" tabindex="0" role="button" aria-label="${escapeHtml(konto.name)}">
-          <td>${escapeHtml(konto.konto_id)}</td>
+          <td class="logo-zelle">${logoMarke({ konto }, { groesse: "tabelle" })}</td>
+          <td class="id-zelle">${escapeHtml(konto.konto_id)}</td>
           <td><span class="linkish">${escapeHtml(konto.name)}</span></td>
           <td>${referenz}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
@@ -315,6 +319,7 @@ export function renderMasterAccountTable() {
       <table class="master-account-table">
         <thead>
           <tr>
+            <th class="logo-zelle"><span class="sr-only">${escapeHtml(t("labels.logo"))}</span></th>
             <th>${escapeHtml(t("labels.id"))}</th>
             <th>${escapeHtml(t("labels.account"))}</th>
             <th>${escapeHtml(t("labels.accountReference"))}</th>
@@ -341,7 +346,7 @@ export function renderAccountPanels({ rowAction = "account-transactions" } = {})
           <h2 class="section-title">${escapeHtml(t(g.titelKey))}</h2>
           <div class="table-wrap">
             <table class="account-table">
-              <colgroup><col class="col-konto"><col class="col-referenz"><col class="col-inhaber"><col class="col-typ"><col class="col-wert"><col class="col-stand"></colgroup>
+              <colgroup><col class="col-logo"><col class="col-konto"><col class="col-referenz"><col class="col-inhaber"><col class="col-typ"><col class="col-wert"><col class="col-stand"></colgroup>
               ${accountTableHead(false)}${accountGroupBody(gruppen[g.schluessel], { rowAction, summeKey: g.summeKey, markNotIncluded: g.markNotIncluded })}
             </table>
           </div>
@@ -375,7 +380,8 @@ export function renderAccountRows(accounts, { showId = false, rowAction = "accou
       const accountName = `<button class="linkish" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</button>`;
       return `
         <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="${escapeHtml(rowAction)}" data-account="${escapeHtml(konto.konto_id)}">
-          ${showId ? `<td>${escapeHtml(konto.konto_id)}</td>` : ""}
+          <td class="logo-zelle">${logoMarke({ konto }, { groesse: "tabelle" })}</td>
+          ${showId ? `<td class="id-zelle">${escapeHtml(konto.konto_id)}</td>` : ""}
           <td>${accountName}</td>
           <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>

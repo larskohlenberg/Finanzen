@@ -3,10 +3,10 @@
 //
 //   node app/tools/logos.mjs <datenroot> [--top 20]
 //       Bericht: Eintraege, fehlende Dateien, haeufigste Gegenparteien,
-//       Regelzahlungen und Vorsorgevertraege ohne Logo.
+//       Regelzahlungen, Vorsorgevertraege und Konten ohne Logo.
 //   node app/tools/logos.mjs <datenroot> --plan <datei.json> [--schreiben]
 //   node app/tools/logos.mjs <datenroot> --domain <d> --name <n> --muster <m> [--schreiben]
-//       Logo je Domain beim Logodienst abrufen, auf hoechstens 64 px verkleinern
+//       Logo je Domain beim Logodienst abrufen, auf hoechstens 128 px verkleinern
 //       und eintragen. Plan: [{ "name", "domain", "muster" }]. Gleiche Domain =
 //       Eintrag aktualisieren. Ohne --schreiben nur Vorschau (der Abruf laeuft,
 //       geschrieben wird nichts).
@@ -26,9 +26,11 @@ import { localTodayIso } from "../liquiditaet.mjs";
 
 // Logodienst: Googles Favicon-Dienst. Frei, ohne Schluessel, liefert meist PNG in
 // der verlangten Groesse, bei manchen Domains aber das JPEG der Website, und 404,
-// wenn er fuer die Domain nichts hat (ADR 0030). Abgelegt wird immer PNG.
+// wenn er fuer die Domain nichts hat (ADR 0030). Abgelegt wird immer PNG, so
+// gross wie geliefert bis 128 px: die App zeigt Logos bis 48 px, auf
+// hochaufloesenden Bildschirmen also mit bis zu 96 Bildpunkten.
 export const DIENST_GROESSE = 128;
-export const ZIEL_GROESSE = 64;
+export const ZIEL_GROESSE = 128;
 const MIN_QUELLE = 32;
 const MAX_BYTES = 1024 * 1024;
 const TIMEOUT_MS = 15000;
@@ -114,7 +116,7 @@ export async function holeLogo(domain, { holen = fetch } = {}) {
 
 // Bericht: was hat ein Logo, was nicht. vorhandeneDateien: Set der
 // datei-Pfade, die auf der Platte liegen.
-export function logoBericht({ logos = [], transaktionen = [], regelzahlungen = [], vorsorge = [] }, { top = 20, vorhandeneDateien = null } = {}) {
+export function logoBericht({ logos = [], transaktionen = [], regelzahlungen = [], vorsorge = [], konten = [] }, { top = 20, vorhandeneDateien = null } = {}) {
   const verzeichnis = logoVerzeichnis({ logos, transaktionen, regelzahlungen });
   const gruppen = new Map();
   let mitGegenpartei = 0;
@@ -144,6 +146,7 @@ export function logoBericht({ logos = [], transaktionen = [], regelzahlungen = [
       .filter((rz) => rz.status === "bestaetigt" && !verzeichnis.fuerRegelzahlung(rz))
       .map((rz) => `${rz.regelzahlung_id} ${rz.bezeichnung}`),
     vorsorge_ohne_logo: vorsorge.filter((vs) => !verzeichnis.fuerVorsorge(vs)).map((vs) => `${vs.vorsorge_id} ${vs.name}`),
+    konten_ohne_logo: konten.filter((k) => k.kontotyp !== "bar" && !verzeichnis.fuerKonto(k)).map((k) => `${k.konto_id} ${k.name}`),
   };
 }
 

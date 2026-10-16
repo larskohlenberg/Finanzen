@@ -241,7 +241,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "logos",
     skript: "logos.mjs",
-    beschreibung: "Logo-Verzeichnis (tools/logos.mjs; DATENROOT/logos.json + logos/<domain>.png). Ohne eintraege ein Bericht: Eintraege, fehlende Dateien, haeufigste Gegenparteien sowie Regelzahlungen und Vorsorgevertraege ohne Logo. Mit eintraege [{ name, domain, muster }] ruft es je Domain das Logo beim Logodienst ab (Google-Favicon-Dienst), verkleinert auf hoechstens 64 px und traegt es ein; gleiche Domain = Eintrag aktualisieren. muster wie gegenpartei_pattern der Kategorisierungsregeln (Teiltext, | trennt Alternativen). Die Domain bestimmt der Agent. Vorschau ist Default (Abruf laeuft, geschrieben wird nichts).",
+    beschreibung: "Logo-Verzeichnis (tools/logos.mjs; DATENROOT/logos.json + logos/<domain>.png). Ohne eintraege ein Bericht: Eintraege, fehlende Dateien, haeufigste Gegenparteien sowie Regelzahlungen, Vorsorgevertraege und Konten ohne Logo (Konten ueber ihren Namen). Mit eintraege [{ name, domain, muster }] ruft es je Domain das Logo beim Logodienst ab (Google-Favicon-Dienst), verkleinert auf hoechstens 128 px und traegt es ein; gleiche Domain = Eintrag aktualisieren. muster wie gegenpartei_pattern der Kategorisierungsregeln (Teiltext, | trennt Alternativen). Die Domain bestimmt der Agent. Vorschau ist Default (Abruf laeuft, geschrieben wird nichts).",
     eigenschaften: {
       eintraege: {
         type: "array",

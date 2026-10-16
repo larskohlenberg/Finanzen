@@ -41,7 +41,8 @@ test("Konten-Stammdaten zeigen die Konto-ID", () => {
   const html = renderMasterdata();
 
   assert.match(html, /<th>ID<\/th>/);
-  assert.match(html, /<td>KTO-SICHTBAR<\/td>/);
+  assert.match(html, /<td class="id-zelle">KTO-SICHTBAR<\/td>/);
+  assert.match(html, /<td class="logo-zelle"><span class="logo-marke logo-tabelle kuerzel-farbe-\d" aria-hidden="true">TE<\/span><\/td>\s*<td class="id-zelle">KTO-SICHTBAR/, "Logo-Spalte vor der ID");
   assert.match(html, /data-action="select-master-account" data-account="KTO-SICHTBAR"/);
 });
 

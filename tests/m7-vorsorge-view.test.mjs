@@ -337,7 +337,7 @@ test("Versicherungs-Tab: Rangliste der Jahresbeitraege mit Veraenderung zum Vorj
     assert.match(html, /class="panel panel-pad klapp-panel\s+vorsorge-ranking-kachel"/, "Abstand zum Kartenraster ueber eigene Klasse");
     const ranking = html.slice(html.indexOf('class="vorsorge-ranking"'), html.indexOf("</ul>", html.indexOf('class="vorsorge-ranking"')));
     assert.equal((ranking.match(/<li>/g) ?? []).length, 1, "nur laufende Vertraege mit Beitrag");
-    assert.match(ranking, /data-vorsorge="VS-005"[^>]*><span class="mit-logo"><span class="logo-marke[^>]*>WO<\/span><span>Wohngebaeude<\/span><\/span><\/button>[\s\S]*width="100\.00"[\s\S]*900,00[\s\S]*class="chip review"[^>]*>\+20 %/);
+    assert.match(ranking, /data-vorsorge="VS-005"[^>]*><span class="mit-logo"><span class="logo-marke logo-vergleich [^>]*>WO<\/span><span>Wohngebaeude<\/span><\/span><\/button>[\s\S]*width="100\.00"[\s\S]*900,00[\s\S]*class="chip review"[^>]*>\+20 %/);
     assert.match(html, /zusammen 900,00/);
   });
 });

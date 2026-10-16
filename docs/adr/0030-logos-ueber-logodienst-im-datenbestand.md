@@ -23,18 +23,28 @@ oeffentlich.
   genommen.
 - **Ablage nur im Datenbestand:** `DATENROOT/logos.json` (Muster, Domain,
   Datei, Quelle, Abrufdatum je Eintrag) und `DATENROOT/logos/<domain>.png`,
-  verkleinert auf hoechstens 64 px. Nie im Repo, auch nicht in den Demodaten.
+  so gross wie geliefert, hoechstens 128 px (bis 2026-10-16: 64 px; das war fuer
+  48 px Anzeige auf Retina zu klein und wirkte unscharf). Eine Datei je Logo
+  genuegt: der Browser verkleinert sauber, nur Vergroessern macht unscharf.
+  Nie im Repo, auch nicht in den Demodaten.
 - **Zuordnung ueber ein Muster** wie bei den Kategorisierungsregeln.
   Regelzahlungen und Vorsorgevertraege erben das Logo ueber
   `Transaktion → Regelzahlung → Vorsorge`; sie bekommen kein eigenes Feld.
+  Konten finden ihr Logo ueber ihren Namen, der die Bank nennt.
 - **Erkennen ist Agentenurteil, Abrufen ein Tool** (ADR 0003, 0010): Der Agent
   bestimmt die Domain, `tools/logos.mjs` (MCP `logos`) ruft ab, prueft das Bild,
   verkleinert, traegt ein und protokolliert. Ohne `--schreiben` Vorschau.
 - **Rueckfall ohne Logo:** ein Kuerzel in fester, aus dem Namen abgeleiteter
-  Farbe. Es liegt immer unter dem Bild und bleibt sichtbar, wenn eine Datei
-  fehlt.
+  Farbe. Es liegt unter dem Bild (dort mit weisser Flaeche verdeckt, damit die
+  Farbe nicht an den Ecken durchscheint) und erscheint, wenn eine Datei fehlt.
 - Die App liefert Logos ueber die statische Auslieferung aus; unter
   `data/<bestand>/logos/` nur PNG.
+
+## Grenzen
+
+Fuer manche Domains liefert der Dienst nur 16 bis 48 px; die Websites selbst
+haben dann meist auch nichts Groesseres. Solche Logos bleiben in grossen
+Darstellungen weich. Das Tool meldet sie mit einem Hinweis.
 
 ## Verworfene Alternativen
 
@@ -52,3 +62,5 @@ oeffentlich.
   Verzeichnis, Echtdaten.
 - **Feld `logo_id` an Regelzahlung oder Vorsorge:** doppelte Pflege; die Kette
   ueber die gebuchten Transaktionen gibt es schon.
+- **Mehrere Dateien je Logo (klein und gross, `srcset`):** spart nur Bytes; eine
+  128-px-Datei hat wenige Kilobyte und reicht fuer jede Anzeigegroesse.

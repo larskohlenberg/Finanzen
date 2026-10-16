@@ -38,3 +38,10 @@ test("mit Logo: Bild aus dem gewaehlten Datenbestand, Kuerzel bleibt darunter", 
   assert.match(logoMarke({ regelzahlung: rz }), /muster\.example\.png/);
   data.logos = [];
 });
+
+test("Tabellengroesse: eigene Klasse am Logo, auch ueber mitLogo", () => {
+  data.logos = [];
+  assert.match(logoMarke({ gegenpartei: "Kiosk" }, { groesse: "tabelle" }), /^<span class="logo-marke logo-tabelle kuerzel-farbe-\d"/);
+  assert.match(mitLogo({ gegenpartei: "Kiosk" }, "Kiosk", { groesse: "tabelle" }), /^<span class="mit-logo"><span class="logo-marke logo-tabelle /);
+  assert.doesNotMatch(logoMarke({ gegenpartei: "Kiosk" }), /logo-tabelle/);
+});

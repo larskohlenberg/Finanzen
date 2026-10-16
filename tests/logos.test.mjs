@@ -52,6 +52,8 @@ function palettenPng({ interlace = 0 } = {}) {
   ]);
 }
 
+const JPEG_BLAU = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAQABADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDz+iiiv7jP46P/2Q==";
+
 const pngAntwort = (bytes, status = 200) => ({ ok: status >= 200 && status < 300, status, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length) });
 
 // --- PNG ---------------------------------------------------------------------
@@ -204,9 +206,23 @@ test("Abruf: PNG wird auf 64 px verkleinert, Quelle ist die Dienst-URL", async (
   assert.equal(r.hinweis, undefined);
 });
 
-test("Abruf: 404, kein PNG, Netzfehler und winzige Bilder", async () => {
+test("Abruf: JPEG-Antwort wird als PNG abgelegt", async () => {
+  // Erfundenes 16x16-JPEG, einfarbig (0, 128, 255), erzeugt mit libjpeg.
+  const jpeg = Buffer.from(JPEG_BLAU, "base64");
+  const r = await holeLogo("musterladen.example", { holen: async () => pngAntwort(jpeg) });
+  assert.equal(r.ok, true);
+  assert.ok(istPng(r.png));
+  const bild = dekodierePng(r.png);
+  assert.deepEqual([bild.breite, bild.hoehe], [16, 16]);
+  const [rot, gruen, blau, alpha] = bild.rgba.subarray(8 * 16 * 4 + 8 * 4, 8 * 16 * 4 + 8 * 4 + 4);
+  assert.ok(Math.abs(rot - 0) <= 3 && Math.abs(gruen - 128) <= 3 && Math.abs(blau - 255) <= 3 && alpha === 255);
+  const kaputt = await holeLogo("a.example", { holen: async () => pngAntwort(jpeg.subarray(0, 30)) });
+  assert.match(kaputt.fehler, /JPEG nicht lesbar/);
+});
+
+test("Abruf: 404, weder PNG noch JPEG, Netzfehler und winzige Bilder", async () => {
   assert.match((await holeLogo("a.example", { holen: async () => pngAntwort(Buffer.from("x"), 404) })).fehler, /404/);
-  assert.match((await holeLogo("a.example", { holen: async () => pngAntwort(Buffer.from("<svg/>")) })).fehler, /kein PNG/);
+  assert.match((await holeLogo("a.example", { holen: async () => pngAntwort(Buffer.from("<svg/>")) })).fehler, /weder PNG noch JPEG/);
   assert.match((await holeLogo("a.example", { holen: async () => { throw new Error("offline"); } })).fehler, /offline/);
   const winzig = await holeLogo("a.example", { holen: async () => pngAntwort(kodierePng(einfarbig(16, 16, [1, 2, 3, 255]))) });
   assert.equal(winzig.ok, true);

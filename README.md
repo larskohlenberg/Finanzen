@@ -2,6 +2,8 @@
 
 **Mit deinem KI-Agenten ein privates Finanzmodell aufbauen**: Kontoauszüge einlesen, Buchungen nachvollziehbar kategorisieren und Liquidität, Vermögen, Vorsorge und Szenarien in einer lokalen Web-App sehen.
 
+[English version](README.en.md)
+
 ## So startest du
 Öffne einen KI-Agenten, der Dateien lesen und Befehle ausführen kann (z. B. Claude Code, Codex, Gemini CLI), und schreib:
 
@@ -51,3 +53,6 @@ Fachbegriffe stehen in [CONTEXT.md](CONTEXT.md), Entscheidungen samt verworfener
 
 ## Haftung
 Keine Finanz-, Steuer- oder Anlageberatung. Kategorien, Prognosen und Szenarien sind Rechenmodelle auf Basis deiner Eingaben; prüfe die Ergebnisse selbst.
+
+## Lizenz
+MIT – siehe [LICENSE](LICENSE). Du darfst alles nutzen, ändern und weitergeben, solange der Copyright-Hinweis erhalten bleibt.

@@ -174,14 +174,14 @@ test("Gegenbuchungsnavigation zeigt Zielzeile auf ihrer Seite und öffnet die De
 
 test("open-vorsorge setzt Auswahl zurück, leert Filter und navigiert zum Vorsorge-Hash", () => {
   resetTransactionState();
-  state.vorsorgeFilters = { search: "Riester", art: "riester", person: "PER-001", status: "aktiv", pruefstatus: "geprueft" };
+  state.vorsorgeFilters = { person: "PER-001" };
   state.selectedVorsorgeId = "VS-ALT";
   historyCalls.length = 0;
 
   clickAction({ action: "open-vorsorge", vorsorge: "VS-003" });
 
   assert.equal(state.view, "vorsorge");
-  assert.deepEqual(state.vorsorgeFilters, { search: "", art: "", person: "", status: "", pruefstatus: "" });
+  assert.deepEqual(state.vorsorgeFilters, { person: "" });
   assert.equal(state.selectedVorsorgeId, "VS-003");
   assert.equal(location.hash, "#/vorsorge/VS-003");
   const navigation = historyCalls.at(-1);
@@ -247,7 +247,7 @@ test("Immobilien-Ruecklink oeffnet die Transaktionssuche nur mit der Immobilien-
   assert.equal(state.transactionFilters.transfer, "");
 });
 
-test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zur Vorsorge-Rail zurück", () => {
+test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zum Vorsorgevertrag zurück", () => {
   const vorsorgeId = "VS-RUNDWEG";
   const regelzahlungId = "RZ-RUNDWEG";
   const transactionId = "TX-RUNDWEG";
@@ -300,7 +300,7 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     }];
     transaktionenById.set(transactionId, transaction);
     resetTransactionState();
-    state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
+    state.vorsorgeFilters = { person: "" };
     historyCalls.length = 0;
 
     clickAction({ action: "open-vorsorge", vorsorge: vorsorgeId });
@@ -308,7 +308,7 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     assert.equal(state.view, "vorsorge");
     assert.equal(state.selectedVorsorgeId, vorsorgeId);
     assert.equal(location.hash, `#/vorsorge/${vorsorgeId}`);
-    assert.ok(app.innerHTML.includes("detail-panel"));
+    assert.ok(app.innerHTML.includes("objekt-detail-titel"));
     assert.ok(app.innerHTML.includes(`data-action="open-transaction" data-transaction="${transactionId}"`));
     assert.ok(app.innerHTML.includes("MusterversicherungA Rundweg"));
 
@@ -350,15 +350,15 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     assert.ok(app.innerHTML.includes("MusterversicherungA Rundweg"));
     assert.ok(app.innerHTML.includes(`data-action="open-vorsorge" data-vorsorge="${vorsorgeId}"`));
 
-    state.vorsorgeFilters = { search: "unsichtbar", art: "ruerup", person: "PER-X", status: "geplant", pruefstatus: "ungeprueft" };
+    state.vorsorgeFilters = { person: "PER-X" };
     state.selectedVorsorgeId = "VS-ALT";
     clickAction({ action: "open-vorsorge", vorsorge: vorsorgeId });
 
     assert.equal(state.view, "vorsorge");
-    assert.deepEqual(state.vorsorgeFilters, { search: "", art: "", person: "", status: "", pruefstatus: "" });
+    assert.deepEqual(state.vorsorgeFilters, { person: "" });
     assert.equal(state.selectedVorsorgeId, vorsorgeId);
     assert.equal(location.hash, `#/vorsorge/${vorsorgeId}`);
-    assert.ok(app.innerHTML.includes("detail-panel"));
+    assert.ok(app.innerHTML.includes("objekt-detail-titel"));
     assert.ok(app.innerHTML.includes("Riester Rundweg"));
     assert.ok(app.innerHTML.includes(`data-action="open-transaction" data-transaction="${transactionId}"`));
   } finally {

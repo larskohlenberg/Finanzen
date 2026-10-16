@@ -5,6 +5,7 @@
 // Getestet ueber parseRoute/routeFromState; die DOM-Anbindung liegt in main.js.
 import { dokumentRoute, belegPfadAusRoute, kodierePfad } from "./belege.mjs";
 import { KLASSE_FUER_TAB, TAB_FUER_KLASSE, VERMOEGEN_TABS, vermoegenRoute } from "./vermoegen-routen.mjs";
+import { VORSORGE_TABS } from "./vorsorge-rechnung.mjs";
 
 const VIEW_SLUG = {
   overview: "uebersicht",
@@ -35,6 +36,9 @@ export function routeFromState(state) {
   if (state.view === "belege") return dokumentRoute(state.selectedBeleg);
   if (state.view === "vorsorge" && state.selectedVorsorgeId) {
     return `#/vorsorge/${encodeURIComponent(state.selectedVorsorgeId)}`;
+  }
+  if (state.view === "vorsorge" && VORSORGE_TABS.includes(state.vorsorgeTab) && state.vorsorgeTab !== "uebersicht") {
+    return `#/vorsorge/${state.vorsorgeTab}`;
   }
   // Konto-Stammsatz (Stammdaten -> Konten, angesteuerter Datensatz).
   if (state.view === "masterdata" && state.masterSection === "konten" && state.selectedKonto) {
@@ -113,8 +117,10 @@ export function parseRoute(hash) {
   if (head === "stammdaten") return { view: "masterdata", masterSection: "konten" };
   if (head === "checks" || head === "export") return { view: "masterdata", masterSection: head };
   if (head === "vermoegen") return vermoegenAusRoute(rest.map((teil) => decodeURIComponent(teil)));
+  // #/vorsorge[/<tab>|/<VS-ID>]; der Tab eines Vertrags folgt aus seiner Art.
   if (head === "vorsorge") {
-    return tail ? { view: "vorsorge", selectedVorsorgeId: tail } : { view: "vorsorge" };
+    if (!tail || tail === "uebersicht") return { view: "vorsorge" };
+    return VORSORGE_TABS.includes(tail) ? { view: "vorsorge", vorsorgeTab: tail } : { view: "vorsorge", selectedVorsorgeId: tail };
   }
   if (head === "szenarien") {
     if (!tail) return { view: "szenarien" };

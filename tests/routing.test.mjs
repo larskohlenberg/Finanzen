@@ -69,13 +69,18 @@ test("routeFromState und parseRoute sind für Deeplinks invers", () => {
   }
 });
 
-test("Vorsorge-Rail ist adressierbar", () => {
+test("Vorsorgevertrag und Vorsorge-Tab sind adressierbar", () => {
   assert.equal(
     routeFromState({ view: "vorsorge", selectedVorsorgeId: "VS-003" }),
     "#/vorsorge/VS-003",
   );
   assert.equal(routeFromState({ view: "vorsorge", selectedVorsorgeId: "" }), "#/vorsorge");
+  assert.equal(routeFromState({ view: "vorsorge", selectedVorsorgeId: "", vorsorgeTab: "uebersicht" }), "#/vorsorge");
+  assert.equal(routeFromState({ view: "vorsorge", selectedVorsorgeId: "", vorsorgeTab: "versicherungen" }), "#/vorsorge/versicherungen");
+  assert.equal(routeFromState({ view: "vorsorge", selectedVorsorgeId: "VS-003", vorsorgeTab: "renten" }), "#/vorsorge/VS-003", "Vertrag schlaegt Tab");
   assert.deepEqual(parseRoute("#/vorsorge/VS-003"), { view: "vorsorge", selectedVorsorgeId: "VS-003" });
+  assert.deepEqual(parseRoute("#/vorsorge/lebensversicherungen"), { view: "vorsorge", vorsorgeTab: "lebensversicherungen" });
+  assert.deepEqual(parseRoute("#/vorsorge/uebersicht"), { view: "vorsorge" });
   assert.deepEqual(parseRoute("#/vorsorge"), { view: "vorsorge" });
 });
 

@@ -13,14 +13,20 @@ function kpiNote(datum, view, linkKey) {
   return `${escapeHtml(stand)} · <button class="linkish" data-view="${escapeHtml(view)}">${escapeHtml(t(linkKey))}</button>`;
 }
 
-// Jaehrliche Regelzahlungen der naechsten drei Monate; ein Klick fuehrt zur Regelzahlung.
+function kontoName(kontoId) {
+  return data.konten.find((k) => k.konto_id === kontoId)?.name ?? kontoId;
+}
+
+// Jaehrliche Abfluesse der naechsten drei Monate mit dem Konto, von dem gezahlt wird;
+// ein Klick fuehrt zur Regelzahlung.
 function renderJahreszahlungen() {
   const termine = overviewJahreszahlungen(3);
   const liste = termine.length
     ? `<div class="rail-list">${termine.map(({ datum, regelzahlung: rz }) => `
         <div class="rail-item">
           <button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}">${escapeHtml(rz.bezeichnung)}</button>
-          <span class="muted">${escapeHtml(formatDate(datum))} · ${escapeHtml(formatMoney(toCents(rz.betrag)))}</span>
+          <span>${escapeHtml(formatDate(datum))} · ${escapeHtml(formatMoney(toCents(rz.betrag)))}</span>
+          <span class="muted">${escapeHtml(rz.konto_id ? t("overview.jahreszahlungenKonto").replace("{konto}", kontoName(rz.konto_id)) : t("overview.jahreszahlungenOhneKonto"))}</span>
         </div>`).join("")}</div>`
     : `<p class="muted">${escapeHtml(t("overview.jahreszahlungenLeer"))}</p>`;
   return `

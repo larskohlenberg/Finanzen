@@ -100,6 +100,8 @@ window.FINANCE_I18N = {
       jahreszahlungen: "Jährliche Zahlungen",
       jahreszahlungenLead: "Fällig in den nächsten drei Monaten.",
       jahreszahlungenLeer: "Keine jährliche Zahlung in den nächsten drei Monaten.",
+      jahreszahlungenKonto: "von {konto}",
+      jahreszahlungenOhneKonto: "Konto nicht hinterlegt",
     },
     transactions: {
       title: "Transaktionen",
@@ -244,6 +246,7 @@ window.FINANCE_I18N = {
       anker: "Erste Fälligkeit",
       naechsteFaelligkeit: "Nächste Fälligkeit",
       aktivBis: "Gültig bis",
+      konto: "Konto",
       empty: "Keine Regelzahlungen erfasst.",
     },
     vorsorge: {
@@ -910,6 +913,8 @@ window.FINANCE_I18N = {
       jahreszahlungen: "Annual payments",
       jahreszahlungenLead: "Due in the next three months.",
       jahreszahlungenLeer: "No annual payment in the next three months.",
+      jahreszahlungenKonto: "from {konto}",
+      jahreszahlungenOhneKonto: "No account on file",
     },
     transactions: {
       title: "Transactions",
@@ -1054,6 +1059,7 @@ window.FINANCE_I18N = {
       anker: "First due date",
       naechsteFaelligkeit: "Next due date",
       aktivBis: "Valid until",
+      konto: "Account",
       empty: "No recurring payments recorded.",
     },
     vorsorge: {

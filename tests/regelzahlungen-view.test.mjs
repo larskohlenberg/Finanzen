@@ -41,3 +41,17 @@ test("Regelzahlungs-Liste rendert Eintrag mit formatiertem Betrag", () => {
   assert.match(html, /Gehalt Lena/, "Bezeichnung must appear in the list");
   assert.match(html, /3\.200/, "Betrag must be rendered as money (3.200)");
 });
+
+test("Regelzahlungs-Liste zeigt das Konto, von dem gezahlt wird", () => {
+  data.konten = [{ konto_id: "KTO-001", name: "Testgiro", kontotyp: "giro", inhaber_person_ids: [], liquiditaetsrelevant: true, status: "aktiv" }];
+  data.regelzahlungen = [
+    { regelzahlung_id: "RZ-001", bezeichnung: "Versicherung", betrag: "-100.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt", konto_id: "KTO-001" },
+    { regelzahlung_id: "RZ-002", bezeichnung: "Ohne Konto", betrag: "-10.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt" },
+  ];
+  state.view = "regelzahlungen";
+  state.lang = "de";
+  const html = renderRegelzahlungen();
+  assert.match(html, /<th>Konto<\/th>/);
+  assert.match(html, /id="regelzahlung-RZ-001"[\s\S]*?Testgiro[\s\S]*?<\/tr>/);
+  assert.match(html, /id="regelzahlung-RZ-002"[\s\S]*?class="muted">—[\s\S]*?<\/tr>/);
+});

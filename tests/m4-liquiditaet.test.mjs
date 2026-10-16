@@ -178,7 +178,7 @@ test("toCents parst Decimal-Strings centgenau", () => {
   assert.equal(toCents("0.05"), 5);
 });
 
-test("anstehendeJahreszahlungen: nur jaehrliche, bestaetigte Termine ab heute bis drei Monate, nach Datum", () => {
+test("anstehendeJahreszahlungen: nur jaehrliche, bestaetigte Abfluesse ab heute bis drei Monate, nach Datum", () => {
   const basis = { status: "bestaetigt", rhythmus_intervall: 1, betrag: "-100.00" };
   const rz = [
     { ...basis, regelzahlung_id: "RZ-001", rhythmus_einheit: "jahr", anker_datum: "2025-10-16" },
@@ -191,6 +191,7 @@ test("anstehendeJahreszahlungen: nur jaehrliche, bestaetigte Termine ab heute bi
     { ...basis, regelzahlung_id: "RZ-008", rhythmus_einheit: "jahr", anker_datum: "2025-11-01", status: "vorgeschlagen" },
     { ...basis, regelzahlung_id: "RZ-009", rhythmus_einheit: "jahr", anker_datum: "2025-11-01", aktiv_bis: "2026-10-31" },
     { ...basis, regelzahlung_id: "RZ-010", rhythmus_einheit: "jahr", anker_datum: "2025-10-15" },
+    { ...basis, regelzahlung_id: "RZ-011", rhythmus_einheit: "jahr", anker_datum: "2025-11-20", betrag: "1500.00" },
   ];
   const termine = anstehendeJahreszahlungen(rz, "2026-10-16");
   assert.deepEqual(

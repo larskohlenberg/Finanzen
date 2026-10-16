@@ -567,6 +567,11 @@ Szenarien werden nicht als bestaetigte Regelzahlungen modelliert.
 Bekannte Stufenaenderungen werden als zwei Regelzahlungen modelliert: die alte mit
 `aktiv_bis`, die neue mit eigenem `anker_datum`.
 
+`konto_id` (optional) nennt das Konto, von dem gezahlt bzw. auf dem eingegangen
+wird. Nur mit Beleg setzen (beobachtete Abbuchung oder Vertrag). Die Uebersicht
+zeigt es bei den anstehenden Jahreszahlungen; die Prognose rechnet weiter auf
+Haushaltsebene.
+
 ## Vorsorge
 
 Vorsorgeansprueche liegen in `DATENROOT/vorsorge.json` und folgen

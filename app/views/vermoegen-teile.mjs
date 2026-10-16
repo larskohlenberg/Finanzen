@@ -148,10 +148,10 @@ export function balkenSvg(teile, { klasse = "vermoegen-balken", laenge = 1 } = {
 
 // Der Bestand wird einmal pro Seitenaufruf geladen; der Verweisindex reicht einmal.
 let index = null;
-export function dokumenteHtml(ids) {
+export function dokumenteHtml(ids, ordner = []) {
   index ??= verweisIndex(data);
   const { zustand, dateien } = belegDateienStand();
-  const liste = dokumenteZuObjekt({ dateien, index, ids });
+  const liste = dokumenteZuObjekt({ dateien, index, ids, ordner });
   if (!liste.length) {
     const text = zustand === "laedt" || zustand === "unbekannt" ? t("vermoegen.dokumente.laedt") : t("vermoegen.dokumente.keine");
     return `<p class="muted">${escapeHtml(text)}</p>`;

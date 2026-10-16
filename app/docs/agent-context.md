@@ -662,7 +662,7 @@ das Datum des Belegs; bei Auszuegen ueber einen Zeitraum das Ende des Zeitraums.
 | Darlehen | `Belege/Darlehen/<DAR-ID>_<Kurzname>/<Jahr>/` (Vertrag, Auszuege, Vertragsuebersichten) |
 | Vorsorge | `Belege/Vorsorge/<VS-ID>_<Kurzname>/<Jahr>/` (Police, Standmitteilungen, Nachtraege) |
 | Sonstige Vermoegenswerte | `Belege/Vermoegenswerte/<VMW-ID>_<Kurzname>/<Jahr>/` (Kaufbeleg, Gutachten, Wertnachweis, Mitgliedsbescheinigung) |
-| Versicherungen | `Belege/Versicherungen/<Sparte>_<Versicherer>_<Vertragsnr>/<Jahr>/` (kein Stammsatz, deshalb ohne ID) |
+| Versicherungen | `Belege/Versicherungen/<Sparte>_<Versicherer>_<Vertragsnr>/<Jahr>/` (ohne ID; auch wenn es einen Vorsorge-Stammsatz gibt, bleiben die Belege hier) |
 | Steuern | `Belege/Steuern/<Steuerjahr>/` |
 | Sonstiges | `Belege/Sonstiges/<Jahr>/` (Belege ohne Objekt) |
 
@@ -672,6 +672,10 @@ das Datum des Belegs; bei Auszuegen ueber einen Zeitraum das Ende des Zeitraums.
   `Belege/<Klasse>/Allgemein/<Jahr>/`.
 - Ein Darlehen hat seinen eigenen Ordner, auch wenn es zu einer Immobilie
   gehoert; die Immobilie findet seine Belege ueber `immobilie_id`.
+- Eine Schutzversicherung als Vorsorge-Stammsatz nennt ihren Vertragsordner in
+  `quelle_hinweis` (Pfad mit `/` am Ende, z. B.
+  `Belege/Versicherungen/KFZ_Versicherer_123/`); die App zeigt dann alle Belege
+  darunter am Vorsorgeobjekt.
 - Neue Belege legt `beleg_ablegen` direkt dort ab; ein Ziel ausserhalb dieser
   Klassen oder ein Objektordner ohne `<ID>_<Kurzname>` bzw. `Allgemein` lehnt
   das Tool ab. Liegt ein Beleg falsch,

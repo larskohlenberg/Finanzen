@@ -27,6 +27,17 @@ export function belegSchluessel(pfad) {
   return String(pfad ?? "").normalize("NFC");
 }
 
+// Ordnerverweis in einem Freitext: Pfad mit Schraegstrich am Ende, mindestens
+// bis zur Objektebene (Belege/<Klasse>/<Objekt>/). So kann ein Stammsatz einen
+// ganzen Belegordner nennen, z. B. eine Versicherung ihren Vertragsordner.
+const ORDNER_MUSTER = /Belege\/[^\s"'`;,()<>]+\/(?=[\s"'`;,()<>]|$)/gu;
+
+export function belegOrdnerAusText(text) {
+  if (typeof text !== "string" || !text.includes("Belege/")) return [];
+  const ordner = (text.match(ORDNER_MUSTER) ?? []).filter((o) => o.split("/").filter(Boolean).length >= 3);
+  return [...new Set(ordner)];
+}
+
 export function belegPfadeAusText(text) {
   if (typeof text !== "string" || !text.includes("Belege/")) return [];
   return [...new Set(text.match(PFAD_MUSTER) ?? [])];
@@ -217,12 +228,17 @@ export function verweisIndex(daten) {
 // Objektordner Belege/<Klasse>/<ID>_<Kurzname>/ und alles, worauf ein Datensatz
 // dieses Objekts per quelle_hinweis zeigt. Textzwillinge fallen weg, neueste
 // Pfade (Jahresordner) zuerst. ids: IDs, deren Dokumente zusammen gezeigt werden.
-export function dokumenteZuObjekt({ dateien = [], index = new Map(), ids = [] }) {
+// Dokumente eines Objekts: Dateien im eigenen Objektordner (<ID>_...), Dateien, auf
+// die ein Datensatz des Objekts verweist, und alles unter `ordner` (Ordner, die der
+// Datensatz im Freitext nennt, siehe belegOrdnerAusText).
+export function dokumenteZuObjekt({ dateien = [], index = new Map(), ids = [], ordner = [] }) {
   const gesucht = new Set(ids);
   const pfade = new Set();
   for (const datei of dateien) {
-    const ordner = String(datei.pfad).split("/")[2] ?? "";
-    if ([...gesucht].some((id) => ordner === id || ordner.startsWith(`${id}_`))) pfade.add(belegSchluessel(datei.pfad));
+    const pfad = String(datei.pfad);
+    const objektOrdner = pfad.split("/")[2] ?? "";
+    const imObjektOrdner = [...gesucht].some((id) => objektOrdner === id || objektOrdner.startsWith(`${id}_`));
+    if (imObjektOrdner || ordner.some((o) => pfad.startsWith(o))) pfade.add(belegSchluessel(pfad));
   }
   for (const [pfad, verweis] of index) {
     if (verweis.andere.some((a) => gesucht.has(a.id))) pfade.add(pfad);

@@ -3209,8 +3209,9 @@ a.linkish {
   margin: 0;
 }
 
-.mit-logo { display: inline-flex; align-items: baseline; }
-/* Logo vor Gegenpartei, Regelzahlung und Vertrag (komponenten.mjs logoMarke).
+.mit-logo { display: inline-flex; align-items: center; }
+/* Logo vor Gegenpartei, Regelzahlung und Vertrag (komponenten.mjs logoMarke),
+   in .mit-logo mit dem Text vertikal zentriert.
    Das Kuerzel liegt immer darunter; das Bild deckt es zu, solange es laedt. */
 .logo-marke {
   position: relative;
@@ -3224,7 +3225,6 @@ a.linkish {
   border-radius: 4px;
   overflow: hidden;
   vertical-align: -4px;
-  align-self: baseline;
   color: #fff;
   background: var(--kuerzel);
   font-size: 9px;
@@ -3253,7 +3253,7 @@ a.linkish {
 
 /* Logo-Groessen je Ort: Tabellenzeile, Vertragskarte (rechts unter dem
    Art-Chip), Vertragsdaten (rechts oben im Inhalt). */
-.transaction-row .logo-marke { width: 22px; height: 22px; font-size: 10px; vertical-align: -6px; }
+.logo-marke.logo-tabelle { width: 22px; height: 22px; font-size: 10px; vertical-align: -6px; }
 .objekt-karte-marke { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 6px; }
 .objekt-karte-marke .logo-marke { width: 28px; height: 28px; margin-right: 0; border-radius: 6px; font-size: 12px; }
 .vertragsdaten-mit-logo { display: flex; align-items: flex-start; gap: 16px; }

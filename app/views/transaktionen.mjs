@@ -488,7 +488,7 @@ function renderTransactionRow(tx) {
     <tr class="transaction-row ${tx.transaktion_id === state.selectedTransactionId ? "selected" : ""} ${tx.kategorisierung_status === "offen" ? "open" : ""}">
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
       <td><button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(transactionAccountLabel(tx))}</button></td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei))}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei), { groesse: "tabelle" })}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
       <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${tx.kategorie_herkunft === "manuell" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originManual"))}">M</span>` : ""}${tx.kategorie_herkunft === "agent" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originAgent"))}">A</span>` : ""}</td>

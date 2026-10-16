@@ -24,7 +24,9 @@ function logos() {
 // Ohne passenden Eintrag ein Kuerzel in fester, aus dem Namen abgeleiteter
 // Farbe. Das Kuerzel liegt immer darunter: laedt das Bild nicht, entfernt
 // main.js es, und das Kuerzel bleibt sichtbar.
-export function logoMarke({ gegenpartei, regelzahlung, vorsorge }) {
+// groesse "tabelle": etwas groesser fuer Tabellenzeilen (Transaktionen,
+// Regelzahlungen), ohne die Zeilenhoehe spuerbar zu erhoehen.
+export function logoMarke({ gegenpartei, regelzahlung, vorsorge }, { groesse } = {}) {
   const verzeichnis = logos();
   const logo = regelzahlung ? verzeichnis.fuerRegelzahlung(regelzahlung)
     : vorsorge ? verzeichnis.fuerVorsorge(vorsorge)
@@ -33,13 +35,13 @@ export function logoMarke({ gegenpartei, regelzahlung, vorsorge }) {
   if (!String(name).trim()) return "";
   const basis = (dataModes[data.metadata?.dataMode] ?? dataModes.live).basePath;
   const bild = logo ? `<img src="${escapeHtml(`${basis}/${logo.datei}`)}" alt="" loading="lazy" decoding="async">` : "";
-  return `<span class="logo-marke kuerzel-farbe-${kuerzelFarbe(name)}" aria-hidden="true">${escapeHtml(kuerzel(name))}${bild}</span>`;
+  return `<span class="logo-marke${groesse === "tabelle" ? " logo-tabelle" : ""} kuerzel-farbe-${kuerzelFarbe(name)}" aria-hidden="true">${escapeHtml(kuerzel(name))}${bild}</span>`;
 }
 
-// Logo plus Name als Einheit: bricht der Name um, bleibt das Logo links neben
-// der ersten Zeile. inhaltHtml ist bereits escaptes HTML.
-export function mitLogo(quelle, inhaltHtml) {
-  const marke = logoMarke(quelle);
+// Logo plus Name als Einheit, Text vertikal zum Logo zentriert: bricht der
+// Name um, bleibt das Logo links daneben. inhaltHtml ist bereits escaptes HTML.
+export function mitLogo(quelle, inhaltHtml, optionen = {}) {
+  const marke = logoMarke(quelle, optionen);
   return marke ? `<span class="mit-logo">${marke}<span>${inhaltHtml}</span></span>` : inhaltHtml;
 }
 

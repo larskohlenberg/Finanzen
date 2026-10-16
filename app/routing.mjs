@@ -32,6 +32,10 @@ export function routeFromState(state) {
   if (state.view === "transactions" && belegFilter?.startsWith("Belege/")) {
     return `#/transaktionen/dokument/${kodierePfad(belegFilter.slice("Belege/".length))}`;
   }
+  // Transaktionen gefiltert auf die Beitragsbuchungen eines Vorsorgevertrags.
+  if (state.view === "transactions" && state.transactionFilters?.vorsorge) {
+    return `#/transaktionen/vorsorge/${encodeURIComponent(state.transactionFilters.vorsorge)}`;
+  }
   // Dokumente: Datei oder Ordner unter Belege/.
   if (state.view === "belege") return dokumentRoute(state.selectedBeleg);
   if (state.view === "vorsorge" && state.selectedVorsorgeId) {
@@ -93,6 +97,9 @@ export function parseRoute(hash) {
 
   if (head === "dokumente") {
     return tail ? { view: "belege", selectedBeleg: belegPfadAusRoute(tail) } : { view: "belege" };
+  }
+  if (head === "transaktionen" && rest[0] === "vorsorge" && rest[1]) {
+    return { view: "transactions", vorsorgeFilter: decodeURIComponent(rest[1]) };
   }
   if (head === "transaktionen" && rest[0] === "dokument" && rest.length > 1) {
     return { view: "transactions", belegFilter: belegPfadAusRoute(tail.slice("dokument/".length)) };

@@ -17,7 +17,8 @@ export function renderRegelzahlungen() {
     const naechste = rz.status === "abgelehnt" ? null : naechsteFaelligkeit(rz, today);
     const angesteuert = rz.regelzahlung_id === state.selectedRegelzahlungId;
     return `
-    <tr id="regelzahlung-${escapeHtml(rz.regelzahlung_id)}" class="${angesteuert ? "selected" : ""}">
+    <tr id="regelzahlung-${escapeHtml(rz.regelzahlung_id)}" class="${angesteuert ? "angesteuert" : ""}"${angesteuert ? ` aria-current="true"` : ""}>
+      <td class="id-zelle">${escapeHtml(rz.regelzahlung_id)}</td>
       <td>${escapeHtml(rz.bezeichnung)}</td>
       <td class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</td>
       <td>${escapeHtml(formatRhythmus(rz.rhythmus_einheit, rz.rhythmus_intervall))}</td>
@@ -37,6 +38,7 @@ export function renderRegelzahlungen() {
         <table>
           <thead>
             <tr>
+              <th>${escapeHtml(t("labels.id"))}</th>
               <th>${escapeHtml(t("regelzahlungen.bezeichnung"))}</th>
               <th class="amount">${escapeHtml(t("labels.amount"))}</th>
               <th>${escapeHtml(t("regelzahlungen.rhythmus"))}</th>

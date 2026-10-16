@@ -192,6 +192,32 @@ test("open-entity fuer eine Transaktion springt ebenfalls auf ihre Seite", () =>
   assert.equal(state.transactionPage, 2);
 });
 
+test("Alle Beitraege eines Vorsorgevertrags: Transaktionen gefiltert auf seine Regelzahlungen", () => {
+  const saved = { regelzahlungen: data.regelzahlungen, vorsorge: data.vorsorge, transaktionen: data.transaktionen };
+  try {
+    const txs = buildTransactions().map((tx, i) => (i < 3 ? { ...tx, regelzahlung_id: "RZ-V1" } : tx));
+    installTransactions(txs);
+    data.regelzahlungen = [{ regelzahlung_id: "RZ-V1", bezeichnung: "Beitrag", betrag: "1.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt", vorsorge_id: "VS-V1" }];
+    data.vorsorge = [{ vorsorge_id: "VS-V1", art: "riester", name: "Musterrente", person_id: data.personen[0].person_id, status: "aktiv", kapitalbildend: true }];
+    resetTransactionState();
+    state.view = "vorsorge";
+    clickAction({ action: "vorsorge-transactions", vorsorge: "VS-V1" });
+    assert.equal(state.view, "transactions");
+    assert.equal(state.transactionFilters.vorsorge, "VS-V1");
+    assert.equal(state.transactionFilters.account, "");
+    assert.equal(transactionsView.filteredTransactions().length, 3);
+    assert.equal(location.hash, "#/transaktionen/vorsorge/VS-V1");
+    assert.match(app.innerHTML, /Beiträge zu:[\s\S]*Musterrente/);
+    clickAction({ action: "clear-transaction-filter", filterName: "vorsorge" });
+    assert.equal(transactionsView.filteredTransactions().length, 12);
+  } finally {
+    data.regelzahlungen = saved.regelzahlungen;
+    data.vorsorge = saved.vorsorge;
+    installTransactions(saved.transaktionen);
+    state.transactionFilters.vorsorge = "";
+  }
+});
+
 test("open-vorsorge setzt Auswahl zurück, leert Filter und navigiert zum Vorsorge-Hash", () => {
   resetTransactionState();
   state.vorsorgeFilters = { person: "PER-001" };
@@ -244,6 +270,7 @@ test("Immobilien-Ruecklink oeffnet die Transaktionssuche nur mit der Immobilien-
     origin: "",
     search: "IMM-004",
     beleg: "",
+    vorsorge: "",
     timeMode: "none",
     dateFrom: "",
     dateTo: "",
@@ -357,6 +384,7 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
       origin: "",
       search: "",
       beleg: "",
+      vorsorge: "",
       timeMode: "none",
       dateFrom: "",
       dateTo: "",

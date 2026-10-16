@@ -79,9 +79,9 @@ test("Vorsorge-Karten zeigen den Vertragswert neben der Rente", () => {
 test("Vorsorge-Detail zeigt Vertragswert, Quelle und Dokumente", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-002";
-    state.vorsorgePanels = { anhang: true };
+    state.klappKacheln = { "vorsorge.anhang": true };
     const html = renderVorsorge();
-    state.vorsorgePanels = {};
+    state.klappKacheln = {};
     const detail = html.slice(html.indexOf("objekt-detail-titel"));
     assert.match(detail, /Rückkaufswert[\s\S]*24\.000,00[\s\S]*Vertragswert 27\.000/, "Vertragswert als Notiz am Rueckkaufswert");
     assert.match(detail, /27\.000,00\s€<\/strong> <span class="muted">Vertragswert \(nicht im Vermögen\)/);

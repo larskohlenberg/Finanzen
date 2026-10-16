@@ -71,6 +71,10 @@ Vorschlagen ist Agent-Urteil, Matchen und Rechnen ist Tool (ADR 0003, 0010).
   Beleg bleibt, schaetzt der Agent als Einzelvorschlag und gibt es frei
   (`KAT-012` nur, wenn nichts plausibel ist). Das Gate und der Pruefbericht
   sind die Kontrolle, Korrekturen kommen spaeter (ADR 0025, 0029).
+- **UI-Bausteine wiederverwenden.** Grosse Detail-Abschnitte sind klappbare
+  Kacheln (`klappKachel` in `app/komponenten.mjs`), Dokumente eines Objekts der
+  Ausschnitt der Dokumentenansicht. Regeln und Standards (was offen, was zu) in
+  `docs/runde2/UI_Guideline_Runde2.md`, Abschnitt 7. Nicht je Seite neu bauen.
 - **Stammdatenpflege braucht keine Spec.** Konto, Zeitwert oder Beleg direkt
   anlegen; Spec und Plan nur, wenn Code betroffen ist.
 

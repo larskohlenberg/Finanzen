@@ -4,7 +4,7 @@
 // (Renten, Lebensversicherungen, Versicherungen). Im Tab eine Karte je Vertrag,
 // darunter der gewaehlte Vertrag in voller Breite. Rechnen in vorsorge-rechnung.mjs.
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
-import { formatMoney, formatDate, renderPageHead, detailRow, quelleHtml } from "../komponenten.mjs";
+import { formatMoney, formatDate, renderPageHead, detailRow, quelleHtml, klappKachel } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -57,23 +57,9 @@ function bezugLinks(vs) {
   });
 }
 
-// Klappbare Kacheln im Vertragsdetail; der Zustand gilt fuer alle Vertraege.
-const PANEL_OFFEN = { vertragsdaten: false, dokumente: true, beitraege: true, anhang: false };
-const panelOffen = (key) => state.vorsorgePanels?.[key] ?? PANEL_OFFEN[key];
-
-export function toggleVorsorgePanel(key) {
-  if (!Object.hasOwn(PANEL_OFFEN, key)) return;
-  state.vorsorgePanels = { ...state.vorsorgePanels, [key]: !panelOffen(key) };
-}
-
-function klappPanel(key, titel, inhalt, klasse = "") {
-  const offen = panelOffen(key);
-  return `
-    <section class="panel panel-pad klapp-panel ${offen ? "" : "zu"} ${klasse}">
-      <h2 class="section-title"><button type="button" class="klapp-knopf" data-action="vorsorge-panel" data-panel="${key}" aria-expanded="${offen}">${iconSvg(offen ? "chevronDown" : "chevronRight")}<span>${escapeHtml(titel)}</span></button></h2>
-      ${offen ? inhalt : ""}
-    </section>`;
-}
+// Kacheln im Vertragsdetail: Reihenfolge und Standard (offen/zu).
+const KACHEL_OFFEN = { vertragsdaten: false, dokumente: true, beitraege: true, anhang: false };
+const kachel = (key, titel, inhalt, klasse = "") => klappKachel({ id: `vorsorge.${key}`, titel, inhalt, offen: KACHEL_OFFEN[key], klasse });
 
 export function resetVorsorgeFilters() {
   state.vorsorgeFilters = { person: "" };
@@ -535,7 +521,7 @@ function renderVertragsdaten(vs, tab, offen) {
   const beitragZeilen = beitraege.map((rz) => `<div><button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}">${escapeHtml(`${rz.regelzahlung_id} · ${rz.bezeichnung}`)}</button> <span class="muted">${escapeHtml(`${formatMoney(cents(rz.betrag))} · ${rhythmusLabel(rz.rhythmus_einheit, rz.rhythmus_intervall)}${rz.aktiv_bis ? ` · ${t("vorsorge.aktivBis")} ${formatDate(rz.aktiv_bis)}` : ""}`)}</span></div>`).join("");
   const wiedervorlage = (offen.get(vs.vorsorge_id) ?? []).some((c) => c.art === "vorsorge-wiedervorlage");
   const quelle = [vs.quelle_hinweis ? quelleHtml(vs.quelle_hinweis) : "", vs.quelle_standdatum ? escapeHtml(formatDate(vs.quelle_standdatum)) : ""].filter(Boolean).join(" · ");
-  return klappPanel("vertragsdaten", t("vorsorge.vertragsdaten"), `
+  return kachel("vertragsdaten", t("vorsorge.vertragsdaten"), `
       <div class="stammdaten-raster">
         ${detailRow(t("labels.id"), escapeHtml(vs.vorsorge_id))}
         ${detailRow(t("labels.type"), escapeHtml(vorsorgeArtLabel(vs.art)))}
@@ -561,7 +547,7 @@ function renderVertragsdaten(vs, tab, offen) {
 function renderBeitraege(vs, today) {
   const titel = t("vorsorge.gebuchteBeitraege");
   if (!(data.regelzahlungen ?? []).some((rz) => rz.vorsorge_id === vs.vorsorge_id)) {
-    return klappPanel("beitraege", titel, `<p class="muted">${escapeHtml(t("vorsorge.keinBeitrag"))}</p>`);
+    return kachel("beitraege", titel, `<p class="muted">${escapeHtml(t("vorsorge.keinBeitrag"))}</p>`);
   }
   const verlauf = beitragsVerlauf(data, vs.vorsorge_id, today);
   const monatsName = (p) => {
@@ -581,7 +567,7 @@ function renderBeitraege(vs, today) {
   const aenderungen = beitragsAenderungen(data, vs.vorsorge_id);
   const aenderungJeBuchung = new Map(aenderungen.map((a) => [a.transaktion_id, a]));
   const aenderungChip = (a) => `<span class="chip ${a.diff_cents > 0 ? "review" : "success"}" title="${escapeHtml(`${formatMoney(a.alt_cents)} → ${formatMoney(a.neu_cents)}`)}">${escapeHtml(aenderungText(a))}</span>`;
-  return klappPanel("beitraege", titel, `
+  return kachel("beitraege", titel, `
     <div class="vorsorge-spalten vorsorge-spalten-breit">
       <div>
       ${svg ? `<p class="muted diagramm-lead">${escapeHtml(t(verlauf.einheit === "jahr" ? "vorsorge.beitraegeJahreLead" : "vorsorge.beitraegeMonateLead"))}</p><div class="diagramm-wrap">${svg}</div>` : `<p class="muted">${escapeHtml(t("vorsorge.keineBuchung"))}</p>`}
@@ -617,7 +603,7 @@ const FELD_LABEL = {
 
 // Dokumente als eigene Kachel direkt unter den Kennzahlen und Vertragsdaten.
 function renderDokumente(vs) {
-  return klappPanel("dokumente", t("vermoegen.dokumente.titel"), dokumenteBrowserHtml([vs.vorsorge_id], belegOrdnerAusText(vs.quelle_hinweis)));
+  return kachel("dokumente", t("vermoegen.dokumente.titel"), dokumenteBrowserHtml([vs.vorsorge_id], belegOrdnerAusText(vs.quelle_hinweis)));
 }
 
 function renderAnhang(vs) {
@@ -638,7 +624,7 @@ function renderAnhang(vs) {
     : "";
   // Breite nutzen: Bemerkung links, Wertstaende rechts; ohne Bemerkung nur die Wertstaende.
   const staendeBlock = `<h3 class="section-subtitle">${escapeHtml(t("vermoegen.wertstaende"))}</h3>${wertstaende}`;
-  return klappPanel("anhang", t("vorsorge.anhangTitel"), bemerkung
+  return kachel("anhang", t("vorsorge.anhangTitel"), bemerkung
     ? `<div class="vorsorge-spalten vorsorge-spalten-breit"><div>${bemerkung}</div><div>${staendeBlock}</div></div>`
     : staendeBlock, "objekt-anhang");
 }

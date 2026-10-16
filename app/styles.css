@@ -3020,9 +3020,10 @@ a.linkish {
   align-items: start;
 }
 .vorsorge-spalten-breit { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
-/* Klappbare Kachel: der Titel ist der Knopf. */
-.klapp-panel > .section-title { margin: 0; }
-.klapp-panel:not(.zu) > .section-title { margin-bottom: 10px; }
+/* Klappbare Kachel (komponenten.mjs klappKachel): der Titel ist der Knopf, rechts optional ein Umschalter. */
+.klapp-kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.klapp-kopf .section-title { margin: 0; }
+.klapp-panel:not(.zu) > .klapp-kopf { margin-bottom: 10px; }
 .klapp-knopf {
   display: inline-flex;
   align-items: center;

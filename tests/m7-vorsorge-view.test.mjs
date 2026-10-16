@@ -191,7 +191,7 @@ test("Renten-Tab: Karte je Vertrag, erster gewaehlt, Detail in voller Breite", (
     const html = renderVorsorge();
     assert.equal(anzahl(html, /class="objekt-karte /g), 2);
     assert.match(html, /aria-pressed="true"[^>]*>|data-vorsorge="VS-001" aria-pressed="true"/);
-    assert.match(html, /Details zu<\/span>\s*<h2 class="section-title">DRV Lena/);
+    assert.match(html, /Details zu<\/span>\s*<h2 class="section-title"><span class="mit-logo"><span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">DL<\/span><span>DRV Lena/);
     assert.match(html, /class="kennzahl-raster"/);
     assert.match(html, /Anwartschaft/, "gesetzliche Rente hat keinen Rueckkaufswert");
   });
@@ -245,7 +245,7 @@ test("Personenfilter erscheint nur bei mehreren Personen im Tab und filtert die 
     state.vorsorgeFilters.person = "PER-002";
     html = renderVorsorge();
     assert.equal(anzahl(html, /class="objekt-karte /g), 1);
-    assert.match(html, /Details zu<\/span>\s*<h2 class="section-title">LV Martin/);
+    assert.match(html, /Details zu<\/span>\s*<h2 class="section-title"><span class="mit-logo"><span class="logo-marke[^>]*>LM<\/span><span>LV Martin/);
   });
 });
 
@@ -333,7 +333,7 @@ test("Versicherungs-Tab: Rangliste der Jahresbeitraege mit Veraenderung zum Vorj
     assert.match(html, /data-kachel="vorsorge.ranking"/);
     const ranking = html.slice(html.indexOf('class="vorsorge-ranking"'), html.indexOf("</ul>", html.indexOf('class="vorsorge-ranking"')));
     assert.equal((ranking.match(/<li>/g) ?? []).length, 1, "nur laufende Vertraege mit Beitrag");
-    assert.match(ranking, /data-vorsorge="VS-005"[^>]*>Wohngebaeude<\/button>[\s\S]*width="100\.00"[\s\S]*900,00[\s\S]*class="chip review"[^>]*>\+20 %/);
+    assert.match(ranking, /data-vorsorge="VS-005"[^>]*><span class="mit-logo"><span class="logo-marke[^>]*>WO<\/span><span>Wohngebaeude<\/span><\/span><\/button>[\s\S]*width="100\.00"[\s\S]*900,00[\s\S]*class="chip review"[^>]*>\+20 %/);
     assert.match(html, /zusammen 900,00/);
   });
 });
@@ -344,7 +344,7 @@ test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farb
     const html = renderVorsorge();
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-003" aria-pressed');
     const karte = html.slice(start, html.indexOf("</div>", start));
-    assert.match(karte, /<i class="farbpunkt vertrag-farbe-\d" aria-hidden="true"><\/i>LV Lena/);
+    assert.match(karte, /<i class="farbpunkt vertrag-farbe-\d" aria-hidden="true"><\/i><span class="mit-logo"><span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">LL<\/span><span>LV Lena/);
     assert.match(karte, /class="fortschritt"[\s\S]*width="48\.000"/, "12.000 von 25.000 = 48 %");
     assert.match(karte, /48 % der garantierten Ablaufleistung als Rückkaufswert/);
     const martin = html.slice(html.indexOf('data-vorsorge="VS-004" aria-pressed'));

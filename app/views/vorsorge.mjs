@@ -4,7 +4,7 @@
 // (Renten, Lebensversicherungen, Versicherungen). Im Tab eine Karte je Vertrag,
 // darunter der gewaehlte Vertrag in voller Breite. Rechnen in vorsorge-rechnung.mjs.
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
-import { formatMoney, formatDate, renderPageHead, detailRow, quelleHtml, klappKachel } from "../komponenten.mjs";
+import { formatMoney, formatDate, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -384,7 +384,7 @@ function renderBeitragsRanking(liste, today) {
       const chip = diff ? `<span class="chip ${diff > 0 ? "review" : "success"}" title="${escapeHtml(`${formatMoney(vj.vorjahr_cents)} → ${formatMoney(vj.letzte_cents)}`)}">${escapeHtml(veraenderungText(vj))}</span>` : `<span class="muted">${diff === 0 ? "±0 %" : "—"}</span>`;
       return `
       <li>
-        <button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" title="${escapeHtml(vs.name)}">${escapeHtml(vs.name)}</button>
+        <button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" title="${escapeHtml(vs.name)}">${mitLogo({ vorsorge: vs }, escapeHtml(vs.name))}</button>
         <svg class="ranking-balken" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="1" width="${(jahr / max * 100).toFixed(2)}" height="8" rx="1.5" class="ranking-wert" /></svg>
         <span class="amount">${escapeHtml(formatMoney(jahr))}</span>
         <span class="ranking-aenderung">${chip}</span>
@@ -446,7 +446,7 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
   // Kein <button>: die Karte enthaelt mit dem Bezug einen eigenen Link.
   return `
     <div class="objekt-karte ${aktiv ? "active" : ""} ${vs.geprueft_am || istBeendet(vs) ? "" : "objekt-karte-ungeprueft"}" role="button" tabindex="0" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" aria-pressed="${aktiv}">
-      <span class="objekt-karte-kopf"><strong>${farben.has(vs.vorsorge_id) ? farbPunkt(farbKlasse(farben, vs.vorsorge_id)) : ""}${escapeHtml(vs.name)}</strong>${tab === "versicherungen" ? "" : `<span class="chip neutral">${escapeHtml(vorsorgeArtLabel(vs.art))}</span>`}</span>
+      <span class="objekt-karte-kopf"><strong>${farben.has(vs.vorsorge_id) ? farbPunkt(farbKlasse(farben, vs.vorsorge_id)) : ""}${mitLogo({ vorsorge: vs }, escapeHtml(vs.name))}</strong>${tab === "versicherungen" ? "" : `<span class="chip neutral">${escapeHtml(vorsorgeArtLabel(vs.art))}</span>`}</span>
       <span class="objekt-karte-wert">${wert}</span>
       ${fortschritt ? `${balkenSvg([{ anteil: fortschritt.anteil, klasse: farbKlasse(farben, vs.vorsorge_id), titel: fortschritt.text }], { klasse: "fortschritt" })}<span class="objekt-karte-zeile">${escapeHtml(fortschritt.text)}</span>` : ""}
       ${zeilen.filter(Boolean).map((z) => `<span class="objekt-karte-zeile">${escapeHtml(z)}</span>`).join("")}
@@ -479,7 +479,7 @@ function renderDetail(vs, tab, today, offen) {
   return `
     <div class="objekt-detail-titel">
       <span class="muted">${escapeHtml(t("vermoegen.detailVon"))}</span>
-      <h2 class="section-title">${escapeHtml(vs.name)}</h2>
+      <h2 class="section-title">${mitLogo({ vorsorge: vs }, escapeHtml(vs.name))}</h2>
     </div>
     <div class="objekt-detail">
       <div class="kennzahl-raster">${tab === "versicherungen" ? kennzahlenVersicherung(vs, today) : kennzahlenVorsorge(vs, today)}</div>
@@ -642,7 +642,7 @@ function renderBeitraege(vs, today) {
         <h3 class="section-subtitle">${escapeHtml(t("vorsorge.letzteBuchungen"))}</h3>
         <ul class="vorsorge-buchungen">${buchungen.map((tx) => `
           <li>
-            <button class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum))} · ${escapeHtml(tx.gegenpartei ?? "")}</button>
+            <button class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum))} · ${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei ?? ""))}</button>
             <span class="vorsorge-buchung-betrag">${aenderungJeBuchung.has(tx.transaktion_id) ? aenderungChip(aenderungJeBuchung.get(tx.transaktion_id)) : ""}<span class="amount">${escapeHtml(formatMoney(cents(tx.betrag)))}</span></span>
           </li>`).join("")}
         </ul>

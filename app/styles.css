@@ -3189,3 +3189,45 @@ a.linkish {
   flex: 1;
   margin: 0;
 }
+
+.mit-logo { display: inline-flex; align-items: baseline; }
+/* Logo vor Gegenpartei, Regelzahlung und Vertrag (komponenten.mjs logoMarke).
+   Das Kuerzel liegt immer darunter; das Bild deckt es zu, solange es laedt. */
+.logo-marke {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  vertical-align: -4px;
+  align-self: baseline;
+  color: #fff;
+  background: var(--kuerzel);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  text-decoration: none;
+}
+.logo-marke img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+:root[data-theme="dark"] .logo-marke img { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%); }
+.kuerzel-farbe-0 { --kuerzel: #1f5fa8; }
+.kuerzel-farbe-1 { --kuerzel: #b4441c; }
+.kuerzel-farbe-2 { --kuerzel: #137a55; }
+.kuerzel-farbe-3 { --kuerzel: #8a5a00; }
+.kuerzel-farbe-4 { --kuerzel: #a8326a; }
+.kuerzel-farbe-5 { --kuerzel: #5b45b0; }
+.kuerzel-farbe-6 { --kuerzel: #0f6f80; }
+.kuerzel-farbe-7 { --kuerzel: #5f6427; }

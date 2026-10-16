@@ -8,6 +8,8 @@
 //   node app/server.mjs [--host 127.0.0.1] [--port 8000] [--proxy-ip <ip>]
 //                       [--origin <url>[,<url>]] [--inbox <pfad>] [--belege <pfad>]
 //
+// Logos liegen im Datenbestand unter data/<bestand>/logos/ und kommen ueber
+// die statische Auslieferung, dort aber nur als PNG (statikErlaubt).
 // GET /api/belege listet (nur lesend) alle Dateien unter Belege/ fuer die
 // Dokumente-Ansicht; die Dateien selbst kommen ueber die statische Auslieferung.
 // GET /api/export/{dokumente|daten|komplett}[?quelle=demo] liefert ein Backup
@@ -204,6 +206,13 @@ export function parseArgs(argv, { appDir }) {
   return opt;
 }
 
+// Logo-Verzeichnis eines Datenbestands (data/<bestand>/logos/): nur PNG, wie
+// es tools/logos.mjs ablegt. Was sonst dort liegt, bleibt unsichtbar.
+export function statikErlaubt(segmente, endung) {
+  if (segmente[0] === "data" && segmente[2] === "logos" && segmente.length > 3) return endung === ".png";
+  return true;
+}
+
 // --- HTTP ------------------------------------------------------------------
 
 function sendeJson(res, status, objekt, extra = {}) {
@@ -259,6 +268,7 @@ async function liefereStatik(req, res, appWurzel) {
   if (!innerhalb(appWurzel, echt) || !info.isFile()) return nichtGefunden(res);
 
   const endung = extname(echt).toLowerCase();
+  if (!statikErlaubt(segmente, endung)) return nichtGefunden(res);
   res.writeHead(200, {
     "Content-Type": MIME[endung] ?? "application/octet-stream",
     "Content-Length": info.size,

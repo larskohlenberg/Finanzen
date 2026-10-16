@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Logo",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["logo_id", "name", "gegenpartei_pattern", "domain", "datei", "quelle", "abgerufen_am"],
+    "additionalProperties": false,
+    "properties": {
+      "logo_id": { "type": "string", "pattern": "^LOGO-\\d{3}$" },
+      "name": { "type": "string", "minLength": 1 },
+      "gegenpartei_pattern": { "type": "string", "minLength": 1, "description": "Teiltext wie bei den Kategorisierungsregeln, | trennt Alternativen" },
+      "domain": { "type": "string", "description": "eindeutig je Eintrag, ohne www." },
+      "datei": { "type": "string", "pattern": "^logos/[a-z0-9.-]+\\.png$", "description": "immer logos/<domain>.png" },
+      "quelle": { "type": "string", "pattern": "^https://" },
+      "abgerufen_am": { "type": "string", "format": "date" }
+    }
+  }
+}

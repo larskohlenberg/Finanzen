@@ -419,6 +419,13 @@ function renderView() {
   return renderOverview();
 }
 
+// Logo nicht ladbar (Datei fehlt): Bild weg, das Kuerzel darunter bleibt.
+// error-Ereignisse steigen nicht auf, darum in der Capture-Phase.
+app.addEventListener("error", (event) => {
+  const bild = event.target;
+  if (bild instanceof HTMLImageElement && bild.parentElement?.classList.contains("logo-marke")) bild.remove();
+}, true);
+
 app.addEventListener("click", guard((event) => {
   const errorDismiss = event.target.closest("[data-error-dismiss]");
   if (errorDismiss) {

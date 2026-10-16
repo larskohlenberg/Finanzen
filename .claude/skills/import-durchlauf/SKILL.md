@@ -27,10 +27,13 @@ Lauf eine Vorschau.
    verregelt, was belegt ist, und schaetzt den Rest als Einzelvorschlag.
 4. `freigabe` mit `schreiben: true`.
 5. `pruefbericht` — **ungekuerzt zeigen**.
-6. `belege_text` mit `schreiben: true` — raeumt `processed/` und
+6. `logos` — Bericht lesen, neue Gegenparteien ohne Logo melden, fuer die
+   wiederkehrenden die Domain bestimmen und Logos nachziehen (Vorschau, dann
+   `schreiben: true`).
+7. `belege_text` mit `schreiben: true` — raeumt `processed/` und
    `standardized/` per Inhalts-Hash ab. Ohne Nachweis bleibt die Datei liegen
    und steht unter `offen`. `error/` bleibt unangetastet.
-7. Zaehler in `DATENROOT/agent_log.jsonl` protokollieren (`datei_schreiben`
+8. Zaehler in `DATENROOT/agent_log.jsonl` protokollieren (`datei_schreiben`
    mit `anhaengen: true`).
 
 ## Die drei Regeln, die den Unterschied machen

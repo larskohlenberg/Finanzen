@@ -79,6 +79,7 @@ export async function loadFinanceData(options = {}) {
     vorsorge,
     zeitwerte,
     kategorisierungsregeln,
+    logos,
   ] = await Promise.all([
     loadJson(path("personen.json"), { refreshToken }),
     loadJson(path("konten.json"), { refreshToken }),
@@ -93,6 +94,7 @@ export async function loadFinanceData(options = {}) {
     loadJsonOptional(path("vorsorge.json"), [], { refreshToken }),
     loadJsonl(path("zeitwerte.jsonl"), { refreshToken }),
     loadJson(path("kategorisierungsregeln.json"), { refreshToken }),
+    loadJsonOptional(path("logos.json"), [], { refreshToken }),
   ]);
 
   return {
@@ -116,6 +118,7 @@ export async function loadFinanceData(options = {}) {
     vorsorge,
     zeitwerte,
     kategorisierungsregeln,
+    logos,
     checks: [],
     importfehler: [],
   };

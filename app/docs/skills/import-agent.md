@@ -163,10 +163,12 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
      ist ein Konflikt-Fall; das ist ein automatisches Ergebnis, kein manueller Schritt.
    Ist aus Beleg oder Nutzerentscheidung eindeutig, welche Regelzahlung die Buchung
    erfüllt, `regelzahlung_id` im standardisierten Eintrag setzen. Nie allein aus
-   Betragsgleichheit oder ähnlicher Gegenpartei zuordnen.
+   Betragsgleichheit oder ähnlicher Gegenpartei zuordnen. Den Regelfall erledigt
+   nach dem Schreiben das Tool `regelzahlungen_zuordnen` (Schritt 8).
    When documentation or a user decision identifies unambiguously which recurring
    payment the booking fulfils, set `regelzahlung_id` in the standardized entry.
    Never infer the assignment from an equal amount or a similar counterparty alone.
+   The tool `regelzahlungen_zuordnen` covers the regular case after writing (step 8).
 7. **Schreiben**: Buchungen an `DATENROOT/transaktionen.jsonl` anhaengen. Belegte Kontostaende als Zeitwerte an `DATENROOT/zeitwerte.jsonl` anhaengen, sofern sie aus der Rohquelle extrahiert wurden und nicht bereits identisch vorhanden sind. Vor dem Schreiben **erneut Validator** auf den finalen Datensatz. Im Betrieb: JSONL per `datei_schreiben` nach `data/inbox/standardized/`, dann Tool `import` (erst Vorschau, dann `schreiben: true`). Lokal den Root explizit uebergeben: `node tools/import.mjs <standardisierte-datei.jsonl> DATENROOT`.
 8. **Transfer-Match**: Nach dem Schreiben `tools/transfer-matcher.mjs` aufrufen. Auto-Match bei exakt inversem Betrag (cent-genau), zwei verschiedenen Konten und einem Signal in seinem Fenster:
    - `zweck`: `verwendungszweck` nach Normalisierung (trim, Whitespace kollabieren, lowercase) identisch, ≤ 3 Tage.
@@ -175,6 +177,7 @@ Eine falsche Gegenpartei ist schlimmer als eine fehlende.
    Steht bei einem Eingang die **Absender**-IBAN nur im Text (etwa „Incoming transfer from <Name> (<IBAN>)"), reicht das fuer den Match: die IBAN im `verwendungszweck` lassen und **nicht** nach `empfaenger_iban` schreiben (Konvention oben bei der Feldtabelle). Mehrdeutige Faelle (zwei gleich nahe Gegenstuecke) paart das Tool nicht, sondern meldet sie unter `mehrdeutig`; die klaert der Nutzer. Details: `agent-context.md`, „Auto-Match von Transfers".
    Bei Match: Transfer-Datensatz anlegen, `ist_transfer = true` auf beiden Seiten, `transfer_id` setzen.
    Externe Transfers (Bargeld, Familie) erkennt das Tool nicht — die markiert der Nutzer im Dialog.
+   Danach `tools/regelzahlung-matcher.mjs` (MCP `regelzahlungen_zuordnen`) ueber den Bestand laufen lassen, erst Vorschau, dann schreibend: es setzt `regelzahlung_id` an den neuen Buchungen bestaetigter Regelzahlungen mit `konto_id`. Regeln: `agent-context.md`, „Zuordnung zu Regelzahlungen".
 9. **Immobiliencheck fuer neue Transaktionen**: Vor dem Abschluss jedes Importlaufs genau die IDs aus `result.written` beziehungsweise `geschriebene_ids` pruefen.
    1. Alle neuen Buchungen auf einen moeglichen Immobilienbezug sichten.
    2. Kategorie, Gegenpartei, Adresse, Buchungstext und Belegpfad nur als Suchsignale verwenden, nie als alleinigen Zuordnungsanker.

@@ -1,13 +1,47 @@
 // app/komponenten.mjs
 // Geteilte, view-uebergreifende UI-Bausteine und Formatierer. Beziehen Zustand,
 // i18n und Nachschlage-Maps aus runtime.mjs; kein view-spezifisches Wissen.
-import { state, t, escapeHtml, personenById, kategorienById } from "./runtime.mjs";
+import { data, state, t, escapeHtml, personenById, kategorienById } from "./runtime.mjs";
 import { iconSvg } from "./icons.js";
 import { linienDiagramm, saldoDiagramm } from "./charts.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
 import { formatIban } from "./tools/lib/text.mjs";
 import { overviewAccountGroups, overviewAccountRow, sortedOverviewAccounts } from "./selektoren.mjs";
 import { belegTextHtml } from "./belege.mjs";
+import { dataModes } from "./data-loader.mjs";
+import { kuerzel, kuerzelFarbe, logoVerzeichnis } from "./logos.mjs";
+
+let logoStand = null;
+function logos() {
+  const { logos: liste, transaktionen, regelzahlungen } = data;
+  if (logoStand?.liste !== liste || logoStand.transaktionen !== transaktionen || logoStand.regelzahlungen !== regelzahlungen) {
+    logoStand = { liste, transaktionen, regelzahlungen, verzeichnis: logoVerzeichnis({ logos: liste, transaktionen, regelzahlungen }) };
+  }
+  return logoStand.verzeichnis;
+}
+
+// Kleines Logo vor einem Namen (Logo-Verzeichnis im Datenbestand, app/logos.mjs).
+// Ohne passenden Eintrag ein Kuerzel in fester, aus dem Namen abgeleiteter
+// Farbe. Das Kuerzel liegt immer darunter: laedt das Bild nicht, entfernt
+// main.js es, und das Kuerzel bleibt sichtbar.
+export function logoMarke({ gegenpartei, regelzahlung, vorsorge }) {
+  const verzeichnis = logos();
+  const logo = regelzahlung ? verzeichnis.fuerRegelzahlung(regelzahlung)
+    : vorsorge ? verzeichnis.fuerVorsorge(vorsorge)
+      : verzeichnis.fuerGegenpartei(gegenpartei);
+  const name = logo?.name ?? regelzahlung?.bezeichnung ?? vorsorge?.name ?? gegenpartei ?? "";
+  if (!String(name).trim()) return "";
+  const basis = (dataModes[data.metadata?.dataMode] ?? dataModes.live).basePath;
+  const bild = logo ? `<img src="${escapeHtml(`${basis}/${logo.datei}`)}" alt="" loading="lazy" decoding="async">` : "";
+  return `<span class="logo-marke kuerzel-farbe-${kuerzelFarbe(name)}" aria-hidden="true">${escapeHtml(kuerzel(name))}${bild}</span>`;
+}
+
+// Logo plus Name als Einheit: bricht der Name um, bleibt das Logo links neben
+// der ersten Zeile. inhaltHtml ist bereits escaptes HTML.
+export function mitLogo(quelle, inhaltHtml) {
+  const marke = logoMarke(quelle);
+  return marke ? `<span class="mit-logo">${marke}<span>${inhaltHtml}</span></span>` : inhaltHtml;
+}
 
 export function formatMoney(amountInCents) {
   return new Intl.NumberFormat(state.lang === "de" ? "de-DE" : "en-US", {

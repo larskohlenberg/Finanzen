@@ -64,3 +64,11 @@ der Kachel "Ein- und Ausgaben je Monat".
   einzige Information.
 - Donuts nur fuer Anteile am Ganzen mit wenigen Teilen; zwei fast gleich grosse
   Werte sind kein Fall fuer einen Donut.
+
+## Logos vor Namen
+
+Wo eine Gegenpartei, eine Regelzahlung oder ein Vorsorgevertrag mit Namen
+erscheint, steht davor `logoMarke` aus `app/komponenten.mjs`: ein 18-px-Logo aus
+dem Logo-Verzeichnis des Datenbestands, sonst ein Kuerzel in fester Farbe
+(ADR 0030). Keine eigenen Bild- oder Badge-Varianten je Seite; Farben nur ueber
+die Klassen `kuerzel-farbe-<n>`, keine style-Attribute.

@@ -50,7 +50,17 @@ das ist **kategorisierung-review**.
    `uebersprungen` (ausser Konsumplaenen) oder `mehrdeutig` im Bericht nennen.
 5. **Pruefen.** Tool `pruefbericht` und den Bericht
    **ungekuerzt** zeigen.
-6. **Eingang aufraeumen.** Tool `belege_text` mit `schreiben: true`. Das Tool
+6. **Logos nachziehen.** Tool `logos` ohne Argumente: der Bericht nennt die
+   haeufigsten Gegenparteien sowie Regelzahlungen und Vorsorgevertraege ohne
+   Logo. Neue Gegenparteien ohne Logo dem Nutzer kurz melden. Fuer die
+   wiederkehrenden (Versicherer, Arbeitgeber, Haendler mit mehreren Buchungen)
+   die Domain bestimmen, das ist Agentenurteil, im Zweifel per Websuche, und
+   `logos` mit `eintraege: [{ name, domain, muster }]` erst als Vorschau, dann
+   mit `schreiben: true` laufen lassen. Das Muster deckt alle Schreibweisen der
+   Gegenpartei ab (`|` trennt). Meldet der Dienst 404 oder nur ein sehr kleines
+   Bild, bleibt es beim Kuerzel; das ist kein Fehler. Einmalbuchungen brauchen
+   kein Logo.
+7. **Eingang aufraeumen.** Tool `belege_text` mit `schreiben: true`. Das Tool
    entfernt aus `data/inbox/processed/` und `standardized/` jede Datei, deren
    Inhalt nachweislich unter `Belege/` liegt — Abgleich ueber den Inhalts-Hash,
    nie ueber den Dateinamen. Was keinen Nachweis hat, bleibt liegen und steht
@@ -58,7 +68,7 @@ das ist **kategorisierung-review**.
    `error/` wird nicht angefasst. Ohne `schreiben: true` ist der Lauf eine Vorschau.
    Hineinkopierte Archivexporte liegen in Unterordnern und werden vom Tool
    nicht erfasst — die von Hand abgleichen, wenn welche da sind.
-7. **Protokollieren.** Die Zaehler in `DATENROOT/agent_log.jsonl` festhalten
+8. **Protokollieren.** Die Zaehler in `DATENROOT/agent_log.jsonl` festhalten
    (`datei_schreiben` mit `anhaengen: true`).
 
 ## Zentrale Regeln

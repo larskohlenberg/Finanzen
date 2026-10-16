@@ -65,6 +65,7 @@ ohne MCP.
 | `tools/transaktion-immobilie.mjs` | `immobilienbezug` |
 | `tools/transfer-matcher.mjs` | `transfers` |
 | `tools/regelzahlung-matcher.mjs` | `regelzahlungen_zuordnen` (`details: true` listet jede Zuordnung) |
+| `tools/logos.mjs` | `logos` (ohne `eintraege` ein Bericht; mit `eintraege: [{ name, domain, muster }]` Abruf beim Logodienst) |
 | `tools/freigabe.mjs` | `freigabe` |
 | `tools/lernen.mjs` | `lernen` (`schreiben: true` = `--anwenden`) |
 | `tools/belege-text.mjs` | `belege_text` |
@@ -696,6 +697,24 @@ Die Engine `szenarien.mjs` ist deterministisch und rechnet live ab dem
 Rechenstichtag (nicht ab `stand`); die App schreibt keine Masterdaten — Szenarien
 und Annahmen entstehen ausschliesslich ueber den Agenten. Siehe Skill
 `szenarien-annahmen` fuer den Erstellungsprozess.
+
+## Logos
+
+Logos zeigen in der App, von wem eine Buchung kommt. Sie sind Echtdaten (das
+Verzeichnis verraet, bei wem der Haushalt Kunde ist) und liegen nur im
+Datenbestand, nie im Repo:
+
+- `DATENROOT/logos.json`: Liste von `{ logo_id, name, gegenpartei_pattern,
+  domain, datei, quelle, abgerufen_am }`. `gegenpartei_pattern` wirkt wie bei
+  den Kategorisierungsregeln (lose normalisierter Teiltext, `|` trennt
+  Alternativen); passen mehrere, gewinnt der laengste passende Teil.
+- `DATENROOT/logos/<domain>.png`: hoechstens 64 px, RGBA.
+- Regelzahlungen erben das Logo ueber ihre gebuchten Transaktionen
+  (`regelzahlung_id`), Vorsorgevertraege ueber ihre Regelzahlungen
+  (`vorsorge_id`). Ohne Treffer zeigt die App ein Kuerzel in fester Farbe.
+- Quelle ist der Google-Favicon-Dienst (ADR 0030). Welche Domain zu einer
+  Gegenpartei gehoert, entscheidet der Agent; `tools/logos.mjs` ruft ab,
+  verkleinert, traegt ein und protokolliert im `agent_log.jsonl`.
 
 ## Belege
 

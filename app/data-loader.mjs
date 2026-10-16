@@ -79,6 +79,7 @@ export async function loadFinanceData(options = {}) {
     vorsorge,
     zeitwerte,
     kategorisierungsregeln,
+    logos,
     farben,
   ] = await Promise.all([
     loadJson(path("personen.json"), { refreshToken }),
@@ -94,6 +95,7 @@ export async function loadFinanceData(options = {}) {
     loadJsonOptional(path("vorsorge.json"), [], { refreshToken }),
     loadJsonl(path("zeitwerte.jsonl"), { refreshToken }),
     loadJson(path("kategorisierungsregeln.json"), { refreshToken }),
+    loadJsonOptional(path("logos.json"), [], { refreshToken }),
     // Fest vergebene Anzeigefarben (z. B. je Vorsorgevertrag); optional, kein Schema.
     loadJsonOptional(path("farben.json"), {}, { refreshToken }),
   ]);
@@ -119,6 +121,7 @@ export async function loadFinanceData(options = {}) {
     vorsorge,
     zeitwerte,
     kategorisierungsregeln,
+    logos,
     farben,
     checks: [],
     importfehler: [],

@@ -231,6 +231,19 @@ const schemas = {
       belegstufe: { type: "string", enum: ["E1", "E2", "E3", "E4"] },
     },
   },
+  logos: {
+    optional: true,
+    required: ["logo_id", "name", "gegenpartei_pattern", "domain", "datei", "quelle", "abgerufen_am"],
+    fields: {
+      logo_id: { type: "string", pattern: /^LOGO-\d{3}$/ },
+      name: { type: "string", minLength: 1 },
+      gegenpartei_pattern: { type: "string", minLength: 1 },
+      domain: { type: "string", pattern: /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/ },
+      datei: { type: "string", pattern: /^logos\/[a-z0-9.-]+\.png$/ },
+      quelle: { type: "string", pattern: /^https:\/\// },
+      abgerufen_am: { type: "string", format: "date" },
+    },
+  },
   zeitwerte: {
     optional: true,
     required: ["entitaet", "entitaet_id", "feld", "wert", "standdatum", "qualitaet"],
@@ -573,6 +586,7 @@ function validateCrossFieldRules(data, errors) {
   });
 
   validateSzenarien(data, errors);
+  validateLogos(data.logos ?? [], errors);
 }
 
 function validateTransfer(transfer, transaktionen, errors) {
@@ -653,6 +667,25 @@ function validatePhasen(sz, p, errors) {
     if (ph.ab > sz.reichweite_bis) errors.push(`${pp}.ab: liegt nach reichweite_bis`);
     if (vorher !== null && ph.ab <= vorher) errors.push(`${pp}.ab: Phasen muessen aufsteigend und ohne doppelte Startdaten sein`);
     vorher = ph.ab;
+  });
+}
+
+// Logo-Verzeichnis: eine Datei je Domain, Name der Datei folgt der Domain,
+// kein leerer Musterteil (der passte auf jede Gegenpartei).
+function validateLogos(logos, errors) {
+  if (!Array.isArray(logos)) return;
+  const domains = new Map();
+  logos.forEach((logo, index) => {
+    if (!logo || typeof logo !== "object") return;
+    const ort = `logos[${index}]`;
+    if (typeof logo.domain === "string") {
+      if (domains.has(logo.domain)) errors.push(`${ort}.domain: ${logo.domain} doppelt mit ${domains.get(logo.domain)}`);
+      else domains.set(logo.domain, ort);
+      if (typeof logo.datei === "string" && logo.datei !== `logos/${logo.domain}.png`) errors.push(`${ort}.datei: muss logos/${logo.domain}.png sein`);
+    }
+    if (typeof logo.gegenpartei_pattern === "string" && logo.gegenpartei_pattern.split("|").some((teil) => teil.trim() === "")) {
+      errors.push(`${ort}.gegenpartei_pattern: leerer Musterteil`);
+    }
   });
 }
 

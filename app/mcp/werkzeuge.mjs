@@ -239,6 +239,41 @@ const CLI_WERKZEUGE = [
     argv: async (ctx, a, root) => [...(a.details ? ["--details"] : []), root],
   }),
   cli({
+    name: "logos",
+    skript: "logos.mjs",
+    beschreibung: "Logo-Verzeichnis (tools/logos.mjs; DATENROOT/logos.json + logos/<domain>.png). Ohne eintraege ein Bericht: Eintraege, fehlende Dateien, haeufigste Gegenparteien sowie Regelzahlungen und Vorsorgevertraege ohne Logo. Mit eintraege [{ name, domain, muster }] ruft es je Domain das Logo beim Logodienst ab (Google-Favicon-Dienst), verkleinert auf hoechstens 64 px und traegt es ein; gleiche Domain = Eintrag aktualisieren. muster wie gegenpartei_pattern der Kategorisierungsregeln (Teiltext, | trennt Alternativen). Die Domain bestimmt der Agent. Vorschau ist Default (Abruf laeuft, geschrieben wird nichts).",
+    eigenschaften: {
+      eintraege: {
+        type: "array",
+        minItems: 1,
+        maxItems: 50,
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Anzeigename, z. B. Beispielmarkt" },
+            domain: { type: "string", description: "z. B. beispielmarkt.de" },
+            muster: { type: "string", description: "Gegenpartei-Muster, z. B. BEISPIELMARKT|BSP MARKT" },
+          },
+          required: ["name", "domain", "muster"],
+          additionalProperties: false,
+        },
+      },
+      top: { type: "integer", minimum: 1, maximum: 200, description: "Bericht: so viele Gegenparteien ohne Logo (Default 20)" },
+    },
+    schreibFlag: "--schreiben",
+    argv: async (ctx, a, root) => {
+      const out = [root];
+      if (a.top) out.push("--top", String(a.top));
+      if (!a.eintraege) return out;
+      const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-logos-"));
+      const datei = path.join(ordner, "plan.json");
+      await writeFile(datei, JSON.stringify(a.eintraege));
+      out.push("--plan", datei);
+      out.aufraeumen = () => rm(ordner, { recursive: true, force: true });
+      return out;
+    },
+  }),
+  cli({
     name: "freigabe",
     skript: "freigabe.mjs",
     beschreibung: "Vorgeschlagene Buchungen automatisch bestaetigen, soweit ihre Regel das Gate besteht (tools/freigabe.mjs; bestaetigt_durch=auto). Gate-Grund 'anker' = Regel reicht in ein Konto ohne menschlichen Anker. Vorschau ist Default.",

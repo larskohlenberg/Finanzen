@@ -78,6 +78,8 @@ Kein separates Feld `cashflow_wirkung` an der Transaktion. Die Wirkung ergibt si
 
 Eine Transaktion kann ueber `regelzahlung_id` genau **eine** erwartete **Regelzahlung** erfuellen; eine Regelzahlung kann ueber die Zeit von vielen Transaktionen erfuellt werden. Die Zuordnung ist explizit: ein Tool folgt von einer **Ankerbuchung** (die Buchung, die die Regelzahlung an ihrem Ankerdatum erfuellt) ueber deren Mandatsreferenz oder Gegenpartei durch die Termine; aus Betrag, Gegenpartei oder Rhythmus allein wird nichts geraten. Bei einem Vorsorgebeitrag ergibt sich der Vertrag mittelbar aus `Transaktion → Regelzahlung → Vorsorge`; die Transaktion traegt deshalb keine zusaetzliche `vorsorge_id`. Eine einzelne Kontobuchung darf hoechstens einem Vorsorgevertrag zugeordnet sein.
 
+Die **Gegenpartei** einer Transaktion kann ueber ein Muster einem Eintrag im **Logo-Verzeichnis** (`logos.json` im Datenbestand) zugeordnet sein; die App zeigt dann das Logo, sonst ein Kuerzel in fester Farbe. Regelzahlungen und Vorsorgevertraege erben das Logo ueber ihre gebuchten Transaktionen (ADR 0030).
+
 Eine Transaktion kann ueber `immobilie_id` optional genau **einer** **Immobilie** zugeordnet sein; eine Immobilie kann viele Transaktionen haben. Der Immobilienbezug ist explizit, unabhaengig von der Kategorie und wird nicht aus Gegenpartei, Buchungstext oder einer Immobilienkategorie geraten.
 
 ## Kategorisierung

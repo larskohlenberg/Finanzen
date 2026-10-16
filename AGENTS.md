@@ -125,4 +125,4 @@ Für Claude Code liegen die ersten beiden fertig in `.claude/agents/` (`import-n
 - Testdaten sind erfunden. Nie echte IBANs, Namen oder Beträge in `tests/`.
 - Commit-Texte auf Deutsch, ohne Umlaute (`ue`, `ae`, `oe`, `ss`).
 - Größere Entscheidungen als ADR in `docs/adr/`, mit verworfenen Alternativen.
-- Oberfläche: vorhandene Bausteine wiederverwenden statt je Seite neu bauen. Große Detail-Abschnitte sind klappbare Kacheln (`klappKachel` in `app/komponenten.mjs`), Dokumente eines Objekts der Ausschnitt der Dokumentenansicht. Was standardmäßig offen und zu ist, steht in `docs/runde2/UI_Guideline_Runde2.md`, Abschnitt 7.
+- Oberfläche: vorhandene Bausteine wiederverwenden statt je Seite neu bauen. Große Detail-Abschnitte sind klappbare Kacheln (`klappKachel` in `app/komponenten.mjs`), Dokumente eines Objekts der Ausschnitt der Dokumentenansicht. Was standardmäßig offen und zu ist, steht in `docs/ui-regeln.md`.

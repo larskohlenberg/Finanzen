@@ -82,8 +82,7 @@ export function quelleHtml(text) {
   return belegTextHtml(text, { titel: t("dokumente.quelldokument"), escape: escapeHtml });
 }
 
-// Klappbare Kachel fuer grosse Detail-Abschnitte (Designregel, docs/runde2/UI_Guideline_Runde2.md
-// Abschnitt 7): der Titel ist der Knopf, zugeklappt rendert sie keinen Inhalt. Der Zustand
+// Klappbare Kachel fuer grosse Detail-Abschnitte (Designregel, docs/ui-regeln.md): der Titel ist der Knopf, zugeklappt rendert sie keinen Inhalt. Der Zustand
 // je id gilt seitenuebergreifend bis zum Neuladen; ohne Eintrag gilt `offen` als Standard.
 // kopfExtra (z. B. ein Umschalter) steht rechts im Kopf und nur bei offener Kachel.
 export function klappKachel({ id, titel, inhalt, offen = true, kopfExtra = "", klasse = "" }) {

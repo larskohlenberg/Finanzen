@@ -61,20 +61,6 @@ Die UI soll ruhig, dicht, wiederholbar und pruefbar wirken. Werte, Datenstaende,
 - Empty States sind ruhig und konkret, z. B. `Keine offene Aktion`, `Keine offenen Checks`.
 - Keine erfundenen Kennzahlen, keine dekorativen Charts.
 
-### Klappbare Detail-Kacheln (verbindlich, seit 2026-10-16)
-
-Grosse Abschnitte im Detail eines Objekts (Vertragsdaten, Stammdaten, Kennzahlen-Panels, Diagramme und Tabellen, Dokumente, Bemerkung/Wertstaende) sind immer klappbare Kacheln. Sie werden **nicht** je Seite neu gebaut, sondern ueber den Baustein `klappKachel` aus `app/komponenten.mjs`:
-
-- Der Titel ist der Knopf (Pfeil plus Titel, `aria-expanded`). Rechts im Kopf darf ein Umschalter oder Hinweis stehen (`kopfExtra`), sichtbar nur bei offener Kachel.
-- Zugeklappt rendert die Kachel keinen Inhalt.
-- Jede Kachel hat eine stabile `id` (`<bereich>.<abschnitt>`, z. B. `vorsorge.dokumente`, `immobilie.anhang`). Der Zustand gilt je id seitenuebergreifend bis zum Neuladen.
-- Standard: Arbeitsinhalt offen. **Bemerkung, Wertstaende und Sondertilgungen** (der Anhang) sind zu.
-- Reihenfolge Vorsorgevertrag: Vertragsdaten (zu), Dokumente, Gebuchte Beitraege, Bemerkung und Wertstaende (zu). Immobilie: Stammdaten, Monatstabelle, Dokumente, Bemerkung und Wertstaende (zu). Darlehen: Kennzahlen, Restschuldverlauf, Stammdaten, Dokumente, Bemerkung/Wertstaende/Sondertilgungen (zu).
-- Detail-Kacheln laufen ueber die volle Breite und teilen ihren Inhalt bei Bedarf in Spalten (`vorsorge-spalten`), statt Kacheln nebeneinander zu stellen.
-- Dokumente eines Objekts erscheinen als Ausschnitt der Dokumentenansicht (Ordnerbaum und Tabelle, `dokumenteBrowserHtml`); Zeile und Name oeffnen die Datei direkt, hinten Herunterladen und "In Dokumenten zeigen".
-
-Neue Detailseiten uebernehmen diese Bausteine, statt eigene Varianten zu bauen.
-
 ## 8. Tabellen
 
 - Tabellen liegen immer in einem eigenen horizontal scrollbaren Wrapper.

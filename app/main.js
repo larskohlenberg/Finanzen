@@ -4,7 +4,7 @@ import { buildNextAgentActions } from "./next-action.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
 import { TAB_FUER_KLASSE } from "./vermoegen-routen.mjs";
-import { renderVorsorge, resetVorsorgeFilters } from "./views/vorsorge.mjs";
+import { renderVorsorge, resetVorsorgeFilters, toggleVorsorgePanel } from "./views/vorsorge.mjs";
 import { tabFuerVorsorge } from "./vorsorge-rechnung.mjs";
 import { setWertstaendeFilter, resetWertstaendeFilters, toggleWertstaendeSort } from "./views/vermoegen-wertstaende.mjs";
 import { renderSzenarien, MAX_VERGLEICH } from "./views/szenarien.mjs";
@@ -51,7 +51,7 @@ function applyTheme() {
 const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
   "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
-  "data-tab", "data-person", "data-wertstaende-sort", "data-wertstaende-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
+  "data-tab", "data-person", "data-panel", "data-wertstaende-sort", "data-wertstaende-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
   "data-rule", "data-regel-sort", "data-next-action-type", "data-vorsorge",
   "data-beleg", "data-beleg-sort", "data-beleg-ordner", "data-dok-ausschnitt",
 ];
@@ -993,6 +993,11 @@ async function handleAction(element) {
     state.selectedVorsorgeId = "";
     resetVorsorgeFilters();
     commitNavigation();
+    return;
+  }
+  if (action === "vorsorge-panel") {
+    toggleVorsorgePanel(element.dataset.panel);
+    render();
     return;
   }
   if (action === "vorsorge-person") {

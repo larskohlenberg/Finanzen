@@ -124,6 +124,8 @@ export const state = {
   // Vorsorgeseite: aktiver Tab und Personenfilter im Tab.
   vorsorgeTab: "uebersicht",
   vorsorgeFilters: { person: "" },
+  // Auf-/Zugeklappte Kacheln im Vertragsdetail (leer = Defaults der Ansicht).
+  vorsorgePanels: {},
   wertstaendeFilters: { search: "", klasse: "", qualitaet: "" },
   wertstaendeSort: { key: "stand", dir: "desc" },
   selectedVorsorgeId: "",

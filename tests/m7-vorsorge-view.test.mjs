@@ -19,7 +19,7 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const vorsorgeView = await import("../app/views/vorsorge.mjs");
 const { data, state, personenById } = runtime;
-const { renderVorsorge, gebuchteBeitraege, resetVorsorgeFilters } = vorsorgeView;
+const { renderVorsorge, gebuchteBeitraege, resetVorsorgeFilters, toggleVorsorgePanel } = vorsorgeView;
 
 const LEER = { konten: [], kategorien: [], transaktionen: [], transfers: [], immobilien: [], darlehen: [], vermoegenswerte: [], szenarien: [], regelzahlungen: [], zeitwerte: [] };
 const zw = (id, feld, wert, standdatum = "2026-01-01", qualitaet = "belegt") => ({ entitaet: "vorsorge", entitaet_id: id, feld, wert, standdatum, qualitaet });
@@ -58,7 +58,7 @@ function fixture() {
 
 function mitFixture(fn, aenderung = {}) {
   const saved = { ...data };
-  const savedState = { view: state.view, vorsorgeTab: state.vorsorgeTab, vorsorgeFilters: state.vorsorgeFilters, selectedVorsorgeId: state.selectedVorsorgeId };
+  const savedState = { view: state.view, vorsorgeTab: state.vorsorgeTab, vorsorgeFilters: state.vorsorgeFilters, selectedVorsorgeId: state.selectedVorsorgeId, vorsorgePanels: state.vorsorgePanels };
   const savedPersonen = new Map(personenById);
   try {
     Object.assign(data, fixture(), aenderung);
@@ -67,6 +67,7 @@ function mitFixture(fn, aenderung = {}) {
     state.view = "vorsorge";
     state.vorsorgeTab = "uebersicht";
     state.selectedVorsorgeId = "";
+    state.vorsorgePanels = {};
     resetVorsorgeFilters();
     fn();
   } finally {
@@ -123,9 +124,29 @@ test("Dokumente stehen als eigene Kachel vor Bemerkung und Wertstaenden", () => 
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-002";
     const html = renderVorsorge();
-    const dok = html.indexOf('<h2 class="section-title">Dokumente</h2>');
-    const anhang = html.indexOf('<h2 class="section-title">Bemerkung und Wertstände</h2>');
+    const dok = html.indexOf('data-panel="dokumente"');
+    const anhang = html.indexOf('data-panel="anhang"');
     assert.ok(dok > 0 && anhang > dok, "Dokumente-Kachel steht vor dem Anhang");
+  });
+});
+
+test("Detail-Kacheln sind klappbar: Default offen, nur Bemerkung und Wertstaende zu", () => {
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-002";
+    let html = renderVorsorge();
+    for (const key of ["vertragsdaten", "beitraege", "dokumente"]) assert.match(html, new RegExp(`data-panel="${key}" aria-expanded="true"`));
+    assert.match(html, /data-panel="anhang" aria-expanded="false"/);
+    assert.doesNotMatch(html, /Kapitalwahl noch offen/, "Bemerkung bleibt zu");
+    toggleVorsorgePanel("anhang");
+    toggleVorsorgePanel("vertragsdaten");
+    html = renderVorsorge();
+    assert.match(html, /data-panel="anhang" aria-expanded="true"/);
+    assert.match(html, /Kapitalwahl noch offen/);
+    assert.match(html, /data-panel="vertragsdaten" aria-expanded="false"/);
+    assert.doesNotMatch(html, /stammdaten-raster/, "zugeklappte Vertragsdaten rendern keinen Inhalt");
+    // Der Zustand gilt auch fuer den naechsten Vertrag.
+    state.selectedVorsorgeId = "VS-001";
+    assert.match(renderVorsorge(), /data-panel="anhang" aria-expanded="true"/);
   });
 });
 
@@ -171,6 +192,7 @@ test("Renten-Tab: Karte je Vertrag, erster gewaehlt, Detail in voller Breite", (
 test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten und Anhang", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-002";
+    state.vorsorgePanels = { anhang: true };
     const html = renderVorsorge();
     assert.match(html, /data-tab="renten">\s*<span class="vermoegen-tab-titel">/);
     assert.match(html, /class="vermoegen-tab active"[^>]*data-tab="renten"/);
@@ -182,7 +204,7 @@ test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten un
     assert.match(detail, /Vertragsdaten[\s\S]*Kapitalwahl[\s\S]*offen/);
     assert.match(detail, /Standmitteilung 2026/);
     assert.match(detail, /data-action="open-regelzahlung" data-regelzahlung="RZ-001"/);
-    assert.match(detail, /<details class="bemerkung"><summary>Bemerkung<\/summary><p>Kapitalwahl noch offen/);
+    assert.match(detail, /<details class="bemerkung" open><summary>Bemerkung<\/summary><p>Kapitalwahl noch offen/);
     assert.match(detail, /Wertstände[\s\S]*Rückkaufswert · 31\.12\.2025/);
     assert.match(detail, /Dokumente/);
   });
@@ -282,6 +304,7 @@ test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausser
   mitFixture(() => {
     data.zeitwerte = [...data.zeitwerte, zw("VS-005", "rueckkaufswert", "3000.00", "2026-01-01")];
     state.selectedVorsorgeId = "VS-005";
+    state.vorsorgePanels = { anhang: true };
     const html = renderVorsorge();
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed');
     assert.match(html.slice(start, html.indexOf("</div>", start)), /Rückkaufswert 3\.000,00\s€ · nicht im Vermögen/);

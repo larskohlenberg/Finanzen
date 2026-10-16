@@ -41,15 +41,19 @@ festgestellt.
 
 ## Betrieb ueber MCP
 
-Die Produktivdaten liegen auf dem Server. Agenten greifen **ausschliesslich**
-ueber den MCP-Server `finanzen` (`mcp/server.mjs`, stdio, per SSH gestartet)
-darauf zu, nicht per Shell. Wo ein Skill `node tools/<x>.mjs DATENROOT` oder
-`npm run <x>` nennt, ist im Betrieb das MCP-Tool gemeint; die CLI bleibt fuer
-die lokalen Demodaten.
+Ist der MCP-Server `finanzen` (`mcp/server.mjs`, stdio) eingebunden, greifen
+Agenten **ausschliesslich** darueber auf die Echtdaten zu, nicht per Shell.
+Gestartet wird er lokal (`node app/mcp/server.mjs data/master --recht=schreiben`)
+oder per SSH auf einem eigenen Server, wenn die Produktivdaten dort liegen; was
+fuer die Installation gilt, steht in ihren Betriebsregeln. Wo ein Skill
+`node tools/<x>.mjs DATENROOT` oder `npm run <x>` nennt, ist im Betrieb das
+MCP-Tool gemeint; die CLI bleibt fuer die Demodaten und fuer Installationen
+ohne MCP.
 
 | CLI | MCP-Tool |
 | --- | --- |
 | Uebersicht der Web-App | `kennzahlen` (dieselben Kennzahlen wie die Uebersicht, frisch gerechnet; optional `stichtag`; erste Wahl fuer "Wie stehen wir?") |
+| `tools/neuer-bestand.mjs` | — (nur CLI: legt einmalig einen leeren Datenbestand mit Grundkategorien an, bevor es einen MCP-Server gibt) |
 | `tools/validator.mjs` | `status` (Validator-Ergebnis mit Fehlern; laeuft ausserdem nach jedem Schreiben) |
 | `tools/inbox.mjs` | `inbox` |
 | `tools/import.mjs` | `import` (Vorschau gegen eine Kopie des Datenroots) |
@@ -89,16 +93,17 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
   die Fehlernotiz `<name>.fehler.txt`. Bei gleichem Namen bekommt die Gruppe ein
   Suffix (`-2`, `-3`, ...); ueberschrieben wird nie. `grund` landet als `notiz`
   einer Zeile mit `anlass: "inbox-verwerfen"` in `agent_log.jsonl`. Endgueltig
-  leeren ist bewusst kein Tool, das macht der Nutzer selbst:
-  `ssh finanzen-vm sudo -u finanzen rm -r /opt/finanzen/app/data/papierkorb/<datum>`.
+  leeren ist bewusst kein Tool, das macht der Nutzer selbst
+  (`rm -r app/data/papierkorb/<datum>` im Checkout, auf einem Server dort).
 - **Rollback:** Vor jedem schreibenden Vorgang kopiert der Server den
   `DATENROOT`; meldet der Validator danach neue Fehler, spielt er die Kopie
   zurueck und meldet das. Verschiebungen und Loeschungen in `data/inbox/`,
   `data/papierkorb/` und `Belege/` werden **nicht** zurueckgerollt.
-- **Einbindung:** Claude Code liest `.mcp.json` (`ssh finanzen-mcp`, der Alias
-  steht in `~/.ssh/config`). Codex: in `~/.codex/config.toml`
-  `[mcp_servers.finanzen]` mit `command = "ssh"` und `args = ["finanzen-mcp"]`.
-  Jeder andere stdio-MCP-Client startet ebenso `ssh finanzen-mcp`.
+- **Einbindung:** Claude Code liest `.mcp.json` (gitignored, Vorlage
+  `.mcp.json.beispiel` fuer den lokalen Start). Codex: in `~/.codex/config.toml`
+  `[mcp_servers.finanzen]` mit `command` und `args` wie in der Vorlage. Liegen
+  die Daten auf einem Server, startet der Client stattdessen `ssh <alias>` und
+  der Forced Command (unten) den Server dort.
   Lokal gegen die Demodaten: `npm run --silent mcp:demo` (ohne `--silent`
   schreibt npm eine Kopfzeile auf stdout und bricht das Protokoll).
 - **Forced Command:** Jeder Agent bekommt einen eigenen Schluessel in

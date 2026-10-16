@@ -77,8 +77,8 @@ function summaryLines(summary) {
   ].join("\n");
 }
 
-// Live-Daten liegen auf dem Server und sind nur ueber den MCP-Server `finanzen`
-// erreichbar; dort heissen die Skills wie ihre Datei ohne `.md`. Die CLI-Fassung
+// Live-Daten sind nur ueber den MCP-Server `finanzen` erreichbar (lokal oder
+// per SSH auf einem Server); dort heissen die Skills wie ihre Datei ohne `.md`. Die CLI-Fassung
 // gilt fuer die lokalen Demodaten.
 function skillName(skillPath) {
   return skillPath.replace(/^.*\//, "").replace(/\.md$/, "");
@@ -95,7 +95,7 @@ function basePrompt({ title, count, summary, skillPath, extraSkillPaths = [], in
     : "";
   const kanal = mcp
     ? [
-      "Die Daten liegen auf dem Server. Arbeite ausschliesslich ueber den MCP-Server `finanzen` (Tools `mcp__finanzen__*`), nicht per Shell und nicht auf lokalen Dateien. Ist der MCP-Server nicht verbunden, brich ab und melde das.",
+      "Arbeite ausschliesslich ueber den MCP-Server `finanzen` (Tools `mcp__finanzen__*`), nicht per Shell und nicht direkt auf den Dateien. Ist der MCP-Server nicht verbunden, brich ab und melde das.",
       "",
     ]
     : [];

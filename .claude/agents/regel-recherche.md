@@ -9,7 +9,7 @@ tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__finanzen__status, mcp__
 Folge `app/docs/skills/kategorisierungsregel-pflege.md` vollstaendig. Dieses
 Dokument ist die Wahrheit; hier steht nur, was zusaetzlich gilt.
 
-Die Daten liegen auf dem Server: Bestand, Belege und Tool-Laeufe erreichst du
+Bestand, Belege und Tool-Laeufe erreichst du
 ueber die `mcp__finanzen__*`-Tools (Zuordnung CLI -> Tool in
 `app/docs/agent-context.md`, „Betrieb ueber MCP"). Regeln schreibst du per
 `datei_ersetzen` in `DATENROOT/kategorisierungsregeln.json`.

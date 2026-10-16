@@ -297,7 +297,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 - [ ] **Step 1: `state.uiError` ergänzen**
 
-In `app/runtime.mjs`, im `state`-Objekt (nach `view: "overview",` in [app/runtime.mjs:78](../../../app/runtime.mjs)) einfügen:
+In `app/runtime.mjs`, im `state`-Objekt (nach `view: "overview",` in [app/runtime.mjs:78](../../../../app/runtime.mjs)) einfügen:
 
 ```javascript
   uiError: null,
@@ -313,7 +313,7 @@ import { renderErrorPanel, safeRender, guard } from "./error.mjs";
 
 - [ ] **Step 3: Render-Grenze + Aktionsfehler-Banner in `render()`**
 
-In `app/main.js` `render()` ([app/main.js:122-131](../../../app/main.js)) den `app.innerHTML`-Block so ändern, dass `renderView` über `safeRender` läuft und das Aktionsfehler-Banner erscheint:
+In `app/main.js` `render()` ([app/main.js:122-131](../../../../app/main.js)) den `app.innerHTML`-Block so ändern, dass `renderView` über `safeRender` läuft und das Aktionsfehler-Banner erscheint:
 
 ```javascript
   app.innerHTML = `
@@ -331,7 +331,7 @@ In `app/main.js` `render()` ([app/main.js:122-131](../../../app/main.js)) den `a
 
 - [ ] **Step 4: Helfer `setUiError` und `renderUiErrorBanner` ergänzen**
 
-In `app/main.js` direkt vor `function renderView()` ([app/main.js:303](../../../app/main.js)) einfügen:
+In `app/main.js` direkt vor `function renderView()` ([app/main.js:303](../../../../app/main.js)) einfügen:
 
 ```javascript
 // Aktions-Grenze: ein in einem Handler geworfener Fehler wird als schliessbares
@@ -359,7 +359,7 @@ function renderUiErrorBanner() {
 
 - [ ] **Step 5: `state.uiError` bei Navigation zurücksetzen**
 
-In `app/main.js` `commitNavigation()` ([app/main.js:820](../../../app/main.js)) als erste Zeile der Funktion einfügen:
+In `app/main.js` `commitNavigation()` ([app/main.js:820](../../../../app/main.js)) als erste Zeile der Funktion einfügen:
 
 ```javascript
   state.uiError = null;
@@ -367,7 +367,7 @@ In `app/main.js` `commitNavigation()` ([app/main.js:820](../../../app/main.js)) 
 
 - [ ] **Step 6: Dismiss-Klick im click-Listener behandeln**
 
-In `app/main.js` im `click`-Listener ([app/main.js:315](../../../app/main.js)) als erste Prüfung (vor `transferCell`) einfügen:
+In `app/main.js` im `click`-Listener ([app/main.js:315](../../../../app/main.js)) als erste Prüfung (vor `transferCell`) einfügen:
 
 ```javascript
   const errorDismiss = event.target.closest("[data-error-dismiss]");
@@ -380,7 +380,7 @@ In `app/main.js` im `click`-Listener ([app/main.js:315](../../../app/main.js)) a
 
 - [ ] **Step 7: Event-Listener mit `guard` umhüllen**
 
-In `app/main.js` die vier Nutzer-Interaktions-Listener auf `app` umhüllen — jeweils den bestehenden Handler in `guard(<handler>, setUiError)` einwickeln. Beispiel `click` ([app/main.js:315](../../../app/main.js)):
+In `app/main.js` die vier Nutzer-Interaktions-Listener auf `app` umhüllen — jeweils den bestehenden Handler in `guard(<handler>, setUiError)` einwickeln. Beispiel `click` ([app/main.js:315](../../../../app/main.js)):
 
 ```javascript
 app.addEventListener("click", guard((event) => {
@@ -388,7 +388,7 @@ app.addEventListener("click", guard((event) => {
 }, setUiError));
 ```
 
-Dasselbe Muster für `keydown` ([app/main.js:413](../../../app/main.js)), `input` ([app/main.js:426](../../../app/main.js)) und `change` ([app/main.js:434](../../../app/main.js)): Arrow-Function-Handler in `guard(..., setUiError)` einwickeln, schließende `)` entsprechend ergänzen.
+Dasselbe Muster für `keydown` ([app/main.js:413](../../../../app/main.js)), `input` ([app/main.js:426](../../../../app/main.js)) und `change` ([app/main.js:434](../../../../app/main.js)): Arrow-Function-Handler in `guard(..., setUiError)` einwickeln, schließende `)` entsprechend ergänzen.
 
 - [ ] **Step 8: Volle Suite laufen lassen (Regressionssicherheit)**
 

@@ -15,13 +15,13 @@ Legende: ✅ umgesetzt · ☑️ war bereits vorhanden · ❌ bewusst nicht übe
 
 ## §1 Strikte Betragsvalidierung — ✅ umgesetzt (teilweise war schon da)
 
-Befund verifiziert: `toCents("")→0`, `toCents("1.5")→150` ([text.mjs:12](../../app/tools/lib/text.mjs)) sind
+Befund verifiziert: `toCents("")→0`, `toCents("1.5")→150` ([text.mjs:12](../../../app/tools/lib/text.mjs)) sind
 nachsichtig. Der Validator selbst lehnte `""`, `"1,5"`, `"1.5"` aber **schon** über das Muster
 `^-?\d+\.\d{2}$` ab. Echte Lücken waren nur: `-0.00` und führende Nullen (`01.50`) passierten,
 und der nachsichtige `toCents`-Pfad am Importeingang.
 
 Umsetzung:
-- Neuer strikter Helper `istGueltigerBetrag` ([text.mjs](../../app/tools/lib/text.mjs)): `^-?(0|[1-9]\d*)\.\d{2}$`, verbietet `-0.00`. `toCents` bleibt unverändert als Anzeige-/Konvertierungshelfer (wie vom Handoff vorgesehen).
+- Neuer strikter Helper `istGueltigerBetrag` ([text.mjs](../../../app/tools/lib/text.mjs)): `^-?(0|[1-9]\d*)\.\d{2}$`, verbietet `-0.00`. `toCents` bleibt unverändert als Anzeige-/Konvertierungshelfer (wie vom Handoff vorgesehen).
 - Validator: alle Cent-Felder (betrag, wert, anfangsbetrag, sollrate, anschaffungskosten, transfer-betrag) auf `money`/`nonNegative` umgestellt; `zinssatz` (2–4 Nachkommastellen) bleibt eigenes Muster.
 - Importformat: `betrag` prüft strikt; leerer/fehlender Betrag bleibt Fehler, wird nie still 0.
 - Tests: `m3-text` (Helper), `m1-validator` (`-0.00`/führende Null/`1.5`/`""` abgelehnt, gültige Daten weiter grün), `m3-import-format` angepasst.
@@ -38,13 +38,13 @@ eigener Wert. Eine Sentinel-Zeile „qualitaet=offen" wäre eine Zeile, die beha
 den Wert nicht" — das Absenz-Modell ist ehrlicher und kollidiert nicht mit der Reconciliation.
 
 Umsetzung als **abgeleitete** Aggregation:
-- `gesamtQualitaet(positionen)` ([vermoegen.mjs](../../app/vermoegen.mjs)), Dominanz `belegt < geschaetzt < offen`; `computeNettovermoegen` liefert `qualitaet.gesamt`.
+- `gesamtQualitaet(positionen)` ([vermoegen.mjs](../../../app/vermoegen.mjs)), Dominanz `belegt < geschaetzt < offen`; `computeNettovermoegen` liefert `qualitaet.gesamt`.
 - Nettovermögens-KPI zeigt einen Worst-of-Badge („Gesamt: belegt/geschätzt/offen"). Im Browser verifiziert.
 - Tests in `m5-vermoegen`. Erfüllt das Akzeptanzkriterium „mindestens Nettovermögen-KPI zeigt worst-of-Badge".
 
 ## §3 Cross-Entity-Checks im Validator — ☑️ überwiegend vorhanden
 
-Prüfung gegen [validator.mjs](../../app/tools/validator.mjs):
+Prüfung gegen [validator.mjs](../../../app/tools/validator.mjs):
 
 | Vorschlag | Status |
 |---|---|
@@ -52,8 +52,8 @@ Prüfung gegen [validator.mjs](../../app/tools/validator.mjs):
 | `zeitraum-ungueltig` | ☑️ vorhanden (`aktiv_bis` vs. `anker_datum`/`anfangsdatum`) |
 | `anteile-ungueltig` | ☑️ vorhanden (`pruefeAnteile`, exakte Bruch-Summe = 1 per Integer-Arithmetik) |
 | `kategorie-fehlt` | ☑️ vorhanden für `bestaetigt`; Existenzprüfung vorhanden |
-| `dedupe-doppelt` „je Konto" | ☑️ effektiv erfüllt: `dedupe_hash` ist global eindeutig **und** `konto_id` steckt im Hash ([dedupe.mjs:12](../../app/tools/dedupe.mjs)) — „je Konto" ist damit gegenstandslos |
-| `regex-ungueltig` | ❌ **nicht anwendbar**: der Categorizer nutzt Substring-Matching (`includes`), keine RegExp ([categorizer.mjs:8](../../app/tools/categorizer.mjs)). Es gibt keinen Regex zu kompilieren |
+| `dedupe-doppelt` „je Konto" | ☑️ effektiv erfüllt: `dedupe_hash` ist global eindeutig **und** `konto_id` steckt im Hash ([dedupe.mjs:12](../../../app/tools/dedupe.mjs)) — „je Konto" ist damit gegenstandslos |
+| `regex-ungueltig` | ❌ **nicht anwendbar**: der Categorizer nutzt Substring-Matching (`includes`), keine RegExp ([categorizer.mjs:8](../../../app/tools/categorizer.mjs)). Es gibt keinen Regex zu kompilieren |
 
 **Echte Kleinlücke (über das Handoff hinaus) — ✅ umgesetzt:** `kategorisierungsregeln` wurden
 vom Master-Validator gar nicht geladen/geprüft. Jetzt nimmt `validate-core.mjs` sie als optionale
@@ -70,28 +70,28 @@ Begründung:
 
 ## §5 Import-Härtung — gemischt
 
-1. **Alles-oder-nichts bei Zeilenfehlern — ❌ nicht übernommen.** Runde 2 hat das **Gegenteil** bewusst entschieden und per Test verankert: „zeilenweise: kaputte Zeile blockiert saubere nicht" ([m3-import.test.mjs:94](../../tests/m3-import.test.mjs)). Fehlerhafte Zeilen landen sichtbar in `result.errors` (von der CLI ausgegeben) und im Agent-Prozess in `inbox/error/` — kein stiller Teilbestand. Eine Umkehr würde eine getestete, dokumentierte Entscheidung brechen. Den Trade-off halte ich für vertretbar zugunsten des bestehenden Verhaltens.
-2. **Idempotenz als Test-Invariante — ✅ umgesetzt.** Es gab Re-Import-Tests; ergänzt um einen expliziten Regressionstest „Doppel-Import: 0 neu + serialisierter Bestand **byte-identisch**" ([m3-import.test.mjs](../../tests/m3-import.test.mjs)).
-3. **Kontostand-Anker als automatischer „Beifang" — ❌ nicht übernommen.** Widerspricht der **gerade gemergten** Entscheidung (PR #2) und [import-agent.md](../../app/docs/skills/import-agent.md): Kopf-Kontostände dürfen **nicht still** als Zeitwert übernommen werden — der Agent reconciled (`Anker + Buchungen`) und fragt bei Lücke explizit nach. Ein automatisches Anhängen (Quelle = Exportdatei, ohne Rückfrage) verletzt „nicht still übernehmen" und ADR 0005.
+1. **Alles-oder-nichts bei Zeilenfehlern — ❌ nicht übernommen.** Runde 2 hat das **Gegenteil** bewusst entschieden und per Test verankert: „zeilenweise: kaputte Zeile blockiert saubere nicht" ([m3-import.test.mjs:94](../../../tests/m3-import.test.mjs)). Fehlerhafte Zeilen landen sichtbar in `result.errors` (von der CLI ausgegeben) und im Agent-Prozess in `inbox/error/` — kein stiller Teilbestand. Eine Umkehr würde eine getestete, dokumentierte Entscheidung brechen. Den Trade-off halte ich für vertretbar zugunsten des bestehenden Verhaltens.
+2. **Idempotenz als Test-Invariante — ✅ umgesetzt.** Es gab Re-Import-Tests; ergänzt um einen expliziten Regressionstest „Doppel-Import: 0 neu + serialisierter Bestand **byte-identisch**" ([m3-import.test.mjs](../../../tests/m3-import.test.mjs)).
+3. **Kontostand-Anker als automatischer „Beifang" — ❌ nicht übernommen.** Widerspricht der **gerade gemergten** Entscheidung (PR #2) und [import-agent.md](../../../app/docs/skills/import-agent.md): Kopf-Kontostände dürfen **nicht still** als Zeitwert übernommen werden — der Agent reconciled (`Anker + Buchungen`) und fragt bei Lücke explizit nach. Ein automatisches Anhängen (Quelle = Exportdatei, ohne Rückfrage) verletzt „nicht still übernehmen" und ADR 0005.
 
 ## §6 Regelzahlungen und Liquidität — ☑️ Kern vorhanden, Rest ⏭️
 
-1. **Monatsend-Klemmung — ☑️ bereits vorhanden UND getestet.** `addInterval` klemmt via `Math.min(d, lastDay)` ([liquiditaet.mjs:37](../../app/liquiditaet.mjs)); `occurrences` rechnet Anker × Intervall (driftfrei). Test „addInterval addiert Monate mit Monatsende-Clamping" existiert. Der Handoff-Testfall 31.01.→28.02.→31.03.→30.04. läuft korrekt.
+1. **Monatsend-Klemmung — ☑️ bereits vorhanden UND getestet.** `addInterval` klemmt via `Math.min(d, lastDay)` ([liquiditaet.mjs:37](../../../app/liquiditaet.mjs)); `occurrences` rechnet Anker × Intervall (driftfrei). Test „addInterval addiert Monate mit Monatsende-Clamping" existiert. Der Handoff-Testfall 31.01.→28.02.→31.03.→30.04. läuft korrekt.
 2. **Qualität in die Prognose — ❌/N.A.** Regelzahlungen haben kein Qualitätsfeld; das Modell trennt stattdessen `bestaetigt`/`vorgeschlagen`, und die Prognose schließt Vorschläge sichtbar aus (`vorschlaege_nicht_enthalten`). Das „geschätzte Regelzahlung"-Konzept der Referenz existiert hier nicht.
-3. **„Nächste Fälligkeit" je Regelzahlung — ✅ umgesetzt.** `naechsteFaelligkeit(rz, today)` in [liquiditaet.mjs](../../app/liquiditaet.mjs) (gleiche driftfreie Expansion + Monatsend-Klemmung wie `occurrences`, respektiert `aktiv_bis`); neue Spalte in der Regelzahlungs-Liste, abgelehnte/abgelaufene Einträge zeigen „—". Tests in `m4-liquiditaet`. Visuell verifiziert (u. a. Anker 31.01. → 30.06.).
+3. **„Nächste Fälligkeit" je Regelzahlung — ✅ umgesetzt.** `naechsteFaelligkeit(rz, today)` in [liquiditaet.mjs](../../../app/liquiditaet.mjs) (gleiche driftfreie Expansion + Monatsend-Klemmung wie `occurrences`, respektiert `aktiv_bis`); neue Spalte in der Regelzahlungs-Liste, abgelehnte/abgelaufene Einträge zeigen „—". Tests in `m4-liquiditaet`. Visuell verifiziert (u. a. Anker 31.01. → 30.06.).
 4. **Liquiditätsverlauf als Liniendiagramm — ✅ umgesetzt.** Ist-Saldo und Prognose-Saldo erscheinen als Linie (jeder erwartete Termin ein Punkt) über den jeweiligen Tabellen; die Nulllinie beantwortet „wann kippt es?". Komponente siehe §8.2.
 
 ## §7 Vermögen und Darlehen — ☑️/⏭️
 
 1. **Restschuld-Verlauf statt nur Stichtag — ✅ umgesetzt.** `restschuldHeute` liefert jetzt ein `punkte`-Array (Anker + je Ratentermin); die Darlehen-Detailansicht zeigt es als Linie (Weg zur Null = abbezahlt). Test in `m5-vermoegen` (Anker zuerst, monoton fallend, endet beim Stichtagswert). Visuell verifiziert (200.000 € → 0 über die Laufzeit).
-2. **Fehlender Marktwert = Position bleibt sichtbar — ☑️ bereits erfüllt** (anders modelliert): `computeNettovermoegen` pusht **jede** Position, fehlender Wert als `fehlt:true`, `wert_cents:0`, `qualitaet:null` ([vermoegen.mjs](../../app/vermoegen.mjs)). Keine Position verschwindet still. Der Worst-of-Badge (§2) macht das jetzt zusätzlich als Gesamtaussage sichtbar.
+2. **Fehlender Marktwert = Position bleibt sichtbar — ☑️ bereits erfüllt** (anders modelliert): `computeNettovermoegen` pusht **jede** Position, fehlender Wert als `fehlt:true`, `wert_cents:0`, `qualitaet:null` ([vermoegen.mjs](../../../app/vermoegen.mjs)). Keine Position verschwindet still. Der Worst-of-Badge (§2) macht das jetzt zusätzlich als Gesamtaussage sichtbar.
 3. **Bargeld als explizite Entscheidung — ☑️ bereits umgesetzt.** Kontotyp `bar` existiert und wird in Liquidität und Vermögen bewusst ignoriert; CONTEXT.md benennt den blinden Fleck. Die Guardrail-Formulierung ist eine **M6**-Aufgabe, hier verfrüht.
 
 ## §8 Review-UI — ⏭️ sinnvoll, eigener Schritt
 
-1. **Deep-Links (`#/transaktionen/…`) — ✅ umgesetzt.** Pure Routing-Logik in [routing.mjs](../../app/routing.mjs) (`parseRoute`/`routeFromState`, unit-getestet, inkl. Invers-Test). `#/transaktionen/TXN-…` öffnet Transaktion (Filter-Reset + Seitensprung zur richtigen Seite), `#/konten/KTO-…` den Konto-Stammsatz (Stammdaten → Konten, Zeile hervorgehoben); jede View hat einen Slug. Der Konto-Link in der Transaktionstabelle führt zum Stammsatz statt die Tabelle zu filtern. Ein-/ausgehend verdrahtet (Klick aktualisiert die URL, `hashchange` für externe Links). Damit können M8-Checks/Laufprotokolle auf konkrete Datensätze verlinken. Alle vier Pfade im Browser verifiziert (Deep-Link traf Seite 187/267).
-2. **SVG-Liniendiagramm — ✅ umgesetzt.** Wiederverwendbare, library-freie Komponente [charts.mjs](../../app/charts.mjs) (`linienDiagramm`), theme-fähig über CSS-Variablen, mit Nulllinie + Tiefpunkt-Markierung. Eingesetzt für Liquidität (§6.4) und Restschuld (§7.1). Unit-Tests in `charts.test.mjs`.
-3. **Validierungsfehler in der App (rotes Banner) — ✅ umgesetzt.** Die pure Validierungslogik liegt jetzt in [validate-core.mjs](../../app/tools/validate-core.mjs) (browserfähig, ohne Node-I/O); `validator.mjs` ist ein dünner Node-Wrapper (CLI + Datei-I/O). Beide nutzen **dieselbe** Logik. `main.js` validiert den geladenen Bestand einmal beim Laden; Erfolg → grüner Status-Chip, Fehler → rotes Banner mit Fehlerliste oben in jeder Ansicht + roter Chip. Das alte „Validierung extern"-Framing wurde abgelöst (Contract-Test entsprechend aktualisiert). Beide Pfade im Browser verifiziert.
+1. **Deep-Links (`#/transaktionen/…`) — ✅ umgesetzt.** Pure Routing-Logik in [routing.mjs](../../../app/routing.mjs) (`parseRoute`/`routeFromState`, unit-getestet, inkl. Invers-Test). `#/transaktionen/TXN-…` öffnet Transaktion (Filter-Reset + Seitensprung zur richtigen Seite), `#/konten/KTO-…` den Konto-Stammsatz (Stammdaten → Konten, Zeile hervorgehoben); jede View hat einen Slug. Der Konto-Link in der Transaktionstabelle führt zum Stammsatz statt die Tabelle zu filtern. Ein-/ausgehend verdrahtet (Klick aktualisiert die URL, `hashchange` für externe Links). Damit können M8-Checks/Laufprotokolle auf konkrete Datensätze verlinken. Alle vier Pfade im Browser verifiziert (Deep-Link traf Seite 187/267).
+2. **SVG-Liniendiagramm — ✅ umgesetzt.** Wiederverwendbare, library-freie Komponente [charts.mjs](../../../app/charts.mjs) (`linienDiagramm`), theme-fähig über CSS-Variablen, mit Nulllinie + Tiefpunkt-Markierung. Eingesetzt für Liquidität (§6.4) und Restschuld (§7.1). Unit-Tests in `charts.test.mjs`.
+3. **Validierungsfehler in der App (rotes Banner) — ✅ umgesetzt.** Die pure Validierungslogik liegt jetzt in [validate-core.mjs](../../../app/tools/validate-core.mjs) (browserfähig, ohne Node-I/O); `validator.mjs` ist ein dünner Node-Wrapper (CLI + Datei-I/O). Beide nutzen **dieselbe** Logik. `main.js` validiert den geladenen Bestand einmal beim Laden; Erfolg → grüner Status-Chip, Fehler → rotes Banner mit Fehlerliste oben in jeder Ansicht + roter Chip. Das alte „Validierung extern"-Framing wurde abgelöst (Contract-Test entsprechend aktualisiert). Beide Pfade im Browser verifiziert.
 
 ## §9 `main.js` modularisieren — ✅ umgesetzt (eigener Branch `refactor/main-js-split`)
 

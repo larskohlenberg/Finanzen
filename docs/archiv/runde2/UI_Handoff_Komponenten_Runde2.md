@@ -52,11 +52,11 @@ Quelle: Live-Audit von `app/` (Commit `b4715c8`) per lokalem Preview-Server, Scr
 
 ## 0. Render-Modell — wichtig für jede UI-Änderung
 
-`render()` ([main.js:180](../../app/main.js)) baut bei **jeder** Interaktion (Filter, Pagination, Zeilenauswahl, View-Wechsel, Theme/Sprache) den kompletten DOM neu auf: `app.innerHTML = …`. Das ist für eine Build-pipeline-freie App nachvollziehbar, hat aber zwei Konsequenzen, die jede neue Komponente von vornherein berücksichtigen muss:
+`render()` ([main.js:180](../../../app/main.js)) baut bei **jeder** Interaktion (Filter, Pagination, Zeilenauswahl, View-Wechsel, Theme/Sprache) den kompletten DOM neu auf: `app.innerHTML = …`. Das ist für eine Build-pipeline-freie App nachvollziehbar, hat aber zwei Konsequenzen, die jede neue Komponente von vornherein berücksichtigen muss:
 
 > **Befund (kritisch, Architektur + A11y):**
 > 1. **Fokusverlust nach jeder Interaktion**: Da der gesamte Subtree ersetzt wird, springt der Fokus auf `<body>` zurück — Tastatur- und Screenreader-Nutzer verlieren nach jedem Klick (Filter ändern, Seite wechseln, Zeile auswählen) ihre Position (WCAG 2.4.3 Focus Order). Es existiert **keine** Logik, die Fokus oder Scrollposition über den Re-Render hinweg merkt und wiederherstellt.
-> 2. **`aria-live="polite"` sitzt auf `#app`** ([index.html:13](../../app/index.html)) — also auf der gesamten App-Shell inklusive Sidebar, Topbar und Hauptinhalt. Bei jedem Re-Render liest ein Screenreader im schlimmsten Fall die komplette Oberfläche erneut vor — ein Dauer-Vorlese-Bug, der die App für Screenreader-Nutzer praktisch unbedienbar macht.
+> 2. **`aria-live="polite"` sitzt auf `#app`** ([index.html:13](../../../app/index.html)) — also auf der gesamten App-Shell inklusive Sidebar, Topbar und Hauptinhalt. Bei jedem Re-Render liest ein Screenreader im schlimmsten Fall die komplette Oberfläche erneut vor — ein Dauer-Vorlese-Bug, der die App für Screenreader-Nutzer praktisch unbedienbar macht.
 >
 > **Fix-Optionen (beide ohne Build-Pipeline machbar):**
 > - **Kurzfristig**: Fokus-Element (per `id`/`data-*`-Marker) und Scroll-Offset vor `render()` merken, danach gezielt wiederherstellen; `aria-live="polite"` von `#app` auf eine kleine, dedizierte Status-Region verschieben (z. B. „30 Treffer, gefilterter Saldo 1.962,43 €"), die nur bei tatsächlichen Ergebnisänderungen aktualisiert wird.
@@ -72,12 +72,12 @@ Für jede neue Komponente in dieser Spec gilt: **state, das den Fokus tragen kan
 
 | Element | Maß/Wert | Quelle |
 |---|---|---|
-| Sidebar-Breite (offen) | 248px | `--sidebar-width`, [styles.css:23](../../app/styles.css) |
-| Sidebar-Breite (kollabiert) | 84px | `--sidebar-collapsed-width`, [styles.css:24](../../app/styles.css) |
-| Sidebar-Padding | 24px 18px | [styles.css:123](../../app/styles.css) |
-| Rail-Breite | 320px fix | `.layout-with-rail`, [styles.css:362](../../app/styles.css) |
-| Grid-Gap (Layout-with-Rail) | 18px | [styles.css:363](../../app/styles.css) |
-| Grid-Gap (Stack/Panels) | 16px | `.stack`, [styles.css:377](../../app/styles.css) |
+| Sidebar-Breite (offen) | 248px | `--sidebar-width`, [styles.css:23](../../../app/styles.css) |
+| Sidebar-Breite (kollabiert) | 84px | `--sidebar-collapsed-width`, [styles.css:24](../../../app/styles.css) |
+| Sidebar-Padding | 24px 18px | [styles.css:123](../../../app/styles.css) |
+| Rail-Breite | 320px fix | `.layout-with-rail`, [styles.css:362](../../../app/styles.css) |
+| Grid-Gap (Layout-with-Rail) | 18px | [styles.css:363](../../../app/styles.css) |
+| Grid-Gap (Stack/Panels) | 16px | `.stack`, [styles.css:377](../../../app/styles.css) |
 
 **Verhalten:**
 - Sidebar ist `position: sticky; top: 0; height: 100vh` auf Desktop (≥1180px).
@@ -125,7 +125,7 @@ Alle Farben sind CSS Custom Properties auf `:root`, mit Override via `:root[data
 | Focus-visible | `--surface-2` | `--text` | `outline: none` — **Befund: kein sichtbarer Fokusring, siehe A11y** |
 | Active (aktuelle View) | `--accent-soft` | `--accent-strong` | `font-weight: 700` |
 
-Reihenfolge (`navItems`, [main.js:14](../../app/main.js)): Übersicht → Transaktionen → Cashflow → Regelzahlungen → Vermögen → Stammdaten → Checks → Export.
+Reihenfolge (`navItems`, [main.js:14](../../../app/main.js)): Übersicht → Transaktionen → Cashflow → Regelzahlungen → Vermögen → Stammdaten → Checks → Export.
 
 ### 3.2 Tablet-Navigation (760–1180px)
 
@@ -170,11 +170,11 @@ Struktur: `.kpi-label` (14px/650, `--muted`) → `.kpi-value` (Großzahl) → `.
 
 `.table-wrap{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch}` umschließt `<table>`. Spaltenköpfe sind großgeschrieben (`text-transform`/`letter-spacing` über generische Tabellen-Styles), Beträge rechtsbündig.
 
-- **Klickbare Zeilen** (`tr.clickable`, `tr.transaction-row`): öffnen die Detail-Rail; haben dedizierte `:focus-within`-Hervorhebung der `<td>`-Zellen ([styles.css:516](../../app/styles.css)) — funktioniert visuell als Tastatur-Fokusersatz besser als die generischen Button-Foki.
+- **Klickbare Zeilen** (`tr.clickable`, `tr.transaction-row`): öffnen die Detail-Rail; haben dedizierte `:focus-within`-Hervorhebung der `<td>`-Zellen ([styles.css:516](../../../app/styles.css)) — funktioniert visuell als Tastatur-Fokusersatz besser als die generischen Button-Foki.
 
-> **Befund (kritisch, Tastaturbedienbarkeit):** Die selektierbaren Zellen `.row-select-cell` ([main.js:550-556](../../app/main.js)) tragen `tabindex="0"` und `data-action="select-transaction"`, aber **keinen** `keydown`-Handler — im gesamten `main.js` existiert kein `keydown`/`keyup`/`keypress`-Listener. Per Tastatur lässt sich die Zelle fokussieren, aber **nicht auslösen**: Enter/Space tun nichts, die Zeilenauswahl bleibt eine reine Maus-Funktion (WCAG 2.1.1 Keyboard). **Fix-Empfehlung:** entweder echte `<button>`-Elemente für die auswählbare Zeile/Zelle verwenden (erbt Tastatursemantik kostenlos) oder einen `keydown`-Handler ergänzen, der bei `Enter`/`Space` denselben `data-action`-Pfad wie der bestehende Click-Handler auslöst.
+> **Befund (kritisch, Tastaturbedienbarkeit):** Die selektierbaren Zellen `.row-select-cell` ([main.js:550-556](../../../app/main.js)) tragen `tabindex="0"` und `data-action="select-transaction"`, aber **keinen** `keydown`-Handler — im gesamten `main.js` existiert kein `keydown`/`keyup`/`keypress`-Listener. Per Tastatur lässt sich die Zelle fokussieren, aber **nicht auslösen**: Enter/Space tun nichts, die Zeilenauswahl bleibt eine reine Maus-Funktion (WCAG 2.1.1 Keyboard). **Fix-Empfehlung:** entweder echte `<button>`-Elemente für die auswählbare Zeile/Zelle verwenden (erbt Tastatursemantik kostenlos) oder einen `keydown`-Handler ergänzen, der bei `Enter`/`Space` denselben `data-action`-Pfad wie der bestehende Click-Handler auslöst.
 
-- **Geldbeträge** (`formatMoney(cents(tx.betrag))`): `cents()` ([main.js:82](../../app/main.js)) parst Beträge per `Math.round(Number(decimalString) * 100)` — also über Float-Multiplikation. Im selben Repo existiert mit `toCents()` aus `cashflow.mjs` ([cashflow.mjs:6](../../app/cashflow.mjs)) bereits eine Integer-sichere String-Split-Variante (`Number(euros) * 100 + Number(cents)`), die in einer Finanz-App das robustere Muster ist. **Empfehlung:** `cents()` auf dasselbe Integer-Parsing umstellen oder direkt `toCents` wiederverwenden, um Rundungsrisiken an den Rändern (z. B. `0.005`-Fälle) zu vermeiden.
+- **Geldbeträge** (`formatMoney(cents(tx.betrag))`): `cents()` ([main.js:82](../../../app/main.js)) parst Beträge per `Math.round(Number(decimalString) * 100)` — also über Float-Multiplikation. Im selben Repo existiert mit `toCents()` aus `cashflow.mjs` ([cashflow.mjs:6](../../../app/cashflow.mjs)) bereits eine Integer-sichere String-Split-Variante (`Number(euros) * 100 + Number(cents)`), die in einer Finanz-App das robustere Muster ist. **Empfehlung:** `cents()` auf dasselbe Integer-Parsing umstellen oder direkt `toCents` wiederverwenden, um Rundungsrisiken an den Rändern (z. B. `0.005`-Fälle) zu vermeiden.
 - **Status-Zelle**: enthält Badge + erläuternden Zusatztext (z. B. "Kontoreferenz fehlt"), mehrzeilig; benötigt ausreichend Spaltenbreite (`min-width` empfehlenswert), sonst Zeilenumbruch mit unschönem Höhenunterschied zwischen Zeilen.
 - **Verhalten bei geöffneter Rail**: Tabellenbreite schrumpft auf die `1fr`-Spalte; rechte Spalten (Betrag, Status) werden bei vielen Spalten knapp/abgeschnitten, Scroll-Indikator (Schatten am Rand) fehlt.
 
@@ -207,7 +207,7 @@ Drei Status-Familien über `--review`/`--success`/`--danger` (+ `-soft`-Hintergr
 
 > **Befund:** Nur die Review/Amber-Familie unterschreitet im Light-Mode die 4.5:1-Schwelle für Fließtext. Da diese Badges Arbeitsstatus transportieren (zentrale Information laut Guideline-Leitbild "Werte, Datenstände, Status … sind wichtiger als optische Effekte"), sollte `--review` im Light-Theme dunkler gezogen werden (z. B. `#9a6213`, ergibt ≈4.6:1 auf `#fff3d6`).
 
-> **Befund (Konsistenz, app-weit relevant für jede neue Komponente):** Es existieren aktuell **zwei parallele Icon-Systeme** nebeneinander: `iconSvg()` ([icons.js](../../app/icons.js), 7 Verwendungen — saubere, lucide-artige SVGs, u. a. in `statusChip()`) **und** Inline-Textglyphen quer durch `main.js` (`✓` ×7, `⚠` ×2, `◐ ☀ ☾` je ×1, `▸ ▾` je ×2, `↔` ×2, `• ‹ ›` u. a.). Die Cashflow-/Checks-Chips und Accordion-Pfeile nutzen Glyphen, `statusChip()` nutzt SVG — selbe Bedeutungsebene (Status, Richtung, Auf-/Zuklappen), zwei visuelle Sprachen. Das ist die größte Konsistenz-Lücke im aktuellen Code und genau das, was Guideline-Abschnitt 6 ("Icons ersetzen provisorische Text-Glyphen … wo echte Navigation, Status, Typen oder Aktionen gemeint sind") adressiert. **Für neue/überarbeitete Komponenten: ausschließlich `iconSvg()` verwenden, keine neuen Glyphen-Präfixe einführen** — Badge-/Chip-Komponenten sollten generell einen `icon`-Slot statt eines Text-Glyphen-Präfixes vorsehen, damit die Migration schrittweise (Komponente für Komponente) möglich ist.
+> **Befund (Konsistenz, app-weit relevant für jede neue Komponente):** Es existieren aktuell **zwei parallele Icon-Systeme** nebeneinander: `iconSvg()` ([icons.js](../../../app/icons.js), 7 Verwendungen — saubere, lucide-artige SVGs, u. a. in `statusChip()`) **und** Inline-Textglyphen quer durch `main.js` (`✓` ×7, `⚠` ×2, `◐ ☀ ☾` je ×1, `▸ ▾` je ×2, `↔` ×2, `• ‹ ›` u. a.). Die Cashflow-/Checks-Chips und Accordion-Pfeile nutzen Glyphen, `statusChip()` nutzt SVG — selbe Bedeutungsebene (Status, Richtung, Auf-/Zuklappen), zwei visuelle Sprachen. Das ist die größte Konsistenz-Lücke im aktuellen Code und genau das, was Guideline-Abschnitt 6 ("Icons ersetzen provisorische Text-Glyphen … wo echte Navigation, Status, Typen oder Aktionen gemeint sind") adressiert. **Für neue/überarbeitete Komponenten: ausschließlich `iconSvg()` verwenden, keine neuen Glyphen-Präfixe einführen** — Badge-/Chip-Komponenten sollten generell einen `icon`-Slot statt eines Text-Glyphen-Präfixes vorsehen, damit die Migration schrittweise (Komponente für Komponente) möglich ist.
 
 ---
 
@@ -233,7 +233,7 @@ Zwei `<select class="control-select icon-select" data-control="lang|theme">` mit
 
 > **Befund (gering):** Beide liegen unter der empfohlenen 44×44px-Touch-Zielgröße (WCAG 2.5.5), v. a. relevant in der Tablet-Breite, wo die App laut README auch über Touch bedient werden könnte.
 
-Theme-Resolution: `state.theme === "system"` löst über `window.matchMedia("(prefers-color-scheme: dark)")` zu `light`/`dark` auf und reagiert per `change`-Listener live auf OS-Wechsel ([main.js:173](../../app/main.js), [main.js:1523](../../app/main.js)). Beide Einstellungen persistieren in `localStorage`.
+Theme-Resolution: `state.theme === "system"` löst über `window.matchMedia("(prefers-color-scheme: dark)")` zu `light`/`dark` auf und reagiert per `change`-Listener live auf OS-Wechsel ([main.js:173](../../../app/main.js), [main.js:1523](../../../app/main.js)). Beide Einstellungen persistieren in `localStorage`.
 
 ---
 
@@ -266,9 +266,9 @@ Vollständiges Audit siehe separates Accessibility-Dokument (WCAG 2.1 AA, Stand 
 2. **Fokus-Indikator** (🔴 kritisch): `:focus-visible{outline:none}` mit Hintergrundwechsel `--surface`→`--surface-2` (Kontrast ≈1.1:1) ist faktisch unsichtbar. Betrifft Nav-Buttons, Icon-Buttons, Tiles, Pager, Filter-Buttons, Linkish-Elemente — **alle** über dieselbe Token-Logik. Empfehlung: app-weite Fokus-Utility-Klasse mit `box-shadow: 0 0 0 2px var(--accent)` (oder `outline: 2px solid var(--accent); outline-offset: 2px`) ergänzen, die zusätzlich zu — nicht statt — der Hover-Färbung greift.
 3. **Tabellenzeilen nicht per Tastatur auslösbar** (🔴 kritisch): `.row-select-cell` ist fokussierbar (`tabindex="0"`), aber ohne `keydown`-Handler nicht bedienbar — siehe Sektion 5. WCAG 2.1.1.
 4. **Kontrast** (🟡 major): `--faint` (3.06:1, zudem ungenutzter Token — siehe Sektion 2) und `--review` (3.30:1) im Light-Theme unter 4.5:1. Letzterer Token wird für Status-Chips genutzt — also für Information, nicht nur Dekoration.
-5. **`prefers-reduced-motion` fehlt** (🟡 major, neu identifiziert): Es gibt mehrere `transition`-Deklarationen (`grid-template-columns 160ms`, `border-color`/`transform 0.15s`, [styles.css:110](../../app/styles.css), [styles.css:691](../../app/styles.css)), aber keinen `@media (prefers-reduced-motion: reduce)`-Block, der sie für Nutzer mit Bewegungsempfindlichkeit deaktiviert/reduziert (WCAG 2.3.3, Best Practice für 2.2.2). Empfehlung: globalen Reduce-Motion-Block ergänzen, der `transition`/`animation` auf `none`/`0.01ms` setzt.
+5. **`prefers-reduced-motion` fehlt** (🟡 major, neu identifiziert): Es gibt mehrere `transition`-Deklarationen (`grid-template-columns 160ms`, `border-color`/`transform 0.15s`, [styles.css:110](../../../app/styles.css), [styles.css:691](../../../app/styles.css)), aber keinen `@media (prefers-reduced-motion: reduce)`-Block, der sie für Nutzer mit Bewegungsempfindlichkeit deaktiviert/reduziert (WCAG 2.3.3, Best Practice für 2.2.2). Empfehlung: globalen Reduce-Motion-Block ergänzen, der `transition`/`animation` auf `none`/`0.01ms` setzt.
 6. **Kein Skip-Link** (🟢 minor, neu identifiziert): Es gibt keinen "Zum Hauptinhalt springen"-Link vor der Sidebar-Navigation — Tastaturnutzer müssen bei jedem Seitenaufruf durch die komplette Navigation tabben, bevor sie den Hauptinhalt erreichen.
-7. **Hero-KPI-`<section>`s ohne zugänglichen Namen** (🟢 minor, neu identifiziert): Die beiden `.hero-kpi`-`<section>`-Elemente ([main.js:276](../../app/main.js), [main.js:283](../../app/main.js)) haben weder `aria-label` noch `aria-labelledby` — für Screenreader-Nutzer, die per Landmark/Section navigieren, sind sie nur als generische Bereiche hörbar. Empfehlung: `aria-labelledby` auf die jeweilige `.kpi-label`-ID setzen.
+7. **Hero-KPI-`<section>`s ohne zugänglichen Namen** (🟢 minor, neu identifiziert): Die beiden `.hero-kpi`-`<section>`-Elemente ([main.js:276](../../../app/main.js), [main.js:283](../../../app/main.js)) haben weder `aria-label` noch `aria-labelledby` — für Screenreader-Nutzer, die per Landmark/Section navigieren, sind sie nur als generische Bereiche hörbar. Empfehlung: `aria-labelledby` auf die jeweilige `.kpi-label`-ID setzen.
 8. **Touch-Targets** (🟢 minor): Nav-Buttons (~40px) und Icon-Selects (~32–36px) unter 44×44px.
 9. **Tab-Reihenfolge**: logisch (Sidebar → Hauptbereich → Rail), keine Auffälligkeiten — unabhängig vom Fokusverlust-Problem in Punkt 1.
 10. **Truncation**: Filter-Selects sind für Screenreader korrekt benannt (volle Options-Texte), aber visuell ohne Kürzungs-Hinweis (`ellipsis`).
@@ -280,7 +280,7 @@ Vollständiges Audit siehe separates Accessibility-Dokument (WCAG 2.1 AA, Stand 
 Diese zwei Punkte betreffen nicht Layout/Styling, sondern Datenfluss und Navigationszustand. Sie gehören nicht in eine UI-Komponentenspec im engeren Sinn, sind aber für jede Session, die an `main.js` arbeitet, unmittelbar relevant — deshalb hier vermerkt statt verloren:
 
 - **Bootstrap-/Ladefehler sichtbar machen**: `main.js` lädt die Masterdaten inzwischen direkt aus `data/master/`. Wenn eine Masterdatei fehlt, invalide JSON/JSONL enthält oder der Webserver einen direkten Dateizugriff blockiert, darf die App nicht mit weißer Seite enden. Empfehlung: Bootstrap in `try/catch` mit sichtbarer Fallback-Meldung im `#app`-Container kapseln.
-- **History-Spam durch `commitNavigation()`**: Die Funktion ([main.js:1512](../../app/main.js)) ruft bei **jeder** der 21 Aufrufstellen `history.pushState(...)` auf — auch bei Filteränderungen, Pagination oder Zeilenauswahl innerhalb derselben View. Der Browser-Zurück-Button wird dadurch zäh/unvorhersehbar (mehrere Schritte nötig, um zur vorherigen View zu gelangen). Empfehlung: `replaceState` für Zustandsänderungen *innerhalb* einer View nutzen, `pushState` nur bei echtem View-Wechsel.
+- **History-Spam durch `commitNavigation()`**: Die Funktion ([main.js:1512](../../../app/main.js)) ruft bei **jeder** der 21 Aufrufstellen `history.pushState(...)` auf — auch bei Filteränderungen, Pagination oder Zeilenauswahl innerhalb derselben View. Der Browser-Zurück-Button wird dadurch zäh/unvorhersehbar (mehrere Schritte nötig, um zur vorherigen View zu gelangen). Empfehlung: `replaceState` für Zustandsänderungen *innerhalb* einer View nutzen, `pushState` nur bei echtem View-Wechsel.
 
 ---
 

@@ -21,6 +21,11 @@ __pycache__/
 !.claude/agents/
 !.claude/skills/
 .codex/
+
+# Betriebsregeln und MCP-Anbindung gehoeren der jeweiligen Installation
+# (Vorlage in AGENTS.md, Beispiel in .mcp.json.beispiel).
+AGENTS.local.md
+.mcp.json
 .stitch/
 .worktrees/
 

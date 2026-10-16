@@ -2,8 +2,13 @@
 // Gemeinsame Texterkennung fuer Inbox-Vorlauf und Belege-Zwilling. Die
 // externen Programme (pdftotext, tesseract) sind injiziert.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
-import { OCR_KOPF, MIN_OCR_ZEICHEN, erkenneText, istBild, ocrKopfzeile, ocrRumpf } from "../app/tools/lib/ocr.mjs";
+import { OCR_KOPF, MIN_OCR_ZEICHEN, erkenneText, istBild, ocrKopfzeile, ocrRumpf, tesseractPdf } from "../app/tools/lib/ocr.mjs";
+import { musterPdf } from "./pdf-muster.mjs";
 
 const fehlt = async () => { throw Object.assign(new Error("spawn tesseract ENOENT"), { code: "ENOENT" }); };
 const nie = async () => { throw new Error("darf nicht laufen"); };
@@ -73,4 +78,25 @@ test("PDF mit Textlayer und leerer Seite: bringt OCR nichts oder fehlt es, bleib
   assert.deepEqual(leer, { art: "text", inhalt: roh });
   const ohne = await erkenneText("/x/a.pdf", { extrahiere: async () => roh, ocrPdf: fehlt, ocrBild: nie });
   assert.deepEqual(ohne, { art: "text", inhalt: roh });
+});
+
+const hat = (befehl) => { try { execFileSync("which", [befehl], { stdio: "ignore" }); return true; } catch { return false; } };
+
+// Mit den echten Programmen: die injizierten Tests oben sehen tesseractPdf nie.
+test("tesseractPdf mit pdftoppm und tesseract: alle Seiten oder nur die genannten", { skip: !(hat("pdftoppm") && hat("tesseract")) && "pdftoppm/tesseract fehlt" }, async () => {
+  const ordner = mkdtempSync(join(tmpdir(), "finanzen-ocr-test-"));
+  try {
+    const pdf = join(ordner, "muster.pdf");
+    writeFileSync(pdf, musterPdf(3));
+    const alle = await tesseractPdf(pdf);
+    assert.match(alle, /Seite 1[\s\S]*Seite 2[\s\S]*Seite 3/);
+    const nur = await tesseractPdf(pdf, [3, 1]);
+    const seiten = nur.split("\f").filter((s) => s.trim());
+    assert.equal(seiten.length, 2);
+    assert.match(seiten[0], /Seite 3/);
+    assert.match(seiten[1], /Seite 1/);
+    assert.doesNotMatch(nur, /Seite 2/);
+  } finally {
+    rmSync(ordner, { recursive: true, force: true });
+  }
 });

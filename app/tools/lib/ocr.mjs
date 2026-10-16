@@ -70,14 +70,14 @@ export function tesseractBild(bildPfad) {
   return lauf("tesseract", [bildPfad, "-", "-l", SPRACHEN]);
 }
 
-// seiten: optional 1-basierte Seitennummern; ohne alle Seiten. Jede Seite
+// nurSeiten: optional 1-basierte Seitennummern; ohne alle Seiten. Jede Seite
 // endet wie bei tesseract ueblich mit einem Seitenvorschub.
-export async function tesseractPdf(pdfPfad, seiten) {
+export async function tesseractPdf(pdfPfad, nurSeiten) {
   const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-ocr-"));
   try {
-    if (seiten) {
+    if (nurSeiten) {
       let text = "";
-      for (const nr of seiten) {
+      for (const nr of nurSeiten) {
         const ziel = path.join(ordner, `seite-${nr}`);
         await lauf("pdftoppm", ["-f", String(nr), "-l", String(nr), "-r", "300", "-png", "-singlefile", pdfPfad, ziel]);
         text += mitVorschub(await tesseractBild(`${ziel}.png`));

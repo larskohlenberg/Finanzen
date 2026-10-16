@@ -5,7 +5,10 @@
 // Restart-Markern und mehreren Scans. Progressive, arithmetische und
 // CMYK-JPEGs werden abgelehnt. Ergebnis wie dekodierePng: { breite, hoehe, rgba }.
 
-const MAX_KANTE = 4096;
+// Logos werden auf 64 px verkleinert; groessere Kanten oder viele Scans
+// deuten auf eine kaputte oder boesartige Datei und werden abgelehnt.
+const MAX_KANTE = 1024;
+const MAX_SCANS = 8;
 
 // Zickzack-Position -> Rasterposition im 8x8-Block.
 const ZICKZACK = [
@@ -204,6 +207,7 @@ export function dekodiereJpeg(bytes) {
     } else if (marker === 0xee && daten.toString("latin1", 0, 5) === "Adobe" && daten.length >= 12) {
       adobeTransform = daten[11];
     } else if (marker === 0xc0 || marker === 0xc1) {
+      if (frame) throw new Error("JPEG mit mehreren Bildkoepfen, nicht unterstuetzt");
       if (daten[0] !== 8) throw new Error("JPEG mit mehr als 8 Bit, nicht unterstuetzt");
       const hoehe = daten.readUInt16BE(1);
       const breite = daten.readUInt16BE(3);
@@ -233,6 +237,7 @@ export function dekodiereJpeg(bytes) {
       throw new Error(marker === 0xc2 ? "JPEG progressiv, nicht unterstuetzt" : "JPEG-Variante nicht unterstuetzt");
     } else if (marker === 0xda) {
       if (!frame) throw new Error("JPEG: Scan vor dem Bildkopf");
+      if (scans >= MAX_SCANS) throw new Error("JPEG mit zu vielen Scans");
       const scan = [];
       for (let i = 0; i < daten[0]; i += 1) {
         const komp = frame.komponenten.find((k) => k.id === daten[1 + i * 2]);

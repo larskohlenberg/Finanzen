@@ -84,3 +84,15 @@ test("JPEG: progressiv und abgeschnitten werden abgelehnt", () => {
   assert.throws(() => dekodiereJpeg(roh.subarray(0, roh.length - 200)), /unvollstaendig|abgeschnitten/);
   assert.throws(() => dekodiereJpeg(roh.subarray(0, 40)), /abgeschnitten|ohne Bildkopf/);
 });
+
+test("JPEG: zu grosse Kante und doppelter Bildkopf werden abgelehnt", () => {
+  const roh = jpeg("q444");
+  const sof = roh.indexOf(Buffer.from([0xff, 0xc0]));
+  const gross = Buffer.from(roh);
+  gross.writeUInt16BE(4000, sof + 7);
+  assert.throws(() => dekodiereJpeg(gross), /Groesse unzulaessig/);
+  const laenge = roh.readUInt16BE(sof + 2);
+  const kopf = roh.subarray(sof, sof + 2 + laenge);
+  const doppelt = Buffer.concat([roh.subarray(0, sof), kopf, roh.subarray(sof)]);
+  assert.throws(() => dekodiereJpeg(doppelt), /mehreren Bildkoepfen/);
+});

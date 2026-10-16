@@ -10,7 +10,7 @@ function data(vorsorge, zeitwerte = []) {
 
 test("kapitalbildende Vorsorge mit Rueckkaufswert zaehlt als Aktivum", () => {
   const r = computeNettovermoegen(data(
-    [{ vorsorge_id: "VS-003", art: "riester", name: "Riester Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
+    [{ vorsorge_id: "VS-003", art: "rentenversicherung", name: "Riester Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
     [{ entitaet: "vorsorge", entitaet_id: "VS-003", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" }],
   ), TODAY);
   assert.equal(r.aktiva_cents, 910000);
@@ -19,7 +19,7 @@ test("kapitalbildende Vorsorge mit Rueckkaufswert zaehlt als Aktivum", () => {
 
 test("kapitalbildende Vorsorge ohne Zeitwert ist sichtbare Luecke", () => {
   const r = computeNettovermoegen(data(
-    [{ vorsorge_id: "VS-003", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
+    [{ vorsorge_id: "VS-003", art: "rentenversicherung", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
   ), TODAY);
   assert.equal(r.aktiva_cents, 0);
   const p = r.positionen.find((p) => p.klasse === "vorsorge");

@@ -198,7 +198,7 @@ test("Alle Beitraege eines Vorsorgevertrags: Transaktionen gefiltert auf seine R
     const txs = buildTransactions().map((tx, i) => (i < 3 ? { ...tx, regelzahlung_id: "RZ-V1" } : tx));
     installTransactions(txs);
     data.regelzahlungen = [{ regelzahlung_id: "RZ-V1", bezeichnung: "Beitrag", betrag: "1.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt", vorsorge_id: "VS-V1" }];
-    data.vorsorge = [{ vorsorge_id: "VS-V1", art: "riester", name: "Musterrente", person_id: data.personen[0].person_id, status: "aktiv", kapitalbildend: true }];
+    data.vorsorge = [{ vorsorge_id: "VS-V1", art: "rentenversicherung", name: "Musterrente", person_id: data.personen[0].person_id, status: "aktiv", kapitalbildend: true }];
     resetTransactionState();
     state.view = "vorsorge";
     clickAction({ action: "vorsorge-transactions", vorsorge: "VS-V1" });

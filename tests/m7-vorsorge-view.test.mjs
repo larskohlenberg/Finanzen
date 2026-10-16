@@ -32,7 +32,7 @@ function fixture() {
     personen: [{ person_id: "PER-001", name: "Lena", status: "aktiv" }, { person_id: "PER-002", name: "Martin", status: "aktiv" }],
     vorsorge: [
       { vorsorge_id: "VS-001", art: "gesetzliche-rente", name: "DRV Lena", person_id: "PER-001", status: "geplant", kapitalbildend: false, leistung_beginn: "2040-04-01", geprueft_am: "2026-08-01" },
-      { vorsorge_id: "VS-002", art: "riester", name: "Riester Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true, kapitalwahl: "offen", leistung_beginn: "2040-02-01", geprueft_am: "2026-08-15", quelle_hinweis: "Standmitteilung 2026", bemerkung: "Kapitalwahl noch offen" },
+      { vorsorge_id: "VS-002", art: "riester", name: "Riester Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: false, kapitalwahl: "offen", leistung_beginn: "2040-02-01", geprueft_am: "2026-08-15", quelle_hinweis: "Standmitteilung 2026", bemerkung: "Kapitalwahl noch offen" },
       { vorsorge_id: "VS-003", art: "lebensversicherung", name: "LV Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true, leistung_beginn: "2035-05-01", geprueft_am: "2026-08-01" },
       { vorsorge_id: "VS-004", art: "lebensversicherung", name: "LV Martin", person_id: "PER-002", status: "aktiv", kapitalbildend: true },
       { vorsorge_id: "VS-005", art: "schutzversicherung", name: "Wohngebaeude", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-10-01" },
@@ -90,8 +90,8 @@ test("Kopf zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und Beitrae
     assert.match(html, /voll ab 1\.4\.2040/);
     assert.match(html, /class="vertrag-farbe-\d"><title>Gesetzliche Rente/, "Balken je Rente in Vertragsfarbe");
     assert.match(html, /Kapitalleistungen[\s\S]*25\.000,00[\s\S]*fällig 2035/);
-    assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*32\.000,00/, "nur kapitalbildende mit Wert");
-    assert.match(html, /2 von 3 kapitalbildenden bewertet/);
+    assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*12\.000,00/, "nur kapitalbildende mit Wert, Riester ist gebunden");
+    assert.match(html, /1 von 2 kapitalbildenden bewertet/);
     assert.match(html, /230,00[\s\S]*\/ Monat/, "Beitraege Riester + LV Martin");
     assert.match(html, /900,00\s€ \/ Jahr Versicherungen/);
   });
@@ -111,13 +111,14 @@ test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", () => {
     const kopf = html.slice(html.indexOf("vorsorge-kopf"), html.indexOf("vermoegen-tabs"));
     const kachel = (titel) => kopf.slice(kopf.indexOf(titel), kopf.indexOf("</section>", kopf.indexOf(titel)));
     const rkw = kachel("Rückkaufswerte im Vermögen");
-    assert.match(rkw, /data-vorsorge="VS-002"[^>]*>Riester Lena<\/button><span class="amount">20\.000,00/);
+    assert.match(rkw, /data-vorsorge="VS-003"[^>]*>LV Lena<\/button><span class="amount">12\.000,00/);
     assert.match(rkw, /data-vorsorge="VS-003"[^>]*>LV Lena<\/button><span class="amount">12\.000,00/);
     assert.match(rkw, /data-tab="lebensversicherungen">1 ohne Wert/);
     // Donut der Rueckkaufswerte und Farbpunkte in derselben Vertragsfarbe.
     assert.match(rkw, /class="donut-diagramm"/);
-    assert.match(rkw, /class="donut-segment vertrag-farbe-1"><title>Riester Lena: 20\.000,00\s€ \(63 %\)/);
-    assert.match(rkw, /<i class="farbpunkt vertrag-farbe-1" aria-hidden="true"><\/i><button[^>]*data-vorsorge="VS-002"/);
+    assert.match(rkw, /class="donut-segment vertrag-farbe-2"><circle[^>]*class="donut-voll"><title>LV Lena: 12\.000,00\s€ \(100 %\)/);
+    assert.match(rkw, /<i class="farbpunkt vertrag-farbe-2" aria-hidden="true"><\/i><button[^>]*data-vorsorge="VS-003"/);
+    assert.doesNotMatch(rkw, /Riester Lena/, "Riester steht nicht bei den Rueckkaufswerten im Vermoegen");
     // Kapital auf der Zeitachse mit Rentenbeginn, Beitraege als Donut je Bereich.
     assert.match(kachel("Kapitalleistungen"), /class="zeitachse-klein"[\s\S]*class="zeitachse-bezug"[\s\S]*class="zeitachse-marker vertrag-farbe-\d"/);
     assert.match(kachel("Beiträge"), /class="donut-segment tab-farbe-renten"><title>Renten &amp; Anwartschaften pro Jahr: 1\.800,00/);
@@ -205,7 +206,8 @@ test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten un
     assert.match(html, /data-tab="renten">\s*<span class="vermoegen-tab-titel">/);
     assert.match(html, /class="vermoegen-tab active"[^>]*data-tab="renten"/);
     const detail = html.slice(html.indexOf("objekt-detail-titel"));
-    assert.match(detail, /Rückkaufswert[\s\S]*20\.000,00/);
+    assert.match(detail, /Gebundenes Kapital[\s\S]*20\.000,00[\s\S]*nicht im Vermögen[\s\S]*nur bei Kündigung erreichbar/);
+    assert.match(detail, /Erwartete Rente[\s\S]*bis zu 30 % als Einmalzahlung möglich/);
     assert.match(detail, /Erwartete Rente[\s\S]*150,00/);
     assert.match(detail, /1\.2\.2040[\s\S]*2 M\. vor der gesetzlichen Rente/);
     assert.match(detail, /150,00[\s\S]*\/ Monat/);
@@ -213,7 +215,7 @@ test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten un
     assert.match(detail, /Standmitteilung 2026/);
     assert.match(detail, /data-action="open-regelzahlung" data-regelzahlung="RZ-001"/);
     assert.match(detail, /<details class="bemerkung" open><summary>Bemerkung<\/summary><p>Kapitalwahl noch offen/);
-    assert.match(detail, /Wertstände[\s\S]*Rückkaufswert · 31\.12\.2025/);
+    assert.match(detail, /Wertstände[\s\S]*Gebundenes Kapital \(nicht im Vermögen\) · 31\.12\.2025/);
     assert.match(detail, /Dokumente/);
   });
 });
@@ -322,7 +324,7 @@ test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausser
     assert.match(kennzahlen, /Rückkaufswert[\s\S]*3\.000,00[\s\S]*nicht im Vermögen/);
     assert.match(html, /3\.000,00\s€<\/strong> <span class="muted">Rückkaufswert \(nicht im Vermögen\)/);
     // Der Kopf zaehlt ihn nicht mit.
-    assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*32\.000,00/);
+    assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*12\.000,00/);
   });
 });
 
@@ -371,7 +373,7 @@ test("Vorgaenger und Nachfolger sind als Vertragslinks erreichbar", () => {
   mitFixture(() => {
     data.vorsorge = [
       ...data.vorsorge,
-      { vorsorge_id: "VS-007", art: "riester", name: "Riester Nachfolger", person_id: "PER-001", status: "geplant", kapitalbildend: true, ersetzt_vorsorge_id: "VS-002", geprueft_am: "2026-08-15" },
+      { vorsorge_id: "VS-007", art: "riester", name: "Riester Nachfolger", person_id: "PER-001", status: "geplant", kapitalbildend: false, ersetzt_vorsorge_id: "VS-002", geprueft_am: "2026-08-15" },
     ];
     state.selectedVorsorgeId = "VS-002";
     state.klappKacheln = { "vorsorge.vertragsdaten": true };

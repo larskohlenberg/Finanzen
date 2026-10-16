@@ -103,6 +103,12 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
 
 ## Kapitalwahlrecht
 
+Riester: `kapitalbildend = false` (der Validator lehnt `true` ab). Zu Rentenbeginn
+sind hoechstens 30 Prozent als Einmalzahlung waehlbar, `kapitalwahl = kapital`
+bedeutet bei Riester genau diese Teilauszahlung; der Rest wird Rente. Den
+Kuendigungsbetrag als `rueckkaufswert` erfassen, er erscheint als gebundenes
+Kapital ausserhalb des Nettovermoegens.
+
 `kapitalwahl` bleibt `offen`, solange der Beleg ein Wahlrecht nennt, aber keine
 Nutzerentscheidung vorliegt. `monatsrente` oder `kapital` nur setzen, wenn der
 Nutzer die Wahl bestaetigt oder der Vertrag eindeutig keine Wahl laesst.

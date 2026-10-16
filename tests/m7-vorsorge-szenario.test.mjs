@@ -20,7 +20,7 @@ function baseData(extra = {}) {
 
 test("kapitalbildende Vorsorge erhoeht das Netto im Szenario (eingefroren)", () => {
   const data = baseData({
-    vorsorge: [{ vorsorge_id: "VS-003", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
+    vorsorge: [{ vorsorge_id: "VS-003", art: "rentenversicherung", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
   });
   data.zeitwerte.push({ entitaet: "vorsorge", entitaet_id: "VS-003", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" });
   const szn = { szenario_id: "SZN-001", name: "Basis", status: "entwurf", stand: TODAY, reichweite_bis: "2028-12-31", erstellt_am: TODAY, annahmen: [] };

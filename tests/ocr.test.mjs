@@ -57,3 +57,20 @@ test("OCR-Fehler (kaputte Datei) wird als Grund gemeldet", async () => {
   assert.equal(r.art, "ohne-text");
   assert.match(r.grund, /OCR fehlgeschlagen: Image file cannot be read/);
 });
+
+test("PDF mit teilweisem Textlayer: nur leere Seiten per OCR, Textseiten roh, mit Kopfzeile", async () => {
+  const angefragt = [];
+  const ocrPdf = async (_pfad, seiten) => { angefragt.push(seiten); return "Seite eins erkannt per OCR\fSeite drei erkannt per OCR\f"; };
+  const r = await erkenneText("/x/sammel.pdf", { extrahiere: async () => "\fTextlayer Seite zwei\n\f \n\f", ocrPdf, ocrBild: nie, heute: "2026-10-16" });
+  assert.deepEqual(angefragt, [[1, 3]]);
+  assert.equal(r.art, "ocr");
+  assert.equal(r.inhalt, "# Per OCR (tesseract) erkannt, 2026-10-16.\nSeite eins erkannt per OCR\fTextlayer Seite zwei\n\fSeite drei erkannt per OCR\f");
+});
+
+test("PDF mit Textlayer und leerer Seite: bringt OCR nichts oder fehlt es, bleibt rohes pdftotext", async () => {
+  const roh = "Kontoauszug Seite eins\n\f\f";
+  const leer = await erkenneText("/x/a.pdf", { extrahiere: async () => roh, ocrPdf: async () => " \f", ocrBild: nie });
+  assert.deepEqual(leer, { art: "text", inhalt: roh });
+  const ohne = await erkenneText("/x/a.pdf", { extrahiere: async () => roh, ocrPdf: fehlt, ocrBild: nie });
+  assert.deepEqual(ohne, { art: "text", inhalt: roh });
+});

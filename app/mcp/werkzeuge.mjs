@@ -3,14 +3,16 @@
 // - Lese-Tools (status, kennzahlen, transaktionen_abfragen, datei_lesen, dateien_suchen),
 // - 1:1-Wrapper um die CLIs in app/tools/ (Vorschau ist Default, schreiben:true
 //   setzt das Schreib-Flag der CLI und braucht --recht=schreiben),
-// - Datei-Schreiben (datei_schreiben, datei_ersetzen, beleg_ablegen,
+// - Datei-Schreiben (datei_schreiben, datei_ersetzen, beleg_ablegen, beleg_teilen,
 //   inbox_verwerfen, inbox_zurueckholen), nur mit --recht=schreiben.
 // Jeder schreibende Vorgang laeuft durch mitRollback (Validator + Rueckspielen).
 import { execFile } from "node:child_process";
-import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { constants as fsKonstanten } from "node:fs";
+import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { planeTeilung } from "../tools/lib/seiten.mjs";
 import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { abfragen } from "./abfrage.mjs";
@@ -731,6 +733,54 @@ async function protokolliere(ctx, eintrag) {
 const istDatei = async (absolut) => Boolean((await lstat(absolut).catch(() => null))?.isFile());
 const TEXTVORLAUF = /\.(pdf|png|jpe?g|gif|webp|heic)$/i;
 
+// Eine Inbox-Datei samt Mitlaeufern (Zwilling daneben, Textvorlauf in
+// standardized/, Fehlernotiz in error/) fuer den Papierkorb planen: Paare
+// [quelle, ziel], ein gemeinsames Suffix bei Namenskollision.
+async function planePapierkorb(ctx, quelle) {
+  const inbox = path.join(ctx.app, "data", "inbox");
+  const unter = path.relative(inbox, quelle.absolut);
+  const ordner = path.dirname(unter);
+  const name = path.basename(unter);
+  const endung = path.extname(name);
+  const stamm = name.slice(0, name.length - endung.length);
+  // Jedes Mitglied der Gruppe: Quelle (relativ zu data/inbox) und Name als
+  // Stamm + Rest, damit ein Suffix alle Mitglieder gleich trifft.
+  const gruppe = [{ unter, ordner, rest: endung }];
+  const kandidaten = [];
+  if (endung.toLowerCase() !== ".txt") kandidaten.push({ unter: path.join(ordner, `${stamm}.txt`), ordner, rest: ".txt" });
+  if (TEXTVORLAUF.test(name) && ordner !== "standardized") kandidaten.push({ unter: path.join("standardized", `${stamm}.txt`), ordner: "standardized", rest: ".txt" });
+  if (ordner === "error") kandidaten.push({ unter: path.join(ordner, `${name}.fehler.txt`), ordner, rest: `${endung}.fehler.txt` });
+  for (const k of kandidaten) {
+    // Auch die Mitlaeufer muessen durch den Pfadschutz (Symlink daneben).
+    const geprueft = await loesePfad(ctx.app, path.join("data", "inbox", k.unter), ["data/inbox"]).catch(() => null);
+    if (geprueft && (await istDatei(geprueft.absolut))) gruppe.push(k);
+  }
+  const korb = path.join("data", "papierkorb", localTodayIso());
+  const zielFuer = (g, n) => path.join(korb, g.ordner, `${stamm}${n > 1 ? `-${n}` : ""}${g.rest}`);
+  let n = 1;
+  for (;;) {
+    const belegt = await Promise.all(gruppe.map((g) => lstat(path.join(ctx.app, zielFuer(g, n))).then(() => true, () => false)));
+    if (!belegt.some(Boolean)) break;
+    n += 1;
+  }
+  const paare = [];
+  for (const g of gruppe) {
+    paare.push([
+      { absolut: path.join(inbox, g.unter), relativ: path.join("data", "inbox", g.unter).split(path.sep).join("/") },
+      await loesePfad(ctx.app, zielFuer(g, n), ["data/papierkorb"]),
+    ]);
+  }
+  return paare;
+}
+
+async function inDenPapierkorb(paare) {
+  for (const [q, z] of paare) {
+    // Wie data/ selbst: nicht fuer alle lesbar (die umask allein liesse 775 zu).
+    await mkdir(path.dirname(z.absolut), { recursive: true, mode: 0o750 });
+    await rename(q.absolut, z.absolut);
+  }
+}
+
 const inboxVerwerfen = {
   name: "inbox_verwerfen",
   description: "Datei aus data/inbox/ (auch error/, standardized/, processed/) in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/ verschieben, z. B. ein erkanntes Duplikat. Nichts wird geloescht: die Unterstruktur unterhalb von data/inbox/ bleibt erhalten, bei Namenskollision bekommt die Datei ein Suffix (-2, -3 ...), ueberschrieben wird nie. Mit wandern: der gleichnamige .txt-Zwilling daneben, der Textvorlauf in standardized/ und eine Fehlernotiz <name>.fehler.txt in error/. grund wird als notiz in agent_log.jsonl protokolliert. Den Papierkorb leert nur der Nutzer. Wird bei einem Rollback nicht zurueckgenommen.",
@@ -747,45 +797,9 @@ const inboxVerwerfen = {
   async ausfuehren(ctx, args) {
     const quelle = await loesePfad(ctx.app, args.pfad, ["data/inbox"]);
     if (!(await istDatei(quelle.absolut))) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
-    const inbox = path.join(ctx.app, "data", "inbox");
-    const unter = path.relative(inbox, quelle.absolut);
-    const ordner = path.dirname(unter);
-    const name = path.basename(unter);
-    const endung = path.extname(name);
-    const stamm = name.slice(0, name.length - endung.length);
-    // Jedes Mitglied der Gruppe: Quelle (relativ zu data/inbox) und Name als
-    // Stamm + Rest, damit ein Suffix alle Mitglieder gleich trifft.
-    const gruppe = [{ unter, ordner, rest: endung }];
-    const kandidaten = [];
-    if (endung.toLowerCase() !== ".txt") kandidaten.push({ unter: path.join(ordner, `${stamm}.txt`), ordner, rest: ".txt" });
-    if (TEXTVORLAUF.test(name) && ordner !== "standardized") kandidaten.push({ unter: path.join("standardized", `${stamm}.txt`), ordner: "standardized", rest: ".txt" });
-    if (ordner === "error") kandidaten.push({ unter: path.join(ordner, `${name}.fehler.txt`), ordner, rest: `${endung}.fehler.txt` });
-    for (const k of kandidaten) {
-      // Auch die Mitlaeufer muessen durch den Pfadschutz (Symlink daneben).
-      const geprueft = await loesePfad(ctx.app, path.join("data", "inbox", k.unter), ["data/inbox"]).catch(() => null);
-      if (geprueft && (await istDatei(geprueft.absolut))) gruppe.push(k);
-    }
-    const korb = path.join("data", "papierkorb", localTodayIso());
-    const zielFuer = (g, n) => path.join(korb, g.ordner, `${stamm}${n > 1 ? `-${n}` : ""}${g.rest}`);
-    let n = 1;
-    for (;;) {
-      const belegt = await Promise.all(gruppe.map((g) => lstat(path.join(ctx.app, zielFuer(g, n))).then(() => true, () => false)));
-      if (!belegt.some(Boolean)) break;
-      n += 1;
-    }
-    const paare = [];
-    for (const g of gruppe) {
-      paare.push([
-        { absolut: path.join(inbox, g.unter), relativ: path.join("data", "inbox", g.unter).split(path.sep).join("/") },
-        await loesePfad(ctx.app, zielFuer(g, n), ["data/papierkorb"]),
-      ]);
-    }
+    const paare = await planePapierkorb(ctx, quelle);
     return mitRollback(ctx.datenroot, async () => {
-      for (const [q, z] of paare) {
-        // Wie data/ selbst: nicht fuer alle lesbar (die umask allein liesse 775 zu).
-        await mkdir(path.dirname(z.absolut), { recursive: true, mode: 0o750 });
-        await rename(q.absolut, z.absolut);
-      }
+      await inDenPapierkorb(paare);
       await protokolliere(ctx, {
         anlass: "inbox-verwerfen",
         inputs: paare.map(([q]) => q.relativ),
@@ -793,6 +807,87 @@ const inboxVerwerfen = {
         notiz: args.grund?.trim() || "Datei aus der Inbox verworfen",
       });
       return ergebnis(`Verworfen (Papierkorb):\n${paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n")}`);
+    });
+  },
+};
+
+const belegTeilen = {
+  name: "beleg_teilen",
+  description: "Sammelscan aus data/inbox/ (auch processed/, error/) in einzelne PDFs zerlegen, z. B. mehrere zusammengescannte Briefe. Jeder Teil nennt seine Seiten (\"1-4\", \"5\", \"1-2,7\") und einen sprechenden Dateinamen; jede Seite gehoert genau einem Teil. Die Teile landen in der Inbox-Wurzel data/inbox/ und gehen von dort den normalen Weg (inbox-Lauf, beleg_ablegen); das Original wandert samt Zwilling und Textvorlauf in den Papierkorb wie bei inbox_verwerfen. Ueberschreibt nie. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      quelle: { type: "string", description: "z. B. data/inbox/scan0001.pdf" },
+      teile: {
+        type: "array",
+        minItems: 2,
+        maxItems: 50,
+        items: {
+          type: "object",
+          properties: {
+            seiten: { type: "string", maxLength: 100, description: "z. B. 1-4" },
+            name: { type: "string", maxLength: 200, pattern: "^[^/\\\\]+\\.pdf$", description: "Dateiname ohne Pfad, z. B. 2025_Versicherer_Statusreport-2024_123.pdf" },
+          },
+          required: ["seiten", "name"],
+          additionalProperties: false,
+        },
+      },
+      schreiben: SCHREIBEN,
+    },
+    required: ["quelle", "teile"],
+    additionalProperties: false,
+  },
+  nurSchreiben: true,
+  async ausfuehren(ctx, args) {
+    const quelle = await loesePfad(ctx.app, args.quelle, ["data/inbox"]);
+    if (!(await istDatei(quelle.absolut))) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
+    if (path.extname(quelle.absolut).toLowerCase() !== ".pdf") return ergebnis(`${quelle.relativ} ist kein PDF`, true);
+    const namen = args.teile.map((t) => t.name.toLowerCase());
+    if (new Set(namen).size !== namen.length) return ergebnis("Jeder Teil braucht einen eigenen Dateinamen", true);
+    const info = (await programm("pdfinfo", [quelle.absolut])).toString("utf8");
+    const seitenzahl = Number(/^Pages:\s+(\d+)/m.exec(info)?.[1]);
+    if (!seitenzahl) return ergebnis(`Seitenzahl von ${quelle.relativ} nicht lesbar`, true);
+    let plan;
+    try {
+      plan = planeTeilung(seitenzahl, args.teile);
+    } catch (error) {
+      return ergebnis(`Seitenplan abgewiesen (${seitenzahl} Seiten):\n${error.message}`, true);
+    }
+    const teile = [];
+    for (const teil of plan) {
+      const ziel = await loesePfad(ctx.app, path.join("data", "inbox", teil.name), ["data/inbox"]);
+      if (await lstat(ziel.absolut).catch(() => null)) return ergebnis(`${ziel.relativ} existiert bereits — nichts geteilt`, true);
+      teile.push({ ...teil, ziel });
+    }
+    const korb = await planePapierkorb(ctx, quelle);
+    const bericht = [
+      ...teile.map((t) => `${t.ziel.relativ}: Seiten ${t.seiten.join(", ")}`),
+      ...korb.map(([q, z]) => `${q.relativ} -> ${z.relativ}`),
+    ].join("\n");
+    if (!args.schreiben) return ergebnis(`Vorschau (${seitenzahl} Seiten, nichts geschrieben):\n${bericht}`);
+    return mitRollback(ctx.datenroot, async () => {
+      const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-teilen-"));
+      try {
+        await programm("pdfseparate", [quelle.absolut, path.join(ordner, "seite-%d.pdf")]);
+        for (const [i, teil] of teile.entries()) {
+          const einzeln = teil.seiten.map((nr) => path.join(ordner, `seite-${nr}.pdf`));
+          const fertig = path.join(ordner, `teil-${i + 1}.pdf`);
+          if (einzeln.length === 1) await rename(einzeln[0], fertig);
+          else await programm("pdfunite", [...einzeln, fertig]);
+          await copyFile(fertig, teil.ziel.absolut, fsKonstanten.COPYFILE_EXCL);
+        }
+      } finally {
+        await rm(ordner, { recursive: true, force: true });
+      }
+      await inDenPapierkorb(korb);
+      await protokolliere(ctx, {
+        anlass: "beleg-teilen",
+        inputs: [quelle.relativ],
+        teile: teile.map((t) => ({ datei: t.ziel.relativ, seiten: t.seiten })),
+        papierkorb: korb.map(([, z]) => z.relativ),
+        notiz: `Sammelscan mit ${seitenzahl} Seiten in ${teile.length} Teile zerlegt`,
+      });
+      return ergebnis(`Geteilt:\n${bericht}\nNaechster Schritt: inbox-Lauf fuer den Textvorlauf der Teile, dann beleg_ablegen.`);
     });
   },
 };
@@ -822,7 +917,7 @@ const inboxZurueckholen = {
   },
 };
 
-export const WERKZEUGE = [status, kennzahlen, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, inboxVerwerfen, inboxZurueckholen];
+export const WERKZEUGE = [status, kennzahlen, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, inboxVerwerfen, inboxZurueckholen];
 
 export function sichtbareWerkzeuge(ctx) {
   return WERKZEUGE

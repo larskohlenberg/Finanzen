@@ -8,6 +8,10 @@
 // - PDF mit Textlayer: rohes `pdftotext -layout`, ohne Kopfzeile.
 // - PDF ohne Textlayer: Seiten mit `pdftoppm -r 300 -png` rastern, jede Seite
 //   per `tesseract - -l deu+eng` erkennen.
+// - PDF mit teilweisem Textlayer (Scanner, der nur manche Seiten erkennt):
+//   Textseiten roh, nur die leeren Seiten per OCR, mit OCR-Kopfzeile. Bringt
+//   OCR dort nichts (leere Seite eines digitalen PDFs), bleibt es beim rohen
+//   pdftotext.
 // - Bild (png/jpg/jpeg): direkt per tesseract.
 // OCR-Text bekommt die Kopfzeile `# Per OCR (tesseract) erkannt, <Datum>.`
 // Liefert OCR weniger als MIN_OCR_ZEICHEN Zeichen (ohne Leerraum) oder fehlt
@@ -66,9 +70,20 @@ export function tesseractBild(bildPfad) {
   return lauf("tesseract", [bildPfad, "-", "-l", SPRACHEN]);
 }
 
-export async function tesseractPdf(pdfPfad) {
+// seiten: optional 1-basierte Seitennummern; ohne alle Seiten. Jede Seite
+// endet wie bei tesseract ueblich mit einem Seitenvorschub.
+export async function tesseractPdf(pdfPfad, seiten) {
   const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-ocr-"));
   try {
+    if (seiten) {
+      let text = "";
+      for (const nr of seiten) {
+        const ziel = path.join(ordner, `seite-${nr}`);
+        await lauf("pdftoppm", ["-f", String(nr), "-l", String(nr), "-r", "300", "-png", "-singlefile", pdfPfad, ziel]);
+        text += mitVorschub(await tesseractBild(`${ziel}.png`));
+      }
+      return text;
+    }
     await lauf("pdftoppm", ["-r", "300", "-png", pdfPfad, path.join(ordner, "seite")]);
     // pdftoppm nummeriert mit fester Stellenzahl: Namenssortierung = Seitenfolge.
     const seiten = (await readdir(ordner)).filter((n) => n.endsWith(".png")).sort();
@@ -81,6 +96,31 @@ export async function tesseractPdf(pdfPfad) {
 }
 
 const seitenZahl = (text) => (text.match(/\f/g) ?? []).length;
+const mitVorschub = (text) => (text.endsWith("\f") ? text : `${text}\f`);
+
+// pdftotext und tesseract schliessen jede Seite mit \f ab.
+function seitenTexte(text) {
+  const seiten = String(text).split("\f");
+  if (seiten.at(-1) === "") seiten.pop();
+  return seiten;
+}
+
+// Leere Seiten eines PDFs mit Textlayer per OCR fuellen; null, wenn OCR dort
+// nichts beitraegt oder nicht laeuft.
+async function fuelleLeereSeiten(pfad, rohtext, ocrPdf) {
+  const seiten = seitenTexte(rohtext);
+  const leer = seiten.flatMap((s, i) => (zeichenOhneLeerraum(s) === 0 ? [i + 1] : []));
+  if (!leer.length) return null;
+  let erkannt;
+  try {
+    erkannt = seitenTexte(await ocrPdf(pfad, leer));
+  } catch {
+    return null;
+  }
+  if (zeichenOhneLeerraum(erkannt.join("")) < MIN_OCR_ZEICHEN) return null;
+  const ocrSeite = new Map(leer.map((nr, k) => [nr, erkannt[k] ?? ""]));
+  return seiten.map((s, i) => `${ocrSeite.get(i + 1) ?? s}\f`).join("");
+}
 
 // Ergebnis: { art: "text"|"ocr", inhalt } oder
 // { art: "ohne-text", rohtext, seiten, grund, ocrFehlt? }.
@@ -95,7 +135,10 @@ export async function erkenneText(pfad, {
   let rohtext = "";
   if (!bild) {
     rohtext = await extrahiere(pfad);
-    if (zeichenOhneLeerraum(rohtext) > 0) return { art: "text", inhalt: rohtext };
+    if (zeichenOhneLeerraum(rohtext) > 0) {
+      const gemischt = await fuelleLeereSeiten(pfad, rohtext, ocrPdf);
+      return gemischt ? { art: "ocr", inhalt: ocrKopfzeile(heute) + gemischt } : { art: "text", inhalt: rohtext };
+    }
   }
   const ohneText = (grund, extra = {}) => ({ art: "ohne-text", rohtext, seiten: bild ? 1 : seitenZahl(rohtext), grund, ...extra });
   let erkannt;

@@ -91,6 +91,8 @@ export const state = {
     origin: "",
     search: "",
     beleg: "",
+    // VS-ID: nur die Beitragsbuchungen dieses Vorsorgevertrags (ueber seine Regelzahlungen).
+    vorsorge: "",
     timeMode: "none",
     dateFrom: "",
     dateTo: "",

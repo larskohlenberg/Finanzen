@@ -38,8 +38,15 @@ export function matchesBelegFilter(tx, beleg) {
   return belegPfadeAusText(tx.rohquelle).some((pfad) => belegSchluessel(pfad) === gesucht);
 }
 
+// Regelzahlungen eines Vorsorgevertrags; ihre Buchungen sind seine Beitraege.
+function vorsorgeRegelzahlungen(vorsorgeId) {
+  return new Set((data.regelzahlungen ?? []).filter((rz) => rz.vorsorge_id === vorsorgeId).map((rz) => rz.regelzahlung_id));
+}
+
 export function filteredTransactions() {
+  const vorsorgeRz = state.transactionFilters.vorsorge ? vorsorgeRegelzahlungen(state.transactionFilters.vorsorge) : null;
   return sortTransactions(data.transaktionen.filter((tx) => {
+    if (vorsorgeRz && !vorsorgeRz.has(tx.regelzahlung_id)) return false;
     if (state.transactionFilters.account && tx.konto_id !== state.transactionFilters.account) return false;
     if (state.transactionFilters.status && tx.kategorisierung_status !== state.transactionFilters.status) return false;
     if (state.transactionFilters.category && tx.kategorie_id !== state.transactionFilters.category) return false;
@@ -283,9 +290,24 @@ function renderBelegFilterChip() {
     </div>`;
 }
 
+function renderVorsorgeFilterChip() {
+  const id = state.transactionFilters.vorsorge;
+  if (!id) return "";
+  const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === id);
+  return `
+    <div class="filter-chips">
+      <span class="filter-chip" title="${escapeHtml(id)}">
+        ${iconSvg("vermoegen")}
+        <span>${escapeHtml(t("transactions.vorsorgeFilterChip"))}:</span>
+        <button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(id)}">${escapeHtml(vs?.name || id)}</button>
+        <button class="filter-chip-clear" data-action="clear-transaction-filter" data-filter-name="vorsorge" aria-label="${escapeHtml(t("transactions.vorsorgeFilterEntfernen"))}" title="${escapeHtml(t("transactions.vorsorgeFilterEntfernen"))}">${iconSvg("clear")}</button>
+      </span>
+    </div>`;
+}
+
 function renderTransactionFilters(resultCount, totalCount) {
   return renderTableFilters({
-    prefix: renderBelegFilterChip(),
+    prefix: renderBelegFilterChip() + renderVorsorgeFilterChip(),
     searchFields: [
       {
         name: "search",

@@ -1255,13 +1255,17 @@ button.roadmap-card-link:focus-visible {
   font-size: 20px;
 }
 
+td.id-zelle { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 .transaction-row.selected,
-tr.clickable.selected {
+tr.clickable.selected,
+tr.angesteuert {
   background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
 }
 
 /* Per Deep-Link/Link angesteuerter Konto-Stammsatz: Akzentkante zur Orientierung. */
-tr.clickable.selected td:first-child {
+tr.clickable.selected td:first-child,
+tr.angesteuert td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
@@ -3003,6 +3007,11 @@ a.linkish {
   border-radius: var(--radius);
 }
 .belege-ausschnitt .belege-tabelle-wrap { max-height: 420px; }
+.belege-aktionen { width: 1%; text-align: right; white-space: nowrap; }
+.belege-aktionen-knoepfe { display: inline-flex; gap: 2px; }
+.icon-link { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-tight); color: var(--muted); }
+.icon-link:hover, .icon-link:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
+.icon-link .icon { width: 16px; height: 16px; }
 /* Innere Aufteilung der Detail-Kacheln in voller Breite. */
 .vorsorge-spalten {
   display: grid;

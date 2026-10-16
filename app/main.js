@@ -687,6 +687,12 @@ async function copyNextAgentPrompt(type = "") {
 
 async function handleAction(element) {
   const action = element.dataset.action;
+  // Links in klickbaren Zeilen: der Browser oeffnet sie selbst, die Zeile nicht zusaetzlich.
+  if (action === "dokument-link") return;
+  if (action === "dokument-oeffnen") {
+    window.open(element.dataset.url, "_blank", "noopener");
+    return;
+  }
   if (action === "toggle-next-action-menu") {
     state.nextActionMenuOpen = !state.nextActionMenuOpen;
     render();
@@ -806,6 +812,7 @@ async function handleAction(element) {
     state.view = "transactions";
     state.transactionFilters.status = "offen";
     state.transactionFilters.beleg = "";
+    state.transactionFilters.vorsorge = "";
     state.transactionFilters.account = "";
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
@@ -834,6 +841,7 @@ async function handleAction(element) {
       origin: "",
       search: "",
       beleg: "",
+      vorsorge: "",
       timeMode: "none",
       dateFrom: "",
       dateTo: "",
@@ -850,6 +858,7 @@ async function handleAction(element) {
     state.view = "transactions";
     state.transactionFilters.account = element.dataset.account;
     state.transactionFilters.beleg = "";
+    state.transactionFilters.vorsorge = "";
     state.transactionFilters.status = "";
     state.transactionFilters.category = "";
     state.transactionFilters.transfer = "";
@@ -876,6 +885,7 @@ async function handleAction(element) {
       origin: "",
       search: element.dataset.immobilie || "",
       beleg: "",
+      vorsorge: "",
       timeMode: monat ? "month" : von ? "range" : "none",
       dateFrom: von,
       dateTo: bis,
@@ -908,6 +918,7 @@ async function handleAction(element) {
     state.transactionFilters.search = "";
     state.transactionFilters.origin = "";
     state.transactionFilters.beleg = "";
+    state.transactionFilters.vorsorge = "";
     clearTransactionTimeFilter();
     state.selectedTransactionId = element.dataset.transaction;
     // Seite der Zielbuchung, sonst steht die Rail offen, die Zeile aber auf einer spaeteren Seite.
@@ -962,6 +973,7 @@ async function handleAction(element) {
     if (paired) {
       state.transactionFilters.account = paired.konto_id;
       state.transactionFilters.beleg = "";
+    state.transactionFilters.vorsorge = "";
       state.transactionFilters.status = "";
       state.transactionFilters.category = "";
       state.transactionFilters.transfer = "";
@@ -1073,11 +1085,25 @@ async function handleAction(element) {
     render();
     return;
   }
+  if (action === "vorsorge-transactions") {
+    state.view = "transactions";
+    Object.assign(state.transactionFilters, {
+      account: "", status: "", category: "", transfer: "", origin: "", search: "", beleg: "", vorsorge: element.dataset.vorsorge || "",
+      timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
+    });
+    state.selectedTransactionId = "";
+    state.detailRailClosed = false;
+    state.transactionPage = 1;
+    commitNavigation();
+    return;
+  }
   if (action === "open-regelzahlung") {
     // Querlink aus der Szenario-Rechengrundlage auf die konkrete Regelzahlung.
     state.view = "regelzahlungen";
     state.selectedRegelzahlungId = element.dataset.regelzahlung || "";
     commitNavigation();
+    // Die angesteuerte Zeile steht oft weit unten in der Liste.
+    document.getElementById?.(`regelzahlung-${state.selectedRegelzahlungId}`)?.scrollIntoView?.({ block: "center" });
     return;
   }
   if (action === "show-vermoegen-wertstaende") {
@@ -1141,6 +1167,7 @@ async function handleAction(element) {
       state.view = "transactions";
       state.selectedTransactionId = entity;
       state.transactionFilters.beleg = "";
+    state.transactionFilters.vorsorge = "";
       state.transactionFilters.account = "";
       state.transactionFilters.status = "";
       state.transactionFilters.category = "";
@@ -1248,7 +1275,7 @@ function applyRoute(route) {
 
   if (route.selectedTransactionId && transaktionenById.has(route.selectedTransactionId)) {
     Object.assign(state.transactionFilters, {
-      account: "", status: "", category: "", transfer: "", search: "", beleg: "",
+      account: "", status: "", category: "", transfer: "", search: "", beleg: "", vorsorge: "",
       timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
     });
     state.selectedTransactionId = route.selectedTransactionId;
@@ -1260,7 +1287,17 @@ function applyRoute(route) {
   // genau die Buchungen dieses Dokuments sichtbar sind.
   if (route.belegFilter) {
     Object.assign(state.transactionFilters, {
-      account: "", status: "", category: "", transfer: "", origin: "", search: "", beleg: route.belegFilter,
+      account: "", status: "", category: "", transfer: "", origin: "", search: "", beleg: route.belegFilter, vorsorge: "",
+      timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
+    });
+    state.selectedTransactionId = "";
+    state.detailRailClosed = false;
+    state.transactionPage = 1;
+  }
+  // Transaktionen gefiltert auf die Beitragsbuchungen eines Vorsorgevertrags.
+  if (route.vorsorgeFilter) {
+    Object.assign(state.transactionFilters, {
+      account: "", status: "", category: "", transfer: "", origin: "", search: "", beleg: "", vorsorge: route.vorsorgeFilter,
       timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
     });
     state.selectedTransactionId = "";

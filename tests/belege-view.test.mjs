@@ -152,7 +152,11 @@ test("Ausschnitt je Objekt: gleicher Baum und gleiche Tabelle, nur die Dateien d
   assert.match(html, /belege-anzahl">2</, "Wurzel zaehlt nur die zwei Dateien des Objekts");
   // Start im tiefsten gemeinsamen Ordner, Dateien oeffnen die Dokumentenansicht.
   assert.match(html, /belege-kopf"><strong>Kontoauszuege\/KTO-001<\/strong>/);
-  assert.match(html, /data-action="select-beleg" data-beleg="Belege\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf"/);
+  // Im Ausschnitt oeffnen Zeile und Name die Datei direkt; hinten Herunterladen und der Weg in die Dokumentenansicht.
+  assert.match(html, /<tr class="clickable" data-action="dokument-oeffnen" data-url="Belege\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf"/);
+  assert.match(html, /<a class="linkish" href="Belege\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf" target="_blank" rel="noopener" data-action="dokument-link">/);
+  assert.match(html, /download="auszug_2026-01\.pdf" data-action="dokument-link"/);
+  assert.match(html, /href="#\/dokumente\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf" data-action="dokument-link"/);
   assert.doesNotMatch(html, /auszug_2026-01\.txt/, "Textzwilling bleibt ausgeblendet");
 
   // Ordnerwahl und Zuklappen gelten nur fuer diesen Ausschnitt.

@@ -9,7 +9,7 @@ import { data, state, t, escapeHtml, kontenById, transaktionenById } from "../ru
 import { renderPageHead, formatDate } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import {
-  BELEGE_WURZEL, baueBaum, belegSchluessel, dateiUrl, fasseTransaktionenZusammen,
+  BELEGE_WURZEL, baueBaum, belegSchluessel, dateiUrl, dokumentRoute, fasseTransaktionenZusammen,
   findeOrdner, formatGroesse, istBildTyp, kodierePfad, ordneZwillingeZu, sortiereDateien, sucheDateien,
   verweisAnzahl, verweisIndex, vorfahren,
 } from "../belege.mjs";
@@ -129,7 +129,7 @@ export function renderDokumenteAusschnitt({ pfade, schluessel }) {
       <div class="belege-trenner" data-belege-trenner role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeHtml(t("dokumente.trenner"))}" title="${escapeHtml(t("dokumente.trenner"))}"></div>
       <div class="belege-liste">
         ${kopf}
-        ${zeilen.length || ordner.ordner.length ? renderTabelle({ zeilen, unterordner: ordner.ordner, ordnerAttr }) : `<p class="muted belege-leer">${escapeHtml(t("dokumente.ordnerLeer"))}</p>`}
+        ${zeilen.length || ordner.ordner.length ? renderTabelle({ zeilen, unterordner: ordner.ordner, ordnerAttr, zeileFn: renderAusschnittZeile, aktionen: true }) : `<p class="muted belege-leer">${escapeHtml(t("dokumente.ordnerLeer"))}</p>`}
       </div>
     </div>`;
 }
@@ -269,7 +269,7 @@ function renderDateien(sichtbar, ordner, datei) {
 }
 
 // Dateitabelle des Ordners; ordnerAttr waehlt Unterordner (Standard: in der Dokumentenansicht).
-function renderTabelle({ zeilen, unterordner, suche = "", datei = null, ordnerAttr = (pfad) => `data-action="select-beleg" data-beleg="${escapeHtml(pfad)}"` }) {
+function renderTabelle({ zeilen, unterordner, suche = "", datei = null, ordnerAttr = (pfad) => `data-action="select-beleg" data-beleg="${escapeHtml(pfad)}"`, zeileFn = renderZeile, aktionen = false }) {
   return `
     <div class="table-wrap belege-tabelle-wrap">
       <table class="belege-tabelle">
@@ -282,17 +282,18 @@ function renderTabelle({ zeilen, unterordner, suche = "", datei = null, ordnerAt
             ${sortKopf("geaendert", "dokumente.spalteGeaendert")}
             ${sortKopf("text", "dokumente.spalteText")}
             ${sortKopf("verknuepft", "dokumente.spalteVerknuepft", "amount")}
+            ${aktionen ? `<th><span class="sr-only">${escapeHtml(t("dokumente.aktionen"))}</span></th>` : ""}
           </tr>
         </thead>
         <tbody>
-          ${unterordner.map((o) => renderOrdnerZeile(o, ordnerAttr)).join("")}
-          ${zeilen.map((d) => renderZeile(d, d === datei, suche)).join("")}
+          ${unterordner.map((o) => renderOrdnerZeile(o, ordnerAttr, aktionen)).join("")}
+          ${zeilen.map((d) => zeileFn(d, d === datei, suche)).join("")}
         </tbody>
       </table>
     </div>`;
 }
 
-function renderOrdnerZeile(o, ordnerAttr) {
+function renderOrdnerZeile(o, ordnerAttr, aktionen = false) {
   return `
     <tr class="clickable belege-ordnerzeile" ${ordnerAttr(o.pfad)}>
       <td class="belege-name"><button type="button" class="linkish" ${ordnerAttr(o.pfad)}>${iconSvg("folder")}<span>${escapeHtml(o.name)}</span></button></td>
@@ -301,6 +302,28 @@ function renderOrdnerZeile(o, ordnerAttr) {
       <td></td>
       <td></td>
       <td></td>
+      ${aktionen ? "<td></td>" : ""}
+    </tr>`;
+}
+
+// Zeile im Ausschnitt eines Objekts: Name und Zeile oeffnen die Datei direkt im neuen
+// Tab, hinten Herunterladen und der Sprung in die Dokumentenansicht (Verknuepfungen).
+// Die Links tragen eine leere Aktion, damit der Zeilenklick sie nicht doppelt oeffnet.
+function renderAusschnittZeile(d) {
+  const url = dateiUrl(d.pfad);
+  const anzahl = verweisAnzahl(verweisFuer(d.pfad));
+  return `
+    <tr class="clickable" data-action="dokument-oeffnen" data-url="${escapeHtml(url)}" title="${escapeHtml(t("dokumente.oeffnen"))}">
+      <td class="belege-name"><a class="linkish" href="${escapeHtml(url)}" target="_blank" rel="noopener" data-action="dokument-link">${iconSvg("belege")}<span>${escapeHtml(d.name)}</span></a></td>
+      <td>${escapeHtml(typText(d.typ))}</td>
+      <td class="amount">${escapeHtml(formatGroesse(d.groesse, locale()))}</td>
+      <td title="${escapeHtml(formatZeit(d.geaendert))}">${escapeHtml(formatTag(d.geaendert))}</td>
+      <td>${textZelle(d)}</td>
+      <td class="amount">${anzahl ? `<strong>${anzahl}</strong>` : `<span class="muted">0</span>`}</td>
+      <td class="belege-aktionen"><span class="belege-aktionen-knoepfe">
+        <a class="icon-link" href="${escapeHtml(url)}" download="${escapeHtml(d.name)}" data-action="dokument-link" title="${escapeHtml(t("dokumente.herunterladen"))}" aria-label="${escapeHtml(`${t("dokumente.herunterladen")}: ${d.name}`)}">${iconSvg("download")}</a>
+        <a class="icon-link" href="${escapeHtml(dokumentRoute(d.pfad))}" data-action="dokument-link" title="${escapeHtml(t("dokumente.inDokumentenZeigen"))}" aria-label="${escapeHtml(`${t("dokumente.inDokumentenZeigen")}: ${d.name}`)}">${iconSvg("folder")}</a>
+      </span></td>
     </tr>`;
 }
 

@@ -602,7 +602,8 @@ function renderBeitraege(vs, today) {
             <button class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum))} · ${escapeHtml(tx.gegenpartei ?? "")}</button>
             <span class="vorsorge-buchung-betrag">${aenderungJeBuchung.has(tx.transaktion_id) ? aenderungChip(aenderungJeBuchung.get(tx.transaktion_id)) : ""}<span class="amount">${escapeHtml(formatMoney(cents(tx.betrag)))}</span></span>
           </li>`).join("")}
-        </ul>` : ""}
+        </ul>
+        <p><button class="linkish" data-action="vorsorge-transactions" data-vorsorge="${escapeHtml(vs.vorsorge_id)}">${escapeHtml(tf("vorsorge.alleBuchungen", { n: gebuchteBeitraegeAlle(data, vs.vorsorge_id).length }))} →</button></p>` : ""}
       </div>
     </div>`);
 }

@@ -114,3 +114,8 @@ test("Szenarien: Detail gegen ein anderes Szenario und Vergleich mehrerer", () =
   assert.deepEqual(parseRoute("#/szenarien/vergleich/SZN-001,SZN-003"), { view: "szenarien", szenarioVergleichIds: ["SZN-001", "SZN-003"] });
   assert.deepEqual(parseRoute("#/szenarien/vergleich/"), { view: "szenarien" });
 });
+
+test("Transaktionen gefiltert auf einen Vorsorgevertrag sind adressierbar", () => {
+  assert.equal(routeFromState({ view: "transactions", transactionFilters: { vorsorge: "VS-002" } }), "#/transaktionen/vorsorge/VS-002");
+  assert.deepEqual(parseRoute("#/transaktionen/vorsorge/VS-002"), { view: "transactions", vorsorgeFilter: "VS-002" });
+});

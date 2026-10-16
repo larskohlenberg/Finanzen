@@ -55,3 +55,17 @@ test("Regelzahlungs-Liste zeigt das Konto, von dem gezahlt wird", () => {
   assert.match(html, /id="regelzahlung-RZ-001"[\s\S]*?Testgiro[\s\S]*?<\/tr>/);
   assert.match(html, /id="regelzahlung-RZ-002"[\s\S]*?class="muted">—[\s\S]*?<\/tr>/);
 });
+
+test("Regelzahlungen zeigen die ID und markieren die angesteuerte Zeile", () => {
+  data.regelzahlungen = [
+    { regelzahlung_id: "RZ-001", bezeichnung: "Erste", betrag: "-10.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt" },
+    { regelzahlung_id: "RZ-002", bezeichnung: "Zweite", betrag: "-20.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt" },
+  ];
+  state.view = "regelzahlungen";
+  state.selectedRegelzahlungId = "RZ-002";
+  const html = renderRegelzahlungen();
+  assert.match(html, /<thead>\s*<tr>\s*<th>ID<\/th>/);
+  assert.match(html, /id="regelzahlung-RZ-001" class="">\s*<td class="id-zelle">RZ-001<\/td>/);
+  assert.match(html, /id="regelzahlung-RZ-002" class="angesteuert" aria-current="true">\s*<td class="id-zelle">RZ-002<\/td>/);
+  state.selectedRegelzahlungId = "";
+});

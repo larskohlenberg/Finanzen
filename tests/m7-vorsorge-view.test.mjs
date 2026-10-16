@@ -283,6 +283,7 @@ test("Beitragsaenderung erscheint mit Betrag und Prozent in Liste, Buchung und K
     const detail = html.slice(html.indexOf("objekt-detail-titel"));
     assert.match(detail, /Beitragsänderungen[\s\S]*ab 10\.3\.2025[\s\S]*750,00\s€ → 900,00\s€[\s\S]*\+150,00\s€ \(\+20 %\)/);
     assert.match(detail, /Letzte Buchungen[\s\S]*\+150,00\s€ \(\+20 %\)[\s\S]*-900,00/);
+    assert.match(detail, /data-action="vorsorge-transactions" data-vorsorge="VS-005">Alle 2 Buchungen anzeigen/);
   });
 });
 

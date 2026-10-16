@@ -21,6 +21,7 @@ const { data } = await import("../app/runtime.mjs");
 const selektoren = await import("../app/selektoren.mjs");
 const { buildNextAgentAction } = await import("../app/next-action.mjs");
 const { localTodayIso } = await import("../app/liquiditaet.mjs");
+const { checkItems, checkVorschau } = await import("../app/uebersicht-rechnung.mjs");
 
 const eur = (cents) => `${centsToDecimal(cents)} EUR`;
 
@@ -60,7 +61,7 @@ test("kennzahlen liefert dieselben Werte wie die Uebersicht", async () => {
 
     const aktion = buildNextAgentAction(data);
     assert.ok(text.includes(aktion.type === "none" ? "Naechste Aktion: keine" : `Naechste Aktion: ${aktion.label} (${aktion.count})`), text);
-    for (const item of selektoren.overviewCheckPreviewItems()) assert.ok(text.includes(item.detail), item.detail);
+    for (const item of checkVorschau(checkItems(data, heute))) assert.ok(text.includes(item.detail), item.detail);
 
     // Keine Einzelbuchungen, kein Float.
     assert.doesNotMatch(text, /TRX-/);

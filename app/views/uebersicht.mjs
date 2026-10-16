@@ -1,15 +1,34 @@
 // app/views/uebersicht.mjs
-// Übersicht: KPIs (Verfügbares Geld, Nettovermögen) + Kacheln für Konten und Depots.
+// Übersicht: KPIs (Verfügbares Geld, Nettovermögen), Kacheln für Konten und Depots
+// und in der Seitenleiste die anstehenden jährlichen Zahlungen.
 import { data, t, escapeHtml } from "../runtime.mjs";
 import { formatDate, formatMoney, renderPageHead, renderAccountPanels } from "../komponenten.mjs";
 import { buildNextAgentAction } from "../next-action.mjs";
-import { currentNettovermoegen, overviewAccountGroups, overviewCheckPreviewItems } from "../selektoren.mjs";
-import { renderCheckItems } from "./checks.mjs";
+import { currentNettovermoegen, overviewAccountGroups, overviewJahreszahlungen } from "../selektoren.mjs";
+import { toCents } from "../liquiditaet.mjs";
 
 // Kachel-Fusszeile: nur der Stand (aeltestes eingerechnetes Datum) und ein Link.
 function kpiNote(datum, view, linkKey) {
   const stand = datum ? `${t("labels.stand")} ${formatDate(datum)}` : t("labels.noStand");
   return `${escapeHtml(stand)} · <button class="linkish" data-view="${escapeHtml(view)}">${escapeHtml(t(linkKey))}</button>`;
+}
+
+// Jaehrliche Regelzahlungen der naechsten drei Monate; ein Klick fuehrt zur Regelzahlung.
+function renderJahreszahlungen() {
+  const termine = overviewJahreszahlungen(3);
+  const liste = termine.length
+    ? `<div class="rail-list">${termine.map(({ datum, regelzahlung: rz }) => `
+        <div class="rail-item">
+          <button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}">${escapeHtml(rz.bezeichnung)}</button>
+          <span class="muted">${escapeHtml(formatDate(datum))} · ${escapeHtml(formatMoney(toCents(rz.betrag)))}</span>
+        </div>`).join("")}</div>`
+    : `<p class="muted">${escapeHtml(t("overview.jahreszahlungenLeer"))}</p>`;
+  return `
+        <section class="panel panel-pad jahreszahlungen-rail">
+          <h2 class="section-title"><button class="linkish" data-view="regelzahlungen">${escapeHtml(t("overview.jahreszahlungen"))}</button></h2>
+          <p class="page-lead">${escapeHtml(t("overview.jahreszahlungenLead"))}</p>
+          ${liste}
+        </section>`;
 }
 
 export function renderOverview() {
@@ -53,10 +72,7 @@ export function renderOverview() {
           <button class="linkish" data-action="copy-next-agent-prompt" ${nextAction.type === "none" ? "disabled" : ""}>${escapeHtml(nextAction.type === "none" ? t("chrome.noAgentAction") : nextAction.label)}</button>
           <p class="page-lead">${escapeHtml(t("chrome.copyAgentPrompt"))}</p>
         </section>
-        <section class="panel panel-pad checks-rail">
-          <h2 class="section-title"><button class="linkish" data-action="show-checks">${escapeHtml(t("overview.checksPreview"))}</button></h2>
-          <div class="rail-list">${renderCheckItems(overviewCheckPreviewItems())}</div>
-        </section>
+        ${renderJahreszahlungen()}
       </aside>
     </div>
   `;

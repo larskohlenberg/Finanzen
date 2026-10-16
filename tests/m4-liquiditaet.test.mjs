@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   addInterval,
+  anstehendeJahreszahlungen,
   occurrences,
   naechsteFaelligkeit,
   computeLiquiditaetIst,
@@ -175,4 +176,31 @@ test("defaultHorizonEnd faellt auf today+Fallback zurueck, wenn alle unbefristet
 test("toCents parst Decimal-Strings centgenau", () => {
   assert.equal(toCents("-6008.35"), -600835);
   assert.equal(toCents("0.05"), 5);
+});
+
+test("anstehendeJahreszahlungen: nur jaehrliche, bestaetigte Termine ab heute bis drei Monate, nach Datum", () => {
+  const basis = { status: "bestaetigt", rhythmus_intervall: 1, betrag: "-100.00" };
+  const rz = [
+    { ...basis, regelzahlung_id: "RZ-001", rhythmus_einheit: "jahr", anker_datum: "2025-10-16" },
+    { ...basis, regelzahlung_id: "RZ-002", rhythmus_einheit: "jahr", anker_datum: "2025-12-01" },
+    { ...basis, regelzahlung_id: "RZ-003", rhythmus_einheit: "jahr", anker_datum: "2026-01-17" },
+    { ...basis, regelzahlung_id: "RZ-004", rhythmus_einheit: "monat", anker_datum: "2026-06-20" },
+    { ...basis, regelzahlung_id: "RZ-005", rhythmus_einheit: "monat", rhythmus_intervall: 3, anker_datum: "2026-07-20" },
+    { ...basis, regelzahlung_id: "RZ-006", rhythmus_einheit: "monat", rhythmus_intervall: 12, anker_datum: "2025-11-05" },
+    { ...basis, regelzahlung_id: "RZ-007", rhythmus_einheit: "jahr", anker_datum: "2025-11-01", status: "abgelehnt" },
+    { ...basis, regelzahlung_id: "RZ-008", rhythmus_einheit: "jahr", anker_datum: "2025-11-01", status: "vorgeschlagen" },
+    { ...basis, regelzahlung_id: "RZ-009", rhythmus_einheit: "jahr", anker_datum: "2025-11-01", aktiv_bis: "2026-10-31" },
+    { ...basis, regelzahlung_id: "RZ-010", rhythmus_einheit: "jahr", anker_datum: "2025-10-15" },
+  ];
+  const termine = anstehendeJahreszahlungen(rz, "2026-10-16");
+  assert.deepEqual(
+    termine.map((t) => [t.datum, t.regelzahlung.regelzahlung_id]),
+    [
+      ["2026-10-16", "RZ-001"],
+      ["2026-11-05", "RZ-006"],
+      ["2026-12-01", "RZ-002"],
+    ],
+  );
+  assert.deepEqual(anstehendeJahreszahlungen(rz, "2026-10-16", 4).map((t) => t.regelzahlung.regelzahlung_id).at(-1), "RZ-003");
+  assert.deepEqual(anstehendeJahreszahlungen(undefined, "2026-10-16"), []);
 });

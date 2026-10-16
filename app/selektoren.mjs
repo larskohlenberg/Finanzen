@@ -4,10 +4,8 @@
 // die Topbar dieselbe Logik teilen.
 import { data } from "./runtime.mjs";
 import { computeNettovermoegen, computeVermoegenChecks } from "./vermoegen.mjs";
-import { localTodayIso } from "./liquiditaet.mjs";
+import { anstehendeJahreszahlungen, localTodayIso } from "./liquiditaet.mjs";
 import {
-  checkItems,
-  checkVorschau,
   kontoRang,
   kontoSaldoGeladen,
   kontoStandDatum,
@@ -31,12 +29,8 @@ export function currentVermoegenChecks() {
   return computeVermoegenChecks(data, localTodayIso());
 }
 
-export function currentCheckItems() {
-  return checkItems(data, localTodayIso());
-}
-
-export function overviewCheckPreviewItems(limit = 4) {
-  return checkVorschau(currentCheckItems(), limit);
+export function overviewJahreszahlungen(monate = 3) {
+  return anstehendeJahreszahlungen(data.regelzahlungen, localTodayIso(), monate);
 }
 
 export function openCategoryTransactions() {

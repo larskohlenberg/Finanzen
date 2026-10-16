@@ -6,7 +6,7 @@ import { test } from "node:test";
 import {
   belegPfadeAusText, belegTextHtml, baueBaum, ordneZwillingeZu, verweisIndex,
   fasseTransaktionenZusammen, dokumentRoute, belegPfadAusRoute, sortiereDateien,
-  sucheDateien, formatGroesse, ordnerVon, vorfahren, belegSchluessel, dokumenteZuObjekt,
+  sucheDateien, formatGroesse, ordnerVon, vorfahren, belegSchluessel, dokumenteZuObjekt, belegOrdnerAusText,
 } from "../app/belege.mjs";
 import { routeFromState, parseRoute } from "../app/routing.mjs";
 
@@ -286,4 +286,26 @@ test("dokumenteZuObjekt: Objektordner plus Verweise, ohne Zwillinge, neueste zue
   assert.deepEqual(dokumenteZuObjekt({ dateien, index, ids: ["IMM-001"] }).map((d) => d.name), ["Gutachten.pdf", "Kaufvertrag.pdf"]);
   assert.deepEqual(dokumenteZuObjekt({ index, ids: ["IMM-001"] }).map((d) => d.pfad), ["Belege/Sonstiges/2026/Gutachten.pdf"]);
   assert.deepEqual(dokumenteZuObjekt({ dateien, index, ids: [] }), []);
+});
+
+test("belegOrdnerAusText: nur Objektordner mit Schraegstrich am Ende, keine Dateipfade", () => {
+  assert.deepEqual(belegOrdnerAusText("Belege/Versicherungen/KFZ_X_1/ sowie Lastschrift"), ["Belege/Versicherungen/KFZ_X_1/"]);
+  assert.deepEqual(belegOrdnerAusText("(Belege/Versicherungen/KFZ_X_1/2026/)"), ["Belege/Versicherungen/KFZ_X_1/2026/"]);
+  assert.deepEqual(belegOrdnerAusText("Belege/Versicherungen/KFZ_X_1/2026/a.pdf"), []);
+  assert.deepEqual(belegOrdnerAusText("Belege/Versicherungen/ und Belege/"), [], "Klassenordner allein ist zu grob");
+  assert.deepEqual(belegOrdnerAusText(undefined), []);
+});
+
+test("dokumenteZuObjekt: genannte Ordner liefern alle Dateien darunter", () => {
+  const dateien = [
+    { pfad: "Belege/Versicherungen/KFZ_X_1/2025/Rechnung_2025.pdf", typ: "pdf" },
+    { pfad: "Belege/Versicherungen/KFZ_X_1/2025/Rechnung_2025.txt", typ: "txt" },
+    { pfad: "Belege/Versicherungen/KFZ_X_1/2026/Rechnung_2026.pdf", typ: "pdf" },
+    { pfad: "Belege/Versicherungen/KFZ_X_10/2026/fremd.pdf", typ: "pdf" },
+  ];
+  assert.deepEqual(dokumenteZuObjekt({ dateien, ids: ["VS-001"], ordner: ["Belege/Versicherungen/KFZ_X_1/"] }).map((d) => d.pfad), [
+    "Belege/Versicherungen/KFZ_X_1/2026/Rechnung_2026.pdf",
+    "Belege/Versicherungen/KFZ_X_1/2025/Rechnung_2025.pdf",
+  ]);
+  assert.deepEqual(dokumenteZuObjekt({ dateien, ids: ["VS-001"] }), []);
 });

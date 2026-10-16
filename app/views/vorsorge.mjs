@@ -6,6 +6,7 @@ import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert } from "../vermoegen.mjs";
 import { matchesQuery } from "../tools/lib/text.mjs";
 import { dokumenteHtml } from "./vermoegen-teile.mjs";
+import { belegOrdnerAusText } from "../belege.mjs";
 
 const VORSORGE_ARTEN = ["lebensversicherung", "rentenversicherung", "gesetzliche-rente", "betriebsrente", "riester", "ruerup", "schutzversicherung", "sonstig"];
 const VORSORGE_STATUS = ["aktiv", "gekuendigt", "ruhend", "geplant", "laufend", "beendet"];
@@ -313,7 +314,7 @@ export function renderVorsorgeDetail(vs) {
     ${vs.bemerkung ? detailRow(t("vorsorge.bemerkung"), escapeHtml(vs.bemerkung)) : ""}
     ${renderErwarteteBeitraege(beitraege)}
     ${renderGebuchteBeitraege(gebuchte)}
-    ${detailRow(t("vermoegen.dokumente.titel"), dokumenteHtml([vs.vorsorge_id]))}
+    ${detailRow(t("vermoegen.dokumente.titel"), dokumenteHtml([vs.vorsorge_id], belegOrdnerAusText(vs.quelle_hinweis)))}
   `;
 }
 

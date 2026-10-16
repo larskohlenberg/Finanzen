@@ -48,6 +48,9 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
   stille Kapitalleistung. Nur die Vorsorge-Entitaet und die Beitrags-Regelzahlung
   mit `vorsorge_id` vorbereiten, wenn der Vertrag fuer Beitraege, Status oder
   Wechsel-Checks relevant ist.
+  Die Belege bleiben unter `Belege/Versicherungen/<Sparte>_<Versicherer>_<Vertragsnr>/`;
+  `quelle_hinweis` nennt diesen Ordner mit `/` am Ende. Dann zeigt die App alle
+  Belege darunter am Vorsorgeobjekt, auch spaeter abgelegte.
 
 ## Ablauf
 

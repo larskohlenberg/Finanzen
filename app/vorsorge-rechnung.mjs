@@ -223,21 +223,30 @@ export function monateBis(vonIso, bisIso) {
   return m;
 }
 
-// Feste Farbe je Vertrag fuer Kopf-Grafiken, Legenden und Kartenpunkte (Slot 0..5 der
-// Kategorienpalette). Farbe bekommen die Vertraege mit Wert im Kopf: zuerst die
-// kapitalbildenden mit Rueckkaufswert (die ersten drei Slots sind paarweise
-// unterscheidbar, der Donut zeigt sie nebeneinander), dann die mit erwarteter Rente
-// oder Kapitalleistung, jeweils nach ID. Mehr als sechs Vertraege teilen sich das
-// neutrale Grau. Die Zuordnung aendert sich nur, wenn ein Vertrag einen Wert bekommt
-// oder verliert.
-export const VERTRAG_FARBEN = 6;
+// Feste Farbe je Altersvorsorge-Vertrag (Renten und Lebensversicherungen) fuer
+// Grafiken, Legenden und Kartenpunkte: Slot 0..13 der Vertragspalette.
+// Fest vergebene Slots stehen in DATENROOT/farben.json ({ "vorsorge": { "VS-001": 0 } })
+// und gewinnen immer. Vertraege ohne Eintrag bekommen nach ID die naechste freie Farbe,
+// damit die Zuordnung auch ohne Datei stabil bleibt. Sind alle 14 vergeben, beginnt die
+// Palette von vorn (bewusst kein Grau). Versicherungen bekommen nur mit Eintrag eine Farbe.
+export const VERTRAG_FARBEN = 14;
 
 export function vertragsFarben(data) {
-  const aktiv = (data.vorsorge ?? []).filter((vs) => !istBeendet(vs)).sort((a, b) => a.vorsorge_id.localeCompare(b.vorsorge_id));
-  const hat = (vs, feld) => Boolean(aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld));
-  const reihe = [
-    ...aktiv.filter((vs) => vs.kapitalbildend && hat(vs, "rueckkaufswert")),
-    ...aktiv.filter((vs) => !(vs.kapitalbildend && hat(vs, "rueckkaufswert")) && (hat(vs, "erwartete_rente") || hat(vs, "erwartete_kapitalleistung"))),
-  ];
-  return new Map(reihe.slice(0, VERTRAG_FARBEN).map((vs, i) => [vs.vorsorge_id, i]));
+  const ids = new Set((data.vorsorge ?? []).map((vs) => vs.vorsorge_id));
+  const fest = Object.entries(data.farben?.vorsorge ?? {})
+    .filter(([id, slot]) => ids.has(id) && Number.isInteger(slot) && slot >= 0 && slot < VERTRAG_FARBEN);
+  const farben = new Map(fest);
+  const belegt = new Set(fest.map(([, slot]) => slot));
+  let ueberlauf = 0;
+  const offen = (data.vorsorge ?? [])
+    .filter((vs) => !farben.has(vs.vorsorge_id) && tabFuerVorsorge(vs) !== "versicherungen")
+    .sort((a, b) => a.vorsorge_id.localeCompare(b.vorsorge_id));
+  for (const vs of offen) {
+    let slot = 0;
+    while (slot < VERTRAG_FARBEN && belegt.has(slot)) slot++;
+    if (slot === VERTRAG_FARBEN) slot = ueberlauf++ % VERTRAG_FARBEN;
+    belegt.add(slot);
+    farben.set(vs.vorsorge_id, slot);
+  }
+  return farben;
 }

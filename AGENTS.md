@@ -1,6 +1,6 @@
 # AGENTS.md – Anleitung für KI-Agenten
 
-> Sprich mit dem Nutzer immer in seiner Sprache.
+> English: [AGENTS.en.md](AGENTS.en.md). Sprich mit dem Nutzer immer in seiner Sprache.
 
 **Gibt es im Repo-Ordner eine Datei `AGENTS.local.md`, lies sie zuerst.** Sie enthält die Betriebsregeln dieser Installation: wo die Daten liegen, wie du darauf zugreifst, wie mit Git umgegangen wird. Wo sie von dieser Datei abweicht, gilt sie, außer bei den Regeln unter „Nicht verhandelbar“. Gibt es sie nicht, ist das hier eine neue Installation: Führe den Nutzer durch die Einrichtung (siehe „Fahrplan“).
 

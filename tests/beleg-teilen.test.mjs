@@ -48,6 +48,8 @@ test("planeTeilung: jede Seite genau einmal, sonst alle Fehler auf einmal", () =
   ]);
   assert.throws(() => planeTeilung(4, [{ seiten: "1-2", name: "a.pdf" }, { seiten: "2-3", name: "b.pdf" }]), /Seite 2 gehoert schon zu a\.pdf[\s\S]*Seiten ohne Teil: 4/);
   assert.throws(() => planeTeilung(2, [{ seiten: "1-3", name: "a.pdf" }]), /Seite 3 gibt es nicht/);
+  // Riesige Bereiche werden vor dem Auffalten abgewiesen.
+  assert.throws(() => leseSeiten("1-999999999", 12), /Seite 999999999 gibt es nicht/);
 });
 
 let abzug;

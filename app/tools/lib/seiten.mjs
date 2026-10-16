@@ -4,7 +4,8 @@
 // Teil nennt seine Seiten als "1-4", "5" oder "1-2,7". Jede Seite des PDFs
 // gehoert genau einem Teil — nichts geht verloren, nichts wird verdoppelt.
 
-export function leseSeiten(angabe) {
+// max begrenzt die Seitennummern, bevor ein Bereich aufgefaltet wird.
+export function leseSeiten(angabe, max = Infinity) {
   const seiten = [];
   for (const stueck of String(angabe).split(",").map((s) => s.trim())) {
     const m = /^(\d+)(?:\s*-\s*(\d+))?$/.exec(stueck);
@@ -12,6 +13,7 @@ export function leseSeiten(angabe) {
     const von = Number(m[1]);
     const bis = m[2] === undefined ? von : Number(m[2]);
     if (von < 1 || bis < von) throw new Error(`Seitenbereich "${stueck}" ungueltig`);
+    if (bis > max) throw new Error(`Seite ${bis} gibt es nicht (das PDF hat ${max})`);
     for (let nr = von; nr <= bis; nr += 1) seiten.push(nr);
   }
   return seiten;
@@ -26,14 +28,13 @@ export function planeTeilung(seitenzahl, teile) {
   for (const teil of teile) {
     let seiten;
     try {
-      seiten = leseSeiten(teil.seiten);
+      seiten = leseSeiten(teil.seiten, seitenzahl);
     } catch (error) {
       fehler.push(`${teil.name}: ${error.message}`);
       continue;
     }
     for (const nr of seiten) {
-      if (nr > seitenzahl) fehler.push(`${teil.name}: Seite ${nr} gibt es nicht (das PDF hat ${seitenzahl})`);
-      else if (vergeben.has(nr)) fehler.push(`${teil.name}: Seite ${nr} gehoert schon zu ${vergeben.get(nr)}`);
+      if (vergeben.has(nr)) fehler.push(`${teil.name}: Seite ${nr} gehoert schon zu ${vergeben.get(nr)}`);
       else vergeben.set(nr, teil.name);
     }
     plan.push({ name: teil.name, seiten });

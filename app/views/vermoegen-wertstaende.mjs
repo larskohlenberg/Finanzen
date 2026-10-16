@@ -2,7 +2,7 @@
 // Alle Wertstaende (zeitwerte) als filter- und sortierbare Tabelle auf dem
 // Uebersichts-Tab der Vermoegensseite. Filter und Sortierung wie bei Vorsorge.
 import { data, state, t, escapeHtml, cents, kontenById } from "../runtime.mjs";
-import { formatMoney, formatDate, renderTableFilters } from "../komponenten.mjs";
+import { formatMoney, formatDate, renderTableFilters, klappKachel } from "../komponenten.mjs";
 import { matchesQuery } from "../tools/lib/text.mjs";
 import { qualitaetChip } from "./vermoegen-teile.mjs";
 
@@ -107,11 +107,8 @@ export function renderWertstaendeTabelle() {
       <td>${qualitaetChip({ qualitaet: z.zw.qualitaet })}</td>
     </tr>`).join("");
   const leer = (data.zeitwerte ?? []).length ? t("vermoegen.keineWertstaendeTreffer") : t("vermoegen.noWertstaende");
-  return `
-    <section class="panel panel-pad section-spacing" id="vermoegen-wertstaende">
-      <div class="panel-kopf">
-        <h2 class="section-title">${escapeHtml(t("vermoegen.wertstaende"))}</h2>
-      </div>
+  // Klappkachel wie alle grossen Abschnitte, per Standard zu (docs/ui-regeln.md).
+  return klappKachel({ id: "vermoegen.wertstaende", titel: t("vermoegen.wertstaende"), offen: false, klasse: "section-spacing", htmlId: "vermoegen-wertstaende", inhalt: `
       <p class="muted">${escapeHtml(t("vermoegen.wertstaendeLead"))}</p>
       ${filter}
       ${rows.length ? `
@@ -127,6 +124,5 @@ export function renderWertstaendeTabelle() {
             </tr></thead>
             <tbody>${body}</tbody>
           </table>
-        </div>` : `<p class="muted">${escapeHtml(leer)}</p>`}
-    </section>`;
+        </div>` : `<p class="muted">${escapeHtml(leer)}</p>`}` });
 }

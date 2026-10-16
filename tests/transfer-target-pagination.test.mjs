@@ -218,6 +218,17 @@ test("Alle Beitraege eines Vorsorgevertrags: Transaktionen gefiltert auf seine R
   }
 });
 
+test("Sprung 'Alle Wertstaende' oeffnet die sonst zugeklappte Kachel auf der Vermoegensuebersicht", () => {
+  state.klappKacheln = {};
+  clickAction({ action: "show-vermoegen-wertstaende", entity: "DAR-001" });
+  assert.equal(state.view, "vermoegen");
+  assert.equal(state.vermoegenTab, "uebersicht");
+  assert.equal(state.klappKacheln["vermoegen.wertstaende"], true);
+  assert.equal(state.wertstaendeFilters.search, "DAR-001");
+  state.klappKacheln = {};
+  state.view = "transactions";
+});
+
 test("open-vorsorge setzt Auswahl zurück, leert Filter und navigiert zum Vorsorge-Hash", () => {
   resetTransactionState();
   state.vorsorgeFilters = { person: "PER-001" };

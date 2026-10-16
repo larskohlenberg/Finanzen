@@ -49,11 +49,11 @@ test("Transaktion darf keine unbekannte Regelzahlung referenzieren", () => {
   assert.match(result.errors.join("\n"), /regelzahlung_id.*RZ-999.*existiert nicht/);
 });
 
-test("valide Vorsorge (kapitalbildende Riester) besteht", () => {
+test("valide Vorsorge (Riester als gebundenes Kapital) besteht", () => {
   const data = basis({
     vorsorge: [{
       vorsorge_id: "VS-001", art: "riester", name: "Riester Lena", person_id: "PER-001",
-      status: "aktiv", kapitalbildend: true, kapitalwahl: "offen", geprueft_am: "2026-01-15",
+      status: "aktiv", kapitalbildend: false, kapitalwahl: "offen", geprueft_am: "2026-01-15",
     }],
   });
   assert.deepEqual(validateMasterData(data).errors, []);
@@ -76,7 +76,7 @@ test("kapitalbildend muss boolean sein", () => {
 
 test("vorsorge-Zeitwert mit rueckkaufswert ist valide", () => {
   const data = basis({
-    vorsorge: [{ vorsorge_id: "VS-001", art: "riester", name: "R", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
+    vorsorge: [{ vorsorge_id: "VS-001", art: "rentenversicherung", name: "R", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
     zeitwerte: [{ entitaet: "vorsorge", entitaet_id: "VS-001", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" }],
   });
   assert.deepEqual(validateMasterData(data).errors, []);
@@ -167,9 +167,14 @@ test("schutzversicherung darf nicht kapitalbildend sein", () => {
   assert.ok(validateMasterData(data).errors.some((e) => e.includes("kapitalbildend")));
 });
 
-test("kapitalbildende Riester bleibt valide (Negativliste trifft nicht)", () => {
-  const data = basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: true }] });
-  assert.deepEqual(validateMasterData(data).errors, []);
+test("Riester darf nicht kapitalbildend sein, als gebundenes Kapital mit Rueckkaufswert aber valide", () => {
+  const kb = basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: true }] });
+  assert.ok(validateMasterData(kb).errors.some((e) => e.includes("VS-001.kapitalbildend") && e.includes("zweckgebunden")));
+  const gebunden = basis({
+    vorsorge: [{ vorsorge_id: "VS-001", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: false, kapitalwahl: "offen" }],
+    zeitwerte: [{ entitaet: "vorsorge", entitaet_id: "VS-001", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" }],
+  });
+  assert.deepEqual(validateMasterData(gebunden).errors, []);
 });
 
 test("Vorsorge-Status muss zu eingeschraenkter art passen", () => {
@@ -191,8 +196,8 @@ test("Vorsorge-Status muss zu eingeschraenkter art passen", () => {
 test("Hybrid-Vorsorgearten erlauben beide Statusfamilien", () => {
   const data = basis({
     vorsorge: [
-      { vorsorge_id: "VS-001", art: "riester", name: "Riester aktiv", person_id: "PER-001", status: "aktiv", kapitalbildend: true },
-      { vorsorge_id: "VS-002", art: "riester", name: "Riester laufend", person_id: "PER-001", status: "laufend", kapitalbildend: true },
+      { vorsorge_id: "VS-001", art: "riester", name: "Riester aktiv", person_id: "PER-001", status: "aktiv", kapitalbildend: false },
+      { vorsorge_id: "VS-002", art: "riester", name: "Riester laufend", person_id: "PER-001", status: "laufend", kapitalbildend: false },
     ],
   });
 

@@ -21,7 +21,7 @@ const BELEG = "Belege/Vorsorge/VS-002_Muster-Riester/2026/2026_Muster_Vertragsue
 
 const vertraege = [
   { vorsorge_id: "VS-001", art: "ruerup", name: "Basisrente Muster", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-01-01" },
-  { vorsorge_id: "VS-002", art: "riester", name: "Riester Muster", person_id: "PER-001", status: "aktiv", kapitalbildend: true, geprueft_am: "2026-01-01" },
+  { vorsorge_id: "VS-002", art: "rentenversicherung", name: "Riester Muster", person_id: "PER-001", status: "aktiv", kapitalbildend: true, geprueft_am: "2026-01-01" },
 ];
 const zeitwerte = [
   { entitaet: "vorsorge", entitaet_id: "VS-001", feld: "vertragswert", wert: "35000.00", standdatum: "2026-09-30", qualitaet: "belegt" },

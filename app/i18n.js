@@ -333,6 +333,11 @@ window.FINANCE_I18N = {
       keinWert: "kein Wert",
       wiedervorlage: "Wiedervorlage",
       gehoertZu: "Gehört zu",
+      riester: {
+        gebundenesKapital: "Gebundenes Kapital",
+        nurBeiKuendigung: "nur bei Kündigung erreichbar, Zulagen und Steuervorteile würden zurückgefordert",
+        wahl: { offen: "zu Rentenbeginn bis zu 30 % als Einmalzahlung möglich, Rest als Rente", kapital: "Einmalzahlung (bis 30 %) zu Rentenbeginn gewählt, Rest als Rente", monatsrente: "volle Verrentung gewählt" },
+      },
       beitragsAenderungen: "Beitragsänderungen",
       aenderungAb: "ab {datum}",
       zuletztAenderung: "zuletzt {aenderung} ab {datum}",
@@ -1223,6 +1228,11 @@ window.FINANCE_I18N = {
       keinWert: "no value",
       wiedervorlage: "Follow-up",
       gehoertZu: "Belongs to",
+      riester: {
+        gebundenesKapital: "Tied-up capital",
+        nurBeiKuendigung: "only reachable by cancelling; allowances and tax benefits would be reclaimed",
+        wahl: { offen: "up to 30 % as a lump sum at pension start, the rest as a pension", kapital: "lump sum (up to 30 %) at pension start chosen, the rest as a pension", monatsrente: "full annuity chosen" },
+      },
       beitragsAenderungen: "Contribution changes",
       aenderungAb: "from {datum}",
       zuletztAenderung: "last {aenderung} from {datum}",

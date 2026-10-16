@@ -575,6 +575,11 @@ function validateCrossFieldRules(data, errors) {
     if (vs.kapitalbildend === true && nieKapitalbildend.has(vs.art)) {
       errors.push(`vorsorge.${vs.vorsorge_id}.kapitalbildend: ${vs.art} hat keinen Rueckkaufswert und kann nicht kapitalbildend sein`);
     }
+    // Riester ist zweckgebunden: hoechstens 30 Prozent Einmalzahlung zu Rentenbeginn, der
+    // Rueckkaufswert nur bei Kuendigung mit Rueckforderung der Foerderung. Kein Aktivum.
+    if (vs.kapitalbildend === true && vs.art === "riester") {
+      errors.push(`vorsorge.${vs.vorsorge_id}.kapitalbildend: riester ist zweckgebunden (hoechstens 30 Prozent Einmalzahlung zu Rentenbeginn) und kann nicht kapitalbildend sein; der Rueckkaufswert bleibt als gebundenes Kapital erfasst`);
+    }
     validateVorsorgeStatusJeArt(vs, errors);
     if (vs.ersetzt_vorsorge_id) {
       if (vs.ersetzt_vorsorge_id === vs.vorsorge_id) {

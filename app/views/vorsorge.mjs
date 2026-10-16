@@ -41,6 +41,12 @@ function vorsorgeArtLabel(art) {
 const zeitwert = (vs, feld) => aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld);
 // Feste Farbe je Vertrag (vertragsFarben); Vertraege ohne eigene Farbe sind grau.
 const farbKlasse = (farben, id) => (farben.has(id) ? `vertrag-farbe-${farben.get(id)}` : "vertrag-farbe-rest");
+// Riester: das Kapital ist zweckgebunden. Der Rueckkaufswert ist nur bei Kuendigung
+// (schaedliche Verwendung) erreichbar, zu Rentenbeginn sind hoechstens 30 Prozent
+// als Einmalzahlung moeglich, der Rest wird verrentet.
+const istRiester = (vs) => vs.art === "riester";
+const rkwLabel = (vs) => t(istRiester(vs) ? "vorsorge.riester.gebundenesKapital" : "vorsorge.rueckkaufswert");
+const riesterHinweis = (vs) => (istRiester(vs) ? t(`vorsorge.riester.wahl.${vs.kapitalwahl === "kapital" || vs.kapitalwahl === "monatsrente" ? vs.kapitalwahl : "offen"}`) : "");
 const farbPunkt = (klasse) => `<i class="farbpunkt ${klasse}" aria-hidden="true"></i>`;
 // Ein Rueckkaufswert zaehlt nur bei kapitalbildenden Vertraegen ins Nettovermoegen.
 const ausserhalbVermoegen = (vs, feld) => feld === "vertragswert" || (feld === "rueckkaufswert" && !vs.kapitalbildend);
@@ -412,15 +418,16 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
     zeilen.push([personName(vs.person_id), naechster ? tf("vorsorge.karte.faellig", { datum: formatDate(naechster.datum) }) : ""].filter(Boolean).join(" · "));
     const vj = beitragVorjahr(data, vs.vorsorge_id);
     if (vj?.vorjahr_cents) zeilen.push(`${tf("vorsorge.karte.vorjahr", { betrag: formatMoney(vj.vorjahr_cents) })} · ${veraenderungText(vj)}`);
-    if (rkw) zeilen.push(`${t("vorsorge.rueckkaufswert")} ${formatMoney(cents(rkw.wert))}${vs.kapitalbildend ? "" : ` · ${t("vorsorge.nichtImVermoegen")}`}`);
+    if (rkw) zeilen.push(`${rkwLabel(vs)} ${formatMoney(cents(rkw.wert))}${vs.kapitalbildend ? "" : ` · ${t("vorsorge.nichtImVermoegen")}`}`);
   } else if (tab === "renten") {
     // Hauptwert ist die Rente; ohne Rente der Rueckkaufs- bzw. Vertragswert.
     const ersatz = rkw || vertragswert;
     wert = rente ? `${escapeHtml(formatMoney(cents(rente.wert)))} ${einheit(t("vorsorge.jeMonat"))}` : ersatz ? escapeHtml(formatMoney(cents(ersatz.wert))) : fehlt;
     zeilen.push([personName(vs.person_id), beginn].filter(Boolean).join(" · "));
-    if (rente && rkw) zeilen.push(`${t("vorsorge.rueckkaufswert")} ${formatMoney(cents(rkw.wert))}${vs.kapitalbildend ? "" : ` · ${t("vorsorge.nichtImVermoegen")}`}`);
+    if (rente && rkw) zeilen.push(`${rkwLabel(vs)} ${formatMoney(cents(rkw.wert))}${vs.kapitalbildend ? "" : ` · ${t("vorsorge.nichtImVermoegen")}`}`);
     else if (rente && vertragswert) zeilen.push(`${t("vorsorge.vertragswert")} ${formatMoney(cents(vertragswert.wert))} · ${t("vorsorge.nichtImVermoegen")}`);
     else if (!rente && !rkw && vertragswert) zeilen.push(`${t("vorsorge.vertragswert")} · ${t("vorsorge.nichtImVermoegen")}`);
+    if (istRiester(vs)) zeilen.push(riesterHinweis(vs));
   } else {
     wert = rkw ? escapeHtml(formatMoney(cents(rkw.wert))) : fehlt;
     zeilen.push([personName(vs.person_id), beginn].filter(Boolean).join(" · "));
@@ -504,7 +511,8 @@ function kennzahlenVorsorge(vs, today) {
   if (rkw) {
     const zusatz = vertragswert ? ` · ${escapeHtml(t("vorsorge.vertragswert"))} ${escapeHtml(geldOhneCent(cents(vertragswert.wert)))}` : "";
     const nicht = vs.kapitalbildend ? "" : ` · ${escapeHtml(t("vorsorge.nichtImVermoegen"))}`;
-    wert = kennzahl(t("vorsorge.rueckkaufswert"), geld(cents(rkw.wert)), zeitwertNotiz(rkw) + nicht + zusatz);
+    const gebunden = istRiester(vs) ? `<br>${escapeHtml(t("vorsorge.riester.nurBeiKuendigung"))}` : "";
+    wert = kennzahl(rkwLabel(vs), geld(cents(rkw.wert)), zeitwertNotiz(rkw) + nicht + zusatz + gebunden);
   } else if (vertragswert) {
     wert = kennzahl(t("vorsorge.vertragswert"), geld(cents(vertragswert.wert)), `${escapeHtml(formatDate(vertragswert.standdatum))} · ${escapeHtml(t("vorsorge.nichtImVermoegen"))}`);
   } else if (vs.kapitalbildend) {
@@ -514,7 +522,7 @@ function kennzahlenVorsorge(vs, today) {
   }
 
   const leistung = rente
-    ? kennzahl(t("vorsorge.erwarteteRente"), `${geld(cents(rente.wert))} ${einheit(t("vorsorge.jeMonat"))}`, zeitwertNotiz(rente))
+    ? kennzahl(t("vorsorge.erwarteteRente"), `${geld(cents(rente.wert))} ${einheit(t("vorsorge.jeMonat"))}`, zeitwertNotiz(rente) + (istRiester(vs) ? `<br>${escapeHtml(riesterHinweis(vs))}` : ""))
     : kapital
       ? kennzahl(t("vorsorge.kapitalBeiAblauf"), geld(cents(kapital.wert)), zeitwertNotiz(kapital))
       : kennzahl(t("vorsorge.erwarteteLeistung"), `<span class="muted">—</span>`, escapeHtml(t("vorsorge.keineLeistung")));
@@ -585,7 +593,7 @@ function renderVertragsdaten(vs, tab, offen) {
         ${detailRow(t("labels.owner"), escapeHtml(personName(vs.person_id)))}
         ${detailRow(t("labels.status"), statusChip(vs))}
         ${tab === "versicherungen" && !vs.kapitalbildend ? "" : detailRow(t("vorsorge.kapitalbildendLabel"), escapeHtml(vs.kapitalbildend ? t("labels.yes") : t("labels.no")))}
-        ${vs.kapitalwahl ? detailRow(t("vorsorge.kapitalwahl"), escapeHtml(vs.kapitalwahl)) : ""}
+        ${vs.kapitalwahl ? detailRow(t("vorsorge.kapitalwahl"), escapeHtml(istRiester(vs) ? `${vs.kapitalwahl} · ${riesterHinweis(vs)}` : vs.kapitalwahl)) : ""}
         ${vs.aktiv_bis ? detailRow(t("vorsorge.aktivBis"), escapeHtml(formatDate(vs.aktiv_bis))) : ""}
         ${detailRow(t("vorsorge.geprueftAm"), vs.geprueft_am
           ? `${escapeHtml(formatDate(vs.geprueft_am))}${wiedervorlage ? ` <span class="chip review">${escapeHtml(t("vorsorge.wiedervorlage"))}</span>` : ""}`
@@ -670,7 +678,7 @@ function renderAnhang(vs) {
   const wertstaende = staende.length
     ? staende.map((zw) => `
       <div class="wertstand-item">
-        <div><strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong> <span class="muted">${escapeHtml(t(FELD_LABEL[zw.feld] ?? zw.feld))}${ausserhalbVermoegen(vs, zw.feld) ? ` (${escapeHtml(t("vorsorge.nichtImVermoegen"))})` : ""} · ${escapeHtml(formatDate(zw.standdatum))}</span></div>
+        <div><strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong> <span class="muted">${escapeHtml(zw.feld === "rueckkaufswert" ? rkwLabel(vs) : t(FELD_LABEL[zw.feld] ?? zw.feld))}${ausserhalbVermoegen(vs, zw.feld) ? ` (${escapeHtml(t("vorsorge.nichtImVermoegen"))})` : ""} · ${escapeHtml(formatDate(zw.standdatum))}</span></div>
         <div>${qualitaetChip({ qualitaet: zw.qualitaet })}</div>
         ${zw.quelle_hinweis ? `<div class="muted">${quelleHtml(zw.quelle_hinweis)}</div>` : ""}
       </div>`).join("")

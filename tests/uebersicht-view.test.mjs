@@ -41,7 +41,7 @@ test("Übersicht listet jährliche Zahlungen der nächsten drei Monate statt der
   const basis = { status: "bestaetigt", rhythmus_einheit: "jahr", rhythmus_intervall: 1 };
   data.regelzahlungen = [
     { ...basis, regelzahlung_id: "RZ-901", bezeichnung: "Wohngebäude Jahresbeitrag", betrag: "-480.00", anker_datum: iso(-1, 1, 1), konto_id: "KTO-901" },
-    { ...basis, regelzahlung_id: "RZ-902", bezeichnung: "Kfz-Beitrag", betrag: "-150.00", anker_datum: iso(-1, 2, 1) },
+    { ...basis, regelzahlung_id: "RZ-902", bezeichnung: "Kfz-Beitrag", betrag: "-150.00", anker_datum: iso(-1, 2, 1), vorsorge_id: "VS-901" },
     { ...basis, regelzahlung_id: "RZ-905", bezeichnung: "Weihnachtsgeld", betrag: "1500.00", anker_datum: iso(-1, 2, 1) },
     { ...basis, regelzahlung_id: "RZ-903", bezeichnung: "Erst im Sommer", betrag: "-50.00", anker_datum: iso(-1, 6, 1) },
     { ...basis, regelzahlung_id: "RZ-904", bezeichnung: "Monatlich", betrag: "-10.00", rhythmus_einheit: "monat", anker_datum: iso(0, -1) },
@@ -57,9 +57,11 @@ test("Übersicht listet jährliche Zahlungen der nächsten drei Monate statt der
   assert.match(kachel, /data-action="open-regelzahlung" data-regelzahlung="RZ-901">Wohngebäude Jahresbeitrag/);
   assert.match(kachel, /480,00/);
   assert.match(kachel, /RZ-901[\s\S]*?von Testgiro/);
-  assert.match(kachel, /RZ-902[\s\S]*150,00[\s\S]*Konto nicht hinterlegt/);
-  assert.ok(kachel.indexOf("RZ-901") < kachel.indexOf("RZ-902"), "nach Datum sortiert");
-  assert.doesNotMatch(kachel, /RZ-903|RZ-904|RZ-905|Weihnachtsgeld/);
+  // Mit Vorsorgebezug fuehrt der Klick ins Vorsorgeobjekt, sonst zur Regelzahlung.
+  assert.match(kachel, /data-action="open-vorsorge" data-vorsorge="VS-901">Kfz-Beitrag[\s\S]*150,00[\s\S]*Konto nicht hinterlegt/);
+  assert.doesNotMatch(kachel, /data-regelzahlung="RZ-902"/);
+  assert.ok(kachel.indexOf("RZ-901") < kachel.indexOf("VS-901"), "nach Datum sortiert");
+  assert.doesNotMatch(kachel, /RZ-903|RZ-904|RZ-905|Weihnachtsgeld|Erst im Sommer|Monatlich/);
 
   data.regelzahlungen = [];
   const leer = renderOverview().match(/<section class="panel panel-pad jahreszahlungen-rail">[\s\S]*?<\/section>/)?.[0] ?? "";

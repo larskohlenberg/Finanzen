@@ -17,14 +17,21 @@ function kontoName(kontoId) {
   return data.konten.find((k) => k.konto_id === kontoId)?.name ?? kontoId;
 }
 
-// Jaehrliche Abfluesse der naechsten drei Monate mit dem Konto, von dem gezahlt wird;
-// ein Klick fuehrt zur Regelzahlung.
+// Jaehrliche Abfluesse der naechsten drei Monate mit dem Konto, von dem gezahlt wird.
+// Ein Klick fuehrt zum Vertrag (Vorsorgeobjekt), sonst zur Regelzahlung.
+function zielLink(rz) {
+  const ziel = rz.vorsorge_id
+    ? `data-action="open-vorsorge" data-vorsorge="${escapeHtml(rz.vorsorge_id)}"`
+    : `data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}"`;
+  return `<button class="linkish" ${ziel}>${escapeHtml(rz.bezeichnung)}</button>`;
+}
+
 function renderJahreszahlungen() {
   const termine = overviewJahreszahlungen(3);
   const liste = termine.length
     ? `<div class="rail-list">${termine.map(({ datum, regelzahlung: rz }) => `
         <div class="rail-item">
-          <button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}">${escapeHtml(rz.bezeichnung)}</button>
+          ${zielLink(rz)}
           <span>${escapeHtml(formatDate(datum))} · ${escapeHtml(formatMoney(toCents(rz.betrag)))}</span>
           <span class="muted">${escapeHtml(rz.konto_id ? t("overview.jahreszahlungenKonto").replace("{konto}", kontoName(rz.konto_id)) : t("overview.jahreszahlungenOhneKonto"))}</span>
         </div>`).join("")}</div>`

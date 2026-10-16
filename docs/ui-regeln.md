@@ -73,7 +73,9 @@ erscheint, steht davor `mitLogo` bzw. `logoMarke` aus `app/komponenten.mjs`: ein
 Logo aus dem Logo-Verzeichnis des Datenbestands, sonst ein Kuerzel in fester
 Farbe (ADR 0030). Groesse und Platz je Ort:
 
-- Listen und Text: 18 px vor dem Namen; Transaktionstabelle 22 px.
+- Listen und Text: 18 px vor dem Namen; Tabellen (Transaktionen, Regelzahlungen)
+  22 px ueber `{ groesse: "tabelle" }`. Der Text steht vertikal zentriert zum Logo
+  (`.mit-logo`), auch bei Umbruch.
 - Vertragskarte: 28 px rechts unter dem Art-Chip, damit der Name links Platz
   hat; der Farbpunkt bleibt direkt vor dem Namen.
 - Vertragsdetail: kein Logo im Titel, sondern 48 px rechts oben im Inhalt der

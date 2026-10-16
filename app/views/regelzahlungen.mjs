@@ -19,7 +19,7 @@ export function renderRegelzahlungen() {
     return `
     <tr id="regelzahlung-${escapeHtml(rz.regelzahlung_id)}" class="${angesteuert ? "angesteuert" : ""}"${angesteuert ? ` aria-current="true"` : ""}>
       <td class="id-zelle">${escapeHtml(rz.regelzahlung_id)}</td>
-      <td>${mitLogo({ regelzahlung: rz }, escapeHtml(rz.bezeichnung))}</td>
+      <td>${mitLogo({ regelzahlung: rz }, escapeHtml(rz.bezeichnung), { groesse: "tabelle" })}</td>
       <td class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</td>
       <td>${escapeHtml(formatRhythmus(rz.rhythmus_einheit, rz.rhythmus_intervall))}</td>
       <td>${rz.konto_id ? escapeHtml(kontoName(rz.konto_id)) : `<span class="muted">—</span>`}</td>

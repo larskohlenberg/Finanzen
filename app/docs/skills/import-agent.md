@@ -345,6 +345,20 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
   `standdatum`. Felder wie „Kursgewinn/-verlust" ohne bekannten Einstandswert
   ignorieren. Ablage unter
   `Belege/Konten/<KTO-ID>_<Kurzname>/<Jahr>/<Jahr>_<Bank>_Depot_<KTO-ID>_Depotstand_<JJJJ-MM-TT>.png`.
+- **Lastschriftbenachrichtigung / Praemienrechnung eines Versicherers**:
+  Kuendigt einen kuenftigen SEPA-Einzug an (Zeitraum, Praemie,
+  Versicherungsteuer, Gesamt, Mandat, Glaeubiger-ID, maskierte
+  Belastungs-IBAN). Keine Buchung und kein Kontoauszug: nicht importieren und
+  keinen Zeitwert schreiben. Ablage unter
+  `Belege/Versicherungen/<Sparte>_<Versicherer>_<Vertragsnr>/<Jahr des Belegdatums>/`.
+  Ein Duplikat erst annehmen, wenn Versicherungszeitraum und Einzugsdatum mit
+  dem abgelegten Beleg uebereinstimmen; die Rechnungen der Folgejahre sehen
+  fast gleich aus. Der Beleg bestaetigt den Betrag der zugehoerigen
+  Regelzahlung; weicht er ab, das im Bericht melden, statt die Regelzahlung
+  still zu aendern. Gescannte Rechnungen bringen oft eine eingebettete
+  OCR-Textebene mit zerrissenen Zahlen mit (Leerzeichen in Betraegen, „C"
+  statt „€"): Praemie + Steuer = Gesamt nachrechnen, bevor ein Wert
+  uebernommen wird.
 
 ## Belege benennen und ablegen
 

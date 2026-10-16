@@ -121,8 +121,9 @@ export const state = {
   selectedVermoegenId: "",
   immobilieOhneRate: false,
   immobilieDrill: "",
-  vorsorgeFilters: { search: "", art: "", person: "", status: "", pruefstatus: "" },
-  vorsorgeSort: { key: "id", dir: "asc" },
+  // Vorsorgeseite: aktiver Tab und Personenfilter im Tab.
+  vorsorgeTab: "uebersicht",
+  vorsorgeFilters: { person: "" },
   wertstaendeFilters: { search: "", klasse: "", qualitaet: "" },
   wertstaendeSort: { key: "stand", dir: "desc" },
   selectedVorsorgeId: "",
@@ -181,5 +182,5 @@ export function verwerfeDaten() {
   state.liquiditaetExpanded.clear();
   state.nextActionPromptFallback = "";
   state.transactionFilters.search = "";
-  state.vorsorgeFilters.search = "";
+  state.vorsorgeFilters.person = "";
 }

@@ -19,302 +19,229 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const vorsorgeView = await import("../app/views/vorsorge.mjs");
 const { data, state, personenById } = runtime;
-const { renderVorsorge, vorsorgeRows, gebuchteBeitraege, setVorsorgeFilter, resetVorsorgeFilters, toggleVorsorgeSort } = vorsorgeView;
+const { renderVorsorge, gebuchteBeitraege, resetVorsorgeFilters } = vorsorgeView;
 
-function saveVorsorgeFixture() {
+const LEER = { konten: [], kategorien: [], transaktionen: [], transfers: [], immobilien: [], darlehen: [], vermoegenswerte: [], szenarien: [], regelzahlungen: [], zeitwerte: [] };
+const zw = (id, feld, wert, standdatum = "2026-01-01", qualitaet = "belegt") => ({ entitaet: "vorsorge", entitaet_id: id, feld, wert, standdatum, qualitaet });
+
+// Zwei Personen, je Tab mindestens ein Vertrag, ein ungepruefter und ein beendeter.
+function fixture() {
   return {
-    vorsorge: data.vorsorge,
-    personen: data.personen,
-    zeitwerte: data.zeitwerte,
-    regelzahlungen: data.regelzahlungen,
-    transaktionen: data.transaktionen,
-    vorsorgeFilters: state.vorsorgeFilters,
-    vorsorgeSort: state.vorsorgeSort,
-    selectedVorsorgeId: state.selectedVorsorgeId,
-    per001: personenById.get("PER-001"),
-    per002: personenById.get("PER-002"),
+    ...LEER,
+    personen: [{ person_id: "PER-001", name: "Lena", status: "aktiv" }, { person_id: "PER-002", name: "Martin", status: "aktiv" }],
+    vorsorge: [
+      { vorsorge_id: "VS-001", art: "gesetzliche-rente", name: "DRV Lena", person_id: "PER-001", status: "geplant", kapitalbildend: false, leistung_beginn: "2040-04-01", geprueft_am: "2026-08-01" },
+      { vorsorge_id: "VS-002", art: "riester", name: "Riester Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true, kapitalwahl: "offen", leistung_beginn: "2040-02-01", geprueft_am: "2026-08-15", quelle_hinweis: "Standmitteilung 2026", bemerkung: "Kapitalwahl noch offen" },
+      { vorsorge_id: "VS-003", art: "lebensversicherung", name: "LV Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true, leistung_beginn: "2035-05-01", geprueft_am: "2026-08-01" },
+      { vorsorge_id: "VS-004", art: "lebensversicherung", name: "LV Martin", person_id: "PER-002", status: "aktiv", kapitalbildend: true },
+      { vorsorge_id: "VS-005", art: "schutzversicherung", name: "Wohngebaeude", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-10-01" },
+      { vorsorge_id: "VS-006", art: "schutzversicherung", name: "Alte Haftpflicht", person_id: "PER-002", status: "gekuendigt", kapitalbildend: false, geprueft_am: "2025-01-01" },
+    ],
+    zeitwerte: [
+      zw("VS-001", "erwartete_rente", "2400.00", "2026-08-01", "geschaetzt"),
+      zw("VS-002", "erwartete_rente", "150.00", "2026-01-01", "geschaetzt"),
+      zw("VS-002", "rueckkaufswert", "20000.00", "2025-12-31"),
+      zw("VS-003", "rueckkaufswert", "12000.00", "2026-07-01"),
+      zw("VS-003", "erwartete_kapitalleistung", "25000.00", "2026-07-01"),
+    ],
+    regelzahlungen: [
+      { regelzahlung_id: "RZ-001", bezeichnung: "Riester-Beitrag", vorsorge_id: "VS-002", betrag: "-150.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-06-01", status: "bestaetigt" },
+      { regelzahlung_id: "RZ-002", bezeichnung: "LV-Beitrag Martin", vorsorge_id: "VS-004", betrag: "-80.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-06-01", status: "bestaetigt" },
+      { regelzahlung_id: "RZ-003", bezeichnung: "Wohngebaeude Jahresbeitrag", vorsorge_id: "VS-005", betrag: "-900.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2025-03-10", status: "bestaetigt", konto_id: "KTO-001" },
+    ],
+    transaktionen: [
+      { transaktion_id: "TXN-1", regelzahlung_id: "RZ-003", buchungsdatum: "2024-03-11", betrag: "-750.00", gegenpartei: "Versicherer" },
+      { transaktion_id: "TXN-2", regelzahlung_id: "RZ-003", buchungsdatum: "2025-03-10", betrag: "-900.00", gegenpartei: "Versicherer" },
+    ],
   };
 }
 
-function restoreVorsorgeFixture(saved) {
-  data.vorsorge = saved.vorsorge;
-  data.personen = saved.personen;
-  data.zeitwerte = saved.zeitwerte;
-  data.regelzahlungen = saved.regelzahlungen;
-  data.transaktionen = saved.transaktionen;
-  state.vorsorgeFilters = saved.vorsorgeFilters;
-  state.vorsorgeSort = saved.vorsorgeSort;
-  state.selectedVorsorgeId = saved.selectedVorsorgeId;
-  if (saved.per001 === undefined) personenById.delete("PER-001");
-  else personenById.set("PER-001", saved.per001);
-  if (saved.per002 === undefined) personenById.delete("PER-002");
-  else personenById.set("PER-002", saved.per002);
+function mitFixture(fn, aenderung = {}) {
+  const saved = { ...data };
+  const savedState = { view: state.view, vorsorgeTab: state.vorsorgeTab, vorsorgeFilters: state.vorsorgeFilters, selectedVorsorgeId: state.selectedVorsorgeId };
+  const savedPersonen = new Map(personenById);
+  try {
+    Object.assign(data, fixture(), aenderung);
+    personenById.clear();
+    for (const p of data.personen) personenById.set(p.person_id, p);
+    state.view = "vorsorge";
+    state.vorsorgeTab = "uebersicht";
+    state.selectedVorsorgeId = "";
+    resetVorsorgeFilters();
+    fn();
+  } finally {
+    for (const key of Object.keys(data)) delete data[key];
+    Object.assign(data, saved);
+    Object.assign(state, savedState);
+    personenById.clear();
+    for (const [k, v] of savedPersonen) personenById.set(k, v);
+  }
 }
 
-test("Vorsorge-Liste rendert Rueckkaufswert und ungeprueft-Badge", () => {
-  data.vorsorge = [
-    {
-      vorsorge_id: "VS-003",
-      art: "riester",
-      name: "Riester Lena",
-      person_id: "PER-001",
-      status: "aktiv",
-      kapitalbildend: true,
-      kapitalwahl: "offen",
-      geprueft_am: "2026-01-15",
-    },
-    {
-      vorsorge_id: "VS-006",
-      art: "betriebsrente",
-      name: "bAV Lena",
-      person_id: "PER-001",
-      status: "geplant",
-      kapitalbildend: false,
-    },
-  ];
-  data.zeitwerte = [
-    { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" },
-    { entitaet: "vorsorge", entitaet_id: "VS-006", feld: "erwartete_rente", wert: "240.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },
-  ];
-  data.regelzahlungen = [
-    { regelzahlung_id: "RZ-014", bezeichnung: "Riester-Beitrag Lena", betrag: "-162.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt", erstellt_am: "2026-01-01", vorsorge_id: "VS-003" },
-  ];
-  data.personen = [{ person_id: "PER-001", name: "Lena", status: "aktiv" }];
-  data.konten = [];
-  data.kategorien = [];
-  data.transaktionen = [];
-  data.transfers = [];
-  data.immobilien = [];
-  data.darlehen = [];
-  data.vermoegenswerte = [];
-  data.szenarien = [];
-  state.view = "vorsorge";
+const anzahl = (html, muster) => (html.match(muster) ?? []).length;
 
-  const html = renderVorsorge();
-  assert.match(html, /Riester Lena/, "Contract name must appear in the list");
-  assert.match(html, /9\.100/, "Rueckkaufswert must be rendered as money (9.100)");
-  assert.match(html, /ungeprüft/, "Ungeprueft badge label must appear");
-  assert.match(html, /kapitalbildend/, "kapitalbildend badge must appear");
-  assert.match(html, /Riester-Beitrag Lena/, "Linked Beitrag-Regelzahlung must be listed");
-  assert.match(html, /nicht im Vermögen/, "Anwartschaft label must mark non-wealth income leg");
-  assert.match(html, /nicht als sichere Zukunftswerte/, "Always-visible ungeprueft hint box must render");
-  // M-1: status chips localize via status.* i18n keys (not raw enum)
-  assert.match(html, /Aktiv/, "Status 'aktiv' must localize to 'Aktiv'");
-  assert.match(html, /Geplant/, "Status 'geplant' must localize to 'Geplant' (was raw 'geplant' before status.* keys existed)");
-});
-
-test("Vorsorge zeigt IDs und durchsucht Bemerkung sowie Quelle", () => {
-  const saved = saveVorsorgeFixture();
-  try {
-    data.vorsorge = [
-      { vorsorge_id: "VS-001", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: true, geprueft_am: "2026-01-01", bemerkung: "Altvertrag mit Dynamik" },
-      { vorsorge_id: "VS-002", art: "betriebsrente", name: "BAV", person_id: "PER-002", status: "geplant", kapitalbildend: false, quelle_hinweis: "Standmitteilung Personalabteilung" },
-    ];
-    data.personen = [{ person_id: "PER-001", name: "Lena" }, { person_id: "PER-002", name: "Martin" }];
-    personenById.set("PER-001", data.personen[0]);
-    personenById.set("PER-002", data.personen[1]);
-    state.vorsorgeFilters = { search: "Dynamik", art: "", person: "", status: "", pruefstatus: "" };
-
-    assert.deepEqual(vorsorgeRows().map((vs) => vs.vorsorge_id), ["VS-001"]);
+test("Kopf zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und Beitraege", () => {
+  mitFixture(() => {
     const html = renderVorsorge();
-    assert.match(html, /<th[^>]*>.*ID/s);
-    assert.match(html, /<td>VS-001<\/td>/);
-
-    state.vorsorgeFilters.search = "Personalabteilung";
-    assert.deepEqual(vorsorgeRows().map((vs) => vs.vorsorge_id), ["VS-002"]);
-  } finally {
-    restoreVorsorgeFixture(saved);
-  }
+    assert.match(html, /Erwartetes Alterseinkommen/);
+    assert.match(html, /2\.550,00/, "DRV + Riester");
+    assert.match(html, /voll ab 1\.4\.2040/);
+    assert.match(html, /segment-rente-0/, "Balken je Rente");
+    assert.match(html, /Kapitalleistungen[\s\S]*25\.000,00[\s\S]*fällig 2035/);
+    assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*32\.000,00/, "nur kapitalbildende mit Wert");
+    assert.match(html, /2 von 3 kapitalbildenden bewertet/);
+    assert.match(html, /230,00[\s\S]*\/ Monat/, "Beitraege Riester + LV Martin");
+    assert.match(html, /900,00\s€ \/ Jahr Versicherungen/);
+  });
 });
 
-test("Vorsorgefilter werden gemeinsam angewendet", () => {
-  const saved = saveVorsorgeFixture();
-  try {
-    data.vorsorge = [
-      { vorsorge_id: "VS-001", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: true, geprueft_am: "2026-01-01" },
-      { vorsorge_id: "VS-002", art: "betriebsrente", name: "BAV", person_id: "PER-002", status: "geplant", kapitalbildend: false },
-    ];
-    data.personen = [{ person_id: "PER-001", name: "Lena" }, { person_id: "PER-002", name: "Martin" }];
-    personenById.set("PER-001", data.personen[0]);
-    personenById.set("PER-002", data.personen[1]);
-    state.vorsorgeFilters = { search: "", art: "riester", person: "PER-001", status: "aktiv", pruefstatus: "geprueft" };
-
-    assert.deepEqual(vorsorgeRows().map((vs) => vs.vorsorge_id), ["VS-001"]);
-  } finally {
-    restoreVorsorgeFixture(saved);
-  }
-});
-
-test("Vorsorge-Zustandshelfer setzen, sortieren und leeren deterministisch", () => {
-  const saved = saveVorsorgeFixture();
-  try {
-    resetVorsorgeFilters();
-    setVorsorgeFilter("art", "riester");
-    assert.equal(state.vorsorgeFilters.art, "riester");
-    toggleVorsorgeSort("name");
-    assert.deepEqual(state.vorsorgeSort, { key: "name", dir: "asc" });
-    toggleVorsorgeSort("name");
-    assert.deepEqual(state.vorsorgeSort, { key: "name", dir: "desc" });
-    resetVorsorgeFilters();
-    assert.deepEqual(state.vorsorgeFilters, { search: "", art: "", person: "", status: "", pruefstatus: "" });
-  } finally {
-    restoreVorsorgeFixture(saved);
-  }
-});
-
-test("Vorsorge sortiert jede Tabellenspalte stabil", () => {
-  const saved = saveVorsorgeFixture();
-  try {
-    data.vorsorge = [
-      { vorsorge_id: "VS-001", name: "Zeta", art: "riester", person_id: "PER-002", status: "aktiv", kapitalbildend: true },
-      { vorsorge_id: "VS-002", name: "Alpha", art: "betriebsrente", person_id: "PER-001", status: "beendet", kapitalbildend: false },
-      { vorsorge_id: "VS-003", name: "Mitte", art: "schutzversicherung", person_id: "PER-001", status: "ruhend", kapitalbildend: false },
-    ];
-    data.personen = [{ person_id: "PER-001", name: "Anna" }, { person_id: "PER-002", name: "Zoe" }];
-    personenById.set("PER-001", data.personen[0]);
-    personenById.set("PER-002", data.personen[1]);
-    data.zeitwerte = [
-      { entitaet: "vorsorge", entitaet_id: "VS-001", feld: "rueckkaufswert", wert: "100.00", standdatum: "2026-01-01", qualitaet: "belegt" },
-      { entitaet: "vorsorge", entitaet_id: "VS-002", feld: "erwartete_rente", wert: "200.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },
-    ];
-    state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
-    const erwartungen = {
-      id: { asc: ["VS-001", "VS-002", "VS-003"], desc: ["VS-003", "VS-002", "VS-001"] },
-      name: { asc: ["VS-002", "VS-003", "VS-001"], desc: ["VS-001", "VS-003", "VS-002"] },
-      art: { asc: ["VS-002", "VS-001", "VS-003"], desc: ["VS-003", "VS-001", "VS-002"] },
-      person: { asc: ["VS-002", "VS-003", "VS-001"], desc: ["VS-001", "VS-002", "VS-003"] },
-      status: { asc: ["VS-001", "VS-002", "VS-003"], desc: ["VS-003", "VS-002", "VS-001"] },
-      wert: { asc: ["VS-001", "VS-002", "VS-003"], desc: ["VS-002", "VS-001", "VS-003"] },
-    };
-
-    for (const [key, expected] of Object.entries(erwartungen)) {
-      state.vorsorgeSort = { key, dir: "asc" };
-      assert.deepEqual(vorsorgeRows().map((vs) => vs.vorsorge_id), expected.asc, `${key} asc`);
-      state.vorsorgeSort = { key, dir: "desc" };
-      assert.deepEqual(vorsorgeRows().map((vs) => vs.vorsorge_id), expected.desc, `${key} desc`);
-    }
-  } finally {
-    restoreVorsorgeFixture(saved);
-  }
-});
-
-test("Vorsorge-Sortierung setzt fehlende Anzeigewerte in beide Richtungen ans Ende", () => {
-  const saved = saveVorsorgeFixture();
-  try {
-    data.vorsorge = [
-      { vorsorge_id: "VS-001", name: "Ohne Person", art: "riester", person_id: "", status: "aktiv", kapitalbildend: false },
-      { vorsorge_id: "VS-002", name: "Anna", art: "riester", person_id: "PER-001", status: "aktiv", kapitalbildend: false },
-      { vorsorge_id: "VS-003", name: "Zoe", art: "riester", person_id: "PER-002", status: "aktiv", kapitalbildend: false },
-    ];
-    data.personen = [{ person_id: "PER-001", name: "Anna" }, { person_id: "PER-002", name: "Zoe" }];
-    personenById.set("PER-001", data.personen[0]);
-    personenById.set("PER-002", data.personen[1]);
-    state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
-
-    state.vorsorgeSort = { key: "person", dir: "asc" };
-    assert.deepEqual(vorsorgeRows().map((vs) => vs.vorsorge_id), ["VS-002", "VS-003", "VS-001"]);
-    state.vorsorgeSort = { key: "person", dir: "desc" };
-    assert.deepEqual(vorsorgeRows().map((vs) => vs.vorsorge_id), ["VS-003", "VS-002", "VS-001"]);
-  } finally {
-    restoreVorsorgeFixture(saved);
-  }
-});
-
-test("ausgewählte Vorsorge zeigt vollständige Detail-Rail", () => {
-  const saved = saveVorsorgeFixture();
-  try {
-    data.personen = [{ person_id: "PER-001", name: "Lena" }];
-    personenById.set("PER-001", data.personen[0]);
-    data.vorsorge = [
-      { vorsorge_id: "VS-002", art: "riester", name: "Riester alt", person_id: "PER-001", status: "gekuendigt", kapitalbildend: true },
-      {
-        vorsorge_id: "VS-003",
-        art: "riester",
-        name: "Riester Lena",
-        person_id: "PER-001",
-        status: "aktiv",
-        kapitalbildend: true,
-        kapitalwahl: "offen",
-        geprueft_am: "2026-01-15",
-        leistung_beginn: "2042-08-01",
-        ersetzt_vorsorge_id: "VS-002",
-        quelle_hinweis: "Standmitteilung 2026",
-        quelle_standdatum: "2026-01-01",
-        bemerkung: "Kapitalwahl offen",
-      },
-      { vorsorge_id: "VS-004", art: "riester", name: "Riester Nachfolger", person_id: "PER-001", status: "geplant", kapitalbildend: true, ersetzt_vorsorge_id: "VS-003" },
-    ];
-    data.zeitwerte = [
-      { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "rueckkaufswert", wert: "9100.00", standdatum: "2026-01-01", qualitaet: "belegt" },
-      { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "erwartete_rente", wert: "240.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },
-      { entitaet: "vorsorge", entitaet_id: "VS-003", feld: "erwartete_kapitalleistung", wert: "31000.00", standdatum: "2026-01-01", qualitaet: "geschaetzt" },
-    ];
-    data.regelzahlungen = [{ regelzahlung_id: "RZ-014", bezeichnung: "Riester-Beitrag", betrag: "-162.00", vorsorge_id: "VS-003" }];
-    data.transaktionen = [];
-    state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
-    state.selectedVorsorgeId = "VS-003";
+test("Tabs nach Vertragsart mit Anzahl, Kennzahl und Punkt bei offenen Pruefungen", () => {
+  mitFixture(() => {
     const html = renderVorsorge();
-
-    assert.match(html, /layout-with-rail/);
-    assert.match(html, /detail-panel/);
-    assert.match(html, /data-action="close-vorsorge-rail"/);
-    assert.match(html, /VS-003/);
-    assert.match(html, /Standmitteilung 2026/);
-    assert.match(html, /Kapitalwahl offen/);
-    assert.match(html, /Riester-Beitrag/);
-    assert.match(html, /Rückkaufswert/);
-    assert.match(html, /Erwartete Rente/);
-    assert.match(html, /Riester alt/);
-    assert.match(html, /Riester Nachfolger/);
-  } finally {
-    restoreVorsorgeFixture(saved);
-  }
+    assert.equal(anzahl(html, /class="vermoegen-tab /g), 4);
+    assert.match(html, /2 Renten &amp; Anwartschaften/);
+    assert.match(html, /2\.550\s€ \/ Monat erwartet/);
+    assert.match(html, /2 Lebensversicherungen[\s\S]*?12\.000\s€ Rückkaufswert/);
+    assert.match(html, /2 Versicherungen[\s\S]*?900\s€ \/ Jahr/);
+    // LV Martin ist ungeprueft: Punkt am Lebensversicherungs-Tab.
+    assert.match(html, /data-tab="lebensversicherungen">\s*<span class="vermoegen-tab-titel">2 Lebensversicherungen<span class="tab-punkt"/);
+    assert.doesNotMatch(html, /layout-with-rail|detail-panel/, "keine Rail mehr");
+  });
 });
 
-test("Vorsorge-Rail zeigt nur die fünf neuesten explizit verknüpften Beiträge", () => {
-  const saved = saveVorsorgeFixture();
-  try {
-    data.personen = [{ person_id: "PER-001", name: "Lena" }];
-    personenById.set("PER-001", data.personen[0]);
-    data.vorsorge = [{ vorsorge_id: "VS-003", art: "riester", name: "Riester Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true }];
-    data.zeitwerte = [];
-    data.regelzahlungen = [
-      { regelzahlung_id: "RZ-001", bezeichnung: "Alt", betrag: "-10.00", vorsorge_id: "VS-003" },
-      { regelzahlung_id: "RZ-002", bezeichnung: "Neu", betrag: "-20.00", vorsorge_id: "VS-003" },
-      { regelzahlung_id: "RZ-999", bezeichnung: "Fremd", betrag: "-70.00", vorsorge_id: "VS-999" },
-    ];
+test("Uebersicht: Karten je Tab, Zeitstrahl und offene Punkte", () => {
+  mitFixture(() => {
+    const html = renderVorsorge();
+    assert.equal(anzahl(html, /class="tile klassen-karte"/g), 3);
+    assert.match(html, /Leistungen im Zeitverlauf/);
+    assert.match(html, /zeitstrahl-linie vorsorge-rente/);
+    assert.match(html, /Rente \+2\.550\s€/, "Riester und DRV 2040 in einem Marker");
+    assert.match(html, /Kapital 25\.000\s€/);
+    assert.match(html, /Offene Punkte[\s\S]*LV Martin[\s\S]*Vorsorge ungeprüft/);
+    assert.doesNotMatch(html, /Alte Haftpflicht<\/button>/, "gekuendigte Vertraege erzeugen keinen offenen Punkt");
+  });
+});
+
+test("Renten-Tab: Karte je Vertrag, erster gewaehlt, Detail in voller Breite", () => {
+  mitFixture(() => {
+    state.vorsorgeTab = "renten";
+    const html = renderVorsorge();
+    assert.equal(anzahl(html, /class="objekt-karte /g), 2);
+    assert.match(html, /aria-pressed="true"[^>]*>|data-vorsorge="VS-001" aria-pressed="true"/);
+    assert.match(html, /Details zu<\/span>\s*<h2 class="section-title">DRV Lena/);
+    assert.match(html, /class="kennzahl-raster"/);
+    assert.match(html, /Anwartschaft/, "gesetzliche Rente hat keinen Rueckkaufswert");
+  });
+});
+
+test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten und Anhang", () => {
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-002";
+    const html = renderVorsorge();
+    assert.match(html, /data-tab="renten">\s*<span class="vermoegen-tab-titel">/);
+    assert.match(html, /class="vermoegen-tab active"[^>]*data-tab="renten"/);
+    const detail = html.slice(html.indexOf("objekt-detail-titel"));
+    assert.match(detail, /Rückkaufswert[\s\S]*20\.000,00/);
+    assert.match(detail, /Erwartete Rente[\s\S]*150,00/);
+    assert.match(detail, /1\.2\.2040[\s\S]*2 M\. vor der gesetzlichen Rente/);
+    assert.match(detail, /150,00[\s\S]*\/ Monat/);
+    assert.match(detail, /Vertragsdaten[\s\S]*Kapitalwahl[\s\S]*offen/);
+    assert.match(detail, /Standmitteilung 2026/);
+    assert.match(detail, /data-action="open-regelzahlung" data-regelzahlung="RZ-001"/);
+    assert.match(detail, /<details class="bemerkung"><summary>Bemerkung<\/summary><p>Kapitalwahl noch offen/);
+    assert.match(detail, /Wertstände[\s\S]*Rückkaufswert · 31\.12\.2025/);
+    assert.match(detail, /Dokumente/);
+  });
+});
+
+test("ungepruefte und beendete Vertraege stehen in eigenen Gruppen", () => {
+  mitFixture(() => {
+    state.vorsorgeTab = "lebensversicherungen";
+    let html = renderVorsorge();
+    assert.match(html, /Ungeprüft \(1\)[\s\S]*Ungeprüfte Ansprüche werden nicht als sichere Zukunftswerte gerechnet[\s\S]*LV Martin/);
+    assert.match(html, /objekt-karte-ungeprueft/);
+    assert.match(html, /kein Wert/);
+
+    state.vorsorgeTab = "versicherungen";
+    html = renderVorsorge();
+    assert.match(html, /Beendet \(1\)[\s\S]*Alte Haftpflicht/);
+    assert.match(html, /Gekündigt/);
+  });
+});
+
+test("Personenfilter erscheint nur bei mehreren Personen im Tab und filtert die Karten", () => {
+  mitFixture(() => {
+    state.vorsorgeTab = "renten";
+    assert.doesNotMatch(renderVorsorge(), /data-action="vorsorge-person"/, "Renten nur von Lena");
+
+    state.vorsorgeTab = "lebensversicherungen";
+    let html = renderVorsorge();
+    assert.equal(anzahl(html, /data-action="vorsorge-person"/g), 3);
+    assert.equal(anzahl(html, /class="objekt-karte /g), 2);
+    state.vorsorgeFilters.person = "PER-002";
+    html = renderVorsorge();
+    assert.equal(anzahl(html, /class="objekt-karte /g), 1);
+    assert.match(html, /Details zu<\/span>\s*<h2 class="section-title">LV Martin/);
+  });
+});
+
+test("Versicherung zeigt Jahresbeitrag, naechste Faelligkeit und Vorjahresvergleich aus Buchungen", () => {
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-005";
+    const html = renderVorsorge();
+    const karte = html.slice(html.indexOf('data-vorsorge="VS-005"'), html.indexOf("</button>", html.indexOf('data-vorsorge="VS-005"')));
+    assert.match(karte, /900,00[\s\S]*\/ Jahr/);
+    assert.match(karte, /Vorjahr 750,00\s€ · \+20 %/);
+    const detail = html.slice(html.indexOf("objekt-detail-titel"));
+    assert.match(detail, /Jahresbeitrag[\s\S]*900,00/);
+    assert.match(detail, /Nächste Fälligkeit[\s\S]*10\.3\.20\d\d/);
+    assert.match(detail, /Veränderung zum Vorjahr[\s\S]*\+150,00/);
+    assert.match(detail, /Gebuchte Beiträge der letzten fünf Jahre/);
+    assert.match(detail, /balken-beitrag/);
+  });
+});
+
+test("gebuchte Beitraege: die fuenf neuesten der eigenen Regelzahlungen", () => {
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-002";
+    const monate = ["01", "02", "03", "04", "05", "06"];
     data.transaktionen = [
-      { transaktion_id: "TXN-1", regelzahlung_id: "RZ-001", buchungsdatum: "2026-01-01", betrag: "-10.00", gegenpartei: "A" },
-      { transaktion_id: "TXN-2", regelzahlung_id: "RZ-001", buchungsdatum: "2026-02-01", betrag: "-20.00", gegenpartei: "B" },
-      { transaktion_id: "TXN-3", regelzahlung_id: "RZ-002", buchungsdatum: "2026-03-01", betrag: "-30.00", gegenpartei: "C" },
-      { transaktion_id: "TXN-4", regelzahlung_id: "RZ-002", buchungsdatum: "2026-04-01", betrag: "-40.00", gegenpartei: "D" },
-      { transaktion_id: "TXN-5", regelzahlung_id: "RZ-002", buchungsdatum: "2026-05-01", betrag: "-50.00", gegenpartei: "E" },
-      { transaktion_id: "TXN-6", regelzahlung_id: "RZ-002", buchungsdatum: "2026-06-01", betrag: "-60.00", gegenpartei: "F" },
-      { transaktion_id: "TXN-X", regelzahlung_id: "RZ-999", buchungsdatum: "2026-07-01", betrag: "-70.00", gegenpartei: "X" },
+      ...monate.map((m, i) => ({ transaktion_id: `TXN-${i + 1}`, regelzahlung_id: "RZ-001", buchungsdatum: `2026-${m}-01`, betrag: "-150.00", gegenpartei: "Versicherer" })),
+      { transaktion_id: "TXN-X", regelzahlung_id: "RZ-999", buchungsdatum: "2026-07-01", betrag: "-70.00", gegenpartei: "Fremd" },
     ];
-    state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
-    state.selectedVorsorgeId = "VS-003";
-
-    assert.deepEqual(gebuchteBeitraege("VS-003").map((tx) => tx.transaktion_id), ["TXN-6", "TXN-5", "TXN-4", "TXN-3", "TXN-2"]);
+    assert.deepEqual(gebuchteBeitraege("VS-002").map((tx) => tx.transaktion_id), ["TXN-6", "TXN-5", "TXN-4", "TXN-3", "TXN-2"]);
     const html = renderVorsorge();
-    assert.equal((html.match(/data-action="open-transaction"/g) ?? []).length, 5);
-    assert.doesNotMatch(html, /TXN-1|TXN-X/);
-  } finally {
-    restoreVorsorgeFixture(saved);
-  }
+    assert.equal(anzahl(html, /data-action="open-transaction"/g), 5);
+    assert.doesNotMatch(html, /TXN-1"|TXN-X/);
+  });
 });
 
-test("ausgefilterte oder unbekannte Vorsorge öffnet keine Rail", () => {
-  const saved = saveVorsorgeFixture();
-  try {
-    data.vorsorge = [{ vorsorge_id: "VS-003", art: "riester", name: "Riester Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true }];
-    state.vorsorgeFilters = { search: "", art: "", person: "", status: "", pruefstatus: "" };
+test("Vorgaenger und Nachfolger sind als Vertragslinks erreichbar", () => {
+  mitFixture(() => {
+    data.vorsorge = [
+      ...data.vorsorge,
+      { vorsorge_id: "VS-007", art: "riester", name: "Riester Nachfolger", person_id: "PER-001", status: "geplant", kapitalbildend: true, ersetzt_vorsorge_id: "VS-002", geprueft_am: "2026-08-15" },
+    ];
+    state.selectedVorsorgeId = "VS-002";
+    const html = renderVorsorge();
+    assert.match(html, /Nachfolger[\s\S]*data-action="select-vorsorge" data-vorsorge="VS-007"/);
+  });
+});
+
+test("unbekannte Auswahl faellt auf die Uebersicht zurueck", () => {
+  mitFixture(() => {
     state.selectedVorsorgeId = "VS-999";
-    assert.doesNotMatch(renderVorsorge(), /detail-panel/);
-    state.selectedVorsorgeId = "VS-003";
-    state.vorsorgeFilters.search = "kein Treffer";
-    assert.doesNotMatch(renderVorsorge(), /detail-panel/);
-  } finally {
-    restoreVorsorgeFixture(saved);
-  }
+    const html = renderVorsorge();
+    assert.match(html, /class="vermoegen-tab active"[^>]*data-tab="uebersicht"/);
+    assert.doesNotMatch(html, /objekt-detail-titel/);
+  });
+});
+
+test("leerer Bestand rendert ohne Fehler", () => {
+  mitFixture(() => {
+    const html = renderVorsorge();
+    assert.match(html, /Keine erwarteten Renten erfasst/);
+    assert.match(html, /Keine Leistung mit Leistungsbeginn erfasst/);
+    assert.equal(anzahl(html, /class="vermoegen-tab /g), 1, "nur die Uebersicht");
+  }, { vorsorge: [], zeitwerte: [], regelzahlungen: [], transaktionen: [] });
 });

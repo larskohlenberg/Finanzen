@@ -4,7 +4,8 @@ import { buildNextAgentActions } from "./next-action.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
 import { TAB_FUER_KLASSE } from "./vermoegen-routen.mjs";
-import { renderVorsorge, setVorsorgeFilter, resetVorsorgeFilters, toggleVorsorgeSort } from "./views/vorsorge.mjs";
+import { renderVorsorge, resetVorsorgeFilters } from "./views/vorsorge.mjs";
+import { tabFuerVorsorge } from "./vorsorge-rechnung.mjs";
 import { setWertstaendeFilter, resetWertstaendeFilters, toggleWertstaendeSort } from "./views/vermoegen-wertstaende.mjs";
 import { renderSzenarien, MAX_VERGLEICH } from "./views/szenarien.mjs";
 import { renderTransactions, filteredTransactions, transactionPageForId, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
@@ -50,7 +51,7 @@ function applyTheme() {
 const FOCUS_ATTRS = [
   "id", "data-view", "data-action", "data-account", "data-transaction",
   "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
-  "data-tab", "data-vorsorge-sort", "data-vorsorge-filter", "data-wertstaende-sort", "data-wertstaende-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
+  "data-tab", "data-person", "data-wertstaende-sort", "data-wertstaende-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
   "data-rule", "data-regel-sort", "data-next-action-type", "data-vorsorge",
   "data-beleg", "data-beleg-sort", "data-beleg-ordner",
 ];
@@ -160,7 +161,8 @@ function render() {
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
   if (state.view === "belege") belegeBeiBedarfLaden(render);
-  if (state.view === "vorsorge" && state.selectedVorsorgeId) belegeBeiBedarfLaden(render);
+  // Dokumente je Vertrag im Detail der Vorsorge-Tabs.
+  if (state.view === "vorsorge") belegeBeiBedarfLaden(render);
   // Dokumente je Objekt auf den Tabs Immobilien und Darlehen.
   if (state.view === "vermoegen" && ["immobilien", "darlehen"].includes(state.vermoegenTab)) belegeBeiBedarfLaden(render);
 }
@@ -466,13 +468,6 @@ app.addEventListener("click", guard((event) => {
     return;
   }
 
-  const vorsorgeSort = event.target.closest("[data-vorsorge-sort]");
-  if (vorsorgeSort) {
-    toggleVorsorgeSort(vorsorgeSort.dataset.vorsorgeSort);
-    render();
-    return;
-  }
-
   const transactionSort = event.target.closest("[data-transaction-sort]");
   if (transactionSort) {
     const key = transactionSort.dataset.transactionSort;
@@ -526,7 +521,7 @@ app.addEventListener("click", guard((event) => {
 // Tastatur-Aktivierung fuer fokussierbare, nicht-native Bedienelemente
 // (z. B. auswaehlbare Tabellenzellen/-zeilen mit tabindex="0" + data-action).
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
-const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-vorsorge-sort], [data-wertstaende-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
+const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-wertstaende-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
 app.addEventListener("keydown", guard((event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
@@ -544,12 +539,6 @@ app.addEventListener("input", guard((event) => {
   const belegeSuche = event.target.closest("input[data-belege-suche]");
   if (belegeSuche) {
     setBelegeSuche(belegeSuche.value);
-    render();
-    return;
-  }
-  const vorsorgeFilter = event.target.closest("input[data-vorsorge-filter]");
-  if (vorsorgeFilter) {
-    setVorsorgeFilter(vorsorgeFilter.dataset.vorsorgeFilter, vorsorgeFilter.value);
     render();
     return;
   }
@@ -627,14 +616,6 @@ app.addEventListener("change", guard((event) => {
     state.view = "transactions";
     state.transactionPage = 1;
     commitNavigation();
-    return;
-  }
-
-  const vorsorgeFilter = event.target.closest("[data-vorsorge-filter]");
-  if (vorsorgeFilter) {
-    setVorsorgeFilter(vorsorgeFilter.dataset.vorsorgeFilter, vorsorgeFilter.value);
-    state.view = "vorsorge";
-    render();
     return;
   }
 
@@ -987,14 +968,25 @@ async function handleAction(element) {
     return;
   }
   if (action === "select-vorsorge") {
+    // Aus einem anderen Tab (z. B. Offene Punkte): Personenfilter nicht mitnehmen.
+    const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === element.dataset.vorsorge);
+    if (!vs || tabFuerVorsorge(vs) !== state.vorsorgeTab) resetVorsorgeFilters();
     state.view = "vorsorge";
     state.selectedVorsorgeId = element.dataset.vorsorge || "";
     commitNavigation();
     return;
   }
-  if (action === "close-vorsorge-rail") {
+  if (action === "vorsorge-tab") {
+    state.view = "vorsorge";
+    state.vorsorgeTab = element.dataset.tab || "uebersicht";
     state.selectedVorsorgeId = "";
+    resetVorsorgeFilters();
     commitNavigation();
+    return;
+  }
+  if (action === "vorsorge-person") {
+    state.vorsorgeFilters.person = element.dataset.person || "";
+    render();
     return;
   }
   if (action === "open-szenario") {
@@ -1093,16 +1085,6 @@ async function handleAction(element) {
     render();
     return;
   }
-  if (action === "clear-vorsorge-filter") {
-    setVorsorgeFilter(element.dataset.filterName, "");
-    render();
-    return;
-  }
-  if (action === "reset-vorsorge-filters") {
-    resetVorsorgeFilters();
-    render();
-    return;
-  }
   if (action === "vermoegen-tab") {
     state.view = "vermoegen";
     state.vermoegenTab = element.dataset.tab || "uebersicht";
@@ -1189,6 +1171,7 @@ function snapshotState() {
     selectedVermoegenId: state.selectedVermoegenId,
     vermoegenTab: state.vermoegenTab,
     selectedVorsorgeId: state.selectedVorsorgeId,
+    vorsorgeTab: state.vorsorgeTab,
     selectedSzenarioId: state.selectedSzenarioId,
     szenarioVergleichMit: state.szenarioVergleichMit,
     szenarioVergleichIds: [...state.szenarioVergleichIds],
@@ -1213,6 +1196,7 @@ function restoreState(snapshot) {
   state.selectedVermoegenId = snapshot.selectedVermoegenId || "";
   state.vermoegenTab = snapshot.vermoegenTab || "uebersicht";
   state.selectedVorsorgeId = snapshot.selectedVorsorgeId || "";
+  state.vorsorgeTab = snapshot.vorsorgeTab || "uebersicht";
   state.selectedSzenarioId = snapshot.selectedSzenarioId || "";
   state.szenarioVergleichMit = snapshot.szenarioVergleichMit || "";
   state.szenarioVergleichIds = snapshot.szenarioVergleichIds || [];
@@ -1284,6 +1268,7 @@ function applyRoute(route) {
       state.selectedVorsorgeId = route.selectedVorsorgeId;
     } else {
       state.selectedVorsorgeId = "";
+      state.vorsorgeTab = route.vorsorgeTab || "uebersicht";
     }
   }
   if (route.view === "szenarien") {

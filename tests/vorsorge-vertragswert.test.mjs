@@ -30,7 +30,7 @@ const zeitwerte = [
 ];
 
 function mitFixture(fn) {
-  const saved = { ...data, selectedVorsorgeId: state.selectedVorsorgeId, view: state.view };
+  const saved = { ...data, selectedVorsorgeId: state.selectedVorsorgeId, view: state.view, vorsorgeTab: state.vorsorgeTab };
   try {
     Object.assign(data, {
       vorsorge: vertraege, zeitwerte, personen: [{ person_id: "PER-001", name: "Lena", status: "aktiv" }],
@@ -43,6 +43,7 @@ function mitFixture(fn) {
     Object.assign(data, saved);
     state.selectedVorsorgeId = saved.selectedVorsorgeId;
     state.view = saved.view;
+    state.vorsorgeTab = saved.vorsorgeTab;
   }
 }
 
@@ -65,12 +66,13 @@ test("Vertragswert zaehlt nicht ins Nettovermoegen", () => {
   });
 });
 
-test("Vorsorge-Liste zeigt den Vertragswert neben dem Rueckkaufswert", () => {
+test("Vorsorge-Karten zeigen den Vertragswert neben der Rente", () => {
   mitFixture(() => {
+    state.vorsorgeTab = "renten";
+    state.selectedVorsorgeId = "";
     const html = renderVorsorge();
-    assert.match(html, /24\.000,00/, "Rueckkaufswert bleibt der Hauptwert");
-    assert.match(html, /Vertragswert[^<]*·[^<]*27\.000,00/, "Vertragswert erscheint als Zusatzzeile");
-    assert.match(html, /35\.000,00/, "Vertragswert auch bei nicht kapitalbildendem Vertrag sichtbar");
+    assert.match(html, /24\.000,00/, "Rueckkaufswert der Riester-Karte");
+    assert.match(html, /35\.000,00[\s\S]*Vertragswert · nicht im Vermögen/, "Vertragswert auch bei nicht kapitalbildendem Vertrag sichtbar");
   });
 });
 
@@ -78,9 +80,9 @@ test("Vorsorge-Detail zeigt Vertragswert, Quelle und Dokumente", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-002";
     const html = renderVorsorge();
-    const detail = html.slice(html.indexOf("detail-panel"));
-    assert.match(detail, /Vertragswert/);
-    assert.match(detail, /27\.000,00/);
+    const detail = html.slice(html.indexOf("objekt-detail-titel"));
+    assert.match(detail, /Rückkaufswert[\s\S]*24\.000,00[\s\S]*Vertragswert 27\.000/, "Vertragswert als Notiz am Rueckkaufswert");
+    assert.match(detail, /27\.000,00\s€<\/strong> <span class="muted">Vertragswert \(nicht im Vermögen\)/);
     assert.match(detail, /#\/dokumente\/Vorsorge\/VS-002_Muster-Riester/, "Quelle des Wertstands verlinkt das Dokument");
     assert.match(detail, /Dokumente/, "Detail hat einen Dokumente-Abschnitt");
   });

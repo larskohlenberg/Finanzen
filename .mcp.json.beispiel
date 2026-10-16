@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "finanzen": {
+      "command": "node",
+      "args": ["app/mcp/server.mjs", "data/master", "--recht=schreiben"]
+    }
+  }
+}

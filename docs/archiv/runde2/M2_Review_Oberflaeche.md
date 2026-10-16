@@ -191,9 +191,9 @@ Sprache und Theme:
 
 ## Konzeptbilder
 
-- [Uebersicht V1](./assets/m2-konzept-uebersicht-v1.png)
-- [Uebersicht V2](./assets/m2-konzept-uebersicht-v2.png)
-- [Transaktionen V1](./assets/m2-konzept-transaktionen-v1.png)
+- [Uebersicht V1](assets/m2-konzept-uebersicht-v1.png)
+- [Uebersicht V2](assets/m2-konzept-uebersicht-v2.png)
+- [Transaktionen V1](assets/m2-konzept-transaktionen-v1.png)
 
 V2 der Uebersicht ist die fuehrende Richtung fuer Topbar, Sprache und Theme. Die Konzeptbilder sind visuelle Leitplanken, keine pixelgenaue Spezifikation.
 

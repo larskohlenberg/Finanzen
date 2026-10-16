@@ -14,7 +14,7 @@ Ebenfalls lesen, bevor Daten angefasst werden: `app/docs/agent-context.md`
 
 ## Der Lauf in Kurzform
 
-Die Daten liegen auf dem Server; jeder Schritt laeuft ueber die Tools des
+Jeder Schritt laeuft ueber die Tools des
 MCP-Servers `finanzen` (`mcp__finanzen__*`). Ohne `schreiben: true` ist jeder
 Lauf eine Vorschau.
 

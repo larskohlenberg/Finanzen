@@ -67,16 +67,18 @@ function buchungenLink(html, { immobilie, monat = "", von = "", bis = "", katego
   return `<button class="linkish betrag-link" data-action="immobilie-transactions"${attr("immobilie", immobilie)}${attr("monat", monat)}${attr("von", von)}${attr("bis", bis)}${attr("kategorie", kategorie)}${attr("transfer", transfer)} title="${escapeHtml(t("vermoegen.immobilie.buchungenZeigen"))}">${html}</button>`;
 }
 
-// Wertstaende unter Tabelle und Diagramm, darunter die Dokumente in voller Breite
-// als Ausschnitt der Dokumentenansicht.
+// Unter Tabelle und Diagramm: zuerst die Dokumente als eigene Kachel (Ausschnitt
+// der Dokumentenansicht), darunter Bemerkung und Wertstaende.
 function anhangPanel(titel, { bemerkung = "", wertstaende, dokumente, extra = "" }) {
   return `
+    <section class="panel panel-pad">
+      <h2 class="section-title">${escapeHtml(t("vermoegen.dokumente.titel"))}</h2>
+      ${dokumente}
+    </section>
     <section class="panel panel-pad objekt-anhang">
       <h2 class="section-title">${escapeHtml(titel)}</h2>
       ${bemerkung}
       <div>${wertstaende}${extra}</div>
-      <h3 class="section-subtitle">${escapeHtml(t("vermoegen.dokumente.titel"))}</h3>
-      ${dokumente}
     </section>`;
 }
 

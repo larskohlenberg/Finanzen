@@ -594,9 +594,11 @@ matcht nur noch:
    `ohne-konto` — so bleiben Konsumplaene draussen.
 2. **Ankerbuchung.** Am Termin, der `anker_datum` am naechsten liegt (bis zu
    drei Termine davor oder danach), sucht das Tool die Buchung auf diesem Konto
-   mit gleicher Richtung und Kategorie und cent-genau gleichem Betrag, ersatzweise
-   in 10 % Toleranz. Haben die Kandidaten verschiedene Kennungen, meldet es
-   `anker-mehrdeutig`; ohne Kandidat `ohne-anker`.
+   mit gleicher Richtung und Kategorie und cent-genau gleichem Betrag. Nur wenn
+   kein Termin cent-genau trifft und die Regelzahlung `qualitaet = geschaetzt`
+   ist (etwa ein Gehalt als Mittelwert), gilt ersatzweise 10 % Toleranz. Haben
+   die Kandidaten verschiedene Kennungen, meldet es `anker-mehrdeutig`; ohne
+   Kandidat `ohne-anker`.
 3. **Kennung der Ankerbuchung.** Die `mandatsreferenz`, sonst die Gegenpartei.
 4. **Termine.** Alle Termine aus `anker_datum` und Rhythmus, rueckwaerts bis zur
    ersten Buchung des Kontos, vorwaerts bis `aktiv_bis` bzw. zur letzten

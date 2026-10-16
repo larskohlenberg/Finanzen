@@ -171,14 +171,20 @@ test("Beitragsaenderungen: Jahreszahler je Abweichung, Monatszahler nur bestaeti
   assert.deepEqual(beitragsAenderungen(d, "VS-X"), []);
 });
 
-test("Vertragsfarben: kapitalbildende mit Rueckkaufswert zuerst, dann Renten und Kapital, beendete ohne Farbe", () => {
-  const farben = vertragsFarben(daten());
-  // VS-002 hat Rueckkaufswert; dann VS-001 (Rente), VS-003 (Kapital), VS-006 (Rente); VS-005 ist gekuendigt.
-  assert.deepEqual([...farben], [["VS-002", 0], ["VS-001", 1], ["VS-003", 2], ["VS-006", 3]]);
-  const viele = daten();
-  for (let i = 10; i < 16; i++) {
-    viele.vorsorge.push({ vorsorge_id: `VS-0${i}`, art: "riester", name: `R${i}`, person_id: "PER-001", status: "aktiv", kapitalbildend: false });
-    viele.zeitwerte.push(zw(`VS-0${i}`, "erwartete_rente", "10.00"));
-  }
-  assert.equal(vertragsFarben(viele).size, 6, "hoechstens sechs Farben");
+test("Vertragsfarben: fest vergebene Slots gewinnen, sonst naechste freie Farbe nach ID, Versicherungen ohne", () => {
+  const d = daten();
+  // Ohne farben.json: alle Renten und Lebensversicherungen nach ID, auch beendete; die Schutzversicherung VS-004 nicht.
+  assert.deepEqual([...vertragsFarben(d)], [["VS-001", 0], ["VS-002", 1], ["VS-003", 2], ["VS-005", 3], ["VS-006", 4]]);
+  // Fest vergeben: VS-006 behaelt Slot 0, die anderen ruecken in die freien Slots.
+  d.farben = { vorsorge: { "VS-006": 0, "VS-004": 9, "VS-999": 3, "VS-002": 99 } };
+  assert.deepEqual([...vertragsFarben(d)], [["VS-006", 0], ["VS-004", 9], ["VS-001", 1], ["VS-002", 2], ["VS-003", 3], ["VS-005", 4]]);
+});
+
+test("Vertragsfarben: mehr Vertraege als Farben beginnen die Palette von vorn statt grau", () => {
+  const d = { vorsorge: Array.from({ length: 16 }, (_, i) => ({ vorsorge_id: `VS-${String(i + 1).padStart(3, "0")}`, art: "riester", status: "aktiv" })) };
+  const farben = vertragsFarben(d);
+  assert.equal(farben.size, 16);
+  assert.equal(farben.get("VS-014"), 13);
+  assert.equal(farben.get("VS-015"), 0);
+  assert.equal(farben.get("VS-016"), 1);
 });

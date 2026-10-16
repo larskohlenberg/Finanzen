@@ -134,6 +134,15 @@ Bei Kuendigung, Anbieterwechsel oder Tarifwechsel:
 - Die Checks `vorsorge-ungeprueft`, `vorsorge-wiedervorlage` und
   `vorsorge-wechsel` nach dem Lauf offen benennen.
 
+### Anzeigefarbe festschreiben
+
+Jeder neue Altersvorsorge-Vertrag (Renten und Lebensversicherungen, nicht
+Schutzversicherungen) bekommt in `DATENROOT/farben.json` einen festen Farbslot
+(`{ "vorsorge": { "VS-0xx": <slot> } }`, Slot 0 bis 13). Nimm den kleinsten freien
+Slot; vorhandene Eintraege nie umnummerieren, sonst wechseln Vertraege in allen
+Grafiken die Farbe. Die App vergibt ohne Eintrag dieselbe Farbe automatisch,
+der Eintrag macht sie dauerhaft.
+
 ## Don'ts
 
 - **Keine eigene Steuer-/SV-Berechnung** fuer Rentenwerte. Netto nur vom Nutzer

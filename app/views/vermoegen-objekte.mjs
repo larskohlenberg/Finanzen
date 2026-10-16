@@ -7,6 +7,8 @@ import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../
 import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel } from "../komponenten.mjs";
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
 import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, immobilienMonate } from "../vermoegen-details.mjs";
+import { vermoegensBezug } from "../vorsorge-rechnung.mjs";
+import { belegOrdnerAusText } from "../belege.mjs";
 import {
   balkenSvg, dokumenteBrowserHtml, geld, kennzahl, laufzeitText, prozent, qualitaetChip, rateJeMonatCents,
   renderPositionWertstaende, rhythmusLabel, sondertilgungenRow, tf,
@@ -109,6 +111,16 @@ export function renderImmobilienTab(today) {
     ${renderImmobilieDetail(auswahl, today)}`;
 }
 
+// Dokumente einer Immobilie: ihre eigenen, die der zugeordneten Darlehen und die
+// Belege der Vertraege mit Bezug auf sie (Wohngebaeude, Hausrat, ...; Bezug ueber
+// die immobilie_id ihrer gebuchten Beitraege). Beendete Vertraege bleiben drin,
+// ihre Policen und Kuendigungen gehoeren weiter zum Objekt.
+function immobilieDokumente(id, darlehenIds) {
+  const vertraege = (data.vorsorge ?? []).filter((vs) => vermoegensBezug(data, vs.vorsorge_id).some((b) => b.klasse === "immobilie" && b.id === id));
+  const ordner = [...new Set(vertraege.flatMap((vs) => belegOrdnerAusText(vs.quelle_hinweis)))];
+  return dokumenteBrowserHtml([id, ...darlehenIds, ...vertraege.map((vs) => vs.vorsorge_id)], ordner);
+}
+
 function renderImmobilieDetail(imm, today) {
   const id = imm.immobilie_id;
   const k = immobilienKennzahlen(data, id, today);
@@ -202,6 +214,8 @@ function renderImmobilieDetail(imm, today) {
         <button class="${ohneRate ? "active" : ""}" data-action="immobilie-rate" data-rate="ohne" aria-pressed="${ohneRate}">${escapeHtml(t("vermoegen.immobilie.ohneRate"))}</button>
       </div>`
     : "";
+  // Alle Buchungen der Immobilie, ohne Zeitfenster: so viele zeigt der Link unter der Tabelle.
+  const alleBuchungen = (data.transaktionen ?? []).filter((tx) => tx.immobilie_id === id).length;
   const monatsPanel = klappKachel({ id: "immobilie.monate", titel: t("vermoegen.immobilie.monateTitel"), kopfExtra: umschalter, inhalt: `
       ${m.anzahl_buchungen ? `
         <p class="muted diagramm-lead">${escapeHtml(t("vermoegen.immobilie.monateLead"))}</p>
@@ -216,7 +230,8 @@ function renderImmobilieDetail(imm, today) {
         <p class="muted">${escapeHtml(t("vermoegen.immobilie.tabelleHinweis"))}</p>
         ${ohneRate ? `<p class="muted">${escapeHtml(t("vermoegen.immobilie.rateHinweis"))}</p>` : ""}
         ${eigen ? `<p class="muted">${escapeHtml(t("vermoegen.immobilie.eigenanteilHinweis"))}</p>` : ""}`
-        : `<p class="muted">${escapeHtml(t("vermoegen.immobilie.keineBuchungen"))}</p>`}` });
+        : `<p class="muted">${escapeHtml(t("vermoegen.immobilie.keineBuchungen"))}</p>`}
+      ${alleBuchungen ? `<p><button class="linkish" data-action="immobilie-transactions" data-immobilie="${escapeHtml(id)}">${escapeHtml(tf("vermoegen.immobilie.alleBuchungen", { n: alleBuchungen }))} →</button></p>` : ""}` });
 
   const darlehenLinks = k.darlehen_ids.map((did) => {
     const d = data.darlehen.find((x) => x.darlehen_id === did);
@@ -236,8 +251,7 @@ function renderImmobilieDetail(imm, today) {
   const anhang = anhangPanel("immobilie", t("vermoegen.immobilie.wertstaendeDokumente"), {
     bemerkung: bemerkungHtml(imm.bemerkung),
     wertstaende: renderPositionWertstaende({ klasse: "immobilie", id }),
-    dokumente: `${dokumenteBrowserHtml([id, ...k.darlehen_ids])}
-      <p><button class="linkish" data-action="immobilie-transactions" data-immobilie="${escapeHtml(id)}">${escapeHtml(t("vermoegen.dokumente.alleBuchungen"))}</button></p>`,
+    dokumente: immobilieDokumente(id, k.darlehen_ids),
   });
 
   return `

@@ -37,3 +37,10 @@ in `app/views/vermoegen-teile.mjs`): derselbe Ordnerbaum und dieselbe Tabelle, n
 mit den Dateien des Objekts. Zeile und Name oeffnen die Datei direkt im neuen Tab,
 hinten stehen Herunterladen und "In Dokumenten zeigen". In schmalen Rails bleibt
 die einfache Liste (`dokumenteHtml`).
+
+Eine Immobilie zeigt neben ihren eigenen Dokumenten und denen der zugeordneten
+Darlehen auch die Belege der Vertraege mit Bezug auf sie (Wohngebaeude, Hausrat,
+Photovoltaik; Bezug ueber `vermoegensBezug`), also deren Belegordner aus
+`quelle_hinweis` und deren Vorsorge-Objektordner, beendete Vertraege eingeschlossen.
+Die Dokumente-Kachel zeigt nur Dokumente; der Sprung in alle Buchungen steht in
+der Kachel "Ein- und Ausgaben je Monat".

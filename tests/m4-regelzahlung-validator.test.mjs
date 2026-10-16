@@ -76,3 +76,10 @@ test("Regelzahlung mit unbekannter qualitaet ist Fehler", () => {
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((e) => e.includes("qualitaet")));
 });
+
+test("konto_id ist optional und muss auf ein bestehendes Konto zeigen", () => {
+  assert.equal(validateMasterData({ ...base(), regelzahlungen: [rz({ konto_id: "KTO-001" })] }).valid, true);
+  const result = validateMasterData({ ...base(), regelzahlungen: [rz({ konto_id: "KTO-999" })] });
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /regelzahlungen\.RZ-001\.konto_id: KTO-999 existiert nicht/);
+});

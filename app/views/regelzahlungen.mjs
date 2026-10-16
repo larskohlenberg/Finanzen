@@ -11,6 +11,7 @@ function formatRhythmus(einheit, intervall) {
 
 export function renderRegelzahlungen() {
   const today = localTodayIso();
+  const kontoName = (id) => data.konten.find((k) => k.konto_id === id)?.name ?? id;
   const rows = data.regelzahlungen.map((rz) => {
     // Abgelehnte Regelzahlungen haben keine erwartete Zukunft; sonst der naechste Termin.
     const naechste = rz.status === "abgelehnt" ? null : naechsteFaelligkeit(rz, today);
@@ -20,6 +21,7 @@ export function renderRegelzahlungen() {
       <td>${escapeHtml(rz.bezeichnung)}</td>
       <td class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</td>
       <td>${escapeHtml(formatRhythmus(rz.rhythmus_einheit, rz.rhythmus_intervall))}</td>
+      <td>${rz.konto_id ? escapeHtml(kontoName(rz.konto_id)) : `<span class="muted">—</span>`}</td>
       <td>${escapeHtml(formatDate(rz.anker_datum))}</td>
       <td>${naechste ? escapeHtml(formatDate(naechste)) : `<span class="muted">—</span>`}</td>
       <td>${rz.aktiv_bis ? escapeHtml(formatDate(rz.aktiv_bis)) : `<span class="chip neutral">${escapeHtml(t("liquiditaet.qualityOpenEnded"))}</span>`}</td>
@@ -38,6 +40,7 @@ export function renderRegelzahlungen() {
               <th>${escapeHtml(t("regelzahlungen.bezeichnung"))}</th>
               <th class="amount">${escapeHtml(t("labels.amount"))}</th>
               <th>${escapeHtml(t("regelzahlungen.rhythmus"))}</th>
+              <th>${escapeHtml(t("regelzahlungen.konto"))}</th>
               <th>${escapeHtml(t("regelzahlungen.anker"))}</th>
               <th>${escapeHtml(t("regelzahlungen.naechsteFaelligkeit"))}</th>
               <th>${escapeHtml(t("regelzahlungen.aktivBis"))}</th>

@@ -113,6 +113,7 @@ const schemas = {
       kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
       darlehen_id: { type: "string", pattern: /^DAR-\d{3}$/ },
       vorsorge_id: { type: "string", pattern: /^VS-\d{3}$/ },
+      konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
       erstellt_am: { type: "string", format: "date" },
       qualitaet: { type: "string", enum: ["belegt", "geschaetzt"] },
       quelle_hinweis: { type: "string" },
@@ -490,6 +491,9 @@ function validateCrossFieldRules(data, errors) {
   data.regelzahlungen?.forEach((rz) => {
     if (rz.kategorie_id && !kategorien.has(rz.kategorie_id)) {
       errors.push(`regelzahlungen.${rz.regelzahlung_id}.kategorie_id: ${rz.kategorie_id} existiert nicht`);
+    }
+    if (rz.konto_id && !konten.has(rz.konto_id)) {
+      errors.push(`regelzahlungen.${rz.regelzahlung_id}.konto_id: ${rz.konto_id} existiert nicht`);
     }
     if (rz.aktiv_bis && rz.anker_datum && rz.aktiv_bis < rz.anker_datum) {
       errors.push(`regelzahlungen.${rz.regelzahlung_id}.aktiv_bis: liegt vor anker_datum`);

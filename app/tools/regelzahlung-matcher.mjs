@@ -57,33 +57,38 @@ function passtZurKennung(tx, rz, kennung) {
 }
 
 // Ankerbuchung: die Buchung, die die Regelzahlung am naechstgelegenen Termin
-// erfuellt — gleiches Konto, gleiche Richtung und Kategorie, Betrag cent-genau,
-// ersatzweise in der engen Toleranz. Ihre Kennung muss eindeutig sein.
+// erfuellt — gleiches Konto, gleiche Richtung und Kategorie, Betrag cent-genau.
+// Erst wenn kein Termin einen cent-genauen Treffer hat, und nur bei geschaetztem
+// Betrag (Gehalt als Mittelwert), gilt die enge Toleranz. Die Kennung der
+// Kandidaten muss eindeutig sein.
 function findeAnker(rz, buchungen) {
   const fenster = fensterTage(rz);
   const ziel = toCents(rz.betrag);
   const reihenfolge = [0];
   for (let k = 1; k <= ANKER_TERMINE; k++) reihenfolge.push(-k, k);
-  for (const k of reihenfolge) {
-    const datum = termin(rz, k);
-    if (rz.aktiv_bis && datum > rz.aktiv_bis) continue;
-    const imFenster = buchungen.filter((tx) =>
-      (!rz.kategorie_id || tx.kategorie_id === rz.kategorie_id)
-      && Math.abs(dayDiff(tx.buchungsdatum, datum)) <= fenster);
-    const exakt = imFenster.filter((tx) => toCents(tx.betrag) === ziel);
-    const kandidaten = exakt.length ? exakt : imFenster.filter((tx) => imRahmen(tx, rz, TOLERANZ_GEGENPARTEI));
-    if (!kandidaten.length) continue;
-    const kennungen = new Map();
-    for (const tx of kandidaten) {
-      const kennung = kennungVon(tx);
-      if (kennung) kennungen.set(kennungSchluessel(kennung), kennung);
+  const durchlaeufe = [(tx) => toCents(tx.betrag) === ziel];
+  if (rz.qualitaet === "geschaetzt") durchlaeufe.push((tx) => imRahmen(tx, rz, TOLERANZ_GEGENPARTEI));
+  for (const passt of durchlaeufe) {
+    for (const k of reihenfolge) {
+      const datum = termin(rz, k);
+      if (rz.aktiv_bis && datum > rz.aktiv_bis) continue;
+      const kandidaten = buchungen.filter((tx) =>
+        (!rz.kategorie_id || tx.kategorie_id === rz.kategorie_id)
+        && Math.abs(dayDiff(tx.buchungsdatum, datum)) <= fenster
+        && passt(tx));
+      if (!kandidaten.length) continue;
+      const kennungen = new Map();
+      for (const tx of kandidaten) {
+        const kennung = kennungVon(tx);
+        if (kennung) kennungen.set(kennungSchluessel(kennung), kennung);
+      }
+      if (kennungen.size === 0) return { grund: "anker-ohne-kennung", kandidaten: kandidaten.map((t) => t.transaktion_id).sort() };
+      if (kennungen.size > 1) return { grund: "anker-mehrdeutig", kandidaten: kandidaten.map((t) => t.transaktion_id).sort() };
+      const anker = kandidaten
+        .slice()
+        .sort((a, b) => Math.abs(dayDiff(a.buchungsdatum, datum)) - Math.abs(dayDiff(b.buchungsdatum, datum)) || a.transaktion_id.localeCompare(b.transaktion_id))[0];
+      return { anker, kennung: [...kennungen.values()][0], exakt: toCents(anker.betrag) === ziel };
     }
-    if (kennungen.size === 0) return { grund: "anker-ohne-kennung", kandidaten: kandidaten.map((t) => t.transaktion_id).sort() };
-    if (kennungen.size > 1) return { grund: "anker-mehrdeutig", kandidaten: kandidaten.map((t) => t.transaktion_id).sort() };
-    const anker = kandidaten
-      .slice()
-      .sort((a, b) => Math.abs(dayDiff(a.buchungsdatum, datum)) - Math.abs(dayDiff(b.buchungsdatum, datum)) || a.transaktion_id.localeCompare(b.transaktion_id))[0];
-    return { anker, kennung: [...kennungen.values()][0], exakt: exakt.length > 0 };
   }
   return { grund: "ohne-anker" };
 }

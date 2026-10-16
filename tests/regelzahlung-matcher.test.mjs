@@ -80,9 +80,29 @@ test("geschaetzter Betrag: Anker in der Toleranz, wenn eindeutig", () => {
     tx("KTO-002", "2026-05-28", "2010.40", g),
     tx("KTO-002", "2026-06-26", "2088.10", g),
   ];
-  const out = matchRegelzahlungen(transaktionen, [rz("RZ-003", "2050.00", "2026-06-28", { konto_id: "KTO-002", kategorie_id: "KAT-001" })]);
+  const out = matchRegelzahlungen(transaktionen, [rz("RZ-003", "2050.00", "2026-06-28", { konto_id: "KTO-002", kategorie_id: "KAT-001", qualitaet: "geschaetzt" })]);
   assert.equal(out.je_regelzahlung[0].anker_exakt, false);
   assert.deepEqual(zugeordnet(out, "RZ-003"), ["2026-05-28", "2026-06-26"]);
+});
+
+test("belegter Betrag: kein Anker in der Toleranz", () => {
+  const transaktionen = [tx("KTO-001", "2026-06-01", "-95.00", { mandatsreferenz: "MANDAT-FREMD" })];
+  const out = matchRegelzahlungen(transaktionen, [rz("RZ-004", "-100.00", "2026-06-01", { qualitaet: "belegt" })]);
+  assert.equal(out.zuordnungen.length, 0);
+  assert.equal(out.uebersprungen[0].grund, "ohne-anker");
+});
+
+test("cent-genauer Anker am Vormonat schlaegt Toleranzkandidaten am Ankertermin", () => {
+  const transaktionen = [
+    tx("KTO-001", "2026-06-01", "-80.00", { mandatsreferenz: "MANDAT-A" }),
+    tx("KTO-001", "2026-06-01", "-77.00", { mandatsreferenz: "MANDAT-B" }),
+    tx("KTO-001", "2026-07-01", "-60.00", { mandatsreferenz: "MANDAT-A" }),
+    tx("KTO-001", "2026-07-01", "-77.00", { mandatsreferenz: "MANDAT-B" }),
+    tx("KTO-001", "2026-07-01", "-83.00", { mandatsreferenz: "MANDAT-C" }),
+  ];
+  const out = matchRegelzahlungen(transaktionen, [rz("RZ-005", "-80.00", "2026-07-01", { qualitaet: "geschaetzt" })]);
+  assert.equal(out.je_regelzahlung[0].anker, transaktionen[0].transaktion_id);
+  assert.deepEqual(out.zuordnungen.map((z) => z.betrag), ["-80.00", "-60.00"]);
 });
 
 test("gleiches Mandat, gleicher Betrag: der Tag entscheidet", () => {
@@ -111,7 +131,7 @@ test("ein Mandat fuer zwei Vertraege: der Betrag entscheidet", () => {
   ];
   const out = matchRegelzahlungen(transaktionen, [
     rz("RZ-020", "-60.00", "2026-01-01"),
-    rz("RZ-021", "-95.00", "2025-12-01", { rhythmus_einheit: "jahr" }),
+    rz("RZ-021", "-90.00", "2025-12-01", { rhythmus_einheit: "jahr" }),
   ]);
   assert.deepEqual(zugeordnet(out, "RZ-020"), ["2025-12-01", "2026-01-02"]);
   assert.equal(out.zuordnungen.find((z) => z.regelzahlung_id === "RZ-020" && z.buchungsdatum === "2025-12-01").betrag, "-60.00");

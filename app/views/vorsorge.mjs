@@ -11,7 +11,7 @@ import { localTodayIso } from "../liquiditaet.mjs";
 import { beitragsBalken, zeitstrahlDiagramm } from "../charts.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
-  VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsVerlauf, beitragVorjahr, gebuchteBeitraegeAlle,
+  VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsAenderungen, beitragsVerlauf, beitragVorjahr, gebuchteBeitraegeAlle,
   gesetzlicherRentenbeginn, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
   rentenStufen, tabFuerVorsorge, vermoegensBezug,
 } from "../vorsorge-rechnung.mjs";
@@ -120,26 +120,25 @@ function renderKopf(today) {
   const beitragVorsorge = aktiv.filter((vs) => tabFuerVorsorge(vs) !== "versicherungen").reduce((a, vs) => a + beitragJeMonatVertrag(data, vs.vorsorge_id, today), 0);
   const beitragVersicherung = aktiv.filter((vs) => tabFuerVorsorge(vs) === "versicherungen").reduce((a, vs) => a + beitragJeJahrVertrag(data, vs.vorsorge_id, today), 0);
 
+  // Je Kennzahl eine eigene Kachel, die erste mit Balken und Legende.
   const kz = (label, wert, notiz) => `
-      <div class="vorsorge-kopf-kz">
+      <section class="panel panel-pad vorsorge-kopf-kz">
         <div class="muted">${escapeHtml(label)}</div>
         <div class="vorsorge-kopf-wert">${wert}</div>
         ${notiz ? `<div class="kpi-note">${notiz}</div>` : ""}
-      </div>`;
+      </section>`;
 
   return `
-    <div class="vermoegen-kopf">
-      <section class="panel panel-pad vorsorge-kopf">
-        <div>
-          <div class="muted">${escapeHtml(t("vorsorge.kopf.alterseinkommen"))}</div>
-          <div class="vermoegen-netto">${escapeHtml(formatMoney(gesamt))} ${einheit(t("vorsorge.jeMonatBrutto"))}</div>
-          <div class="kpi-note">${escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten"))}</div>
-          ${renten.length ? `${balkenSvg(segmente)}<div class="vermoegen-legende">${legende}</div>` : ""}
-        </div>
+    <div class="vermoegen-kopf vorsorge-kopf">
+      <section class="panel panel-pad">
+        <div class="muted">${escapeHtml(t("vorsorge.kopf.alterseinkommen"))}</div>
+        <div class="vermoegen-netto">${escapeHtml(formatMoney(gesamt))} ${einheit(t("vorsorge.jeMonatBrutto"))}</div>
+        <div class="kpi-note">${escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten"))}</div>
+        ${renten.length ? `${balkenSvg(segmente)}<div class="vermoegen-legende">${legende}</div>` : ""}
+      </section>
         ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.summe)), kapital.jahre.length ? escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") })) : "")}
         ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: vorsorgePositionen.filter((p) => !p.fehlt).length, gesamt: vorsorgePositionen.length })))}
         ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })))}
-      </section>
     </div>`;
 }
 
@@ -330,6 +329,7 @@ function renderKarte(vs, tab, aktiv, today, offen) {
     zeilen.push([personName(vs.person_id), naechster ? tf("vorsorge.karte.faellig", { datum: formatDate(naechster.datum) }) : ""].filter(Boolean).join(" · "));
     const vj = beitragVorjahr(data, vs.vorsorge_id);
     if (vj?.vorjahr_cents) zeilen.push(`${tf("vorsorge.karte.vorjahr", { betrag: formatMoney(vj.vorjahr_cents) })} · ${veraenderungText(vj)}`);
+    if (rkw) zeilen.push(`${t("vorsorge.rueckkaufswert")} ${formatMoney(cents(rkw.wert))}`);
   } else if (tab === "renten") {
     // Hauptwert ist die Rente; ohne Rente der Rueckkaufs- bzw. Vertragswert.
     const ersatz = rkw || vertragswert;
@@ -353,7 +353,7 @@ function renderKarte(vs, tab, aktiv, today, offen) {
     !vs.geprueft_am && !istBeendet(vs) ? `<span class="chip ungeprueft">${escapeHtml(t("vorsorge.ungeprueft"))}</span>` : "",
     checks.some((c) => c.art === "vorsorge-wiedervorlage") ? `<span class="chip review">${escapeHtml(t("vorsorge.wiedervorlage"))}</span>` : "",
     checks.some((c) => c.art === "vorsorge-wechsel") ? `<span class="chip review">${escapeHtml(t("vermoegen.checkArt.vorsorge-wechsel"))}</span>` : "",
-    vs.kapitalbildend && tab !== "versicherungen" ? `<span class="chip kapitalbildend">${escapeHtml(t("vorsorge.kapitalbildend"))}</span>` : "",
+    vs.kapitalbildend ? `<span class="chip kapitalbildend">${escapeHtml(t("vorsorge.kapitalbildend"))}</span>` : "",
   ].join("");
   const bezug = bezugLinks(vs);
   // Kein <button>: die Karte enthaelt mit dem Bezug einen eigenen Link.
@@ -365,6 +365,13 @@ function renderKarte(vs, tab, aktiv, today, offen) {
       ${bezug.length ? `<span class="objekt-karte-zeile objekt-karte-bezug">${iconSvg("vermoegen")}${escapeHtml(t("vorsorge.gehoertZu"))} ${bezug.join(", ")}</span>` : ""}
       ${chips ? `<span class="objekt-karte-chips">${chips}</span>` : ""}
     </div>`;
+}
+
+// "+3,40 € (+3,5 %)" bzw. "−2,00 € (−1,8 %)".
+function aenderungText(a) {
+  const vorzeichen = a.diff_cents > 0 ? "+" : "−";
+  const prozent = a.anteil === null ? "" : ` (${vorzeichen}${new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { maximumFractionDigits: 1 }).format(Math.abs(a.anteil) * 100)} %)`;
+  return `${vorzeichen}${formatMoney(Math.abs(a.diff_cents))}${prozent}`;
 }
 
 function veraenderungText(vj) {
@@ -440,13 +447,20 @@ function kennzahlenVorsorge(vs, today) {
   const monat = beitragJeMonatVertrag(data, vs.vorsorge_id, today);
   const jahr = beitragJeJahrVertrag(data, vs.vorsorge_id, today);
   const jaehrlich = jaehrlichGezahlt(vs, today);
+  const letzte = beitragsAenderungen(data, vs.vorsorge_id)[0];
+  const beitragNotiz = [
+    jaehrlich ? `${formatMoney(monat)} ${t("vorsorge.jeMonat")}` : `${formatMoney(jahr)} ${t("vorsorge.jeJahr")}`,
+    letzte ? tf("vorsorge.zuletztAenderung", { aenderung: aenderungText(letzte), datum: formatDate(letzte.datum) }) : "",
+  ].filter(Boolean).join(" · ");
   const beitrag = jahr
-    ? kennzahl(t("vorsorge.beitrag"), jaehrlich ? `${geld(jahr)} ${einheit(t("vorsorge.jeJahr"))}` : `${geld(monat)} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(jaehrlich ? `${formatMoney(monat)} ${t("vorsorge.jeMonat")}` : `${formatMoney(jahr)} ${t("vorsorge.jeJahr")}`))
+    ? kennzahl(t("vorsorge.beitrag"), jaehrlich ? `${geld(jahr)} ${einheit(t("vorsorge.jeJahr"))}` : `${geld(monat)} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(beitragNotiz))
     : kennzahl(t("vorsorge.beitrag"), `<span class="muted">—</span>`, escapeHtml(t("vorsorge.keinBeitrag")));
   return wert + leistung + beginn + beitrag;
 }
 
 function kennzahlenVersicherung(vs, today) {
+  // Kapitalbildende Schutzvertraege (z. B. Pflegeversicherung mit Sparanteil) haben einen Rueckkaufswert.
+  const rkw = vs.kapitalbildend ? zeitwert(vs, "rueckkaufswert") : null;
   const monat = beitragJeMonatVertrag(data, vs.vorsorge_id, today);
   const jahr = beitragJeJahrVertrag(data, vs.vorsorge_id, today);
   const naechster = naechsterBeitrag(data, vs.vorsorge_id, today);
@@ -463,7 +477,9 @@ function kennzahlenVersicherung(vs, today) {
   return kennzahl(t("vorsorge.jahresbeitrag"), jahr ? geld(jahr) : `<span class="muted">—</span>`, jahr ? escapeHtml(`${formatMoney(monat)} ${t("vorsorge.jeMonatUmgelegt")}`) : escapeHtml(t("vorsorge.keinBeitrag")))
     + kennzahl(t("vorsorge.naechsteFaelligkeit"), naechster ? escapeHtml(formatDate(naechster.datum)) : `<span class="muted">—</span>`, konto ? escapeHtml(tf("vorsorge.lastschriftVon", { konto })) : "")
     + veraenderung
-    + kennzahl(t("vorsorge.geprueftAm"), vs.geprueft_am ? escapeHtml(formatDate(vs.geprueft_am)) : `<span class="chip ungeprueft">${escapeHtml(t("vorsorge.ungeprueft"))}</span>`, "");
+    + (rkw
+      ? kennzahl(t("vorsorge.rueckkaufswert"), geld(cents(rkw.wert)), zeitwertNotiz(rkw))
+      : kennzahl(t("vorsorge.geprueftAm"), vs.geprueft_am ? escapeHtml(formatDate(vs.geprueft_am)) : `<span class="chip ungeprueft">${escapeHtml(t("vorsorge.ungeprueft"))}</span>`, ""));
 }
 
 function renderVertragsdaten(vs, tab, offen) {
@@ -482,7 +498,7 @@ function renderVertragsdaten(vs, tab, offen) {
         ${detailRow(t("labels.type"), escapeHtml(vorsorgeArtLabel(vs.art)))}
         ${detailRow(t("labels.owner"), escapeHtml(personName(vs.person_id)))}
         ${detailRow(t("labels.status"), statusChip(vs))}
-        ${tab === "versicherungen" ? "" : detailRow(t("vorsorge.kapitalbildendLabel"), escapeHtml(vs.kapitalbildend ? t("labels.yes") : t("labels.no")))}
+        ${tab === "versicherungen" && !vs.kapitalbildend ? "" : detailRow(t("vorsorge.kapitalbildendLabel"), escapeHtml(vs.kapitalbildend ? t("labels.yes") : t("labels.no")))}
         ${vs.kapitalwahl ? detailRow(t("vorsorge.kapitalwahl"), escapeHtml(vs.kapitalwahl)) : ""}
         ${vs.aktiv_bis ? detailRow(t("vorsorge.aktivBis"), escapeHtml(formatDate(vs.aktiv_bis))) : ""}
         ${detailRow(t("vorsorge.geprueftAm"), vs.geprueft_am
@@ -517,15 +533,27 @@ function renderBeitraege(vs, today) {
     ariaLabel: t("vorsorge.gebuchteBeitraege"),
   });
   const buchungen = gebuchteBeitraege(vs.vorsorge_id);
+  const aenderungen = beitragsAenderungen(data, vs.vorsorge_id);
+  const aenderungJeBuchung = new Map(aenderungen.map((a) => [a.transaktion_id, a]));
+  const aenderungChip = (a) => `<span class="chip ${a.diff_cents > 0 ? "review" : "success"}" title="${escapeHtml(`${formatMoney(a.alt_cents)} → ${formatMoney(a.neu_cents)}`)}">${escapeHtml(aenderungText(a))}</span>`;
   return `
     <section class="panel panel-pad">
       ${titel}
       ${svg ? `<p class="muted diagramm-lead">${escapeHtml(t(verlauf.einheit === "jahr" ? "vorsorge.beitraegeJahreLead" : "vorsorge.beitraegeMonateLead"))}</p><div class="diagramm-wrap">${svg}</div>` : ""}
+      ${aenderungen.length ? `
+        <h3 class="section-subtitle">${escapeHtml(t("vorsorge.beitragsAenderungen"))}</h3>
+        <ul class="vorsorge-buchungen vorsorge-aenderungen">${aenderungen.slice(0, 5).map((a) => `
+          <li>
+            <span>${escapeHtml(tf("vorsorge.aenderungAb", { datum: formatDate(a.datum) }))} <span class="muted">${escapeHtml(`${formatMoney(a.alt_cents)} → ${formatMoney(a.neu_cents)}`)}</span></span>
+            ${aenderungChip(a)}
+          </li>`).join("")}
+        </ul>` : ""}
       ${buchungen.length ? `
+        <h3 class="section-subtitle">${escapeHtml(t("vorsorge.letzteBuchungen"))}</h3>
         <ul class="vorsorge-buchungen">${buchungen.map((tx) => `
           <li>
             <button class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum))} · ${escapeHtml(tx.gegenpartei ?? "")}</button>
-            <span class="amount">${escapeHtml(formatMoney(cents(tx.betrag)))}</span>
+            <span class="vorsorge-buchung-betrag">${aenderungJeBuchung.has(tx.transaktion_id) ? aenderungChip(aenderungJeBuchung.get(tx.transaktion_id)) : ""}<span class="amount">${escapeHtml(formatMoney(cents(tx.betrag)))}</span></span>
           </li>`).join("")}
         </ul>` : `<p class="muted">${escapeHtml(t("vorsorge.keineBuchung"))}</p>`}
     </section>`;

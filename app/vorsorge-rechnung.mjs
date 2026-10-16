@@ -108,6 +108,43 @@ export function beitragsVerlauf(data, vorsorgeId, today) {
   return { einheit: jaehrlich ? "jahr" : "monat", perioden, werte };
 }
 
+const istJaehrlich = (rz) => rz.rhythmus_einheit === "jahr" || (rz.rhythmus_einheit === "monat" && Number(rz.rhythmus_intervall) % 12 === 0);
+
+// Stufen im gebuchten Beitrag je Regelzahlung, neueste zuerst. Bei jaehrlichen
+// Zahlungen ist jede Abweichung zur vorigen Zahlung eine Aenderung; bei kuerzerem
+// Rhythmus zaehlt ein neuer Betrag erst, wenn die naechste Buchung ihn bestaetigt,
+// damit einmalige Abweichungen wie ein Rabattmonat nicht als Erhoehung und Senkung
+// erscheinen.
+export function beitragsAenderungen(data, vorsorgeId) {
+  const aenderungen = [];
+  for (const rz of (data.regelzahlungen ?? []).filter((r) => r.vorsorge_id === vorsorgeId)) {
+    const buchungen = (data.transaktionen ?? [])
+      .filter((tx) => tx.regelzahlung_id === rz.regelzahlung_id)
+      .sort((a, b) => String(a.buchungsdatum).localeCompare(String(b.buchungsdatum)) || String(a.transaktion_id).localeCompare(String(b.transaktion_id)))
+      .map((tx) => ({ tx, cents: -toCents(tx.betrag) }));
+    if (buchungen.length < 2) continue;
+    const jaehrlich = istJaehrlich(rz);
+    let stufe = buchungen[0].cents;
+    for (let i = 1; i < buchungen.length; i++) {
+      const { tx, cents } = buchungen[i];
+      if (cents === stufe) continue;
+      const bestaetigt = jaehrlich || buchungen[i + 1]?.cents === cents;
+      if (!bestaetigt) continue;
+      aenderungen.push({
+        regelzahlung_id: rz.regelzahlung_id,
+        transaktion_id: tx.transaktion_id,
+        datum: tx.buchungsdatum,
+        alt_cents: stufe,
+        neu_cents: cents,
+        diff_cents: cents - stufe,
+        anteil: stufe ? (cents - stufe) / stufe : null,
+      });
+      stufe = cents;
+    }
+  }
+  return aenderungen.sort((a, b) => b.datum.localeCompare(a.datum));
+}
+
 // Jahresvergleich fuer jaehrlich gezahlte Beitraege: letzte gebuchte Zahlung
 // gegen die Zahlung davor (mindestens zehn Monate frueher).
 export function beitragVorjahr(data, vorsorgeId) {

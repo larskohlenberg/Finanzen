@@ -97,7 +97,9 @@ window.FINANCE_I18N = {
       nextRoadmap: "Sondertilgungen & Projektion · M6",
       available: "Jetzt verfügbar",
       plannedLater: "Für später vorgesehen",
-      checksPreview: "Checks im Blick",
+      jahreszahlungen: "Jährliche Zahlungen",
+      jahreszahlungenLead: "Fällig in den nächsten drei Monaten.",
+      jahreszahlungenLeer: "Keine jährliche Zahlung in den nächsten drei Monaten.",
     },
     transactions: {
       title: "Transaktionen",
@@ -905,7 +907,9 @@ window.FINANCE_I18N = {
       nextRoadmap: "Special repayments & projection · M6",
       available: "Available now",
       plannedLater: "Planned for later",
-      checksPreview: "Checks in view",
+      jahreszahlungen: "Annual payments",
+      jahreszahlungenLead: "Due in the next three months.",
+      jahreszahlungenLeer: "No annual payment in the next three months.",
     },
     transactions: {
       title: "Transactions",

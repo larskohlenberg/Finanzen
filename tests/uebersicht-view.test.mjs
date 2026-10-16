@@ -22,35 +22,46 @@ const { data, state } = runtime;
 const { renderOverview } = overviewView;
 const { renderMasterdata } = await import("../app/views/stammdaten.mjs");
 
-test("Übersicht zeigt berechnete Vermögens-Checks in der Check-Vorschau", () => {
-  const personId = data.personen[0]?.person_id ?? "PER-001";
+test("Übersicht listet jährliche Zahlungen der nächsten drei Monate statt der Check-Vorschau", async () => {
+  const { localTodayIso } = await import("../app/liquiditaet.mjs");
+  const heute = localTodayIso();
+  const [y, m, d] = heute.split("-").map(Number);
+  const iso = (dy, dm, dd = d) => new Date(Date.UTC(y + dy, m - 1 + dm, dd)).toISOString().slice(0, 10);
   data.validation = { valid: true, errors: [] };
   data.importfehler = [];
   data.checks = [];
-  data.konten = [
-    {
-      konto_id: "KTO-999",
-      name: "Testkonto ohne Anker",
-      kontotyp: "giro",
-      inhaber_person_ids: [personId],
-      liquiditaetsrelevant: true,
-      status: "aktiv",
-    },
-  ];
+  data.konten = [];
   data.transaktionen = [];
   data.transfers = [];
-  data.regelzahlungen = [];
   data.immobilien = [];
   data.darlehen = [];
   data.vermoegenswerte = [];
   data.vorsorge = [];
   data.zeitwerte = [];
+  const basis = { status: "bestaetigt", rhythmus_einheit: "jahr", rhythmus_intervall: 1 };
+  data.regelzahlungen = [
+    { ...basis, regelzahlung_id: "RZ-901", bezeichnung: "Wohngebäude Jahresbeitrag", betrag: "-480.00", anker_datum: iso(-1, 1, 1) },
+    { ...basis, regelzahlung_id: "RZ-902", bezeichnung: "Weihnachtsgeld", betrag: "1500.00", anker_datum: iso(-1, 2, 1) },
+    { ...basis, regelzahlung_id: "RZ-903", bezeichnung: "Erst im Sommer", betrag: "-50.00", anker_datum: iso(-1, 6, 1) },
+    { ...basis, regelzahlung_id: "RZ-904", bezeichnung: "Monatlich", betrag: "-10.00", rhythmus_einheit: "monat", anker_datum: iso(0, -1) },
+  ];
   state.view = "overview";
+  state.lang = "de";
 
   const html = renderOverview();
+  const kachel = html.match(/<section class="panel panel-pad jahreszahlungen-rail">[\s\S]*?<\/section>/)?.[0] ?? "";
 
-  assert.match(html, /Anker fehlt/);
-  assert.match(html, /Testkonto ohne Anker: kein belegter Kontostand/);
+  assert.doesNotMatch(html, /Checks im Blick/);
+  assert.match(kachel, /Jährliche Zahlungen/);
+  assert.match(kachel, /data-action="open-regelzahlung" data-regelzahlung="RZ-901">Wohngebäude Jahresbeitrag/);
+  assert.match(kachel, /480,00/);
+  assert.match(kachel, /RZ-902[\s\S]*1\.500,00/);
+  assert.ok(kachel.indexOf("RZ-901") < kachel.indexOf("RZ-902"), "nach Datum sortiert");
+  assert.doesNotMatch(kachel, /RZ-903|RZ-904/);
+
+  data.regelzahlungen = [];
+  const leer = renderOverview().match(/<section class="panel panel-pad jahreszahlungen-rail">[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.match(leer, /Keine jährliche Zahlung/);
 });
 
 test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nicht belegt'-Texte", () => {

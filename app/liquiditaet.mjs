@@ -79,6 +79,19 @@ export function naechsteFaelligkeit(regelzahlung, today) {
   return null;
 }
 
+// Bestaetigte Regelzahlungen, die einmal im Jahr faellig werden, mit ihren Terminen
+// von heute (einschliesslich) bis `monate` Monate voraus, nach Datum sortiert. Fuer
+// die Uebersicht: die grossen Jahresposten, die zwischen den Monatsraten untergehen.
+export function anstehendeJahreszahlungen(regelzahlungen, today, monate = 3) {
+  const bis = addInterval(today, "monat", monate);
+  const gestern = addInterval(today, "tag", -1);
+  const jaehrlich = (rz) => rz.rhythmus_einheit === "jahr" || (rz.rhythmus_einheit === "monat" && rz.rhythmus_intervall % 12 === 0);
+  return (regelzahlungen ?? [])
+    .filter((rz) => rz.status === "bestaetigt" && jaehrlich(rz))
+    .flatMap((rz) => occurrences(rz, gestern, bis).map((datum) => ({ datum, regelzahlung: rz })))
+    .sort((a, b) => a.datum.localeCompare(b.datum) || a.regelzahlung.regelzahlung_id.localeCompare(b.regelzahlung.regelzahlung_id));
+}
+
 export function defaultHorizonEnd(regelzahlungen, today, fallbackMonate = 12) {
   let max = null;
   for (const rz of regelzahlungen ?? []) {

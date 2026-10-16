@@ -82,6 +82,26 @@ export function quelleHtml(text) {
   return belegTextHtml(text, { titel: t("dokumente.quelldokument"), escape: escapeHtml });
 }
 
+// Klappbare Kachel fuer grosse Detail-Abschnitte (Designregel, docs/ui-regeln.md): der Titel ist der Knopf, zugeklappt rendert sie keinen Inhalt. Der Zustand
+// je id gilt seitenuebergreifend bis zum Neuladen; ohne Eintrag gilt `offen` als Standard.
+// kopfExtra (z. B. ein Umschalter) steht rechts im Kopf und nur bei offener Kachel.
+export function klappKachel({ id, titel, inhalt, offen = true, kopfExtra = "", klasse = "" }) {
+  const istOffen = state.klappKacheln?.[id] ?? offen;
+  return `
+    <section class="panel panel-pad klapp-panel ${istOffen ? "" : "zu"} ${klasse}">
+      <div class="klapp-kopf">
+        <h2 class="section-title"><button type="button" class="klapp-knopf" data-action="klapp-kachel" data-kachel="${escapeHtml(id)}" data-standard="${offen}" aria-expanded="${istOffen}">${iconSvg(istOffen ? "chevronDown" : "chevronRight")}<span>${escapeHtml(titel)}</span></button></h2>
+        ${istOffen ? kopfExtra : ""}
+      </div>
+      ${istOffen ? inhalt : ""}
+    </section>`;
+}
+
+export function toggleKlappKachel(id, standard = true) {
+  if (!id) return;
+  state.klappKacheln = { ...state.klappKacheln, [id]: !(state.klappKacheln?.[id] ?? standard) };
+}
+
 export function detailRow(label, valueHtml) {
   return `
     <div class="detail-section">

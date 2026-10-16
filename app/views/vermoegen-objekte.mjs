@@ -4,7 +4,7 @@
 // dann Diagramme und Tabelle, zuletzt Bemerkung, Wertstaende und Dokumente.
 // Rechnen in vermoegen-details.mjs, hier nur Darstellung.
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
-import { formatMoney, formatDate, formatMonth, detailRow, categoryName } from "../komponenten.mjs";
+import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel } from "../komponenten.mjs";
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
 import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, immobilienMonate } from "../vermoegen-details.mjs";
 import {
@@ -69,17 +69,10 @@ function buchungenLink(html, { immobilie, monat = "", von = "", bis = "", katego
 
 // Unter Tabelle und Diagramm: zuerst die Dokumente als eigene Kachel (Ausschnitt
 // der Dokumentenansicht), darunter Bemerkung und Wertstaende.
-function anhangPanel(titel, { bemerkung = "", wertstaende, dokumente, extra = "" }) {
-  return `
-    <section class="panel panel-pad">
-      <h2 class="section-title">${escapeHtml(t("vermoegen.dokumente.titel"))}</h2>
-      ${dokumente}
-    </section>
-    <section class="panel panel-pad objekt-anhang">
-      <h2 class="section-title">${escapeHtml(titel)}</h2>
-      ${bemerkung}
-      <div>${wertstaende}${extra}</div>
-    </section>`;
+// bereich: "immobilie" oder "darlehen" (Schluessel der Klappkacheln).
+function anhangPanel(bereich, titel, { bemerkung = "", wertstaende, dokumente, extra = "" }) {
+  return klappKachel({ id: `${bereich}.dokumente`, titel: t("vermoegen.dokumente.titel"), inhalt: dokumente })
+    + klappKachel({ id: `${bereich}.anhang`, titel, offen: false, klasse: "objekt-anhang", inhalt: `${bemerkung}<div>${wertstaende}${extra}</div>` });
 }
 
 function nutzungLabel(nutzung) {
@@ -209,12 +202,7 @@ function renderImmobilieDetail(imm, today) {
         <button class="${ohneRate ? "active" : ""}" data-action="immobilie-rate" data-rate="ohne" aria-pressed="${ohneRate}">${escapeHtml(t("vermoegen.immobilie.ohneRate"))}</button>
       </div>`
     : "";
-  const monatsPanel = `
-    <section class="panel panel-pad">
-      <div class="panel-kopf">
-        <h2 class="section-title">${escapeHtml(t("vermoegen.immobilie.monateTitel"))}</h2>
-        ${umschalter}
-      </div>
+  const monatsPanel = klappKachel({ id: "immobilie.monate", titel: t("vermoegen.immobilie.monateTitel"), kopfExtra: umschalter, inhalt: `
       ${m.anzahl_buchungen ? `
         <p class="muted diagramm-lead">${escapeHtml(t("vermoegen.immobilie.monateLead"))}</p>
         <div class="diagramm-wrap">${diagramm}</div>
@@ -228,16 +216,13 @@ function renderImmobilieDetail(imm, today) {
         <p class="muted">${escapeHtml(t("vermoegen.immobilie.tabelleHinweis"))}</p>
         ${ohneRate ? `<p class="muted">${escapeHtml(t("vermoegen.immobilie.rateHinweis"))}</p>` : ""}
         ${eigen ? `<p class="muted">${escapeHtml(t("vermoegen.immobilie.eigenanteilHinweis"))}</p>` : ""}`
-        : `<p class="muted">${escapeHtml(t("vermoegen.immobilie.keineBuchungen"))}</p>`}
-    </section>`;
+        : `<p class="muted">${escapeHtml(t("vermoegen.immobilie.keineBuchungen"))}</p>`}` });
 
   const darlehenLinks = k.darlehen_ids.map((did) => {
     const d = data.darlehen.find((x) => x.darlehen_id === did);
     return `<button class="linkish" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`darlehen:${did}`)}">${escapeHtml(d?.bezeichnung || did)}</button>`;
   });
-  const stammdaten = `
-    <section class="panel panel-pad">
-      <h2 class="section-title">${escapeHtml(t("vermoegen.immobilie.stammdaten"))}</h2>
+  const stammdaten = klappKachel({ id: "immobilie.stammdaten", titel: t("vermoegen.immobilie.stammdaten"), inhalt: `
       <div class="stammdaten-raster">
         ${imm.adresse ? detailRow(t("vermoegen.adresse"), escapeHtml(imm.adresse)) : ""}
         ${imm.nutzung ? detailRow(t("vermoegen.immobilie.nutzung"), escapeHtml(nutzungLabel(imm.nutzung))) : ""}
@@ -246,10 +231,9 @@ function renderImmobilieDetail(imm, today) {
         ${imm.anschaffungsdatum || imm.anschaffungskosten ? detailRow(t("vermoegen.immobilie.angeschafft"), [imm.anschaffungsdatum ? escapeHtml(formatDate(imm.anschaffungsdatum)) : "", imm.anschaffungskosten ? escapeHtml(formatMoney(cents(imm.anschaffungskosten))) : ""].filter(Boolean).join(" · ")) : ""}
         ${k.wertaenderung_cents !== null ? detailRow(t("vermoegen.immobilie.wertaenderung"), geld(k.wertaenderung_cents, { negativ: true })) : ""}
         ${darlehenLinks.length ? detailRow(t("vermoegen.immobilie.darlehen"), darlehenLinks.join("<br>")) : ""}
-      </div>
-    </section>`;
+      </div>` });
 
-  const anhang = anhangPanel(t("vermoegen.immobilie.wertstaendeDokumente"), {
+  const anhang = anhangPanel("immobilie", t("vermoegen.immobilie.wertstaendeDokumente"), {
     bemerkung: bemerkungHtml(imm.bemerkung),
     wertstaende: renderPositionWertstaende({ klasse: "immobilie", id }),
     dokumente: `${dokumenteBrowserHtml([id, ...k.darlehen_ids])}
@@ -357,19 +341,13 @@ function renderDarlehenDetail(d, k, today) {
     ariaLabel: t("vermoegen.darlehen.zinsTilgung"),
   }) : "";
 
-  const diagramme = `
-    <section class="panel panel-pad">
-      <div class="panel-kopf">
-        <h2 class="section-title">${escapeHtml(t("vermoegen.restschuldVerlauf"))}</h2>
-        <span class="muted">${escapeHtml(t("vermoegen.darlehen.verlaufHinweis"))}</span>
-      </div>
+  const diagramme = klappKachel({ id: "darlehen.verlauf", titel: t("vermoegen.restschuldVerlauf"), kopfExtra: `<span class="muted">${escapeHtml(t("vermoegen.darlehen.verlaufHinweis"))}</span>`, inhalt: `
       ${k ? `<p class="muted diagramm-lead">${escapeHtml(t("vermoegen.darlehen.verlaufLead"))}</p><div class="diagramm-wrap">${verlauf}</div>` : `<p class="muted">${escapeHtml(t("vermoegen.darlehen.keinAnker"))}</p>`}
       ${jahre ? `
         <h3 class="section-subtitle">${escapeHtml(t("vermoegen.darlehen.zinsTilgung"))}</h3>
         <p class="muted diagramm-lead">${escapeHtml(t("vermoegen.darlehen.zinsTilgungLead"))}</p>
         <div class="diagramm-wrap">${jahre}</div>
-        <div class="diagramm-legende-html"><span class="swatch tilgung"></span>${escapeHtml(t("vermoegen.darlehen.tilgung"))}<span class="swatch zins"></span>${escapeHtml(t("vermoegen.darlehen.zins"))}<span class="swatch plan"></span>${escapeHtml(t("vermoegen.darlehen.plan"))}</div>` : ""}
-    </section>`;
+        <div class="diagramm-legende-html"><span class="swatch tilgung"></span>${escapeHtml(t("vermoegen.darlehen.tilgung"))}<span class="swatch zins"></span>${escapeHtml(t("vermoegen.darlehen.zins"))}<span class="swatch plan"></span>${escapeHtml(t("vermoegen.darlehen.plan"))}</div>` : ""}` });
 
   const verknuepft = [];
   if (d.immobilie_id) {
@@ -380,21 +358,16 @@ function renderDarlehenDetail(d, k, today) {
   const regelzahlung = (data.regelzahlungen ?? []).find((rz) => rz.darlehen_id === id);
   if (regelzahlung) verknuepft.push(`<a class="linkish" href="#/regelzahlungen/${encodeURIComponent(regelzahlung.regelzahlung_id)}">${escapeHtml(regelzahlung.bezeichnung || regelzahlung.regelzahlung_id)}</a>`);
 
-  const kennzahlenPanel = `
-    <section class="panel panel-pad">
-      <h2 class="section-title">${escapeHtml(t("vermoegen.darlehen.kennzahlen"))}</h2>
+  const kennzahlenPanel = klappKachel({ id: "darlehen.kennzahlen", titel: t("vermoegen.darlehen.kennzahlen"), inhalt: `
       ${k ? `<div class="detail-zweispaltig">
         ${detailRow(t("vermoegen.darlehen.restHeute"), `<strong>${geld(-k.rest_heute_cents, { negativ: true })}</strong>`)}
         ${k.getilgt_cents !== null ? detailRow(t("vermoegen.darlehen.getilgt"), `${escapeHtml(formatMoney(k.getilgt_cents))} ${escapeHtml(tf("vermoegen.darlehen.von", { betrag: formatMoney(k.anfangsbetrag_cents) }))}`) : ""}
         ${k.rest_zinsbindung_cents !== null ? detailRow(t("vermoegen.darlehen.restZinsbindung"), `<strong>${escapeHtml(formatMoney(k.rest_zinsbindung_cents))}</strong> · ${escapeHtml(formatDate(d.zinsbindung_bis))}`) : ""}
         ${k.naechste_rate ? detailRow(t("vermoegen.darlehen.naechsteRate"), `${escapeHtml(formatDate(k.naechste_rate.datum))} · ${escapeHtml(t("vermoegen.darlehen.tilgung"))} ${escapeHtml(formatMoney(k.naechste_rate.tilgung_cents))}, ${escapeHtml(t("vermoegen.darlehen.zins"))} ${escapeHtml(formatMoney(k.naechste_rate.zins_cents))}`) : ""}
         ${k.abbezahlt_am ? detailRow(t("vermoegen.darlehen.abbezahlt"), escapeHtml(formatDate(k.abbezahlt_am))) : k.rest_ende_cents > 0 && d.laufzeit_bis ? detailRow(t("vermoegen.restschuldLaufzeitende"), escapeHtml(formatMoney(k.rest_ende_cents))) : ""}</div>`
-        : `<p class="muted">${escapeHtml(t("vermoegen.darlehen.keinAnker"))}</p>`}
-    </section>`;
+        : `<p class="muted">${escapeHtml(t("vermoegen.darlehen.keinAnker"))}</p>`}` });
 
-  const stammdatenPanel = `
-    <section class="panel panel-pad">
-      <h2 class="section-title">${escapeHtml(t("vermoegen.immobilie.stammdaten"))}</h2>
+  const stammdatenPanel = klappKachel({ id: "darlehen.stammdaten", titel: t("vermoegen.immobilie.stammdaten"), inhalt: `
       <div class="detail-zweispaltig">
       ${d.anfangsdatum ? detailRow(t("vermoegen.aufgenommenAm"), escapeHtml(formatDate(d.anfangsdatum))) : ""}
       ${d.anfangsbetrag ? detailRow(t("vermoegen.anfangsbetrag"), escapeHtml(formatMoney(cents(d.anfangsbetrag)))) : ""}
@@ -403,10 +376,9 @@ function renderDarlehenDetail(d, k, today) {
       ${d.zinsbindung_bis ? detailRow(t("vermoegen.zinsbindungBis"), escapeHtml(formatDate(d.zinsbindung_bis))) : ""}
       ${d.laufzeit_bis ? detailRow(t("vermoegen.laufzeit"), `${escapeHtml(laufzeitText(d.anfangsdatum, d.laufzeit_bis))}<br><span class="muted">${escapeHtml(t("vermoegen.bis"))} ${escapeHtml(formatDate(d.laufzeit_bis))}</span>`) : ""}
       ${verknuepft.length ? detailRow(t("vermoegen.verknuepft"), verknuepft.join("<br>")) : ""}
-      </div>
-    </section>`;
+      </div>` });
 
-  const anhang = anhangPanel(t("vermoegen.darlehen.weiteres"), {
+  const anhang = anhangPanel("darlehen", t("vermoegen.darlehen.weiteres"), {
     bemerkung: bemerkungHtml(d.bemerkung),
     wertstaende: renderPositionWertstaende({ klasse: "darlehen", id }),
     extra: sondertilgungenRow(id),

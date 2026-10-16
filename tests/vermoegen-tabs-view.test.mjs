@@ -205,3 +205,19 @@ test("Immobilie: Einnahmen und Ausgaben zusammengefasst, Drill-down nach Kategor
     assert.doesNotMatch(drill, /20,00/);
   });
 });
+
+test("Immobilie und Darlehen: grosse Kacheln klappbar, Anhang per Standard zu", () => {
+  const imm = { immobilie_id: "IMM-001", bezeichnung: "Haus", status: "aktiv", bemerkung: "Notiz zum Haus", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] };
+  mitDaten({ immobilien: [imm] }, { vermoegenTab: "immobilien", klappKacheln: {} }, (html) => {
+    const kacheln = [...html.matchAll(/data-kachel="([\w.]+)" data-standard="(\w+)" aria-expanded="(\w+)"/g)].map((m) => `${m[1]}=${m[3]}`);
+    assert.deepEqual(kacheln, ["immobilie.stammdaten=true", "immobilie.monate=true", "immobilie.dokumente=true", "immobilie.anhang=false"]);
+    assert.doesNotMatch(html, /Notiz zum Haus/, "zugeklappter Anhang rendert keinen Inhalt");
+  });
+  mitDaten({ immobilien: [imm] }, { vermoegenTab: "immobilien", klappKacheln: { "immobilie.anhang": true } }, (html) => {
+    assert.match(html, /Notiz zum Haus/);
+  });
+  mitDaten({ darlehen: [darlehen("DAR-001")] }, { vermoegenTab: "darlehen", klappKacheln: {} }, (html) => {
+    const kacheln = [...html.matchAll(/data-kachel="([\w.]+)" data-standard="(\w+)" aria-expanded="(\w+)"/g)].map((m) => `${m[1]}=${m[3]}`);
+    assert.deepEqual(kacheln, ["darlehen.kennzahlen=true", "darlehen.verlauf=true", "darlehen.stammdaten=true", "darlehen.dokumente=true", "darlehen.anhang=false"]);
+  });
+});

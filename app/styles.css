@@ -2930,6 +2930,11 @@ a.linkish {
 }
 .vorsorge-kopf-wert { margin-top: 2px; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .betrag-einheit { color: var(--muted); font-size: 12px; font-weight: 500; }
+.vorsorge-kopf-liste { margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid var(--border); list-style: none; font-size: 12px; }
+.vorsorge-kopf-liste li { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; }
+.vorsorge-kopf-liste .linkish { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; hyphens: auto; text-align: left; font-size: 12px; }
+.vorsorge-kopf-liste li + li { border-top: 1px dashed var(--border); }
+.vorsorge-kopf-liste .amount { flex: 0 0 auto; margin-left: auto; font-variant-numeric: tabular-nums; }
 .vermoegen-netto .betrag-einheit { font-size: 15px; }
 .segment-rente-0 { fill: #8a5cc2; background: #8a5cc2; }
 .segment-rente-1 { fill: #a985d6; background: #a985d6; }

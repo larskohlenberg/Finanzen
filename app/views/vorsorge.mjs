@@ -122,13 +122,37 @@ function renderKopf(today) {
   const beitragVorsorge = aktiv.filter((vs) => tabFuerVorsorge(vs) !== "versicherungen").reduce((a, vs) => a + beitragJeMonatVertrag(data, vs.vorsorge_id, today), 0);
   const beitragVersicherung = aktiv.filter((vs) => tabFuerVorsorge(vs) === "versicherungen").reduce((a, vs) => a + beitragJeJahrVertrag(data, vs.vorsorge_id, today), 0);
 
-  // Je Kennzahl eine eigene Kachel, die erste mit Balken und Legende.
-  const kz = (label, wert, notiz) => `
+  // Je Kennzahl eine eigene Kachel, die erste mit Balken und Legende, die anderen
+  // mit ihrer Aufschluesselung, damit die Summe ohne Rechnen aufgeht.
+  const kz = (label, wert, notiz, zeilen = []) => `
       <section class="panel panel-pad vorsorge-kopf-kz">
         <div class="muted">${escapeHtml(label)}</div>
         <div class="vorsorge-kopf-wert">${wert}</div>
         ${notiz ? `<div class="kpi-note">${notiz}</div>` : ""}
+        ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : ""}
       </section>`;
+  const zeile = (linkHtml, betrag, zusatz = "") => `<li>${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${escapeHtml(betrag)}</span></li>`;
+  const vertragLink = (id, name) => `<button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(id)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
+  const tabLink = (tab, text) => `<button class="linkish" data-action="vorsorge-tab" data-tab="${escapeHtml(tab)}">${escapeHtml(text)}</button>`;
+
+  const kapitalZeilen = [...kapital.liste]
+    .sort((a, b) => String(a.vs.leistung_beginn ?? "9999").localeCompare(String(b.vs.leistung_beginn ?? "9999")))
+    .map((x) => zeile(vertragLink(x.vs.vorsorge_id, x.vs.name), formatMoney(cents(x.zw.wert)), x.vs.leistung_beginn?.slice(0, 4) ?? ""));
+  const mitWert = vorsorgePositionen.filter((p) => !p.fehlt).sort((a, b) => b.wert_cents - a.wert_cents);
+  const ohneWert = vorsorgePositionen.filter((p) => p.fehlt);
+  const ohneWertTab = ohneWert.length ? tabFuerVorsorge((data.vorsorge ?? []).find((vs) => vs.vorsorge_id === ohneWert[0].id)) : null;
+  const rkwZeilen = [
+    ...mitWert.map((p) => zeile(vertragLink(p.id, p.name), formatMoney(p.wert_cents))),
+    ...(ohneWert.length ? [`<li>${tabLink(ohneWertTab, tf("vorsorge.kopf.ohneWert", { n: ohneWert.length }))}<span class="amount muted">—</span></li>`] : []),
+  ];
+  const beitragZeilen = GRUPPEN_TABS
+    .filter((tab) => vertraegeIm(tab).some((vs) => !istBeendet(vs) && beitragJeMonatVertrag(data, vs.vorsorge_id, today)))
+    .map((tab) => {
+      const liste = vertraegeIm(tab).filter((vs) => !istBeendet(vs));
+      return tab === "versicherungen"
+        ? zeile(tabLink(tab, t(`vorsorge.tabs.${tab}`)), `${formatMoney(liste.reduce((a, vs) => a + beitragJeJahrVertrag(data, vs.vorsorge_id, today), 0))} ${t("vorsorge.jeJahr")}`)
+        : zeile(tabLink(tab, t(`vorsorge.tabs.${tab}`)), `${formatMoney(liste.reduce((a, vs) => a + beitragJeMonatVertrag(data, vs.vorsorge_id, today), 0))} ${t("vorsorge.jeMonat")}`);
+    });
 
   return `
     <div class="vermoegen-kopf vorsorge-kopf">
@@ -138,15 +162,16 @@ function renderKopf(today) {
         <div class="kpi-note">${escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten"))}</div>
         ${renten.length ? `${balkenSvg(segmente)}<div class="vermoegen-legende">${legende}</div>` : ""}
       </section>
-        ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.summe)), kapital.jahre.length ? escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") })) : "")}
-        ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: vorsorgePositionen.filter((p) => !p.fehlt).length, gesamt: vorsorgePositionen.length })))}
-        ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })))}
+        ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.summe)), kapital.jahre.length ? escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") })) : "", kapitalZeilen)}
+        ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: mitWert.length, gesamt: vorsorgePositionen.length })), rkwZeilen)}
+        ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })), beitragZeilen)}
     </div>`;
 }
 
 function kapitalLeistungen() {
   const liste = (data.vorsorge ?? []).filter((vs) => !istBeendet(vs)).map((vs) => ({ vs, zw: zeitwert(vs, "erwartete_kapitalleistung") })).filter((x) => x.zw);
   return {
+    liste,
     summe: liste.reduce((a, x) => a + cents(x.zw.wert), 0),
     jahre: [...new Set(liste.map((x) => x.vs.leistung_beginn?.slice(0, 4)).filter(Boolean))].sort(),
   };
@@ -401,6 +426,7 @@ function renderDetail(vs, tab, today, offen) {
         ${renderVertragsdaten(vs, tab, offen)}
         ${renderBeitraege(vs, today)}
       </div>
+      ${renderDokumente(vs)}
       ${renderAnhang(vs)}
     </div>`;
 }
@@ -569,6 +595,15 @@ const FELD_LABEL = {
   erwartete_kapitalleistung: "vorsorge.erwarteteKapitalleistung",
 };
 
+// Dokumente als eigene Kachel direkt unter den Kennzahlen und Vertragsdaten.
+function renderDokumente(vs) {
+  return `
+    <section class="panel panel-pad">
+      <h2 class="section-title">${escapeHtml(t("vermoegen.dokumente.titel"))}</h2>
+      ${dokumenteBrowserHtml([vs.vorsorge_id], belegOrdnerAusText(vs.quelle_hinweis))}
+    </section>`;
+}
+
 function renderAnhang(vs) {
   const staende = (data.zeitwerte ?? [])
     .filter((zw) => zw.entitaet === "vorsorge" && zw.entitaet_id === vs.vorsorge_id)
@@ -591,7 +626,5 @@ function renderAnhang(vs) {
       ${bemerkung}
       <h3 class="section-subtitle">${escapeHtml(t("vermoegen.wertstaende"))}</h3>
       ${wertstaende}
-      <h3 class="section-subtitle">${escapeHtml(t("vermoegen.dokumente.titel"))}</h3>
-      ${dokumenteBrowserHtml([vs.vorsorge_id], belegOrdnerAusText(vs.quelle_hinweis))}
     </section>`;
 }

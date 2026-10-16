@@ -103,6 +103,32 @@ test("Kopf besteht aus vier einzelnen Kacheln", () => {
   });
 });
 
+test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", () => {
+  mitFixture(() => {
+    const html = renderVorsorge();
+    const kopf = html.slice(html.indexOf("vorsorge-kopf"), html.indexOf("vermoegen-tabs"));
+    const kachel = (titel) => kopf.slice(kopf.indexOf(titel), kopf.indexOf("</section>", kopf.indexOf(titel)));
+    const rkw = kachel("Rückkaufswerte im Vermögen");
+    assert.match(rkw, /data-vorsorge="VS-002"[^>]*>Riester Lena<\/button><span class="amount">20\.000,00/);
+    assert.match(rkw, /data-vorsorge="VS-003"[^>]*>LV Lena<\/button><span class="amount">12\.000,00/);
+    assert.match(rkw, /data-tab="lebensversicherungen">1 ohne Wert/);
+    assert.match(kachel("Kapitalleistungen"), /LV Lena<\/button><span class="muted">2035<\/span><span class="amount">25\.000,00/);
+    const beitraege = kachel("Beiträge");
+    assert.match(beitraege, /data-tab="renten">Renten &amp; Anwartschaften<\/button><span class="amount">150,00\s€ \/ Monat/);
+    assert.match(beitraege, /data-tab="versicherungen">Versicherungen<\/button><span class="amount">900,00\s€ \/ Jahr/);
+  });
+});
+
+test("Dokumente stehen als eigene Kachel vor Bemerkung und Wertstaenden", () => {
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-002";
+    const html = renderVorsorge();
+    const dok = html.indexOf('<h2 class="section-title">Dokumente</h2>');
+    const anhang = html.indexOf('<h2 class="section-title">Bemerkung und Wertstände</h2>');
+    assert.ok(dok > 0 && anhang > dok, "Dokumente-Kachel steht vor dem Anhang");
+  });
+});
+
 test("Tabs nach Vertragsart mit Anzahl, Kennzahl und Punkt bei offenen Pruefungen", () => {
   mitFixture(() => {
     const html = renderVorsorge();
@@ -197,7 +223,7 @@ test("Versicherung zeigt Jahresbeitrag, naechste Faelligkeit und Vorjahresvergle
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-005";
     const html = renderVorsorge();
-    const karte = html.slice(html.indexOf('data-vorsorge="VS-005"'), html.indexOf("</button>", html.indexOf('data-vorsorge="VS-005"')));
+    const karte = html.slice(html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed'), html.indexOf("</button>", html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed')));
     assert.match(karte, /900,00[\s\S]*\/ Jahr/);
     assert.match(karte, /Vorjahr 750,00\s€ · \+20 %/);
     const detail = html.slice(html.indexOf("objekt-detail-titel"));
@@ -215,7 +241,7 @@ test("Versicherung mit Immobilienbezug verlinkt das Objekt auf Karte und im Deta
     data.transaktionen = data.transaktionen.map((tx) => ({ ...tx, immobilie_id: "IMM-001" }));
     state.selectedVorsorgeId = "VS-005";
     const html = renderVorsorge();
-    const start = html.indexOf('data-vorsorge="VS-005"');
+    const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed');
     const karte = html.slice(html.lastIndexOf("<div", start), html.indexOf("</div>", start));
     assert.match(karte, /role="button" tabindex="0" data-action="select-vorsorge"/, "Karte ist kein <button>, damit der Link gueltig darin steht");
     assert.match(karte, /Gehört zu <button class="linkish" data-action="select-vermoegen-objekt" data-vermoegen="immobilie:IMM-001"[^>]*>Musterhaus<\/button>/);
@@ -243,7 +269,7 @@ test("kapitalbildende Versicherung zeigt den Rueckkaufswert auf Karte und im Det
     data.zeitwerte = [...data.zeitwerte, zw("VS-005", "rueckkaufswert", "3000.00", "2026-01-01")];
     state.selectedVorsorgeId = "VS-005";
     const html = renderVorsorge();
-    const start = html.indexOf('data-vorsorge="VS-005"');
+    const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed');
     const karte = html.slice(start, html.indexOf("</div>", start));
     assert.match(karte, /Rückkaufswert 3\.000,00/);
     assert.match(karte, /kapitalbildend/);
@@ -257,7 +283,7 @@ test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausser
     data.zeitwerte = [...data.zeitwerte, zw("VS-005", "rueckkaufswert", "3000.00", "2026-01-01")];
     state.selectedVorsorgeId = "VS-005";
     const html = renderVorsorge();
-    const start = html.indexOf('data-vorsorge="VS-005"');
+    const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed');
     assert.match(html.slice(start, html.indexOf("</div>", start)), /Rückkaufswert 3\.000,00\s€ · nicht im Vermögen/);
     const kennzahlen = html.slice(html.indexOf("kennzahl-raster"), html.indexOf("vorsorge-detail-raster"));
     assert.match(kennzahlen, /Rückkaufswert[\s\S]*3\.000,00[\s\S]*nicht im Vermögen/);

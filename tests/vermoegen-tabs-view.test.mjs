@@ -7,13 +7,19 @@ import test from "node:test";
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: () => null, setItem: () => {} };
 globalThis.window = globalThis;
+// Belegliste fuer die Dokumente-Kacheln; ohne Antwort bleibt die API aus.
+let belegeAntwort = null;
 globalThis.fetch = async (pfad) => {
+  if (String(pfad).replace(/^\.\//, "").replace(/\?.*$/, "") === "api/belege") {
+    return belegeAntwort ? { ok: true, json: async () => belegeAntwort } : { ok: false, status: 404, json: async () => ({}) };
+  }
   const body = readFileSync(new URL(`../app/${String(pfad).replace(/^\.\//, "").replace(/\?.*$/, "").replace(/^data\/master\//, "data/demo/")}`, import.meta.url), "utf8");
   return { ok: true, json: async () => JSON.parse(body), text: async () => body };
 };
 await import("../app/i18n.js");
 const { data, state } = await import("../app/runtime.mjs");
 const { renderVermoegen } = await import("../app/views/vermoegen.mjs");
+const { ladeBelege } = await import("../app/views/belege.mjs");
 
 const FELDER = ["konten", "immobilien", "vermoegenswerte", "darlehen", "vorsorge", "zeitwerte", "transaktionen", "regelzahlungen"];
 
@@ -220,4 +226,85 @@ test("Immobilie und Darlehen: grosse Kacheln klappbar, Anhang per Standard zu", 
     const kacheln = [...html.matchAll(/data-kachel="([\w.]+)" data-standard="(\w+)" aria-expanded="(\w+)"/g)].map((m) => `${m[1]}=${m[3]}`);
     assert.deepEqual(kacheln, ["darlehen.kennzahlen=true", "darlehen.verlauf=true", "darlehen.stammdaten=true", "darlehen.dokumente=true", "darlehen.anhang=false"]);
   });
+});
+
+// Ausschnitt einer Klappkachel: vom Kopf bis zum Kopf der naechsten.
+function kachelInhalt(html, id) {
+  const start = html.indexOf(`data-kachel="${id}"`);
+  assert.ok(start >= 0, `Kachel ${id} fehlt`);
+  const ende = html.indexOf("data-kachel=", start + 1);
+  return html.slice(start, ende < 0 ? undefined : ende);
+}
+
+test("Immobilie: Link auf alle Buchungen steht in der Monatskachel, nicht bei den Dokumenten", () => {
+  const imm = { immobilie_id: "IMM-001", bezeichnung: "Musterhaus", status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] };
+  const monat = new Date().toISOString().slice(0, 7);
+  const vormonat = new Date(Date.UTC(Number(monat.slice(0, 4)), Number(monat.slice(5, 7)) - 2, 15)).toISOString().slice(0, 10);
+  const teil = {
+    immobilien: [imm],
+    transaktionen: [
+      { transaktion_id: "T1", konto_id: "KTO-001", immobilie_id: "IMM-001", buchungsdatum: vormonat, betrag: "-50.00", kategorie_id: "KAT-003" },
+      { transaktion_id: "T2", konto_id: "KTO-001", immobilie_id: "IMM-001", buchungsdatum: "2019-03-15", betrag: "-20.00", kategorie_id: "KAT-003" },
+    ],
+  };
+  mitDaten(teil, { vermoegenTab: "immobilien", klappKacheln: {} }, (html) => {
+    const link = /data-action="immobilie-transactions" data-immobilie="IMM-001">Alle 2 Buchungen anzeigen/;
+    assert.match(kachelInhalt(html, "immobilie.monate"), link, "auch Buchungen ausserhalb der 12 Monate zaehlen");
+    assert.doesNotMatch(kachelInhalt(html, "immobilie.dokumente"), /immobilie-transactions/);
+  });
+  mitDaten({ immobilien: [imm] }, { vermoegenTab: "immobilien", klappKacheln: {} }, (html) => {
+    assert.doesNotMatch(html, /Buchungen anzeigen/, "ohne zugeordnete Buchungen kein Link");
+  });
+});
+
+test("Immobilie: Dokumente zeigen die Belege der Versicherungen mit Bezug auf sie", async () => {
+  const ISO = "2026-02-01T10:00:00.000Z";
+  const datei = (pfad) => ({ pfad, groesse: 10, geaendert: ISO, typ: "pdf" });
+  belegeAntwort = {
+    dateien: [
+      datei("Belege/Versicherungen/Hausrat_Musterversicherer_123/police_2025.pdf"),
+      datei("Belege/Vorsorge/VS-101_Hausrat/beitrag_2026.pdf"),
+      datei("Belege/Versicherungen/Wohngebaeude_Andere_456/police_2025.pdf"),
+    ],
+  };
+  await ladeBelege(() => {});
+  const imm = (id, bezeichnung) => ({ immobilie_id: id, bezeichnung, status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] });
+  const vertrag = (id, quelle, extra = {}) => ({ vorsorge_id: id, art: "versicherung", name: `Vertrag ${id}`, person_id: "PER-001", status: "aktiv", quelle_hinweis: quelle, ...extra });
+  const teil = {
+    immobilien: [imm("IMM-001", "Musterhaus"), imm("IMM-002", "Musterwohnung")],
+    vorsorge: [
+      vertrag("VS-101", "Police unter Belege/Versicherungen/Hausrat_Musterversicherer_123/"),
+      // Gekuendigt, Bezug auf das andere Objekt.
+      vertrag("VS-102", "Belege/Versicherungen/Wohngebaeude_Andere_456/", { status: "gekuendigt" }),
+    ],
+    regelzahlungen: [
+      { regelzahlung_id: "RZ-101", vorsorge_id: "VS-101", kategorie_id: "KAT-003", betrag: "-10.00", rhythmus_einheit: "monat", rhythmus_intervall: 1 },
+      { regelzahlung_id: "RZ-102", vorsorge_id: "VS-102", kategorie_id: "KAT-003", betrag: "-10.00", rhythmus_einheit: "monat", rhythmus_intervall: 1 },
+    ],
+    transaktionen: [
+      { transaktion_id: "T1", konto_id: "KTO-001", regelzahlung_id: "RZ-101", immobilie_id: "IMM-001", buchungsdatum: "2026-01-15", betrag: "-10.00", kategorie_id: "KAT-003" },
+      { transaktion_id: "T2", konto_id: "KTO-001", regelzahlung_id: "RZ-102", immobilie_id: "IMM-002", buchungsdatum: "2026-01-15", betrag: "-10.00", kategorie_id: "KAT-003" },
+    ],
+  };
+  try {
+    mitDaten(teil, { vermoegenTab: "immobilien", selectedVermoegenId: "immobilie:IMM-001", klappKacheln: {} }, (html) => {
+      const dokumente = kachelInhalt(html, "immobilie.dokumente");
+      assert.match(dokumente, /belege-ausschnitt/);
+      assert.match(dokumente, /data-beleg-ordner="Belege\/Versicherungen\/Hausrat_Musterversicherer_123"/, "Belegordner aus quelle_hinweis");
+      assert.match(dokumente, /data-beleg-ordner="Belege\/Vorsorge\/VS-101_Hausrat"/, "Objektordner des Vertrags");
+      assert.doesNotMatch(dokumente, /Wohngebaeude_Andere_456/);
+    });
+    // Gekuendigter Vertrag bleibt drin; nur ein Ast, also listet der Ausschnitt die Datei.
+    mitDaten(teil, { vermoegenTab: "immobilien", selectedVermoegenId: "immobilie:IMM-002", klappKacheln: {} }, (html) => {
+      const dokumente = kachelInhalt(html, "immobilie.dokumente");
+      assert.match(dokumente, /police_2025\.pdf/);
+      assert.doesNotMatch(dokumente, /Hausrat_Musterversicherer_123|VS-101_Hausrat/);
+    });
+    // Ohne gebuchten Beitrag mit immobilie_id kein Bezug, also keine Belege.
+    mitDaten({ ...teil, transaktionen: [teil.transaktionen[0]] }, { vermoegenTab: "immobilien", selectedVermoegenId: "immobilie:IMM-002", klappKacheln: {} }, (html) => {
+      assert.match(kachelInhalt(html, "immobilie.dokumente"), /Keine Dokumente zugeordnet/);
+    });
+  } finally {
+    belegeAntwort = null;
+  }
 });

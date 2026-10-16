@@ -120,7 +120,7 @@ test("Immobilien-Tab bietet den lokalisierten Ruecklink zu den Buchungen", () =>
       vermoegenRailMode: "position",
     });
 
-    for (const [lang, label] of [["de", "Alle Buchungen"], ["en", "All transactions"]]) {
+    for (const [lang, label] of [["de", "Alle \\d+ Buchungen anzeigen"], ["en", "Show all \\d+ bookings"]]) {
       state.lang = lang;
       const html = renderVermoegen();
       assert.match(html, /data-action="immobilie-transactions" data-immobilie="IMM-001"/);

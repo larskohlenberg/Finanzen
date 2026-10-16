@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   beitragJeJahrCents, beitragJeJahrVertrag, beitragJeMonatCents, beitragJeMonatVertrag, beitragsVerlauf, beitragVorjahr, erwarteteLeistungen,
   gebuchteBeitraegeAlle, gesetzlicherRentenbeginn, leistungsZeitstrahl, monateBis, naechsterBeitrag,
-  rentenStufen, tabFuerVorsorge,
+  rentenStufen, tabFuerVorsorge, vermoegensBezug,
 } from "../app/vorsorge-rechnung.mjs";
 
 const HEUTE = "2026-10-16";
@@ -131,4 +131,19 @@ test("Zeitstrahl: Jahre bis zwei nach der letzten Leistung, Rente am Jahresende"
 test("monateBis zaehlt volle Monate", () => {
   assert.equal(monateBis("2026-10-16", "2040-02-01"), 159);
   assert.equal(monateBis("2040-02-01", "2040-04-01"), 2);
+});
+
+test("Vermoegensbezug aus den Immobilien der gebuchten Beitraege, haeufigste zuerst", () => {
+  const d = daten();
+  d.transaktionen = [
+    { transaktion_id: "TXN-A", regelzahlung_id: "RZ-002", buchungsdatum: "2024-11-04", betrag: "-100.00", immobilie_id: "IMM-002" },
+    { transaktion_id: "TXN-B", regelzahlung_id: "RZ-002", buchungsdatum: "2025-11-03", betrag: "-120.00", immobilie_id: "IMM-001" },
+    { transaktion_id: "TXN-C", regelzahlung_id: "RZ-002", buchungsdatum: "2026-11-03", betrag: "-120.00", immobilie_id: "IMM-001" },
+    { transaktion_id: "TXN-D", regelzahlung_id: "RZ-999", buchungsdatum: "2026-11-03", betrag: "-1.00", immobilie_id: "IMM-009" },
+  ];
+  assert.deepEqual(vermoegensBezug(d, "VS-004"), [
+    { klasse: "immobilie", id: "IMM-001", anzahl: 2 },
+    { klasse: "immobilie", id: "IMM-002", anzahl: 1 },
+  ]);
+  assert.deepEqual(vermoegensBezug(d, "VS-002"), []);
 });

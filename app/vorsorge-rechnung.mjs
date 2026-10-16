@@ -74,6 +74,18 @@ export function gebuchteBeitraegeAlle(data, vorsorgeId) {
     .sort((a, b) => String(b.buchungsdatum).localeCompare(String(a.buchungsdatum)) || String(b.transaktion_id).localeCompare(String(a.transaktion_id)));
 }
 
+// Vermoegensgegenstaende, zu denen ein Vertrag gehoert: die Immobilien, denen seine
+// gebuchten Beitraege zugeordnet sind (immobilie_id), haeufigste zuerst.
+export function vermoegensBezug(data, vorsorgeId) {
+  const anzahl = new Map();
+  for (const tx of gebuchteBeitraegeAlle(data, vorsorgeId)) {
+    if (tx.immobilie_id) anzahl.set(tx.immobilie_id, (anzahl.get(tx.immobilie_id) ?? 0) + 1);
+  }
+  return [...anzahl]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([id, n]) => ({ klasse: "immobilie", id, anzahl: n }));
+}
+
 // Beitraege je Periode bis heute: monatlich zahlende Vertraege in Monaten (24),
 // jaehrlich zahlende in Jahren (5). Betraege positiv.
 export function beitragsVerlauf(data, vorsorgeId, today) {

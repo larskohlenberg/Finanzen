@@ -6,7 +6,7 @@ import { data, t, escapeHtml, cents } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, detailRow, quelleHtml } from "../komponenten.mjs";
 import { dokumentRoute, dokumenteZuObjekt, verweisIndex } from "../belege.mjs";
-import { belegDateienStand } from "./belege.mjs";
+import { belegDateienStand, renderDokumenteAusschnitt } from "./belege.mjs";
 
 // t() mit Platzhaltern {name}.
 export function tf(key, werte = {}) {
@@ -148,6 +148,18 @@ export function balkenSvg(teile, { klasse = "vermoegen-balken", laenge = 1 } = {
 
 // Der Bestand wird einmal pro Seitenaufruf geladen; der Verweisindex reicht einmal.
 let index = null;
+// Dokumente eines Objekts als Ausschnitt der Dokumentenansicht (Ordnerbaum und
+// Tabelle), fuer Details in voller Breite. In schmalen Rails bleibt dokumenteHtml.
+export function dokumenteBrowserHtml(ids, ordner = []) {
+  index ??= verweisIndex(data);
+  const { zustand, dateien } = belegDateienStand();
+  const liste = dokumenteZuObjekt({ dateien, index, ids, ordner });
+  const html = liste.length ? renderDokumenteAusschnitt({ pfade: liste.map((d) => d.pfad), schluessel: ids[0] }) : "";
+  if (html) return html;
+  const text = zustand === "laedt" || zustand === "unbekannt" ? t("vermoegen.dokumente.laedt") : t("vermoegen.dokumente.keine");
+  return `<p class="muted">${escapeHtml(text)}</p>`;
+}
+
 export function dokumenteHtml(ids, ordner = []) {
   index ??= verweisIndex(data);
   const { zustand, dateien } = belegDateienStand();

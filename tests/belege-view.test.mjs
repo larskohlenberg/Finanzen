@@ -133,3 +133,37 @@ test("Bilder: Typ Bild, Textzwilling per OCR, Oeffnen und Herunterladen", async 
   assert.match(view.renderBelege(), /Image/);
   state.lang = "de";
 });
+
+test("Ausschnitt je Objekt: gleicher Baum und gleiche Tabelle, nur die Dateien des Objekts", async () => {
+  apiAntwort = {
+    dateien: [
+      { pfad: SCAN, groesse: 10, geaendert: ISO, typ: "pdf" },
+      { pfad: PDF, groesse: 2048, geaendert: ISO, typ: "pdf" },
+      { pfad: "Belege/Kontoauszuege/KTO-001/auszug_2026-01.txt", groesse: 99, geaendert: ISO, typ: "txt" },
+      { pfad: CSV, groesse: 300, geaendert: ISO, typ: "csv" },
+    ],
+  };
+  await view.ladeBelege(() => {});
+  const html = view.renderDokumenteAusschnitt({ pfade: [PDF, CSV], schluessel: "KTO-001" });
+  assert.match(html, /class="belege-browser belege-ausschnitt"/);
+  assert.match(html, /role="tree"/);
+  assert.match(html, /class="belege-tabelle"/);
+  assert.doesNotMatch(html, /Rente/, "fremde Ordner fehlen im Baum");
+  assert.match(html, /belege-anzahl">2</, "Wurzel zaehlt nur die zwei Dateien des Objekts");
+  // Start im tiefsten gemeinsamen Ordner, Dateien oeffnen die Dokumentenansicht.
+  assert.match(html, /belege-kopf"><strong>Kontoauszuege\/KTO-001<\/strong>/);
+  assert.match(html, /data-action="select-beleg" data-beleg="Belege\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf"/);
+  assert.doesNotMatch(html, /auszug_2026-01\.txt/, "Textzwilling bleibt ausgeblendet");
+
+  // Ordnerwahl und Zuklappen gelten nur fuer diesen Ausschnitt.
+  view.waehleAusschnittOrdner("KTO-001", "Belege/Kontoauszuege");
+  let nachWahl = view.renderDokumenteAusschnitt({ pfade: [PDF, CSV], schluessel: "KTO-001" });
+  assert.match(nachWahl, /belege-kopf"><strong>Kontoauszuege<\/strong>/);
+  assert.match(nachWahl, /belege-ordnerzeile" data-action="select-dok-ausschnitt-ordner" data-dok-ausschnitt="KTO-001" data-beleg-ordner="Belege\/Kontoauszuege\/KTO-001"/);
+  view.toggleAusschnittOrdner("KTO-001", "Belege/Kontoauszuege");
+  nachWahl = view.renderDokumenteAusschnitt({ pfade: [PDF, CSV], schluessel: "KTO-001" });
+  assert.match(nachWahl, /aria-expanded="false"/);
+  assert.doesNotMatch(view.renderBelege(), /data-dok-ausschnitt/, "die Dokumentenansicht selbst bleibt unberuehrt");
+
+  assert.equal(view.renderDokumenteAusschnitt({ pfade: ["Belege/gibt-es-nicht.pdf"], schluessel: "X" }), "");
+});

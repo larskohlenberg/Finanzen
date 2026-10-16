@@ -2984,6 +2984,17 @@ a.linkish {
 .objekt-karte.objekt-karte-ungeprueft { border-style: dashed; background: var(--surface); }
 .objekt-karte.objekt-karte-ungeprueft.active { border-style: solid; }
 .objekt-karte-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.objekt-karte-bezug { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.objekt-karte-bezug .icon { width: 14px; height: 14px; }
+.objekt-karte-bezug .linkish { font-size: 12px; }
+/* Dokumente eines Objekts: Ausschnitt der Dokumentenansicht im Detail. */
+.belege-ausschnitt {
+  min-height: 0;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.belege-ausschnitt .belege-tabelle-wrap { max-height: 420px; }
 .vorsorge-detail-raster {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

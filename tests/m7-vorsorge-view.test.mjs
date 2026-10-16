@@ -130,20 +130,20 @@ test("Dokumente stehen als eigene Kachel vor Bemerkung und Wertstaenden", () => 
   });
 });
 
-test("Detail-Kacheln sind klappbar: Default offen, nur Bemerkung und Wertstaende zu", () => {
+test("Detail-Kacheln in fester Reihenfolge, Vertragsdaten und Anhang per Default zu", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-002";
     let html = renderVorsorge();
-    for (const key of ["vertragsdaten", "beitraege", "dokumente"]) assert.match(html, new RegExp(`data-panel="${key}" aria-expanded="true"`));
-    assert.match(html, /data-panel="anhang" aria-expanded="false"/);
+    const reihenfolge = [...html.matchAll(/data-panel="(\w+)" aria-expanded="(\w+)"/g)].map((m) => `${m[1]}=${m[2]}`);
+    assert.deepEqual(reihenfolge, ["vertragsdaten=false", "dokumente=true", "beitraege=true", "anhang=false"]);
+    assert.doesNotMatch(html, /stammdaten-raster/, "zugeklappte Vertragsdaten rendern keinen Inhalt");
     assert.doesNotMatch(html, /Kapitalwahl noch offen/, "Bemerkung bleibt zu");
     toggleVorsorgePanel("anhang");
     toggleVorsorgePanel("vertragsdaten");
     html = renderVorsorge();
-    assert.match(html, /data-panel="anhang" aria-expanded="true"/);
-    assert.match(html, /Kapitalwahl noch offen/);
-    assert.match(html, /data-panel="vertragsdaten" aria-expanded="false"/);
-    assert.doesNotMatch(html, /stammdaten-raster/, "zugeklappte Vertragsdaten rendern keinen Inhalt");
+    assert.match(html, /data-panel="vertragsdaten" aria-expanded="true"/);
+    assert.match(html, /stammdaten-raster/);
+    assert.match(html, /vorsorge-spalten vorsorge-spalten-breit"><div><details class="bemerkung" open>[\s\S]*Kapitalwahl noch offen[\s\S]*Wertstände/, "Bemerkung links, Wertstaende rechts");
     // Der Zustand gilt auch fuer den naechsten Vertrag.
     state.selectedVorsorgeId = "VS-001";
     assert.match(renderVorsorge(), /data-panel="anhang" aria-expanded="true"/);
@@ -192,7 +192,7 @@ test("Renten-Tab: Karte je Vertrag, erster gewaehlt, Detail in voller Breite", (
 test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten und Anhang", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-002";
-    state.vorsorgePanels = { anhang: true };
+    state.vorsorgePanels = { vertragsdaten: true, anhang: true };
     const html = renderVorsorge();
     assert.match(html, /data-tab="renten">\s*<span class="vermoegen-tab-titel">/);
     assert.match(html, /class="vermoegen-tab active"[^>]*data-tab="renten"/);
@@ -262,6 +262,7 @@ test("Versicherung mit Immobilienbezug verlinkt das Objekt auf Karte und im Deta
     data.immobilien = [{ immobilie_id: "IMM-001", bezeichnung: "Musterhaus", status: "aktiv" }];
     data.transaktionen = data.transaktionen.map((tx) => ({ ...tx, immobilie_id: "IMM-001" }));
     state.selectedVorsorgeId = "VS-005";
+    state.vorsorgePanels = { vertragsdaten: true };
     const html = renderVorsorge();
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed');
     const karte = html.slice(html.lastIndexOf("<div", start), html.indexOf("</div>", start));
@@ -295,7 +296,7 @@ test("kapitalbildende Versicherung zeigt den Rueckkaufswert auf Karte und im Det
     const karte = html.slice(start, html.indexOf("</div>", start));
     assert.match(karte, /Rückkaufswert 3\.000,00/);
     assert.match(karte, /kapitalbildend/);
-    const kennzahlen = html.slice(html.indexOf("kennzahl-raster"), html.indexOf("vorsorge-detail-raster"));
+    const kennzahlen = html.slice(html.indexOf("kennzahl-raster"), html.indexOf('data-panel="vertragsdaten"'));
     assert.match(kennzahlen, /Rückkaufswert[\s\S]*3\.000,00/);
   });
 });
@@ -304,11 +305,11 @@ test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausser
   mitFixture(() => {
     data.zeitwerte = [...data.zeitwerte, zw("VS-005", "rueckkaufswert", "3000.00", "2026-01-01")];
     state.selectedVorsorgeId = "VS-005";
-    state.vorsorgePanels = { anhang: true };
+    state.vorsorgePanels = { vertragsdaten: true, anhang: true };
     const html = renderVorsorge();
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed');
     assert.match(html.slice(start, html.indexOf("</div>", start)), /Rückkaufswert 3\.000,00\s€ · nicht im Vermögen/);
-    const kennzahlen = html.slice(html.indexOf("kennzahl-raster"), html.indexOf("vorsorge-detail-raster"));
+    const kennzahlen = html.slice(html.indexOf("kennzahl-raster"), html.indexOf('data-panel="vertragsdaten"'));
     assert.match(kennzahlen, /Rückkaufswert[\s\S]*3\.000,00[\s\S]*nicht im Vermögen/);
     assert.match(html, /3\.000,00\s€<\/strong> <span class="muted">Rückkaufswert \(nicht im Vermögen\)/);
     // Der Kopf zaehlt ihn nicht mit.
@@ -338,6 +339,7 @@ test("Vorgaenger und Nachfolger sind als Vertragslinks erreichbar", () => {
       { vorsorge_id: "VS-007", art: "riester", name: "Riester Nachfolger", person_id: "PER-001", status: "geplant", kapitalbildend: true, ersetzt_vorsorge_id: "VS-002", geprueft_am: "2026-08-15" },
     ];
     state.selectedVorsorgeId = "VS-002";
+    state.vorsorgePanels = { vertragsdaten: true };
     const html = renderVorsorge();
     assert.match(html, /Nachfolger[\s\S]*data-action="select-vorsorge" data-vorsorge="VS-007"/);
   });

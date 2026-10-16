@@ -58,7 +58,7 @@ function bezugLinks(vs) {
 }
 
 // Klappbare Kacheln im Vertragsdetail; der Zustand gilt fuer alle Vertraege.
-const PANEL_OFFEN = { vertragsdaten: true, beitraege: true, dokumente: true, anhang: false };
+const PANEL_OFFEN = { vertragsdaten: false, dokumente: true, beitraege: true, anhang: false };
 const panelOffen = (key) => state.vorsorgePanels?.[key] ?? PANEL_OFFEN[key];
 
 export function toggleVorsorgePanel(key) {
@@ -440,11 +440,9 @@ function renderDetail(vs, tab, today, offen) {
     </div>
     <div class="objekt-detail">
       <div class="kennzahl-raster">${tab === "versicherungen" ? kennzahlenVersicherung(vs, today) : kennzahlenVorsorge(vs, today)}</div>
-      <div class="vorsorge-detail-raster">
-        ${renderVertragsdaten(vs, tab, offen)}
-        ${renderBeitraege(vs, today)}
-      </div>
+      ${renderVertragsdaten(vs, tab, offen)}
       ${renderDokumente(vs)}
+      ${renderBeitraege(vs, today)}
       ${renderAnhang(vs)}
     </div>`;
 }
@@ -553,8 +551,11 @@ function renderVertragsdaten(vs, tab, offen) {
         ${vorgaenger ? detailRow(t("vorsorge.vorgaenger"), verweis(vorgaenger)) : ""}
         ${nachfolger ? detailRow(t("vorsorge.nachfolger"), verweis(nachfolger)) : ""}
       </div>
-      ${quelle ? detailRow(t("vorsorge.vertragsquelle"), quelle) : ""}
-      ${beitraege.length ? detailRow(t("vorsorge.erwarteteBeitraege"), beitragZeilen) : ""}`);
+      ${quelle || beitraege.length ? `
+        <div class="vorsorge-spalten">
+          <div>${quelle ? detailRow(t("vorsorge.vertragsquelle"), quelle) : ""}</div>
+          <div>${beitraege.length ? detailRow(t("vorsorge.erwarteteBeitraege"), beitragZeilen) : ""}</div>
+        </div>` : ""}`);
 }
 
 function renderBeitraege(vs, today) {
@@ -581,7 +582,11 @@ function renderBeitraege(vs, today) {
   const aenderungJeBuchung = new Map(aenderungen.map((a) => [a.transaktion_id, a]));
   const aenderungChip = (a) => `<span class="chip ${a.diff_cents > 0 ? "review" : "success"}" title="${escapeHtml(`${formatMoney(a.alt_cents)} → ${formatMoney(a.neu_cents)}`)}">${escapeHtml(aenderungText(a))}</span>`;
   return klappPanel("beitraege", titel, `
-      ${svg ? `<p class="muted diagramm-lead">${escapeHtml(t(verlauf.einheit === "jahr" ? "vorsorge.beitraegeJahreLead" : "vorsorge.beitraegeMonateLead"))}</p><div class="diagramm-wrap">${svg}</div>` : ""}
+    <div class="vorsorge-spalten vorsorge-spalten-breit">
+      <div>
+      ${svg ? `<p class="muted diagramm-lead">${escapeHtml(t(verlauf.einheit === "jahr" ? "vorsorge.beitraegeJahreLead" : "vorsorge.beitraegeMonateLead"))}</p><div class="diagramm-wrap">${svg}</div>` : `<p class="muted">${escapeHtml(t("vorsorge.keineBuchung"))}</p>`}
+      </div>
+      <div>
       ${aenderungen.length ? `
         <h3 class="section-subtitle">${escapeHtml(t("vorsorge.beitragsAenderungen"))}</h3>
         <ul class="vorsorge-buchungen vorsorge-aenderungen">${aenderungen.slice(0, 5).map((a) => `
@@ -597,7 +602,9 @@ function renderBeitraege(vs, today) {
             <button class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum))} · ${escapeHtml(tx.gegenpartei ?? "")}</button>
             <span class="vorsorge-buchung-betrag">${aenderungJeBuchung.has(tx.transaktion_id) ? aenderungChip(aenderungJeBuchung.get(tx.transaktion_id)) : ""}<span class="amount">${escapeHtml(formatMoney(cents(tx.betrag)))}</span></span>
           </li>`).join("")}
-        </ul>` : `<p class="muted">${escapeHtml(t("vorsorge.keineBuchung"))}</p>`}`);
+        </ul>` : ""}
+      </div>
+    </div>`);
 }
 
 const FELD_LABEL = {
@@ -628,8 +635,9 @@ function renderAnhang(vs) {
   const bemerkung = vs.bemerkung
     ? `<details class="bemerkung" open><summary>${escapeHtml(t("vorsorge.bemerkung"))}</summary><p>${escapeHtml(vs.bemerkung)}</p></details>`
     : "";
-  return klappPanel("anhang", t("vorsorge.anhangTitel"), `
-      ${bemerkung}
-      <h3 class="section-subtitle">${escapeHtml(t("vermoegen.wertstaende"))}</h3>
-      ${wertstaende}`, "objekt-anhang");
+  // Breite nutzen: Bemerkung links, Wertstaende rechts; ohne Bemerkung nur die Wertstaende.
+  const staendeBlock = `<h3 class="section-subtitle">${escapeHtml(t("vermoegen.wertstaende"))}</h3>${wertstaende}`;
+  return klappPanel("anhang", t("vorsorge.anhangTitel"), bemerkung
+    ? `<div class="vorsorge-spalten vorsorge-spalten-breit"><div>${bemerkung}</div><div>${staendeBlock}</div></div>`
+    : staendeBlock, "objekt-anhang");
 }

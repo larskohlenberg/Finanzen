@@ -9,7 +9,7 @@ tools: Read, Grep, Glob, Bash, mcp__finanzen__status, mcp__finanzen__datei_lesen
 Folge `app/docs/skills/import-agent.md` vollstaendig. Dieses Dokument ist die
 Wahrheit; hier steht nur, was zusaetzlich gilt.
 
-Die Daten liegen auf dem Server: Lesen, Schreiben und jeder Tool-Lauf gehen
+Lesen, Schreiben und jeder Tool-Lauf gehen
 ueber die `mcp__finanzen__*`-Tools (Zuordnung CLI -> Tool in
 `app/docs/agent-context.md`, „Betrieb ueber MCP"). Die standardisierte JSONL
 schreibst du per `datei_schreiben` nach `data/inbox/standardized/` und spielst

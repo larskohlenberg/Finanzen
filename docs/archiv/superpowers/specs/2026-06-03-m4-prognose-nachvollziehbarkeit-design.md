@@ -8,22 +8,22 @@
 
 Die Cashflow-Prognose ist in der Weboberfläche eine Blackbox. Sichtbar sind nur
 aggregierte Monatssummen (Monat + Netto), zwei Summen-Kacheln und Qualitäts-Chips
-([app/main.js:544](../../../app/main.js), [renderMonatsTabelle:520](../../../app/main.js)).
+([app/main.js:544](../../../../app/main.js), [renderMonatsTabelle:520](../../../../app/main.js)).
 
 Nicht sichtbar sind:
 
 1. **Die Regelzahlungen selbst** — Betrag, Rhythmus, Anker-Datum, Gültig-bis,
    Status. Sie existieren im Datenmodell und in der getesteten Mathematik
-   ([app/cashflow.mjs](../../../app/cashflow.mjs)), aber in keiner View
+   ([app/cashflow.mjs](../../../../app/cashflow.mjs)), aber in keiner View
    (Stammdaten zeigt nur Personen/Konten/Kategorien).
 2. **Die Herleitung pro Monat** — welche Regelzahlung mit welchem Betrag in einen
    Monat einfließt. `computeCashflowPrognose` verdichtet sofort zu Monatssummen
-   ([cashflow.mjs:85-88](../../../app/cashflow.mjs)), die Einzelposten gehen verloren.
+   ([cashflow.mjs:85-88](../../../../app/cashflow.mjs)), die Einzelposten gehen verloren.
 
 Folge: Die Prognose kann nicht geprüft werden — man muss sich blind darauf verlassen.
 
 **Abgrenzung:** Der Ist-Cashflow hat dieses Problem *nicht*. Er ist eine reine
-Aggregation tatsächlicher Buchungen ([computeCashflowIst:106](../../../app/cashflow.mjs)),
+Aggregation tatsächlicher Buchungen ([computeCashflowIst:106](../../../../app/cashflow.mjs)),
 und jede Buchung ist bereits in der Transaktionen-View einzeln nachvollziehbar.
 Der Ist-Teil bleibt daher unverändert.
 
@@ -120,8 +120,8 @@ Ob sie aus der Detail-Variante abgeleitet wird, entscheidet der Implementierungs
 ### 2. Darstellung — `app/main.js`
 
 **a) Neuer Nav-Punkt „Regelzahlungen"**
-- Eintrag in der Nav-Liste ([main.js:13](../../../app/main.js)), Routing in
-  `renderView()` ([main.js:196](../../../app/main.js)).
+- Eintrag in der Nav-Liste ([main.js:13](../../../../app/main.js)), Routing in
+  `renderView()` ([main.js:196](../../../../app/main.js)).
 - Neue Funktion `renderRegelzahlungen()`: Tabelle aller Regelzahlungen mit
   Spalten Bezeichnung, Betrag, Rhythmus (lesbar, z. B. „monatlich", „alle 3 Monate",
   „jährlich"), Anker-Datum, Gültig-bis (Datum oder „unbefristet"-Chip),
@@ -131,7 +131,7 @@ Ob sie aus der Detail-Variante abgeleitet wird, entscheidet der Implementierungs
 **b) Cashflow-Prognose mit Filter und Aufklapp-Tabelle**
 - Filter-Leiste über der Prognose: drei Granularitäts-Buttons (Monat/Quartal/Jahr)
   und ein Datumsfeld „Prognose bis" (default = `defaultHorizonEnd`).
-- `renderCashflow()` ([main.js:544](../../../app/main.js)) ruft zusätzlich
+- `renderCashflow()` ([main.js:544](../../../../app/main.js)) ruft zusätzlich
   `computeCashflowPrognoseDetail` mit den State-Werten auf und rendert eine
   zweistufig aufklappbare Tabelle:
   - Ebene 1: Periodenzeile (Periode + Netto), klickbar → klappt Monate auf.
@@ -189,7 +189,7 @@ data.regelzahlungen ── renderRegelzahlungen() → Stammdaten-Tabelle (Eingan
 
 ## Tests (TDD)
 
-Neue Tests in [tests/m4-cashflow.test.mjs](../../../tests/m4-cashflow.test.mjs),
+Neue Tests in [tests/m4-cashflow.test.mjs](../../../../tests/m4-cashflow.test.mjs),
 gleicher Stil wie bestehend (`node:test`, `assert/strict`):
 
 - `periodenSchluessel`: Monat/Quartal/Jahr inkl. fixer Quartalsgrenzen

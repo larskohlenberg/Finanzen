@@ -1,6 +1,6 @@
 # Data
 
-Hier liegen aktive Daten fuer Runde 2.
+Hier liegen die Datenbestaende der App.
 
 ## Ordner
 

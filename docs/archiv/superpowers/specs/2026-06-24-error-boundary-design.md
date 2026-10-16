@@ -6,7 +6,7 @@
 ## Problem
 
 Die App rendert ihre komplette Oberfläche, indem sie in `render()`
-([app/main.js:117](../../../app/main.js)) einen HTML-String baut und an
+([app/main.js:117](../../../../app/main.js)) einen HTML-String baut und an
 `app.innerHTML` zuweist. Wirft eine der View-Funktionen dabei (z. B.
 `renderRegelzahlungen()`), bricht die Template-Auswertung **vor** der Zuweisung
 ab — der alte DOM bleibt stehen, sichtbar passiert nichts. Der Nutzer erlebt
@@ -65,7 +65,7 @@ Reine, ohne DOM testbare Funktionen:
 ### Verdrahtung in `app/main.js`
 
 - **Render-Grenze:** Der Aufruf `${renderView()}` in `render()`
-  ([app/main.js:128](../../../app/main.js)) wird zu
+  ([app/main.js:128](../../../../app/main.js)) wird zu
   `${safeRender(renderView, "view:" + state.view)}`. Sidebar, Topbar und
   Validierungs-Banner werden weiterhin separat gerendert und bleiben daher bei
   einem View-Fehler erhalten.

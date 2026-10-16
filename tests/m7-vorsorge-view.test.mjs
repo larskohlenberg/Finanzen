@@ -252,6 +252,21 @@ test("kapitalbildende Versicherung zeigt den Rueckkaufswert auf Karte und im Det
   });
 });
 
+test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausserhalb des Vermoegens", () => {
+  mitFixture(() => {
+    data.zeitwerte = [...data.zeitwerte, zw("VS-005", "rueckkaufswert", "3000.00", "2026-01-01")];
+    state.selectedVorsorgeId = "VS-005";
+    const html = renderVorsorge();
+    const start = html.indexOf('data-vorsorge="VS-005"');
+    assert.match(html.slice(start, html.indexOf("</div>", start)), /Rückkaufswert 3\.000,00\s€ · nicht im Vermögen/);
+    const kennzahlen = html.slice(html.indexOf("kennzahl-raster"), html.indexOf("vorsorge-detail-raster"));
+    assert.match(kennzahlen, /Rückkaufswert[\s\S]*3\.000,00[\s\S]*nicht im Vermögen/);
+    assert.match(html, /3\.000,00\s€<\/strong> <span class="muted">Rückkaufswert \(nicht im Vermögen\)/);
+    // Der Kopf zaehlt ihn nicht mit.
+    assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*32\.000,00/);
+  });
+});
+
 test("gebuchte Beitraege: die fuenf neuesten der eigenen Regelzahlungen", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-002";

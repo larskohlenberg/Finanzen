@@ -39,6 +39,8 @@ function vorsorgeArtLabel(art) {
 }
 
 const zeitwert = (vs, feld) => aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld);
+// Ein Rueckkaufswert zaehlt nur bei kapitalbildenden Vertraegen ins Nettovermoegen.
+const ausserhalbVermoegen = (vs, feld) => feld === "vertragswert" || (feld === "rueckkaufswert" && !vs.kapitalbildend);
 const vertraegeIm = (tab) => (data.vorsorge ?? []).filter((vs) => tabFuerVorsorge(vs) === tab);
 const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
 const einheit = (text) => `<span class="betrag-einheit">${escapeHtml(text)}</span>`;
@@ -329,13 +331,13 @@ function renderKarte(vs, tab, aktiv, today, offen) {
     zeilen.push([personName(vs.person_id), naechster ? tf("vorsorge.karte.faellig", { datum: formatDate(naechster.datum) }) : ""].filter(Boolean).join(" · "));
     const vj = beitragVorjahr(data, vs.vorsorge_id);
     if (vj?.vorjahr_cents) zeilen.push(`${tf("vorsorge.karte.vorjahr", { betrag: formatMoney(vj.vorjahr_cents) })} · ${veraenderungText(vj)}`);
-    if (rkw) zeilen.push(`${t("vorsorge.rueckkaufswert")} ${formatMoney(cents(rkw.wert))}`);
+    if (rkw) zeilen.push(`${t("vorsorge.rueckkaufswert")} ${formatMoney(cents(rkw.wert))}${vs.kapitalbildend ? "" : ` · ${t("vorsorge.nichtImVermoegen")}`}`);
   } else if (tab === "renten") {
     // Hauptwert ist die Rente; ohne Rente der Rueckkaufs- bzw. Vertragswert.
     const ersatz = rkw || vertragswert;
     wert = rente ? `${escapeHtml(formatMoney(cents(rente.wert)))} ${einheit(t("vorsorge.jeMonat"))}` : ersatz ? escapeHtml(formatMoney(cents(ersatz.wert))) : fehlt;
     zeilen.push([personName(vs.person_id), beginn].filter(Boolean).join(" · "));
-    if (rente && rkw) zeilen.push(`${t("vorsorge.rueckkaufswert")} ${formatMoney(cents(rkw.wert))}`);
+    if (rente && rkw) zeilen.push(`${t("vorsorge.rueckkaufswert")} ${formatMoney(cents(rkw.wert))}${vs.kapitalbildend ? "" : ` · ${t("vorsorge.nichtImVermoegen")}`}`);
     else if (rente && vertragswert) zeilen.push(`${t("vorsorge.vertragswert")} ${formatMoney(cents(vertragswert.wert))} · ${t("vorsorge.nichtImVermoegen")}`);
     else if (!rente && !rkw && vertragswert) zeilen.push(`${t("vorsorge.vertragswert")} · ${t("vorsorge.nichtImVermoegen")}`);
   } else {
@@ -416,7 +418,8 @@ function kennzahlenVorsorge(vs, today) {
   let wert;
   if (rkw) {
     const zusatz = vertragswert ? ` · ${escapeHtml(t("vorsorge.vertragswert"))} ${escapeHtml(geldOhneCent(cents(vertragswert.wert)))}` : "";
-    wert = kennzahl(t("vorsorge.rueckkaufswert"), geld(cents(rkw.wert)), zeitwertNotiz(rkw) + zusatz);
+    const nicht = vs.kapitalbildend ? "" : ` · ${escapeHtml(t("vorsorge.nichtImVermoegen"))}`;
+    wert = kennzahl(t("vorsorge.rueckkaufswert"), geld(cents(rkw.wert)), zeitwertNotiz(rkw) + nicht + zusatz);
   } else if (vertragswert) {
     wert = kennzahl(t("vorsorge.vertragswert"), geld(cents(vertragswert.wert)), `${escapeHtml(formatDate(vertragswert.standdatum))} · ${escapeHtml(t("vorsorge.nichtImVermoegen"))}`);
   } else if (vs.kapitalbildend) {
@@ -459,8 +462,8 @@ function kennzahlenVorsorge(vs, today) {
 }
 
 function kennzahlenVersicherung(vs, today) {
-  // Kapitalbildende Schutzvertraege (z. B. Pflegeversicherung mit Sparanteil) haben einen Rueckkaufswert.
-  const rkw = vs.kapitalbildend ? zeitwert(vs, "rueckkaufswert") : null;
+  // Manche Schutzvertraege (z. B. Pflegeversicherung mit Sparanteil) weisen einen Rueckkaufswert aus.
+  const rkw = zeitwert(vs, "rueckkaufswert");
   const monat = beitragJeMonatVertrag(data, vs.vorsorge_id, today);
   const jahr = beitragJeJahrVertrag(data, vs.vorsorge_id, today);
   const naechster = naechsterBeitrag(data, vs.vorsorge_id, today);
@@ -478,7 +481,7 @@ function kennzahlenVersicherung(vs, today) {
     + kennzahl(t("vorsorge.naechsteFaelligkeit"), naechster ? escapeHtml(formatDate(naechster.datum)) : `<span class="muted">—</span>`, konto ? escapeHtml(tf("vorsorge.lastschriftVon", { konto })) : "")
     + veraenderung
     + (rkw
-      ? kennzahl(t("vorsorge.rueckkaufswert"), geld(cents(rkw.wert)), zeitwertNotiz(rkw))
+      ? kennzahl(t("vorsorge.rueckkaufswert"), geld(cents(rkw.wert)), zeitwertNotiz(rkw) + (vs.kapitalbildend ? "" : ` · ${escapeHtml(t("vorsorge.nichtImVermoegen"))}`))
       : kennzahl(t("vorsorge.geprueftAm"), vs.geprueft_am ? escapeHtml(formatDate(vs.geprueft_am)) : `<span class="chip ungeprueft">${escapeHtml(t("vorsorge.ungeprueft"))}</span>`, ""));
 }
 
@@ -573,7 +576,7 @@ function renderAnhang(vs) {
   const wertstaende = staende.length
     ? staende.map((zw) => `
       <div class="wertstand-item">
-        <div><strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong> <span class="muted">${escapeHtml(t(FELD_LABEL[zw.feld] ?? zw.feld))}${zw.feld === "vertragswert" ? ` (${escapeHtml(t("vorsorge.nichtImVermoegen"))})` : ""} · ${escapeHtml(formatDate(zw.standdatum))}</span></div>
+        <div><strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong> <span class="muted">${escapeHtml(t(FELD_LABEL[zw.feld] ?? zw.feld))}${ausserhalbVermoegen(vs, zw.feld) ? ` (${escapeHtml(t("vorsorge.nichtImVermoegen"))})` : ""} · ${escapeHtml(formatDate(zw.standdatum))}</span></div>
         <div>${qualitaetChip({ qualitaet: zw.qualitaet })}</div>
         ${zw.quelle_hinweis ? `<div class="muted">${quelleHtml(zw.quelle_hinweis)}</div>` : ""}
       </div>`).join("")

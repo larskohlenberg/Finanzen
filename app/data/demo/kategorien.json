@@ -10,5 +10,6 @@
   { "kategorie_id": "KAT-009", "name": "Sparen & Umbuchung", "typ": "neutral", "lebenshaltung_relevant": false, "status": "aktiv" },
   { "kategorie_id": "KAT-010", "name": "Gesundheit", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
   { "kategorie_id": "KAT-011", "name": "Sonstiges", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
-  { "kategorie_id": "KAT-012", "name": "Kreditrate", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" }
+  { "kategorie_id": "KAT-013", "name": "Kreditrate", "typ": "ausgabe", "lebenshaltung_relevant": true, "status": "aktiv" },
+  { "kategorie_id": "KAT-012", "name": "Noch zu klaeren", "typ": "neutral", "lebenshaltung_relevant": false, "status": "aktiv" }
 ]

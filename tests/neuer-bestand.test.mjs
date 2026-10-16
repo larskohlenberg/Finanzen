@@ -25,6 +25,11 @@ test("Grundkategorien: KAT-012 ist Noch zu klaeren und steht zuletzt", () => {
   assert.equal(letzte.name, "Noch zu klaeren");
 });
 
+test("Demodaten: KAT-012 gleicht der Grundkategorie und steht zuletzt", () => {
+  const demo = JSON.parse(readFileSync("app/data/demo/kategorien.json", "utf8"));
+  assert.deepEqual(demo.at(-1), GRUNDKATEGORIEN.at(-1));
+});
+
 test("vorhandene Masterdatei: Plan verweigert, statt zu ueberschreiben", () => {
   const plan = planNeuerBestand(["konten.json", "notizen.txt"]);
   assert.deepEqual(plan.vorhanden, ["konten.json"]);

@@ -20,11 +20,13 @@ import { dataRootFromArg } from "./data-root.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { normalizeLoose } from "./lib/text.mjs";
 import { dekodierePng, istPng, kodierePng, verkleinere } from "./lib/png.mjs";
+import { dekodiereJpeg, istJpeg } from "./lib/jpeg.mjs";
 import { logoVerzeichnis } from "../logos.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 
-// Logodienst: Googles Favicon-Dienst. Frei, ohne Schluessel, liefert PNG in der
-// verlangten Groesse und 404, wenn er fuer die Domain nichts hat (ADR 0030).
+// Logodienst: Googles Favicon-Dienst. Frei, ohne Schluessel, liefert meist PNG in
+// der verlangten Groesse, bei manchen Domains aber das JPEG der Website, und 404,
+// wenn er fuer die Domain nichts hat (ADR 0030). Abgelegt wird immer PNG.
 export const DIENST_GROESSE = 128;
 export const ZIEL_GROESSE = 64;
 const MIN_QUELLE = 32;
@@ -97,12 +99,13 @@ export async function holeLogo(domain, { holen = fetch } = {}) {
   if (!antwort.ok) return { ok: false, quelle, fehler: `Dienst antwortet mit HTTP ${antwort.status}` };
   const bytes = Buffer.from(await antwort.arrayBuffer());
   if (bytes.length > MAX_BYTES) return { ok: false, quelle, fehler: `Antwort zu gross (${bytes.length} Bytes)` };
-  if (!istPng(bytes)) return { ok: false, quelle, fehler: "Antwort ist kein PNG" };
+  const format = istPng(bytes) ? "PNG" : istJpeg(bytes) ? "JPEG" : null;
+  if (!format) return { ok: false, quelle, fehler: "Antwort ist weder PNG noch JPEG" };
   let bild;
   try {
-    bild = dekodierePng(bytes);
+    bild = format === "PNG" ? dekodierePng(bytes) : dekodiereJpeg(bytes);
   } catch (error) {
-    return { ok: false, quelle, fehler: `PNG nicht lesbar: ${error.message}` };
+    return { ok: false, quelle, fehler: `${format} nicht lesbar: ${error.message}` };
   }
   const klein = verkleinere(bild, ZIEL_GROESSE);
   const hinweis = Math.max(bild.breite, bild.hoehe) < MIN_QUELLE ? `Dienst liefert nur ${bild.breite}x${bild.hoehe} px, wirkt evtl. unscharf` : undefined;

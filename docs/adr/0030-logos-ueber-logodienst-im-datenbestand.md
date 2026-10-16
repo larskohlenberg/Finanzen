@@ -15,9 +15,12 @@ oeffentlich.
 - **Quelle ist ein Logodienst, nicht die Website der Gegenpartei.** Die
   Qualitaet soll durchgaengig gleich sein. Gewaehlt ist der Google-Favicon-Dienst
   (`https://www.google.com/s2/favicons?domain=<domain>&sz=128`): frei, ohne
-  Schluessel, seit Jahren stabil, liefert immer PNG in der verlangten Groesse
-  und 404, wenn er fuer die Domain nichts hat. Der Dienst sieht, welche Domains
-  abgefragt werden; das ist bewusst in Kauf genommen.
+  Schluessel, seit Jahren stabil, liefert meist PNG in der verlangten Groesse
+  und 404, wenn er fuer die Domain nichts hat. Bei manchen Domains reicht er das
+  JPEG der Website durch; dafuer liest das Tool Baseline-JPEG selbst
+  (`tools/lib/jpeg.mjs`, ohne Abhaengigkeiten) und legt ebenfalls PNG ab.
+  Der Dienst sieht, welche Domains abgefragt werden; das ist bewusst in Kauf
+  genommen.
 - **Ablage nur im Datenbestand:** `DATENROOT/logos.json` (Muster, Domain,
   Datei, Quelle, Abrufdatum je Eintrag) und `DATENROOT/logos/<domain>.png`,
   verkleinert auf hoechstens 64 px. Nie im Repo, auch nicht in den Demodaten.
@@ -25,7 +28,7 @@ oeffentlich.
   Regelzahlungen und Vorsorgevertraege erben das Logo ueber
   `Transaktion → Regelzahlung → Vorsorge`; sie bekommen kein eigenes Feld.
 - **Erkennen ist Agentenurteil, Abrufen ein Tool** (ADR 0003, 0010): Der Agent
-  bestimmt die Domain, `tools/logos.mjs` (MCP `logos`) ruft ab, prueft das PNG,
+  bestimmt die Domain, `tools/logos.mjs` (MCP `logos`) ruft ab, prueft das Bild,
   verkleinert, traegt ein und protokolliert. Ohne `--schreiben` Vorschau.
 - **Rueckfall ohne Logo:** ein Kuerzel in fester, aus dem Namen abgeleiteter
   Farbe. Es liegt immer unter dem Bild und bleibt sichtbar, wenn eine Datei
@@ -39,6 +42,9 @@ oeffentlich.
   schwanken stark (ICO, SVG, riesige Bilder, Seiten ohne Favicon), und SVG
   koennte Skripte tragen. Gewuenscht ist gleichbleibende Qualitaet.
 - **DuckDuckGo-Icons:** liefert ICO, oft nur 16 px, kein sauberes 404.
+- **JPEG-Antworten anders abrufen** (anderer `sz`, `faviconV2`-Adresse): der
+  Dienst reicht in jeder Groesse dasselbe JPEG durch; ein kleiner JPEG-Leser
+  ist der einzige Weg ohne Abhaengigkeit.
 - **Bezahl- oder Schluesseldienste (Brandfetch, logo.dev):** bessere Logos,
   aber ein Konto und ein Schluessel fuer ein privates Projekt; Clearbit gibt es
   nicht mehr frei.

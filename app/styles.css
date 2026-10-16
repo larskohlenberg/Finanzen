@@ -3250,3 +3250,12 @@ a.linkish {
 .kuerzel-farbe-5 { --kuerzel: #5b45b0; }
 .kuerzel-farbe-6 { --kuerzel: #0f6f80; }
 .kuerzel-farbe-7 { --kuerzel: #5f6427; }
+
+/* Logo-Groessen je Ort: Tabellenzeile, Vertragskarte (rechts unter dem
+   Art-Chip), Vertragsdaten (rechts oben im Inhalt). */
+.transaction-row .logo-marke { width: 22px; height: 22px; font-size: 10px; vertical-align: -6px; }
+.objekt-karte-marke { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 6px; }
+.objekt-karte-marke .logo-marke { width: 28px; height: 28px; margin-right: 0; border-radius: 6px; font-size: 12px; }
+.vertragsdaten-mit-logo { display: flex; align-items: flex-start; gap: 16px; }
+.vertragsdaten-mit-logo .stammdaten-raster { flex: 1 1 auto; min-width: 0; }
+.vertragsdaten-mit-logo > .logo-marke { width: 48px; height: 48px; margin: 8px 0 0; border-radius: 8px; font-size: 16px; }

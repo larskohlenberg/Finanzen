@@ -23,7 +23,7 @@ import {
   app, data, state, storageKeys, navItems, TABBAR_VIEWS, transaktionenById,
   t, escapeHtml, cents, verwerfeDaten,
 } from "./runtime.mjs";
-import { formatMoney, heuteIso, toggleKlappKachel } from "./komponenten.mjs";
+import { formatMoney, heuteIso, toggleKlappKachel, oeffneKlappKachel } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
 import { bindDiagrammHover } from "./diagramm-hover.mjs";
@@ -1120,8 +1120,10 @@ async function handleAction(element) {
     state.selectedVermoegenId = "";
     resetWertstaendeFilters();
     setWertstaendeFilter("search", element.dataset.entity || "");
+    // Der Sprung zeigt die Tabelle: die sonst zugeklappte Kachel aufmachen.
+    oeffneKlappKachel("vermoegen.wertstaende");
     commitNavigation();
-    document.getElementById("vermoegen-wertstaende")?.scrollIntoView({ block: "start" });
+    document.getElementById?.("vermoegen-wertstaende")?.scrollIntoView?.({ block: "start" });
     return;
   }
   if (action === "clear-wertstaende-filter") {

@@ -72,7 +72,13 @@ test("Kopf ohne Datenqualitaets-Kachel; offener Punkt an Tab und Klassenkarte", 
 test("Uebersicht: Wertstaende als filter- und sortierbare Tabelle, keine Rail", () => {
   const zw = (id, wert, standdatum, qualitaet) => ({ entitaet: "darlehen", entitaet_id: id, feld: "restschuld", wert, standdatum, qualitaet });
   const teil = { darlehen: [darlehen("DAR-001"), darlehen("DAR-002")], zeitwerte: [zw("DAR-001", "1000.00", "2025-01-31", "belegt"), zw("DAR-002", "2000.00", "2026-01-31", "geschaetzt")] };
-  mitDaten(teil, {}, (html) => {
+  // Per Standard zu: nur der Kopf mit Anker, keine Tabelle.
+  mitDaten(teil, { klappKacheln: {} }, (html) => {
+    assert.match(html, /id="vermoegen-wertstaende"/);
+    assert.match(html, /data-kachel="vermoegen.wertstaende" data-standard="false" aria-expanded="false"/);
+    assert.doesNotMatch(html, /data-wertstaende-sort/);
+  });
+  mitDaten(teil, { klappKacheln: { "vermoegen.wertstaende": true } }, (html) => {
     assert.match(html, /id="vermoegen-wertstaende"/);
     assert.match(html, /data-wertstaende-sort="wert"/);
     assert.match(html, /data-wertstaende-filter="klasse"/);
@@ -80,10 +86,10 @@ test("Uebersicht: Wertstaende als filter- und sortierbare Tabelle, keine Rail", 
     assert.doesNotMatch(html, /layout-with-rail/);
     assert.ok(html.indexOf("DAR-002</span>") < html.indexOf("DAR-001</span>"), "neuester Stand zuerst");
   });
-  mitDaten(teil, { wertstaendeSort: { key: "wert", dir: "asc" }, wertstaendeFilters: { search: "", klasse: "", qualitaet: "" } }, (html) => {
+  mitDaten(teil, { klappKacheln: { "vermoegen.wertstaende": true }, wertstaendeSort: { key: "wert", dir: "asc" }, wertstaendeFilters: { search: "", klasse: "", qualitaet: "" } }, (html) => {
     assert.ok(html.indexOf("DAR-001</span>") < html.indexOf("DAR-002</span>"));
   });
-  mitDaten(teil, { wertstaendeFilters: { search: "", klasse: "", qualitaet: "belegt" } }, (html) => {
+  mitDaten(teil, { klappKacheln: { "vermoegen.wertstaende": true }, wertstaendeFilters: { search: "", klasse: "", qualitaet: "belegt" } }, (html) => {
     assert.match(html, /1 von 2 Treffer/);
     assert.doesNotMatch(html, /DAR-002<\/span>/);
   });

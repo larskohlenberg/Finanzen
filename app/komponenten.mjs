@@ -119,16 +119,22 @@ export function quelleHtml(text) {
 // Klappbare Kachel fuer grosse Detail-Abschnitte (Designregel, docs/ui-regeln.md): der Titel ist der Knopf, zugeklappt rendert sie keinen Inhalt. Der Zustand
 // je id gilt seitenuebergreifend bis zum Neuladen; ohne Eintrag gilt `offen` als Standard.
 // kopfExtra (z. B. ein Umschalter) steht rechts im Kopf und nur bei offener Kachel.
-export function klappKachel({ id, titel, inhalt, offen = true, kopfExtra = "", klasse = "" }) {
+// htmlId: optionaler Anker (id-Attribut), z. B. als Sprungziel.
+export function klappKachel({ id, titel, inhalt, offen = true, kopfExtra = "", klasse = "", htmlId = "" }) {
   const istOffen = state.klappKacheln?.[id] ?? offen;
   return `
-    <section class="panel panel-pad klapp-panel ${istOffen ? "" : "zu"} ${klasse}">
+    <section class="panel panel-pad klapp-panel ${istOffen ? "" : "zu"} ${klasse}"${htmlId ? ` id="${escapeHtml(htmlId)}"` : ""}>
       <div class="klapp-kopf">
         <h2 class="section-title"><button type="button" class="klapp-knopf" data-action="klapp-kachel" data-kachel="${escapeHtml(id)}" data-standard="${offen}" aria-expanded="${istOffen}">${iconSvg(istOffen ? "chevronDown" : "chevronRight")}<span>${escapeHtml(titel)}</span></button></h2>
         ${istOffen ? kopfExtra : ""}
       </div>
       ${istOffen ? inhalt : ""}
     </section>`;
+}
+
+// Kachel gezielt oeffnen, z. B. wenn ein Link in sie hineinspringt.
+export function oeffneKlappKachel(id) {
+  if (id) state.klappKacheln = { ...state.klappKacheln, [id]: true };
 }
 
 export function toggleKlappKachel(id, standard = true) {

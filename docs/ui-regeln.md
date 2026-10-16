@@ -29,6 +29,7 @@ Reihenfolge und Standard je Detailansicht:
 | Vorsorgevertrag | Vertragsdaten (zu), Dokumente, Gebuchte Beitraege, Bemerkung und Wertstaende (zu) |
 | Immobilie | Stammdaten, Monatstabelle, Dokumente, Bemerkung und Wertstaende (zu) |
 | Darlehen | Kennzahlen, Restschuldverlauf, Stammdaten, Dokumente, Bemerkung/Wertstaende/Sondertilgungen (zu) |
+| Vermoegen, Uebersicht | Klassenkarten, Wertstaende (zu; ein Sprung "Alle Wertstaende" oeffnet sie) |
 
 ## Dokumente eines Objekts
 

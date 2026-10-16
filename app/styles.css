@@ -2940,14 +2940,49 @@ a.linkish {
 .vorsorge-kopf-liste li + li { border-top: 1px dashed var(--border); }
 .vorsorge-kopf-liste .amount { flex: 0 0 auto; margin-left: auto; font-variant-numeric: tabular-nums; }
 .vermoegen-netto .betrag-einheit { font-size: 15px; }
-.segment-rente-0 { fill: #8a5cc2; background: #8a5cc2; }
-.segment-rente-1 { fill: #a985d6; background: #a985d6; }
-.segment-rente-2 { fill: #c6aee6; background: #c6aee6; }
-.segment-rente-3 { fill: #ddd0f1; background: #ddd0f1; }
-:root[data-theme="dark"] .segment-rente-0 { fill: #c39bf0; background: #c39bf0; }
-:root[data-theme="dark"] .segment-rente-1 { fill: #a37ad6; background: #a37ad6; }
-:root[data-theme="dark"] .segment-rente-2 { fill: #7f58b3; background: #7f58b3; }
-:root[data-theme="dark"] .segment-rente-3 { fill: #5f4187; background: #5f4187; }
+/* Feste Farbe je Vertrag (vorsorge-rechnung.mjs vertragsFarben): Kategorienpalette Slot 1-6,
+   je Modus eigene Stufen, geprueft auf Farbfehlsichtigkeit und Abstand. Grau = ohne eigene Farbe. */
+.vertrag-farbe-0 { --farbe: #2a78d6; }
+.vertrag-farbe-1 { --farbe: #eb6834; }
+.vertrag-farbe-2 { --farbe: #1baf7a; }
+.vertrag-farbe-3 { --farbe: #eda100; }
+.vertrag-farbe-4 { --farbe: #e87ba4; }
+.vertrag-farbe-5 { --farbe: #008300; }
+.vertrag-farbe-rest { --farbe: #9aa39f; }
+:root[data-theme="dark"] .vertrag-farbe-0 { --farbe: #3987e5; }
+:root[data-theme="dark"] .vertrag-farbe-1 { --farbe: #d95926; }
+:root[data-theme="dark"] .vertrag-farbe-2 { --farbe: #199e70; }
+:root[data-theme="dark"] .vertrag-farbe-3 { --farbe: #c98500; }
+:root[data-theme="dark"] .vertrag-farbe-4 { --farbe: #d55181; }
+:root[data-theme="dark"] .vertrag-farbe-5 { --farbe: #008300; }
+:root[data-theme="dark"] .vertrag-farbe-rest { --farbe: #6b7672; }
+/* Bereiche der Vorsorge (Beitraege je Tab): Slot 7 und 8 plus Grau, damit sie nicht mit Vertraegen
+   verwechselt werden. Grau steht bewusst fuer "kein Vermoegensaufbau" (Versicherungen). */
+.tab-farbe-renten { --farbe: #6250d6; }
+.tab-farbe-lebensversicherungen { --farbe: #e34948; }
+.tab-farbe-versicherungen { --farbe: #7d8682; }
+:root[data-theme="dark"] .tab-farbe-renten { --farbe: #9085e9; }
+:root[data-theme="dark"] .tab-farbe-lebensversicherungen { --farbe: #e66767; }
+:root[data-theme="dark"] .tab-farbe-versicherungen { --farbe: #b8c0bc; }
+[class*="vertrag-farbe-"], [class*="tab-farbe-"] { fill: var(--farbe); background: var(--farbe); }
+.objekt-karte-kopf .farbpunkt { margin-right: 6px; vertical-align: 1px; }
+.vorsorge-ranking { margin: 0 0 6px; padding: 0; list-style: none; }
+.vorsorge-ranking li { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto 72px; align-items: center; gap: 12px; padding: 4px 0; }
+.vorsorge-ranking .linkish { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.ranking-balken { display: block; width: 100%; height: 12px; }
+.ranking-wert { fill: var(--accent); opacity: 0.8; }
+.ranking-aenderung { text-align: right; font-size: 12px; }
+@media (max-width: 760px) { .vorsorge-ranking li { grid-template-columns: minmax(0, 1fr) auto; } .ranking-balken { grid-column: 1 / -1; order: 3; } }
+.farbpunkt { flex: 0 0 auto; display: inline-block; width: 9px; height: 9px; border-radius: 2px; align-self: center; }
+.vorsorge-kopf-mit-grafik { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.donut-diagramm { flex: 0 0 auto; width: 64px; height: 64px; }
+.donut-segment { stroke: var(--surface); stroke-width: 1.2; }
+.donut-segment .donut-voll, .donut-voll { fill: none; stroke: var(--farbe); }
+.zeitachse-klein { display: block; width: 100%; height: auto; margin-top: 8px; overflow: visible; }
+.zeitachse-linie { stroke: var(--border-strong); stroke-width: 1; }
+.zeitachse-bezug { stroke: var(--text); stroke-width: 1; stroke-dasharray: 2 2; opacity: 0.6; }
+.zeitachse-text { fill: var(--muted); font-size: 8px; }
+.zeitachse-marker { stroke: var(--surface); stroke-width: 1.5; }
 .zeitstrahl-linie.vorsorge-rente { stroke: #8a5cc2; fill: none; }
 .zeitstrahl-punkt.vorsorge-rente { fill: #8a5cc2; }
 :root[data-theme="dark"] .zeitstrahl-linie.vorsorge-rente { stroke: #c39bf0; }

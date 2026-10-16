@@ -222,3 +222,22 @@ export function monateBis(vonIso, bisIso) {
   if (bd < vd) m -= 1;
   return m;
 }
+
+// Feste Farbe je Vertrag fuer Kopf-Grafiken, Legenden und Kartenpunkte (Slot 0..5 der
+// Kategorienpalette). Farbe bekommen die Vertraege mit Wert im Kopf: zuerst die
+// kapitalbildenden mit Rueckkaufswert (die ersten drei Slots sind paarweise
+// unterscheidbar, der Donut zeigt sie nebeneinander), dann die mit erwarteter Rente
+// oder Kapitalleistung, jeweils nach ID. Mehr als sechs Vertraege teilen sich das
+// neutrale Grau. Die Zuordnung aendert sich nur, wenn ein Vertrag einen Wert bekommt
+// oder verliert.
+export const VERTRAG_FARBEN = 6;
+
+export function vertragsFarben(data) {
+  const aktiv = (data.vorsorge ?? []).filter((vs) => !istBeendet(vs)).sort((a, b) => a.vorsorge_id.localeCompare(b.vorsorge_id));
+  const hat = (vs, feld) => Boolean(aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld));
+  const reihe = [
+    ...aktiv.filter((vs) => vs.kapitalbildend && hat(vs, "rueckkaufswert")),
+    ...aktiv.filter((vs) => !(vs.kapitalbildend && hat(vs, "rueckkaufswert")) && (hat(vs, "erwartete_rente") || hat(vs, "erwartete_kapitalleistung"))),
+  ];
+  return new Map(reihe.slice(0, VERTRAG_FARBEN).map((vs, i) => [vs.vorsorge_id, i]));
+}

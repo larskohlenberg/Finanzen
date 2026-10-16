@@ -88,7 +88,7 @@ test("Kopf zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und Beitrae
     assert.match(html, /Erwartetes Alterseinkommen/);
     assert.match(html, /2\.550,00/, "DRV + Riester");
     assert.match(html, /voll ab 1\.4\.2040/);
-    assert.match(html, /segment-rente-0/, "Balken je Rente");
+    assert.match(html, /class="vertrag-farbe-\d"><title>Gesetzliche Rente/, "Balken je Rente in Vertragsfarbe");
     assert.match(html, /Kapitalleistungen[\s\S]*25\.000,00[\s\S]*fällig 2035/);
     assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*32\.000,00/, "nur kapitalbildende mit Wert");
     assert.match(html, /2 von 3 kapitalbildenden bewertet/);
@@ -114,6 +114,13 @@ test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", () => {
     assert.match(rkw, /data-vorsorge="VS-002"[^>]*>Riester Lena<\/button><span class="amount">20\.000,00/);
     assert.match(rkw, /data-vorsorge="VS-003"[^>]*>LV Lena<\/button><span class="amount">12\.000,00/);
     assert.match(rkw, /data-tab="lebensversicherungen">1 ohne Wert/);
+    // Donut der Rueckkaufswerte und Farbpunkte in derselben Vertragsfarbe.
+    assert.match(rkw, /class="donut-diagramm"/);
+    assert.match(rkw, /class="donut-segment vertrag-farbe-0"><title>Riester Lena: 20\.000,00\s€ \(63 %\)/);
+    assert.match(rkw, /<i class="farbpunkt vertrag-farbe-0" aria-hidden="true"><\/i><button[^>]*data-vorsorge="VS-002"/);
+    // Kapital auf der Zeitachse mit Rentenbeginn, Beitraege als Donut je Bereich.
+    assert.match(kachel("Kapitalleistungen"), /class="zeitachse-klein"[\s\S]*class="zeitachse-bezug"[\s\S]*class="zeitachse-marker vertrag-farbe-\d"/);
+    assert.match(kachel("Beiträge"), /class="donut-segment tab-farbe-renten"><title>Renten &amp; Anwartschaften pro Jahr: 1\.800,00/);
     assert.match(kachel("Kapitalleistungen"), /LV Lena<\/button><span class="muted">2035<\/span><span class="amount">25\.000,00/);
     const beitraege = kachel("Beiträge");
     assert.match(beitraege, /data-tab="renten">Renten &amp; Anwartschaften<\/button><span class="amount">150,00\s€ \/ Monat/);
@@ -316,6 +323,32 @@ test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausser
     assert.match(html, /3\.000,00\s€<\/strong> <span class="muted">Rückkaufswert \(nicht im Vermögen\)/);
     // Der Kopf zaehlt ihn nicht mit.
     assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*32\.000,00/);
+  });
+});
+
+test("Versicherungs-Tab: Rangliste der Jahresbeitraege mit Veraenderung zum Vorjahr", () => {
+  mitFixture(() => {
+    state.vorsorgeTab = "versicherungen";
+    const html = renderVorsorge();
+    assert.match(html, /data-kachel="vorsorge.ranking"/);
+    const ranking = html.slice(html.indexOf('class="vorsorge-ranking"'), html.indexOf("</ul>", html.indexOf('class="vorsorge-ranking"')));
+    assert.equal((ranking.match(/<li>/g) ?? []).length, 1, "nur laufende Vertraege mit Beitrag");
+    assert.match(ranking, /data-vorsorge="VS-005"[^>]*>Wohngebaeude<\/button>[\s\S]*width="100\.00"[\s\S]*900,00[\s\S]*class="chip review"[^>]*>\+20 %/);
+    assert.match(html, /zusammen 900,00/);
+  });
+});
+
+test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farbpunkt", () => {
+  mitFixture(() => {
+    state.vorsorgeTab = "lebensversicherungen";
+    const html = renderVorsorge();
+    const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-003" aria-pressed');
+    const karte = html.slice(start, html.indexOf("</div>", start));
+    assert.match(karte, /<i class="farbpunkt vertrag-farbe-\d" aria-hidden="true"><\/i>LV Lena/);
+    assert.match(karte, /class="fortschritt"[\s\S]*width="48\.000"/, "12.000 von 25.000 = 48 %");
+    assert.match(karte, /48 % der garantierten Ablaufleistung als Rückkaufswert/);
+    const martin = html.slice(html.indexOf('data-vorsorge="VS-004" aria-pressed'));
+    assert.doesNotMatch(martin.slice(0, martin.indexOf("</div>")), /class="fortschritt"/, "ohne Werte kein Fortschritt");
   });
 });
 

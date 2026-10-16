@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   beitragJeJahrCents, beitragJeJahrVertrag, beitragJeMonatCents, beitragJeMonatVertrag, beitragsVerlauf, beitragVorjahr, erwarteteLeistungen,
   gebuchteBeitraegeAlle, gesetzlicherRentenbeginn, leistungsZeitstrahl, monateBis, naechsterBeitrag,
-  rentenStufen, tabFuerVorsorge, vermoegensBezug, beitragsAenderungen,
+  rentenStufen, tabFuerVorsorge, vermoegensBezug, beitragsAenderungen, vertragsFarben,
 } from "../app/vorsorge-rechnung.mjs";
 
 const HEUTE = "2026-10-16";
@@ -169,4 +169,16 @@ test("Beitragsaenderungen: Jahreszahler je Abweichung, Monatszahler nur bestaeti
   const monat = beitragsAenderungen(d, "VS-M");
   assert.deepEqual(monat.map((a) => [a.datum, a.alt_cents, a.neu_cents]), [["2026-03-01", 5000, 5200]], "Ausreisser im Mai zaehlt nicht");
   assert.deepEqual(beitragsAenderungen(d, "VS-X"), []);
+});
+
+test("Vertragsfarben: kapitalbildende mit Rueckkaufswert zuerst, dann Renten und Kapital, beendete ohne Farbe", () => {
+  const farben = vertragsFarben(daten());
+  // VS-002 hat Rueckkaufswert; dann VS-001 (Rente), VS-003 (Kapital), VS-006 (Rente); VS-005 ist gekuendigt.
+  assert.deepEqual([...farben], [["VS-002", 0], ["VS-001", 1], ["VS-003", 2], ["VS-006", 3]]);
+  const viele = daten();
+  for (let i = 10; i < 16; i++) {
+    viele.vorsorge.push({ vorsorge_id: `VS-0${i}`, art: "riester", name: `R${i}`, person_id: "PER-001", status: "aktiv", kapitalbildend: false });
+    viele.zeitwerte.push(zw(`VS-0${i}`, "erwartete_rente", "10.00"));
+  }
+  assert.equal(vertragsFarben(viele).size, 6, "hoechstens sechs Farben");
 });

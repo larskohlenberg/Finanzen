@@ -3007,7 +3007,25 @@ a.linkish {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  align-items: start;
 }
+/* Klappbare Kachel: der Titel ist der Knopf. */
+.klapp-panel > .section-title { margin: 0; }
+.klapp-panel:not(.zu) > .section-title { margin-bottom: 10px; }
+.klapp-knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.klapp-knopf .icon { width: 16px; height: 16px; color: var(--muted); }
+.klapp-knopf:hover .icon, .klapp-knopf:focus-visible .icon { color: var(--accent); }
+.klapp-knopf:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-tight); }
 @media (max-width: 1180px) {
   .vorsorge-kopf { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .vorsorge-uebersicht-raster, .vorsorge-detail-raster { grid-template-columns: minmax(0, 1fr); }

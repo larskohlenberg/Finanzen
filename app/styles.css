@@ -2983,6 +2983,8 @@ a.linkish {
 :root[data-theme="dark"] .tab-farbe-versicherungen { --farbe: #b8c0bc; }
 [class*="vertrag-farbe-"], [class*="tab-farbe-"] { fill: var(--farbe); background: var(--farbe); }
 .objekt-karte-kopf .farbpunkt { margin-right: 6px; vertical-align: 1px; }
+/* Steht direkt ueber dem Kartenraster: derselbe Abstand wie zwischen Raster und Folgeinhalt. */
+.vorsorge-ranking-kachel { margin-bottom: 12px; }
 .vorsorge-ranking { margin: 0 0 6px; padding: 0; list-style: none; }
 .vorsorge-ranking li { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto 72px; align-items: center; gap: 12px; padding: 4px 0; }
 .vorsorge-ranking .linkish { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }

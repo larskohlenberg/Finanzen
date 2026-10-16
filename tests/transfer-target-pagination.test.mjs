@@ -172,6 +172,26 @@ test("Gegenbuchungsnavigation zeigt Zielzeile auf ihrer Seite und öffnet die De
   assert.match(app.innerHTML, /detail-panel/);
 });
 
+test("open-transaction aus einer anderen Ansicht springt auf die Seite der Zielbuchung", () => {
+  resetTransactionState();
+  state.view = "vorsorge";
+  state.transactionPage = 1;
+  clickAction({ action: "open-transaction", transaction: TARGET_ID });
+  assert.equal(state.view, "transactions");
+  assert.equal(state.selectedTransactionId, TARGET_ID);
+  // 12 Buchungen, absteigend nach Datum, 10 je Seite: die aelteste steht auf Seite 2.
+  assert.equal(state.transactionPage, 2);
+  assert.match(app.innerHTML, /transaction-row selected/);
+  assert.match(app.innerHTML, /data-transaction="TX-TARGET"/);
+});
+
+test("open-entity fuer eine Transaktion springt ebenfalls auf ihre Seite", () => {
+  resetTransactionState();
+  clickAction({ action: "open-entity", scope: "transaktion", entity: TARGET_ID });
+  assert.equal(state.selectedTransactionId, TARGET_ID);
+  assert.equal(state.transactionPage, 2);
+});
+
 test("open-vorsorge setzt Auswahl zurück, leert Filter und navigiert zum Vorsorge-Hash", () => {
   resetTransactionState();
   state.vorsorgeFilters = { person: "PER-001" };

@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   beitragJeJahrCents, beitragJeJahrVertrag, beitragJeMonatCents, beitragJeMonatVertrag, beitragsVerlauf, beitragVorjahr, erwarteteLeistungen,
   gebuchteBeitraegeAlle, gesetzlicherRentenbeginn, leistungsZeitstrahl, monateBis, naechsterBeitrag,
-  rentenStufen, tabFuerVorsorge, vermoegensBezug,
+  rentenStufen, tabFuerVorsorge, vermoegensBezug, beitragsAenderungen,
 } from "../app/vorsorge-rechnung.mjs";
 
 const HEUTE = "2026-10-16";
@@ -146,4 +146,27 @@ test("Vermoegensbezug aus den Immobilien der gebuchten Beitraege, haeufigste zue
     { klasse: "immobilie", id: "IMM-002", anzahl: 1 },
   ]);
   assert.deepEqual(vermoegensBezug(d, "VS-002"), []);
+});
+
+test("Beitragsaenderungen: Jahreszahler je Abweichung, Monatszahler nur bestaetigte Stufen", () => {
+  const monatlich = ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"];
+  const betraege = ["-50.00", "-50.00", "-52.00", "-52.00", "-40.00", "-52.00", "-52.00"]; // Stufe im Maerz, Ausreisser im Mai
+  const d = {
+    regelzahlungen: [
+      { regelzahlung_id: "RZ-J", vorsorge_id: "VS-J", betrag: "-110.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2025-03-01" },
+      { regelzahlung_id: "RZ-M", vorsorge_id: "VS-M", betrag: "-52.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01" },
+    ],
+    transaktionen: [
+      { transaktion_id: "TXN-J1", regelzahlung_id: "RZ-J", buchungsdatum: "2024-03-01", betrag: "-100.00" },
+      { transaktion_id: "TXN-J2", regelzahlung_id: "RZ-J", buchungsdatum: "2025-03-01", betrag: "-110.00" },
+      { transaktion_id: "TXN-J3", regelzahlung_id: "RZ-J", buchungsdatum: "2026-03-01", betrag: "-99.00" },
+      ...monatlich.map((m, i) => ({ transaktion_id: `TXN-M${i}`, regelzahlung_id: "RZ-M", buchungsdatum: `${m}-01`, betrag: betraege[i] })),
+    ],
+  };
+  const jahr = beitragsAenderungen(d, "VS-J");
+  assert.deepEqual(jahr.map((a) => [a.datum, a.alt_cents, a.neu_cents, a.diff_cents]), [["2026-03-01", 11000, 9900, -1100], ["2025-03-01", 10000, 11000, 1000]]);
+  assert.equal(jahr[1].anteil, 0.1);
+  const monat = beitragsAenderungen(d, "VS-M");
+  assert.deepEqual(monat.map((a) => [a.datum, a.alt_cents, a.neu_cents]), [["2026-03-01", 5000, 5200]], "Ausreisser im Mai zaehlt nicht");
+  assert.deepEqual(beitragsAenderungen(d, "VS-X"), []);
 });

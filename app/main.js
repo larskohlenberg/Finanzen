@@ -909,8 +909,9 @@ async function handleAction(element) {
     state.transactionFilters.origin = "";
     state.transactionFilters.beleg = "";
     clearTransactionTimeFilter();
-    state.transactionPage = 1;
     state.selectedTransactionId = element.dataset.transaction;
+    // Seite der Zielbuchung, sonst steht die Rail offen, die Zeile aber auf einer spaeteren Seite.
+    state.transactionPage = transactionPageForId(state.selectedTransactionId);
     state.detailRailClosed = false;
     commitNavigation();
     return;
@@ -1139,7 +1140,7 @@ async function handleAction(element) {
       state.transactionFilters.status = "";
       state.transactionFilters.category = "";
       state.transactionFilters.transfer = "";
-      state.transactionPage = 1;
+      state.transactionPage = transactionPageForId(entity);
     } else {
       zeigeChecks();
     }

@@ -95,6 +95,14 @@ test("Kopf zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und Beitrae
   });
 });
 
+test("Kopf besteht aus vier einzelnen Kacheln", () => {
+  mitFixture(() => {
+    const html = renderVorsorge();
+    const kopf = html.slice(html.indexOf("vorsorge-kopf"), html.indexOf("vermoegen-tabs"));
+    assert.equal(anzahl(kopf, /<section class="panel panel-pad/g), 4);
+  });
+});
+
 test("Tabs nach Vertragsart mit Anzahl, Kennzahl und Punkt bei offenen Pruefungen", () => {
   mitFixture(() => {
     const html = renderVorsorge();
@@ -216,6 +224,31 @@ test("Versicherung mit Immobilienbezug verlinkt das Objekt auf Karte und im Deta
     // Ohne zugeordnete Buchung kein Bezug.
     state.selectedVorsorgeId = "VS-002";
     assert.doesNotMatch(renderVorsorge().slice(renderVorsorge().indexOf("objekt-detail-titel")), /Gehört zu/);
+  });
+});
+
+test("Beitragsaenderung erscheint mit Betrag und Prozent in Liste, Buchung und Kennzahl", () => {
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-005";
+    const html = renderVorsorge();
+    const detail = html.slice(html.indexOf("objekt-detail-titel"));
+    assert.match(detail, /Beitragsänderungen[\s\S]*ab 10\.3\.2025[\s\S]*750,00\s€ → 900,00\s€[\s\S]*\+150,00\s€ \(\+20 %\)/);
+    assert.match(detail, /Letzte Buchungen[\s\S]*\+150,00\s€ \(\+20 %\)[\s\S]*-900,00/);
+  });
+});
+
+test("kapitalbildende Versicherung zeigt den Rueckkaufswert auf Karte und im Detail", () => {
+  mitFixture(() => {
+    data.vorsorge = data.vorsorge.map((vs) => vs.vorsorge_id === "VS-005" ? { ...vs, kapitalbildend: true } : vs);
+    data.zeitwerte = [...data.zeitwerte, zw("VS-005", "rueckkaufswert", "3000.00", "2026-01-01")];
+    state.selectedVorsorgeId = "VS-005";
+    const html = renderVorsorge();
+    const start = html.indexOf('data-vorsorge="VS-005"');
+    const karte = html.slice(start, html.indexOf("</div>", start));
+    assert.match(karte, /Rückkaufswert 3\.000,00/);
+    assert.match(karte, /kapitalbildend/);
+    const kennzahlen = html.slice(html.indexOf("kennzahl-raster"), html.indexOf("vorsorge-detail-raster"));
+    assert.match(kennzahlen, /Rückkaufswert[\s\S]*3\.000,00/);
   });
 });
 

@@ -8,12 +8,12 @@ import { formatMoney, formatDate, renderPageHead, detailRow, quelleHtml, klappKa
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
-import { beitragsBalken, zeitstrahlDiagramm } from "../charts.mjs";
+import { beitragsBalken, donutDiagramm, zeitachseKlein, zeitstrahlDiagramm } from "../charts.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
   VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsAenderungen, beitragsVerlauf, beitragVorjahr, gebuchteBeitraegeAlle,
   gesetzlicherRentenbeginn, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
-  rentenStufen, tabFuerVorsorge, vermoegensBezug,
+  rentenStufen, tabFuerVorsorge, vermoegensBezug, vertragsFarben,
 } from "../vorsorge-rechnung.mjs";
 import { balkenSvg, dokumenteBrowserHtml, geld, kennzahl, qualitaetChip, rhythmusLabel, tf } from "./vermoegen-teile.mjs";
 
@@ -39,6 +39,9 @@ function vorsorgeArtLabel(art) {
 }
 
 const zeitwert = (vs, feld) => aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld);
+// Feste Farbe je Vertrag (vertragsFarben); Vertraege ohne eigene Farbe sind grau.
+const farbKlasse = (farben, id) => (farben.has(id) ? `vertrag-farbe-${farben.get(id)}` : "vertrag-farbe-rest");
+const farbPunkt = (klasse) => `<i class="farbpunkt ${klasse}" aria-hidden="true"></i>`;
 // Ein Rueckkaufswert zaehlt nur bei kapitalbildenden Vertraegen ins Nettovermoegen.
 const ausserhalbVermoegen = (vs, feld) => feld === "vertragswert" || (feld === "rueckkaufswert" && !vs.kapitalbildend);
 const vertraegeIm = (tab) => (data.vorsorge ?? []).filter((vs) => tabFuerVorsorge(vs) === tab);
@@ -115,8 +118,9 @@ function renderKopf(today) {
   const mehrerePersonen = new Set(renten.map((l) => l.vorsorge.person_id)).size > 1;
   const sortiert = [...renten].sort((a, b) => b.wert_cents - a.wert_cents);
   const name = (l) => `${vorsorgeArtLabel(l.vorsorge.art)}${mehrerePersonen ? ` (${personName(l.vorsorge.person_id)})` : ""}`;
-  const segmente = sortiert.map((l, i) => ({ anteil: l.wert_cents / Math.max(gesamt, 1), klasse: `segment-rente-${i % 4}`, titel: `${name(l)}: ${formatMoney(l.wert_cents)}` }));
-  const legende = sortiert.map((l, i) => `<span><i class="segment-rente-${i % 4}"></i>${escapeHtml(name(l))} ${escapeHtml(geldOhneCent(l.wert_cents))}</span>`).join("");
+  const farben = vertragsFarben(data);
+  const segmente = sortiert.map((l) => ({ anteil: l.wert_cents / Math.max(gesamt, 1), klasse: farbKlasse(farben, l.vorsorge.vorsorge_id), titel: `${name(l)}: ${formatMoney(l.wert_cents)}` }));
+  const legende = sortiert.map((l) => `<span><i class="${farbKlasse(farben, l.vorsorge.vorsorge_id)}"></i>${escapeHtml(name(l))} ${escapeHtml(geldOhneCent(l.wert_cents))}</span>`).join("");
 
   const kapital = kapitalLeistungen();
   const nv = computeNettovermoegen(data, today);
@@ -128,35 +132,52 @@ function renderKopf(today) {
 
   // Je Kennzahl eine eigene Kachel, die erste mit Balken und Legende, die anderen
   // mit ihrer Aufschluesselung, damit die Summe ohne Rechnen aufgeht.
-  const kz = (label, wert, notiz, zeilen = []) => `
+  // grafik: Donut rechts neben dem Wert; unten: Grafik ueber der Liste (Zeitachse).
+  const kz = (label, wert, notiz, zeilen = [], { grafik = "", unten = "" } = {}) => `
       <section class="panel panel-pad vorsorge-kopf-kz">
-        <div class="muted">${escapeHtml(label)}</div>
-        <div class="vorsorge-kopf-wert">${wert}</div>
-        ${notiz ? `<div class="kpi-note">${notiz}</div>` : ""}
+        <div class="${grafik ? "vorsorge-kopf-mit-grafik" : ""}">
+          <div>
+            <div class="muted">${escapeHtml(label)}</div>
+            <div class="vorsorge-kopf-wert">${wert}</div>
+            ${notiz ? `<div class="kpi-note">${notiz}</div>` : ""}
+          </div>
+          ${grafik}
+        </div>
+        ${unten}
         ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : ""}
       </section>`;
-  const zeile = (linkHtml, betrag, zusatz = "") => `<li>${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${escapeHtml(betrag)}</span></li>`;
+  const zeile = (linkHtml, betrag, zusatz = "", klasse = "") => `<li>${klasse ? farbPunkt(klasse) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${escapeHtml(betrag)}</span></li>`;
   const vertragLink = (id, name) => `<button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(id)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
   const tabLink = (tab, text) => `<button class="linkish" data-action="vorsorge-tab" data-tab="${escapeHtml(tab)}">${escapeHtml(text)}</button>`;
 
   const kapitalZeilen = [...kapital.liste]
     .sort((a, b) => String(a.vs.leistung_beginn ?? "9999").localeCompare(String(b.vs.leistung_beginn ?? "9999")))
-    .map((x) => zeile(vertragLink(x.vs.vorsorge_id, x.vs.name), formatMoney(cents(x.zw.wert)), x.vs.leistung_beginn?.slice(0, 4) ?? ""));
+    .map((x) => zeile(vertragLink(x.vs.vorsorge_id, x.vs.name), formatMoney(cents(x.zw.wert)), x.vs.leistung_beginn?.slice(0, 4) ?? "", farbKlasse(farben, x.vs.vorsorge_id)));
+  // Wann kommt welches Kapital, gemessen am Beginn der gesetzlichen Rente.
+  const kapitalAchse = zeitachseKlein({
+    von: today,
+    marker: kapital.liste.filter((x) => x.vs.leistung_beginn).map((x) => ({ datum: x.vs.leistung_beginn, klasse: farbKlasse(farben, x.vs.vorsorge_id), label: `${x.vs.name}: ${formatMoney(cents(x.zw.wert))} · ${formatDate(x.vs.leistung_beginn)}` })),
+    bezug: gesetzlich ? { datum: gesetzlich, label: t("vorsorge.kopf.rentenbeginn") } : null,
+    ariaLabel: t("vorsorge.kopf.kapitalZeitachse"),
+  });
   const mitWert = vorsorgePositionen.filter((p) => !p.fehlt).sort((a, b) => b.wert_cents - a.wert_cents);
   const ohneWert = vorsorgePositionen.filter((p) => p.fehlt);
   const ohneWertTab = ohneWert.length ? tabFuerVorsorge((data.vorsorge ?? []).find((vs) => vs.vorsorge_id === ohneWert[0].id)) : null;
   const rkwZeilen = [
-    ...mitWert.map((p) => zeile(vertragLink(p.id, p.name), formatMoney(p.wert_cents))),
+    ...mitWert.map((p) => zeile(vertragLink(p.id, p.name), formatMoney(p.wert_cents), "", farbKlasse(farben, p.id))),
     ...(ohneWert.length ? [`<li>${tabLink(ohneWertTab, tf("vorsorge.kopf.ohneWert", { n: ohneWert.length }))}<span class="amount muted">—</span></li>`] : []),
   ];
-  const beitragZeilen = GRUPPEN_TABS
-    .filter((tab) => vertraegeIm(tab).some((vs) => !istBeendet(vs) && beitragJeMonatVertrag(data, vs.vorsorge_id, today)))
+  const rkwDonut = donutDiagramm({ teile: mitWert.map((p) => ({ wert: p.wert_cents, klasse: farbKlasse(farben, p.id), label: p.name })), formatWert: formatMoney, ariaLabel: t("vorsorge.kopf.rkwAnteile") });
+  // Beitraege je Tab; der Donut vergleicht Jahresbetraege, die Liste nennt den ueblichen Rhythmus.
+  const beitragTabs = GRUPPEN_TABS
     .map((tab) => {
       const liste = vertraegeIm(tab).filter((vs) => !istBeendet(vs));
-      return tab === "versicherungen"
-        ? zeile(tabLink(tab, t(`vorsorge.tabs.${tab}`)), `${formatMoney(liste.reduce((a, vs) => a + beitragJeJahrVertrag(data, vs.vorsorge_id, today), 0))} ${t("vorsorge.jeJahr")}`)
-        : zeile(tabLink(tab, t(`vorsorge.tabs.${tab}`)), `${formatMoney(liste.reduce((a, vs) => a + beitragJeMonatVertrag(data, vs.vorsorge_id, today), 0))} ${t("vorsorge.jeMonat")}`);
-    });
+      return { tab, jahr: liste.reduce((a, vs) => a + beitragJeJahrVertrag(data, vs.vorsorge_id, today), 0), monat: liste.reduce((a, vs) => a + beitragJeMonatVertrag(data, vs.vorsorge_id, today), 0) };
+    })
+    .filter((b) => b.jahr);
+  const beitragZeilen = beitragTabs.map((b) => zeile(tabLink(b.tab, t(`vorsorge.tabs.${b.tab}`)),
+    b.tab === "versicherungen" ? `${formatMoney(b.jahr)} ${t("vorsorge.jeJahr")}` : `${formatMoney(b.monat)} ${t("vorsorge.jeMonat")}`, "", `tab-farbe-${b.tab}`));
+  const beitragDonut = donutDiagramm({ teile: beitragTabs.map((b) => ({ wert: b.jahr, klasse: `tab-farbe-${b.tab}`, label: tf("vorsorge.kopf.proJahr", { name: t(`vorsorge.tabs.${b.tab}`) }) })), formatWert: formatMoney, ariaLabel: t("vorsorge.kopf.beitragsAnteile") });
 
   return `
     <div class="vermoegen-kopf vorsorge-kopf">
@@ -166,9 +187,9 @@ function renderKopf(today) {
         <div class="kpi-note">${escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten"))}</div>
         ${renten.length ? `${balkenSvg(segmente)}<div class="vermoegen-legende">${legende}</div>` : ""}
       </section>
-        ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.summe)), kapital.jahre.length ? escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") })) : "", kapitalZeilen)}
-        ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: mitWert.length, gesamt: vorsorgePositionen.length })), rkwZeilen)}
-        ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })), beitragZeilen)}
+        ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.summe)), kapital.jahre.length ? escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") })) : "", kapitalZeilen, { unten: kapitalAchse })}
+        ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: mitWert.length, gesamt: vorsorgePositionen.length })), rkwZeilen, { grafik: rkwDonut })}
+        ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })), beitragZeilen, { grafik: beitragDonut })}
     </div>`;
 }
 
@@ -330,7 +351,8 @@ function renderGruppenTab(tab, today, offen) {
       ${[["", t("vorsorge.allePersonen"), alle.length], ...personen.map((p) => [p, personName(p), alle.filter((vs) => vs.person_id === p).length])].map(([p, name, n]) => `
         <button class="${person === p ? "active" : ""}" data-action="vorsorge-person" data-person="${escapeHtml(p)}" aria-pressed="${person === p}">${escapeHtml(name)} ${n}</button>`).join("")}
     </div>` : "";
-  const karten = (vertraege) => `<div class="objekt-karten">${vertraege.map((vs) => renderKarte(vs, tab, vs === auswahl, today, offen)).join("")}</div>`;
+  const farben = vertragsFarben(data);
+  const karten = (vertraege) => `<div class="objekt-karten">${vertraege.map((vs) => renderKarte(vs, tab, vs === auswahl, today, offen, farben)).join("")}</div>`;
   const gruppe = (vertraege, titel, lead = "") => vertraege.length ? `
     <div class="vorsorge-gruppe-titel">${escapeHtml(titel)} (${vertraege.length})</div>
     ${lead ? `<p class="muted vorsorge-gruppe-lead">${escapeHtml(lead)}</p>` : ""}
@@ -338,13 +360,42 @@ function renderGruppenTab(tab, today, offen) {
 
   return `
     <div class="vorsorge-tab-kopf"><span class="muted">${escapeHtml(tf("vorsorge.tabLead", { n: liste.length }))}</span>${filter}</div>
+    ${tab === "versicherungen" ? renderBeitragsRanking(liste, today) : ""}
     ${laufend.length ? karten(laufend) : ""}
     ${gruppe(ungeprueft, t("vorsorge.gruppe.ungeprueft"), t("vorsorge.ungeprueftHinweis"))}
     ${gruppe(beendet, t("vorsorge.gruppe.beendet"))}
     ${auswahl ? renderDetail(auswahl, tab, today, offen) : `<section class="panel panel-pad"><p class="muted">${escapeHtml(t("vorsorge.noMatches"))}</p></section>`}`;
 }
 
-function renderKarte(vs, tab, aktiv, today, offen) {
+// Jahresbeitrag je Versicherung als Rangliste, dazu die Veraenderung zum Vorjahr:
+// zeigt auf einen Blick, wo die Kosten liegen und wo sie gestiegen sind.
+function renderBeitragsRanking(liste, today) {
+  const zeilen = liste
+    .filter((vs) => !istBeendet(vs))
+    .map((vs) => ({ vs, jahr: beitragJeJahrVertrag(data, vs.vorsorge_id, today), vj: beitragVorjahr(data, vs.vorsorge_id) }))
+    .filter((z) => z.jahr > 0)
+    .sort((a, b) => b.jahr - a.jahr || a.vs.vorsorge_id.localeCompare(b.vs.vorsorge_id));
+  if (!zeilen.length) return "";
+  const max = zeilen[0].jahr;
+  const summe = zeilen.reduce((a, z) => a + z.jahr, 0);
+  const inhalt = `
+    <ul class="vorsorge-ranking">${zeilen.map(({ vs, jahr, vj }) => {
+      const diff = vj?.vorjahr_cents ? vj.letzte_cents - vj.vorjahr_cents : null;
+      const chip = diff ? `<span class="chip ${diff > 0 ? "review" : "success"}" title="${escapeHtml(`${formatMoney(vj.vorjahr_cents)} → ${formatMoney(vj.letzte_cents)}`)}">${escapeHtml(veraenderungText(vj))}</span>` : `<span class="muted">${diff === 0 ? "±0 %" : "—"}</span>`;
+      return `
+      <li>
+        <button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" title="${escapeHtml(vs.name)}">${escapeHtml(vs.name)}</button>
+        <svg class="ranking-balken" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="1" width="${(jahr / max * 100).toFixed(2)}" height="8" rx="1.5" class="ranking-wert" /></svg>
+        <span class="amount">${escapeHtml(formatMoney(jahr))}</span>
+        <span class="ranking-aenderung">${chip}</span>
+      </li>`;
+    }).join("")}
+    </ul>
+    <p class="muted diagramm-lead">${escapeHtml(tf("vorsorge.ranking.lead", { betrag: formatMoney(summe) }))}</p>`;
+  return klappKachel({ id: "vorsorge.ranking", titel: t("vorsorge.ranking.titel"), inhalt });
+}
+
+function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
   const rente = zeitwert(vs, "erwartete_rente");
   const rkw = zeitwert(vs, "rueckkaufswert");
   const kapital = zeitwert(vs, "erwartete_kapitalleistung");
@@ -353,6 +404,7 @@ function renderKarte(vs, tab, aktiv, today, offen) {
   const beginn = vs.leistung_beginn ? tf("vorsorge.karte.leistungAb", { datum: formatDate(vs.leistung_beginn) }) : "";
   const zeilen = [];
   let wert;
+  let fortschritt = null;
   if (tab === "versicherungen") {
     const jahr = beitragJeJahrVertrag(data, vs.vorsorge_id, today);
     wert = jahr ? `${escapeHtml(formatMoney(jahr))} ${einheit(t("vorsorge.jeJahr"))}` : `<span class="muted">—</span>`;
@@ -373,6 +425,10 @@ function renderKarte(vs, tab, aktiv, today, offen) {
     wert = rkw ? escapeHtml(formatMoney(cents(rkw.wert))) : fehlt;
     zeilen.push([personName(vs.person_id), beginn].filter(Boolean).join(" · "));
     if (kapital) zeilen.push(tf("vorsorge.karte.kapital", { betrag: formatMoney(cents(kapital.wert)) }));
+    if (rkw && kapital && cents(kapital.wert) > 0) {
+      const anteil = Math.min(1, cents(rkw.wert) / cents(kapital.wert));
+      fortschritt = { anteil, text: tf("vorsorge.karte.fortschritt", { prozent: `${Math.round(anteil * 100)} %` }) };
+    }
     else {
       const beitrag = beitragJeMonatVertrag(data, vs.vorsorge_id, today);
       if (beitrag) zeilen.push(`${t("vorsorge.beitrag")} ${formatMoney(beitrag)} ${t("vorsorge.jeMonat")}`);
@@ -390,8 +446,9 @@ function renderKarte(vs, tab, aktiv, today, offen) {
   // Kein <button>: die Karte enthaelt mit dem Bezug einen eigenen Link.
   return `
     <div class="objekt-karte ${aktiv ? "active" : ""} ${vs.geprueft_am || istBeendet(vs) ? "" : "objekt-karte-ungeprueft"}" role="button" tabindex="0" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" aria-pressed="${aktiv}">
-      <span class="objekt-karte-kopf"><strong>${escapeHtml(vs.name)}</strong>${tab === "versicherungen" ? "" : `<span class="chip neutral">${escapeHtml(vorsorgeArtLabel(vs.art))}</span>`}</span>
+      <span class="objekt-karte-kopf"><strong>${farben.has(vs.vorsorge_id) ? farbPunkt(farbKlasse(farben, vs.vorsorge_id)) : ""}${escapeHtml(vs.name)}</strong>${tab === "versicherungen" ? "" : `<span class="chip neutral">${escapeHtml(vorsorgeArtLabel(vs.art))}</span>`}</span>
       <span class="objekt-karte-wert">${wert}</span>
+      ${fortschritt ? `${balkenSvg([{ anteil: fortschritt.anteil, klasse: farbKlasse(farben, vs.vorsorge_id), titel: fortschritt.text }], { klasse: "fortschritt" })}<span class="objekt-karte-zeile">${escapeHtml(fortschritt.text)}</span>` : ""}
       ${zeilen.filter(Boolean).map((z) => `<span class="objekt-karte-zeile">${escapeHtml(z)}</span>`).join("")}
       ${bezug.length ? `<span class="objekt-karte-zeile objekt-karte-bezug">${iconSvg("vermoegen")}${escapeHtml(t("vorsorge.gehoertZu"))} ${bezug.join(", ")}</span>` : ""}
       ${chips ? `<span class="objekt-karte-chips">${chips}</span>` : ""}

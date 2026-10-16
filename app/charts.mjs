@@ -365,6 +365,64 @@ export function beitragsBalken({ perioden, werte, formatWert = String, formatAch
   return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(spalten, plot)}>${teile.join("")}</svg>`;
 }
 
+// Donut fuer Anteile am Ganzen (hoechstens sechs Teile). teile: [{ wert, klasse, label }].
+// Zwischen den Segmenten bleibt ein schmaler Spalt in Flaechenfarbe; jedes Segment traegt
+// einen Tooltip (title). Die Beschriftung steht daneben in der Liste des Aufrufers.
+export function donutDiagramm({ teile, formatWert = String, ariaLabel = "" }) {
+  const gueltig = (teile ?? []).filter((tl) => tl.wert > 0);
+  const summe = gueltig.reduce((a, tl) => a + tl.wert, 0);
+  if (!summe) return "";
+  const r = 46;
+  const innen = 29;
+  const punkt = (winkel, radius) => [50 + radius * Math.sin(winkel), 50 - radius * Math.cos(winkel)].map((v) => runde(v));
+  const prozent = (w) => `${Math.round((w / summe) * 100)} %`;
+  let start = 0;
+  const segmente = gueltig.map((tl) => {
+    const titel = `<title>${esc(`${tl.label}: ${formatWert(tl.wert)} (${prozent(tl.wert)})`)}</title>`;
+    if (gueltig.length === 1) {
+      return `<g class="donut-segment ${esc(tl.klasse)}"><circle cx="50" cy="50" r="${runde((r + innen) / 2)}" fill="none" stroke-width="${r - innen}" class="donut-voll">${titel}</circle></g>`;
+    }
+    const winkel = (tl.wert / summe) * Math.PI * 2;
+    const ende = start + winkel;
+    const gross = winkel > Math.PI ? 1 : 0;
+    const [ax, ay] = punkt(start, r);
+    const [bx, by] = punkt(ende, r);
+    const [cx, cy] = punkt(ende, innen);
+    const [dx, dy] = punkt(start, innen);
+    start = ende;
+    return `<path d="M${ax},${ay} A${r},${r} 0 ${gross} 1 ${bx},${by} L${cx},${cy} A${innen},${innen} 0 ${gross} 0 ${dx},${dy} Z" class="donut-segment ${esc(tl.klasse)}">${titel}</path>`;
+  });
+  return `<svg class="donut-diagramm" viewBox="0 0 100 100" role="img" aria-label="${esc(ariaLabel)}">${segmente.join("")}</svg>`;
+}
+
+// Kleine Zeitachse in Jahren mit Markern (Kapitalauszahlungen) und einer Bezugslinie
+// (z. B. Rentenbeginn). marker: [{ datum, klasse, label }] · bezug: { datum, label } | null.
+export function zeitachseKlein({ von, marker, bezug = null, ariaLabel = "" }) {
+  const daten = [...(marker ?? []).map((m) => m.datum), ...(bezug ? [bezug.datum] : [])].filter(Boolean);
+  if (!daten.length) return "";
+  const jahr = (iso) => Number(iso.slice(0, 4)) + (Number(iso.slice(5, 7)) - 1) / 12;
+  const start = Math.floor(jahr(von));
+  const ende = Math.floor(Math.max(...daten.map(jahr))) + 1;
+  const links = 8;
+  const rechts = 192;
+  const x = (iso) => links + ((jahr(iso) - start) / Math.max(ende - start, 1)) * (rechts - links);
+  const y = 22;
+  const teile = [
+    `<line x1="${links}" x2="${rechts}" y1="${y}" y2="${y}" class="zeitachse-linie" />`,
+    `<text x="${links}" y="${y + 12}" text-anchor="start" class="zeitachse-text">${start}</text>`,
+    `<text x="${rechts}" y="${y + 12}" text-anchor="end" class="zeitachse-text">${ende}</text>`,
+  ];
+  if (bezug) {
+    const bx = runde(x(bezug.datum));
+    teile.push(`<line x1="${bx}" x2="${bx}" y1="6" y2="${y + 4}" class="zeitachse-bezug" />`);
+    teile.push(`<text x="${bx}" y="5" text-anchor="middle" class="zeitachse-text">${esc(bezug.label)}</text>`);
+  }
+  for (const m of marker ?? []) {
+    teile.push(`<circle cx="${runde(x(m.datum))}" cy="${y}" r="4.5" class="zeitachse-marker ${esc(m.klasse)}"><title>${esc(m.label)}</title></circle>`);
+  }
+  return `<svg class="zeitachse-klein" viewBox="0 0 200 38" role="img" aria-label="${esc(ariaLabel)}">${teile.join("")}</svg>`;
+}
+
 const tageSeit1970 = (iso) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / 86400000;
 
 // Restschuld ueber die Zeit: Ist (bis heute) durchgezogen, Plan gestrichelt,

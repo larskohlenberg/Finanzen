@@ -229,3 +229,24 @@ test("Balkendiagramme: linker Rand waechst mit der breitesten Y-Beschriftung", a
   const lang = monatsBalken({ monate: ["2026-01"], einnahmen: [100], ausgaben: [0], saldo: [100], formatAchse: (c) => `${c} xxxxxxxxxxxx €` });
   assert.ok(plotLinks(lang) > plotLinks(kurz));
 });
+
+test("donutDiagramm: ein Segment je Teil mit Tooltip, Vollkreis bei einem Teil, leer ohne Werte", async () => {
+  const { donutDiagramm } = await import("../app/charts.mjs");
+  const svg = donutDiagramm({ teile: [{ wert: 300, klasse: "a", label: "A" }, { wert: 100, klasse: "b", label: "B" }, { wert: 0, klasse: "c", label: "C" }], formatWert: (c) => `${c} €` });
+  assert.equal((svg.match(/<path /g) ?? []).length, 2, "Teile ohne Wert fallen weg");
+  assert.match(svg, /<title>A: 300 € \(75 %\)<\/title>/);
+  assert.match(svg, /class="donut-segment b"/);
+  assert.match(donutDiagramm({ teile: [{ wert: 5, klasse: "a", label: "A" }] }), /<circle[^>]*class="donut-voll"/);
+  assert.equal(donutDiagramm({ teile: [] }), "");
+});
+
+test("zeitachseKlein: Marker und Bezugslinie auf der Jahresachse", async () => {
+  const { zeitachseKlein } = await import("../app/charts.mjs");
+  const svg = zeitachseKlein({ von: "2026-10-16", marker: [{ datum: "2035-05-01", klasse: "m1", label: "Kapital A" }, { datum: "2040-03-01", klasse: "m2", label: "Kapital B" }], bezug: { datum: "2039-03-01", label: "Rente" } });
+  assert.equal((svg.match(/class="zeitachse-marker/g) ?? []).length, 2);
+  assert.match(svg, />2026</);
+  assert.match(svg, />2041</);
+  assert.match(svg, /class="zeitachse-bezug"/);
+  assert.match(svg, /<title>Kapital A<\/title>/);
+  assert.equal(zeitachseKlein({ von: "2026-01-01", marker: [] }), "");
+});

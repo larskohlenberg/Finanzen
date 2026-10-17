@@ -4,7 +4,8 @@
 // - 1:1-Wrapper um die CLIs in app/tools/ (Vorschau ist Default, schreiben:true
 //   setzt das Schreib-Flag der CLI und braucht --recht=schreiben),
 // - Datei-Schreiben (datei_schreiben, datei_ersetzen, beleg_ablegen, beleg_teilen,
-//   beleg_ergaenzen, inbox_verwerfen, inbox_zurueckholen), nur mit --recht=schreiben.
+//   beleg_ergaenzen, beleg_verwerfen, inbox_verwerfen, inbox_zurueckholen), nur mit
+//   --recht=schreiben.
 // Jeder schreibende Vorgang laeuft durch mitRollback (Validator + Rueckspielen).
 import { execFile } from "node:child_process";
 import { constants as fsKonstanten } from "node:fs";
@@ -12,6 +13,7 @@ import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, 
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { ersetzeVerweise } from "../tools/belege-umziehen.mjs";
 import { planeTeilung } from "../tools/lib/seiten.mjs";
 import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -833,6 +835,44 @@ async function planePapierkorb(ctx, quelle) {
   return paare;
 }
 
+// Ein Beleg unter Belege/ samt .txt-Zwilling fuer den Papierkorb planen:
+// data/papierkorb/<Datum>/Belege/..., ein gemeinsames Suffix bei Namenskollision.
+async function planeBelegKorb(ctx, beleg) {
+  const endung = path.extname(beleg.absolut);
+  const stamm = beleg.absolut.slice(0, beleg.absolut.length - endung.length);
+  const gruppe = [{ absolut: beleg.absolut, rest: endung }];
+  if (endung.toLowerCase() !== ".txt") {
+    // Auch der Zwilling muss durch den Pfadschutz (Symlink daneben).
+    const zwilling = await loesePfad(ctx.app, path.relative(ctx.app, `${stamm}.txt`), ["Belege"]).catch(() => null);
+    if (zwilling && (await istDatei(zwilling.absolut))) gruppe.push({ absolut: zwilling.absolut, rest: ".txt" });
+  }
+  const korbStamm = path.join("data", "papierkorb", localTodayIso(), path.relative(ctx.app, stamm));
+  const zielFuer = (g, n) => `${korbStamm}${n > 1 ? `-${n}` : ""}${g.rest}`;
+  let n = 1;
+  while ((await Promise.all(gruppe.map((g) => lstat(path.join(ctx.app, zielFuer(g, n))).then(() => true, () => false)))).some(Boolean)) n += 1;
+  const paare = [];
+  for (const g of gruppe) {
+    paare.push([
+      { absolut: g.absolut, relativ: path.relative(ctx.app, g.absolut).split(path.sep).join("/") },
+      await loesePfad(ctx.app, zielFuer(g, n), ["data/papierkorb"]),
+    ]);
+  }
+  return paare;
+}
+
+// Stamm- und Bewegungsdaten, die einen Belegpfad als ganzen Pfad nennen
+// (agent_log.jsonl ausgenommen: das Protokoll haelt fest, was damals war).
+async function datenMitVerweis(ctx, pfade) {
+  const namen = (await readdir(ctx.datenroot)).filter((n) => /\.(json|jsonl)$/.test(n) && n !== "agent_log.jsonl").sort();
+  const treffer = [];
+  for (const name of namen) {
+    const text = await readFile(path.join(ctx.datenroot, name), "utf8");
+    const { anzahl } = ersetzeVerweise(text, pfade.map((p) => [p, p]));
+    if (anzahl) treffer.push({ name, text, anzahl });
+  }
+  return treffer;
+}
+
 async function inDenPapierkorb(paare) {
   for (const [q, z] of paare) {
     // Wie data/ selbst: nicht fuer alle lesbar (die umask allein liesse 775 zu).
@@ -954,11 +994,11 @@ const belegTeilen = {
 
 const belegErgaenzen = {
   name: "beleg_ergaenzen",
-  description: "Nachgereichte Seiten (PDF aus data/inbox/, auch processed/, error/) in einen schon abgelegten PDF-Beleg unter Belege/ einfuegen, z. B. eine beim Scannen vergessene Rueckseite. nach_seite: hinter welcher Seite des Belegs (0 = vorn, ohne Angabe = ans Ende). Der Beleg behaelt Pfad und Namen; die alte Fassung samt .txt-Zwilling und die Inbox-Datei samt Mitlaeufern wandern in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/. Danach belege_text mit schreiben:true fuer den neuen Zwilling. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
+  description: "Nachgereichte Seiten (PDF) in einen schon abgelegten PDF-Beleg unter Belege/ einfuegen, z. B. eine beim Scannen vergessene Rueckseite. Die Quelle liegt in data/inbox/ (auch processed/, error/) oder ist selbst schon unter Belege/ abgelegt, etwa eine versehentlich als eigener Beleg abgelegte Seite; Verweise auf sie in Stamm- und Bewegungsdaten zeigen danach auf den Beleg. nach_seite: hinter welcher Seite des Belegs (0 = vorn, ohne Angabe = ans Ende). Der Beleg behaelt Pfad und Namen; die alte Fassung samt .txt-Zwilling und die Quelle samt Mitlaeufern wandern in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/. Danach belege_text mit schreiben:true fuer den neuen Zwilling. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
   inputSchema: {
     type: "object",
     properties: {
-      quelle: { type: "string", description: "z. B. data/inbox/scan0002.pdf" },
+      quelle: { type: "string", description: "z. B. data/inbox/scan0002.pdf oder Belege/Vorsorge/VS-001_Muster/2026/2026_Muster_Jahresinformation_Seite-2.pdf" },
       ziel: { type: "string", description: "z. B. Belege/Vorsorge/VS-001_Muster/2026/2026_Muster_Jahresinformation.pdf" },
       nach_seite: { type: "integer", minimum: 0, description: "Einfuegen hinter dieser Seite des Belegs; 0 = vorn, ohne Angabe = ans Ende" },
       schreiben: SCHREIBEN,
@@ -968,8 +1008,10 @@ const belegErgaenzen = {
   },
   nurSchreiben: true,
   async ausfuehren(ctx, args) {
-    const quelle = await loesePfad(ctx.app, args.quelle, ["data/inbox"]);
+    const quelle = await loesePfad(ctx.app, args.quelle, ["data/inbox", "Belege"]);
     const ziel = await loesePfad(ctx.app, args.ziel, ["Belege"]);
+    const ausBelege = quelle.relativ.startsWith("Belege/");
+    if (quelle.absolut === ziel.absolut) return ergebnis("Quelle und Ziel sind derselbe Beleg", true);
     for (const p of [quelle, ziel]) {
       if (!(await istDatei(p.absolut))) return ergebnis(`${p.relativ} ist keine Datei`, true);
       if (path.extname(p.absolut).toLowerCase() !== ".pdf") return ergebnis(`${p.relativ} ist kein PDF`, true);
@@ -981,25 +1023,17 @@ const belegErgaenzen = {
     const nach = args.nach_seite ?? alt;
     if (nach > alt) return ergebnis(`Seite ${nach} gibt es nicht (${ziel.relativ} hat ${alt})`, true);
 
-    // Alte Fassung und ihr Zwilling: gemeinsames Suffix bei Namenskollision.
-    const stamm = ziel.absolut.slice(0, -".pdf".length);
-    const mitZwilling = [{ absolut: ziel.absolut, rest: ".pdf" }];
-    if (await istDatei(`${stamm}.txt`)) mitZwilling.push({ absolut: `${stamm}.txt`, rest: ".txt" });
-    const korbStamm = path.join("data", "papierkorb", localTodayIso(), path.relative(ctx.app, stamm));
-    let n = 1;
-    while ((await Promise.all(mitZwilling.map((g) => lstat(path.join(ctx.app, `${korbStamm}${n > 1 ? `-${n}` : ""}${g.rest}`)).then(() => true, () => false)))).some(Boolean)) n += 1;
-    const altInDenKorb = [];
-    for (const g of mitZwilling) {
-      altInDenKorb.push([
-        { absolut: g.absolut, relativ: path.relative(ctx.app, g.absolut).split(path.sep).join("/") },
-        await loesePfad(ctx.app, `${korbStamm}${n > 1 ? `-${n}` : ""}${g.rest}`, ["data/papierkorb"]),
-      ]);
-    }
-    const korb = [...altInDenKorb, ...(await planePapierkorb(ctx, quelle))];
+    const quelleKorb = ausBelege ? await planeBelegKorb(ctx, quelle) : await planePapierkorb(ctx, quelle);
+    const korb = [...(await planeBelegKorb(ctx, ziel)), ...quelleKorb];
+    // Eine abgelegte Quelle verschwindet aus Belege/: ihre Verweise zeigen danach auf den Beleg.
+    const zielZwilling = ziel.relativ.replace(/\.pdf$/i, ".txt");
+    const ersetzungen = ausBelege ? quelleKorb.map(([q]) => [q.relativ, q.relativ.endsWith(".txt") ? zielZwilling : ziel.relativ]) : [];
+    const verweise = ersetzungen.length ? await datenMitVerweis(ctx, ersetzungen.map(([von]) => von)) : [];
     const reihenfolge = nach === 0 ? "vorn" : nach === alt ? "am Ende" : `hinter Seite ${nach}`;
     const bericht = [
       `${ziel.relativ}: ${alt} + ${neu} = ${alt + neu} Seiten, ${quelle.relativ} ${reihenfolge}`,
       ...korb.map(([q, z]) => `${q.relativ} -> ${z.relativ}`),
+      ...verweise.map((v) => `Verweise umgestellt in ${v.name}: ${v.anzahl}`),
     ].join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts geschrieben):\n${bericht}`);
     return mitRollback(ctx.datenroot, async () => {
@@ -1022,6 +1056,7 @@ const belegErgaenzen = {
       } finally {
         await rm(ordner, { recursive: true, force: true });
       }
+      for (const v of verweise) await schreibeAtomar(path.join(ctx.datenroot, v.name), ersetzeVerweise(v.text, ersetzungen).text);
       await protokolliere(ctx, {
         anlass: "beleg-ergaenzen",
         inputs: [quelle.relativ],
@@ -1032,6 +1067,43 @@ const belegErgaenzen = {
         notiz: `${neu} Seite(n) in ${ziel.relativ} eingefuegt, ${reihenfolge}`,
       });
       return ergebnis(`Ergaenzt:\n${bericht}\nNaechster Schritt: belege_text mit schreiben:true fuer den neuen Textzwilling.`);
+    });
+  },
+};
+
+const belegVerwerfen = {
+  name: "beleg_verwerfen",
+  description: "Abgelegten Beleg unter Belege/ samt .txt-Zwilling in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/Belege/... verschieben, z. B. eine Doublette. Nichts wird geloescht; bei Namenskollision bekommt die Datei ein Suffix (-2, -3 ...). Nennen Stamm- oder Bewegungsdaten den Beleg noch, wird abgewiesen: erst den Verweis umstellen (datei_ersetzen, belege_umziehen). grund wird als notiz in agent_log.jsonl protokolliert. Den Papierkorb leert nur der Nutzer. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      pfad: { type: "string", description: "z. B. Belege/Vorsorge/VS-001_Muster/2026/2026_Muster_Jahresinformation_Seite-2.pdf" },
+      grund: { type: "string", maxLength: 300, description: "Kurz, z. B. \"Doublette, Seite steckt in ..._Jahresinformation.pdf\"" },
+      schreiben: SCHREIBEN,
+    },
+    required: ["pfad"],
+    additionalProperties: false,
+  },
+  nurSchreiben: true,
+  async ausfuehren(ctx, args) {
+    const beleg = await loesePfad(ctx.app, args.pfad, ["Belege"]);
+    if (!(await istDatei(beleg.absolut))) return ergebnis(`${beleg.relativ} ist keine Datei`, true);
+    const paare = await planeBelegKorb(ctx, beleg);
+    const verweise = await datenMitVerweis(ctx, paare.map(([q]) => q.relativ));
+    if (verweise.length) {
+      return ergebnis(`${beleg.relativ} wird noch verwiesen — nichts verschoben:\n${verweise.map((v) => `${v.name}: ${v.anzahl}`).join("\n")}`, true);
+    }
+    const bericht = paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n");
+    if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${bericht}`);
+    return mitRollback(ctx.datenroot, async () => {
+      await inDenPapierkorb(paare);
+      await protokolliere(ctx, {
+        anlass: "beleg-verwerfen",
+        inputs: paare.map(([q]) => q.relativ),
+        papierkorb: paare.map(([, z]) => z.relativ),
+        notiz: args.grund?.trim() || "Beleg verworfen",
+      });
+      return ergebnis(`Verworfen (Papierkorb):\n${bericht}`);
     });
   },
 };
@@ -1061,7 +1133,7 @@ const inboxZurueckholen = {
   },
 };
 
-export const WERKZEUGE = [status, kennzahlen, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, belegErgaenzen, inboxVerwerfen, inboxZurueckholen];
+export const WERKZEUGE = [status, kennzahlen, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, belegErgaenzen, belegVerwerfen, inboxVerwerfen, inboxZurueckholen];
 
 export function sichtbareWerkzeuge(ctx) {
   return WERKZEUGE

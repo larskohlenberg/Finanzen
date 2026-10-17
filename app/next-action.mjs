@@ -20,7 +20,7 @@ const SKILLS = {
   vorsorge: "docs/skills/vorsorge-erfassung-agent.md",
 };
 
-const VORSORGE_CHECK_ARTS = new Set(["vorsorge-ungeprueft", "vorsorge-wiedervorlage", "vorsorge-wechsel"]);
+const VORSORGE_CHECK_ARTS = new Set(["vorsorge-ungeprueft", "vorsorge-wiedervorlage", "vorsorge-wechsel", "vorsorge-dynamik"]);
 
 function countBy(items, predicate) {
   return Array.isArray(items) ? items.filter((item) => item != null && predicate(item)).length : 0;

@@ -20,7 +20,30 @@
       "aktiv_bis": { "type": "string", "format": "date" },
       "quelle_hinweis": { "type": "string" },
       "quelle_standdatum": { "type": "string", "format": "date" },
-      "bemerkung": { "type": "string" }
+      "bemerkung": { "type": "string" },
+      "dynamik": {
+        "type": "object",
+        "description": "Beitragsdynamik: jaehrlicher Erhoehungstermin und Entscheidungen je Termin. Fristen zum Widerspruch stehen in fristen.json.",
+        "required": ["termin"],
+        "additionalProperties": false,
+        "properties": {
+          "termin": { "type": "string", "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$", "description": "Erhoehungstermin im Jahr als MM-TT." },
+          "erlischt_nach": { "type": "integer", "minimum": 1, "description": "Widersprueche in Folge, nach denen das Dynamikrecht erlischt (laut Vertrag; ohne Angabe 3)." },
+          "verlauf": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["termin", "entscheidung"],
+              "additionalProperties": false,
+              "properties": {
+                "termin": { "type": "string", "format": "date" },
+                "entscheidung": { "type": "string", "enum": ["angenommen", "abgelehnt", "offen"] },
+                "bemerkung": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

@@ -5,6 +5,7 @@
 // Modell-Begründungen: ADR 0013 (Anker + Reconciliation), ADR 0014 (Nettovermögen Haushaltssicht).
 
 import { toCents, addInterval } from "./liquiditaet.mjs";
+import { dynamikStand } from "./vorsorge-dynamik.mjs";
 
 const PERIODEN_PRO_JAHR = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 
@@ -301,6 +302,12 @@ export function computeVermoegenChecks(data, today) {
 
   for (const vs of data.vorsorge ?? []) {
     if (vs.status === "beendet" || vs.status === "gekuendigt") continue;
+    // Beitragsdynamik: Termin naht ohne Entscheidung, oder ein Angebot liegt vor.
+    const dynamik = dynamikStand(vs, today);
+    if (dynamik?.entscheidung_noetig) {
+      const regel = dynamik.vorschlag ? ` — nach der Regel „nur jede dritte annehmen“: ${dynamik.vorschlag}${dynamik.letzte_chance ? " (ein weiterer Widerspruch beendet das Dynamikrecht)" : ""}` : " — Verlauf unvollständig, frühere Entscheidungen aus den Lastschriften klären";
+      checks.push({ art: "vorsorge-dynamik", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: Dynamik zum ${dynamik.naechster_termin} entscheiden${regel}` });
+    }
     if (!vs.geprueft_am) {
       checks.push({ art: "vorsorge-ungeprueft", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: ungeprüfter Anspruch — darf nicht als sicherer Zukunftswert gelten` });
       continue;

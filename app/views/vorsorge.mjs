@@ -15,6 +15,7 @@ import {
   gesetzlicherRentenbeginn, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
   rentenStufen, tabFuerVorsorge, vermoegensBezug, vertragsFarben,
 } from "../vorsorge-rechnung.mjs";
+import { dynamikStand } from "../vorsorge-dynamik.mjs";
 import { balkenSvg, dokumenteBrowserHtml, geld, kennzahl, qualitaetChip, rhythmusLabel, tf } from "./vermoegen-teile.mjs";
 
 const GRUPPEN_TABS = VORSORGE_TABS.filter((tab) => tab !== "uebersicht");
@@ -67,7 +68,7 @@ function bezugLinks(vs) {
 }
 
 // Kacheln im Vertragsdetail: Reihenfolge und Standard (offen/zu).
-const KACHEL_OFFEN = { vertragsdaten: false, dokumente: true, beitraege: true, anhang: false };
+const KACHEL_OFFEN = { vertragsdaten: false, dynamik: true, dokumente: true, beitraege: true, anhang: false };
 const kachel = (key, titel, inhalt, klasse = "") => klappKachel({ id: `vorsorge.${key}`, titel, inhalt, offen: KACHEL_OFFEN[key], klasse });
 
 export function resetVorsorgeFilters() {
@@ -447,6 +448,7 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
     !vs.geprueft_am && !istBeendet(vs) ? `<span class="chip ungeprueft">${escapeHtml(t("vorsorge.ungeprueft"))}</span>` : "",
     checks.some((c) => c.art === "vorsorge-wiedervorlage") ? `<span class="chip review">${escapeHtml(t("vorsorge.wiedervorlage"))}</span>` : "",
     checks.some((c) => c.art === "vorsorge-wechsel") ? `<span class="chip review">${escapeHtml(t("vermoegen.checkArt.vorsorge-wechsel"))}</span>` : "",
+    dynamikChip(vs, today),
     vs.kapitalbildend ? `<span class="chip kapitalbildend">${escapeHtml(t("vorsorge.kapitalbildend"))}</span>` : "",
   ].join("");
   const bezug = bezugLinks(vs);
@@ -491,6 +493,7 @@ function renderDetail(vs, tab, today, offen) {
     <div class="objekt-detail">
       <div class="kennzahl-raster">${tab === "versicherungen" ? kennzahlenVersicherung(vs, today) : kennzahlenVorsorge(vs, today)}</div>
       ${renderVertragsdaten(vs, tab, offen)}
+      ${renderDynamik(vs, today)}
       ${renderDokumente(vs)}
       ${renderBeitraege(vs, today)}
       ${renderAnhang(vs)}
@@ -670,6 +673,43 @@ const FELD_LABEL = {
 };
 
 // Dokumente als eigene Kachel direkt unter den Kennzahlen und Vertragsdaten.
+// Hinweis auf der Vertragskarte, solange eine Dynamik-Entscheidung ansteht.
+function dynamikChip(vs, today) {
+  const d = dynamikStand(vs, today);
+  if (!d?.entscheidung_noetig) return "";
+  const text = t(`vorsorge.dynamik.chip.${d.vorschlag ?? "offen"}`);
+  const titel = tf("vorsorge.dynamik.naechste", { datum: formatDate(d.naechster_termin) });
+  return `<span class="chip review" title="${escapeHtml(titel)}">${escapeHtml(text)}</span>`;
+}
+
+const DYNAMIK_CHIP = { angenommen: "success", abgelehnt: "neutral", offen: "review" };
+
+// Kachel "Beitragsdynamik": naechster Termin, Vorschlag nach der Haushaltsregel,
+// Verlauf der Entscheidungen.
+function renderDynamik(vs, today) {
+  const d = dynamikStand(vs, today);
+  if (!d) return "";
+  const kopf = [];
+  if (d.erloschen) kopf.push(`<span class="chip review">${escapeHtml(t("vorsorge.dynamik.erloschenChip"))}</span>`);
+  else if (d.naechster_termin) {
+    kopf.push(`<strong>${escapeHtml(tf("vorsorge.dynamik.naechste", { datum: formatDate(d.naechster_termin) }))}</strong>`);
+    if (d.vorschlag) kopf.push(`<span>${escapeHtml(tf("vorsorge.dynamik.regel", { vorschlag: t(`vorsorge.dynamik.vorschlag.${d.vorschlag}`) }))}</span>`);
+    if (d.letzte_chance) kopf.push(`<span class="chip review">${escapeHtml(t("vorsorge.dynamik.letzteChance"))}</span>`);
+  }
+  const grund = tf(`vorsorge.dynamik.grund.${d.grund}`, { n: d.ablehnungen_in_folge });
+  const verlauf = d.verlauf.length
+    ? `<ul class="dynamik-verlauf">${d.verlauf.map((v) => `
+        <li title="${escapeHtml(v.bemerkung ?? "")}"><span class="muted">${escapeHtml(formatDate(v.termin))}</span> <span class="chip ${DYNAMIK_CHIP[v.entscheidung]}">${escapeHtml(t(`vorsorge.dynamik.entscheidung.${v.entscheidung}`))}</span></li>`).join("")}
+      </ul>`
+    : `<p class="muted">${escapeHtml(t("vorsorge.dynamik.keinVerlauf"))}</p>`;
+  return kachel("dynamik", t("vorsorge.dynamik.titel"), `
+      ${kopf.length ? `<p class="dynamik-kopf">${kopf.join(" ")}</p>` : ""}
+      <p class="muted">${escapeHtml(grund)}</p>
+      <h3 class="dynamik-unter">${escapeHtml(t("vorsorge.dynamik.verlauf"))}</h3>
+      ${verlauf}
+      <p class="muted">${escapeHtml(tf("vorsorge.dynamik.erlischt", { n: d.erlischt_nach, folge: d.ablehnungen_in_folge }))}</p>`);
+}
+
 function renderDokumente(vs) {
   return kachel("dokumente", t("vermoegen.dokumente.titel"), dokumenteBrowserHtml([vs.vorsorge_id], belegOrdnerAusText(vs.quelle_hinweis)));
 }

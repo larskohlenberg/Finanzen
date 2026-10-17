@@ -181,6 +181,8 @@ Drei getrennte **Zeitwert-`feld`er** halten die drei nicht-vermischbaren Werte: 
 
 **Nachfolge / Wechsel:** ein Versicherungswechsel wird ueber `ersetzt_vorsorge_id` auf der **neuen** Vorsorge ausgedrueckt (einseitig, Rueckrichtung per Filter). Der **Wechsel-Check** (ein schaerferer Verwandter der **Cash-Realismus-Guardrail**) feuert nur fuer Beitraege, deren `aktiv_bis` in der **Zukunft innerhalb des Horizonts** liegt: kein/spaeterer Nachfolger ⇒ Warnung „Wegfall/Deckungsluecke". Vergangene Kuendigungen warnen nie (ihr Wegfall ist schon Realitaet). Versicherung-Lebenszyklus: `aktiv | gekuendigt | ruhend`; Renten-Anwartschaft: `geplant | laufend | beendet`.
 
+**Beitragsdynamik:** viele Vertraege erhoehen Beitrag und Leistung jaehrlich zu einem festen **Erhoehungstermin**, wenn der Halter nicht widerspricht. Nach einer vertraglichen Zahl von **Widerspruechen in Folge** (meist drei) **erlischt** das Dynamikrecht. Haushaltsregel: **nur jede dritte Dynamik annehmen** — wurden die beiden vorherigen abgelehnt, wird angenommen, sonst abgelehnt. Am Vertrag stehen Termin, Schwelle und je Jahr die **Entscheidung** (`angenommen | abgelehnt | offen`, offen = Angebot liegt vor); der Vorschlag nach der Regel wird gerechnet, nicht gespeichert. Bis wann widersprochen werden muss, ist eine **Frist** in der Fristenliste, nicht Teil der Dynamik.
+
 ## Waehrung
 
 Alle Betraege in EUR. Kein `waehrung`-Feld an Konto oder Transaktion. Sollte spaeter ein Fremdwaehrungskonto auftauchen, wird das gezielt nachgeruestet — bis dahin: YAGNI.

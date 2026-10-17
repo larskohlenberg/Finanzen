@@ -121,6 +121,28 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
 8. **Protokollieren:** schreibende Laeufe in `DATENROOT/agent_log.jsonl` mit
    geaenderten IDs, Zaehlern und kurzer Notiz dokumentieren.
 
+## Platzhalter aus Lastschriften
+
+Manchmal gibt es zu einem Vertrag nur Beitragsbuchungen und keinen Beleg. Ein
+Platzhalter ist dann erlaubt, aber nur mit dem, was die Buchungen hergeben:
+
+- **Erst alle Verwendungszwecke lesen**, nicht nur Gegenpartei und Betrag.
+  Lastschriften nennen oft Vertragsnummer, Produkt (etwa „Risiko-LV“, „BU“,
+  „Rente“), Laufzeit und die versicherte Person.
+- **`art`, `kapitalbildend` und `person_id` aus dem Text nehmen.** Das Konto,
+  von dem gezahlt wird, sagt nichts darueber, wer versichert ist. Der Name des
+  Anbieters sagt nichts ueber die Art: ein Lebensversicherer verkauft auch
+  reine Risikoabsicherung.
+- **Was der Text nicht nennt, ist unbekannt**, nicht angenommen. In der
+  `bemerkung` unter „Offen:“ auffuehren und den Nutzer fragen, statt einen
+  Standardwert zu setzen. Im Zweifel `kapitalbildend: false`: ein Platzhalter
+  ohne Rueckkaufswert traegt ohnehin nichts zum Vermoegen bei.
+- **Nennt der Text ein Laufzeitende in der Vergangenheit**, ist der Vertrag
+  womoeglich ausgelaufen. Vor dem Anlegen fragen, ob er ueberhaupt ins Modell
+  gehoert.
+- `quelle_hinweis` nennt Konto, Anzahl und Zeitraum der Buchungen sowie die
+  Fundstelle im Verwendungszweck.
+
 ## Kapitalwahlrecht
 
 Riester: `kapitalbildend = false` (der Validator lehnt `true` ab). Zu Rentenbeginn

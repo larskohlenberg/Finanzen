@@ -700,7 +700,8 @@ Zeitwerte zu Vorsorge stehen in `DATENROOT/zeitwerte.jsonl` mit
 - Absicherungswerte, was bei Berufsunfaehigkeit oder Tod der versicherten
   Person (`person_id` am Vertrag) fliesst, brutto wie im Beleg:
   `bu_rente` (Euro je Monat), `erwerbsminderungsrente` (Euro je Monat,
-  gesetzliche Rente), `todesfallleistung` (einmalig) und
+  gesetzliche Rente), `todesfallleistung` (einmalig; die aktuelle Leistung im
+  Todesfall zum Standdatum, nicht die garantierte Mindestleistung) und
   `hinterbliebenenrente` (Euro je Monat, Witwen- und Waisenrente zusammen).
   Nur Anzeige (Kachel Absicherung, `kennzahlen`, Wertstaende); nie
   Nettovermoegen, nie Altersrente, nicht in Szenarien. Gerechnet in

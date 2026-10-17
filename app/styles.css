@@ -533,28 +533,9 @@ button {
   text-decoration: none;
 }
 
-.hero-kpi {
-  padding: 24px;
-  display: grid;
-  gap: 0;
-  container-type: inline-size;
-}
-
-.overview-kpis {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.kpi-label {
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 650;
-}
-
 .kpi-value {
   /* An die Card-Breite (Container) gekoppelt statt an die Viewport-Breite,
-     damit die Grosszahl bei zwei Spalten + offener Rail nicht ueberlaeuft. */
+     damit die Grosszahl in schmalen Kacheln nicht ueberlaeuft. */
   font-size: clamp(28px, 11cqi, 48px);
   line-height: 0.95;
   /* Luft zwischen Ueberschrift, Grosszahl und Fusszeile. */
@@ -874,18 +855,6 @@ button.mini-kpi.linkish {
 .rail {
   display: grid;
   gap: 14px;
-}
-
-.overview-rail {
-  grid-template-rows: auto 1fr;
-}
-
-.next-action {
-  border-left: 4px solid var(--review);
-}
-
-.overview-rail .next-action {
-  min-height: 100%;
 }
 
 .rail-list {
@@ -1769,7 +1738,6 @@ tr.angesteuert td:first-child {
   }
 
   .kpi-grid,
-  .overview-kpis,
   .summary-strip,
   .filter-bar,
   .filter-grid,
@@ -3322,3 +3290,40 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .vertragsdaten-mit-logo { display: flex; align-items: flex-start; gap: 16px; }
 .vertragsdaten-mit-logo .stammdaten-raster { flex: 1 1 auto; min-width: 0; }
 .vertragsdaten-mit-logo > .logo-marke { width: 48px; height: 48px; margin: 8px 0 0; border-radius: 10px; font-size: 16px; }
+
+/* Uebersicht: drei Bereichskacheln und die Termin-Kachel darunter. */
+.uebersicht-kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.uebersicht-kachel { display: flex; flex-direction: column; container-type: inline-size; min-width: 0; }
+.uebersicht-kachel .kpi-value { margin: 8px 0 6px; }
+.uebersicht-kachel .diagramm-wrap { margin-top: 10px; }
+.uebersicht-kachel-kopf { margin: 0; font-size: 14px; }
+.uebersicht-kachel-kopf .linkish { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-weight: 650; }
+.uebersicht-kachel-kopf .linkish:hover { color: var(--accent); }
+.uebersicht-kachel-kopf svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.uebersicht-balken { display: grid; gap: 4px; margin-top: 10px; }
+.uebersicht-termine { margin-top: 16px; }
+.termine-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 28px; margin-top: 10px; }
+.termine-titel { margin: 0 0 4px; font-size: 13px; }
+.termine-liste { margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.termine-liste li { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--border); }
+.termine-datum { color: var(--muted); font-variant-numeric: tabular-nums; }
+.termine-text { display: flex; flex-wrap: wrap; gap: 0 8px; min-width: 0; }
+.termine-text .linkish { text-align: left; overflow-wrap: break-word; }
+.termine-liste .amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.terminleiste { display: block; width: 100%; height: auto; overflow: visible; }
+.terminleiste-linie { stroke: var(--border-strong); stroke-width: 1; }
+.terminleiste-gitter { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
+.terminleiste-heute { stroke: var(--danger); stroke-width: 1.5; }
+.terminleiste-text { fill: var(--muted); font-size: 13px; }
+.terminleiste-spur { font-size: 14px; }
+.terminleiste-marker { stroke: var(--surface); stroke-width: 1.5; }
+.terminleiste-marker.kreis { fill: var(--accent); }
+.terminleiste-marker.raute { fill: var(--review); }
+.terminleiste-marker.ueberfaellig { fill: var(--danger); }
+@media (max-width: 1100px) {
+  .uebersicht-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .uebersicht-kacheln { grid-template-columns: 1fr; }
+  .termine-liste li { grid-template-columns: 5.5em minmax(0, 1fr) auto; gap: 6px; }
+}

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dynamikStand } from "../app/vorsorge-dynamik.mjs";
+import { dynamikStand, widerspruchFuerFrist } from "../app/vorsorge-dynamik.mjs";
 
 const HEUTE = "2026-10-17";
 const vertrag = (dynamik) => ({ vorsorge_id: "VS-001", status: "aktiv", dynamik });
@@ -106,4 +106,22 @@ test("beendeter Vertrag zeigt den Verlauf, verlangt aber nichts", () => {
   const s = dynamikStand(vs, HEUTE);
   assert.equal(s.naechster_termin, null);
   assert.equal(s.entscheidung_noetig, false);
+});
+
+test("Widerspruchsfrist gehoert zum naechstgelegenen Termin", () => {
+  const s = dynamikStand(vertrag({ termin: "11-01", verlauf: [e("2024-11-01", "angenommen"), e("2025-11-01", "angenommen"), e("2026-11-01", "abgelehnt")] }), HEUTE);
+  assert.deepEqual(widerspruchFuerFrist(s, "2026-12-01"), { termin: "2026-11-01", entscheidung: "abgelehnt", vorgeschlagen: false, noetig: true });
+  // Fuer 2027 ist nichts erfasst: Vorschlag nach der Regel (2026 abgelehnt, 2025 angenommen → ablehnen).
+  assert.deepEqual(widerspruchFuerFrist(s, "2027-10-15"), { termin: "2027-11-01", entscheidung: "abgelehnt", vorgeschlagen: true, noetig: true });
+});
+
+test("Widerspruchsfrist bei Annahme: kein Widerspruch noetig", () => {
+  const s = dynamikStand(vertrag({ termin: "12-01", verlauf: [e("2024-12-01", "abgelehnt"), e("2025-12-01", "abgelehnt")] }), HEUTE);
+  assert.deepEqual(widerspruchFuerFrist(s, "2026-11-15"), { termin: "2026-12-01", entscheidung: "angenommen", vorgeschlagen: true, noetig: false });
+});
+
+test("Widerspruchsfrist ohne Entscheidung und ohne Vorschlag bleibt offen", () => {
+  const s = dynamikStand(vertrag({ termin: "12-01" }), HEUTE);
+  assert.equal(widerspruchFuerFrist(s, "2026-11-15").noetig, null);
+  assert.equal(widerspruchFuerFrist(null, "2026-11-15"), null);
 });

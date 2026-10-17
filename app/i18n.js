@@ -379,6 +379,15 @@ window.FINANCE_I18N = {
         chip: { annehmen: "Dynamik annehmen", ablehnen: "Dynamik ablehnen", offen: "Dynamik entscheiden" },
         letzteChance: "Letzte Chance",
         erloschenChip: "Dynamik erloschen",
+        widerspruchBis: "Widerspruch bis {datum}",
+        frist: {
+          titel: "Widerspruchsfrist",
+          schicken: "Widerspruch schicken",
+          unnoetig: "kein Widerspruch, annehmen",
+          offen: "Entscheidung offen",
+          nachRegel: "nach der Regel",
+          keine: "Keine Widerspruchsfrist erfasst.",
+        },
       },
       gehoertZu: "Gehört zu",
       riester: {
@@ -1335,6 +1344,15 @@ window.FINANCE_I18N = {
         chip: { annehmen: "Accept indexation", ablehnen: "Decline indexation", offen: "Decide indexation" },
         letzteChance: "Last chance",
         erloschenChip: "Indexation lapsed",
+        widerspruchBis: "Object by {datum}",
+        frist: {
+          titel: "Objection deadline",
+          schicken: "send objection",
+          unnoetig: "no objection, accept",
+          offen: "decision open",
+          nachRegel: "per rule",
+          keine: "No objection deadline recorded.",
+        },
       },
       gehoertZu: "Belongs to",
       riester: {

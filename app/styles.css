@@ -3350,3 +3350,5 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .absicherung-posten li > button { text-align: left; }
 .absicherung-posten li > .muted { grid-column: 1; font-size: 0.85rem; }
 .absicherung-posten li > .amount { grid-column: 2; grid-row: 1; white-space: nowrap; }
+.dynamik-fristen { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.dynamik-fristen li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

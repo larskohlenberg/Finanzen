@@ -163,9 +163,13 @@ Bemerkung:
   Die Herleitung in `bemerkung` des Eintrags nennen.
 - Der Vorschlag nach der Haushaltsregel ("nur jede dritte annehmen") wird
   gerechnet und in der App gezeigt; nicht speichern.
-- Fuer einen Widerspruch zusaetzlich eine Frist anlegen (Fristenliste,
-  `art = widerspruch`, `vorsorge_id`, jaehrlich wiederkehrend ab dem ersten
-  Widerspruchstermin). Ist der Widerspruch raus, `erledigt_bis` setzen.
+- Je Vertrag mit Dynamik eine jaehrlich wiederkehrende Frist anlegen
+  (Fristenliste, `art = widerspruch`, `vorsorge_id`, `datum` = letzter Tag des
+  Widerspruchs laut Beleg). Die Dynamik-Kachel ordnet sie dem naechstgelegenen
+  Erhoehungstermin zu und zeigt, ob widersprochen werden muss.
+- Ist der Widerspruch raus, oder wird die Erhoehung angenommen, `erledigt_bis`
+  auf den Termin dieses Jahres setzen. Sonst meldet die Fristenliste ihn als
+  ueberfaellig.
 - Der Check `vorsorge-dynamik` meldet einen Vertrag, wenn der naechste Termin
   binnen 90 Tagen liegt oder ein Angebot `offen` ist.
 

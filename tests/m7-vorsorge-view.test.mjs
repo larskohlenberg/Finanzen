@@ -454,3 +454,22 @@ test("Vertrag ohne Dynamik hat keine Dynamik-Kachel", () => {
     assert.doesNotMatch(renderVorsorge(), /vorsorge\.dynamik/);
   });
 });
+
+test("Beitragsdynamik: Widerspruchsfrist aus der Fristenliste in Kachel und Karte", async () => {
+  const { localTodayIso, addInterval } = await import("../app/liquiditaet.mjs");
+  const today = localTodayIso();
+  const termin = addInterval(today, "tag", 30);
+  const frist = addInterval(today, "tag", 20);
+  const jahr = Number(termin.slice(0, 4));
+  // Vorjahr angenommen: nach der Regel ablehnen, also widersprechen.
+  const dynamik = { termin: termin.slice(5), verlauf: [{ termin: `${jahr - 1}${termin.slice(4)}`, entscheidung: "angenommen" }] };
+  const vorsorge = fixture().vorsorge.map((vs) => (vs.vorsorge_id === "VS-003" ? { ...vs, dynamik } : vs));
+  const fristen = [{ frist_id: "FR-001", bezeichnung: "Dynamik widersprechen", art: "widerspruch", datum: frist, rhythmus_einheit: "jahr", rhythmus_intervall: 1, vorsorge_id: "VS-003" }];
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-003";
+    const html = renderVorsorge();
+    assert.match(html, /Widerspruchsfrist[\s\S]*Dynamik widersprechen <span class="chip review">Widerspruch schicken<\/span> <span class="muted">nach der Regel/);
+    assert.match(html, /objekt-karte-chips">[\s\S]*Widerspruch bis/);
+    assert.doesNotMatch(html, /Dynamik ablehnen/, "der Widerspruch ersetzt den Entscheidungs-Hinweis");
+  }, { vorsorge, fristen });
+});

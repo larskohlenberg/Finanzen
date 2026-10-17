@@ -79,3 +79,18 @@ export function dynamikStand(vs, today) {
     entscheidung_noetig: !!naechster && (angebotOffen || naechster <= addInterval(today, "tag", DYNAMIK_VORLAUF_TAGE)),
   };
 }
+
+// Zu welchem Erhoehungstermin gehoert eine Widerspruchsfrist, und muss
+// widersprochen werden? Der Termin ist der dem Fristdatum naechste. noetig:
+// true bei Ablehnung (erfasst oder nach der Regel), false bei Annahme, null wenn
+// offen. { termin, entscheidung, noetig }
+export function widerspruchFuerFrist(stand, fristDatum) {
+  if (!stand) return null;
+  const j = jahr(fristDatum);
+  const abstand = (iso) => Math.abs(Date.parse(iso) - Date.parse(fristDatum));
+  const termin = [j - 1, j, j + 1].map((y) => amTermin(y, stand.termin)).sort((a, b) => abstand(a) - abstand(b))[0];
+  const erfasst = stand.verlauf.find((v) => jahr(v.termin) === jahr(termin) && ENTSCHIEDEN.has(v.entscheidung));
+  const entscheidung = erfasst?.entscheidung ?? (termin === stand.naechster_termin && stand.vorschlag
+    ? (stand.vorschlag === "annehmen" ? "angenommen" : "abgelehnt") : null);
+  return { termin, entscheidung, vorgeschlagen: !erfasst && entscheidung !== null, noetig: entscheidung === null ? null : entscheidung === "abgelehnt" };
+}

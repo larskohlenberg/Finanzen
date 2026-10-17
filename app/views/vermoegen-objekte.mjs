@@ -36,6 +36,7 @@ function karte({ klasse, id, aktiv, titel, chip = "", wertHtml, zeilen = [], for
       <span class="objekt-karte-wert">${wertHtml}</span>
       ${fortschritt === null ? "" : balkenSvg([{ anteil: Math.max(0, fortschritt), klasse: "fortschritt-wert" }], { klasse: "fortschritt" })}
       ${zeilen.map((z) => `<span class="objekt-karte-zeile">${z}</span>`).join("")}
+      <span class="objekt-karte-fuss"><span class="objekt-karte-id">${escapeHtml(id)}</span></span>
     </button>`;
 }
 

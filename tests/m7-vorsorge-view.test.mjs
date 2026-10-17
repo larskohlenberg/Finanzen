@@ -192,6 +192,7 @@ test("Renten-Tab: Karte je Vertrag, erster gewaehlt, Detail in voller Breite", (
     const html = renderVorsorge();
     assert.equal(anzahl(html, /class="objekt-karte /g), 2);
     assert.match(html, /aria-pressed="true"[^>]*>|data-vorsorge="VS-001" aria-pressed="true"/);
+    assert.match(html, /<span class="objekt-karte-id">VS-001<\/span>/, "jede Karte zeigt die Objekt-ID");
     assert.match(html, /Details zu<\/span>\s*<h2 class="section-title">DRV Lena<\/h2>/);
     assert.match(html, /class="kennzahl-raster"/);
     assert.match(html, /Anwartschaft/, "gesetzliche Rente hat keinen Rueckkaufswert");

@@ -713,6 +713,32 @@ tbody tr.transaction-row:focus-within td {
 .account-table .col-wert { width: 13%; }
 .account-table .col-stand { width: 20%; }
 
+/* Transaktionstabelle: feste Spaltenbreiten, damit sie nicht von den Woertern
+   der gerade sichtbaren Seite abhaengen. Langer Text bricht um und macht nur
+   seine eigene Zeile hoeher. */
+.transaction-table {
+  table-layout: fixed;
+  min-width: 1100px;
+}
+
+.transaction-table td,
+.transaction-table td .linkish {
+  overflow-wrap: break-word;
+}
+
+.transaction-table td .linkish { max-width: 100%; }
+.transaction-table .mit-logo { max-width: 100%; }
+.transaction-table .mit-logo > span:last-child { min-width: 0; overflow-wrap: break-word; }
+
+.transaction-table .col-datum { width: 8.5%; }
+.transaction-table .col-konto { width: 14.5%; }
+.transaction-table .col-gegenpartei { width: 17.5%; }
+.transaction-table .col-zweck { width: 17%; }
+.transaction-table .col-betrag { width: 10%; }
+.transaction-table .col-kategorie { width: 13.5%; }
+.transaction-table .col-status { width: 12%; }
+.transaction-table .col-transfer { width: 7%; }
+
 /* Summenzeile eines Tabellenblocks (Kontentabelle der Uebersicht). */
 .table-sum td {
   border-top: 2px solid var(--border);

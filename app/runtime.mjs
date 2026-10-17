@@ -116,7 +116,7 @@ export const state = {
   nextActionPromptFallback: "",
   liquiditaet: {
     granularitaet: "monat",
-    bisDatum: defaultHorizonEnd(data.regelzahlungen, localTodayIso()),
+    bisDatum: defaultHorizonEnd(localTodayIso()),
   },
   liquiditaetExpanded: new Set(),
   // Vermoegensseite: aktiver Tab und ausgewaehltes Objekt ("klasse:id").

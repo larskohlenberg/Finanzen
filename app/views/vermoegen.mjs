@@ -1,12 +1,12 @@
 // app/views/vermoegen.mjs
-// Vermoegensseite: Kopf (Nettovermoegen) ueber allen Tabs, darunter
-// je Klasse ein Tab (Uebersicht, Konten & Depots, Immobilien, Darlehen, Sonstige
-// Werte). Vorsorge hat nur einen Verweis-Reiter auf die Vorsorge-Seite, die die
+// Vermoegensseite: je Klasse ein Tab (Uebersicht, Konten & Depots, Immobilien,
+// Darlehen, Sonstige Werte); die Kennzahlen stehen im Uebersichtstab. Vorsorge hat nur einen Verweis-Reiter auf die Vorsorge-Seite, die die
 // Details traegt. Immobilien und Darlehen rendert vermoegen-objekte.mjs.
 import { data, state, t, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie } from "../komponenten.mjs";
-import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents } from "../vermoegen.mjs";
+import { formatMoney, formatDate, formatMonth, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie, kennzahlKachel, kachelZeile, zeitverlaufKlein } from "../komponenten.mjs";
+import { donutDiagramm } from "../charts.mjs";
+import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents, nettovermoegenVerlauf, restschuldJahre } from "../vermoegen.mjs";
 import { immobilienKennzahlen, kontoSaldoVerlauf } from "../vermoegen-details.mjs";
 import { VERMOEGEN_TABS, TAB_FUER_KLASSE } from "../vermoegen-routen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -47,10 +47,6 @@ function aktiverTab() {
   return tab;
 }
 
-function tabZiel(klasse) {
-  return klasse === "vorsorge" ? `data-view="vorsorge"` : `data-action="vermoegen-tab" data-tab="${TAB_FUER_KLASSE[klasse]}"`;
-}
-
 export function renderVermoegen() {
   const today = localTodayIso();
   const r = computeNettovermoegen(data, today);
@@ -63,38 +59,15 @@ export function renderVermoegen() {
   else if (tab === "immobilien") inhalt = renderImmobilienTab(today);
   else if (tab === "darlehen") inhalt = renderDarlehenTab(today);
   else if (tab === "sonstige") inhalt = renderSonstigeTab(r, today);
-  else inhalt = renderUebersichtTab(r, je, today);
+  else inhalt = renderUebersichtTab(r, je, today, checks);
 
   return `
     ${renderPageHead(t("vermoegen.title"), t("vermoegen.lead"))}
-    ${renderKopf(r, je)}
     ${renderTabs(tab, je)}
     <div class="vermoegen-tab-inhalt" role="tabpanel" id="vermoegen-tab-${tab}">${inhalt}</div>`;
 }
 
-// ------------------------------------------------------------- Kopf
-
-function renderKopf(r, je) {
-  const aktiva = Math.max(r.aktiva_cents, 1);
-  const segmente = ["konto", "immobilie", "vermoegenswert", "vorsorge"]
-    .map((k) => ({ anteil: je[k].summe / aktiva, klasse: `segment-${k}`, titel: `${t(`vermoegen.klassePlural.${k}`)}: ${formatMoney(je[k].summe)}` }));
-  const legende = ["konto", "immobilie", "vermoegenswert", "vorsorge", "darlehen"]
-    .filter((k) => je[k].summe !== 0)
-    .map((k) => `<span><i class="segment-${k}"></i>${escapeHtml(t(`vermoegen.klassePlural.${k}`))} ${escapeHtml(formatMoney(je[k].summe))}</span>`)
-    .join("");
-
-  return `
-    <div class="vermoegen-kopf">
-      <section class="panel panel-pad">
-        <div class="muted">${escapeHtml(t("vermoegen.netto"))}</div>
-        <div class="vermoegen-netto">${escapeHtml(formatMoney(r.netto_cents))}</div>
-        <div class="kpi-note">${escapeHtml(t("vermoegen.aktiva"))}: ${escapeHtml(formatMoney(r.aktiva_cents))} · ${escapeHtml(t("vermoegen.passiva"))}: ${escapeHtml(formatMoney(r.passiva_cents))}</div>
-        ${balkenSvg(segmente)}
-        ${balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(r.passiva_cents)}` }], { laenge: r.passiva_cents / aktiva })}
-        <div class="vermoegen-legende">${legende}</div>
-      </section>
-    </div>`;
-}
+// ------------------------------------------------------------- Tabs
 
 function renderTabs(aktiv, je) {
   const tabs = [
@@ -152,42 +125,158 @@ function ausgewaehltePosition(r, klasse) {
 
 // ------------------------------------------------------------- Uebersicht
 
-function renderUebersichtTab(r, je, today) {
-  const konten = (data.konten ?? []).filter((k) => k.status !== "geschlossen" && k.kontotyp !== "bar");
-  const depots = konten.filter((k) => k.kontotyp === "depot").length;
-  const immobilien = (data.immobilien ?? []).filter((i) => i.status !== "verkauft");
-  const eigenkapital = immobilien.reduce((summe, i) => summe + (immobilienKennzahlen(data, i.immobilie_id, today).eigenkapital_cents ?? 0), 0);
+// Gleicher Aufbau wie die Vorsorge-Uebersicht: Kacheln paarweise, je Wert,
+// Notiz, flacher Verlauf und Aufschluesselung. Oben Nettovermoegen und
+// Restschuld, darunter Konten und die uebrigen Werte, dann die offenen Punkte
+// und die Wertstaende (zu). Die Klassensummen stehen schon in den Tabs.
+const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
+const positionLink = (klasse, id, name) => `<button class="linkish" data-action="select-vermoegen" data-vermoegen="${escapeHtml(`${klasse}:${id}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
+const KONTOTYPEN = ["giro", "tagesgeld", "spar", "kreditkarte", "depot"];
+
+function renderUebersichtTab(r, je, today, checks) {
+  return `
+    <div class="kachel-paare kachel-paare-oben">
+      ${nettoKachel(r, je, today)}
+      ${restschuldKachel(r, today)}
+    </div>
+    <div class="kachel-paare">
+      ${kontenKachel(r, je)}
+      ${werteKachel(r, je, today)}
+    </div>
+    ${renderOffenePunkte(checks)}
+    ${renderWertstaendeTabelle()}`;
+}
+
+function nettoKachel(r, je, today) {
+  const aktiva = Math.max(r.aktiva_cents, 1);
+  const segmente = ["konto", "immobilie", "vermoegenswert", "vorsorge"]
+    .map((k) => ({ anteil: je[k].summe / aktiva, klasse: `segment-${k}`, titel: `${t(`vermoegen.klassePlural.${k}`)}: ${formatMoney(je[k].summe)}` }));
+  const legende = ["konto", "immobilie", "vermoegenswert", "vorsorge", "darlehen"]
+    .filter((k) => je[k].summe !== 0)
+    .map((k) => `<span><i class="segment-${k}"></i>${escapeHtml(t(`vermoegen.klassePlural.${k}`))} ${escapeHtml(geldOhneCent(je[k].summe))}</span>`)
+    .join("");
+  const verlauf = nettovermoegenVerlauf(data, today);
+  // Veraenderung gegen den Stand vor zwoelf Monaten (oder den aeltesten).
+  const vorher = verlauf.length > 1 ? verlauf[Math.max(0, verlauf.length - 13)] : null;
+  const diff = vorher ? r.netto_cents - vorher.netto_cents : 0;
+  const notiz = [
+    `${escapeHtml(t("vermoegen.aktiva"))}: ${escapeHtml(formatMoney(r.aktiva_cents))} · ${escapeHtml(t("vermoegen.passiva"))}: ${escapeHtml(formatMoney(r.passiva_cents))}`,
+    vorher ? escapeHtml(tf("vermoegen.uebersicht.veraenderung", { betrag: `${diff > 0 ? "+" : ""}${geldOhneCent(diff)}`, seit: formatMonth(vorher.monat) })) : "",
+  ].filter(Boolean).join("<br>");
+  const unten = `${verlauf.length > 1 ? zeitverlaufKlein({
+    spalten: verlauf.map((p) => ({ label: p.monat.endsWith("-01") ? p.monat.slice(0, 4) : "", titel: formatMonth(p.monat) })),
+    serien: [{ klasse: "vermoegen-netto-linie", label: t("vermoegen.netto"), werte: verlauf.map((p) => p.netto_cents) }],
+    formatWert: (c) => formatMoney(c),
+    formatAchse: geldOhneCent,
+    labelSchritt: 1,
+    ariaLabel: t("vermoegen.uebersicht.nettoVerlauf"),
+  }) : ""}
+    ${balkenSvg(segmente)}
+    ${balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(r.passiva_cents)}` }], { laenge: r.passiva_cents / aktiva })}
+    <div class="vermoegen-legende">${legende}</div>`;
+  return kennzahlKachel({ label: t("vermoegen.netto"), wert: escapeHtml(formatMoney(r.netto_cents)), notiz, unten });
+}
+
+function restschuldKachel(r, today) {
   const darlehen = (data.darlehen ?? []).filter((d) => d.status !== "abgeloest");
   const rate = darlehen.reduce((summe, d) => summe + rateJeMonatCents(d), 0);
-  const kapitalbildend = (data.vorsorge ?? []).filter((v) => v.kapitalbildend);
-  const mitWert = r.positionen.filter((p) => p.klasse === "vorsorge" && !p.fehlt).length;
+  const z = restschuldJahre(data, today);
+  const freiJahr = z?.frei_ab?.slice(0, 4);
+  const notiz = escapeHtml(freiJahr ? tf("vermoegen.uebersicht.rateFrei", { rate: formatMoney(rate), jahr: freiJahr }) : tf("vermoegen.uebersicht.rate", { rate: formatMoney(rate) }));
+  // Ein Marker je Jahr, sonst ueberlagern sich die Beschriftungen naher Termine.
+  const jeJahr = new Map();
+  for (const e of z?.ereignisse ?? []) {
+    const jahr = Number(e.datum.slice(0, 4));
+    const pos = jahr - z.jahre[0] + (Number(e.datum.slice(5, 7)) - 1) / 12;
+    if (!jeJahr.has(jahr)) jeJahr.set(jahr, { pos, texte: new Set() });
+    jeJahr.get(jahr).texte.add(t(`vermoegen.uebersicht.ereignis.${e.typ}`));
+  }
+  const unten = z && z.jahre.length > 1 ? zeitverlaufKlein({
+    spalten: z.jahre.map((j) => ({ label: String(j), titel: tf("vermoegen.uebersicht.jahresende", { jahr: j }) })),
+    serien: [{ klasse: "vermoegen-restschuld-linie", label: t("vermoegen.uebersicht.restschuld"), werte: z.rest }],
+    ereignisse: [...jeJahr.values()].map((e) => ({ pos: e.pos, label: [...e.texte].join(" · ") })),
+    formatWert: (c) => formatMoney(c),
+    formatAchse: geldOhneCent,
+    ariaLabel: t("vermoegen.uebersicht.restschuldVerlauf"),
+  }) : "";
+  const frei = new Map((z?.ereignisse ?? []).filter((e) => e.typ === "frei").map((e) => [e.darlehen.darlehen_id, e.datum.slice(0, 4)]));
+  const zeilen = r.positionen.filter((p) => p.klasse === "darlehen")
+    .sort((a, b) => a.wert_cents - b.wert_cents)
+    .map((p) => kachelZeile(positionLink("darlehen", p.id, p.name), p.fehlt ? "—" : formatMoney(p.wert_cents), frei.has(p.id) ? tf("vermoegen.uebersicht.freiJahr", { jahr: frei.get(p.id) }) : "", "segment-darlehen"));
+  return kennzahlKachel({ label: t("vermoegen.uebersicht.restschuld"), wert: geld(-r.passiva_cents, { negativ: true }), notiz, zeilen, unten });
+}
 
-  const karte = (klasse, zeile, extra = "") => {
-    const e = je[klasse];
-    const chip = e.offen.size
-      ? `<span class="chip review">${iconSvg("review")}${escapeHtml(tf("vermoegen.offenAnzahl", { n: e.offen.size }))}</span>`
-      : `<span class="chip success">${iconSvg("success")}${escapeHtml(t("vermoegen.vollstaendig"))}</span>`;
-    return `
-      <button class="tile klassen-karte" ${tabZiel(klasse)}>
-        <strong>${escapeHtml(t(`vermoegen.klassePlural.${klasse}`))}</strong>
-        <div class="count">${geld(e.summe, { negativ: true })}</div>
-        <div class="kpi-note">${escapeHtml(zeile)}</div>
-        ${extra}
-        ${chip}
-      </button>`;
+function kontenKachel(r, je) {
+  const positionen = r.positionen.filter((p) => p.klasse === "konto");
+  const typ = (id) => kontenById.get(id)?.kontotyp;
+  const konten = (data.konten ?? []).filter((k) => k.status !== "geschlossen" && k.kontotyp !== "bar");
+  const depots = konten.filter((k) => k.kontotyp === "depot").length;
+  const jeTyp = KONTOTYPEN.map((k) => ({ k, wert: positionen.filter((p) => typ(p.id) === k).reduce((a, p) => a + p.wert_cents, 0) })).filter((x) => x.wert > 0);
+  const grafik = donutDiagramm({ teile: jeTyp.map((x) => ({ wert: x.wert, klasse: `kontotyp-farbe-${x.k}`, label: accountTypeLabel(x.k) })), formatWert: formatMoney, ariaLabel: t("vermoegen.uebersicht.kontenAnteile") });
+  const zeilen = [...positionen]
+    .sort((a, b) => Number(a.fehlt) - Number(b.fehlt) || b.wert_cents - a.wert_cents)
+    .map((p) => kachelZeile(positionLink("konto", p.id, p.name), p.fehlt ? "—" : formatMoney(p.wert_cents), "", KONTOTYPEN.includes(typ(p.id)) ? `kontotyp-farbe-${typ(p.id)}` : ""));
+  return kennzahlKachel({
+    label: t("vermoegen.klassePlural.konto"),
+    wert: geld(je.konto.summe, { negativ: true }),
+    notiz: escapeHtml(tf("vermoegen.karte.konten", { konten: konten.length - depots, depots })),
+    zeilen,
+    grafik,
+  });
+}
+
+// Immobilien, Sonstige Werte und Rueckkaufswerte der Vorsorge (die Vorsorge als
+// eine Zeile mit Verweis auf ihre Seite).
+function werteKachel(r, je, today) {
+  const klassen = ["immobilie", "vermoegenswert", "vorsorge"];
+  const summe = klassen.reduce((a, k) => a + je[k].summe, 0);
+  const immobilien = (data.immobilien ?? []).filter((i) => i.status !== "verkauft");
+  const eigenkapital = immobilien.reduce((a, i) => a + (immobilienKennzahlen(data, i.immobilie_id, today).eigenkapital_cents ?? 0), 0);
+  const grafik = donutDiagramm({ teile: klassen.filter((k) => je[k].summe > 0).map((k) => ({ wert: je[k].summe, klasse: `segment-${k}`, label: t(`vermoegen.klassePlural.${k}`) })), formatWert: formatMoney, ariaLabel: t("vermoegen.uebersicht.werteAnteile") });
+  const zeilen = [
+    ...r.positionen.filter((p) => p.klasse === "immobilie" || p.klasse === "vermoegenswert")
+      .sort((a, b) => b.wert_cents - a.wert_cents)
+      .map((p) => kachelZeile(positionLink(p.klasse, p.id, p.name), p.fehlt ? "—" : formatMoney(p.wert_cents), "", `segment-${p.klasse}`)),
+    ...(je.vorsorge.anzahl ? [kachelZeile(`<button class="linkish" data-view="vorsorge">${escapeHtml(t("vermoegen.uebersicht.vorsorgeZeile"))}</button>`, formatMoney(je.vorsorge.summe), "", "segment-vorsorge")] : []),
+  ];
+  return kennzahlKachel({
+    label: t("vermoegen.uebersicht.werte"),
+    wert: escapeHtml(formatMoney(summe)),
+    notiz: immobilien.length ? escapeHtml(tf("vermoegen.uebersicht.eigenkapital", { ek: formatMoney(eigenkapital) })) : "",
+    zeilen,
+    grafik,
+  });
+}
+
+// Offene Pruefpunkte je Objekt; die der Vorsorge als eine Zeile mit Verweis,
+// denn ihre Details stehen auf der Vorsorge-Seite.
+function renderOffenePunkte(checks) {
+  const titel = `<h2 class="section-title">${escapeHtml(t("vermoegen.uebersicht.offenTitel"))}</h2>`;
+  const NAMEN = {
+    konto: (id) => kontenById.get(id)?.name,
+    immobilie: (id) => (data.immobilien ?? []).find((x) => x.immobilie_id === id)?.bezeichnung,
+    darlehen: (id) => (data.darlehen ?? []).find((x) => x.darlehen_id === id)?.bezeichnung,
+    vermoegenswert: (id) => (data.vermoegenswerte ?? []).find((x) => x.vermoegenswert_id === id)?.bezeichnung,
   };
-
-  const karten = [
-    karte("konto", tf("vermoegen.karte.konten", { konten: konten.length - depots, depots })),
-    karte("immobilie", tf("vermoegen.karte.immobilien", { n: immobilien.length, ek: formatMoney(eigenkapital) })),
-    karte("darlehen", tf("vermoegen.karte.darlehen", { n: darlehen.length, rate: formatMoney(rate) })),
-    ...(sonstigeSichtbar() ? [karte("vermoegenswert", tf("vermoegen.karte.sonstige", { n: je.vermoegenswert.anzahl }))] : []),
-    karte("vorsorge", tf("vermoegen.karte.vorsorge", { mit: mitWert, gesamt: kapitalbildend.length }), `<div class="kpi-note">${escapeHtml(t("vermoegen.karte.vorsorgeHinweis"))}</div>`),
-  ].join("");
-
-  return `
-    <div class="klassen-karten">${karten}</div>
-    ${renderWertstaendeTabelle()}`;
+  const je = new Map();
+  let vorsorge = 0;
+  for (const c of checks) {
+    if (c.entitaet === "vorsorge") { vorsorge += 1; continue; }
+    const key = `${c.entitaet}:${c.entitaet_id}`;
+    if (!je.has(key)) je.set(key, { c, arten: new Set(), texte: [] });
+    je.get(key).arten.add(t(`vermoegen.checkArt.${c.art}`));
+    je.get(key).texte.push(c.text);
+  }
+  if (!je.size && !vorsorge) return `<p class="vorsorge-offen-keine"><span class="chip success">${iconSvg("success")}${escapeHtml(t("vermoegen.uebersicht.offenKeine"))}</span></p>`;
+  const zeilen = [...je.values()].map(({ c, arten, texte }) => {
+    const name = NAMEN[c.entitaet]?.(c.entitaet_id) ?? c.entitaet_id;
+    const link = NAMEN[c.entitaet]
+      ? `<button class="linkish" data-action="select-vermoegen" data-vermoegen="${escapeHtml(`${c.entitaet}:${c.entitaet_id}`)}" title="${escapeHtml(texte.join("\n"))}">${escapeHtml(name)}</button>`
+      : `<span title="${escapeHtml(texte.join("\n"))}">${escapeHtml(name)}</span>`;
+    return `<li><span>${link} <span class="muted">${escapeHtml([...arten].join(", "))}</span></span><span class="chip review">${escapeHtml(t("vorsorge.offen.chip"))}</span></li>`;
+  });
+  if (vorsorge) zeilen.push(`<li><span><button class="linkish" data-view="vorsorge">${escapeHtml(tf("vermoegen.uebersicht.vorsorgeOffen", { n: vorsorge }))}</button></span><span class="chip review">${escapeHtml(t("vorsorge.offen.chip"))}</span></li>`);
+  return `<section class="panel panel-pad vorsorge-offen">${titel}<ul class="vorsorge-offen-liste">${zeilen.join("")}</ul></section>`;
 }
 
 // ------------------------------------------------------------- Konten & Depots

@@ -367,3 +367,149 @@ export function computeVermoegenChecks(data, today) {
 
   return checks;
 }
+
+// ------------------------------------------------------------- Verlaeufe
+
+// Aeltester bekannter Zeitwert eines Felds (fuer Stichtage vor dem ersten Wert).
+function aeltesterZeitwert(zeitwerte, entitaet, entitaetId, feld) {
+  let best = null;
+  for (const zw of zeitwerte ?? []) {
+    if (zw.entitaet !== entitaet || zw.entitaet_id !== entitaetId || zw.feld !== feld) continue;
+    if (best === null || zw.standdatum < best.standdatum) best = zw;
+  }
+  return best;
+}
+
+// Wert zum Stichtag: juengster Zeitwert bis dahin, sonst der aelteste bekannte
+// (vor dem ersten Wert gilt der Status quo rueckwaerts).
+const wertAm = (zeitwerte, entitaet, id, feld, datum) =>
+  aktuellerZeitwert(zeitwerte, entitaet, id, feld, datum) ?? aeltesterZeitwert(zeitwerte, entitaet, id, feld);
+
+// Beendete Objekte zaehlen bis aktiv_bis mit, ohne aktiv_bis gar nicht (wie heute).
+const aktivAm = (obj, endStatus, datum) => obj.status !== endStatus || Boolean(obj.aktiv_bis && datum <= obj.aktiv_bis);
+
+// Kontostand zum Stichtag: vom juengsten Anker bis dahin vorwaerts, sonst vom
+// aeltesten Anker rueckwaerts (Buchungen bis zum Anker stecken in ihm). Vor der
+// ersten Buchung und dem ersten Anker gab es das Konto noch nicht: null.
+function kontoStandAm(konto, zeitwerte, transaktionen, datum) {
+  const vorher = aktuellerZeitwert(zeitwerte, "konto", konto.konto_id, "kontostand", datum);
+  const anker = vorher ?? aeltesterZeitwert(zeitwerte, "konto", konto.konto_id, "kontostand");
+  if (!anker) return null;
+  let beginn = anker.standdatum;
+  let summe = toCents(anker.wert);
+  for (const tx of transaktionen ?? []) {
+    if (tx.konto_id !== konto.konto_id) continue;
+    if (tx.buchungsdatum < beginn) beginn = tx.buchungsdatum;
+    if (vorher) {
+      if (tx.buchungsdatum > anker.standdatum && tx.buchungsdatum <= datum) summe += toCents(tx.betrag);
+    } else if (tx.buchungsdatum > datum && tx.buchungsdatum <= anker.standdatum) summe -= toCents(tx.betrag);
+  }
+  return datum < beginn ? null : summe;
+}
+
+// Restschuld zum Stichtag: Annuitaet ab dem juengsten Anker bis dahin; vor dem
+// ersten Anker ab Anfangsbetrag und Anfangsdatum, ohne Anfangsbetrag der
+// aelteste Anker. Vor dem Anfangsdatum 0.
+function restschuldAm(darlehen, zeitwerte, datum) {
+  if (darlehen.anfangsdatum && datum < darlehen.anfangsdatum) return 0;
+  const bisDahin = (zeitwerte ?? []).filter((z) => z.standdatum <= datum);
+  let plan = darlehensplan(darlehen, bisDahin, datum);
+  if (!plan && darlehen.anfangsbetrag && darlehen.anfangsdatum) {
+    const start = { entitaet: "darlehen", entitaet_id: darlehen.darlehen_id, feld: "restschuld", wert: darlehen.anfangsbetrag, standdatum: darlehen.anfangsdatum };
+    plan = darlehensplan(darlehen, [start], datum);
+  }
+  if (!plan) {
+    const aeltester = aeltesterZeitwert(zeitwerte, "darlehen", darlehen.darlehen_id, "restschuld");
+    return aeltester ? toCents(aeltester.wert) : null;
+  }
+  return plan.raten.at(-1)?.rest_cents ?? toCents(plan.anker.wert);
+}
+
+// Nettovermoegen zum Stichtag, gleiche Positionen wie computeNettovermoegen.
+// Fuer heute ergibt es dieselben Summen.
+export function nettovermoegenAm(data, datum) {
+  const zw = data.zeitwerte;
+  let aktiva = 0;
+  let passiva = 0;
+  for (const konto of data.konten ?? []) {
+    if (konto.kontotyp === "bar" || !aktivAm(konto, "geschlossen", datum)) continue;
+    if (konto.kontotyp === "depot") {
+      const dw = wertAm(zw, "konto", konto.konto_id, "depotwert", datum);
+      if (dw) aktiva += toCents(dw.wert);
+      continue;
+    }
+    aktiva += kontoStandAm(konto, zw, data.transaktionen, datum) ?? 0;
+  }
+  for (const imm of data.immobilien ?? []) {
+    if (!aktivAm(imm, "verkauft", datum)) continue;
+    if (imm.anschaffungsdatum && datum < imm.anschaffungsdatum) continue;
+    const mw = aktuellerZeitwert(zw, "immobilie", imm.immobilie_id, "marktwert", datum)
+      ?? (imm.anschaffungskosten ? { wert: imm.anschaffungskosten } : aeltesterZeitwert(zw, "immobilie", imm.immobilie_id, "marktwert"));
+    if (mw) aktiva += anteilWertCents(toCents(mw.wert), imm.eigentumsanteile);
+  }
+  for (const vmw of data.vermoegenswerte ?? []) {
+    if (!aktivAm(vmw, "veraeussert", datum)) continue;
+    const mw = wertAm(zw, "vermoegenswert", vmw.vermoegenswert_id, "marktwert", datum);
+    if (mw) aktiva += anteilWertCents(toCents(mw.wert), vmw.eigentumsanteile);
+  }
+  for (const vs of data.vorsorge ?? []) {
+    if (!vs.kapitalbildend) continue;
+    const rw = wertAm(zw, "vorsorge", vs.vorsorge_id, "rueckkaufswert", datum);
+    if (rw) aktiva += toCents(rw.wert);
+  }
+  for (const dar of data.darlehen ?? []) {
+    if (!aktivAm(dar, "abgeloest", datum)) continue;
+    passiva += restschuldAm(dar, zw, datum) ?? 0;
+  }
+  return { datum, aktiva_cents: aktiva, passiva_cents: passiva, netto_cents: aktiva - passiva };
+}
+
+const monatsEnde = (monat) => addInterval(addInterval(`${monat}-01`, "monat", 1), "tag", -1);
+
+// Nettovermoegen je Monatsende ab dem Monat der ersten Buchung (ohne Buchungen
+// ab dem ersten Zeitwert), der laufende Monat zum heutigen Tag.
+export function nettovermoegenVerlauf(data, today) {
+  let erste = null;
+  for (const tx of data.transaktionen ?? []) if (tx.buchungsdatum <= today && (!erste || tx.buchungsdatum < erste)) erste = tx.buchungsdatum;
+  if (!erste) for (const z of data.zeitwerte ?? []) if (z.standdatum <= today && (!erste || z.standdatum < erste)) erste = z.standdatum;
+  if (!erste) return [];
+  const punkte = [];
+  for (let monat = erste.slice(0, 7); monat <= today.slice(0, 7); monat = addInterval(`${monat}-01`, "monat", 1).slice(0, 7)) {
+    const datum = monat === today.slice(0, 7) ? today : monatsEnde(monat);
+    punkte.push({ monat, ...nettovermoegenAm(data, datum) });
+  }
+  return punkte;
+}
+
+// Restschuld aller laufenden Darlehen je Jahresende, von heute bis alle getilgt
+// sind (Fortschreibung mit der heutigen Rate, auch ueber die Zinsbindung hinaus;
+// laeuft ein Darlehen nie aus, endet die Reihe nach 40 Jahren). Dazu je Darlehen
+// Zinsbindungsende und Tilgungsende als Ereignis. Ohne Darlehen mit Anker null.
+export function restschuldJahre(data, today) {
+  const start = Number(today.slice(0, 4));
+  const grenze = `${start + 40}-12-31`;
+  const plaene = (data.darlehen ?? [])
+    .filter((d) => d.status !== "abgeloest")
+    .map((d) => ({ darlehen: d, plan: darlehensplan(d, data.zeitwerte, grenze) }))
+    .filter((x) => x.plan);
+  if (!plaene.length) return null;
+  const ereignisse = [];
+  let ende = start;
+  for (const { darlehen, plan } of plaene) {
+    const frei = plan.raten.find((r) => r.rest_cents <= 0)?.datum ?? null;
+    ende = Math.max(ende, Number((frei ?? grenze).slice(0, 4)));
+    if (darlehen.zinsbindung_bis && darlehen.zinsbindung_bis >= today) ereignisse.push({ datum: darlehen.zinsbindung_bis, typ: "zinsbindung", darlehen });
+    if (frei) ereignisse.push({ datum: frei, typ: "frei", darlehen });
+  }
+  const jahre = [];
+  for (let j = start; j <= ende; j++) jahre.push(j);
+  const restBis = ({ plan }, datum) => {
+    let rest = toCents(plan.anker.wert);
+    for (const r of plan.raten) if (r.datum <= datum) rest = r.rest_cents;
+    return rest;
+  };
+  const rest = jahre.map((j) => plaene.reduce((a, x) => a + restBis(x, `${j}-12-31`), 0));
+  ereignisse.sort((a, b) => a.datum.localeCompare(b.datum));
+  const freiAb = ereignisse.filter((e) => e.typ === "frei").length === plaene.length ? ereignisse.filter((e) => e.typ === "frei").at(-1).datum : null;
+  return { jahre, rest, ereignisse, frei_ab: freiAb };
+}

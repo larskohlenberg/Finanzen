@@ -1781,20 +1781,16 @@ tr.angesteuert td:first-child {
     overflow-x: auto;
   }
 }
-.liquiditaet-filter {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-.liquiditaet-filter .liquiditaet-bis {
+/* Horizont-Auswahl rechts neben dem Wert der Prognose-Kachel. */
+.liquiditaet-bis {
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   color: var(--muted);
+  font-size: 12px;
 }
-.liquiditaet-filter input[type="date"] {
+.liquiditaet-bis input[type="date"] {
   padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2665,16 +2661,8 @@ a.linkish {
 }
 
 /* ---------------------------------------------------------------- Vermoegensseite
-   Kopf (Nettovermoegen), Tabs je Klasse, Objektkarten, Kennzahl-Raster und
-   Diagramme der Tabs Immobilien und Darlehen. */
-.vermoegen-kopf {
-  margin-bottom: 16px;
-}
-.vermoegen-netto {
-  font-size: 28px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
+   Tabs je Klasse, Uebersicht aus Kachel-Paaren, Objektkarten, Kennzahl-Raster
+   und Diagramme der Tabs Immobilien und Darlehen. */
 .vermoegen-balken {
   display: block;
   height: 12px;
@@ -2682,15 +2670,15 @@ a.linkish {
   border-radius: var(--radius-tight);
 }
 .balken-grund { fill: var(--surface-2); }
-.segment-konto { fill: var(--accent); background: var(--accent); }
-.segment-depot { fill: color-mix(in srgb, var(--accent) 50%, var(--surface)); background: color-mix(in srgb, var(--accent) 50%, var(--surface)); }
-.segment-immobilie { fill: #3b6fb6; background: #3b6fb6; }
-.segment-vermoegenswert { fill: #a07a1c; background: #a07a1c; }
-.segment-vorsorge { fill: #8a5cc2; background: #8a5cc2; }
-.segment-darlehen { fill: var(--danger); background: var(--danger); }
-:root[data-theme="dark"] .segment-immobilie { fill: #7fa8e8; background: #7fa8e8; }
-:root[data-theme="dark"] .segment-vermoegenswert { fill: #e0b84f; background: #e0b84f; }
-:root[data-theme="dark"] .segment-vorsorge { fill: #c39bf0; background: #c39bf0; }
+.segment-konto { --farbe: var(--accent); fill: var(--accent); background: var(--accent); }
+.segment-depot { --farbe: color-mix(in srgb, var(--accent) 50%, var(--surface)); fill: color-mix(in srgb, var(--accent) 50%, var(--surface)); background: color-mix(in srgb, var(--accent) 50%, var(--surface)); }
+.segment-immobilie { --farbe: #3b6fb6; fill: #3b6fb6; background: #3b6fb6; }
+.segment-vermoegenswert { --farbe: #a07a1c; fill: #a07a1c; background: #a07a1c; }
+.segment-vorsorge { --farbe: #8a5cc2; fill: #8a5cc2; background: #8a5cc2; }
+.segment-darlehen { --farbe: var(--danger); fill: var(--danger); background: var(--danger); }
+:root[data-theme="dark"] .segment-immobilie { --farbe: #7fa8e8; fill: #7fa8e8; background: #7fa8e8; }
+:root[data-theme="dark"] .segment-vermoegenswert { --farbe: #e0b84f; fill: #e0b84f; background: #e0b84f; }
+:root[data-theme="dark"] .segment-vorsorge { --farbe: #c39bf0; fill: #c39bf0; background: #c39bf0; }
 .vermoegen-legende {
   display: flex;
   flex-wrap: wrap;
@@ -2765,12 +2753,6 @@ a.linkish {
   vertical-align: 1px;
 }
 
-.klassen-karten {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-}
-.klassen-karten .klassen-karte { text-align: left; }
 .objekt-karten {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -2950,15 +2932,15 @@ a.linkish {
 /* ---------------------------------------------------------------- Vorsorgeseite
    Gleicher Aufbau wie die Vermoegensseite (Kopf, Tabs, Karten, Detail in voller
    Breite); hier nur, was dort fehlt. */
-.vorsorge-kennzahlen {
+.kachel-paare {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   align-items: stretch;
   margin-top: 12px;
 }
-.vorsorge-kennzahlen-oben { margin-top: 0; }
-.vorsorge-zeitverlauf { margin: 8px 0 4px; }
+.kachel-paare-oben { margin-top: 0; }
+.kachel-zeitverlauf { margin: 8px 0 4px; }
 .vorsorge-offen { margin-top: 12px; }
 .vorsorge-offen-keine { margin: 12px 0 0; }
 .vorsorge-kopf-wert { margin-top: 2px; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -2968,7 +2950,6 @@ a.linkish {
 .vorsorge-kopf-liste .linkish { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; hyphens: auto; text-align: left; font-size: 12px; }
 .vorsorge-kopf-liste li + li { border-top: 1px dashed var(--border); }
 .vorsorge-kopf-liste .amount { flex: 0 0 auto; margin-left: auto; font-variant-numeric: tabular-nums; }
-.vermoegen-netto .betrag-einheit { font-size: 15px; }
 /* Feste Farbe je Vertrag (vorsorge-rechnung.mjs vertragsFarben, fest vergeben in farben.json):
    14 Toene, Slot 0-5 aus der Kategorienpalette, 6-13 mit maximalem Abstand dazu gewaehlt.
    Dunkelmodus: dieselbe Farbfamilie, auf die dunkle Flaeche abgestimmt. */
@@ -3031,6 +3012,27 @@ a.linkish {
 :root[data-theme="dark"] .zeitstrahl-linie.vorsorge-rente { stroke: #c39bf0; }
 :root[data-theme="dark"] .zeitstrahl-punkt.vorsorge-rente { fill: #c39bf0; }
 .zeitstrahl-linie.vorsorge-kapital { stroke: #b7791f; fill: none; }
+/* Vermoegens-Uebersicht: Nettovermoegen in Akzentfarbe, Restschuld in der Darlehensfarbe;
+   Kontotypen fuer Donut und Farbpunkte der Konten-Kachel. */
+.zeitstrahl-linie.vermoegen-netto-linie { stroke: var(--accent); fill: none; }
+.zeitstrahl-punkt.vermoegen-netto-linie { fill: var(--accent); }
+.zeitstrahl-linie.vermoegen-restschuld-linie { stroke: var(--danger); fill: none; }
+.zeitstrahl-punkt.vermoegen-restschuld-linie { fill: var(--danger); }
+.zeitstrahl-linie.liquiditaet-linie { stroke: var(--accent); fill: none; }
+.zeitstrahl-punkt.liquiditaet-linie { fill: var(--accent); }
+.zeitstrahl-linie.liquiditaet-prognose-linie { stroke: var(--accent); stroke-dasharray: 5 3; fill: none; }
+.zeitstrahl-punkt.liquiditaet-prognose-linie { fill: var(--accent); }
+.kontotyp-farbe-giro { --farbe: #2a78d6; }
+.kontotyp-farbe-tagesgeld { --farbe: #1baf7a; }
+.kontotyp-farbe-spar { --farbe: #69c1fc; }
+.kontotyp-farbe-kreditkarte { --farbe: #eb6834; }
+.kontotyp-farbe-depot { --farbe: #6250d6; }
+:root[data-theme="dark"] .kontotyp-farbe-giro { --farbe: #3987e5; }
+:root[data-theme="dark"] .kontotyp-farbe-tagesgeld { --farbe: #199e70; }
+:root[data-theme="dark"] .kontotyp-farbe-spar { --farbe: #95cde9; }
+:root[data-theme="dark"] .kontotyp-farbe-kreditkarte { --farbe: #d95926; }
+:root[data-theme="dark"] .kontotyp-farbe-depot { --farbe: #9085e9; }
+[class*="kontotyp-farbe-"] { fill: var(--farbe); background: var(--farbe); }
 .zeitstrahl-punkt.vorsorge-kapital { fill: #b7791f; }
 :root[data-theme="dark"] .zeitstrahl-linie.vorsorge-kapital { stroke: #e3a94a; }
 :root[data-theme="dark"] .zeitstrahl-punkt.vorsorge-kapital { fill: #e3a94a; }
@@ -3116,7 +3118,7 @@ a.linkish {
   .vorsorge-spalten, .vorsorge-spalten-breit { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 760px) {
-  .vorsorge-kennzahlen { grid-template-columns: minmax(0, 1fr); }
+  .kachel-paare { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Szenarien: Liste, Zeitstrahl, Phasen, Vergleich (views/szenarien.mjs). */

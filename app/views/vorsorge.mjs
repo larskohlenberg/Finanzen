@@ -4,11 +4,11 @@
 // (Renten, Lebensversicherungen, Versicherungen). Im Tab eine Karte je Vertrag,
 // darunter der gewaehlte Vertrag in voller Breite. Rechnen in vorsorge-rechnung.mjs.
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
-import { formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt } from "../komponenten.mjs";
+import { formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
-import { donutDiagramm, wertVerlauf, zeitstrahlDiagramm } from "../charts.mjs";
+import { donutDiagramm, wertVerlauf } from "../charts.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
   VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsAenderungen, beitragVorjahr, gebuchteBeitraegeAlle,
@@ -58,7 +58,6 @@ const farbKlasse = (farben, id) => (farben.has(id) ? `vertrag-farbe-${farben.get
 const istRiester = (vs) => vs.art === "riester";
 const rkwLabel = (vs) => t(istRiester(vs) ? "vorsorge.riester.gebundenesKapital" : "vorsorge.rueckkaufswert");
 const riesterHinweis = (vs) => (istRiester(vs) ? t(`vorsorge.riester.wahl.${vs.kapitalwahl === "kapital" || vs.kapitalwahl === "monatsrente" ? vs.kapitalwahl : "offen"}`) : "");
-const farbPunkt = (klasse) => `<i class="farbpunkt ${klasse}" aria-hidden="true"></i>`;
 // Ein Rueckkaufswert zaehlt nur bei kapitalbildenden Vertraegen ins Nettovermoegen.
 const ausserhalbVermoegen = (vs, feld) => feld === "vertragswert" || (feld === "rueckkaufswert" && !vs.kapitalbildend);
 const vertraegeIm = (tab) => (data.vorsorge ?? []).filter((vs) => tabFuerVorsorge(vs) === tab);
@@ -145,23 +144,8 @@ function renderUebersichtTab(today, offen) {
   const beitragVorsorge = aktiv.filter((vs) => tabFuerVorsorge(vs) !== "versicherungen").reduce((a, vs) => a + beitragJeMonatVertrag(data, vs.vorsorge_id, today), 0);
   const beitragVersicherung = aktiv.filter((vs) => tabFuerVorsorge(vs) === "versicherungen").reduce((a, vs) => a + beitragJeJahrVertrag(data, vs.vorsorge_id, today), 0);
 
-  // Je Kennzahl eine eigene Kachel mit ihrer Aufschluesselung, damit die Summe
-  // ohne Rechnen aufgeht. grafik: Donut rechts neben dem Wert; unten: Grafik
-  // zwischen Wert und Liste (Zeitverlauf).
-  const kz = (label, wert, notiz, zeilen = [], { grafik = "", unten = "" } = {}) => `
-      <section class="panel panel-pad vorsorge-kopf-kz">
-        <div class="${grafik ? "vorsorge-kopf-mit-grafik" : ""}">
-          <div>
-            <div class="muted">${escapeHtml(label)}</div>
-            <div class="vorsorge-kopf-wert">${wert}</div>
-            ${notiz ? `<div class="kpi-note">${notiz}</div>` : ""}
-          </div>
-          ${grafik}
-        </div>
-        ${unten}
-        ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : ""}
-      </section>`;
-  const zeile = (linkHtml, betrag, zusatz = "", klasse = "") => `<li>${klasse ? farbPunkt(klasse) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${escapeHtml(betrag)}</span></li>`;
+  const kz = (label, wert, notiz, zeilen = [], { grafik = "", unten = "" } = {}) => kennzahlKachel({ label, wert, notiz, zeilen, grafik, unten });
+  const zeile = kachelZeile;
   const vertragLink = (id, name) => `<button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(id)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
   const tabLink = (tab, text) => `<button class="linkish" data-action="vorsorge-tab" data-tab="${escapeHtml(tab)}">${escapeHtml(text)}</button>`;
 
@@ -190,11 +174,11 @@ function renderUebersichtTab(today, offen) {
   const z = leistungsZeitstrahl(data, today);
   const renteUnten = `${zeitverlauf(z, "rente")}${renten.length ? `${balkenSvg(segmente)}<div class="vermoegen-legende">${legende}</div>` : ""}`;
   return `
-    <div class="vorsorge-kennzahlen vorsorge-kennzahlen-oben">
+    <div class="kachel-paare kachel-paare-oben">
       ${kz(t("vorsorge.kopf.alterseinkommen"), `${escapeHtml(formatMoney(gesamt))} ${einheit(t("vorsorge.jeMonatBrutto"))}`, escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten")), [], { unten: renteUnten })}
       ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.summe)), kapital.jahre.length ? escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") })) : "", kapitalZeilen, { unten: zeitverlauf(z, "kapital") })}
     </div>
-    <div class="vorsorge-kennzahlen">
+    <div class="kachel-paare">
       ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: mitWert.length, gesamt: vorsorgePositionen.length })), rkwZeilen, { grafik: rkwDonut })}
       ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })), beitragZeilen, { grafik: beitragDonut })}
     </div>
@@ -253,17 +237,14 @@ function zeitverlauf(z, typ) {
     if (!jeJahr.has(jahr)) jeJahr.set(jahr, { pos: l.pos, summe: 0 });
     jeJahr.get(jahr).summe += l.wert_cents;
   }
-  const svg = zeitstrahlDiagramm({
+  return zeitverlaufKlein({
     spalten: z.jahre.map((j) => ({ label: String(j), titel: String(j) })),
     serien: [{ klasse: `vorsorge-${typ}`, label: t(`vorsorge.zeitstrahl.${typ}`), werte: z[typ] }],
     ereignisse: [...jeJahr.values()].map((e) => ({ pos: e.pos, label: `+${geldOhneCent(e.summe)}` })),
     formatWert: (c) => formatMoney(c),
     formatAchse: geldOhneCent,
     ariaLabel: t(`vorsorge.zeitstrahl.titel.${typ}`),
-    breite: 560,
-    plotHoehe: 90,
   });
-  return `<div class="diagramm-wrap vorsorge-zeitverlauf">${svg}</div>`;
 }
 
 function renderOffenePunkte(offen) {

@@ -19,7 +19,7 @@ await import("../app/i18n.js");
 const { data, state } = await import("../app/runtime.mjs");
 const { renderVermoegen } = await import("../app/views/vermoegen.mjs");
 
-test("Vorsorge erscheint lokalisiert als Verweis-Karte, nicht als Tab", () => {
+test("Vorsorge erscheint lokalisiert als Verweis-Zeile, nicht als Tab", () => {
   const originalData = {
     konten: data.konten,
     immobilien: data.immobilien,
@@ -62,10 +62,10 @@ test("Vorsorge erscheint lokalisiert als Verweis-Karte, nicht als Tab", () => {
     state.vermoegenDetailRailClosed = false;
     state.vermoegenRailMode = "position";
 
-    for (const [lang, label] of [["de", "Vorsorge"], ["en", "Pension"]]) {
+    for (const [lang, label] of [["de", "Vorsorge \\(Rückkaufswerte\\)"], ["en", "Pensions \\(surrender values\\)"]]) {
       state.lang = lang;
       const html = renderVermoegen();
-      assert.match(html, new RegExp(`<button class="tile klassen-karte" data-view="vorsorge">\\s*<strong>${label}</strong>`));
+      assert.match(html, new RegExp(`<button class="linkish" data-view="vorsorge">${label}</button>`));
       assert.doesNotMatch(html, /data-tab="vorsorge"/);
       assert.doesNotMatch(html, /vermoegen\.klasse/);
     }

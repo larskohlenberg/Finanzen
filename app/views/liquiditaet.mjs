@@ -1,29 +1,20 @@
 // app/views/liquiditaet.mjs
-// Liquiditäts-Ansicht: Ist-Saldo + Prognose (Tabellen und Liniendiagramme).
+// Liquiditaets-Ansicht im Aufbau der Bereichsseiten: oben zwei Kacheln (heute
+// mit den letzten zwoelf Monaten, Prognose bis zum Horizont), darunter die
+// Tabellen als zugeklappte Kacheln.
 import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, renderPageHead, saldoLinie, heuteIso } from "../komponenten.mjs";
-import { computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, saldoJeTag } from "../liquiditaet.mjs";
+import { formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzahlKachel, kachelZeile, zeitverlaufKlein, klappKachel } from "../komponenten.mjs";
+import { anstehendeJahreszahlungen, computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, liquiditaetVerlauf, toCents } from "../liquiditaet.mjs";
 
-// Prognose ab heute: Startsaldo, dann je Buchungstag der Saldo am Tagesende.
-function prognosePunkte(prognose, today) {
-  const verlauf = [{ datum: today, saldo_cents: prognose.start_saldo_cents }];
-  for (const periode of prognose.perioden) {
-    for (const monat of periode.monate) {
-      for (const posten of monat.posten) verlauf.push({ datum: posten.datum, saldo_cents: posten.saldo_cents });
-    }
-  }
-  return saldoJeTag(verlauf);
-}
-
-// Ist im laufenden Monat: je Buchungstag der Saldo, bis heute fortgeschrieben
-// (der letzte Saldo gilt bis heute).
-function istPunkte(verlauf, today) {
-  const punkte = saldoJeTag(verlauf);
-  const letzter = punkte.at(-1);
-  if (letzter && letzter.datum < today) punkte.push({ datum: today, wert: letzter.wert });
-  return punkte;
-}
+const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
+const tf = (key, werte) => Object.entries(werte).reduce((text, [k, v]) => text.replaceAll(`{${k}}`, String(v)), t(key));
+// Kurzer Monatsname als Achsenbeschriftung, im Januar mit Jahr.
+const monatKurz = (monat) => {
+  const name = new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short" }).format(new Date(`${monat}-01T00:00:00`));
+  return monat.endsWith("-01") ? monat.slice(0, 4) : name.replace(".", "");
+};
+const monatsAchse = (monate) => monate.map((m) => ({ label: monatKurz(m), titel: formatMonth(m) }));
 
 function renderSaldoVerlauf(verlauf, emptyKey) {
   if (!verlauf.length) return `<p class="muted">${escapeHtml(t(emptyKey))}</p>`;
@@ -59,52 +50,81 @@ export function renderLiquiditaet() {
     horizonEnd: state.liquiditaet.bisDatum,
     granularitaet: state.liquiditaet.granularitaet,
   });
-  const istChipClass = ist.qualitaet.fehlende_anker > 0 ? "review" : "success";
-  const istChipIcon = ist.qualitaet.fehlende_anker > 0 ? iconSvg("review") : iconSvg("success");
-  const vorschlaegeChip = prognose.qualitaet.vorschlaege_nicht_enthalten > 0
-    ? `<span class="chip review">${iconSvg("review")}${escapeHtml(String(prognose.qualitaet.vorschlaege_nicht_enthalten))} ${escapeHtml(t("liquiditaet.qualityProposalsExcluded"))}</span>`
-    : "";
-  const unbefristetChip = prognose.qualitaet.unbefristete_regelzahlungen > 0
-    ? `<span class="chip neutral">${escapeHtml(String(prognose.qualitaet.unbefristete_regelzahlungen))} ${escapeHtml(t("liquiditaet.qualityOpenEnded"))}</span>`
-    : "";
-  const granButtons = ["monat", "quartal", "jahr"]
-    .map((g) => `<button class="chip ${state.liquiditaet.granularitaet === g ? "success" : "neutral"} linkish" data-liquiditaet-gran="${g}">${escapeHtml(t(`liquiditaet.gran.${g}`))}</button>`)
-    .join("");
   return `
     ${renderPageHead(t("liquiditaet.title"), t("liquiditaet.lead"))}
-    <div class="tile-grid">
-      <div class="tile tile-static">
-        <strong>${escapeHtml(t("liquiditaet.ist"))}</strong>
-        <div class="count">${escapeHtml(formatMoney(ist.saldo_cents))}</div>
-        <span class="chip ${istChipClass}">${istChipIcon}${escapeHtml(String(ist.qualitaet.fehlende_anker))} ${escapeHtml(t("liquiditaet.qualityMissingAnchors"))}</span>
-      </div>
-      <div class="tile tile-static">
-        <strong>${escapeHtml(t("liquiditaet.prognose"))}</strong>
-        <div class="count">${escapeHtml(formatMoney(prognose.end_saldo_cents))}</div>
-        <span class="chip neutral">${escapeHtml(String(prognose.qualitaet.bestaetigte_regelzahlungen))} ${escapeHtml(t("liquiditaet.qualityConfirmed"))}</span>
-        ${vorschlaegeChip}
-        ${unbefristetChip}
-        <span class="chip neutral">${escapeHtml(t("liquiditaet.horizonTo"))} ${escapeHtml(prognose.horizont_ende)}</span>
-      </div>
+    <div class="kachel-paare kachel-paare-oben">
+      ${istKachel(ist, today)}
+      ${prognoseKachel(prognose, today)}
     </div>
+    ${klappKachel({ id: "liquiditaet.bewegungen", titel: `${t("liquiditaet.ist")} · ${t("liquiditaet.monthlyTable")}`, inhalt: renderSaldoVerlauf(ist.monatsverlauf, "liquiditaet.emptyIst"), offen: false, klasse: "section-spacing" })}
+    ${klappKachel({ id: "liquiditaet.prognose", titel: `${t("liquiditaet.prognose")} · ${t("liquiditaet.forecastTable")}`, kopfExtra: granKnoepfe(), inhalt: renderLiquiditaetPrognoseDetail(prognose), offen: false, klasse: "section-spacing" })}
     <p class="page-lead section-note">${escapeHtml(t("liquiditaet.incompleteNote"))}</p>
-    <section class="panel panel-pad section-spacing">
-      <h2 class="section-title">${escapeHtml(t("liquiditaet.ist"))} · ${escapeHtml(t("liquiditaet.monthlyTable"))}</h2>
-      ${saldoLinie(istPunkte(ist.monatsverlauf, today), `${t("liquiditaet.balance")}: ${formatMoney(ist.monatsverlauf.at(0)?.saldo_cents ?? 0)} → ${formatMoney(ist.monatsverlauf.at(-1)?.saldo_cents ?? 0)}`)}
-      ${renderSaldoVerlauf(ist.monatsverlauf, "liquiditaet.emptyIst")}
-    </section>
-    <section class="panel panel-pad section-spacing">
-      <h2 class="section-title">${escapeHtml(t("liquiditaet.prognose"))} · ${escapeHtml(t("liquiditaet.forecastTable"))}</h2>
-      <div class="liquiditaet-filter">
-        <span>${granButtons}</span>
-        <label class="liquiditaet-bis">${escapeHtml(t("liquiditaet.forecastUntil"))}
-          <input type="date" data-control="liquiditaet-bis" value="${escapeHtml(state.liquiditaet.bisDatum)}" />
-        </label>
-      </div>
-      ${saldoLinie(prognosePunkte(prognose, today), `${t("liquiditaet.prognose")}: ${formatMoney(prognose.start_saldo_cents)} → ${formatMoney(prognose.end_saldo_cents)}`)}
-      ${renderLiquiditaetPrognoseDetail(prognose)}
-    </section>
   `;
+}
+
+function granKnoepfe() {
+  return `<span>${["monat", "quartal", "jahr"]
+    .map((g) => `<button class="chip ${state.liquiditaet.granularitaet === g ? "success" : "neutral"} linkish" data-liquiditaet-gran="${g}">${escapeHtml(t(`liquiditaet.gran.${g}`))}</button>`)
+    .join("")}</span>`;
+}
+
+// Heute: Saldo der liquiden Konten, Verlauf der letzten zwoelf Monatsenden,
+// darunter der Stand je Konto.
+function istKachel(ist, today) {
+  const chipKlasse = ist.qualitaet.fehlende_anker > 0 ? "review" : "success";
+  const notiz = `<span class="chip ${chipKlasse}">${iconSvg(chipKlasse)}${escapeHtml(String(ist.qualitaet.fehlende_anker))} ${escapeHtml(t("liquiditaet.qualityMissingAnchors"))}</span>`;
+  const verlauf = liquiditaetVerlauf(data, today);
+  const unten = zeitverlaufKlein({
+    spalten: monatsAchse(verlauf.map((p) => p.monat)),
+    serien: [{ klasse: "liquiditaet-linie", label: t("liquiditaet.balance"), werte: verlauf.map((p) => p.saldo_cents) }],
+    formatWert: (c) => formatMoney(c),
+    formatAchse: geldOhneCent,
+    labelSchritt: 1,
+    ariaLabel: t("liquiditaet.verlaufIst"),
+  });
+  const zeilen = [...ist.konten]
+    .sort((a, b) => (b.saldo_cents ?? -Infinity) - (a.saldo_cents ?? -Infinity))
+    .map((k) => kachelZeile(`<button class="linkish" data-action="account-transactions" data-account="${escapeHtml(k.konto_id)}" title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>`, k.saldo_cents === null ? "—" : formatMoney(k.saldo_cents)));
+  return kennzahlKachel({ label: t("liquiditaet.ist"), wert: escapeHtml(formatMoney(ist.saldo_cents)), notiz, zeilen, unten });
+}
+
+// Prognose: Stand am Horizont, Verlauf je Monatsende bis dahin, darunter die
+// naechsten grossen Zahlungen (jaehrliche Abfluesse der naechsten drei Monate).
+function prognoseKachel(prognose, today) {
+  const q = prognose.qualitaet;
+  const notiz = [
+    `<span class="chip neutral">${escapeHtml(String(q.bestaetigte_regelzahlungen))} ${escapeHtml(t("liquiditaet.qualityConfirmed"))}</span>`,
+    q.vorschlaege_nicht_enthalten > 0 ? `<span class="chip review">${iconSvg("review")}${escapeHtml(String(q.vorschlaege_nicht_enthalten))} ${escapeHtml(t("liquiditaet.qualityProposalsExcluded"))}</span>` : "",
+    q.unbefristete_regelzahlungen > 0 ? `<span class="chip neutral">${escapeHtml(String(q.unbefristete_regelzahlungen))} ${escapeHtml(t("liquiditaet.qualityOpenEnded"))}</span>` : "",
+  ].join("");
+  const grafik = `
+    <label class="liquiditaet-bis">${escapeHtml(t("liquiditaet.forecastUntil"))}
+      <input type="date" data-control="liquiditaet-bis" value="${escapeHtml(state.liquiditaet.bisDatum)}" />
+    </label>`;
+  const monate = prognose.perioden.flatMap((p) => p.monate);
+  const unten = monate.length > 1 ? zeitverlaufKlein({
+    spalten: monatsAchse(monate.map((m) => m.monat)),
+    serien: [{ klasse: "liquiditaet-prognose-linie", label: t("liquiditaet.balance"), werte: monate.map((m) => m.saldo_cents) }],
+    formatWert: (c) => formatMoney(c),
+    formatAchse: geldOhneCent,
+    labelSchritt: monate.length > 24 ? null : 1,
+    ariaLabel: t("liquiditaet.verlaufPrognose"),
+  }) : "";
+  const zahlungen = anstehendeJahreszahlungen(data.regelzahlungen, today, 3);
+  const zeilen = zahlungen.map(({ datum, regelzahlung: rz }) => kachelZeile(
+    `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}" title="${escapeHtml(rz.bezeichnung)}">${escapeHtml(rz.bezeichnung)}</button>`,
+    formatMoney(toCents(rz.betrag)),
+    formatDate(datum),
+  ));
+  const liste = zeilen.length ? [`<li class="muted">${escapeHtml(t("liquiditaet.naechsteZahlungen"))}</li>`, ...zeilen] : [];
+  return kennzahlKachel({
+    label: tf("liquiditaet.prognoseBis", { datum: formatDate(prognose.horizont_ende) }),
+    wert: escapeHtml(formatMoney(prognose.end_saldo_cents)),
+    notiz,
+    zeilen: liste,
+    grafik,
+    unten,
+  });
 }
 
 function formatMonat(monat) {

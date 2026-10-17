@@ -602,7 +602,7 @@ app.addEventListener("change", guard((event) => {
     return;
   }
   if (control?.dataset.control === "liquiditaet-bis") {
-    state.liquiditaet.bisDatum = control.value || defaultHorizonEnd(data.regelzahlungen, heuteIso());
+    state.liquiditaet.bisDatum = control.value || defaultHorizonEnd(heuteIso());
     state.liquiditaetExpanded.clear();
     render();
     return;

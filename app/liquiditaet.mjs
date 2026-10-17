@@ -92,15 +92,11 @@ export function anstehendeJahreszahlungen(regelzahlungen, today, monate = 3) {
     .sort((a, b) => a.datum.localeCompare(b.datum) || a.regelzahlung.regelzahlung_id.localeCompare(b.regelzahlung.regelzahlung_id));
 }
 
-export function defaultHorizonEnd(regelzahlungen, today, fallbackMonate = 12) {
-  let max = null;
-  for (const rz of regelzahlungen ?? []) {
-    if (rz.status !== "bestaetigt") continue;
-    if (rz.aktiv_bis && (max === null || rz.aktiv_bis > max)) max = rz.aktiv_bis;
-  }
-  const fallback = addInterval(today, "monat", fallbackMonate);
-  if (max === null) return fallback;
-  return max > fallback ? max : fallback;
+// Standard-Horizont der Prognose: zwoelf Monate ab heute. Weiter reicht die
+// Aussage kaum, weil viele Regelzahlungen unbefristet weiterlaufen; ein
+// spaeteres Datum laesst sich in der Ansicht waehlen.
+export function defaultHorizonEnd(today, monate = 12) {
+  return addInterval(today, "monat", monate);
 }
 
 export function periodenSchluessel(monat, granularitaet) {
@@ -199,8 +195,23 @@ export function computeLiquiditaetIst(data, { today }) {
   };
 }
 
+// Liquiditaet je Monatsende der letzten `monate` Monate, der laufende Monat zum
+// heutigen Tag. Gleiche Konten und Rechnung wie computeLiquiditaetIst; Konten
+// ohne Anker zaehlen nicht mit.
+export function liquiditaetVerlauf(data, today, monate = 12) {
+  const konten = liquiditaetsKonten(data.konten);
+  const punkte = [];
+  for (let i = monate - 1; i >= 0; i--) {
+    const monat = addInterval(`${today.slice(0, 7)}-01`, "monat", -i).slice(0, 7);
+    const datum = i === 0 ? today : addInterval(addInterval(`${monat}-01`, "monat", 1), "tag", -1);
+    const saldo = konten.reduce((a, k) => a + (kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum).saldo_cents ?? 0), 0);
+    punkte.push({ monat, datum, saldo_cents: saldo });
+  }
+  return punkte;
+}
+
 export function computeLiquiditaetPrognose(data, { today, horizonEnd }) {
-  const ende = horizonEnd ?? defaultHorizonEnd(data.regelzahlungen, today);
+  const ende = horizonEnd ?? defaultHorizonEnd(today);
   const ist = computeLiquiditaetIst(data, { today });
   const ereignisse = [];
   let bestaetigt = 0;

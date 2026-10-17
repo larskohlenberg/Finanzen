@@ -748,7 +748,7 @@ das Datum des Belegs; bei Auszuegen ueber einen Zeitraum das Ende des Zeitraums.
 | Klasse | Ordner |
 | --- | --- |
 | Konten und Depots | `Belege/Konten/<KTO-ID>_<Kurzname>/<Jahr>/` (Kontoauszuege, Umsatzlisten, Depotberichte, Bankpost zum Konto) |
-| Immobilien | `Belege/Immobilien/<IMM-ID>_<Kurzname>/<Jahr>/` (Kaufvertrag, Grundbuch, Grundsteuer, Handwerker, Nebenkosten) |
+| Immobilien | `Belege/Immobilien/<IMM-ID>_<Kurzname>/<Bereich>/` nach Bereich statt nach Jahr (siehe unten) |
 | Darlehen | `Belege/Darlehen/<DAR-ID>_<Kurzname>/<Jahr>/` (Vertrag, Auszuege, Vertragsuebersichten) |
 | Vorsorge | `Belege/Vorsorge/<VS-ID>_<Kurzname>/<Jahr>/` (Police, Standmitteilungen, Nachtraege) |
 | Sonstige Vermoegenswerte | `Belege/Vermoegenswerte/<VMW-ID>_<Kurzname>/<Jahr>/` (Kaufbeleg, Gutachten, Wertnachweis, Mitgliedsbescheinigung) |
@@ -759,7 +759,25 @@ das Datum des Belegs; bei Auszuegen ueber einen Zeitraum das Ende des Zeitraums.
 - Die ID im Ordnernamen haelt die Zuordnung eindeutig, der Kurzname macht den
   Ordner lesbar (ohne Leerzeichen, Teile mit `-`, z. B. `KTO-001_Bank-Giro`).
 - Belege zu mehreren Objekten einer Klasse liegen unter
-  `Belege/<Klasse>/Allgemein/<Jahr>/`.
+  `Belege/<Klasse>/Allgemein/<Jahr>/` (ausser bei Immobilien, siehe unten).
+- **Immobilien** haben feste Bereiche statt Jahresordnern (ADR 0031); ein
+  Bereich entsteht erst mit seinem ersten Beleg:
+
+  | Bereich | Inhalt | Jahresordner |
+  | --- | --- | --- |
+  | `Erwerb/` | Kauf, Uebertragung, Notar, Grundschuld, Grundbuch, Kataster | nein |
+  | `Bau/` | Bauvertrag, Plaene, Flaechenberechnung, Genehmigungen, Abnahme, Nachbarzustimmungen, Foerderung | nein |
+  | `Technik/` | Photovoltaik, Heizung, Anlagen: Anmeldungen, Protokolle, Wartungsvertraege | nein |
+  | `Laufende-Kosten/<Jahr>/` | Grundsteuer, Wasser, Abfall, Energie, Schornsteinfeger, Reparaturen | Pflicht |
+  | `Vermietung/` | Mietvertrag, Nachtraege, Schriftwechsel mit Mietern; `Vermietung/<Jahr>/`: Nebenkostenabrechnung samt Korrekturen | erlaubt |
+
+  Jahr ist hier das **Abrechnungsjahr**, nicht das Datum des Schreibens (die
+  Wasserrechnung fuer 2025 vom Januar 2026 liegt unter `2025/`). Ausserhalb der
+  Jahresordner steht das Datum im Dateinamen. Einen Beleg zu mehreren
+  Immobilien (z. B. ein Grundbuchauszug ueber zwei Blaetter) teilt der Agent,
+  wenn er seitenweise trennbar ist; sonst liegt er als vollstaendige Kopie bei
+  jeder Immobilie, jeweils mit deren ID im Namen (`belege_umziehen` mit
+  `kopie: true`). `Immobilien/Allgemein/` gibt es nicht.
 - Ein Darlehen hat seinen eigenen Ordner, auch wenn es zu einer Immobilie
   gehoert; die Immobilie findet seine Belege ueber `immobilie_id`.
 - Eine Schutzversicherung als Vorsorge-Stammsatz nennt ihren Vertragsordner in
@@ -769,7 +787,8 @@ das Datum des Belegs; bei Auszuegen ueber einen Zeitraum das Ende des Zeitraums.
 - Neue Belege legt `beleg_ablegen` direkt dort ab; ein Ziel ausserhalb dieser
   Klassen oder ein Objektordner ohne `<ID>_<Kurzname>` bzw. `Allgemein` lehnt
   das Tool ab. Liegt ein Beleg falsch,
-  zieht `belege_umziehen` ihn um und ersetzt alle Verweise in den Daten.
+  zieht `belege_umziehen` ihn um und ersetzt alle Verweise in den Daten; ein
+  Eintrag mit `kopie: true` kopiert stattdessen und laesst Quelle und Verweise.
 
 Jedes PDF und jedes Bild (png/jpg/jpeg) unter `Belege/` hat einen
 **Textzwilling**: gleicher Ordner, gleicher Basisname, Endung `.txt`. Der

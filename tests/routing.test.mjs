@@ -119,3 +119,15 @@ test("Transaktionen gefiltert auf einen Vorsorgevertrag sind adressierbar", () =
   assert.equal(routeFromState({ view: "transactions", transactionFilters: { vorsorge: "VS-002" } }), "#/transaktionen/vorsorge/VS-002");
   assert.deepEqual(parseRoute("#/transaktionen/vorsorge/VS-002"), { view: "transactions", vorsorgeFilter: "VS-002" });
 });
+
+test("Termine: Reiter und Regelzahlung adressierbar, alte Regelzahlungs-Links bleiben gueltig", () => {
+  assert.equal(routeFromState({ view: "termine", termineTab: "regelzahlungen" }), "#/termine");
+  assert.equal(routeFromState({ view: "termine", termineTab: "fristen" }), "#/termine/fristen");
+  assert.equal(routeFromState({ view: "termine", termineTab: "regelzahlungen", selectedRegelzahlungId: "RZ-007" }), "#/termine/regelzahlungen/RZ-007");
+  assert.deepEqual(parseRoute("#/termine"), { view: "termine", termineTab: "regelzahlungen" });
+  assert.deepEqual(parseRoute("#/termine/fristen"), { view: "termine", termineTab: "fristen" });
+  assert.deepEqual(parseRoute("#/termine/regelzahlungen/RZ-007"), { view: "termine", termineTab: "regelzahlungen", selectedRegelzahlungId: "RZ-007" });
+  assert.deepEqual(parseRoute("#/termine/unbekannt"), { view: "termine", termineTab: "regelzahlungen" });
+  assert.deepEqual(parseRoute("#/regelzahlungen"), { view: "termine", termineTab: "regelzahlungen" });
+  assert.deepEqual(parseRoute("#/regelzahlungen/RZ-007"), { view: "termine", termineTab: "regelzahlungen", selectedRegelzahlungId: "RZ-007" });
+});

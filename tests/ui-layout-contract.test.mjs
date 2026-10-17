@@ -320,12 +320,12 @@ test("uppercase eyebrow labels share one harmonized treatment", () => {
 
 test("desktop nav order matches the mobile reading order", () => {
   // Desktop-Sidebar und mobile Tab-Bar+Mehr-Menü leiten ihre Reihenfolge beide
-  // aus navItems ab — vermoegen steht vor regelzahlungen (analog zur Mobilseite).
+  // aus navItems ab — vermoegen steht vor termine (analog zur Mobilseite).
   const block = main.match(/const navItems = \[(.*?)\];/s)[1];
   const order = [...block.matchAll(/\["(\w+)"/g)].map((m) => m[1]);
   assert.deepEqual(order, [
     "overview", "transactions", "liquiditaet", "vermoegen", "vorsorge",
-    "regelzahlungen", "szenarien", "belege", "upload", "masterdata",
+    "termine", "szenarien", "belege", "upload", "masterdata",
   ]);
 });
 

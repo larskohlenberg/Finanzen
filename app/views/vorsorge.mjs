@@ -69,7 +69,7 @@ function bezugLinks(vs) {
 }
 
 // Kacheln im Vertragsdetail: Reihenfolge und Standard (offen/zu).
-const KACHEL_OFFEN = { vertragsdaten: false, dynamik: true, dokumente: true, beitraege: true, anhang: false };
+const KACHEL_OFFEN = { vertragsdaten: false, dokumente: true, beitraege: true, anhang: false };
 const kachel = (key, titel, inhalt, klasse = "") => klappKachel({ id: `vorsorge.${key}`, titel, inhalt, offen: KACHEL_OFFEN[key], klasse });
 
 export function resetVorsorgeFilters() {
@@ -492,9 +492,8 @@ function renderDetail(vs, tab, today, offen) {
       <h2 class="section-title">${escapeHtml(vs.name)}</h2>
     </div>
     <div class="objekt-detail">
-      <div class="kennzahl-raster">${tab === "versicherungen" ? kennzahlenVersicherung(vs, today) : kennzahlenVorsorge(vs, today)}</div>
+      ${kennzahlRaster(vs, tab, today)}
       ${renderVertragsdaten(vs, tab, offen)}
-      ${renderDynamik(vs, today)}
       ${renderDokumente(vs)}
       ${renderBeitraege(vs, today)}
       ${renderAnhang(vs)}
@@ -703,47 +702,47 @@ function dynamikChip(vs, today) {
   return `<span class="chip review" title="${escapeHtml(titel)}">${escapeHtml(text)}</span>`;
 }
 
-const DYNAMIK_CHIP = { angenommen: "success", abgelehnt: "neutral", offen: "review" };
-
-function fristZeile(f) {
-  const b = f.bedarf;
-  const status = b?.noetig === true ? ["review", t("vorsorge.dynamik.frist.schicken")]
-    : b?.noetig === false ? ["success", t("vorsorge.dynamik.frist.unnoetig")]
-      : ["neutral", t("vorsorge.dynamik.frist.offen")];
-  const vorschlag = b?.vorgeschlagen ? ` <span class="muted">${escapeHtml(t("vorsorge.dynamik.frist.nachRegel"))}</span>` : "";
-  const ueberfaellig = f.ueberfaellig ? ` <span class="chip review">${escapeHtml(t("vermoegen.fristUeberfaellig"))}</span>` : "";
-  return `<li><span class="muted">${escapeHtml(formatDate(f.datum))}</span> ${escapeHtml(f.bezeichnung)} <span class="chip ${status[0]}">${escapeHtml(status[1])}</span>${vorschlag}${ueberfaellig}</li>`;
+// Naechster Schritt bei der Beitragsdynamik: ein offener Widerspruch geht vor,
+// sonst die Entscheidung zum naechsten Erhoehungstermin.
+function dynamikAktion(vs, today) {
+  const d = dynamikStand(vs, today);
+  if (!d) return null;
+  if (d.erloschen) return { d, aktion: "erloschen" };
+  const widerspruch = widerspruchsFristen(vs, today, d).find((f) => f.bedarf?.noetig);
+  if (widerspruch) return { d, aktion: "widersprechen", frist: widerspruch };
+  return { d, aktion: d.vorschlag ?? "offen" };
 }
 
-// Kachel "Beitragsdynamik": naechster Termin, Vorschlag nach der Haushaltsregel,
-// Widerspruchsfristen und Verlauf der Entscheidungen.
-function renderDynamik(vs, today) {
-  const d = dynamikStand(vs, today);
-  if (!d) return "";
-  const kopf = [];
-  if (d.erloschen) kopf.push(`<span class="chip review">${escapeHtml(t("vorsorge.dynamik.erloschenChip"))}</span>`);
-  else if (d.naechster_termin) {
-    kopf.push(`<strong>${escapeHtml(tf("vorsorge.dynamik.naechste", { datum: formatDate(d.naechster_termin) }))}</strong>`);
-    if (d.vorschlag) kopf.push(`<span>${escapeHtml(tf("vorsorge.dynamik.regel", { vorschlag: t(`vorsorge.dynamik.vorschlag.${d.vorschlag}`) }))}</span>`);
-    if (d.letzte_chance) kopf.push(`<span class="chip review">${escapeHtml(t("vorsorge.dynamik.letzteChance"))}</span>`);
+const VERLAUF_ZEICHEN = { angenommen: "✓", abgelehnt: "✗" };
+
+// Kleine Kachel "Beitragsdynamik" im Kennzahl-Raster: was als Naechstes zu tun
+// ist, bis wann, und die letzten drei Entscheidungen. Die Begruendung steht im Tooltip.
+function dynamikKennzahl(vs, today) {
+  const a = dynamikAktion(vs, today);
+  if (!a) return "";
+  const { d } = a;
+  let notiz;
+  if (a.aktion === "erloschen") notiz = tf("vorsorge.dynamik.notiz.erloschen", { n: d.ablehnungen_in_folge });
+  else if (a.aktion === "widersprechen") {
+    notiz = tf("vorsorge.dynamik.notiz.widersprechen", { datum: formatDate(a.frist.datum), termin: formatDate(a.frist.bedarf.termin) })
+      + (a.frist.bedarf.vorgeschlagen ? ` · ${t("vorsorge.dynamik.notiz.nachRegel")}` : "");
+  } else {
+    notiz = tf("vorsorge.dynamik.notiz.zum", { datum: formatDate(d.naechster_termin) })
+      + ` · ${t(a.aktion === "offen" ? "vorsorge.dynamik.notiz.unvollstaendig" : "vorsorge.dynamik.notiz.nachRegel")}`;
   }
-  const grund = tf(`vorsorge.dynamik.grund.${d.grund}`, { n: d.ablehnungen_in_folge });
-  const fristen = widerspruchsFristen(vs, today, d);
-  const fristenHtml = fristen.length
-    ? `<ul class="dynamik-fristen">${fristen.map(fristZeile).join("")}</ul>`
-    : `<p class="muted">${escapeHtml(t("vorsorge.dynamik.frist.keine"))}</p>`;
-  const verlauf = d.verlauf.length
-    ? `<ul class="dynamik-verlauf">${d.verlauf.map((v) => `
-        <li title="${escapeHtml(v.bemerkung ?? "")}"><span class="muted">${escapeHtml(formatDate(v.termin))}</span> <span class="chip ${DYNAMIK_CHIP[v.entscheidung]}">${escapeHtml(t(`vorsorge.dynamik.entscheidung.${v.entscheidung}`))}</span></li>`).join("")}
-      </ul>`
-    : `<p class="muted">${escapeHtml(t("vorsorge.dynamik.keinVerlauf"))}</p>`;
-  return kachel("dynamik", t("vorsorge.dynamik.titel"), `
-      ${kopf.length ? `<p class="dynamik-kopf">${kopf.join(" ")}</p>` : ""}
-      <p class="muted">${escapeHtml(grund)}</p>
-      ${d.erloschen ? "" : `<h3 class="dynamik-unter">${escapeHtml(t("vorsorge.dynamik.frist.titel"))}</h3>${fristenHtml}`}
-      <h3 class="dynamik-unter">${escapeHtml(t("vorsorge.dynamik.verlauf"))}</h3>
-      ${verlauf}
-      <p class="muted">${escapeHtml(tf("vorsorge.dynamik.erlischt", { n: d.erlischt_nach, folge: d.ablehnungen_in_folge }))}</p>`);
+  const chance = d.letzte_chance && a.aktion === "annehmen" ? ` <span class="chip review">${escapeHtml(t("vorsorge.dynamik.letzteChance"))}</span>` : "";
+  const verlauf = d.verlauf.filter((v) => VERLAUF_ZEICHEN[v.entscheidung]).slice(-3)
+    .map((v) => `${v.termin.slice(0, 4)} ${VERLAUF_ZEICHEN[v.entscheidung]}`).join(" · ");
+  const titel = [tf(`vorsorge.dynamik.grund.${d.grund}`, { n: d.ablehnungen_in_folge }), tf("vorsorge.dynamik.erlischt", { n: d.erlischt_nach, folge: d.ablehnungen_in_folge })].join(" ");
+  return kennzahl(t("vorsorge.dynamik.titel"), escapeHtml(t(`vorsorge.dynamik.aktion.${a.aktion}`)),
+    `${escapeHtml(notiz)}${chance}${verlauf ? `<br>${escapeHtml(verlauf)}` : ""}`, { titel });
+}
+
+// Kennzahlen im Vertragsdetail; mit Beitragsdynamik fuenf statt vier Kacheln.
+function kennzahlRaster(vs, tab, today) {
+  const dynamik = dynamikKennzahl(vs, today);
+  const basis = tab === "versicherungen" ? kennzahlenVersicherung(vs, today) : kennzahlenVorsorge(vs, today);
+  return `<div class="kennzahl-raster${dynamik ? " kennzahl-raster-5" : ""}">${basis}${dynamik}</div>`;
 }
 
 function renderDokumente(vs) {

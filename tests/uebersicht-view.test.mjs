@@ -231,11 +231,12 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   data.immobilien = [{ immobilie_id: "IMM-901", bezeichnung: "Testhaus", status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] }];
   data.darlehen = [{ darlehen_id: "DAR-901", bezeichnung: "Testdarlehen", status: "aktiv" }];
   data.vermoegenswerte = [];
-  data.vorsorge = [{ vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat" }];
+  data.vorsorge = [{ vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2040-12-01" }];
   data.zeitwerte = [
     { entitaet: "konto", entitaet_id: "KTO-901", feld: "kontostand", standdatum: "2026-09-01", wert: "1000.00", qualitaet: "belegt" },
     { entitaet: "immobilie", entitaet_id: "IMM-901", feld: "marktwert", standdatum: "2026-01-01", wert: "300000.00", qualitaet: "geschaetzt" },
     { entitaet: "darlehen", entitaet_id: "DAR-901", feld: "restschuld", standdatum: "2026-09-01", wert: "100000.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-901", feld: "erwartete_kapitalleistung", standdatum: "2026-01-01", wert: "150000.00", qualitaet: "belegt" },
   ];
   state.view = "overview";
   state.lang = "de";
@@ -250,5 +251,9 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
 
   const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.doesNotMatch(vorsorge, /Beiträge|Offene Punkte/);
+  // Einmalzahlungen gross, mit Leiste und Zeile je Vertrag, die in den Vertrag fuehrt.
+  assert.match(vorsorge, /Einmalzahlungen fällig<\/button><\/h3>\s*<div class="kpi-value">150\.000,00\s€/);
+  assert.match(vorsorge, /<svg class="vermoegen-balken"[\s\S]*<title>Testvertrag: 150\.000,00\s€<\/title>/);
+  assert.match(vorsorge, /data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag<\/button><span class="muted">1\.12\.2040<\/span><span class="amount">150\.000\s€/);
   assert.match(teil("Langfristig gebunden"), />Rückkaufswerte</);
 });

@@ -315,7 +315,7 @@ export function computeVermoegenChecks(data, today) {
     }
 
     // Jede Mitteilung zaehlt als Pruefung, auch eine mit reinen Absicherungswerten (BU, Tod).
-    const felder = ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente"];
+    const felder = ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "beitragssumme"];
     let juengstes = vs.geprueft_am;
     for (const feld of felder) {
       const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld);

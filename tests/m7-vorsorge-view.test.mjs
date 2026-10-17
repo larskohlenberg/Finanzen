@@ -552,3 +552,28 @@ test("Beitragsdynamik: Widerspruchsfrist aus der Fristenliste in Kennzahl und Ka
     assert.doesNotMatch(html, /Dynamik ablehnen/, "der Widerspruch ersetzt den Entscheidungs-Hinweis");
   }, { vorsorge, fristen });
 });
+
+test("Beitraege und Wertentwicklung: Diagramm links, vier Kennzahlen rechts, ohne Wertstand bleibt die alte Kachel", () => {
+  const zeitwerte = [
+    ...fixture().zeitwerte,
+    zw("VS-002", "beitragssumme", "18000.00", "2025-12-31"),
+    zw("VS-002", "rueckkaufswert", "19000.00", "2024-12-31"),
+    zw("VS-002", "beitragssumme", "16200.00", "2024-12-31"),
+  ];
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-002";
+    const html = renderVorsorge();
+    const kachel = html.slice(html.indexOf("Beiträge und Wertentwicklung"));
+    assert.match(kachel, /class="vorsorge-spalten vorsorge-spalten-breit wert-entwicklung">\s*<div>[\s\S]*?class="wert-linie"[\s\S]*?<div class="kennzahl-raster wert-kennzahlen">/, "Diagramm vor den Kennzahlen");
+    const raster = kachel.match(/<div class="kennzahl-raster wert-kennzahlen">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="vorsorge-spalten/)?.[1] ?? "";
+    assert.equal(anzahl(raster, /class="kennzahl"/g), 4);
+    assert.match(raster, /Wert minus Beiträge<\/div>\s*<div class="kennzahl-wert"><span class="">\+2\.000,00\s€/);
+    assert.match(raster, /Ertrag 2024–2025<\/div>\s*<div class="kennzahl-wert"><span class="betrag-negativ">-800,00\s€<\/span><\/div>\s*<div class="kennzahl-notiz">Wert \+1\.000,00\s€, Beiträge 1\.800,00\s€/);
+    assert.match(kachel, /wert-kennzahlen[\s\S]*Noch keine Beitragsbuchung zugeordnet/, "der Beitragsteil bleibt darunter");
+
+    state.selectedVorsorgeId = "VS-004";
+    const ohne = renderVorsorge();
+    assert.doesNotMatch(ohne, /wert-entwicklung/);
+    assert.match(ohne, /Gebuchte Beiträge/);
+  }, { zeitwerte });
+});

@@ -33,6 +33,9 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
 - **Standmitteilung / Vertragsstand:** `rueckkaufswert` als Zeitwert mit
   `entitaet = "vorsorge"`, `entitaet_id = vorsorge_id`, `feld =
   "rueckkaufswert"`, `standdatum`, `qualitaet` und `quelle_hinweis` erfassen.
+  Nennt die Mitteilung die bisher gezahlten Beitraege, diese zum selben
+  Standdatum als `beitragssumme` erfassen (Summe seit Vertragsbeginn). Damit
+  vergleicht die Wertentwicklung den Wert mit dem Eingezahlten.
 - **Renteninformation / Anwartschaft:** `erwartete_rente` als monatlichen
   Netto-Wert erfassen. Wenn der Beleg nur Brutto nennt, nur nach Nutzerfreigabe
   eine Netto-Schaetzung mit `qualitaet = "geschaetzt"` und klarer `bemerkung`

@@ -8,16 +8,16 @@ import { formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow,
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
-import { beitragsBalken, donutDiagramm, zeitachseKlein, zeitstrahlDiagramm } from "../charts.mjs";
+import { beitragsBalken, donutDiagramm, wertVerlauf, zeitachseKlein, zeitstrahlDiagramm } from "../charts.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
   VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsAenderungen, beitragsVerlauf, beitragVorjahr, gebuchteBeitraegeAlle,
   gesetzlicherRentenbeginn, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
-  rentenStufen, tabFuerVorsorge, vermoegensBezug, vertragsFarben,
+  rentenStufen, tabFuerVorsorge, vermoegensBezug, vertragsFarben, wertEntwicklung,
 } from "../vorsorge-rechnung.mjs";
 import { dynamikStand, widerspruchFuerFrist } from "../vorsorge-dynamik.mjs";
 import { fristenZuObjekt } from "../fristen.mjs";
-import { balkenSvg, dokumenteBrowserHtml, fristenText, geld, kennzahl, qualitaetChip, rhythmusLabel, tf } from "./vermoegen-teile.mjs";
+import { balkenSvg, dokumenteBrowserHtml, fristenText, geld, kennzahl, prozent, qualitaetChip, rhythmusLabel, tf } from "./vermoegen-teile.mjs";
 
 const GRUPPEN_TABS = VORSORGE_TABS.filter((tab) => tab !== "uebersicht");
 
@@ -640,10 +640,60 @@ function renderVertragsdaten(vs, tab, offen) {
         </div>` : ""}`);
 }
 
+// Oberer Teil der Kachel "Beitraege und Wertentwicklung": links der Wert gegen
+// das Eingezahlte, rechts vier Kennzahlen 2x2, damit die Kachel flach bleibt.
+const mitVorzeichen = (c) => `${c > 0 ? "+" : ""}${formatMoney(c)}`;
+
+function wertEntwicklungHtml(vs, we) {
+  const { letzter, ertrag, feld } = we;
+  const wertLabel = feld === "rueckkaufswert" ? rkwLabel(vs) : t("vorsorge.vertragswert");
+  const vollstaendig = we.punkte.filter((p) => p.vollstaendig);
+  // Gestrichelt nur Stichtage mit belegter Beitragssumme; gibt es keine, die gebuchten Beitraege.
+  const mitBeitrag = vollstaendig.length ? vollstaendig : (we.erste_buchung ? we.punkte : []);
+  const eingezahltLabel = t(vollstaendig.length ? "vorsorge.wertentwicklung.eingezahlt" : "vorsorge.wertentwicklung.gebuchtLegende");
+  const svg = wertVerlauf({
+    punkte: we.punkte.map((p) => ({ datum: p.datum, wert_cents: p.wert_cents, eingezahlt_cents: mitBeitrag.includes(p) ? p.eingezahlt_cents : null })),
+    formatWert: (c) => formatMoney(c),
+    formatAchse: geldOhneCent,
+    formatDatum: formatDate,
+    labels: { wert: wertLabel, eingezahlt: eingezahltLabel },
+    ariaLabel: t("vorsorge.wertentwicklung.lead"),
+  });
+  const diagramm = svg
+    ? `<p class="muted diagramm-lead">${escapeHtml(t("vorsorge.wertentwicklung.lead"))}</p>
+      <div class="diagramm-legende-html"><span class="swatch wert"></span>${escapeHtml(wertLabel)}${mitBeitrag.length ? `<span class="swatch eingezahlt"></span>${escapeHtml(eingezahltLabel)}` : ""}</div>
+      <div class="diagramm-wrap">${svg}</div>`
+    : `<p class="muted">${escapeHtml(t("vorsorge.wertentwicklung.einStand"))}</p>`;
+  const eingezahltNotiz = letzter.vollstaendig
+    ? tf("vorsorge.wertentwicklung.eingezahltLaut", { datum: formatDate(letzter.datum) })
+    : we.erste_buchung ? tf("vorsorge.wertentwicklung.nurGebucht", { datum: formatDate(we.erste_buchung) }) : t("vorsorge.wertentwicklung.keineBuchung");
+  const differenz = letzter.wert_cents - letzter.eingezahlt_cents;
+  const kennzahlen = [
+    kennzahl(wertLabel, geld(letzter.wert_cents), escapeHtml(formatDate(letzter.datum))),
+    kennzahl(t("vorsorge.wertentwicklung.eingezahlt"), letzter.eingezahlt_cents || letzter.vollstaendig ? geld(letzter.eingezahlt_cents) : geld(null), escapeHtml(eingezahltNotiz)),
+    letzter.vollstaendig && letzter.eingezahlt_cents > 0
+      ? kennzahl(t("vorsorge.wertentwicklung.differenz"), `<span class="${differenz < 0 ? "betrag-negativ" : ""}">${escapeHtml(mitVorzeichen(differenz))}</span>`,
+        escapeHtml(tf("vorsorge.wertentwicklung.anteil", { prozent: prozent(letzter.wert_cents / letzter.eingezahlt_cents) })))
+      : kennzahl(t("vorsorge.wertentwicklung.differenz"), geld(null), escapeHtml(t("vorsorge.wertentwicklung.differenzFehlt"))),
+    ertrag
+      ? kennzahl(tf("vorsorge.wertentwicklung.ertrag", { von: ertrag.von.slice(0, 4), bis: ertrag.bis.slice(0, 4) }),
+        `<span class="${ertrag.ertrag_cents < 0 ? "betrag-negativ" : ""}">${escapeHtml(mitVorzeichen(ertrag.ertrag_cents))}</span>`,
+        escapeHtml(tf("vorsorge.wertentwicklung.ertragNotiz", { zuwachs: mitVorzeichen(ertrag.zuwachs_cents), beitraege: formatMoney(ertrag.beitraege_cents) })))
+      : kennzahl(t("vorsorge.wertentwicklung.ertragFehlt"), geld(null), escapeHtml(t("vorsorge.wertentwicklung.ertragFehltNotiz"))),
+  ];
+  return `
+    <div class="vorsorge-spalten vorsorge-spalten-breit wert-entwicklung">
+      <div>${diagramm}</div>
+      <div class="kennzahl-raster wert-kennzahlen">${kennzahlen.join("")}</div>
+    </div>`;
+}
+
 function renderBeitraege(vs, today) {
-  const titel = t("vorsorge.gebuchteBeitraege");
+  const we = wertEntwicklung(data, vs.vorsorge_id);
+  const titel = t(we ? "vorsorge.wertentwicklung.titel" : "vorsorge.gebuchteBeitraege");
+  const oben = we ? wertEntwicklungHtml(vs, we) : "";
   if (!(data.regelzahlungen ?? []).some((rz) => rz.vorsorge_id === vs.vorsorge_id)) {
-    return kachel("beitraege", titel, `<p class="muted">${escapeHtml(t("vorsorge.keinBeitrag"))}</p>`);
+    return kachel("beitraege", titel, `${oben}<p class="muted">${escapeHtml(t("vorsorge.keinBeitrag"))}</p>`);
   }
   const verlauf = beitragsVerlauf(data, vs.vorsorge_id, today);
   const monatsName = (p) => {
@@ -663,7 +713,7 @@ function renderBeitraege(vs, today) {
   const aenderungen = beitragsAenderungen(data, vs.vorsorge_id);
   const aenderungJeBuchung = new Map(aenderungen.map((a) => [a.transaktion_id, a]));
   const aenderungChip = (a) => `<span class="chip ${a.diff_cents > 0 ? "review" : "success"}" title="${escapeHtml(`${formatMoney(a.alt_cents)} → ${formatMoney(a.neu_cents)}`)}">${escapeHtml(aenderungText(a))}</span>`;
-  return kachel("beitraege", titel, `
+  return kachel("beitraege", titel, `${oben}
     <div class="vorsorge-spalten vorsorge-spalten-breit">
       <div>
       ${svg ? `<p class="muted diagramm-lead">${escapeHtml(t(verlauf.einheit === "jahr" ? "vorsorge.beitraegeJahreLead" : "vorsorge.beitraegeMonateLead"))}</p><div class="diagramm-wrap">${svg}</div>` : `<p class="muted">${escapeHtml(t("vorsorge.keineBuchung"))}</p>`}
@@ -699,6 +749,7 @@ const FELD_LABEL = {
   erwerbsminderungsrente: "vorsorge.erwerbsminderungsrente",
   todesfallleistung: "vorsorge.todesfallleistung",
   hinterbliebenenrente: "vorsorge.hinterbliebenenrente",
+  beitragssumme: "vorsorge.beitragssumme",
 };
 
 // Dokumente als eigene Kachel direkt unter den Kennzahlen und Vertragsdaten.

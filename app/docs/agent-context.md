@@ -699,6 +699,10 @@ Zeitwerte zu Vorsorge stehen in `DATENROOT/zeitwerte.jsonl` mit
   Vermittlerportal), auch bei nicht kuendbaren Vertraegen. Nur Anzeige, zaehlt
   nie ins Nettovermoegen. Ein Portalfeld "Rueckkaufswert" ohne ausgewiesenen
   Stornoabzug gehoert hierher, nicht nach `rueckkaufswert`.
+- `beitragssumme`: Summe der seit Vertragsbeginn gezahlten Beitraege zum
+  Standdatum, wie die Standmitteilung sie ausweist. Nur Anzeige: Grundlage der
+  Wertentwicklung im Vertragsdetail (Wert gegen Eingezahltes); Buchungen nach
+  dem Standdatum zaehlen dort dazu. Nie Nettovermoegen.
 - Absicherungswerte, was bei Berufsunfaehigkeit oder Tod der versicherten
   Person (`person_id` am Vertrag) fliesst, brutto wie im Beleg:
   `bu_rente` (Euro je Monat), `erwerbsminderungsrente` (Euro je Monat,

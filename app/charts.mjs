@@ -525,6 +525,46 @@ export function restschuldVerlauf({ punkte, heute, zinsbindungBis = null, belegt
   return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(spalten, plot)}>${teile.join("")}</svg>`;
 }
 
+// Wertentwicklung eines Vorsorgevertrags: Wertstaende als Linie mit Punkten,
+// eingezahlte Beitraege gestrichelt, beide zeitproportional. Flach gehalten,
+// damit die Kachel nicht hoch wird. punkte: [{ datum, wert_cents, eingezahlt_cents? }].
+export function wertVerlauf({ punkte, formatWert = String, formatAchse = formatWert, formatDatum = String, labels = {}, ariaLabel = "" }) {
+  if (!punkte || punkte.length < 2) return "";
+  const hoehe = 200;
+  const rechts = 12;
+  const oben = 10;
+  const unten = 26;
+  const t0 = tageSeit1970(punkte[0].datum);
+  const t1 = Math.max(tageSeit1970(punkte.at(-1).datum), t0 + 1);
+  const mitBeitrag = punkte.filter((p) => p.eingezahlt_cents != null);
+  // Achse auf den Datenbereich gezoomt, nicht ab 0: es geht um den Abstand der
+  // beiden Linien, und der verschwindet sonst in der Grundlinie.
+  const alle = [...punkte.map((p) => p.wert_cents), ...mitBeitrag.map((p) => p.eingezahlt_cents)];
+  const achse = achsenTicks(Math.min(...alle), Math.max(...alle), 3);
+  const yTexte = achse.ticks.map((w) => formatAchse(w));
+  const links = linkerRand(yTexte, false);
+  // Endpunkte um ein paar Pixel eingerueckt, damit die Punkte nicht am Rand kleben.
+  const x = (iso) => links + 8 + ((tageSeit1970(iso) - t0) / (t1 - t0)) * (BREITE - links - rechts - 16);
+  const y = (w) => oben + ((achse.max - w) / (achse.max - achse.min)) * (hoehe - oben - unten);
+  const linie = (liste, wert, klasse) => (liste.length > 1 ? `<polyline points="${liste.map((p) => `${runde(x(p.datum))},${runde(y(wert(p)))}`).join(" ")}" class="${klasse}" fill="none" />` : "");
+  const teile = [
+    ...yAchse({ ticks: achse.ticks, y, links, rechts, titel: "", oben, unten: hoehe - unten }),
+    ...achse.ticks.map((w, i) => achsenText(links - 8, y(w) + 4, yTexte[i], "end")),
+    // Je Jahr eine Beschriftung, am ersten Stichtag des Jahres.
+    ...punkte.filter((p, i) => i === 0 || p.datum.slice(0, 4) !== punkte[i - 1].datum.slice(0, 4)).map((p) => achsenText(x(p.datum), hoehe - 8, p.datum.slice(0, 4))),
+    linie(mitBeitrag, (p) => p.eingezahlt_cents, "wert-eingezahlt"),
+    linie(punkte, (p) => p.wert_cents, "wert-linie"),
+    ...punkte.map((p) => `<circle cx="${runde(x(p.datum))}" cy="${runde(y(p.wert_cents))}" r="4" class="wert-punkt" />`),
+  ];
+  const spalten = punkte.map((p) => {
+    const zeilen = [{ klasse: "wert", label: labels.wert ?? "Wert", wert: formatWert(p.wert_cents) }];
+    if (p.eingezahlt_cents != null) zeilen.push({ klasse: "eingezahlt", label: labels.eingezahlt ?? "Eingezahlt", wert: formatWert(p.eingezahlt_cents) });
+    return { x: Math.round(x(p.datum)), titel: formatDatum(p.datum), zeilen };
+  });
+  const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };
+  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(spalten, plot)}>${teile.join("")}</svg>`;
+}
+
 // --- Saldo-Diagramm (Liquiditaet) ------------------------------------------
 // Fuer Saldo-Verlaeufe mit Datum: X zeitproportional mit Monatsmarken, Y mit
 // gerundeten Ticks und dezentem Gitter, Linie in Stufen (ein Kontostand springt

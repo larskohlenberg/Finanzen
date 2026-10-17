@@ -56,10 +56,10 @@ test("transactions can be sorted by counterparty descending", () => {
 test("transactions render sortable column headers", () => {
   withTransactionSort({ key: "category", dir: "asc" }, () => {
     const html = renderTransactions();
-    for (const key of ["date", "account", "counterparty", "purpose", "amount", "category", "transfer"]) {
+    for (const key of ["date", "account", "counterparty", "purpose", "amount", "category"]) {
       assert.match(html, new RegExp(`data-transaction-sort="${key}"`));
     }
-    assert.doesNotMatch(html, /data-transaction-sort="status"/);
+    assert.doesNotMatch(html, /data-transaction-sort="(status|transfer)"/);
     assert.match(html, /Kategorie ▲/);
     assert.match(html, new RegExp(data.kategorien[0].name));
   });

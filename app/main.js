@@ -434,10 +434,10 @@ app.addEventListener("click", guard((event) => {
     return;
   }
 
-  const transferCell = event.target.closest(".transfer-link-cell");
-  if (transferCell) {
+  const transferLink = event.target.closest(".transfer-link");
+  if (transferLink) {
     event.stopPropagation();
-    handleAction(transferCell);
+    handleAction(transferLink);
     return;
   }
 

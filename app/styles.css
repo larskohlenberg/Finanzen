@@ -674,21 +674,19 @@ tbody tr.transaction-row:focus-within td {
   background: var(--surface-2);
 }
 
-.transfer-link-cell {
+.transfer-marke {
+  justify-content: center;
+  min-width: 26px;
+  padding: 4px;
+  vertical-align: middle;
+}
+
+button.transfer-link {
   cursor: pointer;
 }
 
-.transfer-link-cell .chip {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-}
-
-.transfer-anchor {
-  text-decoration: none;
-}
-
-.transfer-link-cell:hover .chip {
+button.transfer-link:hover,
+button.transfer-link:focus-visible {
   border-color: var(--accent);
   color: var(--accent-strong);
 }
@@ -735,10 +733,9 @@ tbody tr.transaction-row:focus-within td {
 .transaction-table .col-datum { width: 98px; }
 .transaction-table .col-konto { width: 15%; }
 .transaction-table .col-gegenpartei { width: 19.5%; }
-.transaction-table .col-zweck { width: 24%; }
+.transaction-table .col-zweck { width: 27%; }
 .transaction-table .col-betrag { width: 9%; }
-.transaction-table .col-kategorie { width: 16.5%; }
-.transaction-table .col-transfer { width: 7%; }
+.transaction-table .col-kategorie { width: 20.5%; }
 
 /* Summenzeile eines Tabellenblocks (Kontentabelle der Uebersicht). */
 .table-sum td {

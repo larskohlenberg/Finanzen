@@ -111,13 +111,13 @@ function resetTransactionState() {
 }
 
 function clickPairedTransfer(transactionId) {
-  const transferCell = {
+  const transferLink = {
     dataset: { action: "paired-transfer", transaction: transactionId },
   };
   const event = {
     target: {
       closest(selector) {
-        return selector === ".transfer-link-cell" ? transferCell : null;
+        return selector === ".transfer-link" ? transferLink : null;
       },
     },
     stopPropagation: () => {},
@@ -132,7 +132,7 @@ function clickAction(dataset) {
   const event = {
     target: {
       closest(selector) {
-        if (selector === ".transfer-link-cell") return null;
+        if (selector === ".transfer-link") return null;
         return selector === "[data-action]" ? action : null;
       },
     },

@@ -77,3 +77,18 @@ test("Wertverlauf: zwei Linien, Punkte je Stichtag, Jahresbeschriftung, Hover-Da
   assert.match(svg, /data-spalten="[^"]*Eingezahlt[^"]*1400 €/);
   assert.equal(wertVerlauf({ punkte: [{ datum: "2025-12-31", wert_cents: 1 }] }), "");
 });
+
+test("vor der ersten Beitragssumme wird rueckwaerts gerechnet, wenn die Buchungen den Zeitraum abdecken", () => {
+  const zeitwerte = [
+    zw("rueckkaufswert", "1000.00", "2024-12-31"),
+    zw("rueckkaufswert", "1300.00", "2025-12-31"),
+    zw("beitragssumme", "1500.00", "2025-06-30"),
+  ];
+  const ergebnis = wertEntwicklung(daten({ zeitwerte, transaktionen: [tx("2024-12-01"), tx("2025-03-01"), tx("2025-06-30"), tx("2025-09-01")] }), "VS-001");
+  assert.deepEqual(ergebnis.punkte.map((p) => [p.eingezahlt_cents, p.vollstaendig]), [[130000, true], [160000, true]], "1.500 minus zwei Buchungen bis 30.6., danach plus eine");
+  assert.equal(ergebnis.ertrag.ertrag_cents, 0, "Zuwachs 300 minus Beitraege 300");
+
+  const ohneDeckung = wertEntwicklung(daten({ zeitwerte, transaktionen: [tx("2025-03-01")] }), "VS-001");
+  assert.equal(ohneDeckung.punkte[0].vollstaendig, false, "Buchungen beginnen erst nach dem Stichtag");
+  assert.equal(ohneDeckung.ertrag, null);
+});

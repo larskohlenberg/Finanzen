@@ -232,8 +232,9 @@ export function vertragsFarben(data) {
 // Wertentwicklung eines Vertrags: die Wertstaende (Rueckkaufs- oder Vertragswert,
 // je nachdem, welcher oefter belegt ist) gegen die bis zum selben Stichtag
 // eingezahlten Beitraege. Eingezahlt ist die juengste Beitragssumme laut
-// Mitteilung plus die danach gebuchten Beitraege; ohne Beitragssumme zaehlen nur
-// die Buchungen (vollstaendig: false), was meist zu wenig ist. Null ohne Wertstand.
+// Mitteilung plus die danach gebuchten Beitraege, vor der ersten Summe diese minus
+// die Buchungen bis dahin; ohne Beitragssumme zaehlen nur die Buchungen
+// (vollstaendig: false), was meist zu wenig ist. Null ohne Wertstand.
 export function wertEntwicklung(data, vorsorgeId) {
   const staende = (feld) => {
     const jeDatum = new Map();
@@ -250,10 +251,15 @@ export function wertEntwicklung(data, vorsorgeId) {
   const summen = staende("beitragssumme");
   const buchungen = gebuchteBeitraegeAlle(data, vorsorgeId).map((tx) => ({ datum: tx.buchungsdatum, cents: -toCents(tx.betrag) }));
   const ersteBuchung = buchungen.reduce((min, b) => (!min || b.datum < min ? b.datum : min), null);
+  const summeZwischen = (von, bis) => buchungen.filter((b) => b.datum > von && b.datum <= bis).reduce((s, b) => s + b.cents, 0);
   const eingezahltBis = (datum) => {
     const basis = summen.filter((s) => s.datum <= datum).at(-1);
-    const gebucht = buchungen.filter((b) => b.datum > (basis?.datum ?? "") && b.datum <= datum).reduce((s, b) => s + b.cents, 0);
-    return { cents: (basis?.cents ?? 0) + gebucht, vollstaendig: Boolean(basis) };
+    if (basis) return { cents: basis.cents + summeZwischen(basis.datum, datum), vollstaendig: true };
+    // Vor der ersten Beitragssumme rueckwaerts: Summe minus die Buchungen dazwischen,
+    // sofern die Buchungen schon vor dem Stichtag beginnen, also das Intervall abdecken.
+    const spaeter = summen.find((s) => s.datum > datum);
+    if (spaeter && ersteBuchung !== null && ersteBuchung <= datum) return { cents: spaeter.cents - summeZwischen(datum, spaeter.datum), vollstaendig: true };
+    return { cents: summeZwischen("", datum), vollstaendig: false };
   };
   const punkte = werte.map((w) => {
     const e = eingezahltBis(w.datum);

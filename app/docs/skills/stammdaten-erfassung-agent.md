@@ -75,6 +75,7 @@ Skill **import-agent**.
 - Bei **neuem Darlehen aktiv die passende Raten-Regelzahlung vorschlagen** (`darlehen_id` setzen) — nur über den Regelzahlungs-Dialog (App schreibt keine Masterdaten; Regelzahlungen laufen ueber Agenten-Dialog).
 - Bei **Darlehen Vertragsdaten erfassen**, wenn belegt vorhanden: `zinsbindung_bis`, `laufzeit_bis`, `restschuld_laufzeitende`. Diese Felder ersetzen keinen belegten Restschuld-Anker in `zeitwerte.jsonl`.
 - **`bemerkung` strukturiert** (Kurzfassung, Abschnitte mit Überschrift und `- `-Punkten) nach „Bemerkungen“ in `app/docs/agent-context.md`; Ergänzungen in den passenden Abschnitt einsortieren statt anhängen.
+- **Fristen mit anlegen:** Nennt ein Beleg (Darlehensvertrag, Kuendigungshinweis, Bescheid, Mieterhoehung) einen letzten Tag zum Handeln, eine Frist in `DATENROOT/fristen.json` anlegen (`agent-context.md`, „Fristen"): `datum` = letzter Handlungstag, `art`, hoechstens ein Bezug (`darlehen_id`, `immobilie_id`, `konto_id`, `vermoegenswert_id`, `regelzahlung_id` oder keiner), jaehrliche Fristen mit Rhythmus, Fundstelle in `bemerkung`. Zinsbindungs- und Laufzeitende nicht doppelt erfassen, die folgen schon aus dem Darlehen. **Abhaken** ueber `erledigt_bis`, nie loeschen.
 - Depot als `kontotyp = depot` unter Konto, Wert über `depotwert`-Zeitwert (kein Anker+Buchungen). Bargeld zählt nicht.
 
 ## Don'ts
@@ -106,6 +107,7 @@ seinen Textzwilling; einen vorhandenen laesst der Lauf unberuehrt.
 | `schemas/*.schema.json` | Referenz-Schemas je Entität |
 | `tools/validator.mjs` | Ausführbare Validierung (Struktur + Cross-Field) |
 | `DATENROOT/*.json` / `*.jsonl` | Stammdaten (inkl. `zeitwerte.jsonl`) |
+| `DATENROOT/fristen.json` | Fristen und Termine (Schema `schemas/fristen.schema.json`) |
 | `vermoegen.mjs` | Nettovermögen- und Check-Berechnung |
 | `schemas/importprofil.schema.json` | Vertrag für das Import-Profil eines neuen Kontos |
 | `data/import-profile/` | Bank-Profile (nicht versioniert; README erklärt die Regeln) |

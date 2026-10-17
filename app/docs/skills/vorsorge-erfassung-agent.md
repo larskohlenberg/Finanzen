@@ -44,8 +44,26 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
 - **Kapitalprognose / Ablaufleistung:** `erwartete_kapitalleistung` als Zeitwert
   erfassen, wenn der Beleg eine einmalige Leistung oder ein Kapitalwahlrecht
   ausweist.
+- **Absicherung (BU und Tod):** vier Werte zeigen, was bei Berufsunfaehigkeit
+  oder Tod der versicherten Person (`person_id` am Vertrag) fliesst. Sie zaehlen
+  nie ins Vermoegen und nie als Altersrente, sondern erscheinen nur in der
+  Kachel Absicherung, in `kennzahlen` und in den Wertstaenden des Vertrags.
+  Werte wie im Beleg, also brutto; keine Netto-Schaetzung.
+
+  | Feld | Beleg | Einheit |
+  | --- | --- | --- |
+  | `bu_rente` | Police oder Nachtrag einer BU- oder BUZ-Versicherung: versicherte (garantierte) BU-Rente; nach Dynamik-Erhoehung der neue Wert | Euro je Monat |
+  | `erwerbsminderungsrente` | Renteninformation der gesetzlichen Rente: Rente wegen voller Erwerbsminderung | Euro je Monat |
+  | `todesfallleistung` | Police oder Standmitteilung: garantierte Todesfallleistung bzw. Todesfallsumme (Risiko-LV, LV, RV vor Rentenbeginn) | einmalig |
+  | `hinterbliebenenrente` | Renteninformation oder Versorgungszusage: Witwen-/Witwerrente und Waisenrenten zusammen; nennt der Beleg sie nicht, nur nach Freigabe als `geschaetzt` mit Rechenweg in `quelle_hinweis` | Euro je Monat |
+
+  Ein BU-Baustein in einer Renten- oder Lebensversicherung (BUZ) bekommt seinen
+  Wert am selben Vertrag. Steht ein Wert bisher nur in der `bemerkung`, als
+  Zeitwert nachtragen und die Bemerkung lassen. Wer das Geld bekommt, wird nicht
+  erfasst.
 - **Schutzversicherung:** kein Bilanz-Bein anlegen: kein `rueckkaufswert`, keine
-  stille Kapitalleistung. Nur die Vorsorge-Entitaet und die Beitrags-Regelzahlung
+  stille Kapitalleistung. Absicherungswerte (`bu_rente`, `todesfallleistung`)
+  sind erlaubt, sie sind kein Vermoegen. Nur die Vorsorge-Entitaet und die Beitrags-Regelzahlung
   mit `vorsorge_id` vorbereiten, wenn der Vertrag fuer Beitraege, Status oder
   Wechsel-Checks relevant ist.
   Die Belege bleiben unter `Belege/Versicherungen/<Sparte>_<Versicherer>_<Vertragsnr>/`;
@@ -129,6 +147,26 @@ Bei Kuendigung, Anbieterwechsel oder Tarifwechsel:
 - Beitrags-Regelzahlungen so datieren, dass `aktiv_bis` der alten Zahlung und
   `anker_datum` der neuen Zahlung lueckenlos oder bewusst erklaert sind.
 
+## Fristen mit anlegen
+
+Nennt ein Beleg einen Tag, bis zu dem gehandelt werden muss, legst du ihn als
+Frist in `DATENROOT/fristen.json` an (Regeln: `agent-context.md`, Abschnitt
+„Fristen"), nicht nur als Satz in der `bemerkung`:
+
+- **Dynamik-Nachtrag:** Widerspruchsfrist als `art = widerspruch`, jaehrlich
+  (`rhythmus_einheit = jahr`, `rhythmus_intervall = 1`), `datum` = letzter Tag
+  des Widerspruchs, `vorsorge_id` des Vertrags.
+- **Police, Kuendigungshinweis:** Kuendigungsfrist als `art = kuendigung` mit
+  dem letzten Kuendigungstag; bei Verlaengerung um ein Jahr jaehrlich.
+- **Kapitalwahl, Optionen:** nur wenn der Beleg einen eigenen Stichtag fuer die
+  Erklaerung nennt. Der Leistungsbeginn mit `kapitalwahl = offen` erscheint
+  schon von selbst als Entscheidung, dafuer keine Frist anlegen.
+- Beleg und Fundstelle in `bemerkung`.
+- **Abhaken:** ist die Frist erledigt (Widerspruch geschickt, Entscheidung
+  getroffen), `erledigt_bis` auf den erledigten Termin setzen. Bei jaehrlichen
+  Fristen bleibt der naechste Termin offen. Ueberfaellige Termine meldet der
+  Check `frist-ueberfaellig`.
+
 ## Do's
 
 - Werte aus Belegen nur als Vorschlag zeigen und vor dem Schreiben bestaetigen
@@ -141,8 +179,8 @@ Bei Kuendigung, Anbieterwechsel oder Tarifwechsel:
   „NACHTRAG“ anhaengen; Erledigtes aus `Offen:` streichen.
 - Reine Schutzversicherungen ueber Beitrags-Regelzahlungen sichtbar machen, nicht
   als Aktivum.
-- Die Checks `vorsorge-ungeprueft`, `vorsorge-wiedervorlage` und
-  `vorsorge-wechsel` nach dem Lauf offen benennen.
+- Die Checks `vorsorge-ungeprueft`, `vorsorge-wiedervorlage`,
+  `vorsorge-wechsel` und `frist-ueberfaellig` nach dem Lauf offen benennen.
 
 ### Anzeigefarbe festschreiben
 
@@ -168,9 +206,10 @@ der Eintrag macht sie dauerhaft.
 | Pfad | Zweck |
 | --- | --- |
 | `DATENROOT/vorsorge.json` | Vorsorge-Stammdaten |
-| `DATENROOT/zeitwerte.jsonl` | Rueckkaufswerte, erwartete Renten und erwartete Kapitalleistungen |
+| `DATENROOT/zeitwerte.jsonl` | Rueckkaufswerte, erwartete Renten und Kapitalleistungen, Vertragswerte, Absicherungswerte (BU, Tod) |
 | `DATENROOT/regelzahlungen.json` | Laufende Beitraege mit optionaler `vorsorge_id` |
 | `DATENROOT/szenarien.json` | Szenario-Annahmen inkl. `vorsorge-leistung` |
+| `DATENROOT/fristen.json` | Fristen und Termine, optional mit `vorsorge_id` |
 | `schemas/vorsorge.schema.json` | Vorsorge-Schema |
 | `schemas/zeitwerte.schema.json` | Zeitwert-Schema |
 | `schemas/regelzahlungen.schema.json` | Regelzahlungs-Schema |

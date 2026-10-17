@@ -15,7 +15,7 @@ import {
   gesetzlicherRentenbeginn, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
   rentenStufen, tabFuerVorsorge, vermoegensBezug, vertragsFarben,
 } from "../vorsorge-rechnung.mjs";
-import { balkenSvg, dokumenteBrowserHtml, geld, kennzahl, qualitaetChip, rhythmusLabel, tf } from "./vermoegen-teile.mjs";
+import { balkenSvg, dokumenteBrowserHtml, fristenText, geld, kennzahl, qualitaetChip, rhythmusLabel, tf } from "./vermoegen-teile.mjs";
 
 const GRUPPEN_TABS = VORSORGE_TABS.filter((tab) => tab !== "uebersicht");
 
@@ -585,6 +585,7 @@ function renderVertragsdaten(vs, tab, offen) {
   const beitraege = (data.regelzahlungen ?? []).filter((rz) => rz.vorsorge_id === vs.vorsorge_id);
   const beitragZeilen = beitraege.map((rz) => `<div><button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}">${escapeHtml(`${rz.regelzahlung_id} · ${rz.bezeichnung}`)}</button> <span class="muted">${escapeHtml(`${formatMoney(cents(rz.betrag))} · ${rhythmusLabel(rz.rhythmus_einheit, rz.rhythmus_intervall)}${rz.aktiv_bis ? ` · ${t("vorsorge.aktivBis")} ${formatDate(rz.aktiv_bis)}` : ""}`)}</span></div>`).join("");
   const wiedervorlage = (offen.get(vs.vorsorge_id) ?? []).some((c) => c.art === "vorsorge-wiedervorlage");
+  const fristen = fristenText("vorsorge", vs.vorsorge_id);
   const quelle = [vs.quelle_hinweis ? quelleHtml(vs.quelle_hinweis) : "", vs.quelle_standdatum ? escapeHtml(formatDate(vs.quelle_standdatum)) : ""].filter(Boolean).join(" · ");
   return kachel("vertragsdaten", t("vorsorge.vertragsdaten"), `
       <div class="vertragsdaten-mit-logo">
@@ -596,6 +597,7 @@ function renderVertragsdaten(vs, tab, offen) {
         ${tab === "versicherungen" && !vs.kapitalbildend ? "" : detailRow(t("vorsorge.kapitalbildendLabel"), escapeHtml(vs.kapitalbildend ? t("labels.yes") : t("labels.no")))}
         ${vs.kapitalwahl ? detailRow(t("vorsorge.kapitalwahl"), escapeHtml(istRiester(vs) ? `${vs.kapitalwahl} · ${riesterHinweis(vs)}` : vs.kapitalwahl)) : ""}
         ${vs.aktiv_bis ? detailRow(t("vorsorge.aktivBis"), escapeHtml(formatDate(vs.aktiv_bis))) : ""}
+        ${fristen ? detailRow(t("vermoegen.fristen"), fristen) : ""}
         ${detailRow(t("vorsorge.geprueftAm"), vs.geprueft_am
           ? `${escapeHtml(formatDate(vs.geprueft_am))}${wiedervorlage ? ` <span class="chip review">${escapeHtml(t("vorsorge.wiedervorlage"))}</span>` : ""}`
           : `<span class="chip ungeprueft">${escapeHtml(t("vorsorge.ungeprueft"))}</span>`)}
@@ -667,6 +669,10 @@ const FELD_LABEL = {
   vertragswert: "vorsorge.vertragswert",
   erwartete_rente: "vorsorge.erwarteteRente",
   erwartete_kapitalleistung: "vorsorge.erwarteteKapitalleistung",
+  bu_rente: "vorsorge.buRente",
+  erwerbsminderungsrente: "vorsorge.erwerbsminderungsrente",
+  todesfallleistung: "vorsorge.todesfallleistung",
+  hinterbliebenenrente: "vorsorge.hinterbliebenenrente",
 };
 
 // Dokumente als eigene Kachel direkt unter den Kennzahlen und Vertragsdaten.

@@ -1,0 +1,25 @@
+[
+  {
+    "frist_id": "FR-001",
+    "bezeichnung": "Beitragsdynamik widersprechen",
+    "art": "widerspruch",
+    "datum": "2026-11-15",
+    "rhythmus_einheit": "jahr",
+    "rhythmus_intervall": 1,
+    "vorsorge_id": "VS-004",
+    "bemerkung": "Dynamik zum 01.12. jedes Jahres; Widerspruch bis zwei Wochen vorher."
+  },
+  {
+    "frist_id": "FR-002",
+    "bezeichnung": "Steuererklaerung 2026 abgeben",
+    "art": "sonstiges",
+    "datum": "2027-07-31"
+  },
+  {
+    "frist_id": "FR-003",
+    "bezeichnung": "Nebenkostenabrechnung pruefen",
+    "art": "wiedervorlage",
+    "datum": "2027-01-31",
+    "immobilie_id": "IMM-001"
+  }
+]

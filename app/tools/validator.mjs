@@ -47,6 +47,7 @@ export async function loadMasterData(root = new URL("../data/master/", import.me
     transaktionen: await readJsonl(new URL("transaktionen.jsonl", root)),
     transfers: await readJson(new URL("transfers.json", root)),
     regelzahlungen: await readJson(new URL("regelzahlungen.json", root)),
+    fristen: await readJsonOptional(new URL("fristen.json", root), []),
     szenarien: await readJsonOptional(new URL("szenarien.json", root), []),
     kategorisierungsregeln: await readJsonOptional(new URL("kategorisierungsregeln.json", root), []),
     immobilien: await readJsonOptional(new URL("immobilien.json", root), []),

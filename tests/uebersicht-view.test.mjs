@@ -21,8 +21,9 @@ const overviewView = await import("../app/views/uebersicht.mjs");
 const { data, state } = runtime;
 const { renderOverview } = overviewView;
 const { renderMasterdata } = await import("../app/views/stammdaten.mjs");
+const { renderAccountPanels } = await import("../app/komponenten.mjs");
 
-test("Übersicht listet jährliche Zahlungen der nächsten drei Monate statt der Check-Vorschau", async () => {
+test("Termin-Kachel listet jährliche Zahlungen der nächsten zwölf Monate mit Zeitleiste", async () => {
   const { localTodayIso } = await import("../app/liquiditaet.mjs");
   const heute = localTodayIso();
   const [y, m, d] = heute.split("-").map(Number);
@@ -38,6 +39,7 @@ test("Übersicht listet jährliche Zahlungen der nächsten drei Monate statt der
   data.vermoegenswerte = [];
   data.vorsorge = [];
   data.zeitwerte = [];
+  data.fristen = [];
   const basis = { status: "bestaetigt", rhythmus_einheit: "jahr", rhythmus_intervall: 1 };
   data.regelzahlungen = [
     { ...basis, regelzahlung_id: "RZ-901", bezeichnung: "Wohngebäude Jahresbeitrag", betrag: "-480.00", anker_datum: iso(-1, 1, 1), konto_id: "KTO-901" },
@@ -50,22 +52,29 @@ test("Übersicht listet jährliche Zahlungen der nächsten drei Monate statt der
   state.lang = "de";
 
   const html = renderOverview();
-  const kachel = html.match(/<section class="panel panel-pad jahreszahlungen-rail">[\s\S]*?<\/section>/)?.[0] ?? "";
+  const kachel = html.match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
 
   assert.doesNotMatch(html, /Checks im Blick/);
+  assert.match(kachel, /Termine · nächste zwölf Monate/);
   assert.match(kachel, /Jährliche Zahlungen/);
   assert.match(kachel, /data-action="open-regelzahlung" data-regelzahlung="RZ-901">Wohngebäude Jahresbeitrag/);
   assert.match(kachel, /480,00/);
   assert.match(kachel, /RZ-901[\s\S]*?von Testgiro/);
   // Mit Vorsorgebezug fuehrt der Klick ins Vorsorgeobjekt, sonst zur Regelzahlung.
-  assert.match(kachel, /data-action="open-vorsorge" data-vorsorge="VS-901">Kfz-Beitrag[\s\S]*150,00[\s\S]*Konto nicht hinterlegt/);
+  assert.match(kachel, /data-action="open-vorsorge" data-vorsorge="VS-901">Kfz-Beitrag[\s\S]*Konto nicht hinterlegt[\s\S]*150,00/);
   assert.doesNotMatch(kachel, /data-regelzahlung="RZ-902"/);
-  assert.ok(kachel.indexOf("RZ-901") < kachel.indexOf("VS-901"), "nach Datum sortiert");
-  assert.doesNotMatch(kachel, /RZ-903|RZ-904|RZ-905|Weihnachtsgeld|Erst im Sommer|Monatlich/);
+  // Zwoelf Monate: auch der Sommertermin, aber keine Einnahmen und keine Monatsraten.
+  assert.match(kachel, /Erst im Sommer/);
+  assert.ok(kachel.indexOf("RZ-901") < kachel.indexOf("VS-901") && kachel.indexOf("VS-901") < kachel.indexOf("RZ-903"), "nach Datum sortiert");
+  assert.doesNotMatch(kachel, /RZ-904|RZ-905|Weihnachtsgeld|Monatlich/);
+  // Zeitleiste mit einem Kreis je Zahlung.
+  assert.match(kachel, /<svg class="terminleiste"/);
+  assert.equal((kachel.match(/class="terminleiste-marker kreis zahlung"/g) ?? []).length, 3);
 
   data.regelzahlungen = [];
-  const leer = renderOverview().match(/<section class="panel panel-pad jahreszahlungen-rail">[\s\S]*?<\/section>/)?.[0] ?? "";
-  assert.match(leer, /Keine jährliche Zahlung/);
+  const leer = renderOverview().match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.match(leer, /Keine jährliche Zahlung in den nächsten zwölf Monaten/);
+  assert.doesNotMatch(leer, /terminleiste/);
 });
 
 test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nicht belegt'-Texte", () => {
@@ -91,6 +100,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   data.darlehen = [];
   data.vermoegenswerte = [];
   data.vorsorge = [];
+  data.fristen = [];
   data.zeitwerte = [
     { entitaet: "konto", entitaet_id: "KTO-901", feld: "depotwert", standdatum: "2026-09-15", wert: "4321.09", qualitaet: "belegt" },
     { entitaet: "konto", entitaet_id: "KTO-903", feld: "kontostand", standdatum: "2026-06-08", wert: "1200.00", qualitaet: "belegt" },
@@ -98,7 +108,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   state.view = "overview";
   state.lang = "de";
 
-  const html = renderOverview();
+  const html = renderAccountPanels();
   const zeile = (id) => html.match(new RegExp(`<tr[^>]*id="konto-${id}"[\\s\\S]*?</tr>`))[0];
 
   assert.match(zeile("KTO-901"), /4\.321,09/);
@@ -117,8 +127,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
 
   assert.match(zeile("KTO-904"), /chip danger[\s\S]*Kontostand noch nicht belegt · nicht enthalten/);
 
-  // Kachel = Summenzeile der Konten (nur KTO-903, KTO-904 ohne Beleg), Depots getrennt summiert.
-  assert.match(html, /Verfügbares Geld[\s\S]*?1\.150,00[\s\S]*?Stand 10\.6\.2026 · <button class="linkish" data-view="liquiditaet">Zur Liquidität<\/button>/);
+  // Summenzeile der Konten (nur KTO-903, KTO-904 ohne Beleg), Depots getrennt summiert.
   assert.doesNotMatch(html, /in der Tabelle/);
   assert.match(html, /<tr class="table-sum"[\s\S]*?Summe Konten = Verfügbares Geld[\s\S]*?1\.150,00/);
   assert.match(html, /<tr class="table-sum"[\s\S]*?Summe Depots[\s\S]*?4\.321,09/);
@@ -135,10 +144,16 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.equal((html.match(/<table class="account-table">/g) ?? []).length, 3);
   assert.doesNotMatch(html, /class="group-row"/);
 
-  // Drei Kacheln oben: Verfuegbares Geld, Depotstand (= Summe Depots), Vermoegen.
-  assert.equal((html.match(/class="panel hero-kpi"/g) ?? []).length, 3);
-  assert.match(html, /Depotstand[\s\S]*?4\.321,09[\s\S]*?Stand 15\.9\.2026 · <button class="linkish" data-view="vermoegen">Zum Vermögen<\/button>/);
-  assert.match(html, /id="kpi-networth-label"[\s\S]*?<div class="kpi-note">Stand [\d.]+ · <button class="linkish" data-view="vermoegen">Zum Vermögen<\/button>/);
+  // Die Uebersicht zeigt keine Kontentabellen mehr, sondern Bereichskacheln.
+  const uebersicht = renderOverview();
+  const bereich = (id) => uebersicht.match(new RegExp(`<section class="panel panel-pad uebersicht-kachel" aria-labelledby="kachel-${id}">[\\s\\S]*?</section>`))?.[0] ?? "";
+  assert.doesNotMatch(uebersicht, /account-table|hero-kpi|Nächste Aktion|copy-next-agent-prompt/);
+  assert.match(bereich("liquiditaet"), /data-view="liquiditaet"[\s\S]*Liquidität/);
+  assert.match(bereich("liquiditaet"), /<div class="kpi-value">1\.150,00\s€<\/div>[\s\S]*Verfügbares Geld · Stand 10\.6\.2026/);
+  assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten">Konten<\/button>[\s\S]*?1\.150,00/);
+  assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten">Depots<\/button>[\s\S]*?4\.321,09/);
+  assert.match(bereich("vermoegen"), /<svg class="vermoegen-balken"/);
+  assert.match(bereich("vorsorge"), /Keine erwarteten Renten erfasst/);
 
   // Stammdaten: nur Stammdaten, keine Werte, Belegstaende oder Summen.
   state.view = "masterdata";
@@ -148,6 +163,49 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   for (const id of ["KTO-901", "KTO-902", "KTO-903", "KTO-904", "KTO-905"]) assert.match(kontenTabelle, new RegExp(id));
   assert.match(kontenTabelle, /Liquiditätsrelevant/);
   assert.doesNotMatch(kontenTabelle, /Wert heute|Belegter Stand|table-sum|1\.150,00|noch nicht belegt/);
-  state.view = "overview";
   assert.match(zeile("KTO-903"), /chip review/);
+});
+
+test("Termin-Kachel zeigt Fristen mit Spur, Objekt-Link und Hinweis auf bald und ueberfaellig", async () => {
+  const { localTodayIso, addInterval } = await import("../app/liquiditaet.mjs");
+  const heute = localTodayIso();
+  data.validation = { valid: true, errors: [] };
+  data.importfehler = [];
+  data.checks = [];
+  data.konten = [];
+  data.transaktionen = [];
+  data.transfers = [];
+  data.regelzahlungen = [];
+  data.immobilien = [{ immobilie_id: "IMM-901", bezeichnung: "Testhaus", status: "aktiv" }];
+  data.darlehen = [{ darlehen_id: "DAR-901", bezeichnung: "Testdarlehen", status: "aktiv", zinsbindung_bis: addInterval(heute, "monat", 5) }];
+  data.vermoegenswerte = [];
+  data.vorsorge = [{ vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag", person_id: "PER-001", status: "aktiv", kapitalbildend: true }];
+  data.zeitwerte = [];
+  data.fristen = [
+    { frist_id: "FR-901", bezeichnung: "Dynamik widersprechen", art: "widerspruch", datum: addInterval(heute, "tag", 10), vorsorge_id: "VS-901" },
+    { frist_id: "FR-902", bezeichnung: "Alte Frist", art: "sonstiges", datum: addInterval(heute, "tag", -3) },
+    { frist_id: "FR-903", bezeichnung: "Abrechnung pruefen", art: "wiedervorlage", datum: addInterval(heute, "monat", 8), immobilie_id: "IMM-901" },
+    { frist_id: "FR-904", bezeichnung: "Erledigt", art: "sonstiges", datum: addInterval(heute, "monat", 2), erledigt_bis: addInterval(heute, "monat", 2) },
+  ];
+  state.view = "overview";
+  state.lang = "de";
+
+  const kachel = renderOverview().match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
+  const spalte = kachel.match(/<h3 class="termine-titel">Fristen<\/h3>[\s\S]*?<\/ul>/)?.[0] ?? "";
+  assert.match(kachel, />Fristen<\/text>/);
+  assert.equal((kachel.match(/class="terminleiste-marker raute/g) ?? []).length, 4);
+  assert.match(spalte, /<li class="ueberfaellig">[\s\S]*Alte Frist[\s\S]*chip danger">überfällig/);
+  assert.match(spalte, /<li class="bald">[\s\S]*Dynamik widersprechen[\s\S]*data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag[\s\S]*in 10 Tagen/);
+  assert.match(spalte, /Zinsbindung endet[\s\S]*data-action="select-vermoegen-objekt" data-vermoegen="darlehen:DAR-901">Testdarlehen/);
+  assert.match(spalte, /Abrechnung pruefen[\s\S]*data-vermoegen="immobilie:IMM-901">Testhaus/);
+  assert.doesNotMatch(spalte, /Erledigt/);
+  assert.ok(spalte.indexOf("Alte Frist") < spalte.indexOf("Dynamik widersprechen"), "nach Datum sortiert");
+
+  // Darunter die Kachel Absicherung.
+  assert.match(renderOverview(), /uebersicht-termine[\s\S]*<section class="panel panel-pad absicherung-kachel"/);
+
+  data.fristen = [];
+  data.darlehen = [];
+  const leer = renderOverview().match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.match(leer, /Keine Frist in den nächsten zwölf Monaten/);
 });

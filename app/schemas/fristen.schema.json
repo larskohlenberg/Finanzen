@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frist",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["frist_id", "bezeichnung", "art", "datum"],
+    "additionalProperties": false,
+    "properties": {
+      "frist_id": { "type": "string", "pattern": "^FR-\\d{3}$" },
+      "bezeichnung": { "type": "string", "minLength": 1 },
+      "art": { "type": "string", "enum": ["widerspruch", "kuendigung", "entscheidung", "wiedervorlage", "sonstiges"] },
+      "datum": { "type": "string", "format": "date", "description": "Letzter Tag, an dem gehandelt werden muss; bei wiederkehrenden Fristen der Anker." },
+      "rhythmus_einheit": { "type": "string", "enum": ["tag", "woche", "monat", "jahr"] },
+      "rhythmus_intervall": { "type": "integer", "minimum": 1 },
+      "vorsorge_id": { "type": "string", "pattern": "^VS-\\d{3}$" },
+      "darlehen_id": { "type": "string", "pattern": "^DAR-\\d{3}$" },
+      "immobilie_id": { "type": "string", "pattern": "^IMM-\\d{3}$" },
+      "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
+      "vermoegenswert_id": { "type": "string", "pattern": "^VMW-\\d{3}$" },
+      "regelzahlung_id": { "type": "string", "pattern": "^RZ-\\d{3}$" },
+      "erledigt_bis": { "type": "string", "format": "date", "description": "Termine bis einschliesslich diesem Datum sind erledigt." },
+      "bemerkung": { "type": "string" }
+    },
+    "dependentRequired": {
+      "rhythmus_einheit": ["rhythmus_intervall"],
+      "rhythmus_intervall": ["rhythmus_einheit"]
+    },
+    "not": {
+      "anyOf": [
+        { "required": ["vorsorge_id", "darlehen_id"] },
+        { "required": ["vorsorge_id", "immobilie_id"] },
+        { "required": ["vorsorge_id", "konto_id"] },
+        { "required": ["vorsorge_id", "vermoegenswert_id"] },
+        { "required": ["vorsorge_id", "regelzahlung_id"] },
+        { "required": ["darlehen_id", "immobilie_id"] },
+        { "required": ["darlehen_id", "konto_id"] },
+        { "required": ["darlehen_id", "vermoegenswert_id"] },
+        { "required": ["darlehen_id", "regelzahlung_id"] },
+        { "required": ["immobilie_id", "konto_id"] },
+        { "required": ["immobilie_id", "vermoegenswert_id"] },
+        { "required": ["immobilie_id", "regelzahlung_id"] },
+        { "required": ["konto_id", "vermoegenswert_id"] },
+        { "required": ["konto_id", "regelzahlung_id"] },
+        { "required": ["vermoegenswert_id", "regelzahlung_id"] }
+      ]
+    }
+  }
+}

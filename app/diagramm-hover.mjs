@@ -25,6 +25,7 @@ function ensureOverlay() {
 
 function hide() {
   if (overlay) overlay.hidden = true;
+  for (const li of document.querySelectorAll(".termine-liste li.aktiv")) li.classList.remove("aktiv");
 }
 
 // Wertebereich exakt wie charts.mjs: liefert das Diagramm ihn mit (gerundete
@@ -94,12 +95,101 @@ function zeigeSpalte(svg, event) {
   box.style.top = `${topPx}px`;
 }
 
+// Terminleiste der Uebersicht (charts.mjs, data-termine): die Linie folgt dem
+// Zeiger frei, die Box zeigt das Datum unter dem Zeiger und die Termine in der
+// Naehe. Die Listen darunter markieren dieselben Termine und scrollen mit.
+const TERMIN_NAEHE = 12; // viewBox-Einheiten, gut fuenf Tage
+
+const isoPlusTage = (iso, tage) => new Date(Date.parse(`${iso}T00:00:00Z`) + Math.round(tage) * 86400000).toISOString().slice(0, 10);
+const tageZwischen = (von, bis) => (Date.parse(`${bis}T00:00:00Z`) - Date.parse(`${von}T00:00:00Z`)) / 86400000;
+
+function zeigeTermine(svg, event) {
+  let termine;
+  let plot;
+  try {
+    termine = JSON.parse(svg.dataset.termine);
+    plot = JSON.parse(svg.dataset.plot);
+  } catch {
+    hide();
+    return;
+  }
+  const rect = svg.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal;
+  if (!Array.isArray(termine) || !rect.width || !vb.width) {
+    hide();
+    return;
+  }
+  const skala = Math.min(rect.width / vb.width, rect.height / vb.height);
+  const versatzX = (rect.width - vb.width * skala) / 2;
+  const versatzY = (rect.height - vb.height * skala) / 2;
+  const vbX = (event.clientX - rect.left - versatzX) / skala;
+  if (vbX < plot.left - 6 || vbX > plot.right + 6) {
+    hide();
+    return;
+  }
+  const fadenX = Math.min(plot.right, Math.max(plot.left, vbX));
+  const tageProEinheit = tageZwischen(plot.von, plot.bis) / (plot.right - plot.left);
+  const datum = isoPlusTage(plot.von, (fadenX - plot.left) * tageProEinheit);
+  const nah = termine.filter((t) => Math.abs(t.x - fadenX) <= TERMIN_NAEHE);
+
+  const el = ensureOverlay();
+  el.hidden = false;
+  const clientX = rect.left + versatzX + fadenX * skala + window.scrollX;
+  const topPx = rect.top + versatzY + plot.top * skala + window.scrollY;
+  const linie = el.querySelector(".diagramm-hover-linie");
+  linie.style.left = `${clientX}px`;
+  linie.style.top = `${topPx}px`;
+  linie.style.height = `${(plot.bottom - plot.top) * skala}px`;
+  for (const punkt of el.querySelectorAll(".diagramm-hover-punkt")) punkt.hidden = true;
+
+  const box = el.querySelector(".diagramm-hover-box");
+  box.innerHTML = `<div class="diagramm-hover-monat">${escapeHtml(formatDate(datum))}</div>`
+    + nah.map((t) => `<div class="diagramm-hover-termin"><span class="diagramm-hover-swatch ${escapeHtml(t.klasse)}"></span><span class="muted">${escapeHtml(formatDate(t.datum))}</span><span>${escapeHtml(t.label)}</span></div>`).join("");
+  box.style.left = `${clientX}px`;
+  box.style.top = `${topPx}px`;
+
+  // Listen: Termine im Fenster markieren, den ersten ab dem Fenster nach oben scrollen.
+  // Ueberfaellige Fristen sitzen am linken Rand, zaehlen also als `von`.
+  const fensterVon = isoPlusTage(datum, -TERMIN_NAEHE * tageProEinheit);
+  const fensterBis = isoPlusTage(datum, TERMIN_NAEHE * tageProEinheit);
+  const kachel = svg.closest("section") ?? document;
+  for (const liste of kachel.querySelectorAll(".termine-liste")) {
+    let ziel = null;
+    for (const li of liste.children) {
+      const d = li.dataset.datum < plot.von ? plot.von : li.dataset.datum;
+      li.classList.toggle("aktiv", d >= fensterVon && d <= fensterBis);
+      if (!ziel && d >= fensterVon) ziel = li;
+    }
+    ziel ??= liste.lastElementChild;
+    if (ziel && liste.dataset.hoverZiel !== ziel.dataset.datum) {
+      liste.dataset.hoverZiel = ziel.dataset.datum;
+      liste.scrollTo({ top: ziel.offsetTop, behavior: "smooth" });
+    }
+  }
+}
+
+// Terminlisten zeigen hoechstens sechs Eintraege, der Rest scrollt. Die Hoehe
+// wird gemessen, weil Eintraege je nach Breite ein- oder zweizeilig sind.
+const TERMIN_ZEILEN = 6;
+
+export function termineListenBegrenzen(root) {
+  for (const liste of root.querySelectorAll(".termine-liste")) {
+    const letzte = liste.children[TERMIN_ZEILEN - 1];
+    liste.style.maxHeight = liste.children.length > TERMIN_ZEILEN ? `${letzte.offsetTop + letzte.offsetHeight}px` : "";
+  }
+}
+
 function escapeHtml(text) {
   return String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
 export function bindDiagrammHover(root) {
   root.addEventListener("pointermove", (event) => {
+    const terminSvg = event.target.closest?.("svg[data-termine]");
+    if (terminSvg) {
+      zeigeTermine(terminSvg, event);
+      return;
+    }
     const spaltenSvg = event.target.closest?.("svg[data-spalten]");
     if (spaltenSvg) {
       zeigeSpalte(spaltenSvg, event);

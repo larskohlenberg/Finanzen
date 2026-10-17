@@ -440,6 +440,7 @@ export function terminLeiste({ von, bis, spuren, formatMonat = (iso) => iso.slic
   const spanne = tageSeit1970(bis) - start;
   const x = (iso) => links + (Math.min(Math.max(tageSeit1970(iso) - start, 0), spanne) / spanne) * (rechts - links);
   const teile = [];
+  const termine = [];
   // Monatsanfaenge nach `von` als feine Gitterlinien mit Kurzlabel.
   let [jahr, monat] = von.split("-").map(Number);
   for (;;) {
@@ -455,17 +456,20 @@ export function terminLeiste({ von, bis, spuren, formatMonat = (iso) => iso.slic
     const y = oben + i * spurHoehe + spurHoehe / 2;
     teile.push(`<text x="0" y="${y + 4}" class="terminleiste-text terminleiste-spur">${esc(spur.label)}</text>`);
     teile.push(`<line x1="${links}" x2="${rechts}" y1="${y}" y2="${y}" class="terminleiste-linie" />`);
+    const form = spur.form === "raute" ? "raute" : "kreis";
     for (const m of spur.marker) {
       const mx = x(m.datum);
-      const klasse = `terminleiste-marker ${spur.form === "raute" ? "raute" : "kreis"} ${esc(m.klasse ?? "")}`.trim();
-      const titel = `<title>${esc(m.label)}</title>`;
-      teile.push(spur.form === "raute"
-        ? `<path d="M${runde(mx)},${y - 7} L${runde(mx + 7)},${y} L${runde(mx)},${y + 7} L${runde(mx - 7)},${y} Z" class="${klasse}">${titel}</path>`
-        : `<circle cx="${runde(mx)}" cy="${y}" r="6" class="${klasse}">${titel}</circle>`);
+      const klasse = `terminleiste-marker ${form} ${esc(m.klasse ?? "")}`.trim();
+      teile.push(form === "raute"
+        ? `<path d="M${runde(mx)},${y - 7} L${runde(mx + 7)},${y} L${runde(mx)},${y + 7} L${runde(mx - 7)},${y} Z" class="${klasse}" />`
+        : `<circle cx="${runde(mx)}" cy="${y}" r="6" class="${klasse}" />`);
+      termine.push({ x: Math.round(mx), datum: m.datum, label: m.label, klasse: `${form} ${m.klasse ?? ""}`.trim() });
     }
   });
   teile.push(`<line x1="${links}" x2="${links}" y1="${oben - 4}" y2="${unten}" class="terminleiste-heute" />`);
-  return `<svg class="terminleiste" viewBox="0 0 960 ${unten + 20}" role="img" aria-label="${esc(ariaLabel)}">${teile.join("")}</svg>`;
+  // Hover (diagramm-hover.mjs): Linie folgt dem Zeiger, die Box zeigt Datum und Termine in der Naehe.
+  const plot = { left: links, right: rechts, top: oben - 4, bottom: unten, von, bis };
+  return `<svg class="terminleiste" viewBox="0 0 960 ${unten + 20}" role="img" aria-label="${esc(ariaLabel)}" data-termine="${esc(JSON.stringify(termine))}" data-plot="${esc(JSON.stringify(plot))}">${teile.join("")}</svg>`;
 }
 
 // Restschuld ueber die Zeit: Ist (bis heute) durchgezogen, Plan gestrichelt,

@@ -266,8 +266,12 @@ test("terminLeiste: je Spur eine Linie, Raute oder Kreis, ueberfaellige Termine 
   assert.match(svg, />Fristen<\/text>[\s\S]*>Zahlungen<\/text>/);
   assert.doesNotMatch(svg, />Leer</);
   // Ueberfaellig sitzt am linken Rand (x = 96), Ende am rechten (x = 948).
-  assert.match(svg, /<path d="M96\.00,14 [^"]*" class="terminleiste-marker raute ueberfaellig"><title>ueberfaellig<\/title>/);
-  assert.match(svg, /<circle cx="948\.00" cy="47" r="6" class="terminleiste-marker kreis"><title>Ende<\/title>/);
+  assert.match(svg, /<path d="M96\.00,14 [^"]*" class="terminleiste-marker raute ueberfaellig" \/>/);
+  assert.match(svg, /<circle cx="948\.00" cy="47" r="6" class="terminleiste-marker kreis" \/>/);
+  // Hover-Daten: je Marker Position, Datum und Text, dazu Plotgrenzen samt Zeitraum.
+  const termine = JSON.parse(svg.match(/data-termine="([^"]*)"/)[1].replaceAll("&quot;", '"'));
+  assert.deepEqual(termine.map((t) => [t.x, t.datum, t.klasse]), [[96, "2026-09-01", "raute ueberfaellig"], [521, "2027-04-17", "raute"], [948, "2027-10-17", "kreis"]]);
+  assert.match(svg, /data-plot="[^"]*&quot;von&quot;:&quot;2026-10-17&quot;/);
   // Zwoelf Monatsanfaenge von November bis Oktober.
   assert.equal((svg.match(/class="terminleiste-gitter"/g) ?? []).length, 12);
   assert.equal(terminLeiste({ von: "2026-10-17", bis: "2027-10-17", spuren: [{ label: "Leer", marker: [] }] }), "");

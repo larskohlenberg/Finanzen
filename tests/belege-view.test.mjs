@@ -158,6 +158,11 @@ test("Ausschnitt je Objekt: gleicher Baum und gleiche Tabelle, nur die Dateien d
   assert.match(html, /download="auszug_2026-01\.pdf" data-action="dokument-link"/);
   assert.match(html, /href="#\/dokumente\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf" data-action="dokument-link"/);
   assert.doesNotMatch(html, /auszug_2026-01\.txt/, "Textzwilling bleibt ausgeblendet");
+  // Verknuepft: das Konto selbst faellt weg, Buchungen fuehren in die Transaktionen.
+  assert.match(html, /<td class="belege-verknuepft"><span class="muted" title="Mit keinem weiteren Eintrag verknüpft">–<\/span><\/td>/);
+  assert.match(html, /<td class="belege-verknuepft"><a class="linkish" href="#\/transaktionen\/dokument\/Kontoauszuege\/KTO-001\/umsaetze_2026-01\.csv" data-action="dokument-link"[^>]*>2 Buchungen<\/a><\/td>/);
+  const vonAussen = view.renderDokumenteAusschnitt({ pfade: [PDF, CSV], schluessel: "IMM-X" });
+  assert.match(vonAussen, new RegExp(`href="#/vermoegen/konten/${kontoId}" data-action="dokument-link" title="Wertstand: [^"]*">${data.konten[0].name}</a>`));
 
   // Ordnerwahl und Zuklappen gelten nur fuer diesen Ausschnitt.
   view.waehleAusschnittOrdner("KTO-001", "Belege/Kontoauszuege");

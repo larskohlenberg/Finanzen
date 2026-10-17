@@ -195,6 +195,11 @@ export function routeFuerDatensatz(entitaet, id) {
 // Map belegSchluessel(pfad) -> { transaktionen: [ids], andere: [{ entitaet, id, label, route }] }
 export function verweisIndex(daten) {
   const index = new Map();
+  // Namen fuer Zeitwerte, die nur die ID ihres Objekts kennen.
+  const namen = new Map((daten.konten ?? []).map((k) => [k.konto_id, k.name]));
+  for (const [sammlung, , idFeld, nameFeld] of ANDERE) {
+    for (const satz of daten[sammlung] ?? []) namen.set(satz[idFeld], satz[nameFeld]);
+  }
   const eintrag = (pfad) => {
     const k = belegSchluessel(pfad);
     if (!index.has(k)) index.set(k, { transaktionen: [], andere: [] });
@@ -209,6 +214,7 @@ export function verweisIndex(daten) {
         entitaet: "zeitwert",
         id: zw.entitaet_id,
         label: `${zw.entitaet_id} · ${zw.feld} · ${zw.standdatum}`,
+        name: namen.get(zw.entitaet_id) || "",
         route: routeFuerDatensatz(zw.entitaet, zw.entitaet_id),
       });
     }
@@ -217,7 +223,7 @@ export function verweisIndex(daten) {
     for (const satz of daten[sammlung] ?? []) {
       for (const pfad of belegPfadeAusText(satz.quelle_hinweis)) {
         const id = satz[idFeld];
-        eintrag(pfad).andere.push({ entitaet, id, label: satz[nameFeld] ? `${id} · ${satz[nameFeld]}` : id, route: routeFuerDatensatz(entitaet, id) });
+        eintrag(pfad).andere.push({ entitaet, id, label: satz[nameFeld] ? `${id} · ${satz[nameFeld]}` : id, name: satz[nameFeld] || "", route: routeFuerDatensatz(entitaet, id) });
       }
     }
   }
@@ -252,6 +258,18 @@ export function dokumenteZuObjekt({ dateien = [], index = new Map(), ids = [], o
 
 export function verweisAnzahl(verweis) {
   return verweis ? verweis.transaktionen.length + verweis.andere.length : 0;
+}
+
+// Verweise ohne die Objekte, in deren Kachel die Datei gerade steht: je Ziel ein
+// Eintrag (mehrere Zeitwerte desselben Objekts zaehlen einmal), dazu die Zahl der
+// Buchungen, die die Datei als Quelle nennen.
+export function fremdeVerweise(verweis, eigeneIds = []) {
+  const eigene = new Set(eigeneIds);
+  const ziele = new Map();
+  for (const v of verweis?.andere ?? []) {
+    if (!eigene.has(v.id) && !ziele.has(v.route)) ziele.set(v.route, v);
+  }
+  return { andere: [...ziele.values()], buchungen: verweis?.transaktionen.length ?? 0 };
 }
 
 export function fasseTransaktionenZusammen(transaktionen) {

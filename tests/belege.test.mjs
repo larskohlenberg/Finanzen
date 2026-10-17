@@ -6,7 +6,7 @@ import { test } from "node:test";
 import {
   belegPfadeAusText, belegTextHtml, baueBaum, ordneZwillingeZu, verweisIndex,
   fasseTransaktionenZusammen, dokumentRoute, belegPfadAusRoute, sortiereDateien,
-  sucheDateien, formatGroesse, ordnerVon, vorfahren, belegSchluessel, dokumenteZuObjekt, belegOrdnerAusText,
+  sucheDateien, formatGroesse, ordnerVon, vorfahren, belegSchluessel, dokumenteZuObjekt, belegOrdnerAusText, fremdeVerweise,
 } from "../app/belege.mjs";
 import { routeFromState, parseRoute } from "../app/routing.mjs";
 
@@ -184,6 +184,18 @@ test("verweisIndex: Transaktionen per rohquelle, andere Entitaeten per quelle_hi
   assert.equal(scan.andere[1].label, "VS-001 · Rentenvertrag");
   assert.equal(index.has("data/demo/inbox/x.csv"), false);
   assert.equal(index.size, 3);
+});
+
+test("fremdeVerweise: ohne eigene Objekte, je Ziel einmal, mit Namen", () => {
+  const scan = verweisIndex(DATEN).get("Belege/2025/Rente/scan.pdf");
+  const { andere, buchungen } = fremdeVerweise(scan, ["VS-001"]);
+  assert.deepEqual(andere.map((v) => [v.id, v.name]), [["DAR-001", "Kredit"], ["IMM-001", "Wohnung"], ["RZ-001", "Beitrag"]]);
+  assert.equal(buchungen, 0);
+  // Zeitwert und Vertrag desselben Objekts sind ein Ziel; der Zeitwert kennt den Vertragsnamen.
+  const alle = fremdeVerweise(scan, []).andere;
+  assert.deepEqual(alle.map((v) => [v.entitaet, v.name]).slice(0, 2), [["zeitwert", "Rentenvertrag"], ["darlehen", "Kredit"]]);
+  assert.equal(fremdeVerweise(verweisIndex(DATEN).get("Belege/Kontoauszuege/KTO-001/b.csv"), ["KTO-001"]).buchungen, 3);
+  assert.deepEqual(fremdeVerweise(undefined, ["X"]), { andere: [], buchungen: 0 });
 });
 
 test("verweisIndex und belegSchluessel vergleichen Unicode-normalisiert", () => {

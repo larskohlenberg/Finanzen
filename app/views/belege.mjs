@@ -320,9 +320,9 @@ function renderAusschnittZeile(d) {
       <td title="${escapeHtml(formatZeit(d.geaendert))}">${escapeHtml(formatTag(d.geaendert))}</td>
       <td>${textZelle(d)}</td>
       <td class="amount">${anzahl ? `<strong>${anzahl}</strong>` : `<span class="muted">0</span>`}</td>
-      <td class="belege-aktionen"><span class="belege-aktionen-knoepfe">
+      <td class="belege-aktionen-zelle"><span class="belege-aktionen-knoepfe">
         <a class="icon-link" href="${escapeHtml(url)}" download="${escapeHtml(d.name)}" data-action="dokument-link" title="${escapeHtml(t("dokumente.herunterladen"))}" aria-label="${escapeHtml(`${t("dokumente.herunterladen")}: ${d.name}`)}">${iconSvg("download")}</a>
-        <a class="icon-link" href="${escapeHtml(dokumentRoute(d.pfad))}" data-action="dokument-link" title="${escapeHtml(t("dokumente.inDokumentenZeigen"))}" aria-label="${escapeHtml(`${t("dokumente.inDokumentenZeigen")}: ${d.name}`)}">${iconSvg("folder")}</a>
+        <a class="icon-link" href="${escapeHtml(dokumentRoute(d.pfad))}" data-action="dokument-link" title="${escapeHtml(t("dokumente.inDokumentenZeigen"))}" aria-label="${escapeHtml(`${t("dokumente.inDokumentenZeigen")}: ${d.name}`)}">${iconSvg("folder", { className: "icon-unten-buendig" })}</a>
       </span></td>
     </tr>`;
 }

@@ -16,7 +16,7 @@ import { anstehendeFristen } from "../fristen.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { monatsMittel } from "../uebersicht-rechnung.mjs";
 import { bezugLink, fristChip, fristKlasse } from "./fristen.mjs";
-import { miniLinie, terminLeiste } from "../charts.mjs";
+import { terminLeiste } from "../charts.mjs";
 import { erwarteteLeistungen, gesetzlicherRentenbeginn, rentenStufen, tabFuerVorsorge, vertragsFarben } from "../vorsorge-rechnung.mjs";
 import { balkenSvg, tf } from "./vermoegen-teile.mjs";
 
@@ -63,7 +63,7 @@ function bereichsKachel({ id, icon, titel, ziel, wertTitel = "", wert, notiz = "
 const TOP_KATEGORIEN = 3;
 const formatMonatLang = (ym) => new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short", year: "numeric" }).format(new Date(`${ym}-01T00:00:00`));
 
-// Flache Kachel: Durchschnitt pro Monat, Monatslinie, Kategorien-Leiste mit
+// Flache Kachel: Durchschnitt pro Monat und Kategorien-Leiste mit
 // den groessten Kategorien und dem Rest. Kategorien fuehren in die Buchungen.
 function flacheKachel(id, titel, seite, mittel) {
   const zeitraum = mittel.anzahl_monate === 1 ? formatMonatLang(mittel.monate[0]) : `${formatMonatLang(mittel.monate[0])} – ${formatMonatLang(mittel.monate.at(-1))}`;
@@ -76,21 +76,13 @@ function flacheKachel(id, titel, seite, mittel) {
   ];
   const segmente = teile.map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
   const legende = teile.map((k) => `<li>${farbPunkt(k.klasse)}${k.ziel ? `<button class="linkish" ${k.ziel}>${escapeHtml(k.name)}</button>` : `<span>${escapeHtml(k.name)}</span>`}<span class="amount">${escapeHtml(geldOhneCent(k.mittel_cents))}</span></li>`).join("");
-  const linie = seite.je_monat.length > 1
-    ? `<div class="flach-linie">${miniLinie(seite.je_monat.map((wert, i) => ({ wert, label: `${formatMonatLang(mittel.monate[i])}: ${geldOhneCent(wert)}` })), { ariaLabel: tf("overview.monatsverlauf", { titel }) })}</div>`
-    : "";
   return `
     <section class="panel panel-pad uebersicht-flach-kachel" aria-labelledby="kachel-${id}">
       <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">
         <button class="linkish" ${ZIEL.liquiditaet}>${iconSvg("liquiditaet")}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}</button>
       </h2>
-      <div class="flach-zeile">
-        <div>
-          <div class="kpi-value">${escapeHtml(geldOhneCent(seite.mittel_cents))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonat"))}</span></div>
-          <div class="kpi-note">${escapeHtml(tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate }))} · ${escapeHtml(zeitraum)}</div>
-        </div>
-        ${linie}
-      </div>
+      <div class="kpi-value">${escapeHtml(geldOhneCent(seite.mittel_cents))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonat"))}</span></div>
+      <div class="kpi-note">${escapeHtml(tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate }))} · ${escapeHtml(zeitraum)}</div>
       ${segmente.length ? `<div class="uebersicht-balken">${balkenSvg(segmente)}</div><ul class="flach-legende">${legende}</ul>` : ""}
     </section>`;
 }

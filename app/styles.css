@@ -3296,15 +3296,7 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 /* Uebersicht oben: zwei flache Kacheln Einnahmen und Ausgaben. */
 .uebersicht-flach { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
 .uebersicht-flach-kachel { min-width: 0; }
-.flach-zeile { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.flach-zeile .kpi-value { margin: 8px 0 6px; font-size: 34px; }
-.flach-linie { flex: 0 1 240px; min-width: 120px; }
-.flach-linie svg { display: block; width: 100%; height: auto; }
-.mini-linie-strich { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.mini-linie-flaeche { fill: var(--accent-soft); }
-.mini-linie-punkt { fill: var(--accent); }
-.mini-linie-ziel { fill: transparent; }
-.mini-linie-ziel:hover { fill: var(--accent-soft); }
+.uebersicht-flach-kachel .kpi-value { margin: 8px 0 6px; font-size: 34px; }
 .flach-legende { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 12px; }
 .flach-legende li { display: flex; align-items: baseline; gap: 6px; }
 .flach-legende .linkish { font-size: 12px; }

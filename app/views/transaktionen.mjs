@@ -97,7 +97,6 @@ function sortTransactions(transaktionen) {
     else if (key === "purpose") cmp = String(a.verwendungszweck ?? "").localeCompare(String(b.verwendungszweck ?? ""));
     else if (key === "category") cmp = transactionCategoryLabel(a).localeCompare(transactionCategoryLabel(b));
     else if (key === "status") cmp = statusRank(a.kategorisierung_status) - statusRank(b.kategorisierung_status);
-    else if (key === "transfer") cmp = Number(a.ist_transfer === true) - Number(b.ist_transfer === true);
     else cmp = String(a.buchungsdatum ?? "").localeCompare(String(b.buchungsdatum ?? ""));
     if (cmp === 0) cmp = String(a.buchungsdatum ?? "").localeCompare(String(b.buchungsdatum ?? ""));
     if (cmp === 0) cmp = String(a.transaktion_id ?? "").localeCompare(String(b.transaktion_id ?? ""));
@@ -181,7 +180,7 @@ export function renderTransactions() {
             <table class="transaction-table">
               <colgroup>
                 <col class="col-datum"><col class="col-konto"><col class="col-gegenpartei"><col class="col-zweck">
-                <col class="col-betrag"><col class="col-kategorie"><col class="col-transfer">
+                <col class="col-betrag"><col class="col-kategorie">
               </colgroup>
               <thead>
                 <tr>
@@ -191,7 +190,6 @@ export function renderTransactions() {
                   ${transactionSortHeader("purpose", "labels.purpose")}
                   ${transactionSortHeader("amount", "labels.amount", true)}
                   ${transactionSortHeader("category", "labels.category")}
-                  ${transactionSortHeader("transfer", "labels.transfer")}
                 </tr>
               </thead>
               <tbody>
@@ -494,17 +492,21 @@ function renderTransactionRow(tx) {
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei), { groesse: "tabelle" })}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
       <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${tx.kategorie_herkunft === "manuell" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originManual"))}">M</span>` : ""}${tx.kategorie_herkunft === "agent" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originAgent"))}">A</span>` : ""}</td>
-      ${renderTransferCell(tx)}
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${tx.kategorie_herkunft === "manuell" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originManual"))}">M</span>` : ""}${tx.kategorie_herkunft === "agent" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originAgent"))}">A</span>` : ""}${renderTransferMarke(tx)}</td>
     </tr>
   `;
 }
 
-function renderTransferCell(tx) {
-  if (!tx.ist_transfer) return `<td><span class="muted">${escapeHtml(t("labels.no"))}</span></td>`;
+// Transfer-Symbol in der Kategorie-Zelle; bei gepaartem Transfer ein Sprung zur Gegenbuchung.
+function renderTransferMarke(tx) {
+  if (!tx.ist_transfer) return "";
   const paired = pairedTransferTransaction(tx);
-  if (!paired) return `<td><span class="chip neutral">${iconSvg("transfer")}${escapeHtml(t("labels.yes"))}</span></td>`;
-  return `<td class="transfer-link-cell" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${escapeHtml(t("transactions.pairedTransfer"))}"><span class="chip neutral linkish transfer-anchor">${iconSvg("transfer")}${escapeHtml(t("labels.yes"))}</span></td>`;
+  if (!paired) {
+    const label = escapeHtml(t("labels.transfer"));
+    return `<span class="chip neutral transfer-marke" title="${label}" aria-label="${label}">${iconSvg("transfer")}</span>`;
+  }
+  const label = escapeHtml(t("transactions.pairedTransfer"));
+  return `<button class="chip neutral transfer-marke transfer-link" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${label}" aria-label="${label}">${iconSvg("transfer")}</button>`;
 }
 
 function pairedTransferTransaction(tx) {

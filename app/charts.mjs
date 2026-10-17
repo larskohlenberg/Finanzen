@@ -675,7 +675,7 @@ export function saldoDiagramm(punkte, options = {}) {
 // (null = keine Angabe, die Linie setzt dort aus). Phasen und Ereignisse liegen in
 // Spaltenkoordinaten: Spalte i reicht von i bis i+1, Bruchteile sind erlaubt.
 // phasen: [{ name, von, bis }] (bis exklusiv) · ereignisse: [{ pos, label }]
-export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = [], formatWert = String, formatAchse = formatWert, ariaLabel = "" }) {
+export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = [], formatWert = String, formatAchse = formatWert, ariaLabel = "", breite = BREITE, plotHoehe = 250 }) {
   const n = spalten?.length ?? 0;
   const gueltig = (serien ?? []).filter((s) => s.werte?.length === n);
   if (n < 2 || !gueltig.length) return "";
@@ -684,13 +684,13 @@ export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = 
   const ereignisZeilen = ereignisse.length ? 2 : 0;
   const oben = 8 + bandHoehe + ereignisZeilen * 15 + (bandHoehe || ereignisZeilen ? 6 : 0);
   const unten = 28;
-  const hoehe = oben + 250 + unten;
+  const hoehe = oben + plotHoehe + unten;
   const alle = gueltig.flatMap((s) => s.werte).filter((w) => w != null);
   if (!alle.length) return "";
   const achse = achsenTicks(Math.min(0, ...alle), Math.max(0, ...alle), 5);
   const yTexte = achse.ticks.map((w) => formatAchse(w));
   const links = linkerRand(yTexte, false);
-  const breiteInnen = BREITE - links - rechts;
+  const breiteInnen = breite - links - rechts;
   const spalte = breiteInnen / n;
   const mx = (i) => links + spalte * i + spalte / 2;
   const y = (w) => oben + ((achse.max - w) / (achse.max - achse.min)) * (hoehe - oben - unten);
@@ -698,7 +698,7 @@ export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = 
 
   if (achse.min < 0) teile.push(`<rect x="${links}" y="${runde(y(0))}" width="${runde(breiteInnen)}" height="${runde(y(achse.min) - y(0))}" class="zone-negativ" />`);
   for (const w of achse.ticks) {
-    teile.push(`<line x1="${links}" x2="${BREITE - rechts}" y1="${runde(y(w))}" y2="${runde(y(w))}" class="${w === 0 ? "zeitstrahl-null" : "diagramm-gitter"}" />`);
+    teile.push(`<line x1="${links}" x2="${breite - rechts}" y1="${runde(y(w))}" y2="${runde(y(w))}" class="${w === 0 ? "zeitstrahl-null" : "diagramm-gitter"}" />`);
   }
   achse.ticks.forEach((w, i) => teile.push(achsenText(links - 8, y(w) + 4, yTexte[i], "end")));
 
@@ -715,20 +715,24 @@ export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = 
   const belegt = [[], []];
   for (const e of ereignisse) {
     const px = links + spalte * e.pos;
-    const breite = String(e.label).length * (SCHRIFT - 2) * 0.6 + 12;
-    const zeile = belegt[0].every((b) => Math.abs(b - px) > breite) ? 0 : 1;
+    const textBreite = String(e.label).length * (SCHRIFT - 2) * 0.6 + 12;
+    const zeile = belegt[0].every((b) => Math.abs(b - px) > textBreite) ? 0 : 1;
     belegt[zeile].push(px);
     const ty = 8 + bandHoehe + 12 + zeile * 15;
-    const anchor = px - links < breite / 2 ? "start" : BREITE - rechts - px < breite / 2 ? "end" : "middle";
+    const anchor = px - links < textBreite / 2 ? "start" : breite - rechts - px < textBreite / 2 ? "end" : "middle";
     teile.push(`<line x1="${runde(px)}" x2="${runde(px)}" y1="${runde(ty + 3)}" y2="${runde(hoehe - unten)}" class="ereignis-marker" />`);
     teile.push(`<text x="${runde(px)}" y="${runde(ty)}" text-anchor="${anchor}" font-size="${SCHRIFT - 2}" class="ereignis-label">${esc(e.label)}</text>`);
   }
 
+  // Jede schritt-te Spalte beschriftet; die letzte nur, wenn sie Abstand zur
+  // vorigen Beschriftung hat (schmale Diagramme).
   const schritt = Math.max(1, Math.ceil(n / 14));
+  const rest = (n - 1) % schritt;
+  const letzteFrei = rest >= schritt / 2 && rest * spalte >= String(spalten[n - 1].label).length * SCHRIFT * 0.6 + 6;
   spalten.forEach((s, i) => {
-    if (i % schritt === 0 || i === n - 1 && (n - 1) % schritt >= schritt / 2) teile.push(achsenText(mx(i), hoehe - 8, s.label));
+    if (i % schritt === 0 || i === n - 1 && letzteFrei) teile.push(achsenText(mx(i), hoehe - 8, s.label));
   });
-  teile.push(`<line x1="${links}" x2="${BREITE - rechts}" y1="${hoehe - unten}" y2="${hoehe - unten}" class="diagramm-achse" />`);
+  teile.push(`<line x1="${links}" x2="${breite - rechts}" y1="${hoehe - unten}" y2="${hoehe - unten}" class="diagramm-achse" />`);
 
   for (const s of [...gueltig].reverse()) {
     // Zusammenhaengende Abschnitte ohne null je als eigene Linie.
@@ -748,8 +752,8 @@ export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = 
     titel: s.titel ?? s.label,
     zeilen: gueltig.map((serie) => ({ klasse: serie.klasse, label: serie.label, wert: serie.werte[i] == null ? "—" : formatWert(serie.werte[i]) })),
   }));
-  const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };
-  return `<svg class="balken-diagramm zeitstrahl-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(hover, plot)}>${teile.join("")}</svg>`;
+  const plot = { left: links, right: breite - rechts, top: oben, bottom: hoehe - unten };
+  return `<svg class="balken-diagramm zeitstrahl-diagramm" viewBox="0 0 ${breite} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(hover, plot)}>${teile.join("")}</svg>`;
 }
 
 // Gestapelte Saeulen mit Netto-Linie (Nettovermoegen-Zusammensetzung): positive

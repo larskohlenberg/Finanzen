@@ -103,10 +103,11 @@ test("Tabs stehen direkt unter dem Seitenkopf, die Kennzahlen im Uebersichtstab"
     const tabs = html.indexOf("vermoegen-tabs");
     assert.ok(tabs > 0 && html.indexOf("Erwartetes Alterseinkommen") > tabs, "Kennzahlen stehen erst nach den Tabs");
     const uebersicht = html.slice(html.indexOf('id="vorsorge-tab-uebersicht"'));
-    // Alterseinkommen mit Zeitstrahl in einer Kachel, darunter drei Kennzahl-Kacheln.
-    const alters = uebersicht.slice(uebersicht.indexOf("vorsorge-alterseinkommen"), uebersicht.indexOf("vorsorge-kennzahlen"));
-    assert.match(alters, /Erwartetes Alterseinkommen[\s\S]*Leistungen im Zeitverlauf[\s\S]*zeitstrahl-linie vorsorge-rente/);
-    assert.equal(anzahl(uebersicht, /class="panel panel-pad vorsorge-kopf-kz"/g), 3);
+    // Oben Alterseinkommen und Kapital nebeneinander, je mit Zeitverlauf unter dem Wert.
+    const oben = uebersicht.slice(uebersicht.indexOf("vorsorge-kennzahlen-oben"), uebersicht.indexOf('<div class="vorsorge-kennzahlen">'));
+    assert.match(oben, /Erwartetes Alterseinkommen[\s\S]*vorsorge-kopf-wert[\s\S]*zeitstrahl-linie vorsorge-rente[\s\S]*Kapitalleistungen[\s\S]*zeitstrahl-linie vorsorge-kapital[\s\S]*vorsorge-kopf-liste/);
+    assert.equal(anzahl(oben, /class="panel panel-pad vorsorge-kopf-kz"/g), 2);
+    assert.equal(anzahl(uebersicht, /class="panel panel-pad vorsorge-kopf-kz"/g), 4);
     assert.doesNotMatch(html, /klassen-karte/, "keine Bereichskarten mehr");
     // In den anderen Tabs keine Seitenkennzahlen.
     state.vorsorgeTab = "renten";
@@ -181,13 +182,16 @@ test("Tabs nach Vertragsart mit Anzahl, Kennzahl und Punkt bei offenen Pruefunge
   });
 });
 
-test("Uebersicht: Zeitstrahl und offene Punkte", () => {
+test("Uebersicht: Zeitverlauf fuer Rente und Kapital, offene Punkte", () => {
   mitFixture(() => {
     const html = renderVorsorge();
-    assert.match(html, /Leistungen im Zeitverlauf/);
-    assert.match(html, /zeitstrahl-linie vorsorge-rente/);
-    assert.match(html, /Rente \+2\.550\s€/, "Riester und DRV 2040 in einem Marker");
-    assert.match(html, /Kapital 25\.000\s€/);
+    const rente = html.slice(html.indexOf('aria-label="Monatsrente im Zeitverlauf"'));
+    assert.match(rente.slice(0, rente.indexOf("</svg>")), /class="ereignis-label">\+2\.550\s€/, "Riester und DRV 2040 in einem Marker");
+    const kapital = html.slice(html.indexOf('aria-label="Ausgezahltes Kapital im Zeitverlauf"'));
+    assert.match(kapital.slice(0, kapital.indexOf("</svg>")), /class="ereignis-label">\+25\.000\s€/);
+    // Beide auf derselben Jahresachse.
+    const achse = (svg) => [...svg.slice(0, svg.indexOf("</svg>")).matchAll(/>(20\d\d)</g)].map((m) => m[1]).join();
+    assert.equal(achse(rente), achse(kapital));
     assert.match(html, /Offene Punkte[\s\S]*LV Martin[\s\S]*Vorsorge ungeprüft/);
     assert.doesNotMatch(html, /Alte Haftpflicht<\/button>/, "gekuendigte Vertraege erzeugen keinen offenen Punkt");
   });
@@ -445,7 +449,7 @@ test("leerer Bestand rendert ohne Fehler", () => {
   mitFixture(() => {
     const html = renderVorsorge();
     assert.match(html, /Keine erwarteten Renten erfasst/);
-    assert.match(html, /Keine Leistung mit Leistungsbeginn erfasst/);
+    assert.doesNotMatch(html, /zeitstrahl-diagramm/, "ohne Leistung kein Zeitverlauf");
     assert.equal(anzahl(html, /class="vermoegen-tab /g), 1, "nur die Uebersicht");
   }, { vorsorge: [], zeitwerte: [], regelzahlungen: [], transaktionen: [] });
 });

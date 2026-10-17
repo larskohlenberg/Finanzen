@@ -117,9 +117,9 @@ export function renderVorsorge() {
 
 // ------------------------------------------------------------- Uebersicht
 
-// Der Uebersichtstab traegt die Kennzahlen der ganzen Seite: oben das
-// Alterseinkommen samt Zeitstrahl, darunter Kapital, Rueckkaufswerte und
-// Beitraege, zuletzt die offenen Punkte. Die anderen Tabs starten direkt mit
+// Der Uebersichtstab traegt die Kennzahlen der ganzen Seite: oben
+// Alterseinkommen und Kapitalleistungen je mit Zeitverlauf, darunter
+// Rueckkaufswerte und Beitraege, zuletzt die offenen Punkte. Die anderen Tabs starten direkt mit
 // ihren Vertraegen.
 function renderUebersichtTab(today, offen) {
   const { renten, stufen, gesamt_cents: gesamt, ohne_beginn: ohneBeginn } = rentenStufen(data);
@@ -146,8 +146,9 @@ function renderUebersichtTab(today, offen) {
   const beitragVersicherung = aktiv.filter((vs) => tabFuerVorsorge(vs) === "versicherungen").reduce((a, vs) => a + beitragJeJahrVertrag(data, vs.vorsorge_id, today), 0);
 
   // Je Kennzahl eine eigene Kachel mit ihrer Aufschluesselung, damit die Summe
-  // ohne Rechnen aufgeht; grafik: Donut rechts neben dem Wert.
-  const kz = (label, wert, notiz, zeilen = [], grafik = "") => `
+  // ohne Rechnen aufgeht. grafik: Donut rechts neben dem Wert; unten: Grafik
+  // zwischen Wert und Liste (Zeitverlauf).
+  const kz = (label, wert, notiz, zeilen = [], { grafik = "", unten = "" } = {}) => `
       <section class="panel panel-pad vorsorge-kopf-kz">
         <div class="${grafik ? "vorsorge-kopf-mit-grafik" : ""}">
           <div>
@@ -157,6 +158,7 @@ function renderUebersichtTab(today, offen) {
           </div>
           ${grafik}
         </div>
+        ${unten}
         ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : ""}
       </section>`;
   const zeile = (linkHtml, betrag, zusatz = "", klasse = "") => `<li>${klasse ? farbPunkt(klasse) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${escapeHtml(betrag)}</span></li>`;
@@ -185,20 +187,16 @@ function renderUebersichtTab(today, offen) {
     b.tab === "versicherungen" ? `${formatMoney(b.jahr)} ${t("vorsorge.jeJahr")}` : `${formatMoney(b.monat)} ${t("vorsorge.jeMonat")}`, "", `tab-farbe-${b.tab}`));
   const beitragDonut = donutDiagramm({ teile: beitragTabs.map((b) => ({ wert: b.jahr, klasse: `tab-farbe-${b.tab}`, label: tf("vorsorge.kopf.proJahr", { name: t(`vorsorge.tabs.${b.tab}`) }) })), formatWert: formatMoney, ariaLabel: t("vorsorge.kopf.beitragsAnteile") });
 
+  const z = leistungsZeitstrahl(data, today);
+  const renteUnten = `${zeitverlauf(z, "rente")}${renten.length ? `${balkenSvg(segmente)}<div class="vermoegen-legende">${legende}</div>` : ""}`;
   return `
-    <section class="panel panel-pad vorsorge-alterseinkommen">
-      <div>
-        <div class="muted">${escapeHtml(t("vorsorge.kopf.alterseinkommen"))}</div>
-        <div class="vermoegen-netto">${escapeHtml(formatMoney(gesamt))} ${einheit(t("vorsorge.jeMonatBrutto"))}</div>
-        <div class="kpi-note">${escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten"))}</div>
-        ${renten.length ? `${balkenSvg(segmente)}<div class="vermoegen-legende">${legende}</div>` : ""}
-      </div>
-      ${renderZeitstrahl(today)}
-    </section>
+    <div class="vorsorge-kennzahlen vorsorge-kennzahlen-oben">
+      ${kz(t("vorsorge.kopf.alterseinkommen"), `${escapeHtml(formatMoney(gesamt))} ${einheit(t("vorsorge.jeMonatBrutto"))}`, escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten")), [], { unten: renteUnten })}
+      ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.summe)), kapital.jahre.length ? escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") })) : "", kapitalZeilen, { unten: zeitverlauf(z, "kapital") })}
+    </div>
     <div class="vorsorge-kennzahlen">
-      ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.summe)), kapital.jahre.length ? escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") })) : "", kapitalZeilen)}
-      ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: mitWert.length, gesamt: vorsorgePositionen.length })), rkwZeilen, rkwDonut)}
-      ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })), beitragZeilen, beitragDonut)}
+      ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: mitWert.length, gesamt: vorsorgePositionen.length })), rkwZeilen, { grafik: rkwDonut })}
+      ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })), beitragZeilen, { grafik: beitragDonut })}
     </div>
     ${renderOffenePunkte(offen)}`;
 }
@@ -242,40 +240,30 @@ function renderTabs(aktiv, today, offen) {
   return `<div class="vermoegen-tabs" role="tablist" aria-label="${escapeHtml(t("vorsorge.title"))}">${VORSORGE_TABS.map(knopf).join("")}</div>`;
 }
 
-// Zeitstrahl in der Kachel Alterseinkommen: wann welche Rente dazukommt und
-// wann Kapital faellig wird.
-function renderZeitstrahl(today) {
-  const z = leistungsZeitstrahl(data, today);
-  const titel = `<div class="muted">${escapeHtml(t("vorsorge.zeitstrahl.titel"))}</div>`;
-  if (!z) return `<div class="vorsorge-zeitstrahl">${titel}<p class="kpi-note">${escapeHtml(t("vorsorge.zeitstrahl.leer"))}</p></div>`;
-  // Ein Marker je Jahr, sonst ueberlagern sich die Beschriftungen naher Termine.
+// Zeitverlauf unter Alterseinkommen bzw. Kapitalleistungen: beide auf derselben
+// Jahresachse, damit sie nebeneinander vergleichbar sind. Rente: Monatsrente je
+// Jahr; Kapital: bis dahin ausgezahlt. Ein Marker je Jahr mit dem Zuwachs, sonst
+// ueberlagern sich die Beschriftungen naher Termine.
+function zeitverlauf(z, typ) {
+  const leistungen = (z?.leistungen ?? []).filter((l) => l.typ === typ);
+  if (!leistungen.length) return "";
   const jeJahr = new Map();
-  for (const l of z.leistungen) {
+  for (const l of leistungen) {
     const jahr = Math.floor(l.pos);
-    if (!jeJahr.has(jahr)) jeJahr.set(jahr, { pos: l.pos, rente: 0, kapital: 0 });
-    jeJahr.get(jahr)[l.typ] += l.wert_cents;
+    if (!jeJahr.has(jahr)) jeJahr.set(jahr, { pos: l.pos, summe: 0 });
+    jeJahr.get(jahr).summe += l.wert_cents;
   }
-  const ereignisse = [...jeJahr.values()].map((e) => ({
-    pos: e.pos,
-    label: [
-      e.rente ? tf("vorsorge.zeitstrahl.rentePlus", { betrag: geldOhneCent(e.rente) }) : "",
-      e.kapital ? `${t("vorsorge.zeitstrahl.kapital")} ${geldOhneCent(e.kapital)}` : "",
-    ].filter(Boolean).join(" · "),
-  }));
   const svg = zeitstrahlDiagramm({
     spalten: z.jahre.map((j) => ({ label: String(j), titel: String(j) })),
-    serien: [{ klasse: "vorsorge-rente", label: t("vorsorge.zeitstrahl.monatsrente"), werte: z.rente }],
-    ereignisse,
+    serien: [{ klasse: `vorsorge-${typ}`, label: t(`vorsorge.zeitstrahl.${typ}`), werte: z[typ] }],
+    ereignisse: [...jeJahr.values()].map((e) => ({ pos: e.pos, label: `+${geldOhneCent(e.summe)}` })),
     formatWert: (c) => formatMoney(c),
     formatAchse: geldOhneCent,
-    ariaLabel: t("vorsorge.zeitstrahl.titel"),
+    ariaLabel: t(`vorsorge.zeitstrahl.titel.${typ}`),
+    breite: 560,
+    plotHoehe: 90,
   });
-  return `
-    <div class="vorsorge-zeitstrahl">
-      ${titel}
-      <div class="kpi-note">${escapeHtml(t("vorsorge.zeitstrahl.lead"))}</div>
-      <div class="diagramm-wrap">${svg}</div>
-    </div>`;
+  return `<div class="diagramm-wrap vorsorge-zeitverlauf">${svg}</div>`;
 }
 
 function renderOffenePunkte(offen) {

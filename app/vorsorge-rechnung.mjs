@@ -187,10 +187,13 @@ export function leistungsZeitstrahl(data, today) {
   const ende = Math.max(...leistungen.map((l) => Number(l.beginn.slice(0, 4)))) + 2;
   const jahre = [];
   for (let j = start; j <= ende; j++) jahre.push(j);
-  const rente = jahre.map((j) => leistungen.filter((l) => l.typ === "rente" && l.beginn <= `${j}-12-31`).reduce((a, l) => a + l.wert_cents, 0));
+  const bisJahr = (typ, j) => leistungen.filter((l) => l.typ === typ && l.beginn <= `${j}-12-31`).reduce((a, l) => a + l.wert_cents, 0);
+  const rente = jahre.map((j) => bisJahr("rente", j));
+  // Kapital: bis Ende des Jahres ausgezahlt, aufsummiert.
+  const kapital = jahre.map((j) => bisJahr("kapital", j));
   // Position in Spaltenkoordinaten: Jahr i reicht von i bis i+1.
   const pos = (iso) => Number(iso.slice(0, 4)) - start + (Number(iso.slice(5, 7)) - 1) / 12;
-  return { jahre, rente, leistungen: leistungen.map((l) => ({ ...l, pos: pos(l.beginn) })) };
+  return { jahre, rente, kapital, leistungen: leistungen.map((l) => ({ ...l, pos: pos(l.beginn) })) };
 }
 
 export function monateBis(vonIso, bisIso) {

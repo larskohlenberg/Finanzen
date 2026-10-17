@@ -108,6 +108,9 @@ test("Zeitstrahl: Jahre bis zwei nach der letzten Leistung, Rente am Jahresende"
   assert.equal(z.jahre.at(-1), 2042);
   assert.equal(z.rente[z.jahre.indexOf(2039)], 0);
   assert.equal(z.rente[z.jahre.indexOf(2040)], 255000);
+  // Kapital: bis Ende des Jahres ausgezahlt, aufsummiert.
+  assert.equal(z.kapital[z.jahre.indexOf(2034)], 0);
+  assert.equal(z.kapital.at(-1), z.leistungen.filter((l) => l.typ === "kapital").reduce((a, l) => a + l.wert_cents, 0));
   const lv = z.leistungen.find((l) => l.vorsorge.vorsorge_id === "VS-003");
   assert.equal(lv.pos, 9 + 4 / 12);
   assert.equal(leistungsZeitstrahl({ vorsorge: [], zeitwerte: [] }, HEUTE), null);

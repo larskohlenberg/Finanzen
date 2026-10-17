@@ -2950,20 +2950,15 @@ a.linkish {
 /* ---------------------------------------------------------------- Vorsorgeseite
    Gleicher Aufbau wie die Vermoegensseite (Kopf, Tabs, Karten, Detail in voller
    Breite); hier nur, was dort fehlt. */
-.vorsorge-alterseinkommen {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: 24px;
-  align-items: start;
-}
-.vorsorge-zeitstrahl .diagramm-wrap { margin-top: 6px; }
 .vorsorge-kennzahlen {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   align-items: stretch;
   margin-top: 12px;
 }
+.vorsorge-kennzahlen-oben { margin-top: 0; }
+.vorsorge-zeitverlauf { margin: 8px 0 4px; }
 .vorsorge-offen { margin-top: 12px; }
 .vorsorge-offen-keine { margin: 12px 0 0; }
 .vorsorge-kopf-wert { margin-top: 2px; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -3035,6 +3030,10 @@ a.linkish {
 .zeitstrahl-punkt.vorsorge-rente { fill: #8a5cc2; }
 :root[data-theme="dark"] .zeitstrahl-linie.vorsorge-rente { stroke: #c39bf0; }
 :root[data-theme="dark"] .zeitstrahl-punkt.vorsorge-rente { fill: #c39bf0; }
+.zeitstrahl-linie.vorsorge-kapital { stroke: #b7791f; fill: none; }
+.zeitstrahl-punkt.vorsorge-kapital { fill: #b7791f; }
+:root[data-theme="dark"] .zeitstrahl-linie.vorsorge-kapital { stroke: #e3a94a; }
+:root[data-theme="dark"] .zeitstrahl-punkt.vorsorge-kapital { fill: #e3a94a; }
 .vorsorge-offen-liste { margin: 0; padding: 0; list-style: none; }
 .vorsorge-offen-liste li {
   display: flex;
@@ -3114,7 +3113,7 @@ a.linkish {
 .klapp-knopf:hover .icon, .klapp-knopf:focus-visible .icon { color: var(--accent); }
 .klapp-knopf:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-tight); }
 @media (max-width: 1180px) {
-  .vorsorge-alterseinkommen, .vorsorge-spalten, .vorsorge-spalten-breit { grid-template-columns: minmax(0, 1fr); }
+  .vorsorge-spalten, .vorsorge-spalten-breit { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 760px) {
   .vorsorge-kennzahlen { grid-template-columns: minmax(0, 1fr); }

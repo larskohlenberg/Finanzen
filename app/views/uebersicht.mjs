@@ -1,7 +1,7 @@
 // app/views/uebersicht.mjs
 // Übersicht als Dashboard: je Bereich (Liquidität, Vermögen, Vorsorge) eine Kachel
 // mit Kennzahl, kleinem Diagramm und Zeilen, die ins Detail führen; darunter die
-// Termine der nächsten zwölf Monate. Konten- und Depottabellen stehen nur noch
+// Termine der nächsten zwölf Monate (Fristen und jährliche Zahlungen). Konten- und Depottabellen stehen nur noch
 // unter Vermögen, die nächste Aktion im Arbeitsstatus oben.
 import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
@@ -9,6 +9,7 @@ import { formatDate, formatMoney, renderPageHead, heuteIso } from "../komponente
 import { currentNettovermoegen, overviewAccountGroups, overviewJahreszahlungen } from "../selektoren.mjs";
 import { addInterval, computeLiquiditaetPrognoseDetail, saldoJeTag, toCents } from "../liquiditaet.mjs";
 import { computeVermoegenChecks } from "../vermoegen.mjs";
+import { anstehendeFristen } from "../fristen.mjs";
 import { linienDiagramm, terminLeiste } from "../charts.mjs";
 import {
   beitragJeJahrVertrag, beitragJeMonatVertrag, erwarteteLeistungen, gesetzlicherRentenbeginn, istBeendet,
@@ -179,17 +180,46 @@ function zielLink(rz) {
   return `<button class="linkish" ${ziel}>${escapeHtml(rz.bezeichnung)}</button>`;
 }
 
+const tageBis = (von, bis) => Math.round((Date.parse(`${bis}T00:00:00Z`) - Date.parse(`${von}T00:00:00Z`)) / 86400000);
+
 const formatMonatKurz = (iso) => new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short" }).format(new Date(`${iso}T00:00:00`));
 
 function terminSpalte(titel, ziel, zeilen, leer) {
   return `
         <div class="termine-spalte">
-          <h3 class="termine-titel">${link(ziel, titel)}</h3>
+          <h3 class="termine-titel">${ziel ? link(ziel, titel) : escapeHtml(titel)}</h3>
           ${zeilen.length ? `<ul class="termine-liste">${zeilen.join("")}</ul>` : `<p class="muted">${escapeHtml(leer)}</p>`}
         </div>`;
 }
 
+// Bezug einer Frist: Name des Objekts und Ziel des Klicks.
+const BEZUG = {
+  vorsorge: { liste: "vorsorge", name: "name", ziel: (id) => `data-action="open-vorsorge" data-vorsorge="${escapeHtml(id)}"` },
+  darlehen: { liste: "darlehen", name: "bezeichnung" },
+  immobilie: { liste: "immobilien", name: "bezeichnung" },
+  vermoegenswert: { liste: "vermoegenswerte", name: "bezeichnung" },
+  konto: { liste: "konten", name: "name" },
+  regelzahlung: { liste: "regelzahlungen", name: "bezeichnung", ziel: (id) => `data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(id)}"` },
+};
+
+function bezugLink(bezug) {
+  const b = bezug && BEZUG[bezug.typ];
+  if (!b) return "";
+  const objekt = (data[b.liste] ?? []).find((o) => o[`${bezug.typ}_id`] === bezug.id);
+  const ziel = b.ziel ? b.ziel(bezug.id) : `data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`${bezug.typ}:${bezug.id}`)}"`;
+  return link(ziel, objekt?.[b.name] ?? bezug.id);
+}
+
+const fristKlasse = (f) => (f.ueberfaellig ? "ueberfaellig" : f.bald ? "bald" : "");
+
 function renderTermineKachel(today) {
+  const fristen = anstehendeFristen(data, today, HORIZONT_MONATE);
+  const fristZeilen = fristen.map((f) => `
+            <li class="${fristKlasse(f)}">
+              <span class="termine-datum">${escapeHtml(formatDate(f.datum))}</span>
+              <span class="termine-text"><span>${escapeHtml(f.bezeichnung)}</span>${f.bezug ? `<span class="muted">${bezugLink(f.bezug)}</span>` : ""}</span>
+              <span class="amount">${f.ueberfaellig ? `<span class="chip danger">${escapeHtml(t("overview.fristUeberfaellig"))}</span>` : f.bald ? `<span class="chip review">${escapeHtml(tf("overview.fristInTagen", { n: tageBis(today, f.datum) }))}</span>` : ""}</span>
+            </li>`);
   const zahlungen = overviewJahreszahlungen(HORIZONT_MONATE);
   const zahlungZeilen = zahlungen.map(({ datum, regelzahlung: rz }) => `
             <li>
@@ -200,7 +230,10 @@ function renderTermineKachel(today) {
   const leiste = terminLeiste({
     von: today,
     bis: addInterval(today, "monat", HORIZONT_MONATE),
-    spuren: [{ label: t("overview.zahlungen"), form: "kreis", marker: zahlungen.map(({ datum, regelzahlung: rz }) => ({ datum, klasse: "zahlung", label: `${formatDate(datum)} · ${rz.bezeichnung} · ${formatMoney(toCents(rz.betrag))}` })) }],
+    spuren: [
+      { label: t("overview.fristen"), form: "raute", marker: fristen.map((f) => ({ datum: f.datum, klasse: fristKlasse(f), label: `${formatDate(f.datum)} · ${f.bezeichnung}` })) },
+      { label: t("overview.zahlungen"), form: "kreis", marker: zahlungen.map(({ datum, regelzahlung: rz }) => ({ datum, klasse: "zahlung", label: `${formatDate(datum)} · ${rz.bezeichnung} · ${formatMoney(toCents(rz.betrag))}` })) },
+    ],
     formatMonat: formatMonatKurz,
     ariaLabel: t("overview.termine"),
   });
@@ -211,6 +244,7 @@ function renderTermineKachel(today) {
       </h2>
       ${leiste ? `<div class="diagramm-wrap">${leiste}</div>` : ""}
       <div class="termine-spalten">
+        ${terminSpalte(t("overview.fristen"), "", fristZeilen, t("overview.fristenLeer"))}
         ${terminSpalte(t("overview.jahreszahlungen"), ZIEL.regelzahlungen, zahlungZeilen, t("overview.jahreszahlungenLeer"))}
       </div>
     </section>`;

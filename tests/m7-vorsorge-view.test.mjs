@@ -568,5 +568,9 @@ test("Wertentwicklung ohne Beitragssumme vergleicht mit Stand plus Beitraegen un
     const html = renderVorsorge();
     assert.match(html, /<span class="swatch eingezahlt"><\/span>Stand plus Beiträge seither \(ohne Ertrag\)/);
     assert.match(html, /data-spalten="[^"]*Ertrag seit dem Stand davor[^"]*\+200,00/, "1.100 Zuwachs minus 900 Beitrag");
+    const raster = html.match(/<div class="kennzahl-raster wert-kennzahlen">([\s\S]*?)<\/div><p/)?.[1] ?? "";
+    assert.equal(anzahl(raster, /class="kennzahl"/g), 3, "ohne Beitragssumme kein Eingezahlt und keine Differenz");
+    assert.match(raster, /Ertrag seit 11\.3\.2024<\/div>\s*<div class="kennzahl-wert"><span class="">\+200,00\s€<\/span><\/div>\s*<div class="kennzahl-notiz">Wert \+1\.100,00\s€, Beiträge 900,00\s€/);
+    assert.doesNotMatch(raster, /Eingezahlt|Wert minus Beiträge/);
   }, { zeitwerte });
 });

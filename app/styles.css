@@ -3392,5 +3392,7 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .diagramm-legende-html .swatch.eingezahlt { width: 14px; height: 0; border-top: 2px dashed var(--accent); border-radius: 0; background: none; }
 .kennzahl-raster.wert-kennzahlen { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
 .wert-kennzahlen .kennzahl { padding: 10px 12px; }
+/* Ohne Beitragssumme drei Kacheln: die dritte ueber die volle Breite. */
+.wert-kennzahlen > .kennzahl:nth-child(3):last-child { grid-column: 1 / -1; }
 .wert-kennzahlen .kennzahl-wert { font-size: 17px; }
 .wert-buchungen-link { margin: 10px 0 0; }

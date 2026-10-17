@@ -663,23 +663,36 @@ function wertEntwicklungHtml(vs, we, link) {
       <div class="diagramm-legende-html"><span class="swatch wert"></span>${escapeHtml(wertLabel)}${vergleich.size > 1 ? `<span class="swatch eingezahlt"></span>${escapeHtml(eingezahltLabel)}` : ""}</div>
       <div class="diagramm-wrap">${svg}</div>`
     : `<p class="muted">${escapeHtml(t("vorsorge.wertentwicklung.einStand"))}</p>`;
-  const eingezahltNotiz = letzter.vollstaendig
-    ? tf("vorsorge.wertentwicklung.eingezahltLaut", { datum: formatDate(letzter.datum) })
-    : we.erste_buchung ? tf("vorsorge.wertentwicklung.nurGebucht", { datum: formatDate(we.erste_buchung) }) : t("vorsorge.wertentwicklung.keineBuchung");
-  const differenz = letzter.wert_cents - letzter.eingezahlt_cents;
-  const kennzahlen = [
-    kennzahl(wertLabel, geld(letzter.wert_cents), escapeHtml(formatDate(letzter.datum))),
-    kennzahl(t("vorsorge.wertentwicklung.eingezahlt"), letzter.eingezahlt_cents || letzter.vollstaendig ? geld(letzter.eingezahlt_cents) : geld(null), escapeHtml(eingezahltNotiz)),
-    letzter.vollstaendig && letzter.eingezahlt_cents > 0
-      ? kennzahl(t("vorsorge.wertentwicklung.differenz"), `<span class="${differenz < 0 ? "betrag-negativ" : ""}">${escapeHtml(mitVorzeichen(differenz))}</span>`,
-        escapeHtml(tf("vorsorge.wertentwicklung.anteil", { prozent: prozent(letzter.wert_cents / letzter.eingezahlt_cents) })))
-      : kennzahl(t("vorsorge.wertentwicklung.differenz"), geld(null), escapeHtml(t("vorsorge.wertentwicklung.differenzFehlt"))),
-    ertrag
-      ? kennzahl(tf("vorsorge.wertentwicklung.ertrag", { von: ertrag.von.slice(0, 4), bis: ertrag.bis.slice(0, 4) }),
-        `<span class="${ertrag.ertrag_cents < 0 ? "betrag-negativ" : ""}">${escapeHtml(mitVorzeichen(ertrag.ertrag_cents))}</span>`,
-        escapeHtml(tf("vorsorge.wertentwicklung.ertragNotiz", { zuwachs: mitVorzeichen(ertrag.zuwachs_cents), beitraege: formatMoney(ertrag.beitraege_cents) })))
-      : kennzahl(t("vorsorge.wertentwicklung.ertragFehlt"), geld(null), escapeHtml(t("vorsorge.wertentwicklung.ertragFehltNotiz"))),
-  ];
+  const betrag = (c) => `<span class="${c < 0 ? "betrag-negativ" : ""}">${escapeHtml(mitVorzeichen(c))}</span>`;
+  const ertragKachel = ertrag
+    ? kennzahl(tf("vorsorge.wertentwicklung.ertrag", { von: ertrag.von.slice(0, 4), bis: ertrag.bis.slice(0, 4) }), betrag(ertrag.ertrag_cents),
+      escapeHtml(tf("vorsorge.wertentwicklung.ertragNotiz", { zuwachs: mitVorzeichen(ertrag.zuwachs_cents), beitraege: formatMoney(ertrag.beitraege_cents) })))
+    : kennzahl(t("vorsorge.wertentwicklung.ertragFehlt"), geld(null), escapeHtml(t("vorsorge.wertentwicklung.ertragFehltNotiz")));
+  const wertKachel = kennzahl(wertLabel, geld(letzter.wert_cents), escapeHtml(formatDate(letzter.datum)));
+  let kennzahlen;
+  if (letzter.vollstaendig) {
+    // Mit Beitragssumme: Wert gegen alles seit Vertragsbeginn Eingezahlte.
+    const differenz = letzter.wert_cents - letzter.eingezahlt_cents;
+    kennzahlen = [
+      wertKachel,
+      kennzahl(t("vorsorge.wertentwicklung.eingezahlt"), geld(letzter.eingezahlt_cents), escapeHtml(tf("vorsorge.wertentwicklung.eingezahltLaut", { datum: formatDate(letzter.datum) }))),
+      letzter.eingezahlt_cents > 0
+        ? kennzahl(t("vorsorge.wertentwicklung.differenz"), betrag(differenz), escapeHtml(tf("vorsorge.wertentwicklung.anteil", { prozent: prozent(letzter.wert_cents / letzter.eingezahlt_cents) })))
+        : kennzahl(t("vorsorge.wertentwicklung.differenz"), geld(null), escapeHtml(t("vorsorge.wertentwicklung.differenzFehlt"))),
+      ertragKachel,
+    ];
+  } else {
+    // Ohne Beitragssumme ist das Eingezahlte unbekannt; aussagekraeftig ist dann
+    // der Ertrag seit dem ersten Stand, ab dem die Buchungen reichen.
+    const start = we.ohne_ertrag[0];
+    const ende = we.ohne_ertrag.at(-1);
+    kennzahlen = [wertKachel];
+    if (we.ohne_ertrag.length > 1) {
+      kennzahlen.push(kennzahl(tf("vorsorge.wertentwicklung.ertragSeit", { datum: formatDate(start.datum) }), betrag(letzter.wert_cents - ende.cents),
+        escapeHtml(tf("vorsorge.wertentwicklung.ertragSeitNotiz", { zuwachs: mitVorzeichen(letzter.wert_cents - start.cents), beitraege: formatMoney(ende.cents - start.cents) }))));
+    }
+    kennzahlen.push(ertragKachel);
+  }
   return `
     <div class="vorsorge-spalten vorsorge-spalten-breit wert-entwicklung">
       <div>${diagramm}</div>

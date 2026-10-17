@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  beitragJeJahrCents, beitragJeJahrVertrag, beitragJeMonatCents, beitragJeMonatVertrag, beitragsVerlauf, beitragVorjahr, erwarteteLeistungen,
+  beitragJeJahrCents, beitragJeJahrVertrag, beitragJeMonatCents, beitragJeMonatVertrag, beitragVorjahr, erwarteteLeistungen,
   gebuchteBeitraegeAlle, gesetzlicherRentenbeginn, leistungsZeitstrahl, monateBis, naechsterBeitrag,
   rentenStufen, tabFuerVorsorge, vermoegensBezug, beitragsAenderungen, vertragsFarben,
 } from "../app/vorsorge-rechnung.mjs";
@@ -74,21 +74,6 @@ test("naechster Beitrag liegt strikt nach heute", () => {
 
 test("gebuchte Beitraege nur aus den eigenen Regelzahlungen, neueste zuerst", () => {
   assert.deepEqual(gebuchteBeitraegeAlle(daten(), "VS-002").map((tx) => tx.transaktion_id), ["TXN-4", "TXN-3", "TXN-5"]);
-});
-
-test("Beitragsverlauf: Monatszahler in 24 Monaten, Jahreszahler in 5 Jahren", () => {
-  const monat = beitragsVerlauf(daten(), "VS-002", HEUTE);
-  assert.equal(monat.einheit, "monat");
-  assert.equal(monat.perioden.length, 24);
-  assert.equal(monat.perioden.at(-1), "2026-10");
-  assert.equal(monat.perioden[0], "2024-11");
-  assert.equal(monat.werte.at(-1), 15000);
-  assert.equal(monat.werte.reduce((a, b) => a + b, 0), 2 * 15000, "TXN-5 von 01/2024 liegt vor dem Fenster");
-
-  const jahr = beitragsVerlauf(daten(), "VS-004", HEUTE);
-  assert.equal(jahr.einheit, "jahr");
-  assert.deepEqual(jahr.perioden, ["2022", "2023", "2024", "2025", "2026"]);
-  assert.deepEqual(jahr.werte, [0, 0, 10000, 12000, 0]);
 });
 
 test("Vorjahresvergleich nimmt die Zahlung rund ein Jahr vor der letzten", () => {

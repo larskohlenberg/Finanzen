@@ -367,8 +367,7 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     assert.equal(state.selectedVorsorgeId, vorsorgeId);
     assert.equal(location.hash, `#/vorsorge/${vorsorgeId}`);
     assert.ok(app.innerHTML.includes("objekt-detail-titel"));
-    assert.ok(app.innerHTML.includes(`data-action="open-transaction" data-transaction="${transactionId}"`));
-    assert.ok(app.innerHTML.includes("MusterversicherungA Rundweg"));
+    assert.ok(app.innerHTML.includes(`data-action="vorsorge-transactions" data-vorsorge="${vorsorgeId}"`));
 
     state.transactionFilters = {
       ...state.transactionFilters,
@@ -419,7 +418,7 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     assert.equal(location.hash, `#/vorsorge/${vorsorgeId}`);
     assert.ok(app.innerHTML.includes("objekt-detail-titel"));
     assert.ok(app.innerHTML.includes("Riester Rundweg"));
-    assert.ok(app.innerHTML.includes(`data-action="open-transaction" data-transaction="${transactionId}"`));
+    assert.ok(app.innerHTML.includes(`data-action="vorsorge-transactions" data-vorsorge="${vorsorgeId}"`));
   } finally {
     data.transaktionen = saved.transaktionen;
     data.regelzahlungen = saved.regelzahlungen;

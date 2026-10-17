@@ -3029,19 +3029,14 @@ a.linkish {
 .zeitstrahl-punkt.vorsorge-rente { fill: #8a5cc2; }
 :root[data-theme="dark"] .zeitstrahl-linie.vorsorge-rente { stroke: #c39bf0; }
 :root[data-theme="dark"] .zeitstrahl-punkt.vorsorge-rente { fill: #c39bf0; }
-.balken-beitrag { fill: var(--accent); opacity: 0.8; }
-.vorsorge-buchung-betrag { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
-.vorsorge-aenderungen .chip, .vorsorge-buchung-betrag .chip { font-size: 11px; }
 .vorsorge-uebersicht-raster {
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
   gap: 14px;
   margin-top: 14px;
 }
-.vorsorge-offen-liste,
-.vorsorge-buchungen { margin: 0; padding: 0; list-style: none; }
-.vorsorge-offen-liste li,
-.vorsorge-buchungen li {
+.vorsorge-offen-liste { margin: 0; padding: 0; list-style: none; }
+.vorsorge-offen-liste li {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -3049,8 +3044,7 @@ a.linkish {
   padding: 8px 0;
   border-top: 1px solid var(--border);
 }
-.vorsorge-offen-liste li:first-child,
-.vorsorge-buchungen li:first-child { border-top: 0; }
+.vorsorge-offen-liste li:first-child { border-top: 0; }
 .vorsorge-offen-liste li > span:first-child { display: flex; flex-direction: column; gap: 2px; }
 .vorsorge-offen-liste .muted { font-size: 12px; }
 .vorsorge-tab-kopf {
@@ -3387,4 +3381,4 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .kennzahl-raster.wert-kennzahlen { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
 .wert-kennzahlen .kennzahl { padding: 10px 12px; }
 .wert-kennzahlen .kennzahl-wert { font-size: 17px; }
-.wert-entwicklung { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.wert-buchungen-link { margin: 10px 0 0; }

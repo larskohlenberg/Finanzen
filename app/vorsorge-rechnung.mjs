@@ -86,28 +86,6 @@ export function vermoegensBezug(data, vorsorgeId) {
     .map(([id, n]) => ({ klasse: "immobilie", id, anzahl: n }));
 }
 
-// Beitraege je Periode bis heute: monatlich zahlende Vertraege in Monaten (24),
-// jaehrlich zahlende in Jahren (5). Betraege positiv.
-export function beitragsVerlauf(data, vorsorgeId, today) {
-  const rz = (data.regelzahlungen ?? []).filter((r) => r.vorsorge_id === vorsorgeId);
-  const jaehrlich = rz.length > 0 && rz.every((r) => r.rhythmus_einheit === "jahr" || (r.rhythmus_einheit === "monat" && Number(r.rhythmus_intervall) % 12 === 0));
-  const perioden = [];
-  if (jaehrlich) {
-    const jahr = Number(today.slice(0, 4));
-    for (let j = jahr - 4; j <= jahr; j++) perioden.push(String(j));
-  } else {
-    for (let i = 23; i >= 0; i--) perioden.push(addInterval(`${today.slice(0, 7)}-01`, "monat", -i).slice(0, 7));
-  }
-  const laenge = jaehrlich ? 4 : 7;
-  const werte = perioden.map(() => 0);
-  for (const tx of gebuchteBeitraegeAlle(data, vorsorgeId)) {
-    if (tx.buchungsdatum > today) continue;
-    const i = perioden.indexOf(String(tx.buchungsdatum).slice(0, laenge));
-    if (i >= 0) werte[i] += -toCents(tx.betrag);
-  }
-  return { einheit: jaehrlich ? "jahr" : "monat", perioden, werte };
-}
-
 const istJaehrlich = (rz) => rz.rhythmus_einheit === "jahr" || (rz.rhythmus_einheit === "monat" && Number(rz.rhythmus_intervall) % 12 === 0);
 
 // Stufen im gebuchten Beitrag je Regelzahlung, neueste zuerst. Bei jaehrlichen

@@ -53,7 +53,7 @@ Von oben nach unten durchgehen. Die erste Stufe, die traegt, gewinnt.
 | --- | --- | --- |
 | **E1** | **Beleg im Archiv.** Rechnung oder Quittung unter `Belege/`, die ueber **Datum und Betrag** zur Buchung passt. Jedes PDF hat einen Textzwilling — das Archiv ist durchsuchbar, ohne PDFs zu oeffnen. | Regel |
 | **E2** | **Identischer Merchant im Bestand, von einem Menschen entschieden.** Dieselbe lose normalisierte `gegenpartei` traegt anderswo eine menschliche Entscheidung (`bestaetigt_durch = mensch` oder Herkunft `manuell`). Eine Auto-Freigabe zaehlt nicht. | Regel |
-| **E3** | **Merchant-Identitaet steht im Buchungstext.** Bekannte Kette, Gattungsbegriff, oder der Verwendungszweck nennt die Leistung. | Regel |
+| **E3** | **Merchant-Identitaet steht im Buchungstext.** Bekannte Kette, Gattungsbegriff, oder der Verwendungszweck nennt die Leistung. Auch: ein Traeger mit nur einer Leistung (Berufsgenossenschaft, Familienkasse, Rentenversicherung) — der Name bestimmt die Leistung. | Regel |
 | **E4** | **Web-Recherche zum Merchant-Namen** klaert, was das Unternehmen betreibt. | Regel |
 | **E5** | **Merchant identifiziert, Leistung mehrdeutig.** Wer die Zahlung bekommen hat, ist klar; wofuer, nicht. Beispiel: eine Stadtverwaltung kann Parkschein, Amtsgebuehr oder Museumseintritt sein. | Agenten-Einzelvorschlag auf die plausibelste Kategorie, **keine** Regel |
 | **E6** | **Kein Beleg nach kurzer Suche.** | Schaetzung: Agenten-Einzelvorschlag auf die **plausibelste Sachkategorie**, **keine** Regel. `KAT-012` „Noch zu klaeren" nur, wenn wirklich keine Kategorie plausibel ist |

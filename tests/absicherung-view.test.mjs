@@ -54,7 +54,7 @@ function mitFixture(fn) {
 test("Kacheln Absicherung: Personenzeilen sind per Standard zugeklappt", () => mitFixture(() => {
   const html = renderAbsicherungKacheln(HEUTE);
   assert.doesNotMatch(html, /absicherung-posten/);
-  assert.match(html, /<h3><button type="button" class="klapp-knopf" data-action="klapp-kachel" data-kachel="absicherung\.bu\.PER-001" data-standard="false" aria-expanded="false"><svg[\s\S]*?<span>Anna Muster<\/span><\/button><\/h3>\s*<strong>2\.450,00\s€ je Monat<\/strong>/);
+  assert.match(html, /<h3 class="absicherung-person-titel">\s*<button type="button" class="klapp-knopf absicherung-person-kopf" data-action="klapp-kachel" data-kachel="absicherung\.bu\.PER-001" data-standard="false" aria-expanded="false"><svg[\s\S]*?<span class="absicherung-person-name">Anna Muster<\/span><strong>2\.450,00\s€ je Monat<\/strong><\/button>/);
   assert.match(html, /data-kachel="absicherung\.tod\.PER-001"/);
   // Ohne Posten gibt es nichts aufzuklappen.
   assert.match(html, /<h3>Ben Muster<\/h3>/);
@@ -71,14 +71,14 @@ test("Kacheln Absicherung: je eine fuer BU und Tod, darin je Person Summe und Po
   assert.equal((bu.match(/class="absicherung-person"/g) ?? []).length, 2);
   assert.equal((tod.match(/class="absicherung-person"/g) ?? []).length, 2);
   const buAnna = bu.slice(bu.indexOf("Anna Muster"), bu.indexOf("Ben Muster"));
-  assert.match(buAnna, /Anna Muster<\/span><\/button><\/h3>\s*<strong>2\.450,00\s€ je Monat<\/strong>/);
+  assert.match(buAnna, /Anna Muster<\/span><strong>2\.450,00\s€ je Monat<\/strong>/);
   assert.match(buAnna, /data-action="open-vorsorge" data-vorsorge="VS-002"><span class="mit-logo"><span class="logo-marke [^"]*"[^>]*>[^<]*<\/span><span>BU Anna<\/span>/);
   assert.match(buAnna, /BU-Rente · Stand 1\.3\.2026/);
   assert.match(buAnna, /Erwerbsminderungsrente · Stand 1\.7\.2026/);
   assert.ok(buAnna.indexOf("VS-002") < buAnna.indexOf("VS-001"), "groesster Posten zuerst");
   assert.doesNotMatch(buAnna, /Hinterbliebenenrente/);
   const todAnna = tod.slice(tod.indexOf("Anna Muster"), tod.indexOf("Ben Muster"));
-  assert.match(todAnna, /Anna Muster<\/span><\/button><\/h3>\s*<strong>600,00\s€ je Monat<\/strong>/);
+  assert.match(todAnna, /Anna Muster<\/span><strong>600,00\s€ je Monat<\/strong>/);
   assert.match(todAnna, /Hinterbliebenenrente · Stand 1\.7\.2026/);
   assert.match(bu.slice(bu.indexOf("Ben Muster")), /Ben Muster<\/h3>\s*<span class="muted">nicht erfasst/);
   assert.match(tod.slice(tod.indexOf("Ben Muster")), /Ben Muster<\/h3>\s*<span class="muted">nicht erfasst/);

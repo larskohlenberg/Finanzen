@@ -12,7 +12,7 @@
       "gegenpartei_pattern": { "type": "string", "minLength": 1, "description": "Teiltext wie bei den Kategorisierungsregeln, | trennt Alternativen" },
       "domain": { "type": "string", "description": "eindeutig je Eintrag, ohne www." },
       "datei": { "type": "string", "pattern": "^logos/[a-z0-9.-]+\\.png$", "description": "immer logos/<domain>.png" },
-      "quelle": { "type": "string", "pattern": "^https://" },
+      "quelle": { "type": "string", "pattern": "^(https://|datei:[^/\\\\]+$)", "description": "Dienst-URL oder datei:<name> bei Uebernahme aus einer lokalen Bilddatei" },
       "abgerufen_am": { "type": "string", "format": "date" }
     }
   }

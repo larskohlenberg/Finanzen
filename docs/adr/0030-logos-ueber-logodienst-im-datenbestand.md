@@ -46,6 +46,18 @@ Fuer manche Domains liefert der Dienst nur 16 bis 48 px; die Websites selbst
 haben dann meist auch nichts Groesseres. Solche Logos bleiben in grossen
 Darstellungen weich. Das Tool meldet sie mit einem Hinweis.
 
+Fuer diese Faelle gibt es seit 2026-10-17 einen Handweg: Das Logo kommt aus
+einer lokalen Bilddatei statt vom Dienst, etwa ausgeschnitten aus einem
+Briefkopf oder aus dem Pressebereich der Firma (CLI `--datei <bild>`, im
+MCP-Tool `logos` das Feld `datei` je Eintrag, dort nur unter `data/` oder
+`Belege/`, typisch die Inbox). Die Datei durchlaeuft dieselbe Pruefung wie
+eine Dienstantwort: nur PNG oder Baseline-JPEG (kein SVG), auf hoechstens
+128 px verkleinert, abgelegt als `logos/<domain>.png`. `quelle` nennt dann
+`datei:<dateiname>` statt der Dienst-URL. Der Dienst bleibt der Standard; die
+Datei ist die Ausnahme fuer einzelne Logos, die sonst unscharf bleiben. Die
+Bilddatei selbst bleibt liegen, wo sie war; aus der Inbox raeumt der Agent sie
+danach weg.
+
 ## Verworfene Alternativen
 
 - **Favicon oder Logo von der Website der Gegenpartei:** Formate und Groessen
@@ -62,5 +74,9 @@ Darstellungen weich. Das Tool meldet sie mit einem Hinweis.
   Verzeichnis, Echtdaten.
 - **Feld `logo_id` an Regelzahlung oder Vorsorge:** doppelte Pflege; die Kette
   ueber die gebuchten Transaktionen gibt es schon.
+- **Handweg ueber Logos aus dem Netz** (der Agent laedt ein Bild von einer
+  beliebigen Adresse): wieder SVG, Riesenbilder und fremde Formate, und ein
+  Abruf beliebiger Adressen aus dem Tool. Eine Datei, die der Nutzer bewusst in
+  die Inbox legt, ist pruefbar und reicht fuer die wenigen Faelle.
 - **Mehrere Dateien je Logo (klein und gross, `srcset`):** spart nur Bytes; eine
   128-px-Datei hat wenige Kilobyte und reicht fuer jede Anzeigegroesse.

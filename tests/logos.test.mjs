@@ -1,18 +1,19 @@
 // tests/logos.test.mjs
 // Logo-Verzeichnis: PNG lesen/schreiben/verkleinern, Zuordnung ueber Muster
-// und Vererbung, Kuerzel, Plan, Abruf (mit Fake-Dienst, ohne Netz), Schreiben
-// in einen Wegwerf-Datenbestand, Validator. Alle Namen und Domains erfunden.
+// und Vererbung, Kuerzel, Plan, Abruf (mit Fake-Dienst, ohne Netz), Uebernahme
+// aus einer lokalen Bilddatei, Schreiben in einen Wegwerf-Datenbestand,
+// Validator. Alle Namen und Domains erfunden.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { execFile } from "node:child_process";
-import { cp, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { deflateSync, crc32 } from "node:zlib";
 import { dekodierePng, istPng, kodierePng, verkleinere } from "../app/tools/lib/png.mjs";
 import { kuerzel, kuerzelFarbe, logoFuerText, logoVerzeichnis, KUERZEL_FARBEN } from "../app/logos.mjs";
-import { holeLogo, logoBericht, normalisiereDomain, planeLogos, schreibeLogos, uebernehme, dienstUrl } from "../app/tools/logos.mjs";
+import { holeLogo, leseLogoDatei, logoBericht, normalisiereDomain, planeLogos, schreibeLogos, uebernehme, dienstUrl } from "../app/tools/logos.mjs";
 import { loadMasterData, validateMasterData } from "../app/tools/validator.mjs";
 
 const DEMO = fileURLToPath(new URL("../app/data/demo/", import.meta.url));
@@ -236,6 +237,51 @@ test("Abruf: 404, weder PNG noch JPEG, Netzfehler und winzige Bilder", async () 
   assert.match(winzig.hinweis, /16x16/);
 });
 
+test("Plan: datei je Eintrag wird mitgefuehrt, leere datei ist ein Fehler", () => {
+  const { plan, fehler } = planeLogos({ logos: [], eintraege: [
+    { name: "Mit Bild", domain: "bild.example", muster: "BILD", datei: " data/inbox/bild-logo.png " },
+    { name: "Ohne Bild", domain: "ohne.example", muster: "OHNE" },
+  ] });
+  assert.deepEqual(fehler, []);
+  assert.equal(plan[0].bilddatei, "data/inbox/bild-logo.png");
+  assert.equal("bilddatei" in plan[1], false);
+  const leer = planeLogos({ logos: [], eintraege: [{ name: "X", domain: "x.example", muster: "X", datei: "  " }] });
+  assert.match(leer.fehler.join(), /eintraege\[0\]\.datei: leer/);
+});
+
+test("Datei: PNG wird verkleinert, JPEG als PNG abgelegt, quelle nennt den Dateinamen", async () => {
+  const ordner = await mkdtemp(join(tmpdir(), "logos-datei-"));
+  try {
+    const png = join(ordner, "beispiel-logo.png");
+    await writeFile(png, kodierePng(einfarbig(400, 200, [0, 128, 255, 255])));
+    const r = await leseLogoDatei(png);
+    assert.equal(r.ok, true);
+    assert.equal(r.quelle, "datei:beispiel-logo.png");
+    assert.deepEqual([r.breite, r.hoehe, r.quell_breite, r.quell_hoehe], [128, 64, 400, 200]);
+    assert.equal(r.hinweis, undefined);
+
+    const jpeg = join(ordner, "briefkopf.jpg");
+    await writeFile(jpeg, Buffer.from(JPEG_BLAU, "base64"));
+    const j = await leseLogoDatei(jpeg);
+    assert.equal(j.ok, true);
+    assert.ok(istPng(j.png));
+    assert.match(j.hinweis, /Datei hat nur 16x16/);
+  } finally {
+    await rm(ordner, { recursive: true, force: true });
+  }
+});
+
+test("Datei: SVG, fehlende, kaputte und zu grosse Dateien werden abgelehnt", async () => {
+  const lesenMit = (bytes) => ({ lesen: async () => bytes });
+  assert.match((await leseLogoDatei("a.svg", lesenMit(Buffer.from("<svg><script/></svg>")))).fehler, /Datei ist weder PNG noch JPEG/);
+  assert.match((await leseLogoDatei("a.png", lesenMit(kodierePng(einfarbig(4, 4, [1, 1, 1, 255])).subarray(0, 40)))).fehler, /PNG nicht lesbar/);
+  assert.match((await leseLogoDatei("a.png", lesenMit(Buffer.alloc(11 * 1024 * 1024)))).fehler, /zu gross/);
+  const fehlt = await leseLogoDatei(join(tmpdir(), "gibt-es-nicht-logo.png"));
+  assert.equal(fehlt.ok, false);
+  assert.match(fehlt.fehler, /nicht gefunden/);
+  assert.equal(fehlt.quelle, "datei:gibt-es-nicht-logo.png");
+});
+
 test("Bericht: haeufigste Gegenparteien ohne Logo, fehlende Dateien, Regelzahlungen, Vorsorge und Konten", () => {
   const bericht = logoBericht({
     logos: LOGOS.slice(0, 1),
@@ -308,6 +354,9 @@ test("Validator: Datei passt zur Domain, Domain eindeutig, kein leerer Mustertei
   assert.match(fehler([{ ...basis, gegenpartei_pattern: "A|" }]).join(), /leerer Musterteil/);
   assert.match(fehler([{ ...basis, datei: "logos/../x.png" }]).join(), /datei: (Format ungueltig|muss)/);
   assert.match(fehler([{ ...basis, quelle: "http://unsicher" }]).join(), /quelle: Format ungueltig/);
+  assert.deepEqual(fehler([{ ...basis, quelle: "datei:beispiel-logo.png" }]), []);
+  assert.match(fehler([{ ...basis, quelle: "datei:../x.png" }]).join(), /quelle: Format ungueltig/);
+  assert.match(fehler([{ ...basis, quelle: "datei:" }]).join(), /quelle: Format ungueltig/);
   assert.match(fehler([{ ...basis, farbe: "rot" }]).join(), /unbekanntes Feld/);
 });
 
@@ -333,6 +382,39 @@ test("CLI: ohne Datenbestand Abbruch, Bericht schreibt nichts, ungueltiger Plan 
     assert.equal(plan.code, 2);
     assert.match(plan.stderr, /keine gueltige Domain/);
     await assert.rejects(stat(join(ordner, "logos")));
+  } finally {
+    await rm(ordner, { recursive: true, force: true });
+  }
+});
+
+test("CLI: --datei uebernimmt das Bild ohne Logodienst und schreibt quelle datei:<name>", async () => {
+  const ordner = await wegwerfBestand();
+  try {
+    const bild = join(ordner, "inbox-beispiel-logo.png");
+    await writeFile(bild, kodierePng(einfarbig(300, 300, [20, 40, 60, 255])));
+    const args = [ordner, "--domain", "musterladen.example", "--name", "Musterladen", "--muster", "MUSTERLADEN", "--datei", bild];
+    const vorschau = await cli(args);
+    assert.equal(vorschau.code, 0, vorschau.stderr);
+    assert.match(vorschau.stdout, /"quelle": "datei:inbox-beispiel-logo.png"/);
+    assert.match(vorschau.stdout, /"pixel": "128x128"/);
+    await assert.rejects(stat(join(ordner, "logos")));
+
+    const lauf = await cli([...args, "--schreiben"]);
+    assert.equal(lauf.code, 0, lauf.stderr);
+    const json = JSON.parse(await readFile(join(ordner, "logos.json"), "utf8"));
+    assert.equal(json[0].quelle, "datei:inbox-beispiel-logo.png");
+    assert.equal(dekodierePng(await readFile(join(ordner, "logos", "musterladen.example.png"))).breite, 128);
+    const protokoll = (await readFile(join(ordner, "agent_log.jsonl"), "utf8")).trim().split("\n").map((z) => JSON.parse(z)).at(-1);
+    assert.deepEqual(protokoll.aus_datei, ["musterladen.example"]);
+    assert.equal(validateMasterData(await loadMasterData(pathToFileURL(`${ordner}/`))).valid, true);
+
+    const svg = join(ordner, "logo.svg");
+    await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
+    const abgelehnt = await cli([ordner, "--domain", "svg.example", "--name", "Svg", "--muster", "SVG", "--datei", svg, "--schreiben"]);
+    assert.equal(abgelehnt.code, 1);
+    assert.match(abgelehnt.stdout, /weder PNG noch JPEG/);
+    await assert.rejects(stat(join(ordner, "logos", "svg.example.png")));
+    assert.equal((await cli([ordner, "--plan", "x.json", "--datei", svg])).code, 2);
   } finally {
     await rm(ordner, { recursive: true, force: true });
   }

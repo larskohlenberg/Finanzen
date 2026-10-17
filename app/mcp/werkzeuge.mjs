@@ -241,7 +241,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "logos",
     skript: "logos.mjs",
-    beschreibung: "Logo-Verzeichnis (tools/logos.mjs; DATENROOT/logos.json + logos/<domain>.png). Ohne eintraege ein Bericht: Eintraege, fehlende Dateien, haeufigste Gegenparteien sowie Regelzahlungen, Vorsorgevertraege und Konten ohne Logo (Konten ueber ihren Namen). Mit eintraege [{ name, domain, muster }] ruft es je Domain das Logo beim Logodienst ab (Google-Favicon-Dienst), verkleinert auf hoechstens 128 px und traegt es ein; gleiche Domain = Eintrag aktualisieren. muster wie gegenpartei_pattern der Kategorisierungsregeln (Teiltext, | trennt Alternativen). Die Domain bestimmt der Agent. Vorschau ist Default (Abruf laeuft, geschrieben wird nichts).",
+    beschreibung: "Logo-Verzeichnis (tools/logos.mjs; DATENROOT/logos.json + logos/<domain>.png). Ohne eintraege ein Bericht: Eintraege, fehlende Dateien, haeufigste Gegenparteien sowie Regelzahlungen, Vorsorgevertraege und Konten ohne Logo (Konten ueber ihren Namen). Mit eintraege [{ name, domain, muster }] ruft es je Domain das Logo beim Logodienst ab (Google-Favicon-Dienst), verkleinert auf hoechstens 128 px und traegt es ein; gleiche Domain = Eintrag aktualisieren. Mit datei im Eintrag (PNG oder Baseline-JPEG unter data/ oder Belege/, z. B. data/inbox/beispiel-logo.png) wird das Bild aus der Datei uebernommen statt abgerufen, etwa wenn der Dienst nur ein winziges Logo hat; quelle wird datei:<name>. muster wie gegenpartei_pattern der Kategorisierungsregeln (Teiltext, | trennt Alternativen). Die Domain bestimmt der Agent. Vorschau ist Default (Abruf laeuft, geschrieben wird nichts).",
     eigenschaften: {
       eintraege: {
         type: "array",
@@ -253,6 +253,7 @@ const CLI_WERKZEUGE = [
             name: { type: "string", description: "Anzeigename, z. B. Beispielmarkt" },
             domain: { type: "string", description: "z. B. beispielmarkt.de" },
             muster: { type: "string", description: "Gegenpartei-Muster, z. B. BEISPIELMARKT|BSP MARKT" },
+            datei: { type: "string", description: "Optional: lokale Bilddatei statt Logodienst, relativ zum App-Raum unter data/ oder Belege/, z. B. data/inbox/beispielmarkt-logo.png" },
           },
           required: ["name", "domain", "muster"],
           additionalProperties: false,
@@ -265,9 +266,13 @@ const CLI_WERKZEUGE = [
       const out = [root];
       if (a.top) out.push("--top", String(a.top));
       if (!a.eintraege) return out;
+      const eintraege = [];
+      for (const e of a.eintraege) {
+        eintraege.push(e.datei ? { ...e, datei: (await loesePfad(ctx.app, e.datei, ["data", "Belege"])).absolut } : e);
+      }
       const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-logos-"));
       const datei = path.join(ordner, "plan.json");
-      await writeFile(datei, JSON.stringify(a.eintraege));
+      await writeFile(datei, JSON.stringify(eintraege));
       out.push("--plan", datei);
       out.aufraeumen = () => rm(ordner, { recursive: true, force: true });
       return out;

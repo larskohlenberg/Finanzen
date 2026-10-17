@@ -65,7 +65,7 @@ ohne MCP.
 | `tools/transaktion-immobilie.mjs` | `immobilienbezug` |
 | `tools/transfer-matcher.mjs` | `transfers` |
 | `tools/regelzahlung-matcher.mjs` | `regelzahlungen_zuordnen` (`details: true` listet jede Zuordnung) |
-| `tools/logos.mjs` | `logos` (ohne `eintraege` ein Bericht; mit `eintraege: [{ name, domain, muster }]` Abruf beim Logodienst) |
+| `tools/logos.mjs` | `logos` (ohne `eintraege` ein Bericht; mit `eintraege: [{ name, domain, muster }]` Abruf beim Logodienst, mit `datei` je Eintrag Uebernahme aus einer Bilddatei) |
 | `tools/freigabe.mjs` | `freigabe` |
 | `tools/lernen.mjs` | `lernen` (`schreiben: true` = `--anwenden`) |
 | `tools/belege-text.mjs` | `belege_text` |
@@ -712,13 +712,20 @@ Datenbestand, nie im Repo:
   domain, datei, quelle, abgerufen_am }`. `gegenpartei_pattern` wirkt wie bei
   den Kategorisierungsregeln (lose normalisierter Teiltext, `|` trennt
   Alternativen); passen mehrere, gewinnt der laengste passende Teil.
-- `DATENROOT/logos/<domain>.png`: so gross wie vom Dienst geliefert, hoechstens 128 px, RGBA.
+- `DATENROOT/logos/<domain>.png`: so gross wie vom Dienst geliefert (bzw. wie die
+  Bilddatei), hoechstens 128 px, RGBA.
 - Regelzahlungen erben das Logo ueber ihre gebuchten Transaktionen
   (`regelzahlung_id`), Vorsorgevertraege ueber ihre Regelzahlungen
   (`vorsorge_id`). Ohne Treffer zeigt die App ein Kuerzel in fester Farbe.
 - Quelle ist der Google-Favicon-Dienst (ADR 0030). Welche Domain zu einer
   Gegenpartei gehoert, entscheidet der Agent; `tools/logos.mjs` ruft ab,
   verkleinert, traegt ein und protokolliert im `agent_log.jsonl`.
+- Liefert der Dienst nur ein winziges Bild, kann das Logo aus einer lokalen
+  Bilddatei kommen (Briefkopf, Pressebereich): CLI `--datei <bild>`, MCP
+  `logos` mit `datei` je Eintrag (Pfad unter `data/` oder `Belege/`, z. B.
+  `data/inbox/<name>.png`). Nur PNG (bis 4096 px Kante, nicht interlaced) oder
+  Baseline-JPEG (bis 1024 px), kein SVG; verkleinert auf hoechstens 128 px. `quelle` ist dann `datei:<dateiname>`, sonst die
+  Dienst-URL.
 
 ## Belege
 

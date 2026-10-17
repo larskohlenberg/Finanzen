@@ -5,16 +5,19 @@
 //       Bericht: Eintraege, fehlende Dateien, haeufigste Gegenparteien,
 //       Regelzahlungen, Vorsorgevertraege und Konten ohne Logo.
 //   node app/tools/logos.mjs <datenroot> --plan <datei.json> [--schreiben]
-//   node app/tools/logos.mjs <datenroot> --domain <d> --name <n> --muster <m> [--schreiben]
+//   node app/tools/logos.mjs <datenroot> --domain <d> --name <n> --muster <m> [--datei <bild>] [--schreiben]
 //       Logo je Domain beim Logodienst abrufen, auf hoechstens 128 px verkleinern
-//       und eintragen. Plan: [{ "name", "domain", "muster" }]. Gleiche Domain =
-//       Eintrag aktualisieren. Ohne --schreiben nur Vorschau (der Abruf laeuft,
+//       und eintragen. Plan: [{ "name", "domain", "muster", "datei"? }]. Mit
+//       datei (PNG oder Baseline-JPEG, relativ zum Arbeitsordner) wird das Bild
+//       aus der Datei uebernommen statt abgerufen. Gleiche Domain = Eintrag
+//       aktualisieren. Ohne --schreiben nur Vorschau (der Abruf laeuft,
 //       geschrieben wird nichts).
 //
 // Welche Domain zu einer Gegenpartei gehoert, entscheidet der Agent (ADR 0003,
 // 0010); das Tool ruft ab, prueft und traegt ein. Logos sind Echtdaten (sie
 // verraten, bei wem man Kunde ist) und liegen nur im Datenbestand.
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
@@ -33,6 +36,7 @@ export const DIENST_GROESSE = 128;
 export const ZIEL_GROESSE = 128;
 const MIN_QUELLE = 32;
 const MAX_BYTES = 1024 * 1024;
+const MAX_DATEI_BYTES = 10 * 1024 * 1024;
 const TIMEOUT_MS = 15000;
 
 export const dienstUrl = (domain) => `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${DIENST_GROESSE}`;
@@ -71,9 +75,11 @@ export function planeLogos({ logos = [], eintraege = [] }) {
     const domain = normalisiereDomain(e?.domain);
     const name = String(e?.name ?? "").trim();
     const muster = String(e?.muster ?? "").trim();
+    const bilddatei = e?.datei == null ? null : String(e.datei).trim();
     if (!domain) fehler.push(`${ort}.domain: keine gueltige Domain "${e?.domain ?? ""}"`);
     if (!name) fehler.push(`${ort}.name: fehlt`);
     if (!muster || muster.split("|").some((teil) => !normalizeLoose(teil))) fehler.push(`${ort}.muster: leer oder mit leerem Teil`);
+    if (bilddatei === "") fehler.push(`${ort}.datei: leer`);
     if (domain && gesehen.has(domain)) fehler.push(`${ort}.domain: ${domain} doppelt im Plan`);
     if (fehler.some((f) => f.startsWith(`${ort}.`))) return;
     gesehen.add(domain);
@@ -81,7 +87,7 @@ export function planeLogos({ logos = [], eintraege = [] }) {
     const logo_id = vorhanden?.logo_id ?? naechsteId(arbeit);
     const eintrag = { logo_id, name, gegenpartei_pattern: muster, domain, datei: logoDatei(domain) };
     if (!vorhanden) arbeit = [...arbeit, eintrag];
-    plan.push({ aktion: vorhanden ? "aktualisieren" : "neu", eintrag });
+    plan.push({ aktion: vorhanden ? "aktualisieren" : "neu", eintrag, ...(bilddatei ? { bilddatei } : {}) });
   });
   return { plan, fehler };
 }
@@ -101,8 +107,28 @@ export async function holeLogo(domain, { holen = fetch } = {}) {
   if (!antwort.ok) return { ok: false, quelle, fehler: `Dienst antwortet mit HTTP ${antwort.status}` };
   const bytes = Buffer.from(await antwort.arrayBuffer());
   if (bytes.length > MAX_BYTES) return { ok: false, quelle, fehler: `Antwort zu gross (${bytes.length} Bytes)` };
+  return bereiteAuf(bytes, quelle, { wer: "Antwort", klein: "Dienst liefert nur" });
+}
+
+// Logo aus einer lokalen Bilddatei uebernehmen, z. B. aus einem Briefkopf oder
+// Pressebereich, wenn der Dienst nur ein winziges Bild hat. Gleiche Pruefung
+// wie beim Abruf: nur PNG oder Baseline-JPEG (kein SVG), verkleinert auf
+// hoechstens 128 px. quelle nennt die Herkunft als "datei:<name>".
+export async function leseLogoDatei(pfad, { lesen = readFile } = {}) {
+  const quelle = `datei:${basename(String(pfad))}`;
+  let bytes;
+  try {
+    bytes = await lesen(pfad);
+  } catch (error) {
+    return { ok: false, quelle, fehler: error.code === "ENOENT" ? `Datei nicht gefunden: ${pfad}` : `Datei nicht lesbar: ${error.message}` };
+  }
+  if (bytes.length > MAX_DATEI_BYTES) return { ok: false, quelle, fehler: `Datei zu gross (${bytes.length} Bytes)` };
+  return bereiteAuf(Buffer.from(bytes), quelle, { wer: "Datei", klein: "Datei hat nur" });
+}
+
+function bereiteAuf(bytes, quelle, { wer, klein: kleinText }) {
   const format = istPng(bytes) ? "PNG" : istJpeg(bytes) ? "JPEG" : null;
-  if (!format) return { ok: false, quelle, fehler: "Antwort ist weder PNG noch JPEG" };
+  if (!format) return { ok: false, quelle, fehler: `${wer} ist weder PNG noch JPEG` };
   let bild;
   try {
     bild = format === "PNG" ? dekodierePng(bytes) : dekodiereJpeg(bytes);
@@ -110,7 +136,7 @@ export async function holeLogo(domain, { holen = fetch } = {}) {
     return { ok: false, quelle, fehler: `${format} nicht lesbar: ${error.message}` };
   }
   const klein = verkleinere(bild, ZIEL_GROESSE);
-  const hinweis = Math.max(bild.breite, bild.hoehe) < MIN_QUELLE ? `Dienst liefert nur ${bild.breite}x${bild.hoehe} px, wirkt evtl. unscharf` : undefined;
+  const hinweis = Math.max(bild.breite, bild.hoehe) < MIN_QUELLE ? `${kleinText} ${bild.breite}x${bild.hoehe} px, wirkt evtl. unscharf` : undefined;
   return { ok: true, quelle, png: kodierePng(klein), breite: klein.breite, hoehe: klein.hoehe, quell_breite: bild.breite, quell_hoehe: bild.hoehe, ...(hinweis ? { hinweis } : {}) };
 }
 
@@ -166,7 +192,7 @@ export function uebernehme(logos, ergebnisse, heute) {
 // --- CLI -------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const opt = { root: null, plan: null, domain: null, name: null, muster: null, top: 20, schreiben: false };
+  const opt = { root: null, plan: null, domain: null, name: null, muster: null, datei: null, top: 20, schreiben: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     const wert = () => {
@@ -180,6 +206,7 @@ function parseArgs(argv) {
     else if (arg === "--domain") opt.domain = wert();
     else if (arg === "--name") opt.name = wert();
     else if (arg === "--muster") opt.muster = wert();
+    else if (arg === "--datei") opt.datei = wert();
     else if (arg === "--top") opt.top = Number(wert());
     else if (arg.startsWith("--")) throw new Error(`Unbekannte Option ${arg}`);
     else if (!opt.root) opt.root = arg;
@@ -187,6 +214,7 @@ function parseArgs(argv) {
   }
   if (!opt.root) throw new Error("Datenbestand fehlt (z. B. data/master)");
   if (!Number.isInteger(opt.top) || opt.top < 1) throw new Error("--top: ganze Zahl ab 1");
+  if (opt.datei && opt.plan) throw new Error("--datei nur mit --domain/--name/--muster, im Plan je Eintrag als datei");
   return opt;
 }
 
@@ -205,7 +233,7 @@ async function main() {
     opt = parseArgs(process.argv.slice(2));
   } catch (error) {
     console.error(error.message);
-    console.error("Aufruf: node app/tools/logos.mjs <datenroot> [--top N] | [--plan <datei.json> | --domain <d> --name <n> --muster <m>] [--schreiben]");
+    console.error("Aufruf: node app/tools/logos.mjs <datenroot> [--top N] | [--plan <datei.json> | --domain <d> --name <n> --muster <m> [--datei <bild>]] [--schreiben]");
     process.exitCode = 2;
     return;
   }
@@ -214,7 +242,7 @@ async function main() {
 
   let eintraege = null;
   if (opt.plan) eintraege = JSON.parse(await readFile(opt.plan, "utf8"));
-  else if (opt.domain || opt.name || opt.muster) eintraege = [{ domain: opt.domain, name: opt.name, muster: opt.muster }];
+  else if (opt.domain || opt.name || opt.muster || opt.datei) eintraege = [{ domain: opt.domain, name: opt.name, muster: opt.muster, ...(opt.datei ? { datei: opt.datei } : {}) }];
 
   if (!eintraege) {
     const dateien = new Set();
@@ -223,7 +251,7 @@ async function main() {
     console.log("\nBericht — nichts geschrieben. Logos nachziehen mit --plan <datei.json> bzw. --domain/--name/--muster.");
     return;
   }
-  if (!Array.isArray(eintraege)) throw new Error("Plan muss eine Liste [{ name, domain, muster }] sein");
+  if (!Array.isArray(eintraege)) throw new Error("Plan muss eine Liste [{ name, domain, muster, datei? }] sein");
 
   const { plan, fehler } = planeLogos({ logos: data.logos, eintraege });
   if (fehler.length) {
@@ -234,7 +262,10 @@ async function main() {
   }
 
   const ergebnisse = [];
-  for (const schritt of plan) ergebnisse.push({ ...schritt, abruf: await holeLogo(schritt.eintrag.domain) });
+  for (const schritt of plan) {
+    const abruf = schritt.bilddatei ? await leseLogoDatei(resolve(schritt.bilddatei)) : await holeLogo(schritt.eintrag.domain);
+    ergebnisse.push({ ...schritt, abruf });
+  }
   const heute = localTodayIso();
   const logos = uebernehme(data.logos, ergebnisse, heute);
   const fehlgeschlagen = ergebnisse.filter((e) => !e.abruf.ok);
@@ -248,7 +279,7 @@ async function main() {
       domain: eintrag.domain,
       muster: eintrag.gegenpartei_pattern,
       ...(abruf.ok
-        ? { ergebnis: "ok", datei: eintrag.datei, pixel: `${abruf.breite}x${abruf.hoehe}`, bytes: abruf.png.length, ...(abruf.hinweis ? { hinweis: abruf.hinweis } : {}) }
+        ? { ergebnis: "ok", quelle: abruf.quelle, datei: eintrag.datei, pixel: `${abruf.breite}x${abruf.hoehe}`, bytes: abruf.png.length, ...(abruf.hinweis ? { hinweis: abruf.hinweis } : {}) }
         : { ergebnis: "fehlgeschlagen", fehler: abruf.fehler }),
     })),
   }, null, 2));
@@ -287,10 +318,11 @@ export async function schreibeLogos(root, data, ergebnisse, logos, jetzt) {
   await appendFile(new URL("agent_log.jsonl", root), `${JSON.stringify({
     zeitpunkt: jetzt.toISOString(),
     anlass: "logos",
-    notiz: `${ok.length} Logo(s) abgerufen und eingetragen`,
+    notiz: `${ok.length} Logo(s) eingetragen`,
     betroffene_ids: ok.map((e) => e.eintrag.logo_id),
     neu: ok.filter((e) => e.aktion === "neu").map((e) => e.eintrag.logo_id),
     domains: ok.map((e) => e.eintrag.domain),
+    aus_datei: ok.filter((e) => e.bilddatei).map((e) => e.eintrag.domain),
     fehlgeschlagen: ergebnisse.filter((e) => !e.abruf.ok).map((e) => e.eintrag.domain),
   })}\n`);
 

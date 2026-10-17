@@ -57,9 +57,14 @@ das ist **kategorisierung-review**.
    die Domain bestimmen, das ist Agentenurteil, im Zweifel per Websuche, und
    `logos` mit `eintraege: [{ name, domain, muster }]` erst als Vorschau, dann
    mit `schreiben: true` laufen lassen. Das Muster deckt alle Schreibweisen der
-   Gegenpartei ab (`|` trennt). Meldet der Dienst 404 oder nur ein sehr kleines
-   Bild, bleibt es beim Kuerzel; das ist kein Fehler. Einmalbuchungen brauchen
-   kein Logo.
+   Gegenpartei ab (`|` trennt). Meldet der Dienst 404, bleibt es beim Kuerzel;
+   das ist kein Fehler. Meldet er nur ein sehr kleines Bild (Hinweis im
+   Ergebnis), wirkt das Logo gross unscharf: dem Nutzer anbieten, eine bessere
+   Datei (PNG oder JPEG, z. B. aus einem Briefkopf oder dem Pressebereich der
+   Firma) in die Inbox zu legen. Dann denselben Eintrag mit
+   `datei: "data/inbox/<name>.png"` erst als Vorschau, dann mit
+   `schreiben: true`; danach die Bilddatei mit `inbox_verwerfen` aus der Inbox
+   nehmen. Einmalbuchungen brauchen kein Logo.
 7. **Eingang aufraeumen.** Tool `belege_text` mit `schreiben: true`. Das Tool
    entfernt aus `data/inbox/processed/` und `standardized/` jede Datei, deren
    Inhalt nachweislich unter `Belege/` liegt — Abgleich ueber den Inhalts-Hash,

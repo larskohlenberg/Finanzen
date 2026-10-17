@@ -54,7 +54,7 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
   | --- | --- | --- |
   | `bu_rente` | Police oder Nachtrag einer BU- oder BUZ-Versicherung: versicherte (garantierte) BU-Rente; nach Dynamik-Erhoehung der neue Wert | Euro je Monat |
   | `erwerbsminderungsrente` | Renteninformation der gesetzlichen Rente: Rente wegen voller Erwerbsminderung | Euro je Monat |
-  | `todesfallleistung` | Police oder Standmitteilung: garantierte Todesfallleistung bzw. Todesfallsumme (Risiko-LV, LV, RV vor Rentenbeginn) | einmalig |
+  | `todesfallleistung` | Police oder Standmitteilung: die zum Standdatum ausgewiesene aktuelle Leistung im Todesfall (Risiko-LV, LV, RV vor Rentenbeginn); nennt der Beleg nur eine Todesfallsumme, diese. Eine garantierte Mindestleistung gehoert als Untergrenze in den `quelle_hinweis` | einmalig |
   | `hinterbliebenenrente` | Renteninformation oder Versorgungszusage: Witwen-/Witwerrente und Waisenrenten zusammen; nennt der Beleg sie nicht, nur nach Freigabe als `geschaetzt` mit Rechenweg in `quelle_hinweis` | Euro je Monat |
 
   Ein BU-Baustein in einer Renten- oder Lebensversicherung (BUZ) bekommt seinen

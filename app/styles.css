@@ -2968,7 +2968,11 @@ a.linkish {
 }
 .bemerkung { margin: 8px 0; }
 .bemerkung summary { color: var(--muted); font-size: 12px; cursor: pointer; }
-.bemerkung p { margin: 6px 0 0; font-size: 13px; white-space: pre-wrap; }
+.bemerkung p, .bemerkung ul { margin: 6px 0 0; font-size: 13px; line-height: 1.45; }
+.bemerkung ul { padding-left: 18px; }
+.bemerkung ul ul { margin-top: 2px; }
+.bemerkung li + li { margin-top: 2px; }
+.bemerkung h4 { margin: 12px 0 0; font-size: 13px; font-weight: 600; }
 
 /* ---------------------------------------------------------------- Vorsorgeseite
    Gleicher Aufbau wie die Vermoegensseite (Kopf, Tabs, Karten, Detail in voller

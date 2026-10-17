@@ -333,8 +333,12 @@ test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausser
 test("Versicherungs-Tab: Rangliste der Jahresbeitraege mit Veraenderung zum Vorjahr", () => {
   mitFixture(() => {
     state.vorsorgeTab = "versicherungen";
-    const html = renderVorsorge();
+    let html = renderVorsorge();
     assert.match(html, /data-kachel="vorsorge.ranking"/);
+    assert.match(html, /class="panel panel-pad klapp-panel zu vorsorge-ranking-kachel"/, "per Standard zugeklappt");
+    assert.doesNotMatch(html, /class="vorsorge-ranking"/);
+    state.klappKacheln = { "vorsorge.ranking": true };
+    html = renderVorsorge();
     assert.match(html, /class="panel panel-pad klapp-panel\s+vorsorge-ranking-kachel"/, "Abstand zum Kartenraster ueber eigene Klasse");
     const ranking = html.slice(html.indexOf('class="vorsorge-ranking"'), html.indexOf("</ul>", html.indexOf('class="vorsorge-ranking"')));
     assert.equal((ranking.match(/<li>/g) ?? []).length, 1, "nur laufende Vertraege mit Beitrag");

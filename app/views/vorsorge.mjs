@@ -398,7 +398,7 @@ function renderBeitragsRanking(liste, today) {
     }).join("")}
     </ul>
     <p class="muted diagramm-lead">${escapeHtml(tf("vorsorge.ranking.lead", { betrag: formatMoney(summe) }))}</p>`;
-  return klappKachel({ id: "vorsorge.ranking", titel: t("vorsorge.ranking.titel"), inhalt, klasse: "vorsorge-ranking-kachel" });
+  return klappKachel({ id: "vorsorge.ranking", titel: t("vorsorge.ranking.titel"), inhalt, offen: false, klasse: "vorsorge-ranking-kachel" });
 }
 
 function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {

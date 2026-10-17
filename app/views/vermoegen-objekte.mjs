@@ -386,7 +386,7 @@ function renderDarlehenDetail(d, k, today) {
   }
   if (d.konto_id) verknuepft.push(escapeHtml(kontenById.get(d.konto_id)?.name || d.konto_id));
   const regelzahlung = (data.regelzahlungen ?? []).find((rz) => rz.darlehen_id === id);
-  if (regelzahlung) verknuepft.push(`<a class="linkish" href="#/regelzahlungen/${encodeURIComponent(regelzahlung.regelzahlung_id)}">${escapeHtml(regelzahlung.bezeichnung || regelzahlung.regelzahlung_id)}</a>`);
+  if (regelzahlung) verknuepft.push(`<a class="linkish" href="#/termine/regelzahlungen/${encodeURIComponent(regelzahlung.regelzahlung_id)}">${escapeHtml(regelzahlung.bezeichnung || regelzahlung.regelzahlung_id)}</a>`);
 
   const kennzahlenPanel = klappKachel({ id: "darlehen.kennzahlen", titel: t("vermoegen.darlehen.kennzahlen"), inhalt: `
       ${k ? `<div class="detail-zweispaltig">

@@ -187,7 +187,7 @@ const ANDERE = [
 export function routeFuerDatensatz(entitaet, id) {
   const e = encodeURIComponent(id);
   if (entitaet === "vorsorge") return `#/vorsorge/${e}`;
-  if (entitaet === "regelzahlung") return `#/regelzahlungen/${e}`;
+  if (entitaet === "regelzahlung") return `#/termine/regelzahlungen/${e}`;
   if (["konto", "immobilie", "vermoegenswert", "darlehen"].includes(entitaet)) return vermoegenRoute(entitaet, id);
   return "#/vermoegen";
 }

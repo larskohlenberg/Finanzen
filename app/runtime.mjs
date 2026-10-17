@@ -56,7 +56,7 @@ export const storageKeys = {
 };
 
 // Reihenfolge gilt fuer Desktop-Sidebar UND mobile Tab-Bar/Mehr-Menue
-// (beide leiten sie hieraus ab). vermoegen vor regelzahlungen, damit die
+// (beide leiten sie hieraus ab). vermoegen vor termine, damit die
 // Kernsichten der mobilen Tab-Bar zusammenhaengen.
 export const navItems = [
   ["overview", "nav.overview", "overview"],
@@ -64,7 +64,8 @@ export const navItems = [
   ["liquiditaet", "nav.liquiditaet", "liquiditaet"],
   ["vermoegen", "nav.vermoegen", "vermoegen"],
   ["vorsorge", "nav.vorsorge", "vorsorge"],
-  ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
+  // Termine buendelt Regelzahlungen und Fristen (Reiter der Seite).
+  ["termine", "nav.termine", "termine"],
   ["szenarien", "nav.szenarien", "szenarien"],
   ["belege", "nav.belege", "belege"],
   ["upload", "nav.upload", "upload"],
@@ -147,6 +148,7 @@ export const state = {
   szenarioGrundlageOffen: false,
   szenarioBasisExpanded: false,
   selectedRegelzahlungId: "",
+  termineTab: "regelzahlungen",
   // Dokumente (#/dokumente): ausgewaehlte Datei oder ausgewaehlter Ordner, App-relativ.
   selectedBeleg: "",
 };

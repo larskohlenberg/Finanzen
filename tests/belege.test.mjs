@@ -179,7 +179,7 @@ test("verweisIndex: Transaktionen per rohquelle, andere Entitaeten per quelle_hi
     ["vorsorge", "VS-001", "#/vorsorge/VS-001"],
     ["darlehen", "DAR-001", "#/vermoegen/darlehen/DAR-001"],
     ["immobilie", "IMM-001", "#/vermoegen/immobilien/IMM-001"],
-    ["regelzahlung", "RZ-001", "#/regelzahlungen/RZ-001"],
+    ["regelzahlung", "RZ-001", "#/termine/regelzahlungen/RZ-001"],
   ]);
   assert.equal(scan.andere[1].label, "VS-001 · Rentenvertrag");
   assert.equal(index.has("data/demo/inbox/x.csv"), false);

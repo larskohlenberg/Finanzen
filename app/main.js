@@ -10,7 +10,7 @@ import { setWertstaendeFilter, resetWertstaendeFilters, toggleWertstaendeSort } 
 import { renderSzenarien, MAX_VERGLEICH } from "./views/szenarien.mjs";
 import { renderTransactions, filteredTransactions, transactionPageForId, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
-import { renderRegelzahlungen } from "./views/regelzahlungen.mjs";
+import { renderTermine } from "./views/termine.mjs";
 import { renderOverview } from "./views/uebersicht.mjs";
 import { renderMasterdata } from "./views/stammdaten.mjs";
 import { offeneChecksAnzahl } from "./views/checks.mjs";
@@ -409,7 +409,7 @@ function renderUiErrorBanner() {
 function renderView() {
   if (state.view === "transactions") return renderTransactions();
   if (state.view === "liquiditaet") return renderLiquiditaet();
-  if (state.view === "regelzahlungen") return renderRegelzahlungen();
+  if (state.view === "termine") return renderTermine();
   if (state.view === "vermoegen") return renderVermoegen();
   if (state.view === "vorsorge") return renderVorsorge();
   if (state.view === "szenarien") return renderSzenarien();
@@ -1106,11 +1106,19 @@ async function handleAction(element) {
   }
   if (action === "open-regelzahlung") {
     // Querlink aus der Szenario-Rechengrundlage auf die konkrete Regelzahlung.
-    state.view = "regelzahlungen";
+    state.view = "termine";
+    state.termineTab = "regelzahlungen";
     state.selectedRegelzahlungId = element.dataset.regelzahlung || "";
     commitNavigation();
     // Die angesteuerte Zeile steht oft weit unten in der Liste.
     document.getElementById?.(`regelzahlung-${state.selectedRegelzahlungId}`)?.scrollIntoView?.({ block: "center" });
+    return;
+  }
+  if (action === "termine-tab") {
+    state.view = "termine";
+    state.termineTab = element.dataset.tab || "regelzahlungen";
+    state.selectedRegelzahlungId = "";
+    commitNavigation();
     return;
   }
   if (action === "show-vermoegen-wertstaende") {
@@ -1224,6 +1232,8 @@ function snapshotState() {
     vermoegenTab: state.vermoegenTab,
     selectedVorsorgeId: state.selectedVorsorgeId,
     vorsorgeTab: state.vorsorgeTab,
+    termineTab: state.termineTab,
+    selectedRegelzahlungId: state.selectedRegelzahlungId,
     selectedSzenarioId: state.selectedSzenarioId,
     szenarioVergleichMit: state.szenarioVergleichMit,
     szenarioVergleichIds: [...state.szenarioVergleichIds],
@@ -1234,6 +1244,8 @@ function snapshotState() {
 function restoreState(snapshot) {
   if (!snapshot) return;
   state.view = snapshot.view || "overview";
+  // History-Eintraege aus der Zeit vor der Seite Termine.
+  if (state.view === "regelzahlungen") state.view = "termine";
   // History-Eintraege aus der Zeit, als Checks und Export eigene Seiten waren.
   if (state.view === "checks" || state.view === "export") {
     snapshot = { ...snapshot, masterSection: state.view };
@@ -1249,6 +1261,8 @@ function restoreState(snapshot) {
   state.vermoegenTab = snapshot.vermoegenTab || "uebersicht";
   state.selectedVorsorgeId = snapshot.selectedVorsorgeId || "";
   state.vorsorgeTab = snapshot.vorsorgeTab || "uebersicht";
+  state.termineTab = snapshot.termineTab || "regelzahlungen";
+  state.selectedRegelzahlungId = snapshot.selectedRegelzahlungId || "";
   state.selectedSzenarioId = snapshot.selectedSzenarioId || "";
   state.szenarioVergleichMit = snapshot.szenarioVergleichMit || "";
   state.szenarioVergleichIds = snapshot.szenarioVergleichIds || [];
@@ -1332,6 +1346,10 @@ function applyRoute(route) {
       state.selectedVorsorgeId = "";
       state.vorsorgeTab = route.vorsorgeTab || "uebersicht";
     }
+  }
+  if (route.view === "termine") {
+    state.termineTab = route.termineTab || "regelzahlungen";
+    state.selectedRegelzahlungId = route.selectedRegelzahlungId || "";
   }
   if (route.view === "szenarien") {
     oeffneSzenario(route.selectedSzenarioId || "");

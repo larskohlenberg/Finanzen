@@ -35,7 +35,7 @@ test("Regelzahlungs-Liste rendert Eintrag mit formatiertem Betrag", () => {
     },
   ];
 
-  state.view = "regelzahlungen";
+  state.view = "termine";
 
   const html = renderRegelzahlungen();
   assert.match(html, /Gehalt Lena/, "Bezeichnung must appear in the list");
@@ -48,7 +48,7 @@ test("Regelzahlungs-Liste zeigt das Konto, von dem gezahlt wird", () => {
     { regelzahlung_id: "RZ-001", bezeichnung: "Versicherung", betrag: "-100.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt", konto_id: "KTO-001" },
     { regelzahlung_id: "RZ-002", bezeichnung: "Ohne Konto", betrag: "-10.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt" },
   ];
-  state.view = "regelzahlungen";
+  state.view = "termine";
   state.lang = "de";
   const html = renderRegelzahlungen();
   assert.match(html, /<th>Konto<\/th>/);
@@ -61,7 +61,7 @@ test("Regelzahlungen zeigen die ID und markieren die angesteuerte Zeile", () => 
     { regelzahlung_id: "RZ-001", bezeichnung: "Erste", betrag: "-10.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt" },
     { regelzahlung_id: "RZ-002", bezeichnung: "Zweite", betrag: "-20.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt" },
   ];
-  state.view = "regelzahlungen";
+  state.view = "termine";
   state.selectedRegelzahlungId = "RZ-002";
   const html = renderRegelzahlungen();
   assert.match(html, /<thead>\s*<tr>\s*<th>ID<\/th>/);

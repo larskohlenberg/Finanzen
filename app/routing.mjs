@@ -13,7 +13,7 @@ const VIEW_SLUG = {
   liquiditaet: "liquiditaet",
   vermoegen: "vermoegen",
   vorsorge: "vorsorge",
-  regelzahlungen: "regelzahlungen",
+  termine: "termine",
   szenarien: "szenarien",
   masterdata: "administration",
   upload: "hochladen",
@@ -21,6 +21,8 @@ const VIEW_SLUG = {
 };
 const SLUG_VIEW = Object.fromEntries(Object.entries(VIEW_SLUG).map(([view, slug]) => [slug, view]));
 export const ADMIN_BEREICHE = ["personen", "konten", "kategorien", "regeln", "checks", "export"];
+// Termine: Regelzahlungen (Standard) und Fristen als Reiter einer Seite.
+export const TERMINE_TABS = ["regelzahlungen", "fristen"];
 
 // Zustand -> Hash. Auswahl hat Vorrang, damit ein geöffnetes Detail teilbar ist.
 export function routeFromState(state) {
@@ -74,9 +76,12 @@ export function routeFromState(state) {
     const gegen = state.szenarioVergleichMit ? `/gegen/${encodeURIComponent(state.szenarioVergleichMit)}` : "";
     return `#/szenarien/${encodeURIComponent(state.selectedSzenarioId)}${gegen}`;
   }
-  // Regelzahlung als adressierbares Ziel (Querlink aus der Szenario-Rechengrundlage).
-  if (state.view === "regelzahlungen" && state.selectedRegelzahlungId) {
-    return `#/regelzahlungen/${encodeURIComponent(state.selectedRegelzahlungId)}`;
+  // Termine: Regelzahlung als adressierbares Ziel (Querlink aus der Szenario-
+  // Rechengrundlage), sonst der Reiter (#/termine/fristen).
+  if (state.view === "termine") {
+    if (state.termineTab === "fristen") return "#/termine/fristen";
+    if (state.selectedRegelzahlungId) return `#/termine/regelzahlungen/${encodeURIComponent(state.selectedRegelzahlungId)}`;
+    return "#/termine";
   }
   return `#/${VIEW_SLUG[state.view] || state.view}`;
 }
@@ -139,8 +144,18 @@ export function parseRoute(hash) {
     if (teile[1] === "gegen" && teile[2]) return { view: "szenarien", selectedSzenarioId: teile[0], szenarioVergleichMit: teile[2] };
     return { view: "szenarien", selectedSzenarioId: teile[0] };
   }
+  // #/termine[/fristen|/regelzahlungen[/<RZ-ID>]]; die alte Form #/regelzahlungen[/<RZ-ID>] bleibt gueltig.
+  if (head === "termine") {
+    const [tab = "", id = ""] = rest.map((teil) => decodeURIComponent(teil));
+    if (tab === "fristen") return { view: "termine", termineTab: "fristen" };
+    return id && tab === "regelzahlungen"
+      ? { view: "termine", termineTab: "regelzahlungen", selectedRegelzahlungId: id }
+      : { view: "termine", termineTab: "regelzahlungen" };
+  }
   if (head === "regelzahlungen") {
-    return tail ? { view: "regelzahlungen", selectedRegelzahlungId: tail } : { view: "regelzahlungen" };
+    return tail
+      ? { view: "termine", termineTab: "regelzahlungen", selectedRegelzahlungId: tail }
+      : { view: "termine", termineTab: "regelzahlungen" };
   }
   if (SLUG_VIEW[head]) return { view: SLUG_VIEW[head] };
   return { view: "overview" };

@@ -191,7 +191,8 @@ test("Termin-Kachel zeigt Fristen mit Spur, Objekt-Link und Hinweis auf bald und
   state.lang = "de";
 
   const kachel = renderOverview().match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
-  const spalte = kachel.match(/<h3 class="termine-titel">Fristen<\/h3>[\s\S]*?<\/ul>/)?.[0] ?? "";
+  // Der Spaltentitel fuehrt auf den Fristen-Reiter der Seite Termine.
+  const spalte = kachel.match(/<h3 class="termine-titel"><button class="linkish" data-action="termine-tab" data-tab="fristen">Fristen<\/button><\/h3>[\s\S]*?<\/ul>/)?.[0] ?? "";
   assert.match(kachel, />Fristen<\/text>/);
   assert.equal((kachel.match(/class="terminleiste-marker raute/g) ?? []).length, 4);
   assert.match(spalte, /<li class="ueberfaellig">[\s\S]*Alte Frist[\s\S]*chip danger">überfällig/);

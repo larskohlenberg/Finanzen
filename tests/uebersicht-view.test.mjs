@@ -150,7 +150,9 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.doesNotMatch(uebersicht, /account-table|hero-kpi|Nächste Aktion|copy-next-agent-prompt/);
   assert.match(bereich("liquiditaet"), /data-view="liquiditaet"[\s\S]*Liquidität/);
   assert.match(bereich("liquiditaet"), /<div class="kpi-value">1\.150,00\s€<\/div>[\s\S]*Verfügbares Geld · Stand 10\.6\.2026/);
-  // Liquiditaet nur als Ist-Stand, ohne Prognose.
+  // Liquiditaet nur als Ist-Stand je Konto, ohne Prognose.
+  assert.match(bereich("liquiditaet"), /data-tab="konten">Giro belegt<\/button><span class="amount">1\.150,00\s€/);
+  assert.match(bereich("liquiditaet"), /Giro ohne Anker<\/button><span class="amount"><span class="muted">nicht belegt/);
   assert.doesNotMatch(bereich("liquiditaet"), /diagramm-wrap|Tiefster Stand|In zwölf Monaten/);
   assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten">Konten<\/button>[\s\S]*?1\.150,00/);
   assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten">Depots<\/button>[\s\S]*?4\.321,09/);
@@ -248,4 +250,5 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
 
   const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.doesNotMatch(vorsorge, /Beiträge|Offene Punkte/);
+  assert.match(teil("Langfristig gebunden"), />Rückkaufswerte</);
 });

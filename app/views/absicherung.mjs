@@ -31,7 +31,8 @@ function postenHtml(p) {
 }
 
 // Ein Block je Person: Name mit Summe, aufgeklappt darunter die einzelnen
-// Leistungen. Standard zu; der Zustand gilt je Fall und Person (klappKacheln).
+// Leistungen. Die ganze Zeile ist der Klappknopf, Standard zu; der Zustand
+// gilt je Fall und Person (klappKacheln).
 function personHtml(fall, person, summen, posten) {
   const summe = summen.filter(([cents]) => cents).map(([cents, einmalig]) => betrag(cents, einmalig)).join(" · ");
   if (!posten.length) {
@@ -47,10 +48,9 @@ function personHtml(fall, person, summen, posten) {
   const offen = state.klappKacheln?.[id] ?? false;
   return `
         <div class="absicherung-person">
-          <div class="absicherung-person-kopf">
-            <h3><button type="button" class="klapp-knopf" data-action="klapp-kachel" data-kachel="${escapeHtml(id)}" data-standard="false" aria-expanded="${offen}">${iconSvg(offen ? "chevronDown" : "chevronRight")}<span>${escapeHtml(person.name)}</span></button></h3>
-            <strong>${escapeHtml(summe)}</strong>
-          </div>
+          <h3 class="absicherung-person-titel">
+            <button type="button" class="klapp-knopf absicherung-person-kopf" data-action="klapp-kachel" data-kachel="${escapeHtml(id)}" data-standard="false" aria-expanded="${offen}">${iconSvg(offen ? "chevronDown" : "chevronRight")}<span class="absicherung-person-name">${escapeHtml(person.name)}</span><strong>${escapeHtml(summe)}</strong></button>
+          </h3>
           ${offen ? `<ul class="absicherung-posten">${posten.map(postenHtml).join("")}</ul>` : ""}
         </div>`;
 }

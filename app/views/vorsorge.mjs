@@ -642,21 +642,25 @@ const mitVorzeichen = (c) => `${c > 0 ? "+" : ""}${formatMoney(c)}`;
 function wertEntwicklungHtml(vs, we, link) {
   const { letzter, ertrag, feld } = we;
   const wertLabel = feld === "rueckkaufswert" ? rkwLabel(vs) : t("vorsorge.vertragswert");
-  const vollstaendig = we.punkte.filter((p) => p.vollstaendig);
-  // Gestrichelt nur Stichtage mit belegter Beitragssumme; gibt es keine, die gebuchten Beitraege.
-  const mitBeitrag = vollstaendig.length ? vollstaendig : (we.erste_buchung ? we.punkte : []);
-  const eingezahltLabel = t(vollstaendig.length ? "vorsorge.wertentwicklung.eingezahlt" : "vorsorge.wertentwicklung.gebuchtLegende");
+  // Gestrichelt: mit Beitragssumme das Eingezahlte, sonst der Wert ohne Ertrag
+  // (erster abgedeckter Stand plus Beitraege seither), so weit die Buchungen reichen.
+  const mitSumme = we.punkte.some((p) => p.vollstaendig);
+  const vergleich = new Map(mitSumme
+    ? we.punkte.filter((p) => p.vollstaendig).map((p) => [p.datum, p.eingezahlt_cents])
+    : we.ohne_ertrag.map((p) => [p.datum, p.cents]));
+  const eingezahltLabel = t(mitSumme ? "vorsorge.wertentwicklung.eingezahlt" : "vorsorge.wertentwicklung.ohneErtrag");
+  const ertragJeDatum = new Map(we.zeitraeume.map((z) => [z.bis, z.ertrag_cents]));
   const svg = wertVerlauf({
-    punkte: we.punkte.map((p) => ({ datum: p.datum, wert_cents: p.wert_cents, eingezahlt_cents: mitBeitrag.includes(p) ? p.eingezahlt_cents : null })),
+    punkte: we.punkte.map((p) => ({ datum: p.datum, wert_cents: p.wert_cents, eingezahlt_cents: vergleich.get(p.datum) ?? null, ertrag_cents: ertragJeDatum.get(p.datum) ?? null })),
     formatWert: (c) => formatMoney(c),
     formatAchse: geldOhneCent,
     formatDatum: formatDate,
-    labels: { wert: wertLabel, eingezahlt: eingezahltLabel },
+    labels: { wert: wertLabel, eingezahlt: eingezahltLabel, ertrag: t("vorsorge.wertentwicklung.ertragSeitVorstand") },
     ariaLabel: t("vorsorge.wertentwicklung.lead"),
   });
   const diagramm = svg
     ? `<p class="muted diagramm-lead">${escapeHtml(t("vorsorge.wertentwicklung.lead"))}</p>
-      <div class="diagramm-legende-html"><span class="swatch wert"></span>${escapeHtml(wertLabel)}${mitBeitrag.length ? `<span class="swatch eingezahlt"></span>${escapeHtml(eingezahltLabel)}` : ""}</div>
+      <div class="diagramm-legende-html"><span class="swatch wert"></span>${escapeHtml(wertLabel)}${vergleich.size > 1 ? `<span class="swatch eingezahlt"></span>${escapeHtml(eingezahltLabel)}` : ""}</div>
       <div class="diagramm-wrap">${svg}</div>`
     : `<p class="muted">${escapeHtml(t("vorsorge.wertentwicklung.einStand"))}</p>`;
   const eingezahltNotiz = letzter.vollstaendig

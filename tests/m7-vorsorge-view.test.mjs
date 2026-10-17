@@ -560,3 +560,13 @@ test("Beitraege und Wertentwicklung: Diagramm links, vier Kennzahlen rechts, ohn
     assert.match(ohne, /Gebuchte Beiträge/);
   }, { zeitwerte });
 });
+
+test("Wertentwicklung ohne Beitragssumme vergleicht mit Stand plus Beitraegen und zeigt den Ertrag je Zeitraum im Hover", () => {
+  const zeitwerte = [...fixture().zeitwerte, zw("VS-005", "rueckkaufswert", "1000.00", "2024-03-11"), zw("VS-005", "rueckkaufswert", "2100.00", "2025-03-31")];
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-005";
+    const html = renderVorsorge();
+    assert.match(html, /<span class="swatch eingezahlt"><\/span>Stand plus Beiträge seither \(ohne Ertrag\)/);
+    assert.match(html, /data-spalten="[^"]*Ertrag seit dem Stand davor[^"]*\+200,00/, "1.100 Zuwachs minus 900 Beitrag");
+  }, { zeitwerte });
+});

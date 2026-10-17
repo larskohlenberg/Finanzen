@@ -251,31 +251,44 @@ export function wertEntwicklung(data, vorsorgeId) {
   const summen = staende("beitragssumme");
   const buchungen = gebuchteBeitraegeAlle(data, vorsorgeId).map((tx) => ({ datum: tx.buchungsdatum, cents: -toCents(tx.betrag) }));
   const ersteBuchung = buchungen.reduce((min, b) => (!min || b.datum < min ? b.datum : min), null);
+  // Die Buchungen decken den Zeitraum ab einem Stichtag ab, wenn die erste schon
+  // davor liegt; bei monatlich zahlenden Vertraegen reicht die erste Lastschrift
+  // im Monat danach (Kontoauszuege beginnen oft am Jahresanfang).
+  const monatlich = (data.regelzahlungen ?? []).filter((rz) => rz.vorsorge_id === vorsorgeId)
+    .every((rz) => rz.rhythmus_einheit === "monat" && Number(rz.rhythmus_intervall) === 1);
+  const gedecktAb = (datum) => ersteBuchung !== null && ersteBuchung <= (monatlich ? addInterval(datum, "monat", 1) : datum);
   const summeZwischen = (von, bis) => buchungen.filter((b) => b.datum > von && b.datum <= bis).reduce((s, b) => s + b.cents, 0);
   const eingezahltBis = (datum) => {
     const basis = summen.filter((s) => s.datum <= datum).at(-1);
     if (basis) return { cents: basis.cents + summeZwischen(basis.datum, datum), vollstaendig: true };
     // Vor der ersten Beitragssumme rueckwaerts: Summe minus die Buchungen dazwischen,
-    // sofern die Buchungen schon vor dem Stichtag beginnen, also das Intervall abdecken.
+    // sofern die Buchungen das Intervall abdecken.
     const spaeter = summen.find((s) => s.datum > datum);
-    if (spaeter && ersteBuchung !== null && ersteBuchung <= datum) return { cents: spaeter.cents - summeZwischen(datum, spaeter.datum), vollstaendig: true };
+    if (spaeter && gedecktAb(datum)) return { cents: spaeter.cents - summeZwischen(datum, spaeter.datum), vollstaendig: true };
     return { cents: summeZwischen("", datum), vollstaendig: false };
   };
   const punkte = werte.map((w) => {
     const e = eingezahltBis(w.datum);
     return { datum: w.datum, wert_cents: w.cents, eingezahlt_cents: e.cents, vollstaendig: e.vollstaendig };
   });
-  // Ertrag zwischen den beiden juengsten Stichtagen: Wertzuwachs minus die
-  // Beitraege dazwischen. Nur, wenn diese Beitraege belegt sind.
-  let ertrag = null;
-  if (punkte.length >= 2) {
-    const [a, b] = punkte.slice(-2);
-    const gedeckt = a.vollstaendig || (!b.vollstaendig && ersteBuchung !== null && ersteBuchung <= a.datum);
-    if (gedeckt) {
-      const beitraege = b.eingezahlt_cents - a.eingezahlt_cents;
-      const zuwachs = b.wert_cents - a.wert_cents;
-      ertrag = { von: a.datum, bis: b.datum, zuwachs_cents: zuwachs, beitraege_cents: beitraege, ertrag_cents: zuwachs - beitraege };
-    }
+  // Ertrag je Zeitraum zwischen zwei Stichtagen: Wertzuwachs minus die Beitraege
+  // dazwischen. Nur, wo diese Beitraege belegt sind.
+  const zeitraeume = [];
+  for (let i = 1; i < punkte.length; i++) {
+    const a = punkte[i - 1];
+    const b = punkte[i];
+    if (!(a.vollstaendig || (!b.vollstaendig && gedecktAb(a.datum)))) continue;
+    const beitraege = b.eingezahlt_cents - a.eingezahlt_cents;
+    const zuwachs = b.wert_cents - a.wert_cents;
+    zeitraeume.push({ von: a.datum, bis: b.datum, zuwachs_cents: zuwachs, beitraege_cents: beitraege, ertrag_cents: zuwachs - beitraege });
   }
-  return { feld, punkte, letzter: punkte.at(-1), ertrag, erste_buchung: ersteBuchung };
+  const ertrag = zeitraeume.at(-1)?.bis === punkte.at(-1).datum ? zeitraeume.at(-1) : null;
+  // Wert ohne Ertrag: ab dem ersten Stichtag, ab dem die Buchungen reichen, dessen
+  // Stand plus alle Beitraege seither. Liegt der Wert darueber, hat der Vertrag
+  // etwas erwirtschaftet; das geht auch ohne Beitragssumme aus einer Mitteilung.
+  const start = punkte.find((p) => p.vollstaendig || gedecktAb(p.datum));
+  const ohneErtrag = start
+    ? punkte.filter((p) => p.datum >= start.datum).map((p) => ({ datum: p.datum, cents: start.wert_cents + summeZwischen(start.datum, p.datum) }))
+    : [];
+  return { feld, punkte, letzter: punkte.at(-1), ertrag, zeitraeume, ohne_ertrag: ohneErtrag, erste_buchung: ersteBuchung };
 }

@@ -590,6 +590,15 @@ function kennzahlenVersicherung(vs, today) {
       : kennzahl(t("vorsorge.geprueftAm"), vs.geprueft_am ? escapeHtml(formatDate(vs.geprueft_am)) : `<span class="chip ungeprueft">${escapeHtml(t("vorsorge.ungeprueft"))}</span>`, ""));
 }
 
+// Beitragsbefreiung als Haekchen (nur Anzeige; gesetzt wird sie aus dem Beleg).
+const BEFREIUNG_FAELLE = ["bu", "arbeitslosigkeit"];
+function beitragsbefreiungHtml(vs) {
+  return `<span class="befreiung-liste">${BEFREIUNG_FAELLE.map((fall) => {
+    const an = (vs.beitragsbefreiung ?? []).includes(fall);
+    return `<label class="befreiung"><input type="checkbox" disabled${an ? " checked" : ""}> ${escapeHtml(t(`vorsorge.beitragsbefreiung.${fall}`))}</label>`;
+  }).join("")}</span>`;
+}
+
 function renderVertragsdaten(vs, tab, offen) {
   const vorgaenger = vs.ersetzt_vorsorge_id ? (data.vorsorge ?? []).find((v) => v.vorsorge_id === vs.ersetzt_vorsorge_id) : null;
   const nachfolger = (data.vorsorge ?? []).find((v) => v.ersetzt_vorsorge_id === vs.vorsorge_id);
@@ -610,6 +619,7 @@ function renderVertragsdaten(vs, tab, offen) {
         ${tab === "versicherungen" && !vs.kapitalbildend ? "" : detailRow(t("vorsorge.kapitalbildendLabel"), escapeHtml(vs.kapitalbildend ? t("labels.yes") : t("labels.no")))}
         ${vs.kapitalwahl ? detailRow(t("vorsorge.kapitalwahl"), escapeHtml(istRiester(vs) ? `${vs.kapitalwahl} · ${riesterHinweis(vs)}` : vs.kapitalwahl)) : ""}
         ${vs.aktiv_bis ? detailRow(t("vorsorge.aktivBis"), escapeHtml(formatDate(vs.aktiv_bis))) : ""}
+        ${beitraege.length || vs.beitragsbefreiung ? detailRow(t("vorsorge.beitragsbefreiung.titel"), beitragsbefreiungHtml(vs)) : ""}
         ${fristen ? detailRow(t("vermoegen.fristen"), fristen) : ""}
         ${detailRow(t("vorsorge.geprueftAm"), vs.geprueft_am
           ? `${escapeHtml(formatDate(vs.geprueft_am))}${wiedervorlage ? ` <span class="chip review">${escapeHtml(t("vorsorge.wiedervorlage"))}</span>` : ""}`

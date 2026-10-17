@@ -496,6 +496,19 @@ test("Absicherung als Kennzahl-Kachel: Hauptwert, weitere Werte darunter, mit Dy
   }, { zeitwerte, vorsorge });
 });
 
+test("Vertragsdaten zeigen die Beitragsbefreiung als Haekchen", () => {
+  const vorsorge = fixture().vorsorge.map((vs) => (vs.vorsorge_id === "VS-004" ? { ...vs, beitragsbefreiung: ["bu"] } : vs));
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-004";
+    state.klappKacheln = { "vorsorge.vertragsdaten": true };
+    const html = renderVorsorge();
+    assert.match(html, /Beitragsbefreiung[\s\S]*<input type="checkbox" disabled checked> bei BU<\/label>[\s\S]*<input type="checkbox" disabled> bei Arbeitslosigkeit/);
+    // Ohne Beitraege und ohne Feld keine Zeile.
+    state.selectedVorsorgeId = "VS-003";
+    assert.doesNotMatch(renderVorsorge(), /befreiung-liste/);
+  }, { vorsorge });
+});
+
 test("Vertrag ohne Absicherungswerte zeigt keine Absicherungs-Kachel", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-003";

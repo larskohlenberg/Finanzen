@@ -175,6 +175,25 @@ Bemerkung:
 - Der Check `vorsorge-dynamik` meldet einen Vertrag, wenn der naechste Termin
   binnen 90 Tagen liegt oder ein Angebot `offen` ist.
 
+## Beitragsbefreiung
+
+Vereinbart der Vertrag, dass die Beitraege bei Berufsunfaehigkeit oder
+Arbeitslosigkeit entfallen (Beitragsbefreiung, BUZ-Baustein, "Weiterspargarantie"),
+gehoert das strukturiert an den Vertrag:
+
+```json
+"beitragsbefreiung": ["bu", "arbeitslosigkeit"]
+```
+
+- Nur setzen, was der Beleg nennt (Police, Statusreport, Beitragsaufteilung mit
+  einem Beitragsteil "fuer die Beitragsbefreiung"). Ohne Befreiung das Feld
+  weglassen, keine leere Liste.
+- Eine reine BU-Versicherung bekommt `bu` nur, wenn der Beleg die Befreiung im
+  Leistungsfall nennt.
+- Die App zeigt das Feld in den Vertragsdaten als Haekchen. Das Szenario-Ereignis
+  `ereignis` (siehe `szenarien-annahmen.md`) laesst die Beitraege dieser Vertraege
+  ab dem Ereignis entfallen.
+
 ## Wechsel und Nachfolge
 
 Bei Kuendigung, Anbieterwechsel oder Tarifwechsel:

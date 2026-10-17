@@ -1,4 +1,6 @@
 // app/views/uebersicht.mjs
+// Ganz oben zwei flache Kacheln: monatliche Einnahmen und Ausgaben (Ø der
+// letzten zwoelf Monate aus den Buchungen, nach Kategorie).
 // Übersicht als Dashboard: je Bereich (Liquidität, Vermögen, Vorsorge) eine Kachel
 // mit Kennzahl und Zeilen, die ins Detail führen; Vermögen breit mit zwei
 // Unterkacheln (schnell verfügbar, langfristig gebunden). Darunter die
@@ -12,8 +14,9 @@ import { currentNettovermoegen, overviewAccountGroups, overviewJahreszahlungen }
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { anstehendeFristen } from "../fristen.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
+import { monatsMittel } from "../uebersicht-rechnung.mjs";
 import { bezugLink, fristChip, fristKlasse } from "./fristen.mjs";
-import { terminLeiste } from "../charts.mjs";
+import { miniLinie, terminLeiste } from "../charts.mjs";
 import { erwarteteLeistungen, gesetzlicherRentenbeginn, rentenStufen, tabFuerVorsorge, vertragsFarben } from "../vorsorge-rechnung.mjs";
 import { balkenSvg, tf } from "./vermoegen-teile.mjs";
 
@@ -53,6 +56,53 @@ function bereichsKachel({ id, icon, titel, ziel, wertTitel = "", wert, notiz = "
       ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : ""}
       ${zusatz}
     </section>`;
+}
+
+// ------------------------------------------------------------- Einnahmen/Ausgaben
+
+const TOP_KATEGORIEN = 3;
+const formatMonatLang = (ym) => new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short", year: "numeric" }).format(new Date(`${ym}-01T00:00:00`));
+
+// Flache Kachel: Durchschnitt pro Monat, Monatslinie, Kategorien-Leiste mit
+// den groessten Kategorien und dem Rest. Kategorien fuehren in die Buchungen.
+function flacheKachel(id, titel, seite, mittel) {
+  const zeitraum = mittel.anzahl_monate === 1 ? formatMonatLang(mittel.monate[0]) : `${formatMonatLang(mittel.monate[0])} – ${formatMonatLang(mittel.monate.at(-1))}`;
+  const top = seite.kategorien.slice(0, TOP_KATEGORIEN);
+  const rest = seite.kategorien.slice(TOP_KATEGORIEN).reduce((a, k) => a + k.mittel_cents, 0);
+  const basis = Math.max(seite.kategorien.reduce((a, k) => a + k.mittel_cents, 0), 1);
+  const teile = [
+    ...top.map((k, i) => ({ ...k, klasse: `vertrag-farbe-${i}`, ziel: `data-action="kategorie-transactions" data-kategorie="${escapeHtml(k.kategorie_id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` })),
+    ...(rest > 0 ? [{ name: t("overview.uebrige"), mittel_cents: rest, klasse: "vertrag-farbe-rest", ziel: "" }] : []),
+  ];
+  const segmente = teile.map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
+  const legende = teile.map((k) => `<li>${farbPunkt(k.klasse)}${k.ziel ? `<button class="linkish" ${k.ziel}>${escapeHtml(k.name)}</button>` : `<span>${escapeHtml(k.name)}</span>`}<span class="amount">${escapeHtml(geldOhneCent(k.mittel_cents))}</span></li>`).join("");
+  const linie = seite.je_monat.length > 1
+    ? `<div class="flach-linie">${miniLinie(seite.je_monat.map((wert, i) => ({ wert, label: `${formatMonatLang(mittel.monate[i])}: ${geldOhneCent(wert)}` })), { ariaLabel: tf("overview.monatsverlauf", { titel }) })}</div>`
+    : "";
+  return `
+    <section class="panel panel-pad uebersicht-flach-kachel" aria-labelledby="kachel-${id}">
+      <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">
+        <button class="linkish" ${ZIEL.liquiditaet}>${iconSvg("liquiditaet")}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}</button>
+      </h2>
+      <div class="flach-zeile">
+        <div>
+          <div class="kpi-value">${escapeHtml(geldOhneCent(seite.mittel_cents))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonat"))}</span></div>
+          <div class="kpi-note">${escapeHtml(tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate }))} · ${escapeHtml(zeitraum)}</div>
+        </div>
+        ${linie}
+      </div>
+      ${segmente.length ? `<div class="uebersicht-balken">${balkenSvg(segmente)}</div><ul class="flach-legende">${legende}</ul>` : ""}
+    </section>`;
+}
+
+function renderEinnahmenAusgaben(today) {
+  const mittel = monatsMittel(data, today);
+  if (!mittel.anzahl_monate) return "";
+  return `
+    <div class="uebersicht-flach">
+      ${flacheKachel("einnahmen", t("overview.monatlicheEinnahmen"), mittel.einnahmen, mittel)}
+      ${flacheKachel("ausgaben", t("overview.monatlicheAusgaben"), mittel.ausgaben, mittel)}
+    </div>`;
 }
 
 // ------------------------------------------------------------- Liquiditaet
@@ -266,6 +316,7 @@ export function renderOverview() {
   const today = heuteIso();
   return `
     ${renderPageHead(t("overview.title"), "")}
+    ${renderEinnahmenAusgaben(today)}
     <div class="uebersicht-kacheln">
       ${renderLiquiditaetKachel()}
       ${renderVermoegenKachel()}

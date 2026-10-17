@@ -3,6 +3,7 @@
 // und Tod, darin die Summe und die einzelnen Leistungen mit Link auf ihren
 // Vertrag. Nur auflisten, kein Bedarf. Rechnen in absicherung.mjs.
 import { data, t, escapeHtml } from "../runtime.mjs";
+import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, mitLogo } from "../komponenten.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { absicherung } from "../absicherung.mjs";
@@ -58,7 +59,7 @@ export function renderAbsicherungKachel(today = localTodayIso()) {
     : `<p class="muted">${escapeHtml(t("absicherung.keinePersonen"))}</p>`;
   return `
     <section class="panel panel-pad absicherung-kachel" aria-labelledby="absicherung-titel">
-      <h2 class="section-title" id="absicherung-titel"><button class="linkish" data-view="vorsorge">${escapeHtml(t("absicherung.titel"))}</button></h2>
+      <h2 class="uebersicht-kachel-kopf" id="absicherung-titel"><button class="linkish" data-view="vorsorge">${iconSvg("vorsorge")}<span>${escapeHtml(t("absicherung.titel"))}</span>${iconSvg("chevronRight")}</button></h2>
       <p class="page-lead">${escapeHtml(t("absicherung.lead"))}</p>
       ${inhalt}
     </section>`;

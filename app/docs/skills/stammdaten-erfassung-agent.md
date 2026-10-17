@@ -74,6 +74,7 @@ Skill **import-agent**.
 - **Geld als Decimal-String** mit zwei Nachkommastellen (`^-?\d+\.\d{2}$`), Zinssatz als `^\d+\.\d{2,4}$`.
 - Bei **neuem Darlehen aktiv die passende Raten-Regelzahlung vorschlagen** (`darlehen_id` setzen) — nur über den Regelzahlungs-Dialog (App schreibt keine Masterdaten; Regelzahlungen laufen ueber Agenten-Dialog).
 - Bei **Darlehen Vertragsdaten erfassen**, wenn belegt vorhanden: `zinsbindung_bis`, `laufzeit_bis`, `restschuld_laufzeitende`. Diese Felder ersetzen keinen belegten Restschuld-Anker in `zeitwerte.jsonl`.
+- **`bemerkung` strukturiert** (Kurzfassung, Abschnitte mit Überschrift und `- `-Punkten) nach „Bemerkungen“ in `app/docs/agent-context.md`; Ergänzungen in den passenden Abschnitt einsortieren statt anhängen.
 - **Fristen mit anlegen:** Nennt ein Beleg (Darlehensvertrag, Kuendigungshinweis, Bescheid, Mieterhoehung) einen letzten Tag zum Handeln, eine Frist in `DATENROOT/fristen.json` anlegen (`agent-context.md`, „Fristen"): `datum` = letzter Handlungstag, `art`, hoechstens ein Bezug (`darlehen_id`, `immobilie_id`, `konto_id`, `vermoegenswert_id`, `regelzahlung_id` oder keiner), jaehrliche Fristen mit Rhythmus, Fundstelle in `bemerkung`. Zinsbindungs- und Laufzeitende nicht doppelt erfassen, die folgen schon aus dem Darlehen. **Abhaken** ueber `erledigt_bis`, nie loeschen.
 - Depot als `kontotyp = depot` unter Konto, Wert über `depotwert`-Zeitwert (kein Anker+Buchungen). Bargeld zählt nicht.
 

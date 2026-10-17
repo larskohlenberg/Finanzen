@@ -173,6 +173,10 @@ Frist in `DATENROOT/fristen.json` an (Regeln: `agent-context.md`, Abschnitt
   lassen.
 - Geld als Decimal-String mit zwei Nachkommastellen erfassen.
 - `geprueft_am` nur nach Nutzer-Review setzen.
+- `bemerkung` strukturiert schreiben (Kurzfassung, Abschnitte mit Ueberschrift
+  und `- `-Punkten) nach „Bemerkungen“ in `app/docs/agent-context.md`. Neue
+  Belege und Entscheidungen in den passenden Abschnitt einsortieren, nie als
+  „NACHTRAG“ anhaengen; Erledigtes aus `Offen:` streichen.
 - Reine Schutzversicherungen ueber Beitrags-Regelzahlungen sichtbar machen, nicht
   als Aktivum.
 - Die Checks `vorsorge-ungeprueft`, `vorsorge-wiedervorlage`,

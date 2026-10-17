@@ -120,6 +120,60 @@ export function quelleHtml(text) {
   return belegTextHtml(text, { titel: t("dokumente.quelldokument"), escape: escapeHtml });
 }
 
+// Bemerkung als strukturierter Text (Schreibregel: app/docs/agent-context.md, "Bemerkungen"):
+// Leerzeile trennt Bloecke; eine kurze Zeile mit Doppelpunkt am Ende ist eine
+// Zwischenueberschrift; Zeilen mit "- " sind Aufzaehlungen, mit zwei Leerzeichen
+// eingerueckt Unterpunkte; alles andere ist Absatz. Belegpfade werden zu Links.
+export function bemerkungInhalt(text) {
+  const inline = (zeile) => quelleHtml(zeile.trim());
+  const istPunkt = (zeile) => /^\s*- /.test(zeile);
+  const tiefe = (zeile) => (zeile.match(/^\s*/)[0].length >= 2 ? 1 : 0);
+  const liste = (zeilen) => {
+    let html = "<ul>";
+    let offenesLi = false;
+    let unter = [];
+    const unterSchliessen = () => {
+      if (unter.length) html += `<ul>${unter.map((u) => `<li>${inline(u.replace(/^\s*- /, ""))}</li>`).join("")}</ul>`;
+      unter = [];
+    };
+    for (const zeile of zeilen) {
+      if (tiefe(zeile) && offenesLi) { unter.push(zeile); continue; }
+      unterSchliessen();
+      if (offenesLi) html += "</li>";
+      html += `<li>${inline(zeile.replace(/^\s*- /, ""))}`;
+      offenesLi = true;
+    }
+    unterSchliessen();
+    return `${html}${offenesLi ? "</li>" : ""}</ul>`;
+  };
+  return String(text ?? "").replace(/\r\n?/g, "\n").split(/\n\s*\n/).map((block) => {
+    const zeilen = block.split("\n").filter((z) => z.trim());
+    let html = "";
+    let absatz = [];
+    let punkte = [];
+    const flush = () => {
+      if (absatz.length) html += `<p>${absatz.map(inline).join("<br>")}</p>`;
+      if (punkte.length) html += liste(punkte);
+      absatz = [];
+      punkte = [];
+    };
+    zeilen.forEach((zeile, i) => {
+      const kurz = zeile.trim();
+      if (istPunkt(zeile)) {
+        if (absatz.length) { html += `<p>${absatz.map(inline).join("<br>")}</p>`; absatz = []; }
+        punkte.push(zeile);
+      } else if (i === 0 && kurz.endsWith(":") && kurz.length <= 60) {
+        html += `<h4>${inline(kurz.slice(0, -1))}</h4>`;
+      } else {
+        if (punkte.length) { html += liste(punkte); punkte = []; }
+        absatz.push(zeile);
+      }
+    });
+    flush();
+    return html;
+  }).join("");
+}
+
 // Klappbare Kachel fuer grosse Detail-Abschnitte (Designregel, docs/ui-regeln.md): der Titel ist der Knopf, zugeklappt rendert sie keinen Inhalt. Der Zustand
 // je id gilt seitenuebergreifend bis zum Neuladen; ohne Eintrag gilt `offen` als Standard.
 // kopfExtra (z. B. ein Umschalter) steht rechts im Kopf und nur bei offener Kachel.

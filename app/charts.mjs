@@ -425,6 +425,49 @@ export function zeitachseKlein({ von, marker, bezug = null, ariaLabel = "" }) {
 
 const tageSeit1970 = (iso) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / 86400000;
 
+// Terminleiste der Uebersicht: von heute bis `bis`, je Spur eine Linie mit Markern
+// (Raute oder Kreis), darunter die Monatsanfaenge. Termine vor `von` (ueberfaellig)
+// sitzen am linken Rand. spuren: [{ label, form: "raute"|"kreis", marker: [{ datum, label, klasse? }] }].
+export function terminLeiste({ von, bis, spuren, formatMonat = (iso) => iso.slice(5, 7), ariaLabel = "" }) {
+  const sichtbar = (spuren ?? []).filter((s) => s.marker?.length);
+  if (!sichtbar.length || !(bis > von)) return "";
+  const links = 96;
+  const rechts = 948;
+  const spurHoehe = 26;
+  const oben = 8;
+  const unten = oben + sichtbar.length * spurHoehe;
+  const start = tageSeit1970(von);
+  const spanne = tageSeit1970(bis) - start;
+  const x = (iso) => links + (Math.min(Math.max(tageSeit1970(iso) - start, 0), spanne) / spanne) * (rechts - links);
+  const teile = [];
+  // Monatsanfaenge nach `von` als feine Gitterlinien mit Kurzlabel.
+  let [jahr, monat] = von.split("-").map(Number);
+  for (;;) {
+    monat += 1;
+    if (monat > 12) { monat = 1; jahr += 1; }
+    const iso = `${jahr}-${String(monat).padStart(2, "0")}-01`;
+    if (iso > bis) break;
+    const mx = runde(x(iso));
+    teile.push(`<line x1="${mx}" x2="${mx}" y1="${oben}" y2="${unten}" class="terminleiste-gitter" />`);
+    teile.push(`<text x="${mx}" y="${unten + 15}" text-anchor="middle" class="terminleiste-text">${esc(formatMonat(iso))}</text>`);
+  }
+  sichtbar.forEach((spur, i) => {
+    const y = oben + i * spurHoehe + spurHoehe / 2;
+    teile.push(`<text x="0" y="${y + 4}" class="terminleiste-text terminleiste-spur">${esc(spur.label)}</text>`);
+    teile.push(`<line x1="${links}" x2="${rechts}" y1="${y}" y2="${y}" class="terminleiste-linie" />`);
+    for (const m of spur.marker) {
+      const mx = x(m.datum);
+      const klasse = `terminleiste-marker ${spur.form === "raute" ? "raute" : "kreis"} ${esc(m.klasse ?? "")}`.trim();
+      const titel = `<title>${esc(m.label)}</title>`;
+      teile.push(spur.form === "raute"
+        ? `<path d="M${runde(mx)},${y - 7} L${runde(mx + 7)},${y} L${runde(mx)},${y + 7} L${runde(mx - 7)},${y} Z" class="${klasse}">${titel}</path>`
+        : `<circle cx="${runde(mx)}" cy="${y}" r="6" class="${klasse}">${titel}</circle>`);
+    }
+  });
+  teile.push(`<line x1="${links}" x2="${links}" y1="${oben - 4}" y2="${unten}" class="terminleiste-heute" />`);
+  return `<svg class="terminleiste" viewBox="0 0 960 ${unten + 20}" role="img" aria-label="${esc(ariaLabel)}">${teile.join("")}</svg>`;
+}
+
 // Restschuld ueber die Zeit: Ist (bis heute) durchgezogen, Plan gestrichelt,
 // Marker fuer heute und das Zinsbindungsende, belegte Staende als Kreise.
 // punkte: [{ datum, wert_cents, tilgung_cents?, zins_cents? }] aufsteigend.

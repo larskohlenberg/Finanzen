@@ -52,7 +52,8 @@ ohne MCP.
 
 | CLI | MCP-Tool |
 | --- | --- |
-| Uebersicht der Web-App | `kennzahlen` (dieselben Kennzahlen wie die Uebersicht, frisch gerechnet; optional `stichtag`; erste Wahl fuer "Wie stehen wir?") |
+| Uebersicht der Web-App | `kennzahlen` (dieselben Kennzahlen wie die Uebersicht, frisch gerechnet; optional `stichtag`; erste Wahl fuer "Wie stehen wir?"; listet auch die anstehenden Fristen aus `anstehendeFristen` und die Absicherung je versicherter Person) |
+| Fristen anlegen, abhaken | `datei_lesen` / `datei_ersetzen` auf `DATENROOT/fristen.json` (kein eigenes Tool; Validator laeuft danach) |
 | `tools/neuer-bestand.mjs` | — (nur CLI: legt einmalig einen leeren Datenbestand mit Grundkategorien an, bevor es einen MCP-Server gibt) |
 | `tools/validator.mjs` | `status` (Validator-Ergebnis mit Fehlern; laeuft ausserdem nach jedem Schreiben) |
 | `tools/inbox.mjs` | `inbox` |
@@ -651,6 +652,16 @@ Zeitwerte zu Vorsorge stehen in `DATENROOT/zeitwerte.jsonl` mit
   Vermittlerportal), auch bei nicht kuendbaren Vertraegen. Nur Anzeige, zaehlt
   nie ins Nettovermoegen. Ein Portalfeld "Rueckkaufswert" ohne ausgewiesenen
   Stornoabzug gehoert hierher, nicht nach `rueckkaufswert`.
+- Absicherungswerte, was bei Berufsunfaehigkeit oder Tod der versicherten
+  Person (`person_id` am Vertrag) fliesst, brutto wie im Beleg:
+  `bu_rente` (Euro je Monat), `erwerbsminderungsrente` (Euro je Monat,
+  gesetzliche Rente), `todesfallleistung` (einmalig) und
+  `hinterbliebenenrente` (Euro je Monat, Witwen- und Waisenrente zusammen).
+  Nur Anzeige (Kachel Absicherung, `kennzahlen`, Wertstaende); nie
+  Nettovermoegen, nie Altersrente, nicht in Szenarien. Gerechnet in
+  `absicherung.mjs` (`absicherung(data, today)`): je aktiver Person mit
+  laufendem Vertrag der juengste Wert je Vertrag und Feld bis zum Stichtag,
+  beendete und gekuendigte Vertraege fallen weg.
 
 Laufende Beitraege werden einseitig von `DATENROOT/regelzahlungen.json` aus
 verknuepft: `Regelzahlung.vorsorge_id` zeigt auf `vorsorge.vorsorge_id`. Die
@@ -676,6 +687,40 @@ Vermoegens-/Liquiditaetschecks sichtbar:
 - `vorsorge-dynamik`: der naechste Dynamik-Erhoehungstermin liegt binnen 90 Tagen
   ohne Entscheidung, oder ein Angebot ist `offen`. Der Text nennt den Vorschlag
   nach der Regel "nur jede dritte annehmen" (`app/vorsorge-dynamik.mjs`).
+- `frist-ueberfaellig`: eine erfasste Frist ist vorbei und nicht abgehakt (siehe
+  Fristen).
+
+## Fristen
+
+Fristen und Termine, an denen gehandelt werden muss (Dynamik-Widerspruch,
+Kuendigungsfrist, Kapitalwahl, Wiedervorlage), liegen als eigene Liste in
+`DATENROOT/fristen.json` (`schemas/fristen.schema.json`, ADR 0032), nicht als
+Fliesstext in Bemerkungen.
+
+- `datum` ist der **letzte Tag**, an dem gehandelt werden muss, nicht der Tag
+  des Ereignisses (Dynamik zum 01.12., Widerspruch bis 15.11. → `datum`
+  `…-11-15`).
+- `art`: `widerspruch`, `kuendigung`, `entscheidung`, `wiedervorlage`,
+  `sonstiges`.
+- Wiederkehrend mit `rhythmus_einheit` + `rhythmus_intervall` (nur zusammen,
+  Werte wie bei Regelzahlungen); `datum` ist dann der Anker, also der erste
+  noch offene Termin.
+- Hoechstens ein Bezug: `vorsorge_id`, `darlehen_id`, `immobilie_id`,
+  `konto_id`, `vermoegenswert_id` oder `regelzahlung_id`. Ohne Bezug ist
+  erlaubt (Steuererklaerung).
+- **Abhaken** ueber `erledigt_bis`: alle Termine bis einschliesslich diesem
+  Datum sind erledigt. Einmalig: `erledigt_bis = datum`. Wiederkehrend: auf den
+  erledigten Termin setzen, der naechste bleibt offen. Nie die Frist loeschen,
+  nur weil sie erledigt ist; kein Status-Feld.
+- Quelle und Begruendung (Brief, Police, Nachtrag) in `bemerkung`.
+
+`app/fristen.mjs` rechnet `anstehendeFristen(data, heute, monate = 12)`: die
+erfassten Termine plus abgeleitete Termine ohne eigenen Eintrag (Darlehen
+`zinsbindung_bis` und `laufzeit_bis`, Vorsorge `leistung_beginn` — bei
+`kapitalwahl = offen` als Entscheidung — und `aktiv_bis`, bestaetigte
+Regelzahlungen mit `aktiv_bis`). Was schon aus diesen Feldern folgt, wird nicht
+zusaetzlich als Frist erfasst. Ein ueberfaelliger, nicht abgehakter Termin
+erscheint als Check `frist-ueberfaellig`.
 
 ## Szenarien
 

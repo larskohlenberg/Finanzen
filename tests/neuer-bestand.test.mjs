@@ -17,6 +17,7 @@ test("leerer Ordner: Plan legt alle Masterdateien an", () => {
   assert.ok(plan.dateien["personen.json"]);
   assert.ok(plan.dateien["transaktionen.jsonl"] !== undefined);
   assert.ok(plan.dateien["kategorisierungsregeln.json"]);
+  assert.equal(plan.dateien["fristen.json"], "[]\n");
 });
 
 test("Grundkategorien: KAT-012 ist Noch zu klaeren und steht zuletzt", () => {

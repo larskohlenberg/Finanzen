@@ -389,6 +389,24 @@ test("Vorgaenger und Nachfolger sind als Vertragslinks erreichbar", () => {
   });
 });
 
+test("Vertragsdaten zeigen die naechsten Fristen des Vertrags", async () => {
+  const { addInterval, localTodayIso } = await import("../app/liquiditaet.mjs");
+  const bald = addInterval(localTodayIso(), "tag", 20);
+  const vorbei = addInterval(localTodayIso(), "tag", -5);
+  mitFixture(() => {
+    data.fristen = [
+      { frist_id: "FR-001", bezeichnung: "Dynamik widersprechen", art: "widerspruch", datum: bald, vorsorge_id: "VS-002" },
+      { frist_id: "FR-002", bezeichnung: "Unterlagen nachreichen", art: "wiedervorlage", datum: vorbei, vorsorge_id: "VS-002" },
+      { frist_id: "FR-003", bezeichnung: "Anderer Vertrag", art: "kuendigung", datum: bald, vorsorge_id: "VS-003" },
+    ];
+    state.selectedVorsorgeId = "VS-002";
+    state.klappKacheln = { "vorsorge.vertragsdaten": true };
+    const html = renderVorsorge();
+    assert.match(html, /detail-label">Fristen<[\s\S]*Unterlagen nachreichen <span class="chip review">überfällig<[\s\S]*Dynamik widersprechen/);
+    assert.doesNotMatch(html, /Anderer Vertrag/);
+  });
+});
+
 test("unbekannte Auswahl faellt auf die Uebersicht zurueck", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-999";

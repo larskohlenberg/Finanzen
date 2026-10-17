@@ -262,15 +262,15 @@ test("terminLeiste: je Spur eine Linie, Raute oder Kreis, ueberfaellige Termine 
       { label: "Leer", form: "kreis", marker: [] },
     ],
   });
-  assert.match(svg, /^<svg class="terminleiste" viewBox="0 0 960 80"/);
+  assert.match(svg, /^<svg class="terminleiste" viewBox="0 0 1280 59"/);
   assert.match(svg, />Fristen<\/text>[\s\S]*>Zahlungen<\/text>/);
   assert.doesNotMatch(svg, />Leer</);
-  // Ueberfaellig sitzt am linken Rand (x = 96), Ende am rechten (x = 948).
-  assert.match(svg, /<path d="M96\.00,14 [^"]*" class="terminleiste-marker raute ueberfaellig" \/>/);
-  assert.match(svg, /<circle cx="948\.00" cy="47" r="6" class="terminleiste-marker kreis" \/>/);
+  // Ueberfaellig sitzt am linken Rand (x = 84), Ende am rechten (x = 1268).
+  assert.match(svg, /<path d="M84\.00,10 [^"]*" class="terminleiste-marker raute ueberfaellig" \/>/);
+  assert.match(svg, /<circle cx="1268\.00" cy="33" r="4" class="terminleiste-marker kreis" \/>/);
   // Hover-Daten: je Marker Position, Datum und Text, dazu Plotgrenzen samt Zeitraum.
   const termine = JSON.parse(svg.match(/data-termine="([^"]*)"/)[1].replaceAll("&quot;", '"'));
-  assert.deepEqual(termine.map((t) => [t.x, t.datum, t.klasse]), [[96, "2026-09-01", "raute ueberfaellig"], [521, "2027-04-17", "raute"], [948, "2027-10-17", "kreis"]]);
+  assert.deepEqual(termine.map((t) => [t.x, t.datum, t.klasse]), [[84, "2026-09-01", "raute ueberfaellig"], [674, "2027-04-17", "raute"], [1268, "2027-10-17", "kreis"]]);
   assert.match(svg, /data-plot="[^"]*&quot;von&quot;:&quot;2026-10-17&quot;/);
   // Zwoelf Monatsanfaenge von November bis Oktober.
   assert.equal((svg.match(/class="terminleiste-gitter"/g) ?? []).length, 12);

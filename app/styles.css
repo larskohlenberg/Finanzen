@@ -3328,12 +3328,12 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .diagramm-hover-swatch.kreis { width: 9px; height: 9px; border: 0; border-radius: 50%; background: var(--accent); }
 .diagramm-hover-swatch.raute { width: 8px; height: 8px; border: 0; background: var(--review); transform: rotate(45deg); }
 .diagramm-hover-swatch.ueberfaellig { background: var(--danger); }
-.terminleiste-linie { stroke: var(--border-strong); stroke-width: 1; }
+.terminleiste-linie { stroke: var(--border); stroke-width: 1; }
 .terminleiste-gitter { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
-.terminleiste-heute { stroke: var(--danger); stroke-width: 1.5; }
-.terminleiste-text { fill: var(--muted); font-size: 13px; }
-.terminleiste-spur { font-size: 14px; }
-.terminleiste-marker { stroke: var(--surface); stroke-width: 1.5; }
+.terminleiste-heute { stroke: var(--danger); stroke-width: 1; }
+.terminleiste-text { fill: var(--muted); font-size: 11.5px; }
+.terminleiste-spur { font-size: 11.5px; }
+.terminleiste-marker { stroke: var(--surface); stroke-width: 1; }
 .terminleiste-marker.kreis { fill: var(--accent); }
 .terminleiste-marker.raute { fill: var(--review); }
 .terminleiste-marker.ueberfaellig { fill: var(--danger); }
@@ -3350,7 +3350,7 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 /* Kacheln Absicherung: BU und Tod nebeneinander, darin je Person ein Block. */
 .absicherung-kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
 .absicherung-kachel { min-width: 0; }
-.absicherung-kachel .page-lead { margin-bottom: 14px; }
+.absicherung-kachel .uebersicht-kachel-kopf { margin-bottom: 8px; }
 .absicherung-person { padding: 6px 0; }
 .absicherung-person + .absicherung-person { border-top: 1px solid var(--border); }
 .absicherung-person-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }

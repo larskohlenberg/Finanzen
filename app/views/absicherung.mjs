@@ -62,7 +62,6 @@ function kachelHtml(fall, personen, personBlock) {
   return `
       <section class="panel panel-pad absicherung-kachel" aria-labelledby="absicherung-${fall}-titel">
         <h2 class="uebersicht-kachel-kopf" id="absicherung-${fall}-titel"><button class="linkish" data-view="vorsorge">${iconSvg("vorsorge")}<span>${escapeHtml(t(`absicherung.${fall}Titel`))}</span>${iconSvg("chevronRight")}</button></h2>
-        <p class="page-lead">${escapeHtml(t(`absicherung.${fall}Lead`))}</p>
         ${inhalt}
       </section>`;
 }

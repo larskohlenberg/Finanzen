@@ -288,9 +288,7 @@ window.FINANCE_I18N = {
     },
     absicherung: {
       buTitel: "Absicherung bei Berufsunfähigkeit",
-      buLead: "Was monatlich fließt, wenn eine versicherte Person berufsunfähig wird: die erfassten Renten, brutto, ohne Bedarfsrechnung.",
       todTitel: "Absicherung im Todesfall",
-      todLead: "Was fließt, wenn eine versicherte Person stirbt: die erfassten Leistungen, Renten brutto, ohne Bedarfsrechnung.",
       nichtErfasst: "nicht erfasst",
       jeMonat: "{betrag} je Monat",
       einmalig: "{betrag} einmalig",
@@ -1291,9 +1289,7 @@ window.FINANCE_I18N = {
     },
     absicherung: {
       buTitel: "Protection on disability",
-      buLead: "What is paid monthly if an insured person becomes unable to work: recorded pensions, gross, no needs analysis.",
       todTitel: "Protection on death",
-      todLead: "What is paid if an insured person dies: recorded benefits, pensions gross, no needs analysis.",
       nichtErfasst: "not recorded",
       jeMonat: "{betrag} per month",
       einmalig: "{betrag} one-off",

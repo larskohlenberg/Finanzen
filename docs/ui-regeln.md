@@ -30,6 +30,7 @@ Reihenfolge und Standard je Detailansicht:
 | Immobilie | Stammdaten, Monatstabelle, Dokumente, Bemerkung und Wertstaende (zu) |
 | Darlehen | Kennzahlen, Restschuldverlauf, Stammdaten, Dokumente, Bemerkung/Wertstaende/Sondertilgungen (zu) |
 | Vermoegen, Uebersicht | Klassenkarten, Wertstaende (zu; ein Sprung "Alle Wertstaende" oeffnet sie) |
+| Vorsorge, Uebersicht | Tabs direkt unter dem Seitenkopf; im Tab: Alterseinkommen mit Zeitstrahl, Kapitalleistungen, Rueckkaufswerte, Beitraege, offene Punkte (ohne offene nur eine Zeile). Andere Tabs ohne Seitenkennzahlen |
 | Vorsorge, Tab Versicherungen | Jahresbeitraege im Vergleich (zu), Vertragskarten, Vertragsdetail |
 | Uebersicht, Absicherung | je Person eine Summenzeile (zu), aufgeklappt die einzelnen Leistungen |
 

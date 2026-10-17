@@ -363,34 +363,6 @@ export function donutDiagramm({ teile, formatWert = String, ariaLabel = "" }) {
   return `<svg class="donut-diagramm" viewBox="0 0 100 100" role="img" aria-label="${esc(ariaLabel)}">${segmente.join("")}</svg>`;
 }
 
-// Kleine Zeitachse in Jahren mit Markern (Kapitalauszahlungen) und einer Bezugslinie
-// (z. B. Rentenbeginn). marker: [{ datum, klasse, label }] · bezug: { datum, label } | null.
-export function zeitachseKlein({ von, marker, bezug = null, ariaLabel = "" }) {
-  const daten = [...(marker ?? []).map((m) => m.datum), ...(bezug ? [bezug.datum] : [])].filter(Boolean);
-  if (!daten.length) return "";
-  const jahr = (iso) => Number(iso.slice(0, 4)) + (Number(iso.slice(5, 7)) - 1) / 12;
-  const start = Math.floor(jahr(von));
-  const ende = Math.floor(Math.max(...daten.map(jahr))) + 1;
-  const links = 8;
-  const rechts = 192;
-  const x = (iso) => links + ((jahr(iso) - start) / Math.max(ende - start, 1)) * (rechts - links);
-  const y = 22;
-  const teile = [
-    `<line x1="${links}" x2="${rechts}" y1="${y}" y2="${y}" class="zeitachse-linie" />`,
-    `<text x="${links}" y="${y + 12}" text-anchor="start" class="zeitachse-text">${start}</text>`,
-    `<text x="${rechts}" y="${y + 12}" text-anchor="end" class="zeitachse-text">${ende}</text>`,
-  ];
-  if (bezug) {
-    const bx = runde(x(bezug.datum));
-    teile.push(`<line x1="${bx}" x2="${bx}" y1="6" y2="${y + 4}" class="zeitachse-bezug" />`);
-    teile.push(`<text x="${bx}" y="5" text-anchor="middle" class="zeitachse-text">${esc(bezug.label)}</text>`);
-  }
-  for (const m of marker ?? []) {
-    teile.push(`<circle cx="${runde(x(m.datum))}" cy="${y}" r="4.5" class="zeitachse-marker ${esc(m.klasse)}"><title>${esc(m.label)}</title></circle>`);
-  }
-  return `<svg class="zeitachse-klein" viewBox="0 0 200 38" role="img" aria-label="${esc(ariaLabel)}">${teile.join("")}</svg>`;
-}
-
 const tageSeit1970 = (iso) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / 86400000;
 
 // Terminleiste der Uebersicht: von heute bis `bis`, je Spur eine Linie mit Markern

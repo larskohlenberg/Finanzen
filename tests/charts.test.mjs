@@ -230,17 +230,6 @@ test("donutDiagramm: ein Segment je Teil mit Tooltip, Vollkreis bei einem Teil, 
   assert.equal(donutDiagramm({ teile: [] }), "");
 });
 
-test("zeitachseKlein: Marker und Bezugslinie auf der Jahresachse", async () => {
-  const { zeitachseKlein } = await import("../app/charts.mjs");
-  const svg = zeitachseKlein({ von: "2026-10-16", marker: [{ datum: "2035-05-01", klasse: "m1", label: "Kapital A" }, { datum: "2040-03-01", klasse: "m2", label: "Kapital B" }], bezug: { datum: "2039-03-01", label: "Rente" } });
-  assert.equal((svg.match(/class="zeitachse-marker/g) ?? []).length, 2);
-  assert.match(svg, />2026</);
-  assert.match(svg, />2041</);
-  assert.match(svg, /class="zeitachse-bezug"/);
-  assert.match(svg, /<title>Kapital A<\/title>/);
-  assert.equal(zeitachseKlein({ von: "2026-01-01", marker: [] }), "");
-});
-
 test("terminLeiste: je Spur eine Linie, Raute oder Kreis, ueberfaellige Termine am linken Rand", async () => {
   const { terminLeiste } = await import("../app/charts.mjs");
   const svg = terminLeiste({

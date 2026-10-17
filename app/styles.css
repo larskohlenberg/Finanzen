@@ -3354,3 +3354,9 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .absicherung-posten li > button { text-align: left; }
 .absicherung-posten li > .muted { grid-column: 1; font-size: 0.85rem; }
 .absicherung-posten li > .amount { grid-column: 2; grid-row: 1; white-space: nowrap; font-weight: 400; }
+
+/* Beitragsbefreiung in den Vertragsdaten: Haekchen nur zur Anzeige. */
+.befreiung-liste { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; }
+.befreiung { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.befreiung input { margin: 0; accent-color: var(--accent); }
+.befreiung input:disabled { opacity: 1; }

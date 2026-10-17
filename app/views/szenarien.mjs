@@ -7,7 +7,7 @@ import { data, state, t, escapeHtml, cents } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead } from "../komponenten.mjs";
 import { zeitstrahlDiagramm, stapelDiagramm } from "../charts.mjs";
-import { computeSzenario, rechneSzenario, guardrailWarnungen, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte, szenarioAenderungen } from "../szenarien.mjs";
+import { computeSzenario, rechneSzenario, guardrailWarnungen, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte, szenarioAenderungen, ereignisAnnahmen } from "../szenarien.mjs";
 import { localTodayIso, addInterval } from "../liquiditaet.mjs";
 
 export const MAX_VERGLEICH = 7;
@@ -94,6 +94,7 @@ function annahmeName(a) {
   if (a.name) return a.name;
   if (a.art === "regelzahlung-aenderung") return (data.regelzahlungen ?? []).find((r) => r.regelzahlung_id === a.regelzahlung_id)?.bezeichnung ?? a.regelzahlung_id;
   if (a.art === "vorsorge-leistung") return zielBezeichnung("vorsorge", a.vorsorge_id);
+  if (a.art === "ereignis") return `${t(`szenarien.fall.${a.fall}`)} ${(data.personen ?? []).find((p) => p.person_id === a.person_id)?.name ?? a.person_id}`;
   if (a.gegenbuchung) return gegenbuchungLabel(a.gegenbuchung);
   if (a.begruendung) return a.begruendung.length > 40 ? `${a.begruendung.slice(0, 38)}…` : a.begruendung;
   return t(`szenarien.art.${a.art}`);
@@ -288,7 +289,7 @@ function zeitstrahl(szenario, r, v, phasen) {
     : [];
   const horizontMonat = r.punkte.at(-1)?.monat ?? "";
   const ereignisse = (szenario.annahmen ?? [])
-    .filter(istEinmalig)
+    .filter((a) => istEinmalig(a) || a.art === "ereignis")
     .map((a) => ({ a, monat: String(a.art === "einmalzahlung" ? a.datum : a.ab).slice(0, 7) }))
     .filter(({ monat }) => monat >= (r.punkte[0]?.monat ?? "") && monat <= horizontMonat)
     .map(({ a, monat }) => {
@@ -407,6 +408,17 @@ function annahmeZeile(a) {
   } else if (a.art === "vorsorge-leistung") {
     const arm = t(`szenarien.arm.${a.arm}`);
     nachher = arm === `szenarien.arm.${a.arm}` ? a.arm : arm;
+  } else if (a.art === "ereignis") {
+    nachher = `${t(`szenarien.ereignisFolge.${a.fall}`)}${a.bis ? ` ${t("szenarien.bis")} ${monatLabel(a.bis)}` : ""}`;
+    // Monatswirkung zu Beginn: entfallende Beitraege plus einsetzende Renten.
+    const folgen = ereignisAnnahmen(data, a, localTodayIso());
+    const monat = folgen.reduce((s, f) => {
+      if (f.art === "regelzahlung-neu" && f.ab === a.ab) return s + monatsBetrag(f.betrag, f.rhythmus_einheit, f.rhythmus_intervall);
+      if (f.art !== "regelzahlung-aenderung") return s;
+      const r = (data.regelzahlungen ?? []).find((x) => x.regelzahlung_id === f.regelzahlung_id);
+      return r ? s - monatsBetrag(r.betrag, r.rhythmus_einheit, r.rhythmus_intervall) : s;
+    }, 0);
+    if (folgen.length) wirkung = `${vorzeichen(monat)} / ${t("szenarien.monatKurz")}`;
   }
   const artText = `${t(`szenarien.art.${a.art}`)}${a.art === "vorsorge-leistung" ? ` · ${a.vorsorge_id}` : ""}`;
   return `

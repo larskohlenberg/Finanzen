@@ -775,8 +775,12 @@ erscheint als Check `frist-ueberfaellig`.
 Szenarien buendeln explizite Annahmen zu einer Was-waere-wenn-Sicht (Liquiditaet,
 Restschuld, Nettovermoegen) gegenueber dem validierten Bestand. Sie liegen in
 `DATENROOT/szenarien.json`, Annahmen sind eingebettet. Eine Annahme ist
-`einmalzahlung`, `regelzahlung-neu`, `regelzahlung-aenderung` oder
-`vorsorge-leistung`, je mit `qualitaet ∈ {belegt, geschaetzt, offen}`. Die
+`einmalzahlung`, `regelzahlung-neu`, `regelzahlung-aenderung`,
+`vorsorge-leistung` oder `ereignis`, je mit `qualitaet ∈ {belegt, geschaetzt, offen}`.
+Ein `ereignis` (`fall ∈ {bu, arbeitslosigkeit}`, `person_id`, `ab`, optional `bis`)
+beendet die Beitraege aller Vertraege der Person mit passender
+`beitragsbefreiung` und bucht bei `bu` die erfassten BU- und
+Erwerbsminderungsrenten als Einnahme ein (ADR 0033). Die
 Annahme-Art `vorsorge-leistung` (M7) verweist auf eine `vorsorge_id` und einen
 `arm ∈ {rente, kapital}` und wird zur Rechenzeit in die Primitive aufgeloest
 (siehe Vorsorge-Abschnitt); fehlt `geprueft_am`, deckelt die Engine die Qualitaet

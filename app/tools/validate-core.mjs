@@ -235,6 +235,7 @@ const schemas = {
       quelle_standdatum: { type: "string", format: "date" },
       bemerkung: { type: "string" },
       dynamik: { type: "object" },
+      beitragsbefreiung: { type: "array", minItems: 1, uniqueItems: true, itemEnum: ["bu", "arbeitslosigkeit"] },
     },
   },
   kategorisierungsregeln: {
@@ -380,6 +381,11 @@ function validateField(path, value, rule, errors) {
     }
     if (rule.uniqueItems && new Set(value).size !== value.length) {
       errors.push(`${path}: Eintraege muessen eindeutig sein`);
+    }
+    if (rule.itemEnum) {
+      value.forEach((entry, index) => {
+        if (!rule.itemEnum.includes(entry)) errors.push(`${path}[${index}]: Wert nicht erlaubt`);
+      });
     }
     if (rule.itemPattern) {
       value.forEach((entry, index) => {
@@ -747,6 +753,7 @@ function validateSzenarien(data, errors) {
   const vmwIds = new Set((data.vermoegenswerte ?? []).filter((v) => v.status !== "veraeussert").map((v) => v.vermoegenswert_id));
   const rzIds = new Set((data.regelzahlungen ?? []).map((r) => r.regelzahlung_id));
   const vorsorgeIds = new Set((data.vorsorge ?? []).map((v) => v.vorsorge_id));
+  const personIds = new Set((data.personen ?? []).map((p) => p.person_id));
   const idMengen = { darlehen: darlehenIds, depot: depotIds, immobilie: immoIds, vermoegenswert: vmwIds, vorsorge: vorsorgeIds };
 
   for (const sz of data.szenarien ?? []) {
@@ -762,7 +769,7 @@ function validateSzenarien(data, errors) {
       else if (gesehen.has(a.annahme_id)) errors.push(`${ap}: annahme_id doppelt`);
       gesehen.add(a.annahme_id);
 
-      if (!["einmalzahlung", "regelzahlung-neu", "regelzahlung-aenderung", "vorsorge-leistung"].includes(a.art)) {
+      if (!["einmalzahlung", "regelzahlung-neu", "regelzahlung-aenderung", "vorsorge-leistung", "ereignis"].includes(a.art)) {
         errors.push(`${ap}: art unbekannt`);
         continue;
       }
@@ -782,6 +789,15 @@ function validateSzenarien(data, errors) {
         if (!["rente", "kapital"].includes(a.arm)) errors.push(`${ap}: arm ungueltig (rente|kapital)`);
         if (!isIsoDate(a.ab)) errors.push(`${ap}: ab fehlt/ungueltig`);
         if (a.gegenbuchung) errors.push(`${ap}: vorsorge-leistung darf keine gegenbuchung haben (wird zur Rechenzeit erzeugt)`);
+        continue;
+      }
+
+      if (a.art === "ereignis") {
+        if (!["bu", "arbeitslosigkeit"].includes(a.fall)) errors.push(`${ap}: fall ungueltig (bu|arbeitslosigkeit)`);
+        if (!personIds.has(a.person_id)) errors.push(`${ap}: person_id ${a.person_id} existiert nicht`);
+        if (!isIsoDate(a.ab)) errors.push(`${ap}: ab fehlt/ungueltig`);
+        if (a.bis !== undefined && (!isIsoDate(a.bis) || (isIsoDate(a.ab) && a.bis < a.ab))) errors.push(`${ap}: bis ungueltig oder vor ab`);
+        if (a.gegenbuchung) errors.push(`${ap}: ereignis darf keine gegenbuchung haben (wird zur Rechenzeit erzeugt)`);
         continue;
       }
 

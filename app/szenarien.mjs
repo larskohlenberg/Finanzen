@@ -209,10 +209,54 @@ function restschuldProjektion(darlehen, zeitwerte, today, horizon, sondertilgung
 // regelzahlung-neu (lebenslanges Einkommen) + bei kapitalbildenden Vertraegen ein 0-Cash-
 // einmalzahlung-Abbau des Rueckkaufswerts (Verrentung); Arm 'kapital' -> einmalzahlung
 // (Kapitalzufluss) + Abbau bei kapitalbildend. Qualitaet: ungeprueft -> offen.
+// Ereignis BU oder Arbeitslosigkeit ab `ab` (bis optional `bis`) fuer eine Person:
+// Die Beitraege aller laufenden Vertraege dieser Person mit passender
+// Beitragsbefreiung entfallen; bei BU fliessen zusaetzlich die erfassten BU- und
+// Erwerbsminderungsrenten (brutto) als Einnahme. Uebersetzt in vorhandene
+// Annahme-Arten, damit Rechnung und Aenderungsliste ohne Sonderweg laufen.
+const EREIGNIS_RENTEN = [["bu_rente", "BU-Rente"], ["erwerbsminderungsrente", "Erwerbsminderungsrente"]];
+const EREIGNIS_FALL = { bu: "Berufsunfähigkeit", arbeitslosigkeit: "Arbeitslosigkeit" };
+
+export function ereignisAnnahmen(data, a, today) {
+  const annahmen = [];
+  const laeuft = (vs) => vs.status !== "beendet" && vs.status !== "gekuendigt" && (!vs.aktiv_bis || vs.aktiv_bis >= a.ab);
+  const vertraege = (data.vorsorge ?? []).filter((vs) => vs.person_id === a.person_id && laeuft(vs));
+  for (const vs of vertraege.filter((v) => (v.beitragsbefreiung ?? []).includes(a.fall))) {
+    const beitraege = (data.regelzahlungen ?? []).filter((r) => r.status === "bestaetigt" && r.vorsorge_id === vs.vorsorge_id
+      && toCents(r.betrag) < 0 && r.anker_datum <= a.ab && !(r.aktiv_bis && r.aktiv_bis < a.ab));
+    for (const r of beitraege) {
+      annahmen.push({ annahme_id: `${a.annahme_id}~${r.regelzahlung_id}`, art: "regelzahlung-aenderung", regelzahlung_id: r.regelzahlung_id,
+        aktion: "beenden", ab: a.ab, qualitaet: a.qualitaet, begruendung: `Beitragsbefreiung bei ${EREIGNIS_FALL[a.fall]}` });
+      if (a.bis && !(r.aktiv_bis && r.aktiv_bis <= a.bis)) {
+        annahmen.push({ annahme_id: `${a.annahme_id}~${r.regelzahlung_id}~wieder`, art: "regelzahlung-neu", name: r.bezeichnung, betrag: r.betrag,
+          rhythmus_einheit: r.rhythmus_einheit, rhythmus_intervall: r.rhythmus_intervall, ab: addInterval(a.bis, "tag", 1), bis: r.aktiv_bis,
+          kategorie_id: r.kategorie_id, qualitaet: a.qualitaet });
+      }
+    }
+  }
+  if (a.fall === "bu") {
+    for (const vs of vertraege) {
+      for (const [feld, label] of EREIGNIS_RENTEN) {
+        const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld, today);
+        if (!zw) continue;
+        annahmen.push({ annahme_id: `${a.annahme_id}~${vs.vorsorge_id}~${feld}`, art: "regelzahlung-neu", name: `${label} ${vs.name}`, betrag: zw.wert,
+          rhythmus_einheit: "monat", rhythmus_intervall: 1, ab: a.ab, bis: a.bis, qualitaet: vs.geprueft_am ? (zw.qualitaet ?? "offen") : "offen" });
+      }
+    }
+  }
+  return annahmen;
+}
+
 export function expandVorsorgeLeistungen(data, szenario, today) {
   const annahmen = [];
   const warnungen = [];
   for (const a of szenario.annahmen ?? []) {
+    if (a.art === "ereignis") {
+      const folgen = ereignisAnnahmen(data, a, today);
+      if (!folgen.length) warnungen.push({ code: "ereignis-ohne-wirkung", text: `Ereignis ${a.annahme_id}: kein Vertrag mit Beitragsbefreiung oder BU-Leistung für ${a.person_id}` });
+      annahmen.push(...folgen);
+      continue;
+    }
     if (a.art !== "vorsorge-leistung") { annahmen.push(a); continue; }
     const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === a.vorsorge_id);
     if (!vs) { warnungen.push({ code: "vorsorge-unbekannt", text: `Annahme ${a.annahme_id} verweist auf unbekannte Vorsorge ${a.vorsorge_id}` }); continue; }

@@ -63,5 +63,19 @@
       { "annahme_id": "A4", "art": "regelzahlung-neu", "name": "Waisenrente Emma", "betrag": "230.00", "qualitaet": "geschaetzt", "rhythmus_einheit": "monat", "rhythmus_intervall": 1, "ab": "2028-04-01", "bis": "2035-07-31", "begruendung": "Halbwaisenrente bis 18 (bzw. 27 in Ausbildung)" },
       { "annahme_id": "A5", "art": "regelzahlung-neu", "name": "Waisenrente Noah", "betrag": "230.00", "qualitaet": "geschaetzt", "rhythmus_einheit": "monat", "rhythmus_intervall": 1, "ab": "2028-04-01", "bis": "2037-09-30", "begruendung": "Halbwaisenrente bis 18" }
     ]
+  },
+  {
+    "szenario_id": "SZN-006",
+    "name": "Berufsunfähigkeit Martin",
+    "beschreibung": "Martin wird ab 2027 berufsunfaehig: Gehalt endet, die Beitragsbefreiung der Rentenversicherung greift, die BU-Rente fliesst.",
+    "status": "entwurf",
+    "stand": "2026-06-22",
+    "reichweite_bis": "2029-12-31",
+    "erstellt_am": "2026-06-22",
+    "phasen": [{ "name": "Arbeit", "ab": "2026-06-01" }, { "name": "Berufsunfähig", "ab": "2027-04-01" }],
+    "annahmen": [
+      { "annahme_id": "A-001", "art": "regelzahlung-aenderung", "qualitaet": "geschaetzt", "regelzahlung_id": "RZ-002", "ab": "2027-04-01", "aktion": "beenden", "begruendung": "Gehalt endet mit Eintritt der BU" },
+      { "annahme_id": "A-002", "art": "ereignis", "fall": "bu", "person_id": "PER-002", "ab": "2027-04-01", "qualitaet": "geschaetzt", "begruendung": "Beitragsbefreiung und BU-Rente aus den Vertraegen" }
+    ]
   }
 ]

@@ -738,11 +738,30 @@ function dynamikKennzahl(vs, today) {
     `${escapeHtml(notiz)}${chance}${verlauf ? `<br>${escapeHtml(verlauf)}` : ""}`, { titel });
 }
 
-// Kennzahlen im Vertragsdetail; mit Beitragsdynamik fuenf statt vier Kacheln.
+// Kachel "Absicherung": was bei BU oder Tod fliesst (Zeitwerte, nur Anzeige).
+// Der erste vorhandene Wert ist die Hauptzahl, die uebrigen stehen darunter.
+const ABSICHERUNG_FELDER = [
+  ["bu_rente", true],
+  ["erwerbsminderungsrente", true],
+  ["todesfallleistung", false],
+  ["hinterbliebenenrente", true],
+];
+
+function absicherungKennzahl(vs) {
+  const werte = ABSICHERUNG_FELDER.map(([feld, monatlich]) => ({ feld, monatlich, zw: zeitwert(vs, feld) })).filter((w) => w.zw);
+  if (!werte.length) return "";
+  const [haupt, ...rest] = werte;
+  const betrag = (w) => `${geld(cents(w.zw.wert))}${w.monatlich ? ` ${einheit(t("vorsorge.jeMonat"))}` : ""}`;
+  const weitere = rest.map((w) => `<br>${escapeHtml(t(FELD_LABEL[w.feld]))} ${escapeHtml(formatMoney(cents(w.zw.wert)))}${w.monatlich ? ` ${escapeHtml(t("vorsorge.jeMonat"))}` : ""}`).join("");
+  return kennzahl(t("vorsorge.absicherung"), betrag(haupt), `${escapeHtml(t(FELD_LABEL[haupt.feld]))} · ${zeitwertNotiz(haupt.zw)}${weitere}`);
+}
+
+// Kennzahlen im Vertragsdetail: vier Grundkacheln, dazu Absicherung und
+// Beitragsdynamik, wenn vorhanden (fuenf in einer Reihe, sechs in zwei).
 function kennzahlRaster(vs, tab, today) {
-  const dynamik = dynamikKennzahl(vs, today);
+  const extra = [absicherungKennzahl(vs), dynamikKennzahl(vs, today)].filter(Boolean);
   const basis = tab === "versicherungen" ? kennzahlenVersicherung(vs, today) : kennzahlenVorsorge(vs, today);
-  return `<div class="kennzahl-raster${dynamik ? " kennzahl-raster-5" : ""}">${basis}${dynamik}</div>`;
+  return `<div class="kennzahl-raster${extra.length ? ` kennzahl-raster-${4 + extra.length}` : ""}">${basis}${extra.join("")}</div>`;
 }
 
 function renderDokumente(vs) {

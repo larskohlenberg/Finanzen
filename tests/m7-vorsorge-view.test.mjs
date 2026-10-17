@@ -456,6 +456,38 @@ test("Vertrag ohne Dynamik behaelt vier Kennzahlen", () => {
   });
 });
 
+test("Absicherung als Kennzahl-Kachel: Hauptwert, weitere Werte darunter, mit Dynamik sechs Kacheln", () => {
+  const zeitwerte = [
+    ...fixture().zeitwerte,
+    zw("VS-003", "todesfallleistung", "40000.00", "2025-12-31"),
+    zw("VS-003", "todesfallleistung", "45000.00", "2026-06-30"),
+    zw("VS-003", "bu_rente", "1500.00", "2026-01-01"),
+  ];
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-003";
+    const html = renderVorsorge();
+    const raster = html.match(/<div class="kennzahl-raster kennzahl-raster-5">([\s\S]*?)<\/div>\s*<section/)?.[1] ?? "";
+    assert.equal(anzahl(raster, /class="kennzahl"/g), 5, "Absicherung als fuenfte Kachel");
+    assert.match(raster, /Absicherung<\/div>\s*<div class="kennzahl-wert">[\s\S]*?1\.500,00\s€<\/span> <span class="betrag-einheit">\/ Monat/);
+    assert.match(raster, /BU-Rente · [\s\S]*1\.1\.2026<br>Todesfallleistung 45\.000,00\s€/, "juengster Todesfallwert unter der BU-Rente");
+  }, { zeitwerte });
+
+  const termin = "2099-12-01";
+  const vorsorge = fixture().vorsorge.map((vs) => (vs.vorsorge_id === "VS-003" ? { ...vs, dynamik: { termin: termin.slice(5), verlauf: [] } } : vs));
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-003";
+    const html = renderVorsorge();
+    assert.match(html, /<div class="kennzahl-raster kennzahl-raster-6">/);
+  }, { zeitwerte, vorsorge });
+});
+
+test("Vertrag ohne Absicherungswerte zeigt keine Absicherungs-Kachel", () => {
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-003";
+    assert.doesNotMatch(renderVorsorge(), /kennzahl-label">Absicherung/);
+  });
+});
+
 test("Beitragsdynamik: Widerspruchsfrist aus der Fristenliste in Kennzahl und Karte", async () => {
   const { localTodayIso, addInterval } = await import("../app/liquiditaet.mjs");
   const today = localTodayIso();

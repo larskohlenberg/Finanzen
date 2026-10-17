@@ -2831,6 +2831,10 @@ a.linkish {
 .objekt-karte-kopf .chip { flex: 0 0 auto; white-space: nowrap; }
 .objekt-karte-wert { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .objekt-karte-zeile { color: var(--muted); font-size: 12px; }
+/* ID des Objekts klein unten rechts, damit sie im Gespraech mit dem Agenten ohne Umweg ablesbar ist. */
+.objekt-karte-fuss { display: flex; align-items: flex-end; gap: 8px; margin-top: auto; }
+.objekt-karte-fuss .objekt-karte-chips { flex: 1 1 auto; }
+.objekt-karte-id { margin-left: auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; user-select: all; }
 .fortschritt { display: block; width: 100%; height: 6px; margin: 4px 0 2px; border-radius: 3px; }
 .fortschritt-wert { fill: var(--accent); }
 

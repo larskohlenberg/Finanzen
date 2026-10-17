@@ -458,7 +458,7 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
       ${fortschritt ? `${balkenSvg([{ anteil: fortschritt.anteil, klasse: farbKlasse(farben, vs.vorsorge_id), titel: fortschritt.text }], { klasse: "fortschritt" })}<span class="objekt-karte-zeile">${escapeHtml(fortschritt.text)}</span>` : ""}
       ${zeilen.filter(Boolean).map((z) => `<span class="objekt-karte-zeile">${escapeHtml(z)}</span>`).join("")}
       ${bezug.length ? `<span class="objekt-karte-zeile objekt-karte-bezug">${iconSvg("vermoegen")}${escapeHtml(t("vorsorge.gehoertZu"))} ${bezug.join(", ")}</span>` : ""}
-      ${chips ? `<span class="objekt-karte-chips">${chips}</span>` : ""}
+      <span class="objekt-karte-fuss">${chips ? `<span class="objekt-karte-chips">${chips}</span>` : ""}<span class="objekt-karte-id">${escapeHtml(vs.vorsorge_id)}</span></span>
     </div>`;
 }
 

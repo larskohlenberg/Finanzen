@@ -101,6 +101,7 @@ test("Darlehen ohne Anker: Karte und Detail melden es, kein Absturz; abgeloeste 
     assert.match(html, /data-vermoegen="darlehen:DAR-001"/);
     assert.doesNotMatch(html, /data-vermoegen="darlehen:DAR-002"/);
     assert.match(html, /objekt-karte active[^>]*data-vermoegen="darlehen:DAR-001"/);
+    assert.match(html, /<span class="objekt-karte-id">DAR-001<\/span>/, "jede Karte zeigt die Objekt-ID");
   });
 });
 

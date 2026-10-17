@@ -146,12 +146,18 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
 
   // Die Uebersicht zeigt keine Kontentabellen mehr, sondern Bereichskacheln.
   const uebersicht = renderOverview();
-  const bereich = (id) => uebersicht.match(new RegExp(`<section class="panel panel-pad uebersicht-kachel" aria-labelledby="kachel-${id}">[\\s\\S]*?</section>`))?.[0] ?? "";
+  const bereich = (id) => uebersicht.match(new RegExp(`<section class="panel panel-pad uebersicht-kachel[^"]*" aria-labelledby="kachel-${id}">[\\s\\S]*?</section>`))?.[0] ?? "";
   assert.doesNotMatch(uebersicht, /account-table|hero-kpi|Nächste Aktion|copy-next-agent-prompt/);
   assert.match(bereich("liquiditaet"), /data-view="liquiditaet"[\s\S]*Liquidität/);
   assert.match(bereich("liquiditaet"), /<div class="kpi-value">1\.150,00\s€<\/div>[\s\S]*Verfügbares Geld · Stand 10\.6\.2026/);
+  // Liquiditaet nur als Ist-Stand, ohne Prognose.
+  assert.doesNotMatch(bereich("liquiditaet"), /diagramm-wrap|Tiefster Stand|In zwölf Monaten/);
   assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten">Konten<\/button>[\s\S]*?1\.150,00/);
   assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten">Depots<\/button>[\s\S]*?4\.321,09/);
+  // Konten und Depots in der Unterkachel "Schnell verfuegbar", zusammen 5.471,09.
+  assert.match(bereich("vermoegen"), /uebersicht-kachel-breit/);
+  assert.match(bereich("vermoegen"), /Schnell verfügbar<\/h3>\s*<div class="vermoegen-teil-wert">5\.471,09\s€/);
+  assert.match(bereich("vermoegen"), /Langfristig gebunden<\/h3>[\s\S]*Nichts erfasst/);
   assert.match(bereich("vermoegen"), /<svg class="vermoegen-balken"/);
   assert.match(bereich("vorsorge"), /Keine erwarteten Renten erfasst/);
 
@@ -209,4 +215,37 @@ test("Termin-Kachel zeigt Fristen mit Spur, Objekt-Link und Hinweis auf bald und
   data.darlehen = [];
   const leer = renderOverview().match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.match(leer, /Keine Frist in den nächsten zwölf Monaten/);
+});
+
+test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt Rente und Einmalzahlungen", () => {
+  data.validation = { valid: true, errors: [] };
+  data.importfehler = [];
+  data.checks = [];
+  data.konten = [{ konto_id: "KTO-901", name: "Testgiro", kontotyp: "giro", inhaber_person_ids: [], liquiditaetsrelevant: true, status: "aktiv" }];
+  data.transaktionen = [];
+  data.transfers = [];
+  data.regelzahlungen = [];
+  data.fristen = [];
+  data.immobilien = [{ immobilie_id: "IMM-901", bezeichnung: "Testhaus", status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] }];
+  data.darlehen = [{ darlehen_id: "DAR-901", bezeichnung: "Testdarlehen", status: "aktiv" }];
+  data.vermoegenswerte = [];
+  data.vorsorge = [{ vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat" }];
+  data.zeitwerte = [
+    { entitaet: "konto", entitaet_id: "KTO-901", feld: "kontostand", standdatum: "2026-09-01", wert: "1000.00", qualitaet: "belegt" },
+    { entitaet: "immobilie", entitaet_id: "IMM-901", feld: "marktwert", standdatum: "2026-01-01", wert: "300000.00", qualitaet: "geschaetzt" },
+    { entitaet: "darlehen", entitaet_id: "DAR-901", feld: "restschuld", standdatum: "2026-09-01", wert: "100000.00", qualitaet: "belegt" },
+  ];
+  state.view = "overview";
+  state.lang = "de";
+
+  const html = renderOverview();
+  const teil = (titel) => html.match(new RegExp(`<h3 class="vermoegen-teil-titel">${titel}</h3>[\\s\\S]*?</ul>`))?.[0] ?? "";
+  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?<div class="kpi-value">201\.000,00\s€/);
+  assert.match(teil("Schnell verfügbar"), /vermoegen-teil-wert">1\.000,00\s€[\s\S]*Konten/);
+  assert.doesNotMatch(teil("Schnell verfügbar"), /Immobilien|Darlehen/);
+  // Langfristig netto: Immobilie minus Darlehen, mit Schuldenbalken.
+  assert.match(teil("Langfristig gebunden"), /vermoegen-teil-wert">200\.000,00\s€[\s\S]*segment-darlehen[\s\S]*Immobilien[\s\S]*Darlehen/);
+
+  const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.doesNotMatch(vorsorge, /Beiträge|Offene Punkte/);
 });

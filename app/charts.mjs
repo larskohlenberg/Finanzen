@@ -495,7 +495,8 @@ export function restschuldVerlauf({ punkte, heute, zinsbindungBis = null, belegt
 
 // Wertentwicklung eines Vorsorgevertrags: Wertstaende als Linie mit Punkten,
 // eingezahlte Beitraege gestrichelt, beide zeitproportional. Flach gehalten,
-// damit die Kachel nicht hoch wird. punkte: [{ datum, wert_cents, eingezahlt_cents? }].
+// damit die Kachel nicht hoch wird. punkte: [{ datum, wert_cents, eingezahlt_cents?, ertrag_cents? }];
+// eingezahlt_cents ist die gestrichelte Vergleichslinie, ertrag_cents steht nur im Hover.
 export function wertVerlauf({ punkte, formatWert = String, formatAchse = formatWert, formatDatum = String, labels = {}, ariaLabel = "" }) {
   if (!punkte || punkte.length < 2) return "";
   const hoehe = 200;
@@ -527,6 +528,7 @@ export function wertVerlauf({ punkte, formatWert = String, formatAchse = formatW
   const spalten = punkte.map((p) => {
     const zeilen = [{ klasse: "wert", label: labels.wert ?? "Wert", wert: formatWert(p.wert_cents) }];
     if (p.eingezahlt_cents != null) zeilen.push({ klasse: "eingezahlt", label: labels.eingezahlt ?? "Eingezahlt", wert: formatWert(p.eingezahlt_cents) });
+    if (p.ertrag_cents != null) zeilen.push({ klasse: "summe", label: labels.ertrag ?? "Ertrag", wert: `${p.ertrag_cents > 0 ? "+" : ""}${formatWert(p.ertrag_cents)}` });
     return { x: Math.round(x(p.datum)), titel: formatDatum(p.datum), zeilen };
   });
   const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };

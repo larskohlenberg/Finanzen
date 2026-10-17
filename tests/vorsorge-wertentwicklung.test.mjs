@@ -92,3 +92,32 @@ test("vor der ersten Beitragssumme wird rueckwaerts gerechnet, wenn die Buchunge
   assert.equal(ohneDeckung.punkte[0].vollstaendig, false, "Buchungen beginnen erst nach dem Stichtag");
   assert.equal(ohneDeckung.ertrag, null);
 });
+
+test("monatlicher Vertrag: Buchungen ab dem Folgemonat decken das Jahr nach dem Stichtag ab", () => {
+  const zeitwerte = [zw("rueckkaufswert", "1000.00", "2023-12-31"), zw("rueckkaufswert", "2300.00", "2024-12-31")];
+  const monate = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+  const ergebnis = wertEntwicklung(daten({ zeitwerte, transaktionen: monate.map((m) => tx(`2024-${m}-02`)) }), "VS-001");
+  assert.deepEqual(ergebnis.ertrag, { von: "2023-12-31", bis: "2024-12-31", zuwachs_cents: 130000, beitraege_cents: 120000, ertrag_cents: 10000 });
+
+  const spaeterStart = wertEntwicklung(daten({ zeitwerte, transaktionen: monate.slice(1).map((m) => tx(`2024-${m}-02`)) }), "VS-001");
+  assert.equal(spaeterStart.ertrag, null, "Januar fehlt: Buchungen beginnen erst im Februar");
+});
+
+test("ohne Beitragssumme: Ertrag je Zeitraum und Wert ohne Ertrag, so weit die Buchungen reichen", () => {
+  const zeitwerte = [
+    zw("rueckkaufswert", "800.00", "2022-12-31"),
+    zw("rueckkaufswert", "1000.00", "2023-12-31"),
+    zw("rueckkaufswert", "2300.00", "2024-12-31"),
+    zw("rueckkaufswert", "3500.00", "2025-12-31"),
+  ];
+  const monate = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+  const transaktionen = ["2024", "2025"].flatMap((j) => monate.map((m) => tx(`${j}-${m}-02`)));
+  const ergebnis = wertEntwicklung(daten({ zeitwerte, transaktionen }), "VS-001");
+  assert.deepEqual(ergebnis.zeitraeume.map((z) => [z.von, z.ertrag_cents]), [["2023-12-31", 10000], ["2024-12-31", 0]], "2022 bis 2023 ohne Buchungen");
+  assert.deepEqual(ergebnis.ohne_ertrag, [
+    { datum: "2023-12-31", cents: 100000 },
+    { datum: "2024-12-31", cents: 220000 },
+    { datum: "2025-12-31", cents: 340000 },
+  ]);
+  assert.equal(ergebnis.ertrag.ertrag_cents, 0);
+});

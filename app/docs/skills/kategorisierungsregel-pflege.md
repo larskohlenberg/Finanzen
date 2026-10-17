@@ -91,6 +91,12 @@ dafuer ist die Schaetzung da.
 - **Betragshoehe.** „8 EUR in einer Innenstadt, also Parken" kann eine Schaetzung sein, nie ein Beleg. Ist die Betragshoehe das einzige Signal, ist der Fall E6.
 - **Datum oder Urlaubszeitraum.** „War im Juli in Spanien, also Urlaub" ordnet den Anlass zu, nicht die Leistung.
 - **Token-Ueberlappung mit dem uebrigen Bestand.** E2 verlangt denselben *Merchant*, nicht ein gemeinsames Wort. Am echten Bestand gemessen liefert naive Token-Suche fuer `Deutsche.Post.AG` 650 „aehnliche" Buchungen quer ueber elf Kategorien — der gemeinsame Token ist `salzgitter`. So laesst sich jede beliebige Kategorie scheinbar belegen. Genau das ist der Fehlermodus, den dieser Abschnitt verhindert.
+- **Eine aehnlich klingende Regel.** Dass eine bestehende Regel fuer denselben
+  Anbieter eine Kategorie setzt, sagt nichts ueber den neuen Fall: ein
+  Versicherer fuehrt Altersvorsorge und reine Risikoabsicherung, eine Bank
+  Konto und Kredit. Wer eine Kategorie von einer Nachbarregel uebernehmen will,
+  liest vorher die Verwendungszwecke der neuen Buchungen. Nennen sie die
+  Leistung (E3), gilt der Text, nicht die Nachbarregel.
 
 ### Recherche ist kurz
 

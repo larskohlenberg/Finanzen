@@ -2809,8 +2809,9 @@ a.linkish {
   gap: 10px;
   margin-bottom: 12px;
 }
-/* Vorsorgevertrag mit Beitragsdynamik: fuenfte Kachel. */
+/* Vorsorgevertrag mit Absicherung oder Beitragsdynamik: fuenfte Kachel; mit beiden zwei Reihen zu drei. */
 .kennzahl-raster-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.kennzahl-raster-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .kennzahl {
   padding: 12px;
   border: 1px solid var(--border);

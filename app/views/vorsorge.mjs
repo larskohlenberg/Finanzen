@@ -4,7 +4,7 @@
 // (Renten, Lebensversicherungen, Versicherungen). Im Tab eine Karte je Vertrag,
 // darunter der gewaehlte Vertrag in voller Breite. Rechnen in vorsorge-rechnung.mjs.
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
-import { formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel } from "../komponenten.mjs";
+import { formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -764,7 +764,7 @@ function renderAnhang(vs) {
     : `<p class="muted">${escapeHtml(t("vermoegen.noWertstaende"))}</p>`;
   // Die Kachel ist per Default zu; wer sie oeffnet, will die Bemerkung lesen.
   const bemerkung = vs.bemerkung
-    ? `<details class="bemerkung" open><summary>${escapeHtml(t("vorsorge.bemerkung"))}</summary><p>${escapeHtml(vs.bemerkung)}</p></details>`
+    ? `<details class="bemerkung" open><summary>${escapeHtml(t("vorsorge.bemerkung"))}</summary>${bemerkungInhalt(vs.bemerkung)}</details>`
     : "";
   // Breite nutzen: Bemerkung links, Wertstaende rechts; ohne Bemerkung nur die Wertstaende.
   const staendeBlock = `<h3 class="section-subtitle">${escapeHtml(t("vermoegen.wertstaende"))}</h3>${wertstaende}`;

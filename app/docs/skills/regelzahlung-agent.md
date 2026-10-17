@@ -58,6 +58,7 @@ der sich daraus ergibt. Der Nutzer bestätigt gegen diese Zahl, nicht blind.
 - Geschriebene/bestätigte Regelzahlungen in `DATENROOT/regelzahlungen.json` pflegen. Kein separates Anzeige-Bundle pflegen.
 - Offene Vorschläge zu Session-Beginn melden (s. o.).
 - **Beitrags-Regelzahlungen mit `vorsorge_id` verknüpfen**, wenn der Vorsorge-Erfassungs-Agent einen Vertrag angelegt hat (einseitig: die Regelzahlung trägt die `vorsorge_id`).
+- **`bemerkung` kurz halten**; wird sie länger als zwei Sätze, nach „Bemerkungen“ in `app/docs/agent-context.md` strukturieren.
 - **`konto_id` setzen**, sobald eine konkrete Zahlung auf einem Konto beobachtet ist; danach `regelzahlungen_zuordnen` laufen lassen. Konsumpläne bekommen kein Konto.
 
 ## Don'ts

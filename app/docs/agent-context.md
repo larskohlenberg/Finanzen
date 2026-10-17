@@ -132,6 +132,50 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
 - Jeder schreibende Lauf wird in `DATENROOT/agent_log.jsonl` mit Zaehlern,
   betroffenen IDs und kurzer Notiz protokolliert.
 
+## Bemerkungen
+
+`bemerkung` an Vorsorgevertraegen, Immobilien, Darlehen, Vermoegenswerten und
+Regelzahlungen ist fuer den Nutzer geschrieben, nicht als Arbeitsprotokoll. Die
+App zeigt sie strukturiert an (`bemerkungInhalt` in `app/komponenten.mjs`).
+Schreibregeln:
+
+- **Erste Zeile: Kurzfassung** in ein bis zwei Saetzen: was ist das, was ist
+  das Wichtigste. Danach eine Leerzeile.
+- **Abschnitte** durch Leerzeilen trennen. Ein Abschnitt beginnt mit einer
+  kurzen Ueberschrift mit Doppelpunkt am Zeilenende (hoechstens 60 Zeichen),
+  darunter Aufzaehlungspunkte `- ` (Unterpunkte mit zwei Leerzeichen davor:
+  `  - `). Ein Punkt = eine Aussage, ein bis zwei Saetze.
+- **Uebliche Abschnitte**, in dieser Reihenfolge und nur wenn es etwas zu sagen
+  gibt: `Vertrag:` bzw. `Objekt:` (Stammfakten), `Werte (Stand TT.MM.JJJJ):`,
+  `Dynamik:` bzw. `Verlauf:`, `Entscheidungen:` (jeweils mit Datum,
+  „JJJJ-MM-TT: …“), `Offen:` (was noch zu tun oder zu klaeren ist),
+  `Hinweise zur Erfassung:` (warum ein Feld so gesetzt ist, z. B. `geprueft_am`,
+  `kapitalbildend`, Platzhalter-Annahmen), `Belege:`.
+- **Ergaenzen heisst einsortieren, nicht anhaengen.** Neue Fakten kommen in den
+  passenden Abschnitt; ueberholte Aussagen werden ersetzt oder als Verlauf
+  datiert, keine „NACHTRAG“-Bloecke am Ende. Erledigtes faellt aus `Offen:`.
+- **Rechenwege** als eigener Punkt oder Unterpunkte, nicht mitten im Satz.
+- Keine GROSSBUCHSTABEN-Marker als Ersatz fuer Ueberschriften; Betonung
+  hoechstens einzelner Woerter. Echte Umlaute sind erlaubt.
+- Im JSON steht der Zeilenumbruch als `\n`. Kurze Bemerkungen (ein, zwei Saetze)
+  bleiben ein einfacher Absatz ohne Ueberschrift.
+
+Beispiel:
+
+```text
+Kapitallebensversicherung mit Ablauf 2040; Dynamik 2026 abgelehnt.
+
+Vertrag:
+- Versicherungsbeginn 01.01.2005, Ablauf 01.01.2040
+- Beitrag 50,00 EUR monatlich
+
+Entscheidungen:
+- 2026-01-15: Dynamik zum 01.02.2026 abgelehnt
+
+Offen:
+- Widerspruch bis 01.03.2026 in Textform
+```
+
 ## Statuslogik
 
 Statuswerte sind entitaetsspezifisch. Fuer `kategorisierung_status` an

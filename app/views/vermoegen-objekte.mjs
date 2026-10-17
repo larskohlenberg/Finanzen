@@ -4,7 +4,7 @@
 // dann Diagramme und Tabelle, zuletzt Bemerkung, Wertstaende und Dokumente.
 // Rechnen in vermoegen-details.mjs, hier nur Darstellung.
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
-import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel } from "../komponenten.mjs";
+import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel, bemerkungInhalt } from "../komponenten.mjs";
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
 import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, immobilienMonate } from "../vermoegen-details.mjs";
 import { vermoegensBezug } from "../vorsorge-rechnung.mjs";
@@ -26,7 +26,7 @@ function gewaehlt(klasse, liste, idFeld) {
 // Bemerkungen sind oft lange Arbeitsnotizen: eingeklappt, damit die Stammdaten lesbar bleiben.
 function bemerkungHtml(text) {
   if (!text) return "";
-  return `<details class="bemerkung"><summary>${escapeHtml(t("vermoegen.immobilie.bemerkung"))}</summary><p>${escapeHtml(text)}</p></details>`;
+  return `<details class="bemerkung"><summary>${escapeHtml(t("vermoegen.immobilie.bemerkung"))}</summary>${bemerkungInhalt(text)}</details>`;
 }
 
 function karte({ klasse, id, aktiv, titel, chip = "", wertHtml, zeilen = [], fortschritt = null }) {

@@ -240,7 +240,7 @@ const schemas = {
       gegenpartei_pattern: { type: "string", minLength: 1 },
       domain: { type: "string", pattern: /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/ },
       datei: { type: "string", pattern: /^logos\/[a-z0-9.-]+\.png$/ },
-      quelle: { type: "string", pattern: /^https:\/\// },
+      quelle: { type: "string", pattern: /^(https:\/\/|datei:[^/\\]+$)/ },
       abgerufen_am: { type: "string", format: "date" },
     },
   },

@@ -46,6 +46,22 @@ Fuer manche Domains liefert der Dienst nur 16 bis 48 px; die Websites selbst
 haben dann meist auch nichts Groesseres. Solche Logos bleiben in grossen
 Darstellungen weich. Das Tool meldet sie mit einem Hinweis.
 
+Fuer diese Faelle gibt es seit 2026-10-17 einen Handweg: Das Logo kommt aus
+einer lokalen Bilddatei statt vom Dienst, etwa ausgeschnitten aus einem
+Briefkopf oder aus dem Pressebereich der Firma (CLI `--datei <bild>`, im
+MCP-Tool `logos` das Feld `datei` je Eintrag, dort nur unter `data/` oder
+`Belege/`, typisch die Inbox). Die Datei durchlaeuft dieselbe Pruefung wie
+eine Dienstantwort: nur PNG oder Baseline-JPEG (kein SVG), auf hoechstens
+128 px verkleinert, abgelegt als `logos/<domain>.png`. `quelle` nennt dann
+`datei:<dateiname>` statt der Dienst-URL, oder die https-Adresse, die der Agent
+mitgibt. Neben dem schon vorhandenen Weg, ein Bild als Base64 mitzubringen
+(`bild` + `quelle`, fuer Domains, die der Dienst nicht kennt), spart die Datei
+den Umweg ueber Base64 und funktioniert auch per MCP auf dem Server, wo die
+Datei ueber den Upload in die Inbox kommt. Der Dienst bleibt der Standard; die
+Datei ist die Ausnahme fuer einzelne Logos, die sonst unscharf bleiben. Die
+Bilddatei selbst bleibt liegen, wo sie war; aus der Inbox raeumt der Agent sie
+danach weg.
+
 ## Verworfene Alternativen
 
 - **Favicon oder Logo von der Website der Gegenpartei:** Formate und Groessen

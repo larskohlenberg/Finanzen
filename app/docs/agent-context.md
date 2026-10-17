@@ -65,7 +65,7 @@ ohne MCP.
 | `tools/transaktion-immobilie.mjs` | `immobilienbezug` |
 | `tools/transfer-matcher.mjs` | `transfers` |
 | `tools/regelzahlung-matcher.mjs` | `regelzahlungen_zuordnen` (`details: true` listet jede Zuordnung) |
-| `tools/logos.mjs` | `logos` (ohne `eintraege` ein Bericht; mit `eintraege: [{ name, domain, muster }]` Abruf beim Logodienst; mit `bild` + `quelle` je Eintrag ein mitgebrachtes Bild) |
+| `tools/logos.mjs` | `logos` (ohne `eintraege` ein Bericht; mit `eintraege: [{ name, domain, muster }]` Abruf beim Logodienst; mit `bild` + `quelle` je Eintrag ein mitgebrachtes Bild, mit `datei` eine Bilddatei unter `data/` oder `Belege/`) |
 | `tools/freigabe.mjs` | `freigabe` |
 | `tools/lernen.mjs` | `lernen` (`schreiben: true` = `--anwenden`) |
 | `tools/belege-text.mjs` | `belege_text` |
@@ -712,7 +712,8 @@ Datenbestand, nie im Repo:
   domain, datei, quelle, abgerufen_am }`. `gegenpartei_pattern` wirkt wie bei
   den Kategorisierungsregeln (lose normalisierter Teiltext, `|` trennt
   Alternativen); passen mehrere, gewinnt der laengste passende Teil.
-- `DATENROOT/logos/<domain>.png`: so gross wie vom Dienst geliefert, hoechstens 128 px, RGBA.
+- `DATENROOT/logos/<domain>.png`: so gross wie vom Dienst geliefert (bzw. wie die
+  Bilddatei), hoechstens 128 px, RGBA.
 - Regelzahlungen erben das Logo ueber ihre gebuchten Transaktionen
   (`regelzahlung_id`), Vorsorgevertraege ueber ihre Regelzahlungen
   (`vorsorge_id`). Ohne Treffer zeigt die App ein Kuerzel in fester Farbe.
@@ -725,6 +726,13 @@ Datenbestand, nie im Repo:
   (macOS: `qlmanage -t -s 256 -o <ordner> <datei.svg>`) und gibt es als `bild`
   (Base64) mit `quelle` (URL der Herkunft) an `logos`. Fuer ein quadratisches
   Feld das quadratische Symbol nehmen, nicht den breiten Schriftzug.
+- Liefert der Dienst nur ein winziges Bild, kann das Logo aus einer lokalen
+  Bilddatei kommen (Briefkopf, Pressebereich): CLI `--datei <bild>`, MCP
+  `logos` mit `datei` je Eintrag (Pfad unter `data/` oder `Belege/`, z. B.
+  `data/inbox/<name>.png`). Nur PNG (bis 4096 px Kante, nicht interlaced) oder
+  Baseline-JPEG (bis 1024 px), kein SVG; verkleinert auf hoechstens 128 px.
+  Eine https-`quelle` (etwa die Adresse des Pressebereichs) ist optional; ohne
+  sie steht `datei:<dateiname>` im Eintrag.
 
 ## Belege
 

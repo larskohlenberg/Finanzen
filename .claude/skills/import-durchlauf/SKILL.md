@@ -29,7 +29,8 @@ Lauf eine Vorschau.
 5. `pruefbericht` — **ungekuerzt zeigen**.
 6. `logos` — Bericht lesen, neue Gegenparteien ohne Logo melden, fuer die
    wiederkehrenden die Domain bestimmen und Logos nachziehen (Vorschau, dann
-   `schreiben: true`).
+   `schreiben: true`). Liefert der Dienst nur ein winziges Bild, eine bessere
+   Datei aus der Inbox ueber `datei` je Eintrag uebernehmen.
 7. `belege_text` mit `schreiben: true` — raeumt `processed/` und
    `standardized/` per Inhalts-Hash ab. Ohne Nachweis bleibt die Datei liegen
    und steht unter `offen`. `error/` bleibt unangetastet.

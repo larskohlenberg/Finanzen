@@ -5,18 +5,21 @@
 //       Bericht: Eintraege, fehlende Dateien, haeufigste Gegenparteien,
 //       Regelzahlungen, Vorsorgevertraege und Konten ohne Logo.
 //   node app/tools/logos.mjs <datenroot> --plan <datei.json> [--schreiben]
-//   node app/tools/logos.mjs <datenroot> --domain <d> --name <n> --muster <m> [--schreiben]
+//   node app/tools/logos.mjs <datenroot> --domain <d> --name <n> --muster <m> [--datei <bild>] [--schreiben]
 //       Logo je Domain beim Logodienst abrufen, auf hoechstens 128 px verkleinern
 //       und eintragen. Plan: [{ "name", "domain", "muster" }]. Gleiche Domain =
 //       Eintrag aktualisieren. Kennt der Dienst die Domain nicht oder liefert das
 //       falsche Logo, bringt der Eintrag das Bild selbst mit: "bild" (PNG oder
-//       JPEG, Base64) und "quelle" (https-URL, woher es stammt). Ohne --schreiben
-//       nur Vorschau (der Abruf laeuft, geschrieben wird nichts).
+//       JPEG, Base64) und "quelle" (https-URL, woher es stammt). Alternativ nennt
+//       "datei" (bzw. --datei) eine lokale Bilddatei, relativ zum Arbeitsordner,
+//       z. B. ein Logo aus einem Briefkopf; "quelle" ist dann optional. Ohne
+//       --schreiben nur Vorschau (der Abruf laeuft, geschrieben wird nichts).
 //
 // Welche Domain zu einer Gegenpartei gehoert, entscheidet der Agent (ADR 0003,
 // 0010); das Tool ruft ab, prueft und traegt ein. Logos sind Echtdaten (sie
 // verraten, bei wem man Kunde ist) und liegen nur im Datenbestand.
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
@@ -35,6 +38,7 @@ export const DIENST_GROESSE = 128;
 export const ZIEL_GROESSE = 128;
 const MIN_QUELLE = 32;
 const MAX_BYTES = 1024 * 1024;
+const MAX_DATEI_BYTES = 10 * 1024 * 1024;
 const TIMEOUT_MS = 15000;
 
 export const dienstUrl = (domain) => `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${DIENST_GROESSE}`;
@@ -74,13 +78,16 @@ export function planeLogos({ logos = [], eintraege = [] }) {
     const name = String(e?.name ?? "").trim();
     const muster = String(e?.muster ?? "").trim();
     const bild = e?.bild === undefined ? null : String(e.bild).trim();
+    const bilddatei = e?.datei == null ? null : String(e.datei).trim();
     const quelle = e?.quelle === undefined ? null : String(e.quelle).trim();
     if (!domain) fehler.push(`${ort}.domain: keine gueltige Domain "${e?.domain ?? ""}"`);
     if (!name) fehler.push(`${ort}.name: fehlt`);
     if (!muster || muster.split("|").some((teil) => !normalizeLoose(teil))) fehler.push(`${ort}.muster: leer oder mit leerem Teil`);
     if (bild !== null && !bild) fehler.push(`${ort}.bild: leer`);
+    if (bilddatei === "") fehler.push(`${ort}.datei: leer`);
+    if (bild !== null && bilddatei !== null) fehler.push(`${ort}.datei: nur bild oder datei, nicht beides`);
     if ((bild !== null || quelle !== null) && !/^https:\/\/\S+$/.test(quelle ?? "")) fehler.push(`${ort}.quelle: https-URL noetig, wenn das Bild mitkommt`);
-    if (quelle !== null && bild === null) fehler.push(`${ort}.bild: fehlt zur quelle`);
+    if (quelle !== null && bild === null && bilddatei === null) fehler.push(`${ort}.bild: fehlt zur quelle (oder datei angeben)`);
     if (domain && gesehen.has(domain)) fehler.push(`${ort}.domain: ${domain} doppelt im Plan`);
     if (fehler.some((f) => f.startsWith(`${ort}.`))) return;
     gesehen.add(domain);
@@ -88,7 +95,8 @@ export function planeLogos({ logos = [], eintraege = [] }) {
     const logo_id = vorhanden?.logo_id ?? naechsteId(arbeit);
     const eintrag = { logo_id, name, gegenpartei_pattern: muster, domain, datei: logoDatei(domain) };
     if (!vorhanden) arbeit = [...arbeit, eintrag];
-    plan.push({ aktion: vorhanden ? "aktualisieren" : "neu", eintrag, ...(bild ? { bild: { base64: bild, quelle } } : {}) });
+    const extra = bild ? { bild: { base64: bild, quelle } } : bilddatei ? { bilddatei: { pfad: bilddatei, ...(quelle ? { quelle } : {}) } } : {};
+    plan.push({ aktion: vorhanden ? "aktualisieren" : "neu", eintrag, ...extra });
   });
   return { plan, fehler };
 }
@@ -114,8 +122,22 @@ export function eigenesLogo({ base64, quelle }) {
   return bereiteAuf(Buffer.from(base64, "base64"), quelle, "Bild hat");
 }
 
-function bereiteAuf(bytes, quelle, wer) {
-  if (bytes.length > MAX_BYTES) return { ok: false, quelle, fehler: `Bild zu gross (${bytes.length} Bytes)` };
+// Logo aus einer lokalen Bilddatei uebernehmen, z. B. aus einem Briefkopf oder
+// Pressebereich, wenn der Dienst nur ein winziges Bild hat. Gleiche Pruefung
+// wie beim Abruf: nur PNG oder Baseline-JPEG (kein SVG), verkleinert auf
+// hoechstens 128 px. Ohne eigene quelle nennt sie die Herkunft "datei:<name>".
+export async function leseLogoDatei(pfad, { lesen = readFile, quelle = `datei:${basename(String(pfad))}` } = {}) {
+  let bytes;
+  try {
+    bytes = await lesen(pfad);
+  } catch (error) {
+    return { ok: false, quelle, fehler: error.code === "ENOENT" ? `Datei nicht gefunden: ${pfad}` : `Datei nicht lesbar: ${error.message}` };
+  }
+  return bereiteAuf(Buffer.from(bytes), quelle, "Datei hat", MAX_DATEI_BYTES);
+}
+
+function bereiteAuf(bytes, quelle, wer, maxBytes = MAX_BYTES) {
+  if (bytes.length > maxBytes) return { ok: false, quelle, fehler: `Bild zu gross (${bytes.length} Bytes)` };
   const format = istPng(bytes) ? "PNG" : istJpeg(bytes) ? "JPEG" : null;
   if (!format) return { ok: false, quelle, fehler: "Bild ist weder PNG noch JPEG" };
   let bild;
@@ -181,7 +203,7 @@ export function uebernehme(logos, ergebnisse, heute) {
 // --- CLI -------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const opt = { root: null, plan: null, domain: null, name: null, muster: null, top: 20, schreiben: false };
+  const opt = { root: null, plan: null, domain: null, name: null, muster: null, datei: null, top: 20, schreiben: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     const wert = () => {
@@ -195,6 +217,7 @@ function parseArgs(argv) {
     else if (arg === "--domain") opt.domain = wert();
     else if (arg === "--name") opt.name = wert();
     else if (arg === "--muster") opt.muster = wert();
+    else if (arg === "--datei") opt.datei = wert();
     else if (arg === "--top") opt.top = Number(wert());
     else if (arg.startsWith("--")) throw new Error(`Unbekannte Option ${arg}`);
     else if (!opt.root) opt.root = arg;
@@ -202,6 +225,7 @@ function parseArgs(argv) {
   }
   if (!opt.root) throw new Error("Datenbestand fehlt (z. B. data/master)");
   if (!Number.isInteger(opt.top) || opt.top < 1) throw new Error("--top: ganze Zahl ab 1");
+  if (opt.datei && opt.plan) throw new Error("--datei nur mit --domain/--name/--muster, im Plan je Eintrag als datei");
   return opt;
 }
 
@@ -220,7 +244,7 @@ async function main() {
     opt = parseArgs(process.argv.slice(2));
   } catch (error) {
     console.error(error.message);
-    console.error("Aufruf: node app/tools/logos.mjs <datenroot> [--top N] | [--plan <datei.json> | --domain <d> --name <n> --muster <m>] [--schreiben]");
+    console.error("Aufruf: node app/tools/logos.mjs <datenroot> [--top N] | [--plan <datei.json> | --domain <d> --name <n> --muster <m> [--datei <bild>]] [--schreiben]");
     process.exitCode = 2;
     return;
   }
@@ -229,7 +253,7 @@ async function main() {
 
   let eintraege = null;
   if (opt.plan) eintraege = JSON.parse(await readFile(opt.plan, "utf8"));
-  else if (opt.domain || opt.name || opt.muster) eintraege = [{ domain: opt.domain, name: opt.name, muster: opt.muster }];
+  else if (opt.domain || opt.name || opt.muster || opt.datei) eintraege = [{ domain: opt.domain, name: opt.name, muster: opt.muster, ...(opt.datei ? { datei: opt.datei } : {}) }];
 
   if (!eintraege) {
     const dateien = new Set();
@@ -238,7 +262,7 @@ async function main() {
     console.log("\nBericht — nichts geschrieben. Logos nachziehen mit --plan <datei.json> bzw. --domain/--name/--muster.");
     return;
   }
-  if (!Array.isArray(eintraege)) throw new Error("Plan muss eine Liste [{ name, domain, muster, bild?, quelle? }] sein");
+  if (!Array.isArray(eintraege)) throw new Error("Plan muss eine Liste [{ name, domain, muster, bild?, datei?, quelle? }] sein");
 
   const { plan, fehler } = planeLogos({ logos: data.logos, eintraege });
   if (fehler.length) {
@@ -249,7 +273,13 @@ async function main() {
   }
 
   const ergebnisse = [];
-  for (const schritt of plan) ergebnisse.push({ ...schritt, abruf: schritt.bild ? eigenesLogo(schritt.bild) : await holeLogo(schritt.eintrag.domain) });
+  for (const schritt of plan) {
+    let abruf;
+    if (schritt.bild) abruf = eigenesLogo(schritt.bild);
+    else if (schritt.bilddatei) abruf = await leseLogoDatei(resolve(schritt.bilddatei.pfad), schritt.bilddatei.quelle ? { quelle: schritt.bilddatei.quelle } : {});
+    else abruf = await holeLogo(schritt.eintrag.domain);
+    ergebnisse.push({ ...schritt, abruf });
+  }
   const heute = localTodayIso();
   const logos = uebernehme(data.logos, ergebnisse, heute);
   const fehlgeschlagen = ergebnisse.filter((e) => !e.abruf.ok);
@@ -263,7 +293,7 @@ async function main() {
       domain: eintrag.domain,
       muster: eintrag.gegenpartei_pattern,
       ...(abruf.ok
-        ? { ergebnis: "ok", datei: eintrag.datei, pixel: `${abruf.breite}x${abruf.hoehe}`, bytes: abruf.png.length, ...(abruf.hinweis ? { hinweis: abruf.hinweis } : {}) }
+        ? { ergebnis: "ok", quelle: abruf.quelle, datei: eintrag.datei, pixel: `${abruf.breite}x${abruf.hoehe}`, bytes: abruf.png.length, ...(abruf.hinweis ? { hinweis: abruf.hinweis } : {}) }
         : { ergebnis: "fehlgeschlagen", fehler: abruf.fehler }),
     })),
   }, null, 2));
@@ -302,11 +332,12 @@ export async function schreibeLogos(root, data, ergebnisse, logos, jetzt) {
   await appendFile(new URL("agent_log.jsonl", root), `${JSON.stringify({
     zeitpunkt: jetzt.toISOString(),
     anlass: "logos",
-    notiz: `${ok.length} Logo(s) abgerufen und eingetragen`,
+    notiz: `${ok.length} Logo(s) eingetragen`,
     quellen: ok.map((e) => e.abruf.quelle),
     betroffene_ids: ok.map((e) => e.eintrag.logo_id),
     neu: ok.filter((e) => e.aktion === "neu").map((e) => e.eintrag.logo_id),
     domains: ok.map((e) => e.eintrag.domain),
+    aus_datei: ok.filter((e) => e.bilddatei).map((e) => e.eintrag.domain),
     fehlgeschlagen: ergebnisse.filter((e) => !e.abruf.ok).map((e) => e.eintrag.domain),
   })}\n`);
 

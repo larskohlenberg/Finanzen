@@ -394,3 +394,23 @@ test("beleg_ablegen: Foto aus der Inbox samt Zwilling", async () => {
     await s.beenden();
   }
 });
+
+test("logos: datei im Eintrag uebernimmt ein Bild aus der Inbox, Pfade ausserhalb werden abgelehnt", async () => {
+  const { kodierePng } = await import("../app/tools/lib/png.mjs");
+  const rgba = new Uint8Array(200 * 200 * 4).fill(200);
+  writeFileSync(join(abzug.app, "data", "inbox", "beispiel-logo.png"), kodierePng({ breite: 200, hoehe: 200, rgba }));
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const eintrag = { name: "Musterladen", domain: "musterladen.example", muster: "MUSTERLADEN", datei: "data/inbox/beispiel-logo.png" };
+    const draussen = await s.werkzeug("logos", { eintraege: [{ ...eintrag, datei: "../../etc/hosts" }] });
+    assert.equal(draussen.isError, true);
+    assert.match(draussen.text, /ausserhalb der erlaubten Wurzeln/);
+    const r = await s.werkzeug("logos", { eintraege: [eintrag], schreiben: true });
+    assert.ok(!r.isError, r.text);
+    const logos = JSON.parse(readFileSync(join(abzug.master, "logos.json"), "utf8"));
+    assert.equal(logos.find((l) => l.domain === "musterladen.example").quelle, "datei:beispiel-logo.png");
+    assert.ok(readFileSync(join(abzug.master, "logos", "musterladen.example.png")).length > 0);
+  } finally {
+    await s.beenden();
+  }
+});

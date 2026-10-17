@@ -8,10 +8,10 @@ import { formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow,
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
-import { beitragsBalken, donutDiagramm, wertVerlauf, zeitachseKlein, zeitstrahlDiagramm } from "../charts.mjs";
+import { donutDiagramm, wertVerlauf, zeitachseKlein, zeitstrahlDiagramm } from "../charts.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
-  VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsAenderungen, beitragsVerlauf, beitragVorjahr, gebuchteBeitraegeAlle,
+  VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsAenderungen, beitragVorjahr, gebuchteBeitraegeAlle,
   gesetzlicherRentenbeginn, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
   rentenStufen, tabFuerVorsorge, vermoegensBezug, vertragsFarben, wertEntwicklung,
 } from "../vorsorge-rechnung.mjs";
@@ -83,11 +83,6 @@ const kachel = (key, titel, inhalt, klasse = "") => klappKachel({ id: `vorsorge.
 
 export function resetVorsorgeFilters() {
   state.vorsorgeFilters = { person: "" };
-}
-
-// Die fuenf neuesten gebuchten Beitraege eines Vertrags.
-export function gebuchteBeitraege(vorsorgeId) {
-  return gebuchteBeitraegeAlle(data, vorsorgeId).slice(0, 5);
 }
 
 // Ein gewaehlter Vertrag bestimmt den Tab; sonst gilt der gemerkte Tab.
@@ -507,7 +502,7 @@ function renderDetail(vs, tab, today, offen) {
       ${kennzahlRaster(vs, tab, today)}
       ${renderVertragsdaten(vs, tab, offen)}
       ${renderDokumente(vs)}
-      ${renderBeitraege(vs, today)}
+      ${renderBeitraege(vs)}
       ${renderAnhang(vs)}
     </div>`;
 }
@@ -644,7 +639,7 @@ function renderVertragsdaten(vs, tab, offen) {
 // das Eingezahlte, rechts vier Kennzahlen 2x2, damit die Kachel flach bleibt.
 const mitVorzeichen = (c) => `${c > 0 ? "+" : ""}${formatMoney(c)}`;
 
-function wertEntwicklungHtml(vs, we) {
+function wertEntwicklungHtml(vs, we, link) {
   const { letzter, ertrag, feld } = we;
   const wertLabel = feld === "rueckkaufswert" ? rkwLabel(vs) : t("vorsorge.vertragswert");
   const vollstaendig = we.punkte.filter((p) => p.vollstaendig);
@@ -684,60 +679,21 @@ function wertEntwicklungHtml(vs, we) {
   return `
     <div class="vorsorge-spalten vorsorge-spalten-breit wert-entwicklung">
       <div>${diagramm}</div>
-      <div class="kennzahl-raster wert-kennzahlen">${kennzahlen.join("")}</div>
+      <div><div class="kennzahl-raster wert-kennzahlen">${kennzahlen.join("")}</div>${link}</div>
     </div>`;
 }
 
-function renderBeitraege(vs, today) {
+// Beitraege selbst stehen in den gefilterten Transaktionen; die Kachel verlinkt
+// nur dorthin und zeigt, wenn es Wertstaende gibt, die Wertentwicklung.
+function renderBeitraege(vs) {
   const we = wertEntwicklung(data, vs.vorsorge_id);
   const titel = t(we ? "vorsorge.wertentwicklung.titel" : "vorsorge.gebuchteBeitraege");
-  const oben = we ? wertEntwicklungHtml(vs, we) : "";
-  if (!(data.regelzahlungen ?? []).some((rz) => rz.vorsorge_id === vs.vorsorge_id)) {
-    return kachel("beitraege", titel, `${oben}<p class="muted">${escapeHtml(t("vorsorge.keinBeitrag"))}</p>`);
-  }
-  const verlauf = beitragsVerlauf(data, vs.vorsorge_id, today);
-  const monatsName = (p) => {
-    const [jahr, mon] = p.split("-").map(Number);
-    return new Intl.DateTimeFormat(state.lang === "en" ? "en-GB" : "de-DE", { month: "short", year: "2-digit", timeZone: "UTC" }).format(new Date(Date.UTC(jahr, mon - 1, 1)));
-  };
-  const svg = beitragsBalken({
-    perioden: verlauf.perioden,
-    werte: verlauf.werte,
-    formatWert: (c) => formatMoney(c),
-    formatAchse: geldOhneCent,
-    formatPeriode: verlauf.einheit === "jahr" ? String : monatsName,
-    label: t("vorsorge.beitrag"),
-    ariaLabel: t("vorsorge.gebuchteBeitraege"),
-  });
-  const buchungen = gebuchteBeitraege(vs.vorsorge_id);
-  const aenderungen = beitragsAenderungen(data, vs.vorsorge_id);
-  const aenderungJeBuchung = new Map(aenderungen.map((a) => [a.transaktion_id, a]));
-  const aenderungChip = (a) => `<span class="chip ${a.diff_cents > 0 ? "review" : "success"}" title="${escapeHtml(`${formatMoney(a.alt_cents)} → ${formatMoney(a.neu_cents)}`)}">${escapeHtml(aenderungText(a))}</span>`;
-  return kachel("beitraege", titel, `${oben}
-    <div class="vorsorge-spalten vorsorge-spalten-breit">
-      <div>
-      ${svg ? `<p class="muted diagramm-lead">${escapeHtml(t(verlauf.einheit === "jahr" ? "vorsorge.beitraegeJahreLead" : "vorsorge.beitraegeMonateLead"))}</p><div class="diagramm-wrap">${svg}</div>` : `<p class="muted">${escapeHtml(t("vorsorge.keineBuchung"))}</p>`}
-      </div>
-      <div>
-      ${aenderungen.length ? `
-        <h3 class="section-subtitle">${escapeHtml(t("vorsorge.beitragsAenderungen"))}</h3>
-        <ul class="vorsorge-buchungen vorsorge-aenderungen">${aenderungen.slice(0, 5).map((a) => `
-          <li>
-            <span>${escapeHtml(tf("vorsorge.aenderungAb", { datum: formatDate(a.datum) }))} <span class="muted">${escapeHtml(`${formatMoney(a.alt_cents)} → ${formatMoney(a.neu_cents)}`)}</span></span>
-            ${aenderungChip(a)}
-          </li>`).join("")}
-        </ul>` : ""}
-      ${buchungen.length ? `
-        <h3 class="section-subtitle">${escapeHtml(t("vorsorge.letzteBuchungen"))}</h3>
-        <ul class="vorsorge-buchungen">${buchungen.map((tx) => `
-          <li>
-            <button class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum))} · ${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei ?? ""))}</button>
-            <span class="vorsorge-buchung-betrag">${aenderungJeBuchung.has(tx.transaktion_id) ? aenderungChip(aenderungJeBuchung.get(tx.transaktion_id)) : ""}<span class="amount">${escapeHtml(formatMoney(cents(tx.betrag)))}</span></span>
-          </li>`).join("")}
-        </ul>
-        <p><button class="linkish" data-action="vorsorge-transactions" data-vorsorge="${escapeHtml(vs.vorsorge_id)}">${escapeHtml(tf("vorsorge.alleBuchungen", { n: gebuchteBeitraegeAlle(data, vs.vorsorge_id).length }))} →</button></p>` : ""}
-      </div>
-    </div>`);
+  const anzahl = gebuchteBeitraegeAlle(data, vs.vorsorge_id).length;
+  const hatRegelzahlung = (data.regelzahlungen ?? []).some((rz) => rz.vorsorge_id === vs.vorsorge_id);
+  const link = anzahl
+    ? `<p class="wert-buchungen-link"><button class="linkish" data-action="vorsorge-transactions" data-vorsorge="${escapeHtml(vs.vorsorge_id)}">${escapeHtml(tf("vorsorge.alleBuchungen", { n: anzahl }))} →</button></p>`
+    : `<p class="muted">${escapeHtml(t(hatRegelzahlung ? "vorsorge.keineBuchung" : "vorsorge.keinBeitrag"))}</p>`;
+  return kachel("beitraege", titel, we ? wertEntwicklungHtml(vs, we, link) : link);
 }
 
 const FELD_LABEL = {

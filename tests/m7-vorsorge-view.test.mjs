@@ -19,7 +19,7 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const vorsorgeView = await import("../app/views/vorsorge.mjs");
 const { data, state, personenById } = runtime;
-const { renderVorsorge, gebuchteBeitraege, resetVorsorgeFilters } = vorsorgeView;
+const { renderVorsorge, resetVorsorgeFilters } = vorsorgeView;
 const { toggleKlappKachel } = await import("../app/komponenten.mjs");
 
 const LEER = { konten: [], kategorien: [], transaktionen: [], transfers: [], immobilien: [], darlehen: [], vermoegenswerte: [], szenarien: [], regelzahlungen: [], zeitwerte: [] };
@@ -264,8 +264,7 @@ test("Versicherung zeigt Jahresbeitrag, naechste Faelligkeit und Vorjahresvergle
     assert.match(detail, /Jahresbeitrag[\s\S]*900,00/);
     assert.match(detail, /Nächste Fälligkeit[\s\S]*10\.3\.20\d\d/);
     assert.match(detail, /Veränderung zum Vorjahr[\s\S]*\+150,00/);
-    assert.match(detail, /Gebuchte Beiträge der letzten fünf Jahre/);
-    assert.match(detail, /balken-beitrag/);
+    assert.doesNotMatch(detail, /balken-diagramm/, "keine Beitragsbalken mehr");
   });
 });
 
@@ -288,14 +287,13 @@ test("Versicherung mit Immobilienbezug verlinkt das Objekt auf Karte und im Deta
   });
 });
 
-test("Beitragsaenderung erscheint mit Betrag und Prozent in Liste, Buchung und Kennzahl", () => {
+test("Beitragskachel verlinkt nur auf die gefilterten Buchungen, ohne Liste und Aenderungen", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-005";
     const html = renderVorsorge();
     const detail = html.slice(html.indexOf("objekt-detail-titel"));
-    assert.match(detail, /Beitragsänderungen[\s\S]*ab 10\.3\.2025[\s\S]*750,00\s€ → 900,00\s€[\s\S]*\+150,00\s€ \(\+20 %\)/);
-    assert.match(detail, /Letzte Buchungen[\s\S]*\+150,00\s€ \(\+20 %\)[\s\S]*-900,00/);
     assert.match(detail, /data-action="vorsorge-transactions" data-vorsorge="VS-005">Alle 2 Buchungen anzeigen/);
+    assert.doesNotMatch(detail, /Beitragsänderungen|Letzte Buchungen|data-action="open-transaction"/);
   });
 });
 
@@ -391,21 +389,6 @@ test("Versicherungen: Sparte als Etikett auf der Kachel und in den Vertragsdaten
     assert.doesNotMatch(karte("VS-005"), /Schutzversicherung/, "nicht die Vertragsart");
     assert.doesNotMatch(karte("VS-006"), /class="chip neutral"/, "ohne Sparte kein Etikett");
     assert.match(html, /Sparte[\s\S]{0,120}Wohngebäude/);
-  });
-});
-
-test("gebuchte Beitraege: die fuenf neuesten der eigenen Regelzahlungen", () => {
-  mitFixture(() => {
-    state.selectedVorsorgeId = "VS-002";
-    const monate = ["01", "02", "03", "04", "05", "06"];
-    data.transaktionen = [
-      ...monate.map((m, i) => ({ transaktion_id: `TXN-${i + 1}`, regelzahlung_id: "RZ-001", buchungsdatum: `2026-${m}-01`, betrag: "-150.00", gegenpartei: "Versicherer" })),
-      { transaktion_id: "TXN-X", regelzahlung_id: "RZ-999", buchungsdatum: "2026-07-01", betrag: "-70.00", gegenpartei: "Fremd" },
-    ];
-    assert.deepEqual(gebuchteBeitraege("VS-002").map((tx) => tx.transaktion_id), ["TXN-6", "TXN-5", "TXN-4", "TXN-3", "TXN-2"]);
-    const html = renderVorsorge();
-    assert.equal(anzahl(html, /data-action="open-transaction"/g), 5);
-    assert.doesNotMatch(html, /TXN-1"|TXN-X/);
   });
 });
 
@@ -565,11 +548,11 @@ test("Beitraege und Wertentwicklung: Diagramm links, vier Kennzahlen rechts, ohn
     const html = renderVorsorge();
     const kachel = html.slice(html.indexOf("Beiträge und Wertentwicklung"));
     assert.match(kachel, /class="vorsorge-spalten vorsorge-spalten-breit wert-entwicklung">\s*<div>[\s\S]*?class="wert-linie"[\s\S]*?<div class="kennzahl-raster wert-kennzahlen">/, "Diagramm vor den Kennzahlen");
-    const raster = kachel.match(/<div class="kennzahl-raster wert-kennzahlen">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="vorsorge-spalten/)?.[1] ?? "";
+    const raster = kachel.match(/<div class="kennzahl-raster wert-kennzahlen">([\s\S]*?)<\/div><p/)?.[1] ?? "";
     assert.equal(anzahl(raster, /class="kennzahl"/g), 4);
     assert.match(raster, /Wert minus Beiträge<\/div>\s*<div class="kennzahl-wert"><span class="">\+2\.000,00\s€/);
     assert.match(raster, /Ertrag 2024–2025<\/div>\s*<div class="kennzahl-wert"><span class="betrag-negativ">-800,00\s€<\/span><\/div>\s*<div class="kennzahl-notiz">Wert \+1\.000,00\s€, Beiträge 1\.800,00\s€/);
-    assert.match(kachel, /wert-kennzahlen[\s\S]*Noch keine Beitragsbuchung zugeordnet/, "der Beitragsteil bleibt darunter");
+    assert.match(kachel, /wert-kennzahlen[\s\S]*Noch keine Beitragsbuchung zugeordnet/, "Hinweis bzw. Link rechts unter den Kennzahlen");
 
     state.selectedVorsorgeId = "VS-004";
     const ohne = renderVorsorge();

@@ -195,16 +195,6 @@ test("jahresBalken: Zins und Tilgung gestapelt, Planjahre markiert", async () =>
   assert.equal(jahresBalken({ jahre: [] }), "");
 });
 
-test("beitragsBalken: eine Saeule je Periode mit Wert, Hover je Periode; leer ohne Werte", async () => {
-  const { beitragsBalken } = await import("../app/charts.mjs");
-  const svg = beitragsBalken({ perioden: ["2026-08", "2026-09", "2026-10"], werte: [0, 15000, 15000], formatWert: (c) => `${c / 100} €`, label: "Beitrag" });
-  assert.equal((svg.match(/class="balken-beitrag"/g) ?? []).length, 2);
-  const spalten = JSON.parse(svg.match(/data-spalten="([^"]*)"/)[1].replaceAll("&quot;", '"'));
-  assert.deepEqual(spalten.map((s) => s.zeilen[0].wert), ["0 €", "150 €", "150 €"]);
-  assert.equal(spalten[1].zeilen[0].label, "Beitrag");
-  assert.equal(beitragsBalken({ perioden: ["2026"], werte: [0] }), "");
-});
-
 test("restschuldVerlauf: Ist und Plan getrennt, Marker nur im Zeitraum", async () => {
   const { restschuldVerlauf } = await import("../app/charts.mjs");
   const punkte = [

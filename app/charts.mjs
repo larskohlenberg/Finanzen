@@ -333,38 +333,6 @@ export function jahresBalken({ jahre, formatWert = String, formatAchse = formatW
   return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(spalten, plot)}>${teile.join("")}</svg>`;
 }
 
-// Eine Reihe Saeulen je Periode (gebuchte Beitraege eines Vertrags). Leer (alle 0) -> "".
-export function beitragsBalken({ perioden, werte, formatWert = String, formatAchse = formatWert, formatPeriode = String, formatTitel = formatPeriode, label = "", ariaLabel = "" }) {
-  if (!perioden?.length || !werte.some((w) => w)) return "";
-  const hoehe = 180;
-  const rechts = 10;
-  const oben = 10;
-  const unten = 26;
-  const achse = achsenTicks(0, Math.max(...werte, 1), 3);
-  const yTexte = achse.ticks.map((w) => formatAchse(w));
-  const links = linkerRand(yTexte, false);
-  const y = (w) => oben + ((achse.max - w) / (achse.max - achse.min)) * (hoehe - oben - unten);
-  const spalte = (BREITE - links - rechts) / perioden.length;
-  const breite = Math.max(3, spalte * 0.62);
-  const schritt = Math.ceil(perioden.length / 12);
-  const teile = [
-    ...yAchse({ ticks: achse.ticks, y, links, rechts, titel: "", oben, unten: hoehe - unten }),
-    ...achse.ticks.map((w, i) => achsenText(links - 8, y(w) + 4, yTexte[i], "end")),
-  ];
-  perioden.forEach((p, i) => {
-    const x = links + spalte * i + (spalte - breite) / 2;
-    if (werte[i]) teile.push(`<rect x="${runde(x)}" y="${runde(y(werte[i]))}" width="${runde(breite)}" height="${runde(y(0) - y(werte[i]))}" class="balken-beitrag" />`);
-    if (i % schritt === 0) teile.push(achsenText(links + spalte * i + spalte / 2, hoehe - 8, formatPeriode(p)));
-  });
-  const spalten = perioden.map((p, i) => ({
-    x: Math.round(links + spalte * i + spalte / 2),
-    titel: formatTitel(p),
-    zeilen: [{ klasse: "beitrag", label, wert: formatWert(werte[i]) }],
-  }));
-  const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };
-  return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(spalten, plot)}>${teile.join("")}</svg>`;
-}
-
 // Donut fuer Anteile am Ganzen (hoechstens sechs Teile). teile: [{ wert, klasse, label }].
 // Zwischen den Segmenten bleibt ein schmaler Spalt in Flaechenfarbe; jedes Segment traegt
 // einen Tooltip (title). Die Beschriftung steht daneben in der Liste des Aufrufers.

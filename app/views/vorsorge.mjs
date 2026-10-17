@@ -667,6 +667,10 @@ const FELD_LABEL = {
   vertragswert: "vorsorge.vertragswert",
   erwartete_rente: "vorsorge.erwarteteRente",
   erwartete_kapitalleistung: "vorsorge.erwarteteKapitalleistung",
+  bu_rente: "vorsorge.buRente",
+  erwerbsminderungsrente: "vorsorge.erwerbsminderungsrente",
+  todesfallleistung: "vorsorge.todesfallleistung",
+  hinterbliebenenrente: "vorsorge.hinterbliebenenrente",
 };
 
 // Dokumente als eigene Kachel direkt unter den Kennzahlen und Vertragsdaten.

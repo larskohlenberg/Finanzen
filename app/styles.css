@@ -3322,3 +3322,17 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .vertragsdaten-mit-logo { display: flex; align-items: flex-start; gap: 16px; }
 .vertragsdaten-mit-logo .stammdaten-raster { flex: 1 1 auto; min-width: 0; }
 .vertragsdaten-mit-logo > .logo-marke { width: 48px; height: 48px; margin: 8px 0 0; border-radius: 10px; font-size: 16px; }
+
+/* Kachel Absicherung: je Person eine Spalte, darin BU und Tod. */
+.absicherung-kachel .page-lead { margin-bottom: 14px; }
+.absicherung-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 24px; }
+.absicherung-person { min-width: 0; }
+.absicherung-person .section-subtitle { margin-top: 0; }
+.absicherung-fall + .absicherung-fall { margin-top: 12px; }
+.absicherung-fall-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.absicherung-fall-kopf h4 { margin: 0; font-size: 0.95rem; }
+.absicherung-posten { list-style: none; margin: 6px 0 0; padding: 0; }
+.absicherung-posten li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 6px 0; border-top: 1px solid var(--border); }
+.absicherung-posten li > button { text-align: left; }
+.absicherung-posten li > .muted { grid-column: 1; font-size: 0.85rem; }
+.absicherung-posten li > .amount { grid-column: 2; grid-row: 1; white-space: nowrap; }

@@ -30,6 +30,6 @@ Menschen. Wer ein Feld ergaenzt, pflegt **beide** Stellen: zuerst den Validator
 | `immobilien.schema.json` | Immobilien mit Eigentumsanteilen (Bruchteile je Person) |
 | `darlehen.schema.json` | Hypotheken und sonstige Darlehen mit Zinssatz und Sollrate |
 | `vermoegenswerte.schema.json` | Weitere Vermoegenswerte (Edelmetalle, Beteiligungen, Sonstiges) mit Eigentumsanteilen |
-| `zeitwerte.schema.json` | Einzelner Zeitwert-Eintrag (Kontostand, Depotwert, Marktwert, Restschuld) fuer beliebige Entitaeten |
+| `zeitwerte.schema.json` | Einzelner Zeitwert-Eintrag (Kontostand, Depotwert, Marktwert, Restschuld; bei Vorsorge auch Rueckkaufs- und Vertragswert, erwartete Leistungen und Absicherungswerte) fuer beliebige Entitaeten |
 | `logos.schema.json` | Logo-Verzeichnis: Gegenpartei-Muster, Domain, Datei unter `logos/`, Quelle und Abrufdatum (ADR 0030) |
 | `importformat.schema.json` | Standardisierte Zwischenform fuer Bankimporte; enthaelt neben den Pflichtfeldern auch optionale Bankdetails wie `wertstellungsdatum`, `transaktionstyp`, `empfaenger_iban`, `mandatsreferenz` und `glaeubiger_id` |

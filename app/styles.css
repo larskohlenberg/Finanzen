@@ -2861,6 +2861,26 @@ a.linkish {
 }
 .stammdaten-raster .detail-section,
 .stammdaten-raster .detail-section:first-child { padding: 8px 0; border-top: 0; }
+/* Immobilie: feste vier Spalten, damit jedes Feld bei jedem Objekt am selben
+   Platz steht; lange Werte werden gekuerzt statt die Zeile zu erhoehen. */
+.stammdaten-fest { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stammdaten-fest .detail-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stammdaten-fest .detail-value.leer { color: var(--muted); }
+@media (max-width: 900px) { .stammdaten-fest { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.darlehen-chips { display: flex; gap: 6px; min-width: 0; }
+/* Gleiche Anteile je Darlehen, kurze Namen bleiben so schmal wie noetig. */
+.darlehen-chip.linkish {
+  flex: 1 1 0;
+  max-width: max-content;
+  min-width: 0;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* Trennt Auswahlkarten und Detail des gewaehlten Objekts. */
 .objekt-detail-titel {
   display: flex;

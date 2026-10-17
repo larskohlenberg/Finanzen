@@ -379,12 +379,9 @@ window.FINANCE_I18N = {
       },
       ranking: { titel: "Jahresbeiträge im Vergleich", lead: "Sortiert nach Jahresbeitrag, zusammen {betrag}. Rechts die Veränderung zur Zahlung im Vorjahr." },
       zeitstrahl: {
-        titel: "Leistungen im Zeitverlauf",
-        lead: "Monatsrente je Jahr aus den erfassten Renten, Marker für jeden Renten- und Auszahlungsbeginn.",
-        leer: "Keine Leistung mit Leistungsbeginn erfasst.",
-        kapital: "Kapital",
-        rentePlus: "Rente +{betrag}",
-        monatsrente: "Monatsrente",
+        titel: { rente: "Monatsrente im Zeitverlauf", kapital: "Ausgezahltes Kapital im Zeitverlauf" },
+        rente: "Monatsrente",
+        kapital: "Kapital ausgezahlt",
       },
       offen: {
         titel: "Offene Punkte",
@@ -1391,12 +1388,9 @@ window.FINANCE_I18N = {
       },
       ranking: { titel: "Annual premiums compared", lead: "Sorted by annual premium, {betrag} in total. On the right the change against the previous year's payment." },
       zeitstrahl: {
-        titel: "Benefits over time",
-        lead: "Monthly pension per year from the recorded pensions, a marker for every pension or payout start.",
-        leer: "No benefit with a start date recorded.",
-        kapital: "Lump sum",
-        rentePlus: "Pension +{betrag}",
-        monatsrente: "Monthly pension",
+        titel: { rente: "Monthly pension over time", kapital: "Lump sums paid out over time" },
+        rente: "Monthly pension",
+        kapital: "Lump sums paid out",
       },
       offen: {
         titel: "Open items",

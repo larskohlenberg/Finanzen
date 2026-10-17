@@ -178,7 +178,11 @@ export function renderTransactions() {
         <section class="panel">
           ${renderTransactionTableToolbar()}
           <div class="table-wrap">
-            <table>
+            <table class="transaction-table">
+              <colgroup>
+                <col class="col-datum"><col class="col-konto"><col class="col-gegenpartei"><col class="col-zweck">
+                <col class="col-betrag"><col class="col-kategorie"><col class="col-status"><col class="col-transfer">
+              </colgroup>
               <thead>
                 <tr>
                   ${transactionSortHeader("date", "labels.date")}

@@ -13,7 +13,7 @@ globalThis.fetch = async (path) => {
 await import("../app/i18n.js");
 
 const { data, state } = await import("../app/runtime.mjs");
-const { renderAbsicherungKachel } = await import("../app/views/absicherung.mjs");
+const { renderAbsicherungKacheln } = await import("../app/views/absicherung.mjs");
 const { renderVorsorge } = await import("../app/views/vorsorge.mjs");
 
 const HEUTE = "2026-10-17";
@@ -51,31 +51,38 @@ function mitFixture(fn) {
   }
 }
 
-test("Kachel Absicherung: Spalte je Person mit BU und Tod, Posten verlinken auf den Vertrag", () => mitFixture(() => {
-  const html = renderAbsicherungKachel(HEUTE);
-  assert.match(html, /<h2[^>]*><button class="linkish" data-view="vorsorge"><svg[\s\S]*?<span>Absicherung<\/span>[\s\S]*?<\/button><\/h2>/);
-  assert.equal((html.match(/class="absicherung-person"/g) ?? []).length, 2);
-  const anna = html.slice(html.indexOf("Anna Muster"), html.indexOf("Ben Muster"));
-  assert.match(anna, /Bei Berufsunfähigkeit<\/h4>\s*<strong>2\.450,00\s€ je Monat<\/strong>/);
-  assert.match(anna, /Im Todesfall<\/h4>\s*<strong>600,00\s€ je Monat<\/strong>/);
-  assert.match(anna, /data-action="open-vorsorge" data-vorsorge="VS-002"><span class="mit-logo"><span class="logo-marke [^"]*"[^>]*>[^<]*<\/span><span>BU Anna<\/span>/);
-  assert.match(anna, /BU-Rente · Stand 1\.3\.2026/);
-  assert.match(anna, /Erwerbsminderungsrente · Stand 1\.7\.2026/);
-  assert.ok(anna.indexOf("VS-002") < anna.indexOf("VS-001"), "groesster Posten zuerst");
-  const ben = html.slice(html.indexOf("Ben Muster"));
-  assert.equal((ben.match(/nicht erfasst/g) ?? []).length, 2);
+test("Kacheln Absicherung: je eine fuer BU und Tod, darin je Person Summe und Posten mit Link", () => mitFixture(() => {
+  const html = renderAbsicherungKacheln(HEUTE);
+  assert.equal((html.match(/<section class="panel panel-pad absicherung-kachel"/g) ?? []).length, 2);
+  const [bu, tod] = html.split('id="absicherung-tod-titel"');
+  assert.match(bu, /<h2[^>]*><button class="linkish" data-view="vorsorge"><svg[\s\S]*?<span>Absicherung bei Berufsunfähigkeit<\/span>/);
+  assert.match(tod, /<span>Absicherung im Todesfall<\/span>/);
+  assert.equal((bu.match(/class="absicherung-person"/g) ?? []).length, 2);
+  assert.equal((tod.match(/class="absicherung-person"/g) ?? []).length, 2);
+  const buAnna = bu.slice(bu.indexOf("Anna Muster"), bu.indexOf("Ben Muster"));
+  assert.match(buAnna, /Anna Muster<\/h3>\s*<strong>2\.450,00\s€ je Monat<\/strong>/);
+  assert.match(buAnna, /data-action="open-vorsorge" data-vorsorge="VS-002"><span class="mit-logo"><span class="logo-marke [^"]*"[^>]*>[^<]*<\/span><span>BU Anna<\/span>/);
+  assert.match(buAnna, /BU-Rente · Stand 1\.3\.2026/);
+  assert.match(buAnna, /Erwerbsminderungsrente · Stand 1\.7\.2026/);
+  assert.ok(buAnna.indexOf("VS-002") < buAnna.indexOf("VS-001"), "groesster Posten zuerst");
+  assert.doesNotMatch(buAnna, /Hinterbliebenenrente/);
+  const todAnna = tod.slice(tod.indexOf("Anna Muster"), tod.indexOf("Ben Muster"));
+  assert.match(todAnna, /Anna Muster<\/h3>\s*<strong>600,00\s€ je Monat<\/strong>/);
+  assert.match(todAnna, /Hinterbliebenenrente · Stand 1\.7\.2026/);
+  assert.match(bu.slice(bu.indexOf("Ben Muster")), /Ben Muster<\/h3>\s*<span class="muted">nicht erfasst/);
+  assert.match(tod.slice(tod.indexOf("Ben Muster")), /Ben Muster<\/h3>\s*<span class="muted">nicht erfasst/);
   assert.doesNotMatch(html, /style=/);
 }));
 
 test("Kachel Absicherung: ohne Personen mit Vertrag ein Hinweis, englische Texte", () => mitFixture(() => {
   data.vorsorge = [];
-  assert.match(renderAbsicherungKachel(HEUTE), /Keine Person mit laufendem Vorsorgevertrag erfasst\./);
+  assert.equal((renderAbsicherungKacheln(HEUTE).match(/Keine Person mit laufendem Vorsorgevertrag erfasst\./g) ?? []).length, 2);
   state.lang = "en";
   data.vorsorge = [{ vorsorge_id: "VS-002", art: "schutzversicherung", name: "BU Anna", person_id: "PER-001", status: "aktiv", kapitalbildend: false }];
-  const html = renderAbsicherungKachel(HEUTE);
-  assert.match(html, />Protection</);
-  assert.match(html, /On disability/);
-  assert.match(html, /On death<\/h4>\s*<span class="muted">not recorded/);
+  const html = renderAbsicherungKacheln(HEUTE);
+  assert.match(html, />Protection on disability</);
+  assert.match(html, />Protection on death</);
+  assert.match(html, /Anna Muster<\/h3>\s*<span class="muted">not recorded/);
 }));
 
 test("Wertstaende eines Vertrags beschriften die Absicherungswerte sprechend", () => mitFixture(() => {

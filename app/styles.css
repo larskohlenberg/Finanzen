@@ -3311,7 +3311,7 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .uebersicht-kachel-kopf svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .uebersicht-balken { display: grid; gap: 4px; margin-top: 10px; }
 .uebersicht-termine,
-.absicherung-kachel { margin-top: 16px; }
+.absicherung-kacheln { margin-top: 16px; }
 .termine-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 28px; margin-top: 10px; }
 .termine-titel { margin: 0 0 4px; font-size: 13px; }
 .termine-liste { margin: 0; padding: 0; list-style: none; font-size: 13px; }
@@ -3340,14 +3340,13 @@ td.logo-zelle .logo-marke { margin-right: 0; }
   .termine-liste li { grid-template-columns: 5.5em minmax(0, 1fr) auto; gap: 6px; }
 }
 
-/* Kachel Absicherung: je Person eine Spalte, darin BU und Tod. */
+/* Kacheln Absicherung: BU und Tod nebeneinander, darin je Person ein Block. */
+.absicherung-kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.absicherung-kachel { min-width: 0; }
 .absicherung-kachel .page-lead { margin-bottom: 14px; }
-.absicherung-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 24px; }
-.absicherung-person { min-width: 0; }
-.absicherung-person .section-subtitle { margin-top: 0; }
-.absicherung-fall + .absicherung-fall { margin-top: 12px; }
-.absicherung-fall-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
-.absicherung-fall-kopf h4 { margin: 0; font-size: 0.95rem; }
+.absicherung-person + .absicherung-person { margin-top: 16px; }
+.absicherung-person-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.absicherung-person-kopf h3 { margin: 0; font-size: 0.95rem; }
 .absicherung-posten { list-style: none; margin: 6px 0 0; padding: 0; }
 .absicherung-posten li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 6px 0; border-top: 1px solid var(--border); }
 .absicherung-posten li > button { text-align: left; }

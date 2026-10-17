@@ -1,7 +1,7 @@
 // app/views/absicherung.mjs
-// Kachel Absicherung: je Person eine Spalte mit den Faellen Berufsunfaehigkeit
-// und Tod, darin die Summe und die einzelnen Leistungen mit Link auf ihren
-// Vertrag. Nur auflisten, kein Bedarf. Rechnen in absicherung.mjs.
+// Kacheln Absicherung: je Fall (Berufsunfaehigkeit, Tod) eine Kachel, darin je
+// Person die Summe und die einzelnen Leistungen mit Link auf ihren Vertrag.
+// Nur auflisten, kein Bedarf. Rechnen in absicherung.mjs.
 import { data, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, mitLogo } from "../komponenten.mjs";
@@ -30,37 +30,38 @@ function postenHtml(p) {
           </li>`;
 }
 
-function fallHtml(titelKey, summen, posten) {
+// Ein Block je Person: Name mit Summe, darunter die einzelnen Leistungen.
+function personHtml(name, summen, posten) {
   const summe = summen.filter(([cents]) => cents).map(([cents, einmalig]) => betrag(cents, einmalig)).join(" · ");
   return `
-        <div class="absicherung-fall">
-          <div class="absicherung-fall-kopf">
-            <h4>${escapeHtml(t(titelKey))}</h4>
+        <div class="absicherung-person">
+          <div class="absicherung-person-kopf">
+            <h3>${escapeHtml(name)}</h3>
             ${posten.length ? `<strong>${escapeHtml(summe)}</strong>` : `<span class="muted">${escapeHtml(t("absicherung.nichtErfasst"))}</span>`}
           </div>
           ${posten.length ? `<ul class="absicherung-posten">${posten.map(postenHtml).join("")}</ul>` : ""}
         </div>`;
 }
 
-function personHtml(person) {
-  return `
-      <div class="absicherung-person">
-        <h3 class="section-subtitle">${escapeHtml(person.name)}</h3>
-        ${fallHtml("absicherung.bu", [[person.bu.monatlich_cents, false]], person.bu.posten)}
-        ${fallHtml("absicherung.tod", [[person.tod.einmalig_cents, true], [person.tod.monatlich_cents, false]], person.tod.posten)}
-      </div>`;
-}
-
-// Fertige Kachel fuer die Uebersicht; today nur fuer Tests.
-export function renderAbsicherungKachel(today = localTodayIso()) {
-  const personen = absicherung(data, today);
+function kachelHtml(fall, personen, personBlock) {
   const inhalt = personen.length
-    ? `<div class="absicherung-spalten">${personen.map(personHtml).join("")}</div>`
+    ? personen.map(personBlock).join("")
     : `<p class="muted">${escapeHtml(t("absicherung.keinePersonen"))}</p>`;
   return `
-    <section class="panel panel-pad absicherung-kachel" aria-labelledby="absicherung-titel">
-      <h2 class="uebersicht-kachel-kopf" id="absicherung-titel"><button class="linkish" data-view="vorsorge">${iconSvg("vorsorge")}<span>${escapeHtml(t("absicherung.titel"))}</span>${iconSvg("chevronRight")}</button></h2>
-      <p class="page-lead">${escapeHtml(t("absicherung.lead"))}</p>
-      ${inhalt}
-    </section>`;
+      <section class="panel panel-pad absicherung-kachel" aria-labelledby="absicherung-${fall}-titel">
+        <h2 class="uebersicht-kachel-kopf" id="absicherung-${fall}-titel"><button class="linkish" data-view="vorsorge">${iconSvg("vorsorge")}<span>${escapeHtml(t(`absicherung.${fall}Titel`))}</span>${iconSvg("chevronRight")}</button></h2>
+        <p class="page-lead">${escapeHtml(t(`absicherung.${fall}Lead`))}</p>
+        ${inhalt}
+      </section>`;
+}
+
+// Zwei Kacheln fuer die Uebersicht, Berufsunfaehigkeit und Tod, darin je
+// Person die Summe und die Posten; today nur fuer Tests.
+export function renderAbsicherungKacheln(today = localTodayIso()) {
+  const personen = absicherung(data, today);
+  return `
+    <div class="absicherung-kacheln">
+      ${kachelHtml("bu", personen, (p) => personHtml(p.name, [[p.bu.monatlich_cents, false]], p.bu.posten))}
+      ${kachelHtml("tod", personen, (p) => personHtml(p.name, [[p.tod.einmalig_cents, true], [p.tod.monatlich_cents, false]], p.tod.posten))}
+    </div>`;
 }

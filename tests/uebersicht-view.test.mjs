@@ -201,8 +201,8 @@ test("Termin-Kachel zeigt Fristen mit Spur, Objekt-Link und Hinweis auf bald und
   assert.doesNotMatch(spalte, /Erledigt/);
   assert.ok(spalte.indexOf("Alte Frist") < spalte.indexOf("Dynamik widersprechen"), "nach Datum sortiert");
 
-  // Darunter die Kachel Absicherung.
-  assert.match(renderOverview(), /uebersicht-termine[\s\S]*<section class="panel panel-pad absicherung-kachel"/);
+  // Darunter die zwei Kacheln Absicherung.
+  assert.match(renderOverview(), /uebersicht-termine[\s\S]*<div class="absicherung-kacheln">\s*<section class="panel panel-pad absicherung-kachel"/);
 
   data.fristen = [];
   data.darlehen = [];

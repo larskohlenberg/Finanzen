@@ -12,7 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { deflateSync, crc32 } from "node:zlib";
 import { dekodierePng, istPng, kodierePng, verkleinere } from "../app/tools/lib/png.mjs";
 import { kuerzel, kuerzelFarbe, logoFuerText, logoVerzeichnis, KUERZEL_FARBEN } from "../app/logos.mjs";
-import { holeLogo, logoBericht, normalisiereDomain, planeLogos, schreibeLogos, uebernehme, dienstUrl } from "../app/tools/logos.mjs";
+import { eigenesLogo, holeLogo, logoBericht, normalisiereDomain, planeLogos, schreibeLogos, uebernehme, dienstUrl } from "../app/tools/logos.mjs";
 import { loadMasterData, validateMasterData } from "../app/tools/validator.mjs";
 
 const DEMO = fileURLToPath(new URL("../app/data/demo/", import.meta.url));
@@ -234,6 +234,28 @@ test("Abruf: 404, weder PNG noch JPEG, Netzfehler und winzige Bilder", async () 
   const winzig = await holeLogo("a.example", { holen: async () => pngAntwort(kodierePng(einfarbig(16, 16, [1, 2, 3, 255]))) });
   assert.equal(winzig.ok, true);
   assert.match(winzig.hinweis, /16x16/);
+});
+
+test("Eigenes Bild: Plan traegt Bild und Quelle, Aufbereitung wie beim Abruf", () => {
+  const base64 = kodierePng(einfarbig(256, 256, [0, 70, 102, 255])).toString("base64");
+  const { plan, fehler } = planeLogos({ logos: [], eintraege: [{ name: "Musterbank", domain: "musterbank.example", muster: "MUSTERBANK", bild: base64, quelle: "https://www.musterbank.example/favicon.svg" }] });
+  assert.deepEqual(fehler, []);
+  assert.equal(plan[0].bild.quelle, "https://www.musterbank.example/favicon.svg");
+  assert.equal(plan[0].eintrag.bild, undefined);
+  const r = eigenesLogo(plan[0].bild);
+  assert.equal(r.ok, true);
+  assert.equal(r.quelle, "https://www.musterbank.example/favicon.svg");
+  assert.deepEqual([r.breite, r.hoehe], [128, 128]);
+  assert.match(eigenesLogo({ base64: Buffer.from("<svg/>").toString("base64"), quelle: "https://a.example/x.svg" }).fehler, /weder PNG noch JPEG/);
+
+  const kaputt = planeLogos({ logos: [], eintraege: [
+    { name: "A", domain: "a.example", muster: "A", bild: base64 },
+    { name: "B", domain: "b.example", muster: "B", bild: base64, quelle: "http://b.example/x.png" },
+    { name: "C", domain: "c.example", muster: "C", quelle: "https://c.example/x.png" },
+  ] });
+  assert.ok(kaputt.fehler.some((f) => /eintraege\[0\]\.quelle/.test(f)));
+  assert.ok(kaputt.fehler.some((f) => /eintraege\[1\]\.quelle/.test(f)));
+  assert.ok(kaputt.fehler.some((f) => /eintraege\[2\]\.bild: fehlt/.test(f)));
 });
 
 test("Bericht: haeufigste Gegenparteien ohne Logo, fehlende Dateien, Regelzahlungen, Vorsorge und Konten", () => {

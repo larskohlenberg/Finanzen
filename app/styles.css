@@ -3301,7 +3301,8 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .uebersicht-kachel-kopf .linkish:hover { color: var(--accent); }
 .uebersicht-kachel-kopf svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .uebersicht-balken { display: grid; gap: 4px; margin-top: 10px; }
-.uebersicht-termine { margin-top: 16px; }
+.uebersicht-termine,
+.absicherung-kachel { margin-top: 16px; }
 .termine-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 28px; margin-top: 10px; }
 .termine-titel { margin: 0 0 4px; font-size: 13px; }
 .termine-liste { margin: 0; padding: 0; list-style: none; font-size: 13px; }

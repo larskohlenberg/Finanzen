@@ -53,7 +53,7 @@ function mitFixture(fn) {
 
 test("Kachel Absicherung: Spalte je Person mit BU und Tod, Posten verlinken auf den Vertrag", () => mitFixture(() => {
   const html = renderAbsicherungKachel(HEUTE);
-  assert.match(html, /<h2[^>]*><button class="linkish" data-view="vorsorge">Absicherung<\/button><\/h2>/);
+  assert.match(html, /<h2[^>]*><button class="linkish" data-view="vorsorge"><svg[\s\S]*?<span>Absicherung<\/span>[\s\S]*?<\/button><\/h2>/);
   assert.equal((html.match(/class="absicherung-person"/g) ?? []).length, 2);
   const anna = html.slice(html.indexOf("Anna Muster"), html.indexOf("Ben Muster"));
   assert.match(anna, /Bei Berufsunfähigkeit<\/h4>\s*<strong>2\.450,00\s€ je Monat<\/strong>/);

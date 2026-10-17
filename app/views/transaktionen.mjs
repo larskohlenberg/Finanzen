@@ -181,7 +181,7 @@ export function renderTransactions() {
             <table class="transaction-table">
               <colgroup>
                 <col class="col-datum"><col class="col-konto"><col class="col-gegenpartei"><col class="col-zweck">
-                <col class="col-betrag"><col class="col-kategorie"><col class="col-status"><col class="col-transfer">
+                <col class="col-betrag"><col class="col-kategorie"><col class="col-transfer">
               </colgroup>
               <thead>
                 <tr>
@@ -191,7 +191,6 @@ export function renderTransactions() {
                   ${transactionSortHeader("purpose", "labels.purpose")}
                   ${transactionSortHeader("amount", "labels.amount", true)}
                   ${transactionSortHeader("category", "labels.category")}
-                  ${transactionSortHeader("status", "labels.status")}
                   ${transactionSortHeader("transfer", "labels.transfer")}
                 </tr>
               </thead>
@@ -489,14 +488,13 @@ function transactionTimeFilterIsActive() {
 function renderTransactionRow(tx) {
   const selectAttrs = `data-action="select-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}"`;
   return `
-    <tr class="transaction-row ${tx.transaktion_id === state.selectedTransactionId ? "selected" : ""} ${tx.kategorisierung_status === "offen" ? "open" : ""}">
+    <tr class="transaction-row ${tx.transaktion_id === state.selectedTransactionId ? "selected" : ""} ${tx.kategorisierung_status === "offen" ? "open" : ""} ${tx.kategorisierung_status === "vorgeschlagen" ? "vorgeschlagen" : ""}">
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
       <td><button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(transactionAccountLabel(tx))}</button></td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei), { groesse: "tabelle" })}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
       <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${tx.kategorie_herkunft === "manuell" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originManual"))}">M</span>` : ""}${tx.kategorie_herkunft === "agent" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originAgent"))}">A</span>` : ""}</td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${statusChip(tx.kategorisierung_status, { nurIcon: true })}</td>
       ${renderTransferCell(tx)}
     </tr>
   `;

@@ -79,7 +79,7 @@ nennt. Groesse und Platz je Ort:
   rund drei Viertel einer zweizeiligen Zeile; das Logo ragt ins Zellpolster,
   damit die Zeile nicht hoeher wird. Der Text steht vertikal zentriert zum Logo
   (`.mit-logo`), auch bei Umbruch.
-- Kontentabellen (Uebersicht, Vermoegen, Stammdaten): eigene erste Spalte
+- Kontentabellen (Vermoegen, Stammdaten): eigene erste Spalte
   `logo-zelle`, gleiche Groesse wie in den anderen Tabellen.
 - Vergleichsliste in einer Kachel (Jahresbeitraege): 24 px ueber
   `{ groesse: "vergleich" }`.
@@ -93,3 +93,13 @@ die Farbe an den gerundeten Kanten durch. Logodateien sind bis 128 px gross und
 werden nur verkleinert angezeigt, nie vergroessert, soweit der Logodienst so
 gross liefert. Keine eigenen Bild- oder Badge-Varianten je Seite; Farben nur ueber
 die Klassen `kuerzel-farbe-<n>`, keine style-Attribute.
+
+## Uebersicht
+
+Die Uebersicht ist ein Dashboard aus Kacheln, keine Tabellen: je Bereich
+(Liquiditaet, Vermoegen, Vorsorge) eine Kachel mit Kennzahl, kleinem Diagramm und
+Zeilen, darunter die Termin-Kachel ueber zwoelf Monate (Zeitleiste mit einer Spur
+je Terminart, darunter die Listen). Der Kopf jeder Kachel fuehrt auf die Seite des
+Bereichs, jede Zeile auf ihr Objekt oder ihren Reiter. Was eine andere Seite schon
+vollstaendig zeigt (Kontentabellen, naechste Aktion im Arbeitsstatus), steht hier
+nicht noch einmal. Diagramme in schmalen Kacheln kommen ohne Achsen aus.

@@ -879,8 +879,9 @@ async function handleAction(element) {
     commitNavigation();
     return;
   }
-  if (action === "immobilie-transactions") {
-    // Aus der Monatstabelle einer Immobilie: optional auf Monat bzw. Zeitraum und
+  if (action === "immobilie-transactions" || action === "kategorie-transactions") {
+    // Aus der Monatstabelle einer Immobilie oder den Einnahmen/Ausgaben der
+    // Uebersicht: optional auf Monat bzw. Zeitraum und
     // Kategorie eingeschraenkt; Transfers fehlen dort, also auch hier — ausser die
     // Tabelle zeigt den Eigenanteil (data-transfer "only" bzw. "all").
     const { monat = "", von = "", bis = "", kategorie = "", transfer = "" } = element.dataset;

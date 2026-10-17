@@ -255,3 +255,14 @@ test("terminLeiste: je Spur eine Linie, Raute oder Kreis, ueberfaellige Termine 
   assert.equal((svg.match(/class="terminleiste-gitter"/g) ?? []).length, 12);
   assert.equal(terminLeiste({ von: "2026-10-17", bis: "2027-10-17", spuren: [{ label: "Leer", marker: [] }] }), "");
 });
+
+test("miniLinie: Linie ohne Achsen, Titel je Punkt, unter zwei Punkten leer", async () => {
+  const { miniLinie } = await import("../app/charts.mjs");
+  const svg = miniLinie([{ wert: 100, label: "Jan: 100" }, { wert: 300, label: "Feb: 300" }, { wert: 200, label: "Mrz: 200" }], { width: 100, height: 20, ariaLabel: "Verlauf" });
+  assert.match(svg, /^<svg class="mini-linie" viewBox="0 0 100 20" role="img" aria-label="Verlauf">/);
+  assert.match(svg, /<polyline class="mini-linie-strich" points="3\.0,[\d.]+ 50\.0,3\.0 97\.0,[\d.]+"/);
+  assert.equal((svg.match(/<title>/g) ?? []).length, 3);
+  assert.match(svg, /<title>Feb: 300<\/title>/);
+  assert.doesNotMatch(svg, /<text/);
+  assert.equal(miniLinie([{ wert: 1, label: "x" }]), "");
+});

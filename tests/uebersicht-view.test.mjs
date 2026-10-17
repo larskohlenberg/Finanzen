@@ -258,3 +258,45 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   assert.match(teil("Langfristig gebunden"), /data-action="vorsorge-tab" data-tab="lebensversicherungen">Rückkaufswerte</);
   assert.match(vorsorge, /<h3 class="vermoegen-teil-titel uebersicht-werttitel"><button class="linkish" data-action="vorsorge-tab" data-tab="renten">Monatliche Renten<\/button><\/h3>\s*<div class="kpi-value">/);
 });
+
+test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und Links in die Buchungen", async () => {
+  const { localTodayIso, addInterval } = await import("../app/liquiditaet.mjs");
+  const vorMonat = addInterval(`${localTodayIso().slice(0, 7)}-01`, "monat", -1);
+  data.validation = { valid: true, errors: [] };
+  data.importfehler = [];
+  data.checks = [];
+  data.konten = [];
+  data.transfers = [];
+  data.regelzahlungen = [];
+  data.immobilien = [];
+  data.darlehen = [];
+  data.vermoegenswerte = [];
+  data.vorsorge = [];
+  data.zeitwerte = [];
+  data.fristen = [];
+  data.kategorien = [
+    { kategorie_id: "KAT-001", name: "Gehalt", typ: "einnahme" },
+    { kategorie_id: "KAT-003", name: "Wohnen", typ: "ausgabe" },
+    { kategorie_id: "KAT-004", name: "Lebensmittel", typ: "ausgabe" },
+    { kategorie_id: "KAT-005", name: "Mobilitaet", typ: "ausgabe" },
+    { kategorie_id: "KAT-006", name: "Freizeit", typ: "ausgabe" },
+  ];
+  const tx = (betrag, kategorie_id) => ({ konto_id: "KTO-901", buchungsdatum: vorMonat, betrag, kategorie_id, ist_transfer: false });
+  data.transaktionen = [tx("3000.00", "KAT-001"), tx("-1000.00", "KAT-003"), tx("-400.00", "KAT-004"), tx("-200.00", "KAT-005"), tx("-50.00", "KAT-006")];
+  state.view = "overview";
+  state.lang = "de";
+
+  const html = renderOverview();
+  const kachel = (id) => html.match(new RegExp(`<section class="panel panel-pad uebersicht-flach-kachel" aria-labelledby="kachel-${id}">[\\s\\S]*?</section>`))?.[0] ?? "";
+  assert.ok(html.indexOf("uebersicht-flach") < html.indexOf("uebersicht-kacheln"), "ganz oben");
+  assert.match(kachel("einnahmen"), /Monatliche Einnahmen[\s\S]*<div class="kpi-value">3\.000\s€ <span class="betrag-einheit">/);
+  assert.match(kachel("einnahmen"), /1 Monat · /);
+  assert.match(kachel("ausgaben"), /<div class="kpi-value">1\.650\s€/);
+  // Drei groesste Kategorien als Link in die Buchungen, der Rest als "Übrige".
+  assert.match(kachel("ausgaben"), new RegExp(`data-action="kategorie-transactions" data-kategorie="KAT-003" data-von="${vorMonat}" data-bis="[0-9-]+">Wohnen</button>`));
+  assert.match(kachel("ausgaben"), /Mobilitaet<\/button>[\s\S]*<span>Übrige<\/span><span class="amount">50\s€/);
+  assert.doesNotMatch(kachel("ausgaben"), /KAT-006/);
+
+  data.transaktionen = [];
+  assert.doesNotMatch(renderOverview(), /uebersicht-flach/);
+});

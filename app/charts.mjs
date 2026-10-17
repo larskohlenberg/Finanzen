@@ -806,3 +806,21 @@ export function stapelDiagramm({ spalten, teile, netto, formatWert = String, for
   const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };
   return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(hover, plot)}>${svg.join("")}</svg>`;
 }
+
+// Mini-Linie ohne Achsen und Beschriftung fuer flache Kacheln. Je Punkt ein
+// unsichtbarer Streifen mit <title>, damit der Wert beim Darueberfahren erscheint.
+// punkte: [{ wert: number, label: string }]
+export function miniLinie(punkte, { width = 240, height = 48, ariaLabel = "" } = {}) {
+  if (!Array.isArray(punkte) || punkte.length < 2) return "";
+  const pad = 3;
+  const werte = punkte.map((p) => p.wert);
+  const min = Math.min(0, ...werte);
+  const max = Math.max(...werte, min + 1);
+  const schritt = (width - 2 * pad) / (punkte.length - 1);
+  const x = (i) => pad + i * schritt;
+  const y = (w) => pad + (height - 2 * pad) * (1 - (w - min) / (max - min));
+  const linie = punkte.map((p, i) => `${x(i).toFixed(1)},${y(p.wert).toFixed(1)}`).join(" ");
+  const flaeche = `${x(0).toFixed(1)},${y(min).toFixed(1)} ${linie} ${x(punkte.length - 1).toFixed(1)},${y(min).toFixed(1)}`;
+  const streifen = punkte.map((p, i) => `<rect class="mini-linie-ziel" x="${Math.max(0, x(i) - schritt / 2).toFixed(1)}" y="0" width="${schritt.toFixed(1)}" height="${height}"><title>${esc(p.label)}</title></rect>`).join("");
+  return `<svg class="mini-linie" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(ariaLabel)}"><polygon class="mini-linie-flaeche" points="${flaeche}" /><polyline class="mini-linie-strich" points="${linie}" /><circle class="mini-linie-punkt" cx="${x(punkte.length - 1).toFixed(1)}" cy="${y(werte.at(-1)).toFixed(1)}" r="2.5" />${streifen}</svg>`;
+}

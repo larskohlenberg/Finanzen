@@ -26,7 +26,7 @@ Reihenfolge und Standard je Detailansicht:
 
 | Ansicht | Kacheln (zu = per Standard zugeklappt) |
 | --- | --- |
-| Vorsorgevertrag | Vertragsdaten (zu), Beitragsdynamik (nur mit Dynamik), Dokumente, Gebuchte Beitraege, Bemerkung und Wertstaende (zu) |
+| Vorsorgevertrag | Kennzahlen (vier, mit Beitragsdynamik fuenf), Vertragsdaten (zu), Dokumente, Gebuchte Beitraege, Bemerkung und Wertstaende (zu) |
 | Immobilie | Stammdaten, Monatstabelle, Dokumente, Bemerkung und Wertstaende (zu) |
 | Darlehen | Kennzahlen, Restschuldverlauf, Stammdaten, Dokumente, Bemerkung/Wertstaende/Sondertilgungen (zu) |
 | Vermoegen, Uebersicht | Klassenkarten, Wertstaende (zu; ein Sprung "Alle Wertstaende" oeffnet sie) |

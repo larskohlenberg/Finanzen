@@ -363,8 +363,14 @@ window.FINANCE_I18N = {
       dynamik: {
         titel: "Beitragsdynamik",
         naechste: "Nächste Erhöhung {datum}",
-        regel: "Regel „nur jede dritte annehmen“: {vorschlag}",
-        vorschlag: { annehmen: "annehmen", ablehnen: "ablehnen" },
+        aktion: { widersprechen: "Widersprechen", annehmen: "Annehmen", ablehnen: "Ablehnen", offen: "Offen", erloschen: "Erloschen" },
+        notiz: {
+          widersprechen: "bis {datum} · Erhöhung {termin}",
+          zum: "zum {datum}",
+          nachRegel: "nach der Regel",
+          unvollstaendig: "Verlauf unvollständig",
+          erloschen: "{n} Widersprüche in Folge",
+        },
         grund: {
           "letzte-chance": "Die letzten {n} wurden abgelehnt. Ein weiterer Widerspruch beendet das Dynamikrecht.",
           "kuerzlich-angenommen": "In den letzten zwei Jahren wurde eine Erhöhung angenommen.",
@@ -373,22 +379,11 @@ window.FINANCE_I18N = {
           erloschen: "Das Dynamikrecht ist erloschen: {n} Widersprüche in Folge.",
         },
         erlischt: "Erlischt nach {n} Widersprüchen in Folge, bisher {folge} in Folge.",
-        entscheidung: { angenommen: "angenommen", abgelehnt: "abgelehnt", offen: "Angebot liegt vor" },
-        verlauf: "Verlauf",
-        keinVerlauf: "Noch keine Entscheidung erfasst.",
         chip: { annehmen: "Dynamik annehmen", ablehnen: "Dynamik ablehnen", offen: "Dynamik entscheiden" },
         letzteChance: "Letzte Chance",
-        erloschenChip: "Dynamik erloschen",
         widerspruchBis: "Widerspruch bis {datum}",
-        frist: {
-          titel: "Widerspruchsfrist",
-          schicken: "Widerspruch schicken",
-          unnoetig: "kein Widerspruch, annehmen",
-          offen: "Entscheidung offen",
-          nachRegel: "nach der Regel",
-          keine: "Keine Widerspruchsfrist erfasst.",
-        },
       },
+
       gehoertZu: "Gehört zu",
       riester: {
         gebundenesKapital: "Gebundenes Kapital",
@@ -1328,8 +1323,14 @@ window.FINANCE_I18N = {
       dynamik: {
         titel: "Premium indexation",
         naechste: "Next increase {datum}",
-        regel: "Rule “accept only every third”: {vorschlag}",
-        vorschlag: { annehmen: "accept", ablehnen: "decline" },
+        aktion: { widersprechen: "Object", annehmen: "Accept", ablehnen: "Decline", offen: "Open", erloschen: "Lapsed" },
+        notiz: {
+          widersprechen: "by {datum} · increase {termin}",
+          zum: "on {datum}",
+          nachRegel: "per rule",
+          unvollstaendig: "history incomplete",
+          erloschen: "{n} objections in a row",
+        },
         grund: {
           "letzte-chance": "The last {n} were declined. One more objection ends the indexation right.",
           "kuerzlich-angenommen": "An increase was accepted within the last two years.",
@@ -1338,22 +1339,11 @@ window.FINANCE_I18N = {
           erloschen: "The indexation right has lapsed: {n} objections in a row.",
         },
         erlischt: "Lapses after {n} objections in a row, so far {folge} in a row.",
-        entscheidung: { angenommen: "accepted", abgelehnt: "declined", offen: "offer received" },
-        verlauf: "History",
-        keinVerlauf: "No decision recorded yet.",
         chip: { annehmen: "Accept indexation", ablehnen: "Decline indexation", offen: "Decide indexation" },
         letzteChance: "Last chance",
-        erloschenChip: "Indexation lapsed",
         widerspruchBis: "Object by {datum}",
-        frist: {
-          titel: "Objection deadline",
-          schicken: "send objection",
-          unnoetig: "no objection, accept",
-          offen: "decision open",
-          nachRegel: "per rule",
-          keine: "No objection deadline recorded.",
-        },
       },
+
       gehoertZu: "Belongs to",
       riester: {
         gebundenesKapital: "Tied-up capital",

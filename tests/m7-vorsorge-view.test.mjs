@@ -425,7 +425,7 @@ test("leerer Bestand rendert ohne Fehler", () => {
   }, { vorsorge: [], zeitwerte: [], regelzahlungen: [], transaktionen: [] });
 });
 
-test("Beitragsdynamik: Kachel nach den Vertragsdaten, Chip auf der Karte, offener Punkt", async () => {
+test("Beitragsdynamik: fuenfte Kennzahl-Kachel, Chip auf der Karte, offener Punkt", async () => {
   const { localTodayIso, addInterval } = await import("../app/liquiditaet.mjs");
   // Termin in 30 Tagen, die beiden Vorjahre abgelehnt: letzte Chance, annehmen.
   const termin = addInterval(localTodayIso(), "tag", 30);
@@ -436,26 +436,27 @@ test("Beitragsdynamik: Kachel nach den Vertragsdaten, Chip auf der Karte, offene
     assert.match(renderVorsorge(), /Offene Punkte[\s\S]*LV Lena[\s\S]*Dynamik entscheiden/);
     state.selectedVorsorgeId = "VS-003";
     const html = renderVorsorge();
-    const reihenfolge = [...html.matchAll(/data-kachel="vorsorge\.(\w+)"/g)].map((m) => m[1]);
-    assert.deepEqual(reihenfolge, ["vertragsdaten", "dynamik", "dokumente", "beitraege", "anhang"]);
-    assert.match(html, /data-kachel="vorsorge.dynamik"[^>]*aria-expanded="true"/);
-    assert.match(html, /Beitragsdynamik/);
-    assert.match(html, /Regel „nur jede dritte annehmen“: annehmen/);
-    assert.match(html, /Letzte Chance/);
-    assert.match(html, /title="Widerspruch per Brief"/);
-    assert.equal(anzahl(html, /chip neutral">abgelehnt/g), 2);
+    const raster = html.match(/<div class="kennzahl-raster kennzahl-raster-5">([\s\S]*?)<\/div>\s*<section/)?.[1] ?? "";
+    assert.equal(anzahl(raster, /class="kennzahl"/g), 5, "fuenf Kennzahl-Kacheln");
+    assert.match(raster, /title="Die letzten 2 wurden abgelehnt\. Ein weiterer Widerspruch beendet das Dynamikrecht\. Erlischt nach 3/);
+    assert.match(raster, /Beitragsdynamik<\/div>\s*<div class="kennzahl-wert">Annehmen<\/div>/);
+    assert.match(raster, /zum [\d.]+ · nach der Regel <span class="chip review">Letzte Chance<\/span><br>\d{4} ✗ · \d{4} ✗/);
+    const kacheln = [...html.matchAll(/data-kachel="vorsorge\.(\w+)"/g)].map((m) => m[1]);
+    assert.deepEqual(kacheln, ["vertragsdaten", "dokumente", "beitraege", "anhang"], "keine eigene grosse Dynamik-Kachel");
     assert.match(html, /objekt-karte-chips">[\s\S]*Dynamik annehmen/);
   }, { vorsorge });
 });
 
-test("Vertrag ohne Dynamik hat keine Dynamik-Kachel", () => {
+test("Vertrag ohne Dynamik behaelt vier Kennzahlen", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-003";
-    assert.doesNotMatch(renderVorsorge(), /vorsorge\.dynamik/);
+    const html = renderVorsorge();
+    assert.match(html, /<div class="kennzahl-raster">/);
+    assert.doesNotMatch(html, /kennzahl-raster-5|Beitragsdynamik/);
   });
 });
 
-test("Beitragsdynamik: Widerspruchsfrist aus der Fristenliste in Kachel und Karte", async () => {
+test("Beitragsdynamik: Widerspruchsfrist aus der Fristenliste in Kennzahl und Karte", async () => {
   const { localTodayIso, addInterval } = await import("../app/liquiditaet.mjs");
   const today = localTodayIso();
   const termin = addInterval(today, "tag", 30);
@@ -468,7 +469,7 @@ test("Beitragsdynamik: Widerspruchsfrist aus der Fristenliste in Kachel und Kart
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-003";
     const html = renderVorsorge();
-    assert.match(html, /Widerspruchsfrist[\s\S]*Dynamik widersprechen <span class="chip review">Widerspruch schicken<\/span> <span class="muted">nach der Regel/);
+    assert.match(html, /Beitragsdynamik<\/div>\s*<div class="kennzahl-wert">Widersprechen<\/div>\s*<div class="kennzahl-notiz">bis [\d.]+ · Erhöhung [\d.]+ · nach der Regel<br>\d{4} ✓/);
     assert.match(html, /objekt-karte-chips">[\s\S]*Widerspruch bis/);
     assert.doesNotMatch(html, /Dynamik ablehnen/, "der Widerspruch ersetzt den Entscheidungs-Hinweis");
   }, { vorsorge, fristen });

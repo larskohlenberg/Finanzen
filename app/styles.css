@@ -2809,6 +2809,8 @@ a.linkish {
   gap: 10px;
   margin-bottom: 12px;
 }
+/* Vorsorgevertrag mit Beitragsdynamik: fuenfte Kachel. */
+.kennzahl-raster-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .kennzahl {
   padding: 12px;
   border: 1px solid var(--border);
@@ -2930,6 +2932,7 @@ a.linkish {
   .detail-zweispaltig, .objekt-anhang-raster { grid-template-columns: minmax(0, 1fr); }
   .detail-zweispaltig .detail-section:nth-child(2) { padding-top: 10px; border-top: 1px solid var(--border); }
   .kennzahl-raster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kennzahl-raster-5 > :last-child { grid-column: 1 / -1; }
 }
 @media (max-width: 760px) {
   .kennzahl-raster { grid-template-columns: minmax(0, 1fr); }
@@ -3295,11 +3298,6 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .vertragsdaten-mit-logo .stammdaten-raster { flex: 1 1 auto; min-width: 0; }
 .vertragsdaten-mit-logo > .logo-marke { width: 48px; height: 48px; margin: 8px 0 0; border-radius: 10px; font-size: 16px; }
 
-/* Kachel Beitragsdynamik im Vorsorge-Detail */
-.dynamik-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; }
-.dynamik-unter { font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
-.dynamik-verlauf { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
-.dynamik-verlauf li { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 
 /* Uebersicht: drei Bereichskacheln und die Termin-Kachel darunter. */
 .uebersicht-kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
@@ -3354,5 +3352,3 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .absicherung-posten li > button { text-align: left; }
 .absicherung-posten li > .muted { grid-column: 1; font-size: 0.85rem; }
 .absicherung-posten li > .amount { grid-column: 2; grid-row: 1; white-space: nowrap; }
-.dynamik-fristen { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; font-size: 13px; }
-.dynamik-fristen li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

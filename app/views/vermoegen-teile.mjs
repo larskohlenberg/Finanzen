@@ -20,9 +20,9 @@ export function qualitaetChip(p) {
   return `<span class="chip ${p.qualitaet === "belegt" ? "success" : "neutral"}">${p.qualitaet === "belegt" ? iconSvg("success") : ""}${escapeHtml(t(`vermoegen.quality${p.qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`))}</span>`;
 }
 
-export function kennzahl(label, wertHtml, notizHtml = "") {
+export function kennzahl(label, wertHtml, notizHtml = "", { titel = "" } = {}) {
   return `
-    <div class="kennzahl">
+    <div class="kennzahl"${titel ? ` title="${escapeHtml(titel)}"` : ""}>
       <div class="kennzahl-label">${escapeHtml(label)}</div>
       <div class="kennzahl-wert">${wertHtml}</div>
       ${notizHtml ? `<div class="kennzahl-notiz">${notizHtml}</div>` : ""}

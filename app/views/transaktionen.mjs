@@ -301,7 +301,7 @@ function renderVorsorgeFilterChip() {
   return `
     <div class="filter-chips">
       <span class="filter-chip" title="${escapeHtml(id)}">
-        ${iconSvg("vermoegen")}
+        ${iconSvg("vorsorge")}
         <span>${escapeHtml(t("transactions.vorsorgeFilterChip"))}:</span>
         <button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(id)}">${escapeHtml(vs?.name || id)}</button>
         <button class="filter-chip-clear" data-action="clear-transaction-filter" data-filter-name="vorsorge" aria-label="${escapeHtml(t("transactions.vorsorgeFilterEntfernen"))}" title="${escapeHtml(t("transactions.vorsorgeFilterEntfernen"))}">${iconSvg("clear")}</button>

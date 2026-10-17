@@ -23,9 +23,27 @@ const icons = {
     '<path d="M3 12a9 9 0 0 1 15.74-6.26L21 8"/>',
     '<path d="M16 8h5V3"/>',
   ],
+  // Bankgebaeude: was wir besitzen und wo es liegt.
   vermoegen: [
-    '<path d="m3 17 6-6 4 4 8-8"/>',
-    '<path d="M14 7h7v7"/>',
+    '<path d="M3 22h18"/>',
+    '<path d="M6 18v-7"/>',
+    '<path d="M10 18v-7"/>',
+    '<path d="M14 18v-7"/>',
+    '<path d="M18 18v-7"/>',
+    '<path d="M11.12 2.2a2 2 0 0 1 1.76 0l7.87 3.85c.47.23.3.95-.23.95H3.48c-.53 0-.7-.72-.23-.95z"/>',
+  ],
+  // Schirm: abgesichert fuer spaeter (Versicherungen und Altersvorsorge).
+  vorsorge: [
+    '<path d="M22 12a10 10 0 0 0-20 0Z"/>',
+    '<path d="M12 12v8a2 2 0 0 0 4 0"/>',
+    '<path d="M12 2v1"/>',
+  ],
+  // Weggabelung: was waere, wenn ...
+  szenarien: [
+    '<path d="M16 3h5v5"/>',
+    '<path d="M8 3H3v5"/>',
+    '<path d="M12 22v-8.3a4 4 0 0 0-1.17-2.87L3 3"/>',
+    '<path d="m15 9 6-6"/>',
   ],
   masterdata: [
     '<rect width="7" height="7" x="3" y="3" rx="1"/>',

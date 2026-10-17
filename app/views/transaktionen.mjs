@@ -496,7 +496,7 @@ function renderTransactionRow(tx) {
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
       <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${tx.kategorie_herkunft === "manuell" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originManual"))}">M</span>` : ""}${tx.kategorie_herkunft === "agent" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originAgent"))}">A</span>` : ""}</td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${statusChip(tx.kategorisierung_status)}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${statusChip(tx.kategorisierung_status, { nurIcon: true })}</td>
       ${renderTransferCell(tx)}
     </tr>
   `;

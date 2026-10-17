@@ -684,6 +684,12 @@ tbody tr.transaction-row:focus-within td {
   width: 100%;
 }
 
+.chip.nur-icon {
+  justify-content: center;
+  min-width: 26px;
+  padding: 4px;
+}
+
 .transfer-anchor {
   text-decoration: none;
 }
@@ -728,15 +734,17 @@ tbody tr.transaction-row:focus-within td {
 
 .transaction-table td .linkish { max-width: 100%; }
 .transaction-table .mit-logo { max-width: 100%; }
+.transaction-table td.amount { padding-left: 6px; }
+.transaction-table td:first-child { white-space: nowrap; }
 .transaction-table .mit-logo > span:last-child { min-width: 0; overflow-wrap: break-word; }
 
-.transaction-table .col-datum { width: 8.5%; }
-.transaction-table .col-konto { width: 14.5%; }
-.transaction-table .col-gegenpartei { width: 17.5%; }
-.transaction-table .col-zweck { width: 17%; }
-.transaction-table .col-betrag { width: 10%; }
-.transaction-table .col-kategorie { width: 13.5%; }
-.transaction-table .col-status { width: 12%; }
+.transaction-table .col-datum { width: 98px; }
+.transaction-table .col-konto { width: 15%; }
+.transaction-table .col-gegenpartei { width: 19.5%; }
+.transaction-table .col-zweck { width: 20.5%; }
+.transaction-table .col-betrag { width: 9%; }
+.transaction-table .col-kategorie { width: 14%; }
+.transaction-table .col-status { width: 6%; }
 .transaction-table .col-transfer { width: 7%; }
 
 /* Summenzeile eines Tabellenblocks (Kontentabelle der Uebersicht). */

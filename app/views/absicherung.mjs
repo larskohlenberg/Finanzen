@@ -2,7 +2,7 @@
 // Kacheln Absicherung: je Fall (Berufsunfaehigkeit, Tod) eine Kachel, darin je
 // Person die Summe und die einzelnen Leistungen mit Link auf ihren Vertrag.
 // Nur auflisten, kein Bedarf. Rechnen in absicherung.mjs.
-import { data, t, escapeHtml } from "../runtime.mjs";
+import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, mitLogo } from "../komponenten.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -30,16 +30,28 @@ function postenHtml(p) {
           </li>`;
 }
 
-// Ein Block je Person: Name mit Summe, darunter die einzelnen Leistungen.
-function personHtml(name, summen, posten) {
+// Ein Block je Person: Name mit Summe, aufgeklappt darunter die einzelnen
+// Leistungen. Standard zu; der Zustand gilt je Fall und Person (klappKacheln).
+function personHtml(fall, person, summen, posten) {
   const summe = summen.filter(([cents]) => cents).map(([cents, einmalig]) => betrag(cents, einmalig)).join(" · ");
+  if (!posten.length) {
+    return `
+        <div class="absicherung-person">
+          <div class="absicherung-person-kopf">
+            <h3>${escapeHtml(person.name)}</h3>
+            <span class="muted">${escapeHtml(t("absicherung.nichtErfasst"))}</span>
+          </div>
+        </div>`;
+  }
+  const id = `absicherung.${fall}.${person.person_id}`;
+  const offen = state.klappKacheln?.[id] ?? false;
   return `
         <div class="absicherung-person">
           <div class="absicherung-person-kopf">
-            <h3>${escapeHtml(name)}</h3>
-            ${posten.length ? `<strong>${escapeHtml(summe)}</strong>` : `<span class="muted">${escapeHtml(t("absicherung.nichtErfasst"))}</span>`}
+            <h3><button type="button" class="klapp-knopf" data-action="klapp-kachel" data-kachel="${escapeHtml(id)}" data-standard="false" aria-expanded="${offen}">${iconSvg(offen ? "chevronDown" : "chevronRight")}<span>${escapeHtml(person.name)}</span></button></h3>
+            <strong>${escapeHtml(summe)}</strong>
           </div>
-          ${posten.length ? `<ul class="absicherung-posten">${posten.map(postenHtml).join("")}</ul>` : ""}
+          ${offen ? `<ul class="absicherung-posten">${posten.map(postenHtml).join("")}</ul>` : ""}
         </div>`;
 }
 
@@ -61,7 +73,7 @@ export function renderAbsicherungKacheln(today = localTodayIso()) {
   const personen = absicherung(data, today);
   return `
     <div class="absicherung-kacheln">
-      ${kachelHtml("bu", personen, (p) => personHtml(p.name, [[p.bu.monatlich_cents, false]], p.bu.posten))}
-      ${kachelHtml("tod", personen, (p) => personHtml(p.name, [[p.tod.einmalig_cents, true], [p.tod.monatlich_cents, false]], p.tod.posten))}
+      ${kachelHtml("bu", personen, (p) => personHtml("bu", p, [[p.bu.monatlich_cents, false]], p.bu.posten))}
+      ${kachelHtml("tod", personen, (p) => personHtml("tod", p, [[p.tod.einmalig_cents, true], [p.tod.monatlich_cents, false]], p.tod.posten))}
     </div>`;
 }

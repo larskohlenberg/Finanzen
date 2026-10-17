@@ -63,7 +63,7 @@ export const navItems = [
   ["transactions", "nav.transactions", "transactions"],
   ["liquiditaet", "nav.liquiditaet", "liquiditaet"],
   ["vermoegen", "nav.vermoegen", "vermoegen"],
-  ["vorsorge", "nav.vorsorge", "vermoegen"],
+  ["vorsorge", "nav.vorsorge", "vorsorge"],
   ["regelzahlungen", "nav.regelzahlungen", "regelzahlungen"],
   ["szenarien", "nav.szenarien", "szenarien"],
   ["belege", "nav.belege", "belege"],

@@ -250,3 +250,48 @@ export function vertragsFarben(data) {
   }
   return farben;
 }
+
+// Wertentwicklung eines Vertrags: die Wertstaende (Rueckkaufs- oder Vertragswert,
+// je nachdem, welcher oefter belegt ist) gegen die bis zum selben Stichtag
+// eingezahlten Beitraege. Eingezahlt ist die juengste Beitragssumme laut
+// Mitteilung plus die danach gebuchten Beitraege; ohne Beitragssumme zaehlen nur
+// die Buchungen (vollstaendig: false), was meist zu wenig ist. Null ohne Wertstand.
+export function wertEntwicklung(data, vorsorgeId) {
+  const staende = (feld) => {
+    const jeDatum = new Map();
+    for (const zw of data.zeitwerte ?? []) {
+      if (zw.entitaet === "vorsorge" && zw.entitaet_id === vorsorgeId && zw.feld === feld) jeDatum.set(zw.standdatum, toCents(zw.wert));
+    }
+    return [...jeDatum].sort((a, b) => a[0].localeCompare(b[0])).map(([datum, c]) => ({ datum, cents: c }));
+  };
+  const rkw = staende("rueckkaufswert");
+  const vw = staende("vertragswert");
+  const feld = vw.length > rkw.length ? "vertragswert" : "rueckkaufswert";
+  const werte = feld === "vertragswert" ? vw : rkw;
+  if (!werte.length) return null;
+  const summen = staende("beitragssumme");
+  const buchungen = gebuchteBeitraegeAlle(data, vorsorgeId).map((tx) => ({ datum: tx.buchungsdatum, cents: -toCents(tx.betrag) }));
+  const ersteBuchung = buchungen.reduce((min, b) => (!min || b.datum < min ? b.datum : min), null);
+  const eingezahltBis = (datum) => {
+    const basis = summen.filter((s) => s.datum <= datum).at(-1);
+    const gebucht = buchungen.filter((b) => b.datum > (basis?.datum ?? "") && b.datum <= datum).reduce((s, b) => s + b.cents, 0);
+    return { cents: (basis?.cents ?? 0) + gebucht, vollstaendig: Boolean(basis) };
+  };
+  const punkte = werte.map((w) => {
+    const e = eingezahltBis(w.datum);
+    return { datum: w.datum, wert_cents: w.cents, eingezahlt_cents: e.cents, vollstaendig: e.vollstaendig };
+  });
+  // Ertrag zwischen den beiden juengsten Stichtagen: Wertzuwachs minus die
+  // Beitraege dazwischen. Nur, wenn diese Beitraege belegt sind.
+  let ertrag = null;
+  if (punkte.length >= 2) {
+    const [a, b] = punkte.slice(-2);
+    const gedeckt = a.vollstaendig || (!b.vollstaendig && ersteBuchung !== null && ersteBuchung <= a.datum);
+    if (gedeckt) {
+      const beitraege = b.eingezahlt_cents - a.eingezahlt_cents;
+      const zuwachs = b.wert_cents - a.wert_cents;
+      ertrag = { von: a.datum, bis: b.datum, zuwachs_cents: zuwachs, beitraege_cents: beitraege, ertrag_cents: zuwachs - beitraege };
+    }
+  }
+  return { feld, punkte, letzter: punkte.at(-1), ertrag, erste_buchung: ersteBuchung };
+}

@@ -96,10 +96,13 @@ export function herkunftLabel(tx) {
   return "—";
 }
 
-export function statusChip(status) {
+// nurIcon: in engen Tabellenspalten nur das Symbol, der Text steht im Tooltip.
+export function statusChip(status, { nurIcon = false } = {}) {
   const className = status === "offen" ? "review" : status === "bestaetigt" ? "success" : "neutral";
   const icon = status === "offen" ? "review" : status === "bestaetigt" ? "success" : "neutral";
-  return `<span class="chip ${className}">${iconSvg(icon)}${escapeHtml(t(`status.${status}`))}</span>`;
+  const label = escapeHtml(t(`status.${status}`));
+  if (nurIcon) return `<span class="chip nur-icon ${className}" title="${label}" aria-label="${label}">${iconSvg(icon)}</span>`;
+  return `<span class="chip ${className}">${iconSvg(icon)}${label}</span>`;
 }
 
 export function renderPageHead(title, lead, extra = "") {

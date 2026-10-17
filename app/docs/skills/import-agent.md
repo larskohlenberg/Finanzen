@@ -199,15 +199,27 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
 - **Harter Umbruch bei 54 Zeichen**: Der Zweck ist in Monospace bei 54 Zeichen
   umbrochen, auch mitten im Wort. Eine volle 54-Zeichen-Zeile ohne Leerzeichen an
   die naechste anhaengen, sonst mit Leerzeichen. Pruefbar bei Darlehensraten: Zins-
-  plus Tilgungsanteil im Text muss den Betrag ergeben.
+  plus Tilgungsanteil im Text muss den Betrag ergeben. Beginnt die Folgezeile im
+  Textvorlauf mit einem Leerzeichen (eine Spalte weiter eingerueckt), gehoert es
+  in den Text, auch nach einer vollen Zeile: `…/Musterstr-` + ` EREF:` ergibt
+  `Musterstr- EREF:`. Bei Zeilen mit aufgefuellten Betraegen
+  (`ZINSEN      12,34  T`) verliert der Textvorlauf eine Leerstelle; die Zeile
+  wirkt dann 53 Zeichen lang, obwohl sie voll ist. Dann nicht nach Zeichenzahl
+  entscheiden, sondern nach Wortgrenze oder der Zins-plus-Tilgung-Probe.
 - **Felder**: `EREF` → `kundenreferenz`, `MREF` → `mandatsreferenz`, `CRED` →
-  `glaeubiger_id`. Eine IBAN des Gegenuebers nennt der Auszug nicht; das Feld
-  bleibt leer.
+  `glaeubiger_id`. Eine IBAN des Gegenuebers nennt der Auszug sonst nicht; das
+  Feld bleibt leer. Ausnahme: Bei selbst erteilten Ueberweisungen
+  (`Überweisungsauftrag`) steht `IBAN: … BIC: …` im Zweck. Der Text bleibt im
+  Zweck, die IBAN geht zusaetzlich nach `empfaenger_iban`; ueber sie paart der
+  Transfer-Abgleich.
 - **Ueberlappung mit einer Umsatzanzeige**: Stammt der Bestand aus einer
   Umsatzanzeige derselben Bank, faengt der Hash-Dedupe die Ueberlappung nicht —
   die Anzeige haengt `IBAN: … BIC: …` an den Zweck. Dann ueber Datum, Betrag und
   Gegenpartei von Hand abgleichen und die bekannten Posten aus der JSONL nehmen,
-  bevor importiert wird.
+  bevor importiert wird. Der Startsaldo der Umsatzanzeige ist der Stand vor dem
+  ersten Filtertag; ihn im Auszug als Zwischenstand suchen (z. B. „Uebertrag auf
+  Blatt 2"). Damit ist die Ueberlappung tagesgenau belegt, bevor Posten aus der
+  JSONL genommen werden.
 - **Zwei Daten statt eines Buchungstags (Umsatzanzeige)**: Normalerweise steht
   unter dem Betrag ein Datum, der Buchungstag. Weichen Wertstellungstag und
   Buchungstag voneinander ab, druckt die Bank stattdessen beide Daten in der Form
@@ -308,6 +320,10 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
   zum Quartalsabschluss. Datumsluecken zwischen Auszuegen sind keine
   Historienluecken. Die Vollstaendigkeit ueber die je Jahr fortlaufende
   Auszugsnummer und die geschlossene Saldenkette pruefen.
+- **Auszuege vor dem aeltesten Anker nachgereicht** (Historie rueckwaerts
+  verlaengert): Der alte Kontostand des ersten Auszugs ist als Anker schreibbar,
+  wenn er zusammen mit den Buchungen bis zum vorhandenen aeltesten Anker
+  cent-genau auf diesen fuehrt. Dann auch die Monatsendstaende schreiben.
 - **Nachgereichter Auszug schliesst eine Luecke**: Wurde ein spaeterer Auszug
   wegen fehlender Vorgaenger ohne Anker importiert (`reconciliation_differenz`
   im Log), nach dem Import des fehlenden Auszugs auch den zurueckgehaltenen

@@ -728,6 +728,9 @@ Vermoegens-/Liquiditaetschecks sichtbar:
 - `vorsorge-wiedervorlage`: Pruefung oder juengster Vorsorge-Zeitwert ist zu alt.
 - `vorsorge-wechsel`: ein Beitragsende liegt im Wechselhorizont und ein
   Nachfolger fehlt oder schliesst nicht lueckenlos an.
+- `vorsorge-dynamik`: der naechste Dynamik-Erhoehungstermin liegt binnen 90 Tagen
+  ohne Entscheidung, oder ein Angebot ist `offen`. Der Text nennt den Vorschlag
+  nach der Regel "nur jede dritte annehmen" (`app/vorsorge-dynamik.mjs`).
 - `frist-ueberfaellig`: eine erfasste Frist ist vorbei und nicht abgehakt (siehe
   Fristen).
 

@@ -136,6 +136,43 @@ Bestand angelegt. Verwende bei Was-waere-wenn-Fragen eine `vorsorge-leistung`-
 Annahme in `DATENROOT/szenarien.json`; `szenarien.mjs` rechnet daraus zur Laufzeit
 Rente oder Kapitalleistung.
 
+## Beitragsdynamik
+
+Nennt ein Beleg eine planmaessige Beitragserhoehung (Dynamiknachtrag,
+Erhoehungsangebot), gehoert sie strukturiert an den Vertrag, nicht nur in die
+Bemerkung:
+
+```json
+"dynamik": {
+  "termin": "11-01",
+  "erlischt_nach": 3,
+  "verlauf": [
+    { "termin": "2024-11-01", "entscheidung": "angenommen" },
+    { "termin": "2025-11-01", "entscheidung": "abgelehnt", "bemerkung": "Widerspruch per Brief, Bestaetigung liegt vor" }
+  ]
+}
+```
+
+- `termin` ist der jaehrliche Erhoehungstermin als `MM-TT`.
+- `erlischt_nach` nur setzen, wenn der Beleg eine andere Zahl als drei
+  Widersprueche in Folge nennt.
+- Je Jahr ein Eintrag. `offen` heisst: Angebot liegt vor, noch nicht entschieden.
+  Nach der Entscheidung des Nutzers auf `angenommen` oder `abgelehnt` setzen.
+- Fruehere Entscheidungen ohne Beleg aus den Lastschriften ableiten: steigt der
+  Beitrag zum Termin, wurde angenommen; bleibt er gleich, wurde widersprochen.
+  Die Herleitung in `bemerkung` des Eintrags nennen.
+- Der Vorschlag nach der Haushaltsregel ("nur jede dritte annehmen") wird
+  gerechnet und in der App gezeigt; nicht speichern.
+- Je Vertrag mit Dynamik eine jaehrlich wiederkehrende Frist anlegen
+  (Fristenliste, `art = widerspruch`, `vorsorge_id`, `datum` = letzter Tag des
+  Widerspruchs laut Beleg). Die Dynamik-Kachel ordnet sie dem naechstgelegenen
+  Erhoehungstermin zu und zeigt, ob widersprochen werden muss.
+- Ist der Widerspruch raus, oder wird die Erhoehung angenommen, `erledigt_bis`
+  auf den Termin dieses Jahres setzen. Sonst meldet die Fristenliste ihn als
+  ueberfaellig.
+- Der Check `vorsorge-dynamik` meldet einen Vertrag, wenn der naechste Termin
+  binnen 90 Tagen liegt oder ein Angebot `offen` ist.
+
 ## Wechsel und Nachfolge
 
 Bei Kuendigung, Anbieterwechsel oder Tarifwechsel:

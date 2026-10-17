@@ -3295,6 +3295,12 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .vertragsdaten-mit-logo .stammdaten-raster { flex: 1 1 auto; min-width: 0; }
 .vertragsdaten-mit-logo > .logo-marke { width: 48px; height: 48px; margin: 8px 0 0; border-radius: 10px; font-size: 16px; }
 
+/* Kachel Beitragsdynamik im Vorsorge-Detail */
+.dynamik-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; }
+.dynamik-unter { font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
+.dynamik-verlauf { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.dynamik-verlauf li { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+
 /* Uebersicht: drei Bereichskacheln und die Termin-Kachel darunter. */
 .uebersicht-kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .uebersicht-kachel { display: flex; flex-direction: column; container-type: inline-size; min-width: 0; }
@@ -3348,3 +3354,5 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .absicherung-posten li > button { text-align: left; }
 .absicherung-posten li > .muted { grid-column: 1; font-size: 0.85rem; }
 .absicherung-posten li > .amount { grid-column: 2; grid-row: 1; white-space: nowrap; }
+.dynamik-fristen { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.dynamik-fristen li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

@@ -219,3 +219,28 @@ test("zeitwert-feld passend zur Entitaet ist valide (konto.kontostand)", () => {
   });
   assert.deepEqual(validateMasterData(data).errors, []);
 });
+
+const mitDynamik = (dynamik) => basis({ vorsorge: [{ vorsorge_id: "VS-001", art: "lebensversicherung", name: "LV", person_id: "PER-001", status: "aktiv", kapitalbildend: true, dynamik }] });
+
+test("dynamik mit Termin und Verlauf ist gueltig", () => {
+  const data = mitDynamik({ termin: "11-01", erlischt_nach: 3, verlauf: [{ termin: "2024-11-01", entscheidung: "angenommen" }, { termin: "2025-11-01", entscheidung: "abgelehnt", bemerkung: "Widerspruch per Brief" }] });
+  assert.deepEqual(validateMasterData(data).errors, []);
+});
+
+test("dynamik.termin muss MM-TT sein", () => {
+  assert.ok(validateMasterData(mitDynamik({ termin: "2026-11-01" })).errors.some((e) => e.includes("dynamik.termin")));
+  assert.ok(validateMasterData(mitDynamik({ termin: "13-01" })).errors.some((e) => e.includes("dynamik.termin")));
+});
+
+test("dynamik.verlauf: Entscheidung aus der Liste, je Jahr nur eine", () => {
+  const falsch = validateMasterData(mitDynamik({ termin: "11-01", verlauf: [{ termin: "2025-11-01", entscheidung: "vielleicht" }] })).errors;
+  assert.ok(falsch.some((e) => e.includes("entscheidung")));
+  const doppelt = validateMasterData(mitDynamik({ termin: "11-01", verlauf: [{ termin: "2025-11-01", entscheidung: "abgelehnt" }, { termin: "2025-12-01", entscheidung: "angenommen" }] })).errors;
+  assert.ok(doppelt.some((e) => e.includes("2025 ist schon erfasst")));
+});
+
+test("dynamik: unbekannte Felder und falsche Schwelle", () => {
+  const errors = validateMasterData(mitDynamik({ termin: "11-01", erlischt_nach: 0, quote: "3 %" })).errors;
+  assert.ok(errors.some((e) => e.includes("dynamik.quote: unbekanntes Feld")));
+  assert.ok(errors.some((e) => e.includes("erlischt_nach")));
+});

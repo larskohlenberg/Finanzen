@@ -424,3 +424,52 @@ test("leerer Bestand rendert ohne Fehler", () => {
     assert.equal(anzahl(html, /class="vermoegen-tab /g), 1, "nur die Uebersicht");
   }, { vorsorge: [], zeitwerte: [], regelzahlungen: [], transaktionen: [] });
 });
+
+test("Beitragsdynamik: Kachel nach den Vertragsdaten, Chip auf der Karte, offener Punkt", async () => {
+  const { localTodayIso, addInterval } = await import("../app/liquiditaet.mjs");
+  // Termin in 30 Tagen, die beiden Vorjahre abgelehnt: letzte Chance, annehmen.
+  const termin = addInterval(localTodayIso(), "tag", 30);
+  const jahr = Number(termin.slice(0, 4));
+  const dynamik = { termin: termin.slice(5), verlauf: [{ termin: `${jahr - 2}${termin.slice(4)}`, entscheidung: "abgelehnt" }, { termin: `${jahr - 1}${termin.slice(4)}`, entscheidung: "abgelehnt", bemerkung: "Widerspruch per Brief" }] };
+  const vorsorge = fixture().vorsorge.map((vs) => (vs.vorsorge_id === "VS-003" ? { ...vs, dynamik } : vs));
+  mitFixture(() => {
+    assert.match(renderVorsorge(), /Offene Punkte[\s\S]*LV Lena[\s\S]*Dynamik entscheiden/);
+    state.selectedVorsorgeId = "VS-003";
+    const html = renderVorsorge();
+    const reihenfolge = [...html.matchAll(/data-kachel="vorsorge\.(\w+)"/g)].map((m) => m[1]);
+    assert.deepEqual(reihenfolge, ["vertragsdaten", "dynamik", "dokumente", "beitraege", "anhang"]);
+    assert.match(html, /data-kachel="vorsorge.dynamik"[^>]*aria-expanded="true"/);
+    assert.match(html, /Beitragsdynamik/);
+    assert.match(html, /Regel „nur jede dritte annehmen“: annehmen/);
+    assert.match(html, /Letzte Chance/);
+    assert.match(html, /title="Widerspruch per Brief"/);
+    assert.equal(anzahl(html, /chip neutral">abgelehnt/g), 2);
+    assert.match(html, /objekt-karte-chips">[\s\S]*Dynamik annehmen/);
+  }, { vorsorge });
+});
+
+test("Vertrag ohne Dynamik hat keine Dynamik-Kachel", () => {
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-003";
+    assert.doesNotMatch(renderVorsorge(), /vorsorge\.dynamik/);
+  });
+});
+
+test("Beitragsdynamik: Widerspruchsfrist aus der Fristenliste in Kachel und Karte", async () => {
+  const { localTodayIso, addInterval } = await import("../app/liquiditaet.mjs");
+  const today = localTodayIso();
+  const termin = addInterval(today, "tag", 30);
+  const frist = addInterval(today, "tag", 20);
+  const jahr = Number(termin.slice(0, 4));
+  // Vorjahr angenommen: nach der Regel ablehnen, also widersprechen.
+  const dynamik = { termin: termin.slice(5), verlauf: [{ termin: `${jahr - 1}${termin.slice(4)}`, entscheidung: "angenommen" }] };
+  const vorsorge = fixture().vorsorge.map((vs) => (vs.vorsorge_id === "VS-003" ? { ...vs, dynamik } : vs));
+  const fristen = [{ frist_id: "FR-001", bezeichnung: "Dynamik widersprechen", art: "widerspruch", datum: frist, rhythmus_einheit: "jahr", rhythmus_intervall: 1, vorsorge_id: "VS-003" }];
+  mitFixture(() => {
+    state.selectedVorsorgeId = "VS-003";
+    const html = renderVorsorge();
+    assert.match(html, /Widerspruchsfrist[\s\S]*Dynamik widersprechen <span class="chip review">Widerspruch schicken<\/span> <span class="muted">nach der Regel/);
+    assert.match(html, /objekt-karte-chips">[\s\S]*Widerspruch bis/);
+    assert.doesNotMatch(html, /Dynamik ablehnen/, "der Widerspruch ersetzt den Entscheidungs-Hinweis");
+  }, { vorsorge, fristen });
+});

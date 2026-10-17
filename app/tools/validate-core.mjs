@@ -233,6 +233,7 @@ const schemas = {
       quelle_hinweis: { type: "string" },
       quelle_standdatum: { type: "string", format: "date" },
       bemerkung: { type: "string" },
+      dynamik: { type: "object" },
     },
   },
   kategorisierungsregeln: {
@@ -601,6 +602,7 @@ function validateCrossFieldRules(data, errors) {
       errors.push(`vorsorge.${vs.vorsorge_id}.kapitalbildend: riester ist zweckgebunden (hoechstens 30 Prozent Einmalzahlung zu Rentenbeginn) und kann nicht kapitalbildend sein; der Rueckkaufswert bleibt als gebundenes Kapital erfasst`);
     }
     validateVorsorgeStatusJeArt(vs, errors);
+    if (vs.dynamik !== undefined) pruefeDynamik(`vorsorge.${vs.vorsorge_id}.dynamik`, vs.dynamik, errors);
     if (vs.ersetzt_vorsorge_id) {
       if (vs.ersetzt_vorsorge_id === vs.vorsorge_id) {
         errors.push(`vorsorge.${vs.vorsorge_id}.ersetzt_vorsorge_id: darf nicht auf sich selbst zeigen`);
@@ -837,6 +839,35 @@ function validateSzenarien(data, errors) {
 
 function byId(collection = [], idField) {
   return new Map(collection.map((item) => [item[idField], item]));
+}
+
+// Beitragsdynamik: Erhoehungstermin MM-TT, Schwelle fuer das Erloeschen, je Jahr
+// hoechstens eine Entscheidung.
+const DYNAMIK_FELDER = new Set(["termin", "erlischt_nach", "verlauf"]);
+const DYNAMIK_EINTRAG_FELDER = new Set(["termin", "entscheidung", "bemerkung"]);
+const DYNAMIK_ENTSCHEIDUNGEN = ["angenommen", "abgelehnt", "offen"];
+function pruefeDynamik(prefix, d, errors) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) { errors.push(`${prefix}: muss ein Objekt sein`); return; }
+  for (const feld of Object.keys(d)) if (!DYNAMIK_FELDER.has(feld)) errors.push(`${prefix}.${feld}: unbekanntes Feld`);
+  if (typeof d.termin !== "string" || !/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d.termin)) {
+    errors.push(`${prefix}.termin: Erhoehungstermin als MM-TT angeben`);
+  }
+  if (d.erlischt_nach !== undefined && (!Number.isInteger(d.erlischt_nach) || d.erlischt_nach < 1)) {
+    errors.push(`${prefix}.erlischt_nach: muss Ganzzahl >= 1 sein`);
+  }
+  if (d.verlauf === undefined) return;
+  if (!Array.isArray(d.verlauf)) { errors.push(`${prefix}.verlauf: muss eine Liste sein`); return; }
+  const jahre = new Set();
+  d.verlauf.forEach((e, i) => {
+    const p = `${prefix}.verlauf[${i}]`;
+    if (!e || typeof e !== "object" || Array.isArray(e)) { errors.push(`${p}: muss ein Objekt sein`); return; }
+    for (const feld of Object.keys(e)) if (!DYNAMIK_EINTRAG_FELDER.has(feld)) errors.push(`${p}.${feld}: unbekanntes Feld`);
+    if (typeof e.termin !== "string" || !isIsoDate(e.termin)) errors.push(`${p}.termin: muss ISO-Datum YYYY-MM-DD sein`);
+    else if (jahre.has(e.termin.slice(0, 4))) errors.push(`${p}.termin: ${e.termin.slice(0, 4)} ist schon erfasst, je Jahr eine Entscheidung`);
+    else jahre.add(e.termin.slice(0, 4));
+    if (!DYNAMIK_ENTSCHEIDUNGEN.includes(e.entscheidung)) errors.push(`${p}.entscheidung: erlaubt sind ${DYNAMIK_ENTSCHEIDUNGEN.join("|")}`);
+    if (e.bemerkung !== undefined && typeof e.bemerkung !== "string") errors.push(`${p}.bemerkung: muss string sein`);
+  });
 }
 
 // Prueft Eigentumsanteile als exakte Brueche: person_id existiert (ausser extern),

@@ -104,21 +104,21 @@ test("Tabs stehen direkt unter dem Seitenkopf, die Kennzahlen im Uebersichtstab"
     assert.ok(tabs > 0 && html.indexOf("Erwartetes Alterseinkommen") > tabs, "Kennzahlen stehen erst nach den Tabs");
     const uebersicht = html.slice(html.indexOf('id="vorsorge-tab-uebersicht"'));
     // Oben Alterseinkommen und Kapital nebeneinander, je mit Zeitverlauf unter dem Wert.
-    const oben = uebersicht.slice(uebersicht.indexOf("vorsorge-kennzahlen-oben"), uebersicht.indexOf('<div class="vorsorge-kennzahlen">'));
+    const oben = uebersicht.slice(uebersicht.indexOf("kachel-paare-oben"), uebersicht.indexOf('<div class="kachel-paare">'));
     assert.match(oben, /Erwartetes Alterseinkommen[\s\S]*vorsorge-kopf-wert[\s\S]*zeitstrahl-linie vorsorge-rente[\s\S]*Kapitalleistungen[\s\S]*zeitstrahl-linie vorsorge-kapital[\s\S]*vorsorge-kopf-liste/);
     assert.equal(anzahl(oben, /class="panel panel-pad vorsorge-kopf-kz"/g), 2);
     assert.equal(anzahl(uebersicht, /class="panel panel-pad vorsorge-kopf-kz"/g), 4);
     assert.doesNotMatch(html, /klassen-karte/, "keine Bereichskarten mehr");
     // In den anderen Tabs keine Seitenkennzahlen.
     state.vorsorgeTab = "renten";
-    assert.doesNotMatch(renderVorsorge(), /Erwartetes Alterseinkommen|vorsorge-kennzahlen/);
+    assert.doesNotMatch(renderVorsorge(), /Erwartetes Alterseinkommen|kachel-paare/);
   });
 });
 
 test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", () => {
   mitFixture(() => {
     const html = renderVorsorge();
-    const kopf = html.slice(html.indexOf("vorsorge-kennzahlen"));
+    const kopf = html.slice(html.indexOf("kachel-paare"));
     const kachel = (titel) => kopf.slice(kopf.indexOf(titel), kopf.indexOf("</section>", kopf.indexOf(titel)));
     const rkw = kachel("Rückkaufswerte im Vermögen");
     assert.match(rkw, /data-vorsorge="VS-003"[^>]*>LV Lena<\/button><span class="amount">12\.000,00/);

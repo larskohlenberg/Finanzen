@@ -3,7 +3,7 @@
 // i18n und Nachschlage-Maps aus runtime.mjs; kein view-spezifisches Wissen.
 import { data, state, t, escapeHtml, personenById, kategorienById } from "./runtime.mjs";
 import { iconSvg } from "./icons.js";
-import { linienDiagramm, saldoDiagramm } from "./charts.mjs";
+import { linienDiagramm, saldoDiagramm, zeitstrahlDiagramm } from "./charts.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
 import { formatIban } from "./tools/lib/text.mjs";
 import { overviewAccountGroups, overviewAccountRow, sortedOverviewAccounts } from "./selektoren.mjs";
@@ -198,6 +198,39 @@ export function oeffneKlappKachel(id) {
 export function toggleKlappKachel(id, standard = true) {
   if (!id) return;
   state.klappKacheln = { ...state.klappKacheln, [id]: !(state.klappKacheln?.[id] ?? standard) };
+}
+
+// Kennzahl-Kachel der Bereichsseiten (Vorsorge, Vermoegen, Liquiditaet), immer
+// gleich gebaut: Label, Wert, Notiz; grafik (Donut) rechts neben dem Wert;
+// unten ein flacher Zeitverlauf; darunter die Aufschluesselung (zeilen aus
+// kachelZeile), damit die Summe ohne Rechnen aufgeht. wert und notiz sind HTML.
+export function kennzahlKachel({ label, wert, notiz = "", zeilen = [], grafik = "", unten = "" }) {
+  return `
+      <section class="panel panel-pad vorsorge-kopf-kz">
+        <div class="${grafik ? "vorsorge-kopf-mit-grafik" : ""}">
+          <div>
+            <div class="muted">${escapeHtml(label)}</div>
+            <div class="vorsorge-kopf-wert">${wert}</div>
+            ${notiz ? `<div class="kpi-note">${notiz}</div>` : ""}
+          </div>
+          ${grafik}
+        </div>
+        ${unten}
+        ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : ""}
+      </section>`;
+}
+
+export const farbPunkt = (klasse) => `<i class="farbpunkt ${klasse}" aria-hidden="true"></i>`;
+
+// Eine Zeile der Aufschluesselung: Link (HTML), Zusatz und Betrag als Text.
+export function kachelZeile(linkHtml, betrag, zusatz = "", farbe = "") {
+  return `<li>${farbe ? farbPunkt(farbe) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${escapeHtml(betrag)}</span></li>`;
+}
+
+// Flacher Zeitverlauf fuer eine halbe Kachelbreite (Optionen wie zeitstrahlDiagramm).
+export function zeitverlaufKlein(optionen) {
+  const svg = zeitstrahlDiagramm({ breite: 560, plotHoehe: 90, ...optionen });
+  return svg ? `<div class="diagramm-wrap kachel-zeitverlauf">${svg}</div>` : "";
 }
 
 export function detailRow(label, valueHtml) {

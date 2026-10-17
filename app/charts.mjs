@@ -675,7 +675,7 @@ export function saldoDiagramm(punkte, options = {}) {
 // (null = keine Angabe, die Linie setzt dort aus). Phasen und Ereignisse liegen in
 // Spaltenkoordinaten: Spalte i reicht von i bis i+1, Bruchteile sind erlaubt.
 // phasen: [{ name, von, bis }] (bis exklusiv) · ereignisse: [{ pos, label }]
-export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = [], formatWert = String, formatAchse = formatWert, ariaLabel = "", breite = BREITE, plotHoehe = 250 }) {
+export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = [], formatWert = String, formatAchse = formatWert, ariaLabel = "", breite = BREITE, plotHoehe = 250, labelSchritt = null }) {
   const n = spalten?.length ?? 0;
   const gueltig = (serien ?? []).filter((s) => s.werte?.length === n);
   if (n < 2 || !gueltig.length) return "";
@@ -725,8 +725,9 @@ export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = 
   }
 
   // Jede schritt-te Spalte beschriftet; die letzte nur, wenn sie Abstand zur
-  // vorigen Beschriftung hat (schmale Diagramme).
-  const schritt = Math.max(1, Math.ceil(n / 14));
+  // vorigen Beschriftung hat (schmale Diagramme). labelSchritt 1: jede Spalte,
+  // leere Labels bleiben leer (z. B. nur Januar mit Jahreszahl).
+  const schritt = labelSchritt ?? Math.max(1, Math.ceil(n / 14));
   const rest = (n - 1) % schritt;
   const letzteFrei = rest >= schritt / 2 && rest * spalte >= String(spalten[n - 1].label).length * SCHRIFT * 0.6 + 6;
   spalten.forEach((s, i) => {

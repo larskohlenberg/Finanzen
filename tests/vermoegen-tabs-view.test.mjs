@@ -60,12 +60,34 @@ test("Sonstiger Vermoegenswert: Detail zeigt den Dokumentbereich", () => {
   });
 });
 
-test("Kopf ohne Datenqualitaets-Kachel; offener Punkt an Tab und Klassenkarte", () => {
+test("Ohne Datenqualitaets-Kachel; offener Punkt an Tab und in den offenen Punkten", () => {
   mitDaten({ darlehen: [darlehen("DAR-001")] }, {}, (html) => {
     assert.match(html, /data-tab="darlehen">\s*<span class="vermoegen-tab-titel">1 Darlehen<span class="tab-punkt"/);
     assert.match(html, /<span class="vermoegen-tab-titel">0 Immobilien<\/span>\s*<span class="vermoegen-tab-unter">0,00\s€<\/span>/);
-    assert.match(html, /class="tile klassen-karte" data-action="vermoegen-tab" data-tab="darlehen">[\s\S]*?1 offen/);
+    assert.match(html, /Offene Punkte[\s\S]*?data-vermoegen="darlehen:DAR-001"/);
+    assert.doesNotMatch(html, /klassen-karte/, "keine Klassenkarten mehr");
     assert.doesNotMatch(html, /Datenqualität|luecken-liste/);
+  });
+});
+
+test("Uebersicht: Tabs oben, Nettovermoegen und Restschuld nebeneinander, darunter Konten und Werte", () => {
+  const zw = (entitaet, id, feld, wert, standdatum) => ({ entitaet, entitaet_id: id, feld, wert, standdatum, qualitaet: "belegt" });
+  const teil = {
+    konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", status: "aktiv", liquiditaetsrelevant: true, inhaber_person_ids: [] }],
+    darlehen: [darlehen("DAR-001")],
+    transaktionen: [{ transaktion_id: "TXN-1", konto_id: "KTO-001", buchungsdatum: "2025-01-15", betrag: "-50.00" }],
+    zeitwerte: [zw("konto", "KTO-001", "kontostand", "1000.00", "2025-01-01"), zw("darlehen", "DAR-001", "restschuld", "50000.00", "2025-01-31")],
+  };
+  mitDaten(teil, {}, (html) => {
+    const tabs = html.indexOf("vermoegen-tabs");
+    const oben = html.slice(html.indexOf("kachel-paare-oben"), html.indexOf('<div class="kachel-paare">'));
+    assert.ok(tabs > 0 && html.indexOf("kachel-paare-oben") > tabs, "Kennzahlen erst nach den Tabs");
+    assert.match(oben, /Nettovermögen[\s\S]*zeitstrahl-linie vermoegen-netto-linie[\s\S]*Restschuld der Darlehen[\s\S]*zeitstrahl-linie vermoegen-restschuld-linie/);
+    assert.match(oben, /schuldenfrei 20\d\d/);
+    assert.match(oben, /data-vermoegen="darlehen:DAR-001"[^>]*>Darlehen DAR-001<\/button><span class="muted">getilgt 20\d\d/);
+    const unten = html.slice(html.indexOf('<div class="kachel-paare">'));
+    assert.match(unten, /Konten &amp; Depots[\s\S]*class="donut-diagramm"[\s\S]*data-vermoegen="konto:KTO-001"/);
+    assert.match(unten, /Immobilien und weitere Werte/);
   });
 });
 

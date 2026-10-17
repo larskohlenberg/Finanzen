@@ -168,9 +168,9 @@ test("computeLiquiditaetPrognoseDetail gruppiert Prognose und fuehrt Saldo je Po
   ]);
 });
 
-test("defaultHorizonEnd faellt auf today+Fallback zurueck, wenn alle unbefristet", () => {
-  const liste = [{ regelzahlung_id: "RZ-001", status: "bestaetigt", anker_datum: "2026-01-01", rhythmus_einheit: "monat", rhythmus_intervall: 1 }];
-  assert.equal(defaultHorizonEnd(liste, "2026-06-01", 12), "2027-06-01");
+test("defaultHorizonEnd: zwoelf Monate ab heute", () => {
+  assert.equal(defaultHorizonEnd("2026-06-01"), "2027-06-01");
+  assert.equal(defaultHorizonEnd("2026-06-01", 6), "2026-12-01");
 });
 
 test("toCents parst Decimal-Strings centgenau", () => {

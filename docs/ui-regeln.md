@@ -22,6 +22,11 @@ sind immer klappbare Kacheln, gebaut mit `klappKachel` aus `app/komponenten.mjs`
 - Detail-Kacheln laufen ueber die volle Breite und teilen ihren Inhalt bei Bedarf in
   Spalten (`vorsorge-spalten`), statt Kacheln nebeneinander zu stellen.
 
+Bereichsseiten (Vorsorge, Vermoegen, Liquiditaet) bauen ihre Kennzahlen aus
+`kennzahlKachel` (`app/komponenten.mjs`): Wert, Notiz, flacher Verlauf
+(`zeitverlaufKlein`), Aufschluesselung als Liste; je zwei nebeneinander
+(`kachel-paare`). Jede Zahl steht einmal da; Tabs duerfen ihre Summe tragen.
+
 Reihenfolge und Standard je Detailansicht:
 
 | Ansicht | Kacheln (zu = per Standard zugeklappt) |
@@ -29,7 +34,8 @@ Reihenfolge und Standard je Detailansicht:
 | Vorsorgevertrag | Kennzahlen (vier, mit Beitragsdynamik fuenf), Vertragsdaten (zu), Dokumente, Gebuchte Beitraege, Bemerkung und Wertstaende (zu) |
 | Immobilie | Stammdaten, Monatstabelle, Dokumente, Bemerkung und Wertstaende (zu) |
 | Darlehen | Kennzahlen, Restschuldverlauf, Stammdaten, Dokumente, Bemerkung/Wertstaende/Sondertilgungen (zu) |
-| Vermoegen, Uebersicht | Klassenkarten, Wertstaende (zu; ein Sprung "Alle Wertstaende" oeffnet sie) |
+| Vermoegen, Uebersicht | Tabs direkt unter dem Seitenkopf; im Tab: Nettovermoegen (Verlauf je Monat) und Restschuld (je Jahresende bis zur Tilgung) nebeneinander, Konten und Depots, Immobilien und weitere Werte, offene Punkte, Wertstaende (zu; ein Sprung "Alle Wertstaende" oeffnet sie) |
+| Liquiditaet | Liquiditaet heute (letzte zwoelf Monate) und Prognose (Horizont standardmaessig zwoelf Monate) nebeneinander, Bewegungen im laufenden Monat (zu), Prognose-Tabelle (zu) |
 | Vorsorge, Uebersicht | Tabs direkt unter dem Seitenkopf; im Tab: Alterseinkommen und Kapitalleistungen nebeneinander (je mit flachem Zeitverlauf auf derselben Jahresachse), Rueckkaufswerte und Beitraege, offene Punkte (ohne offene nur eine Zeile). Andere Tabs ohne Seitenkennzahlen |
 | Vorsorge, Tab Versicherungen | Jahresbeitraege im Vergleich (zu), Vertragskarten, Vertragsdetail |
 | Uebersicht, Absicherung | je Person eine Summenzeile (zu), aufgeklappt die einzelnen Leistungen |

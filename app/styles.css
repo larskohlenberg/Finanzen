@@ -3351,12 +3351,15 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .absicherung-kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
 .absicherung-kachel { min-width: 0; }
 .absicherung-kachel .page-lead { margin-bottom: 14px; }
-.absicherung-person + .absicherung-person { margin-top: 16px; }
+.absicherung-person { padding: 6px 0; }
+.absicherung-person + .absicherung-person { border-top: 1px solid var(--border); }
 .absicherung-person-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
 .absicherung-person-kopf h3 { margin: 0; font-size: 0.95rem; }
 /* Summe fett, Posten normal; beide mit gleich breiten Ziffern, damit die Stellen untereinander stehen. */
 .absicherung-person-kopf strong { font-weight: 720; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.absicherung-posten { list-style: none; margin: 6px 0 0; padding: 0; }
+.absicherung-person-kopf .klapp-knopf .icon { width: 16px; height: 16px; color: var(--muted); }
+.absicherung-person-kopf .klapp-knopf:hover .icon, .absicherung-person-kopf .klapp-knopf:focus-visible .icon { color: var(--accent); }
+.absicherung-posten { list-style: none; margin: 6px 0 0 22px; padding: 0; }
 .absicherung-posten li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 6px 0; border-top: 1px solid var(--border); }
 .absicherung-posten li > button { text-align: left; }
 .absicherung-posten li > .muted { grid-column: 1; font-size: 0.85rem; }

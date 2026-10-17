@@ -304,7 +304,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "belege_umziehen",
     skript: "belege-umziehen.mjs",
-    beschreibung: "Belege innerhalb von Belege/ umziehen (tools/belege-umziehen.mjs): Datei samt .txt-Zwilling verschieben und jeden Pfad in Stamm- und Bewegungsdaten (rohquelle, quelle_hinweis, Freitext) ersetzen; agent_log.jsonl bleibt unveraendert. Plan als Liste umzuege [{ von, nach }] oder als JSON-Datei unter data/ (plan_datei). Ein fehlerhafter Plan aendert nichts; ein schon erledigter Umzug zaehlt als erledigt. Meldet verwaiste Verweise. Vorschau ist Default; Verschiebungen werden bei einem Rollback nicht zurueckgenommen.",
+    beschreibung: "Belege innerhalb von Belege/ umziehen (tools/belege-umziehen.mjs): Datei samt .txt-Zwilling verschieben und jeden Pfad in Stamm- und Bewegungsdaten (rohquelle, quelle_hinweis, Freitext) ersetzen; agent_log.jsonl bleibt unveraendert. Plan als Liste umzuege [{ von, nach, kopie? }] oder als JSON-Datei unter data/ (plan_datei). Ein fehlerhafter Plan aendert nichts; ein schon erledigter Umzug zaehlt als erledigt. Meldet verwaiste Verweise. Vorschau ist Default; Verschiebungen werden bei einem Rollback nicht zurueckgenommen.",
     eigenschaften: {
       umzuege: {
         type: "array",
@@ -313,6 +313,7 @@ const CLI_WERKZEUGE = [
           properties: {
             von: { type: "string", description: "z. B. Belege/2025/Kredite/DAR-001_Bank_Jahresauszug_2025.pdf" },
             nach: { type: "string", description: "z. B. Belege/Darlehen/DAR-001_Bank-Baufinanzierung/2025/DAR-001_Bank_Jahresauszug_2025.pdf" },
+            kopie: { type: "boolean", description: "true = kopieren statt verschieben (Beleg zu mehreren Objekten); Quelle und Verweise bleiben, Kopien laufen vor den Verschiebungen" },
           },
           required: ["von", "nach"],
           additionalProperties: false,
@@ -703,10 +704,26 @@ const dateiErsetzen = {
 
 // Ablage nach Objekt (agent-context, "Ablage nach Objekt"): Belege/<Klasse>/...
 // Klassen mit Stammsatz verlangen <ID>_<Kurzname> oder Allgemein als Ordner.
+// Immobilien haben kein Allgemein, sondern feste Bereiche; Jahresordner nur dort,
+// wo jedes Jahr Belege dazukommen (true = Jahr Pflicht, "frei" = Jahr erlaubt).
 const BELEG_KLASSEN = {
   Konten: "KTO", Immobilien: "IMM", Darlehen: "DAR", Vorsorge: "VS", Vermoegenswerte: "VMW",
   Versicherungen: null, Steuern: null, Sonstiges: null,
 };
+const IMMOBILIEN_BEREICHE = { Erwerb: false, Bau: false, Technik: false, "Laufende-Kosten": true, Vermietung: "frei" };
+
+function pruefeImmobilienZiel(teile) {
+  if (!/^IMM-\d+_/.test(teile[2])) return `Ordner unter Belege/Immobilien/ muss IMM-<Nr>_<Kurzname> heissen, nicht ${teile[2]} (Belege zu mehreren Immobilien liegen als Kopie bei jeder)`;
+  const bereich = teile[3];
+  const bereiche = Object.keys(IMMOBILIEN_BEREICHE).join(", ");
+  if (teile.length < 5 || !Object.hasOwn(IMMOBILIEN_BEREICHE, bereich)) return `Unter ${teile[2]}/ muss ein Bereich folgen: ${bereiche}`;
+  const jahr = IMMOBILIEN_BEREICHE[bereich];
+  const mitJahr = teile.length === 6 && /^\d{4}$/.test(teile[4]);
+  if (jahr === true && !mitJahr) return `${bereich}/ verlangt einen Jahresordner (Abrechnungsjahr): ${teile.slice(0, 4).join("/")}/<Jahr>/<Datei>`;
+  if (jahr === "frei" && teile.length !== 5 && !mitJahr) return `Unter ${bereich}/ liegt eine Datei direkt oder in einem Jahresordner (Abrechnungsjahr)`;
+  if (jahr === false && teile.length !== 5) return `${bereich}/ hat keine Unterordner; das Datum steht im Dateinamen`;
+  return null;
+}
 
 export function pruefeBelegZiel(relativ) {
   const teile = relativ.split("/");
@@ -714,6 +731,7 @@ export function pruefeBelegZiel(relativ) {
   if (teile[0] !== "Belege" || !Object.hasOwn(BELEG_KLASSEN, klasse) || teile.length < 4) {
     return `Ziel muss unter Belege/<Klasse>/.../<Datei> liegen, Klasse eine von ${Object.keys(BELEG_KLASSEN).join(", ")} (agent-context: Ablage nach Objekt)`;
   }
+  if (klasse === "Immobilien") return pruefeImmobilienZiel(teile);
   const praefix = BELEG_KLASSEN[klasse];
   if (praefix && teile[2] !== "Allgemein" && !new RegExp(`^${praefix}-\\d+_`).test(teile[2])) {
     return `Ordner unter Belege/${klasse}/ muss ${praefix}-<Nr>_<Kurzname> oder Allgemein heissen, nicht ${teile[2]}`;

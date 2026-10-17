@@ -66,6 +66,34 @@ test("planUmzug: schon verschoben zaehlt als erledigt (Wiederaufnahme)", () => {
   assert.equal(plan.ersetzungen.get("Belege/alt/a.pdf"), "Belege/neu/a.pdf");
 });
 
+test("planUmzug: kopie legt eine zweite Datei samt Zwilling an, die Quelle und ihre Verweise bleiben", () => {
+  const plan = planUmzug({
+    umzuege: [
+      { von: "Belege/alt/a.pdf", nach: "Belege/X-001_A/a.pdf" },
+      { von: "Belege/alt/a.pdf", nach: "Belege/X-002_B/a.pdf", kopie: true },
+    ],
+    vorhandene: ["Belege/alt/a.pdf", "Belege/alt/a.txt"],
+  });
+  assert.deepEqual(plan.fehler, []);
+  assert.deepEqual(plan.kopien, [
+    { von: "Belege/alt/a.pdf", nach: "Belege/X-002_B/a.pdf" },
+    { von: "Belege/alt/a.txt", nach: "Belege/X-002_B/a.txt" },
+  ]);
+  assert.equal(plan.verschiebungen.length, 2);
+  assert.equal(plan.ersetzungen.get("Belege/alt/a.pdf"), "Belege/X-001_A/a.pdf");
+  assert.equal([...plan.ersetzungen.values()].some((n) => n.includes("X-002")), false);
+});
+
+test("planUmzug: kopie ist erledigt, wenn das Ziel schon da ist", () => {
+  const plan = planUmzug({
+    umzuege: [{ von: "Belege/X-001_A/a.pdf", nach: "Belege/X-002_B/a.pdf", kopie: true }],
+    vorhandene: ["Belege/X-001_A/a.pdf", "Belege/X-002_B/a.pdf"],
+  });
+  assert.deepEqual(plan.fehler, []);
+  assert.deepEqual(plan.kopien, []);
+  assert.equal(plan.erledigt.length, 1);
+});
+
 test("ersetzeVerweise trifft nur ganze Pfade", () => {
   const ersetzungen = new Map([["Belege/2025/a.pdf", "Belege/Neu/2025/a.pdf"]]);
   const text = '{"q":"Belege/2025/a.pdf","r":"Belege/2025/a.pdfx","s":"siehe Belege/2025/a.pdf."}';
@@ -118,6 +146,20 @@ test("main: schreiben verschiebt, schreibt Verweise um, laesst das Protokoll und
   assert.match(await readFile(path.join(daten, "agent_log.jsonl"), "utf8"), /2025\/Kredite/);
   assert.deepEqual(await readdir(belege), ["Darlehen"]);
   assert.deepEqual(bericht.verwaist, []);
+});
+
+test("main: kopie schreibt eine zweite Datei, Quelle und Verweise bleiben", async () => {
+  const { basis, belege, daten } = await aufbau();
+  const plan = path.join(basis, "kopie.json");
+  await writeFile(plan, JSON.stringify([{ von: "Belege/2025/Kredite/a.pdf", nach: "Belege/Kopie/a.pdf", kopie: true }]));
+  const bericht = await main({ datenRoot: urlVon(daten), belegeRoot: urlVon(belege), planDatei: plan, schreiben: true });
+  assert.deepEqual(bericht.fehler, []);
+  assert.equal(bericht.kopiert.length, 2);
+  assert.equal(await readFile(path.join(belege, "Kopie", "a.pdf"), "utf8"), "PDF");
+  assert.equal(await readFile(path.join(belege, "Kopie", "a.txt"), "utf8"), "Text");
+  assert.ok(await stat(path.join(belege, "2025", "Kredite", "a.pdf")));
+  assert.deepEqual(bericht.verweise, {});
+  assert.match(await readFile(path.join(daten, "darlehen.json"), "utf8"), /2025\/Kredite/);
 });
 
 test("main: Fehler im Plan bricht vor jeder Aenderung ab", async () => {

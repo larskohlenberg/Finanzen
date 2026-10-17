@@ -287,7 +287,7 @@ test("dokumenteZuObjekt: Objektordner plus Verweise, ohne Zwillinge, neueste zue
     { pfad: "Belege/Darlehen/DAR-001_Bank-Bau/2024/Jahresauszug_2024.txt", typ: "txt" },
     { pfad: "Belege/Darlehen/DAR-001_Bank-Bau/2025/Jahresauszug_2025.pdf", typ: "pdf" },
     { pfad: "Belege/Darlehen/DAR-0011_Andere/2025/x.pdf", typ: "pdf" },
-    { pfad: "Belege/Immobilien/IMM-001_Haus/2019/Kaufvertrag.pdf", typ: "pdf" },
+    { pfad: "Belege/Immobilien/IMM-001_Haus/Erwerb/Kaufvertrag.pdf", typ: "pdf" },
     { pfad: "Belege/Sonstiges/2026/Gutachten.pdf", typ: "pdf" },
   ];
   const index = verweisIndex({ immobilien: [{ immobilie_id: "IMM-001", bezeichnung: "Haus", quelle_hinweis: "Belege/Sonstiges/2026/Gutachten.pdf" }] });

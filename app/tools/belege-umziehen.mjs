@@ -5,6 +5,9 @@
 // App-Raum). Welcher Beleg wohin gehoert, entscheidet der Agent; das Tool prueft
 // den Plan, verschiebt Datei und Textzwilling und ersetzt jeden Pfad in den
 // Stamm- und Bewegungsdaten (rohquelle, quelle_hinweis, auch Freitext).
+// Ein Eintrag mit `kopie: true` legt stattdessen eine Kopie an (Beleg zu
+// mehreren Objekten); Quelle und Verweise bleiben, Kopien laufen vor den
+// Verschiebungen und lesen die Quelle daher an ihrem alten Platz.
 // agent_log.jsonl bleibt unveraendert: das Protokoll haelt fest, was damals war.
 //
 // Vorschau ist Default, --schreiben wendet an. Ein schon erledigter Umzug
@@ -13,7 +16,7 @@
 //
 //   node tools/belege-umziehen.mjs <datenroot> <plan.json> [--schreiben]
 
-import { link, lstat, mkdir, readFile, readdir, realpath, rmdir, unlink, writeFile } from "node:fs/promises";
+import { constants, copyFile, link, lstat, mkdir, readFile, readdir, realpath, rmdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
@@ -32,12 +35,14 @@ function normiere(pfad) {
   return sauber.startsWith("Belege/") && !sauber.split("/").includes("..") ? sauber : null;
 }
 
-// Plan pruefen und um die Textzwillinge ergaenzen. Bei einem Fehler wird
+// Plan pruefen und um die Textzwillinge ergaenzen. Quellen von Kopien gelten
+// im Zustand vor dem Plan. Bei einem Fehler wird
 // nichts verschoben: ein halber Umzug ist schlimmer als keiner.
 export function planUmzug({ umzuege, vorhandene }) {
   const bestand = new Set(vorhandene.map(nfc));
   const fehler = [];
   const verschiebungen = [];
+  const kopien = [];
   const erledigt = [];
   const ersetzungen = new Map();
   const ziele = new Map();
@@ -48,6 +53,16 @@ export function planUmzug({ umzuege, vorhandene }) {
       return;
     }
     ziele.set(nach, von);
+    if (eintrag.kopie === true) {
+      if (bestand.has(nach)) erledigt.push({ von, nach });
+      else if (bestand.has(von)) kopien.push({ von, nach });
+      else fehler.push({ ...eintrag, grund: `${von} existiert nicht` });
+      return;
+    }
+    if (ersetzungen.has(von)) {
+      fehler.push({ ...eintrag, grund: `${von} wird im Plan mehrfach verschoben` });
+      return;
+    }
     ersetzungen.set(von, nach);
     if (bestand.has(von) && bestand.has(nach)) fehler.push({ ...eintrag, grund: `${nach} existiert bereits` });
     else if (bestand.has(von)) verschiebungen.push({ von, nach });
@@ -73,8 +88,8 @@ export function planUmzug({ umzuege, vorhandene }) {
     if (bestand.has(zwilling) || bestand.has(zwillingVon(nach))) nimm(zwilling, zwillingVon(nach), eintrag);
   }
 
-  if (fehler.length) return { fehler, verschiebungen: [], erledigt: [], ersetzungen: new Map() };
-  return { fehler, verschiebungen, erledigt, ersetzungen };
+  if (fehler.length) return { fehler, verschiebungen: [], kopien: [], erledigt: [], ersetzungen: new Map() };
+  return { fehler, verschiebungen, kopien, erledigt, ersetzungen };
 }
 
 function regexEscape(text) {
@@ -191,6 +206,7 @@ export async function main({
     modus: schreiben ? "geschrieben" : "vorschau",
     umzuege: umzuege.length,
     verschoben: plan.verschiebungen,
+    kopiert: plan.kopien,
     erledigt: plan.erledigt.length,
     verweise: {},
     verwaist: [],
@@ -204,9 +220,10 @@ export async function main({
 
   // Vor dem ersten Schreiben auf dem Dateisystem nachpruefen: Die Liste oben
   // kennt keine Symlinks, und ein Ziel kann seither entstanden sein.
-  const sperren = await pruefeDateisystem(belegeRoot, plan.verschiebungen);
+  const sperren = await pruefeDateisystem(belegeRoot, [...plan.kopien, ...plan.verschiebungen]);
   if (sperren.length) {
     bericht.verschoben = [];
+    bericht.kopiert = [];
     bericht.fehler = sperren;
     console.log(JSON.stringify(bericht, null, 2));
     console.log("\nPlan fehlerhaft — nichts verschoben, nichts umgeschrieben.");
@@ -214,6 +231,11 @@ export async function main({
   }
 
   if (schreiben) {
+    for (const { von, nach } of plan.kopien) {
+      const ziel = absolutUnter(belegeRoot, nach);
+      await mkdir(path.dirname(ziel), { recursive: true });
+      await copyFile(absolutUnter(belegeRoot, von), ziel, constants.COPYFILE_EXCL);
+    }
     for (const { von, nach } of plan.verschiebungen) {
       const ziel = absolutUnter(belegeRoot, nach);
       await mkdir(path.dirname(ziel), { recursive: true });
@@ -225,6 +247,7 @@ export async function main({
   }
 
   const nachher = new Set(vorhandene.map(nfc));
+  for (const { nach } of plan.kopien) nachher.add(nach);
   for (const { von, nach } of plan.verschiebungen) {
     nachher.delete(von);
     nachher.add(nach);

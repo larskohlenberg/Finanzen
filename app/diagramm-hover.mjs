@@ -98,7 +98,7 @@ function zeigeSpalte(svg, event) {
 // Terminleiste der Uebersicht (charts.mjs, data-termine): die Linie folgt dem
 // Zeiger frei, die Box zeigt das Datum unter dem Zeiger und die Termine in der
 // Naehe. Die Listen darunter markieren dieselben Termine und scrollen mit.
-const TERMIN_NAEHE = 12; // viewBox-Einheiten, gut fuenf Tage
+const TERMIN_NAEHE = 16; // viewBox-Einheiten, gut fuenf Tage
 
 const isoPlusTage = (iso, tage) => new Date(Date.parse(`${iso}T00:00:00Z`) + Math.round(tage) * 86400000).toISOString().slice(0, 10);
 const tageZwischen = (von, bis) => (Date.parse(`${bis}T00:00:00Z`) - Date.parse(`${von}T00:00:00Z`)) / 86400000;

@@ -2875,16 +2875,13 @@ a.linkish {
 .stammdaten-fest .detail-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stammdaten-fest .detail-value.leer { color: var(--muted); }
 @media (max-width: 900px) { .stammdaten-fest { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.darlehen-chips { display: flex; gap: 6px; min-width: 0; }
+.darlehen-links { display: flex; gap: 6px; min-width: 0; }
+.darlehen-trenner { flex: none; color: var(--muted); }
 /* Gleiche Anteile je Darlehen, kurze Namen bleiben so schmal wie noetig. */
-.darlehen-chip.linkish {
+.darlehen-link.linkish {
   flex: 1 1 0;
   max-width: max-content;
   min-width: 0;
-  padding: 1px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -234,9 +234,9 @@ function renderImmobilieDetail(imm, today) {
       ${alleBuchungen ? `<p><button class="linkish" data-action="immobilie-transactions" data-immobilie="${escapeHtml(id)}">${escapeHtml(tf("vermoegen.immobilie.alleBuchungen", { n: alleBuchungen }))} →</button></p>` : ""}` });
 
   // Darlehen als gekuerzte Namen nebeneinander, der volle Name steht im Tooltip.
-  const darlehenChips = k.darlehen_ids.map((did) => {
+  const darlehenLinks = k.darlehen_ids.map((did) => {
     const name = data.darlehen.find((x) => x.darlehen_id === did)?.bezeichnung || did;
-    return `<button class="linkish darlehen-chip" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`darlehen:${did}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
+    return `<button class="linkish darlehen-link" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`darlehen:${did}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
   });
   // Immer dieselben acht Felder an festen Plaetzen, fehlende mit Strich:
   // so springt die Kachel beim Wechsel zwischen Objekten nicht.
@@ -258,7 +258,7 @@ function renderImmobilieDetail(imm, today) {
         ${feld(t("vermoegen.immobilie.angeschafft"), imm.anschaffungsdatum ? escapeHtml(formatDate(imm.anschaffungsdatum)) : "")}
         ${feld(t("vermoegen.immobilie.anschaffungskosten"), imm.anschaffungskosten ? escapeHtml(formatMoney(cents(imm.anschaffungskosten))) : "")}
         ${feld(t("vermoegen.immobilie.wertaenderung"), k.wertaenderung_cents !== null ? geld(k.wertaenderung_cents, { negativ: true }) : "")}
-        ${feld(t("vermoegen.immobilie.darlehen"), darlehenChips.length ? `<span class="darlehen-chips">${darlehenChips.join("")}</span>` : "")}
+        ${feld(t("vermoegen.immobilie.darlehen"), darlehenLinks.length ? `<span class="darlehen-links">${darlehenLinks.join('<span class="darlehen-trenner" aria-hidden="true">·</span>')}</span>` : "")}
       </div>` });
 
   const anhang = anhangPanel("immobilie", t("vermoegen.immobilie.wertstaendeDokumente"), {

@@ -131,7 +131,7 @@ test("Immobilie ohne Marktwert, Darlehen und Buchungen: Striche statt Zahlen", (
   });
 });
 
-test("Immobilie: Stammdaten immer mit acht Feldern, Darlehen als gekuerzte Namen nebeneinander", () => {
+test("Immobilie: Stammdaten immer mit acht Feldern, Darlehen als Links nebeneinander", () => {
   const stammdatenFelder = (html) => {
     const block = html.slice(html.indexOf("stammdaten-raster"), html.indexOf("immobilie.monate"));
     return [...block.matchAll(/class="detail-label">([^<]*)</g)].map((m) => m[1]);
@@ -149,8 +149,8 @@ test("Immobilie: Stammdaten immer mit acht Feldern, Darlehen als gekuerzte Namen
     assert.equal(stammdatenFelder(html).length, 8);
     assert.match(html, />15\.1\.2020</);
     assert.match(html, /300\.000,00/);
-    assert.match(html, /class="darlehen-chips"/);
-    assert.match(html, /class="linkish darlehen-chip"[^>]*data-vermoegen="darlehen:DAR-001"[^>]*title="Erstes Darlehen mit langem Namen"/);
+    assert.match(html, /class="darlehen-links"><button[^]*?<\/button><span class="darlehen-trenner" aria-hidden="true">·<\/span><button/);
+    assert.match(html, /class="linkish darlehen-link"[^>]*data-vermoegen="darlehen:DAR-001"[^>]*title="Erstes Darlehen mit langem Namen"/);
     assert.doesNotMatch(html, /<br><button class="linkish"/);
   });
 });

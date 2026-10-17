@@ -360,8 +360,6 @@ window.FINANCE_I18N = {
         rueckkaufswerte: "Rückkaufswerte im Vermögen",
         bewertet: "{mit} von {gesamt} kapitalbildenden bewertet",
         ohneWert: "{n} ohne Wert",
-        rentenbeginn: "Rente",
-        kapitalZeitachse: "Kapitalauszahlungen im Zeitverlauf",
         rkwAnteile: "Anteile der Rückkaufswerte",
         beitragsAnteile: "Beiträge pro Jahr nach Bereich",
         proJahr: "{name} pro Jahr",
@@ -369,7 +367,6 @@ window.FINANCE_I18N = {
         beitraegeNotiz: "Altersvorsorge · dazu {betrag} / Jahr Versicherungen",
       },
       karte: {
-        ungeprueft: "{n} ungeprüft",
         leistungAb: "Leistung ab {datum}",
         faellig: "fällig {datum}",
         vorjahr: "Vorjahr {betrag}",
@@ -1372,8 +1369,6 @@ window.FINANCE_I18N = {
         rueckkaufswerte: "Surrender values in wealth",
         bewertet: "{mit} of {gesamt} capital-forming valued",
         ohneWert: "{n} without value",
-        rentenbeginn: "Pension",
-        kapitalZeitachse: "Lump-sum payouts over time",
         rkwAnteile: "Shares of surrender values",
         beitragsAnteile: "Contributions per year by area",
         proJahr: "{name} per year",
@@ -1381,7 +1376,6 @@ window.FINANCE_I18N = {
         beitraegeNotiz: "retirement savings · plus {betrag} / year insurance",
       },
       karte: {
-        ungeprueft: "{n} unchecked",
         leistungAb: "benefit from {datum}",
         faellig: "due {datum}",
         vorjahr: "previous year {betrag}",

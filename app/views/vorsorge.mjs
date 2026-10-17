@@ -8,7 +8,7 @@ import { formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow,
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
-import { donutDiagramm, wertVerlauf, zeitachseKlein, zeitstrahlDiagramm } from "../charts.mjs";
+import { donutDiagramm, wertVerlauf, zeitstrahlDiagramm } from "../charts.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
   VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsAenderungen, beitragVorjahr, gebuchteBeitraegeAlle,
@@ -111,14 +111,17 @@ export function renderVorsorge() {
   const inhalt = tab === "uebersicht" ? renderUebersichtTab(today, offen) : renderGruppenTab(tab, today, offen);
   return `
     ${renderPageHead(t("vorsorge.title"), t("vorsorge.lead"))}
-    ${renderKopf(today)}
     ${renderTabs(tab, today, offen)}
     <div class="vermoegen-tab-inhalt" role="tabpanel" id="vorsorge-tab-${tab}">${inhalt}</div>`;
 }
 
-// ------------------------------------------------------------- Kopf
+// ------------------------------------------------------------- Uebersicht
 
-function renderKopf(today) {
+// Der Uebersichtstab traegt die Kennzahlen der ganzen Seite: oben das
+// Alterseinkommen samt Zeitstrahl, darunter Kapital, Rueckkaufswerte und
+// Beitraege, zuletzt die offenen Punkte. Die anderen Tabs starten direkt mit
+// ihren Vertraegen.
+function renderUebersichtTab(today, offen) {
   const { renten, stufen, gesamt_cents: gesamt, ohne_beginn: ohneBeginn } = rentenStufen(data);
   const notizen = [];
   const gesetzlich = gesetzlicherRentenbeginn(data);
@@ -142,10 +145,9 @@ function renderKopf(today) {
   const beitragVorsorge = aktiv.filter((vs) => tabFuerVorsorge(vs) !== "versicherungen").reduce((a, vs) => a + beitragJeMonatVertrag(data, vs.vorsorge_id, today), 0);
   const beitragVersicherung = aktiv.filter((vs) => tabFuerVorsorge(vs) === "versicherungen").reduce((a, vs) => a + beitragJeJahrVertrag(data, vs.vorsorge_id, today), 0);
 
-  // Je Kennzahl eine eigene Kachel, die erste mit Balken und Legende, die anderen
-  // mit ihrer Aufschluesselung, damit die Summe ohne Rechnen aufgeht.
-  // grafik: Donut rechts neben dem Wert; unten: Grafik ueber der Liste (Zeitachse).
-  const kz = (label, wert, notiz, zeilen = [], { grafik = "", unten = "" } = {}) => `
+  // Je Kennzahl eine eigene Kachel mit ihrer Aufschluesselung, damit die Summe
+  // ohne Rechnen aufgeht; grafik: Donut rechts neben dem Wert.
+  const kz = (label, wert, notiz, zeilen = [], grafik = "") => `
       <section class="panel panel-pad vorsorge-kopf-kz">
         <div class="${grafik ? "vorsorge-kopf-mit-grafik" : ""}">
           <div>
@@ -155,7 +157,6 @@ function renderKopf(today) {
           </div>
           ${grafik}
         </div>
-        ${unten}
         ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : ""}
       </section>`;
   const zeile = (linkHtml, betrag, zusatz = "", klasse = "") => `<li>${klasse ? farbPunkt(klasse) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${escapeHtml(betrag)}</span></li>`;
@@ -165,13 +166,6 @@ function renderKopf(today) {
   const kapitalZeilen = [...kapital.liste]
     .sort((a, b) => String(a.vs.leistung_beginn ?? "9999").localeCompare(String(b.vs.leistung_beginn ?? "9999")))
     .map((x) => zeile(vertragLink(x.vs.vorsorge_id, x.vs.name), formatMoney(cents(x.zw.wert)), x.vs.leistung_beginn?.slice(0, 4) ?? "", farbKlasse(farben, x.vs.vorsorge_id)));
-  // Wann kommt welches Kapital, gemessen am Beginn der gesetzlichen Rente.
-  const kapitalAchse = zeitachseKlein({
-    von: today,
-    marker: kapital.liste.filter((x) => x.vs.leistung_beginn).map((x) => ({ datum: x.vs.leistung_beginn, klasse: farbKlasse(farben, x.vs.vorsorge_id), label: `${x.vs.name}: ${formatMoney(cents(x.zw.wert))} · ${formatDate(x.vs.leistung_beginn)}` })),
-    bezug: gesetzlich ? { datum: gesetzlich, label: t("vorsorge.kopf.rentenbeginn") } : null,
-    ariaLabel: t("vorsorge.kopf.kapitalZeitachse"),
-  });
   const mitWert = vorsorgePositionen.filter((p) => !p.fehlt).sort((a, b) => b.wert_cents - a.wert_cents);
   const ohneWert = vorsorgePositionen.filter((p) => p.fehlt);
   const ohneWertTab = ohneWert.length ? tabFuerVorsorge((data.vorsorge ?? []).find((vs) => vs.vorsorge_id === ohneWert[0].id)) : null;
@@ -192,17 +186,21 @@ function renderKopf(today) {
   const beitragDonut = donutDiagramm({ teile: beitragTabs.map((b) => ({ wert: b.jahr, klasse: `tab-farbe-${b.tab}`, label: tf("vorsorge.kopf.proJahr", { name: t(`vorsorge.tabs.${b.tab}`) }) })), formatWert: formatMoney, ariaLabel: t("vorsorge.kopf.beitragsAnteile") });
 
   return `
-    <div class="vermoegen-kopf vorsorge-kopf">
-      <section class="panel panel-pad">
+    <section class="panel panel-pad vorsorge-alterseinkommen">
+      <div>
         <div class="muted">${escapeHtml(t("vorsorge.kopf.alterseinkommen"))}</div>
         <div class="vermoegen-netto">${escapeHtml(formatMoney(gesamt))} ${einheit(t("vorsorge.jeMonatBrutto"))}</div>
         <div class="kpi-note">${escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten"))}</div>
         ${renten.length ? `${balkenSvg(segmente)}<div class="vermoegen-legende">${legende}</div>` : ""}
-      </section>
-        ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.summe)), kapital.jahre.length ? escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") })) : "", kapitalZeilen, { unten: kapitalAchse })}
-        ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: mitWert.length, gesamt: vorsorgePositionen.length })), rkwZeilen, { grafik: rkwDonut })}
-        ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })), beitragZeilen, { grafik: beitragDonut })}
-    </div>`;
+      </div>
+      ${renderZeitstrahl(today)}
+    </section>
+    <div class="vorsorge-kennzahlen">
+      ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.summe)), kapital.jahre.length ? escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") })) : "", kapitalZeilen)}
+      ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: mitWert.length, gesamt: vorsorgePositionen.length })), rkwZeilen, rkwDonut)}
+      ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })), beitragZeilen, beitragDonut)}
+    </div>
+    ${renderOffenePunkte(offen)}`;
 }
 
 function kapitalLeistungen() {
@@ -244,39 +242,12 @@ function renderTabs(aktiv, today, offen) {
   return `<div class="vermoegen-tabs" role="tablist" aria-label="${escapeHtml(t("vorsorge.title"))}">${VORSORGE_TABS.map(knopf).join("")}</div>`;
 }
 
-// ------------------------------------------------------------- Uebersicht
-
-function renderUebersichtTab(today, offen) {
-  const karten = GRUPPEN_TABS.filter((tab) => vertraegeIm(tab).length).map((tab) => {
-    const liste = vertraegeIm(tab);
-    const n = liste.filter((vs) => offen.has(vs.vorsorge_id)).length;
-    const ungeprueft = liste.filter((vs) => !istBeendet(vs) && !vs.geprueft_am).length;
-    const arten = [...new Set(liste.map((vs) => vorsorgeArtLabel(vs.art)))].join(", ");
-    const zeile = ungeprueft ? tf("vorsorge.karte.ungeprueft", { n: ungeprueft }) : arten;
-    const chip = n
-      ? `<span class="chip review">${iconSvg("review")}${escapeHtml(tf("vermoegen.offenAnzahl", { n }))}</span>`
-      : `<span class="chip success">${iconSvg("success")}${escapeHtml(t("vermoegen.vollstaendig"))}</span>`;
-    return `
-      <button class="tile klassen-karte" data-action="vorsorge-tab" data-tab="${tab}">
-        <strong>${escapeHtml(t(`vorsorge.tabs.${tab}`))}</strong>
-        <div class="count">${escapeHtml(geldOhneCent(tabBetrag(tab, today)))}</div>
-        <div class="kpi-note">${escapeHtml(t(`vorsorge.tabEinheit.${tab}`))} · ${escapeHtml(zeile)}</div>
-        ${chip}
-      </button>`;
-  }).join("");
-
-  return `
-    <div class="klassen-karten">${karten}</div>
-    <div class="vorsorge-uebersicht-raster">
-      ${renderZeitstrahlPanel(today)}
-      ${renderOffenePunkte(offen)}
-    </div>`;
-}
-
-function renderZeitstrahlPanel(today) {
+// Zeitstrahl in der Kachel Alterseinkommen: wann welche Rente dazukommt und
+// wann Kapital faellig wird.
+function renderZeitstrahl(today) {
   const z = leistungsZeitstrahl(data, today);
-  const titel = `<h2 class="section-title">${escapeHtml(t("vorsorge.zeitstrahl.titel"))}</h2>`;
-  if (!z) return `<section class="panel panel-pad">${titel}<p class="muted">${escapeHtml(t("vorsorge.zeitstrahl.leer"))}</p></section>`;
+  const titel = `<div class="muted">${escapeHtml(t("vorsorge.zeitstrahl.titel"))}</div>`;
+  if (!z) return `<div class="vorsorge-zeitstrahl">${titel}<p class="kpi-note">${escapeHtml(t("vorsorge.zeitstrahl.leer"))}</p></div>`;
   // Ein Marker je Jahr, sonst ueberlagern sich die Beschriftungen naher Termine.
   const jeJahr = new Map();
   for (const l of z.leistungen) {
@@ -300,17 +271,17 @@ function renderZeitstrahlPanel(today) {
     ariaLabel: t("vorsorge.zeitstrahl.titel"),
   });
   return `
-    <section class="panel panel-pad">
+    <div class="vorsorge-zeitstrahl">
       ${titel}
-      <p class="muted diagramm-lead">${escapeHtml(t("vorsorge.zeitstrahl.lead"))}</p>
+      <div class="kpi-note">${escapeHtml(t("vorsorge.zeitstrahl.lead"))}</div>
       <div class="diagramm-wrap">${svg}</div>
-    </section>`;
+    </div>`;
 }
 
 function renderOffenePunkte(offen) {
   const vertraege = (data.vorsorge ?? []).filter((vs) => offen.has(vs.vorsorge_id));
   const titel = `<h2 class="section-title">${escapeHtml(t("vorsorge.offen.titel"))}</h2>`;
-  if (!vertraege.length) return `<section class="panel panel-pad">${titel}<p class="muted">${escapeHtml(t("vorsorge.offen.keine"))}</p></section>`;
+  if (!vertraege.length) return `<p class="vorsorge-offen-keine"><span class="chip success">${iconSvg("success")}${escapeHtml(t("vorsorge.offen.keine"))}</span></p>`;
   // Ungepruefte Vertraege einer Person in einer Zeile, sonst je Vertrag und Check.
   const zeilen = [];
   const ungeprueft = new Map();
@@ -331,7 +302,7 @@ function renderOffenePunkte(offen) {
     });
   }
   return `
-    <section class="panel panel-pad">
+    <section class="panel panel-pad vorsorge-offen">
       ${titel}
       <ul class="vorsorge-offen-liste">${zeilen.map((z) => `
         <li>

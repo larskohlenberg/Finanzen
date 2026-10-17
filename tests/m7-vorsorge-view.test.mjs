@@ -82,7 +82,7 @@ function mitFixture(fn, aenderung = {}) {
 
 const anzahl = (html, muster) => (html.match(muster) ?? []).length;
 
-test("Kopf zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und Beitraege", () => {
+test("Uebersicht zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und Beitraege", () => {
   mitFixture(() => {
     const html = renderVorsorge();
     assert.match(html, /Erwartetes Alterseinkommen/);
@@ -97,18 +97,27 @@ test("Kopf zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und Beitrae
   });
 });
 
-test("Kopf besteht aus vier einzelnen Kacheln", () => {
+test("Tabs stehen direkt unter dem Seitenkopf, die Kennzahlen im Uebersichtstab", () => {
   mitFixture(() => {
     const html = renderVorsorge();
-    const kopf = html.slice(html.indexOf("vorsorge-kopf"), html.indexOf("vermoegen-tabs"));
-    assert.equal(anzahl(kopf, /<section class="panel panel-pad/g), 4);
+    const tabs = html.indexOf("vermoegen-tabs");
+    assert.ok(tabs > 0 && html.indexOf("Erwartetes Alterseinkommen") > tabs, "Kennzahlen stehen erst nach den Tabs");
+    const uebersicht = html.slice(html.indexOf('id="vorsorge-tab-uebersicht"'));
+    // Alterseinkommen mit Zeitstrahl in einer Kachel, darunter drei Kennzahl-Kacheln.
+    const alters = uebersicht.slice(uebersicht.indexOf("vorsorge-alterseinkommen"), uebersicht.indexOf("vorsorge-kennzahlen"));
+    assert.match(alters, /Erwartetes Alterseinkommen[\s\S]*Leistungen im Zeitverlauf[\s\S]*zeitstrahl-linie vorsorge-rente/);
+    assert.equal(anzahl(uebersicht, /class="panel panel-pad vorsorge-kopf-kz"/g), 3);
+    assert.doesNotMatch(html, /klassen-karte/, "keine Bereichskarten mehr");
+    // In den anderen Tabs keine Seitenkennzahlen.
+    state.vorsorgeTab = "renten";
+    assert.doesNotMatch(renderVorsorge(), /Erwartetes Alterseinkommen|vorsorge-kennzahlen/);
   });
 });
 
 test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", () => {
   mitFixture(() => {
     const html = renderVorsorge();
-    const kopf = html.slice(html.indexOf("vorsorge-kopf"), html.indexOf("vermoegen-tabs"));
+    const kopf = html.slice(html.indexOf("vorsorge-kennzahlen"));
     const kachel = (titel) => kopf.slice(kopf.indexOf(titel), kopf.indexOf("</section>", kopf.indexOf(titel)));
     const rkw = kachel("Rückkaufswerte im Vermögen");
     assert.match(rkw, /data-vorsorge="VS-003"[^>]*>LV Lena<\/button><span class="amount">12\.000,00/);
@@ -119,8 +128,7 @@ test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", () => {
     assert.match(rkw, /class="donut-segment vertrag-farbe-2"><circle[^>]*class="donut-voll"><title>LV Lena: 12\.000,00\s€ \(100 %\)/);
     assert.match(rkw, /<i class="farbpunkt vertrag-farbe-2" aria-hidden="true"><\/i><button[^>]*data-vorsorge="VS-003"/);
     assert.doesNotMatch(rkw, /Riester Lena/, "Riester steht nicht bei den Rueckkaufswerten im Vermoegen");
-    // Kapital auf der Zeitachse mit Rentenbeginn, Beitraege als Donut je Bereich.
-    assert.match(kachel("Kapitalleistungen"), /class="zeitachse-klein"[\s\S]*class="zeitachse-bezug"[\s\S]*class="zeitachse-marker vertrag-farbe-\d"/);
+    // Beitraege als Donut je Bereich.
     assert.match(kachel("Beiträge"), /class="donut-segment tab-farbe-renten"><title>Renten &amp; Anwartschaften pro Jahr: 1\.800,00/);
     assert.match(kachel("Kapitalleistungen"), /LV Lena<\/button><span class="muted">2035<\/span><span class="amount">25\.000,00/);
     const beitraege = kachel("Beiträge");
@@ -173,10 +181,9 @@ test("Tabs nach Vertragsart mit Anzahl, Kennzahl und Punkt bei offenen Pruefunge
   });
 });
 
-test("Uebersicht: Karten je Tab, Zeitstrahl und offene Punkte", () => {
+test("Uebersicht: Zeitstrahl und offene Punkte", () => {
   mitFixture(() => {
     const html = renderVorsorge();
-    assert.equal(anzahl(html, /class="tile klassen-karte"/g), 3);
     assert.match(html, /Leistungen im Zeitverlauf/);
     assert.match(html, /zeitstrahl-linie vorsorge-rente/);
     assert.match(html, /Rente \+2\.550\s€/, "Riester und DRV 2040 in einem Marker");
@@ -323,8 +330,10 @@ test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausser
     const kennzahlen = html.slice(html.indexOf("kennzahl-raster"), html.indexOf('data-kachel="vorsorge.vertragsdaten"'));
     assert.match(kennzahlen, /Rückkaufswert[\s\S]*3\.000,00[\s\S]*nicht im Vermögen/);
     assert.match(html, /3\.000,00\s€<\/strong> <span class="muted">Rückkaufswert \(nicht im Vermögen\)/);
-    // Der Kopf zaehlt ihn nicht mit.
-    assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*12\.000,00/);
+    // Die Uebersicht zaehlt ihn nicht mit.
+    state.vorsorgeTab = "uebersicht";
+    state.selectedVorsorgeId = "";
+    assert.match(renderVorsorge(), /Rückkaufswerte im Vermögen<\/div>\s*<div class="vorsorge-kopf-wert">12\.000,00/);
   });
 });
 

@@ -3112,11 +3112,13 @@ a.linkish {
   border-radius: var(--radius);
 }
 .belege-ausschnitt .belege-tabelle-wrap { max-height: 420px; }
-.belege-aktionen { width: 1%; text-align: right; white-space: nowrap; }
+.belege-aktionen-zelle { width: 1%; text-align: right; white-space: nowrap; }
 .belege-aktionen-knoepfe { display: inline-flex; gap: 2px; }
 .icon-link { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-tight); color: var(--muted); }
 .icon-link:hover, .icon-link:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
 .icon-link .icon { width: 16px; height: 16px; }
+/* Der Ordner endet eine Rastereinheit hoeher als der Download-Pfeil; unten buendig ziehen. */
+.icon-link .icon-unten-buendig { transform: translateY(calc(16px / 24)); }
 /* Innere Aufteilung der Detail-Kacheln in voller Breite. */
 .vorsorge-spalten {
   display: grid;

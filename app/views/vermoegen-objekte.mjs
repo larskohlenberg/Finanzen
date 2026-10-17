@@ -84,7 +84,7 @@ function nutzungLabel(nutzung) {
 function anteileText(eigentumsanteile) {
   return (eigentumsanteile ?? []).map((a) => {
     const name = a.extern === true || !a.person_id ? t("vermoegen.externerAnteil") : (personenById.get(a.person_id)?.name || a.person_id);
-    return `${escapeHtml(name)} ${escapeHtml(String(a.zaehler))}/${escapeHtml(String(a.nenner))}`;
+    return `${name} ${a.zaehler}/${a.nenner}`;
   }).join(" · ");
 }
 
@@ -233,19 +233,32 @@ function renderImmobilieDetail(imm, today) {
         : `<p class="muted">${escapeHtml(t("vermoegen.immobilie.keineBuchungen"))}</p>`}
       ${alleBuchungen ? `<p><button class="linkish" data-action="immobilie-transactions" data-immobilie="${escapeHtml(id)}">${escapeHtml(tf("vermoegen.immobilie.alleBuchungen", { n: alleBuchungen }))} →</button></p>` : ""}` });
 
-  const darlehenLinks = k.darlehen_ids.map((did) => {
-    const d = data.darlehen.find((x) => x.darlehen_id === did);
-    return `<button class="linkish" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`darlehen:${did}`)}">${escapeHtml(d?.bezeichnung || did)}</button>`;
+  // Darlehen als gekuerzte Namen nebeneinander, der volle Name steht im Tooltip.
+  const darlehenChips = k.darlehen_ids.map((did) => {
+    const name = data.darlehen.find((x) => x.darlehen_id === did)?.bezeichnung || did;
+    return `<button class="linkish darlehen-chip" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`darlehen:${did}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
   });
+  // Immer dieselben acht Felder an festen Plaetzen, fehlende mit Strich:
+  // so springt die Kachel beim Wechsel zwischen Objekten nicht.
+  // Gekuerzte Werte zeigen den vollen Text als Tooltip (titel als reiner Text).
+  const feld = (label, wertHtml, titel = "") => `
+    <div class="detail-section">
+      <div class="detail-label">${escapeHtml(label)}</div>
+      ${wertHtml
+        ? `<div class="detail-value"${titel ? ` title="${escapeHtml(titel)}"` : ""}>${wertHtml}</div>`
+        : `<div class="detail-value leer">–</div>`}
+    </div>`;
+  const anteile = imm.eigentumsanteile?.length ? anteileText(imm.eigentumsanteile) : "";
   const stammdaten = klappKachel({ id: "immobilie.stammdaten", titel: t("vermoegen.immobilie.stammdaten"), inhalt: `
-      <div class="stammdaten-raster">
-        ${imm.adresse ? detailRow(t("vermoegen.adresse"), escapeHtml(imm.adresse)) : ""}
-        ${imm.nutzung ? detailRow(t("vermoegen.immobilie.nutzung"), escapeHtml(nutzungLabel(imm.nutzung))) : ""}
-        ${imm.wohnflaeche ? detailRow(t("vermoegen.immobilie.wohnflaeche"), `${escapeHtml(new Intl.NumberFormat("de-DE").format(Number(imm.wohnflaeche)))} m²`) : ""}
-        ${imm.eigentumsanteile?.length ? detailRow(t("vermoegen.eigentumsanteile"), anteileText(imm.eigentumsanteile)) : ""}
-        ${imm.anschaffungsdatum || imm.anschaffungskosten ? detailRow(t("vermoegen.immobilie.angeschafft"), [imm.anschaffungsdatum ? escapeHtml(formatDate(imm.anschaffungsdatum)) : "", imm.anschaffungskosten ? escapeHtml(formatMoney(cents(imm.anschaffungskosten))) : ""].filter(Boolean).join(" · ")) : ""}
-        ${k.wertaenderung_cents !== null ? detailRow(t("vermoegen.immobilie.wertaenderung"), geld(k.wertaenderung_cents, { negativ: true })) : ""}
-        ${darlehenLinks.length ? detailRow(t("vermoegen.immobilie.darlehen"), darlehenLinks.join("<br>")) : ""}
+      <div class="stammdaten-raster stammdaten-fest">
+        ${feld(t("vermoegen.adresse"), imm.adresse ? escapeHtml(imm.adresse) : "", imm.adresse)}
+        ${feld(t("vermoegen.immobilie.nutzung"), imm.nutzung ? escapeHtml(nutzungLabel(imm.nutzung)) : "")}
+        ${feld(t("vermoegen.immobilie.wohnflaeche"), imm.wohnflaeche ? `${escapeHtml(new Intl.NumberFormat("de-DE").format(Number(imm.wohnflaeche)))} m²` : "")}
+        ${feld(t("vermoegen.eigentumsanteile"), escapeHtml(anteile), anteile)}
+        ${feld(t("vermoegen.immobilie.angeschafft"), imm.anschaffungsdatum ? escapeHtml(formatDate(imm.anschaffungsdatum)) : "")}
+        ${feld(t("vermoegen.immobilie.anschaffungskosten"), imm.anschaffungskosten ? escapeHtml(formatMoney(cents(imm.anschaffungskosten))) : "")}
+        ${feld(t("vermoegen.immobilie.wertaenderung"), k.wertaenderung_cents !== null ? geld(k.wertaenderung_cents, { negativ: true }) : "")}
+        ${feld(t("vermoegen.immobilie.darlehen"), darlehenChips.length ? `<span class="darlehen-chips">${darlehenChips.join("")}</span>` : "")}
       </div>` });
 
   const anhang = anhangPanel("immobilie", t("vermoegen.immobilie.wertstaendeDokumente"), {

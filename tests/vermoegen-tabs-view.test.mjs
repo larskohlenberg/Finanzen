@@ -131,6 +131,30 @@ test("Immobilie ohne Marktwert, Darlehen und Buchungen: Striche statt Zahlen", (
   });
 });
 
+test("Immobilie: Stammdaten immer mit acht Feldern, Darlehen als gekuerzte Namen nebeneinander", () => {
+  const stammdatenFelder = (html) => {
+    const block = html.slice(html.indexOf("stammdaten-raster"), html.indexOf("immobilie.monate"));
+    return [...block.matchAll(/class="detail-label">([^<]*)</g)].map((m) => m[1]);
+  };
+  const duenn = { immobilie_id: "IMM-001", bezeichnung: "Haus", status: "aktiv", adresse: "Musterweg 1" };
+  mitDaten({ immobilien: [duenn] }, { vermoegenTab: "immobilien" }, (html) => {
+    assert.deepEqual(stammdatenFelder(html), ["Adresse", "Nutzung", "Wohnfläche", "Eigentumsanteile", "Angeschafft", "Anschaffungskosten", "Wertänderung", "Darlehen"]);
+    assert.match(html, /stammdaten-raster stammdaten-fest/);
+    assert.match(html, /class="detail-value leer">–</);
+  });
+  const voll = { ...duenn, anschaffungsdatum: "2020-01-15", anschaffungskosten: "300000.00" };
+  const d1 = darlehen("DAR-001", { immobilie_id: "IMM-001", bezeichnung: "Erstes Darlehen mit langem Namen" });
+  const d2 = darlehen("DAR-002", { immobilie_id: "IMM-001", bezeichnung: "Zweites Darlehen" });
+  mitDaten({ immobilien: [voll], darlehen: [d1, d2] }, { vermoegenTab: "immobilien" }, (html) => {
+    assert.equal(stammdatenFelder(html).length, 8);
+    assert.match(html, />15\.1\.2020</);
+    assert.match(html, /300\.000,00/);
+    assert.match(html, /class="darlehen-chips"/);
+    assert.match(html, /class="linkish darlehen-chip"[^>]*data-vermoegen="darlehen:DAR-001"[^>]*title="Erstes Darlehen mit langem Namen"/);
+    assert.doesNotMatch(html, /<br><button class="linkish"/);
+  });
+});
+
 test("Immobilie: Monatstabelle und Umschalter ohne Darlehensrate", () => {
   const imm = { immobilie_id: "IMM-001", bezeichnung: "Haus", status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] };
   const monat = new Date().toISOString().slice(0, 7);

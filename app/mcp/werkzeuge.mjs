@@ -4,7 +4,7 @@
 // - 1:1-Wrapper um die CLIs in app/tools/ (Vorschau ist Default, schreiben:true
 //   setzt das Schreib-Flag der CLI und braucht --recht=schreiben),
 // - Datei-Schreiben (datei_schreiben, datei_ersetzen, beleg_ablegen, beleg_teilen,
-//   inbox_verwerfen, inbox_zurueckholen), nur mit --recht=schreiben.
+//   beleg_ergaenzen, inbox_verwerfen, inbox_zurueckholen), nur mit --recht=schreiben.
 // Jeder schreibende Vorgang laeuft durch mitRollback (Validator + Rueckspielen).
 import { execFile } from "node:child_process";
 import { constants as fsKonstanten } from "node:fs";
@@ -934,6 +934,90 @@ const belegTeilen = {
   },
 };
 
+const belegErgaenzen = {
+  name: "beleg_ergaenzen",
+  description: "Nachgereichte Seiten (PDF aus data/inbox/, auch processed/, error/) in einen schon abgelegten PDF-Beleg unter Belege/ einfuegen, z. B. eine beim Scannen vergessene Rueckseite. nach_seite: hinter welcher Seite des Belegs (0 = vorn, ohne Angabe = ans Ende). Der Beleg behaelt Pfad und Namen; die alte Fassung samt .txt-Zwilling und die Inbox-Datei samt Mitlaeufern wandern in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/. Danach belege_text mit schreiben:true fuer den neuen Zwilling. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      quelle: { type: "string", description: "z. B. data/inbox/scan0002.pdf" },
+      ziel: { type: "string", description: "z. B. Belege/Vorsorge/VS-001_Muster/2026/2026_Muster_Jahresinformation.pdf" },
+      nach_seite: { type: "integer", minimum: 0, description: "Einfuegen hinter dieser Seite des Belegs; 0 = vorn, ohne Angabe = ans Ende" },
+      schreiben: SCHREIBEN,
+    },
+    required: ["quelle", "ziel"],
+    additionalProperties: false,
+  },
+  nurSchreiben: true,
+  async ausfuehren(ctx, args) {
+    const quelle = await loesePfad(ctx.app, args.quelle, ["data/inbox"]);
+    const ziel = await loesePfad(ctx.app, args.ziel, ["Belege"]);
+    for (const p of [quelle, ziel]) {
+      if (!(await istDatei(p.absolut))) return ergebnis(`${p.relativ} ist keine Datei`, true);
+      if (path.extname(p.absolut).toLowerCase() !== ".pdf") return ergebnis(`${p.relativ} ist kein PDF`, true);
+    }
+    const seitenVon = async (p) => Number(/^Pages:\s+(\d+)/m.exec((await programm("pdfinfo", [p.absolut])).toString("utf8"))?.[1]);
+    const alt = await seitenVon(ziel);
+    const neu = await seitenVon(quelle);
+    if (!alt || !neu) return ergebnis(`Seitenzahl von ${!alt ? ziel.relativ : quelle.relativ} nicht lesbar`, true);
+    const nach = args.nach_seite ?? alt;
+    if (nach > alt) return ergebnis(`Seite ${nach} gibt es nicht (${ziel.relativ} hat ${alt})`, true);
+
+    // Alte Fassung und ihr Zwilling: gemeinsames Suffix bei Namenskollision.
+    const stamm = ziel.absolut.slice(0, -".pdf".length);
+    const mitZwilling = [{ absolut: ziel.absolut, rest: ".pdf" }];
+    if (await istDatei(`${stamm}.txt`)) mitZwilling.push({ absolut: `${stamm}.txt`, rest: ".txt" });
+    const korbStamm = path.join("data", "papierkorb", localTodayIso(), path.relative(ctx.app, stamm));
+    let n = 1;
+    while ((await Promise.all(mitZwilling.map((g) => lstat(path.join(ctx.app, `${korbStamm}${n > 1 ? `-${n}` : ""}${g.rest}`)).then(() => true, () => false)))).some(Boolean)) n += 1;
+    const altInDenKorb = [];
+    for (const g of mitZwilling) {
+      altInDenKorb.push([
+        { absolut: g.absolut, relativ: path.relative(ctx.app, g.absolut).split(path.sep).join("/") },
+        await loesePfad(ctx.app, `${korbStamm}${n > 1 ? `-${n}` : ""}${g.rest}`, ["data/papierkorb"]),
+      ]);
+    }
+    const korb = [...altInDenKorb, ...(await planePapierkorb(ctx, quelle))];
+    const reihenfolge = nach === 0 ? "vorn" : nach === alt ? "am Ende" : `hinter Seite ${nach}`;
+    const bericht = [
+      `${ziel.relativ}: ${alt} + ${neu} = ${alt + neu} Seiten, ${quelle.relativ} ${reihenfolge}`,
+      ...korb.map(([q, z]) => `${q.relativ} -> ${z.relativ}`),
+    ].join("\n");
+    if (!args.schreiben) return ergebnis(`Vorschau (nichts geschrieben):\n${bericht}`);
+    return mitRollback(ctx.datenroot, async () => {
+      const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-ergaenzen-"));
+      try {
+        await programm("pdfseparate", [ziel.absolut, path.join(ordner, "alt-%d.pdf")]);
+        await programm("pdfseparate", [quelle.absolut, path.join(ordner, "neu-%d.pdf")]);
+        const seite = (art, nr) => path.join(ordner, `${art}-${nr}.pdf`);
+        const folge = [];
+        for (let nr = 1; nr <= nach; nr += 1) folge.push(seite("alt", nr));
+        for (let nr = 1; nr <= neu; nr += 1) folge.push(seite("neu", nr));
+        for (let nr = nach + 1; nr <= alt; nr += 1) folge.push(seite("alt", nr));
+        const fertig = path.join(ordner, "fertig.pdf");
+        await programm("pdfunite", [...folge, fertig]);
+        // Erst neben dem Beleg bereitlegen, dann tauschen: der Beleg fehlt nie.
+        const bereit = `${ziel.absolut}.ergaenzt`;
+        await copyFile(fertig, bereit, fsKonstanten.COPYFILE_EXCL);
+        await inDenPapierkorb(korb);
+        await rename(bereit, ziel.absolut);
+      } finally {
+        await rm(ordner, { recursive: true, force: true });
+      }
+      await protokolliere(ctx, {
+        anlass: "beleg-ergaenzen",
+        inputs: [quelle.relativ],
+        beleg: ziel.relativ,
+        nach_seite: nach,
+        seiten: alt + neu,
+        papierkorb: korb.map(([, z]) => z.relativ),
+        notiz: `${neu} Seite(n) in ${ziel.relativ} eingefuegt, ${reihenfolge}`,
+      });
+      return ergebnis(`Ergaenzt:\n${bericht}\nNaechster Schritt: belege_text mit schreiben:true fuer den neuen Textzwilling.`);
+    });
+  },
+};
+
 const inboxZurueckholen = {
   name: "inbox_zurueckholen",
   description: "Datei aus data/inbox/error/ zurueck in die Inbox-Wurzel data/inbox/ verschieben, damit der naechste inbox-Lauf sie wieder aufnimmt. Existiert dort schon eine Datei gleichen Namens, bricht das Tool ab (nichts ueberschrieben). Eine Fehlernotiz <name>.fehler.txt bleibt in error/ liegen.",
@@ -959,7 +1043,7 @@ const inboxZurueckholen = {
   },
 };
 
-export const WERKZEUGE = [status, kennzahlen, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, inboxVerwerfen, inboxZurueckholen];
+export const WERKZEUGE = [status, kennzahlen, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, belegErgaenzen, inboxVerwerfen, inboxZurueckholen];
 
 export function sichtbareWerkzeuge(ctx) {
   return WERKZEUGE

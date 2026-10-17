@@ -452,6 +452,9 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
       if (beitrag) zeilen.push(`${t("vorsorge.beitrag")} ${formatMoney(beitrag)} ${t("vorsorge.jeMonat")}`);
     }
   }
+  // Was im Todesfall fliesst, steht auf jeder Karte, die den Wert kennt.
+  const todesfall = zeitwert(vs, "todesfallleistung");
+  if (todesfall) zeilen.push(tf("vorsorge.karte.todesfall", { betrag: formatMoney(cents(todesfall.wert)) }));
   const checks = offen.get(vs.vorsorge_id) ?? [];
   const chips = [
     vs.status !== "aktiv" ? statusChip(vs) : "",

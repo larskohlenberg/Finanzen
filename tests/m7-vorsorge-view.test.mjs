@@ -361,6 +361,24 @@ test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farb
   });
 });
 
+test("Karte zeigt die juengste Todesfallleistung, ohne Wert keine Zeile", () => {
+  const zeitwerte = [
+    ...fixture().zeitwerte,
+    zw("VS-003", "todesfallleistung", "40000.00", "2025-12-31"),
+    zw("VS-003", "todesfallleistung", "45000.00", "2026-06-30"),
+  ];
+  mitFixture(() => {
+    state.vorsorgeTab = "lebensversicherungen";
+    const html = renderVorsorge();
+    const karteVon = (id) => {
+      const start = html.indexOf(`data-vorsorge="${id}" aria-pressed`);
+      return html.slice(start, html.indexOf("</div>", start));
+    };
+    assert.match(karteVon("VS-003"), /<span class="objekt-karte-zeile">Im Todesfall 45\.000,00\s€<\/span>/);
+    assert.doesNotMatch(karteVon("VS-004"), /Im Todesfall/);
+  }, { zeitwerte });
+});
+
 test("Versicherungen: Sparte als Etikett auf der Kachel und in den Vertragsdaten", () => {
   mitFixture(() => {
     state.vorsorgeTab = "versicherungen";

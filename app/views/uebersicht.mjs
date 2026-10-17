@@ -40,7 +40,7 @@ const ZIEL = {
 };
 
 // Bereichskachel: Kopf mit Titel als Link, Kennzahl, Notiz, Grafik, Zeilen.
-function bereichsKachel({ id, icon, titel, ziel, wert, notiz = "", grafik = "", zeilen = [] }) {
+function bereichsKachel({ id, icon, titel, ziel, wert, notiz = "", grafik = "", zeilen = [], zusatz = "" }) {
   return `
     <section class="panel panel-pad uebersicht-kachel" aria-labelledby="kachel-${id}">
       <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">
@@ -50,14 +50,19 @@ function bereichsKachel({ id, icon, titel, ziel, wert, notiz = "", grafik = "", 
       ${notiz ? `<div class="kpi-note">${notiz}</div>` : ""}
       ${grafik}
       ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : ""}
+      ${zusatz}
     </section>`;
 }
 
 // ------------------------------------------------------------- Liquiditaet
 
-// Nur der Ist-Stand; die Prognose steht auf der Liquiditaetsseite.
+// Nur der Ist-Stand je Konto; die Prognose steht auf der Liquiditaetsseite.
 function renderLiquiditaetKachel() {
   const verfuegbar = overviewAccountGroups().konten;
+  const zeilen = verfuegbar.zeilen.map(({ konto, zeile: z }) => zeile(
+    link(ZIEL.vermoegenTab("konten"), konto.name),
+    z.wert_cents === null ? `<span class="muted">${escapeHtml(t("overview.nichtBelegt"))}</span>` : escapeHtml(formatMoney(z.wert_cents)),
+  ));
   return bereichsKachel({
     id: "liquiditaet",
     icon: "liquiditaet",
@@ -65,6 +70,7 @@ function renderLiquiditaetKachel() {
     ziel: ZIEL.liquiditaet,
     wert: escapeHtml(formatMoney(verfuegbar.summe_cents)),
     notiz: `${escapeHtml(t("overview.availableMoney"))} · ${escapeHtml(standText(verfuegbar.aeltester))}`,
+    zeilen,
   });
 }
 
@@ -127,7 +133,7 @@ function renderVermoegenKachel() {
           klassen: [
             klasse("immobilie", ZIEL.vermoegenTab("immobilien")),
             klasse("vermoegenswert", ZIEL.vermoegenTab("sonstige")),
-            klasse("vorsorge", ZIEL.vorsorge),
+            { ...klasse("vorsorge", ZIEL.vorsorge), titel: t("overview.vorsorgeRueckkauf") },
             darlehen,
           ],
           darlehenKlasse: darlehen,
@@ -138,7 +144,7 @@ function renderVermoegenKachel() {
 
 // ------------------------------------------------------------- Vorsorge
 
-// Zwei Werte: die monatliche Rente und die faelligen Einmalzahlungen.
+// Zwei gleich grosse Werte: die monatliche Rente und die faelligen Einmalzahlungen.
 // Beitraege und offene Punkte stehen auf der Vorsorgeseite.
 function renderVorsorgeKachel() {
   const { renten, stufen, gesamt_cents: gesamt } = rentenStufen(data);
@@ -154,9 +160,12 @@ function renderVorsorgeKachel() {
 
   const kapital = erwarteteLeistungen(data).filter((l) => l.typ === "kapital");
   const kapitalJahre = [...new Set(kapital.map((l) => l.beginn?.slice(0, 4)).filter(Boolean))].sort();
-  const zeilen = kapital.length
-    ? [zeile(link(ZIEL.vorsorgeTab("lebensversicherungen"), t("overview.kapitalFaellig")), escapeHtml(geldOhneCent(kapital.reduce((a, l) => a + l.wert_cents, 0))), { zusatz: kapitalJahre.join(" · ") })]
-    : [];
+  const einmal = kapital.length ? `
+      <div class="uebersicht-zweitwert">
+        <h3 class="vermoegen-teil-titel">${link(ZIEL.vorsorgeTab("lebensversicherungen"), t("overview.kapitalFaellig"))}</h3>
+        <div class="kpi-value">${escapeHtml(formatMoney(kapital.reduce((a, l) => a + l.wert_cents, 0)))} <span class="betrag-einheit">${escapeHtml(t("overview.einmalig"))}</span></div>
+        <div class="kpi-note">${escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapitalJahre.join(" · ") }))}</div>
+      </div>` : "";
   return bereichsKachel({
     id: "vorsorge",
     icon: "vorsorge",
@@ -165,7 +174,7 @@ function renderVorsorgeKachel() {
     wert: `${escapeHtml(formatMoney(gesamt))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonatBrutto"))}</span>`,
     notiz: escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten")),
     grafik: renten.length ? `<div class="uebersicht-balken">${balkenSvg(segmente)}</div>` : "",
-    zeilen,
+    zusatz: einmal,
   });
 }
 

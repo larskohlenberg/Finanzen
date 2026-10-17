@@ -158,13 +158,26 @@ function renderVorsorgeKachel() {
   const sortiert = [...renten].sort((a, b) => b.wert_cents - a.wert_cents);
   const segmente = sortiert.map((l) => ({ anteil: l.wert_cents / Math.max(gesamt, 1), klasse: farbKlasse(l.vorsorge.vorsorge_id), titel: `${l.vorsorge.name}: ${formatMoney(l.wert_cents)}` }));
 
-  const kapital = erwarteteLeistungen(data).filter((l) => l.typ === "kapital");
+  // Faellig ist nur, was ein Datum hat; eine Todesfallsumme ohne Ablauf zaehlt nicht.
+  const kapital = erwarteteLeistungen(data).filter((l) => l.typ === "kapital" && l.beginn);
   const kapitalJahre = [...new Set(kapital.map((l) => l.beginn?.slice(0, 4)).filter(Boolean))].sort();
+  // Einmalzahlungen = erwartete Kapitalleistung je Vertrag (Ablaufleistung laut
+  // Vertrag/Standmitteilung), deshalb hoeher als der heutige Rueckkaufswert.
+  const kapitalSumme = kapital.reduce((a, l) => a + l.wert_cents, 0);
+  const kapitalSegmente = [...kapital].sort((a, b) => b.wert_cents - a.wert_cents)
+    .map((l) => ({ anteil: l.wert_cents / Math.max(kapitalSumme, 1), klasse: farbKlasse(l.vorsorge.vorsorge_id), titel: `${l.vorsorge.name}: ${formatMoney(l.wert_cents)}` }));
+  const kapitalZeilen = kapital.map((l) => zeile(
+    `<button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(l.vorsorge.vorsorge_id)}">${escapeHtml(l.vorsorge.name)}</button>`,
+    escapeHtml(geldOhneCent(l.wert_cents)),
+    { zusatz: formatDate(l.beginn), punkt: farbKlasse(l.vorsorge.vorsorge_id) },
+  ));
   const einmal = kapital.length ? `
       <div class="uebersicht-zweitwert">
         <h3 class="vermoegen-teil-titel">${link(ZIEL.vorsorgeTab("lebensversicherungen"), t("overview.kapitalFaellig"))}</h3>
-        <div class="kpi-value">${escapeHtml(formatMoney(kapital.reduce((a, l) => a + l.wert_cents, 0)))} <span class="betrag-einheit">${escapeHtml(t("overview.einmalig"))}</span></div>
+        <div class="kpi-value">${escapeHtml(formatMoney(kapitalSumme))} <span class="betrag-einheit">${escapeHtml(t("overview.einmalig"))}</span></div>
         <div class="kpi-note">${escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapitalJahre.join(" · ") }))}</div>
+        <div class="uebersicht-balken">${balkenSvg(kapitalSegmente)}</div>
+        <ul class="vorsorge-kopf-liste">${kapitalZeilen.join("")}</ul>
       </div>` : "";
   return bereichsKachel({
     id: "vorsorge",

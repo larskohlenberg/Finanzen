@@ -2,7 +2,7 @@
 // Übersicht als Dashboard: je Bereich (Liquidität, Vermögen, Vorsorge) eine Kachel
 // mit Kennzahl, kleinem Diagramm und Zeilen, die ins Detail führen; darunter die
 // Termine der nächsten zwölf Monate (Fristen und jährliche Zahlungen) und die
-// Absicherung je Person bei Berufsunfähigkeit und Tod. Konten- und Depottabellen stehen nur noch
+// Absicherung bei Berufsunfähigkeit und im Todesfall als zwei Kacheln. Konten- und Depottabellen stehen nur noch
 // unter Vermögen, die nächste Aktion im Arbeitsstatus oben.
 import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
@@ -11,7 +11,7 @@ import { currentNettovermoegen, overviewAccountGroups, overviewJahreszahlungen }
 import { addInterval, computeLiquiditaetPrognoseDetail, saldoJeTag, toCents } from "../liquiditaet.mjs";
 import { computeVermoegenChecks } from "../vermoegen.mjs";
 import { anstehendeFristen } from "../fristen.mjs";
-import { renderAbsicherungKachel } from "./absicherung.mjs";
+import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { bezugLink, fristChip, fristKlasse } from "./fristen.mjs";
 import { linienDiagramm, terminLeiste } from "../charts.mjs";
 import {
@@ -242,6 +242,6 @@ export function renderOverview() {
       ${renderVorsorgeKachel(today)}
     </div>
     ${renderTermineKachel(today)}
-    ${renderAbsicherungKachel(today)}
+    ${renderAbsicherungKacheln(today)}
   `;
 }

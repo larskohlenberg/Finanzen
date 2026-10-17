@@ -702,7 +702,8 @@ Zeitwerte zu Vorsorge stehen in `DATENROOT/zeitwerte.jsonl` mit
 - `beitragssumme`: Summe der seit Vertragsbeginn gezahlten Beitraege zum
   Standdatum, wie die Standmitteilung sie ausweist. Nur Anzeige: Grundlage der
   Wertentwicklung im Vertragsdetail (Wert gegen Eingezahltes); Buchungen nach
-  dem Standdatum zaehlen dort dazu. Nie Nettovermoegen.
+  dem Standdatum zaehlen dort dazu, fuer fruehere Stichtage werden sie
+  abgezogen. Eine Summe je Vertrag reicht also. Nie Nettovermoegen.
 - Absicherungswerte, was bei Berufsunfaehigkeit oder Tod der versicherten
   Person (`person_id` am Vertrag) fliesst, brutto wie im Beleg:
   `bu_rente` (Euro je Monat), `erwerbsminderungsrente` (Euro je Monat,

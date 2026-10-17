@@ -52,7 +52,7 @@ ohne MCP.
 
 | CLI | MCP-Tool |
 | --- | --- |
-| Uebersicht der Web-App | `kennzahlen` (dieselben Kennzahlen wie die Uebersicht, frisch gerechnet; optional `stichtag`; erste Wahl fuer "Wie stehen wir?"; listet auch die anstehenden Fristen aus `anstehendeFristen`) |
+| Uebersicht der Web-App | `kennzahlen` (dieselben Kennzahlen wie die Uebersicht, frisch gerechnet; optional `stichtag`; erste Wahl fuer "Wie stehen wir?"; listet auch die anstehenden Fristen aus `anstehendeFristen` und die Absicherung je versicherter Person) |
 | Fristen anlegen, abhaken | `datei_lesen` / `datei_ersetzen` auf `DATENROOT/fristen.json` (kein eigenes Tool; Validator laeuft danach) |
 | `tools/neuer-bestand.mjs` | — (nur CLI: legt einmalig einen leeren Datenbestand mit Grundkategorien an, bevor es einen MCP-Server gibt) |
 | `tools/validator.mjs` | `status` (Validator-Ergebnis mit Fehlern; laeuft ausserdem nach jedem Schreiben) |
@@ -652,6 +652,16 @@ Zeitwerte zu Vorsorge stehen in `DATENROOT/zeitwerte.jsonl` mit
   Vermittlerportal), auch bei nicht kuendbaren Vertraegen. Nur Anzeige, zaehlt
   nie ins Nettovermoegen. Ein Portalfeld "Rueckkaufswert" ohne ausgewiesenen
   Stornoabzug gehoert hierher, nicht nach `rueckkaufswert`.
+- Absicherungswerte, was bei Berufsunfaehigkeit oder Tod der versicherten
+  Person (`person_id` am Vertrag) fliesst, brutto wie im Beleg:
+  `bu_rente` (Euro je Monat), `erwerbsminderungsrente` (Euro je Monat,
+  gesetzliche Rente), `todesfallleistung` (einmalig) und
+  `hinterbliebenenrente` (Euro je Monat, Witwen- und Waisenrente zusammen).
+  Nur Anzeige (Kachel Absicherung, `kennzahlen`, Wertstaende); nie
+  Nettovermoegen, nie Altersrente, nicht in Szenarien. Gerechnet in
+  `absicherung.mjs` (`absicherung(data, today)`): je aktiver Person mit
+  laufendem Vertrag der juengste Wert je Vertrag und Feld bis zum Stichtag,
+  beendete und gekuendigte Vertraege fallen weg.
 
 Laufende Beitraege werden einseitig von `DATENROOT/regelzahlungen.json` aus
 verknuepft: `Regelzahlung.vorsorge_id` zeigt auf `vorsorge.vorsorge_id`. Die

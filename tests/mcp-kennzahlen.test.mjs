@@ -71,6 +71,16 @@ test("kennzahlen liefert dieselben Werte wie die Uebersicht", async () => {
     assert.ok(termine.length > 0, "Demodaten haben Fristen");
     for (const termin of termine) assert.ok(text.includes(fristZeile(termin)), fristZeile(termin));
 
+    // Absicherung je versicherter Person wie in der Kachel.
+    const { absicherung } = await import("../app/absicherung.mjs");
+    const personen = absicherung(data, heute);
+    assert.ok(personen.some((p) => p.bu.posten.length && p.tod.posten.length), "Demodaten zeigen BU und Tod");
+    assert.match(text, /Absicherung je versicherter Person/);
+    for (const p of personen) {
+      assert.ok(text.includes(`- ${p.person_id} ${p.name}: BU `), p.person_id);
+      for (const x of [...p.bu.posten, ...p.tod.posten]) assert.ok(text.includes(`${x.vorsorge_id} ${x.name}: ${x.feld} ${eur(x.wert_cents)}, Stand ${x.standdatum}`), x.feld);
+    }
+
     // Keine Einzelbuchungen, kein Float.
     assert.doesNotMatch(text, /TRX-/);
     for (const betrag of text.match(/-?\d+(\.\d+)? EUR/g)) assert.match(betrag, /^-?\d+\.\d{2} EUR$/);

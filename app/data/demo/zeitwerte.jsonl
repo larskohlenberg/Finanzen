@@ -46,3 +46,9 @@
 {"entitaet":"vorsorge","entitaet_id":"VS-004","feld":"erwartete_kapitalleistung","wert":"31000.00","standdatum":"2026-02-01","qualitaet":"geschaetzt","quelle_hinweis":"Vertragsstand 2025"}
 {"entitaet":"vorsorge","entitaet_id":"VS-005","feld":"erwartete_kapitalleistung","wert":"200000.00","standdatum":"2026-02-01","qualitaet":"belegt","quelle_hinweis":"Police Risiko-LV (Todesfallsumme)"}
 {"entitaet":"vorsorge","entitaet_id":"VS-006","feld":"erwartete_rente","wert":"240.00","standdatum":"2023-06-01","qualitaet":"geschaetzt","quelle_hinweis":"Alte Hochrechnung — ungeprüft"}
+{"entitaet":"vorsorge","entitaet_id":"VS-001","feld":"erwerbsminderungsrente","wert":"1210.00","standdatum":"2026-01-20","qualitaet":"belegt","quelle_hinweis":"Renteninformation 2026 (volle Erwerbsminderung, brutto)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-001","feld":"hinterbliebenenrente","wert":"760.00","standdatum":"2026-01-20","qualitaet":"geschaetzt","quelle_hinweis":"Renteninformation 2026 (große Witwerrente und Halbwaisenrenten geschätzt, brutto)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-002","feld":"erwerbsminderungsrente","wert":"1020.00","standdatum":"2026-01-20","qualitaet":"belegt","quelle_hinweis":"Renteninformation 2026 (volle Erwerbsminderung, brutto)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-002","feld":"hinterbliebenenrente","wert":"640.00","standdatum":"2026-01-20","qualitaet":"geschaetzt","quelle_hinweis":"Renteninformation 2026 (große Witwenrente und Halbwaisenrenten geschätzt, brutto)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-004","feld":"bu_rente","wert":"1000.00","standdatum":"2026-02-01","qualitaet":"belegt","quelle_hinweis":"Vertragsstand 2025 (Berufsunfähigkeits-Zusatzversicherung)"}
+{"entitaet":"vorsorge","entitaet_id":"VS-004","feld":"todesfallleistung","wert":"23400.00","standdatum":"2026-02-01","qualitaet":"belegt","quelle_hinweis":"Vertragsstand 2025 (Todesfallleistung vor Rentenbeginn)"}

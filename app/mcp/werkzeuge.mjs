@@ -401,7 +401,7 @@ const status = {
 
 const kennzahlen = {
   name: "kennzahlen",
-  description: "Erste Wahl fuer Fragen wie \u201eWie stehen wir?\u201c, liefert dieselben Kennzahlen wie die Uebersicht: Nettovermoegen mit Aktiva/Passiva und Positionen, Summe geladener Bewegungen, Kontentabelle, naechste Aktion, Checks und anstehende Fristen (12 Monate, mit ueberfaelligen). Bei jedem Aufruf frisch gerechnet, nur Aggregate, keine Einzelbuchungen. Rein lesend.",
+  description: "Erste Wahl fuer Fragen wie \u201eWie stehen wir?\u201c, liefert dieselben Kennzahlen wie die Uebersicht: Nettovermoegen mit Aktiva/Passiva und Positionen, Summe geladener Bewegungen, Kontentabelle, naechste Aktion, Checks, anstehende Fristen (12 Monate, mit ueberfaelligen) und die Absicherung je versicherter Person (Leistungen bei BU und Tod). Bei jedem Aufruf frisch gerechnet, nur Aggregate, keine Einzelbuchungen. Rein lesend.",
   inputSchema: {
     type: "object",
     properties: { stichtag: { ...DATUM, description: "Stichtag fuer Nettovermoegen, Checks, naechste Aktion und Fristen (Default heute)" } },

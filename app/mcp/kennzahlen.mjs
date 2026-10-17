@@ -2,7 +2,9 @@
 // Reine Funktion hinter dem MCP-Tool `kennzahlen`: die Kennzahlen der
 // Uebersicht als kompakter Text. Gerechnet wird ausschliesslich mit denselben
 // Funktionen wie die Uebersicht (uebersicht-rechnung.mjs, vermoegen.mjs,
-// next-action.mjs, fristen.mjs); hier wird nur formatiert. Betraege als Decimal-String.
+// next-action.mjs, fristen.mjs, absicherung.mjs); hier wird nur formatiert.
+// Betraege als Decimal-String.
+import { absicherung } from "../absicherung.mjs";
 import { anstehendeFristen } from "../fristen.mjs";
 import { buildNextAgentAction } from "../next-action.mjs";
 import { centsToDecimal } from "../tools/lib/text.mjs";
@@ -30,6 +32,21 @@ export function istKalenderdatum(text) {
   const [j, m, t] = text.split("-").map(Number);
   const d = new Date(Date.UTC(j, m - 1, t));
   return d.getUTCFullYear() === j && d.getUTCMonth() === m - 1 && d.getUTCDate() === t;
+}
+
+// Absicherung je versicherter Person: Summen je Fall, darunter die Posten.
+function absicherungZeilen(data, stichtag) {
+  const personen = absicherung(data, stichtag);
+  if (!personen.length) return ["Absicherung: keine Person mit laufendem Vorsorgevertrag"];
+  const fall = (summen) => summen.filter(([cents]) => cents).map(([cents, einheit]) => `${eur(cents)} ${einheit}`).join(" + ") || "nicht erfasst";
+  return [
+    "Absicherung je versicherter Person (Leistung bei BU bzw. Tod; nur erfasste Werte, ohne Bedarfsrechnung; Monatswerte brutto):",
+    ...personen.flatMap((p) => [
+      `- ${p.person_id} ${p.name}: BU ${fall([[p.bu.monatlich_cents, "je Monat"]])}; Tod ${fall([[p.tod.einmalig_cents, "einmalig"], [p.tod.monatlich_cents, "je Monat"]])}`,
+      ...[["BU", p.bu.posten], ["Tod", p.tod.posten]].flatMap(([name, posten]) =>
+        posten.map((x) => `  * ${name} ${x.vorsorge_id} ${x.name}: ${x.feld} ${eur(x.wert_cents)}, Stand ${x.standdatum}`)),
+    ]),
+  ];
 }
 
 // data: Bestand wie im Browser (loadFinanceData + validation, checks, importfehler).
@@ -70,6 +87,8 @@ export function kennzahlenText(data, stichtag) {
     "",
     `Fristen (12 Monate ab Stichtag, dazu ueberfaellige; bald = innerhalb 60 Tagen): ${fristen.length}`,
     ...fristen.map(fristZeile),
+    "",
+    ...absicherungZeilen(data, stichtag),
   ];
   return zeilen.join("\n");
 }

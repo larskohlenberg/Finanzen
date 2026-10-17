@@ -121,6 +121,26 @@ const schemas = {
       bemerkung: { type: "string" },
     },
   },
+  fristen: {
+    optional: true,
+    required: ["frist_id", "bezeichnung", "art", "datum"],
+    fields: {
+      frist_id: { type: "string", pattern: /^FR-\d{3}$/ },
+      bezeichnung: { type: "string", minLength: 1 },
+      art: { type: "string", enum: ["widerspruch", "kuendigung", "entscheidung", "wiedervorlage", "sonstiges"] },
+      datum: { type: "string", format: "date" },
+      rhythmus_einheit: { type: "string", enum: ["tag", "woche", "monat", "jahr"] },
+      rhythmus_intervall: { type: "number", integer: true, min: 1 },
+      vorsorge_id: { type: "string", pattern: /^VS-\d{3}$/ },
+      darlehen_id: { type: "string", pattern: /^DAR-\d{3}$/ },
+      immobilie_id: { type: "string", pattern: /^IMM-\d{3}$/ },
+      konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
+      vermoegenswert_id: { type: "string", pattern: /^VMW-\d{3}$/ },
+      regelzahlung_id: { type: "string", pattern: /^RZ-\d{3}$/ },
+      erledigt_bis: { type: "string", format: "date" },
+      bemerkung: { type: "string" },
+    },
+  },
   szenarien: {
     optional: true,
     required: ["szenario_id", "name", "status", "stand", "reichweite_bis", "erstellt_am", "annahmen"],
@@ -590,8 +610,30 @@ function validateCrossFieldRules(data, errors) {
     }
   });
 
+  validateFristen(data, { vorsorge, darlehen, immobilie: immobilien, konto: konten, vermoegenswert: vermoegenswerte, regelzahlung: regelzahlungen }, errors);
   validateSzenarien(data, errors);
   validateLogos(data.logos ?? [], errors);
+}
+
+// Eine Frist haengt an hoechstens einem Objekt; ohne Bezug ist sie ausdruecklich
+// erlaubt (z. B. Steuererklaerung). Rhythmus nur als Paar.
+export const FRIST_BEZUEGE = ["vorsorge", "darlehen", "immobilie", "konto", "vermoegenswert", "regelzahlung"];
+
+function validateFristen(data, objekte, errors) {
+  data.fristen?.forEach((frist) => {
+    const prefix = `fristen.${frist.frist_id}`;
+    const bezuege = FRIST_BEZUEGE.filter((typ) => Object.hasOwn(frist, `${typ}_id`));
+    if (bezuege.length > 1) {
+      errors.push(`${prefix}: hoechstens ein Bezug erlaubt (gesetzt: ${bezuege.map((typ) => `${typ}_id`).join(", ")})`);
+    }
+    for (const typ of bezuege) {
+      const id = frist[`${typ}_id`];
+      if (!objekte[typ].has(id)) errors.push(`${prefix}.${typ}_id: ${id} existiert nicht`);
+    }
+    if (Object.hasOwn(frist, "rhythmus_einheit") !== Object.hasOwn(frist, "rhythmus_intervall")) {
+      errors.push(`${prefix}: rhythmus_einheit und rhythmus_intervall nur zusammen`);
+    }
+  });
 }
 
 function validateTransfer(transfer, transaktionen, errors) {

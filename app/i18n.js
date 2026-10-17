@@ -537,6 +537,8 @@ window.FINANCE_I18N = {
       jahre: "Jahre",
       monate: "Monate",
       zinsbindungBis: "Zinsbindung bis",
+      fristen: "Fristen",
+      fristUeberfaellig: "überfällig",
       restschuldLaufzeitende: "Restschuld am Laufzeitende",
       verknuepft: "Verknüpft",
       sondertilgungenTitle: "In Szenarien geplante Sondertilgungen",
@@ -583,6 +585,7 @@ window.FINANCE_I18N = {
         "vorsorge-ungeprueft": "Vorsorge ungeprüft",
         "vorsorge-wiedervorlage": "Vorsorge-Wiedervorlage",
         "vorsorge-wechsel": "Vorsorge-Wechsel prüfen",
+        "frist-ueberfaellig": "Frist überfällig",
       },
     },
     szenarien: {
@@ -1437,6 +1440,8 @@ window.FINANCE_I18N = {
       jahre: "years",
       monate: "months",
       zinsbindungBis: "Fixed interest until",
+      fristen: "Deadlines",
+      fristUeberfaellig: "overdue",
       restschuldLaufzeitende: "Remaining debt at term end",
       verknuepft: "Linked",
       sondertilgungenTitle: "Planned extra repayments in scenarios",
@@ -1483,6 +1488,7 @@ window.FINANCE_I18N = {
         "vorsorge-ungeprueft": "Pension unverified",
         "vorsorge-wiedervorlage": "Pension follow-up",
         "vorsorge-wechsel": "Pension switch check",
+        "frist-ueberfaellig": "Deadline overdue",
       },
     },
     szenarien: {

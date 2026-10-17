@@ -63,6 +63,14 @@ test("kennzahlen liefert dieselben Werte wie die Uebersicht", async () => {
     assert.ok(text.includes(aktion.type === "none" ? "Naechste Aktion: keine" : `Naechste Aktion: ${aktion.label} (${aktion.count})`), text);
     for (const item of checkVorschau(checkItems(data, heute))) assert.ok(text.includes(item.detail), item.detail);
 
+    // Fristen: dieselben Termine wie anstehendeFristen, eine Zeile je Termin.
+    const { anstehendeFristen } = await import("../app/fristen.mjs");
+    const { fristZeile } = await import("../app/mcp/kennzahlen.mjs");
+    const termine = anstehendeFristen(data, heute);
+    assert.ok(text.includes(`Fristen (12 Monate ab Stichtag, dazu ueberfaellige; bald = innerhalb 60 Tagen): ${termine.length}`), text);
+    assert.ok(termine.length > 0, "Demodaten haben Fristen");
+    for (const termin of termine) assert.ok(text.includes(fristZeile(termin)), fristZeile(termin));
+
     // Keine Einzelbuchungen, kein Float.
     assert.doesNotMatch(text, /TRX-/);
     for (const betrag of text.match(/-?\d+(\.\d+)? EUR/g)) assert.match(betrag, /^-?\d+\.\d{2} EUR$/);

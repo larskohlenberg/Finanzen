@@ -31,7 +31,7 @@ export const GRUNDKATEGORIEN = [
 const LEERE_LISTEN = [
   "personen.json", "konten.json", "transfers.json", "regelzahlungen.json",
   "kategorisierungsregeln.json", "szenarien.json", "immobilien.json",
-  "darlehen.json", "vermoegenswerte.json", "vorsorge.json",
+  "darlehen.json", "vermoegenswerte.json", "vorsorge.json", "fristen.json",
 ];
 const LEERE_ZEILENDATEIEN = ["transaktionen.jsonl", "zeitwerte.jsonl"];
 

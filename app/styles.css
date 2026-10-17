@@ -3109,6 +3109,8 @@ a.linkish {
 }
 .belege-ausschnitt .belege-tabelle-wrap { max-height: 420px; }
 .belege-aktionen-zelle { width: 1%; text-align: right; white-space: nowrap; }
+.belege-tabelle td.belege-verknuepft { white-space: normal; max-width: 220px; }
+.belege-verknuepft .linkish { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .belege-aktionen-knoepfe { display: inline-flex; gap: 2px; }
 .icon-link { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-tight); color: var(--muted); }
 .icon-link:hover, .icon-link:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }

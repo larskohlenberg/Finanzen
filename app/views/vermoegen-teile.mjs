@@ -154,7 +154,7 @@ export function dokumenteBrowserHtml(ids, ordner = []) {
   index ??= verweisIndex(data);
   const { zustand, dateien } = belegDateienStand();
   const liste = dokumenteZuObjekt({ dateien, index, ids, ordner });
-  const html = liste.length ? renderDokumenteAusschnitt({ pfade: liste.map((d) => d.pfad), schluessel: ids[0] }) : "";
+  const html = liste.length ? renderDokumenteAusschnitt({ pfade: liste.map((d) => d.pfad), schluessel: ids[0], ids }) : "";
   if (html) return html;
   const text = zustand === "laedt" || zustand === "unbekannt" ? t("vermoegen.dokumente.laedt") : t("vermoegen.dokumente.keine");
   return `<p class="muted">${escapeHtml(text)}</p>`;

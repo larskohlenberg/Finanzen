@@ -10,7 +10,7 @@ import { renderPageHead, formatDate } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import {
   BELEGE_WURZEL, baueBaum, belegSchluessel, dateiUrl, dokumentRoute, fasseTransaktionenZusammen,
-  findeOrdner, formatGroesse, istBildTyp, kodierePfad, ordneZwillingeZu, sortiereDateien, sucheDateien,
+  findeOrdner, formatGroesse, fremdeVerweise, istBildTyp, kodierePfad, ordneZwillingeZu, sortiereDateien, sucheDateien,
   verweisAnzahl, verweisIndex, vorfahren,
 } from "../belege.mjs";
 
@@ -110,7 +110,8 @@ export function toggleAusschnittOrdner(schluessel, pfad) {
 // Dieselbe Ansicht wie #/dokumente (Ordnerbaum links, Dateitabelle rechts), aber nur
 // mit den Dateien des Objekts. Startet im tiefsten gemeinsamen Ordner. Ein Klick auf
 // eine Datei oeffnet sie in der Dokumentenansicht. Leer, wenn keine Datei bekannt ist.
-export function renderDokumenteAusschnitt({ pfade, schluessel }) {
+// ids: die Objekte der Kachel; ihre eigenen Verknuepfungen zeigt die Spalte nicht.
+export function renderDokumenteAusschnitt({ pfade, schluessel, ids = [schluessel] }) {
   const dateien = pfade.map((p) => ansicht.nachPfad.get(belegSchluessel(p))).filter((d) => d && !d.istZwilling);
   if (!dateien.length) return "";
   const baum = baueBaum(dateien);
@@ -119,7 +120,8 @@ export function renderDokumenteAusschnitt({ pfade, schluessel }) {
   const gewaehlt = ausschnitt.ordner.get(schluessel);
   const ordner = (gewaehlt && findeOrdner(baum, gewaehlt)) || start;
   const ordnerAttr = (pfad) => `data-action="select-dok-ausschnitt-ordner" data-dok-ausschnitt="${escapeHtml(schluessel)}" data-beleg-ordner="${escapeHtml(pfad)}"`;
-  const zeilen = sortiereDateien(ordner.dateien, ansicht.sort, (d) => verweisAnzahl(verweisFuer(d.pfad)));
+  const fremde = (d) => fremdeVerweise(verweisFuer(d.pfad), ids);
+  const zeilen = sortiereDateien(ordner.dateien, ansicht.sort, (d) => { const f = fremde(d); return f.andere.length + f.buchungen; });
   const kopf = `<p class="belege-kopf"><strong>${escapeHtml(ordner.pfad === BELEGE_WURZEL ? t("dokumente.title") : ordner.pfad.slice(BELEGE_WURZEL.length + 1))}</strong> <span class="muted">· ${ordner.dateien.length}</span></p>`;
   return `
     <div class="belege-browser belege-ausschnitt">
@@ -129,7 +131,7 @@ export function renderDokumenteAusschnitt({ pfade, schluessel }) {
       <div class="belege-trenner" data-belege-trenner role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeHtml(t("dokumente.trenner"))}" title="${escapeHtml(t("dokumente.trenner"))}"></div>
       <div class="belege-liste">
         ${kopf}
-        ${zeilen.length || ordner.ordner.length ? renderTabelle({ zeilen, unterordner: ordner.ordner, ordnerAttr, zeileFn: renderAusschnittZeile, aktionen: true }) : `<p class="muted belege-leer">${escapeHtml(t("dokumente.ordnerLeer"))}</p>`}
+        ${zeilen.length || ordner.ordner.length ? renderTabelle({ zeilen, unterordner: ordner.ordner, ordnerAttr, zeileFn: (d) => renderAusschnittZeile(d, fremde(d)), aktionen: true }) : `<p class="muted belege-leer">${escapeHtml(t("dokumente.ordnerLeer"))}</p>`}
       </div>
     </div>`;
 }
@@ -281,7 +283,7 @@ function renderTabelle({ zeilen, unterordner, suche = "", datei = null, ordnerAt
             ${sortKopf("groesse", "dokumente.spalteGroesse", "amount")}
             ${sortKopf("geaendert", "dokumente.spalteGeaendert")}
             ${sortKopf("text", "dokumente.spalteText")}
-            ${sortKopf("verknuepft", "dokumente.spalteVerknuepft", "amount")}
+            ${sortKopf("verknuepft", "dokumente.spalteVerknuepft", aktionen ? "" : "amount")}
             ${aktionen ? `<th><span class="sr-only">${escapeHtml(t("dokumente.aktionen"))}</span></th>` : ""}
           </tr>
         </thead>
@@ -309,9 +311,9 @@ function renderOrdnerZeile(o, ordnerAttr, aktionen = false) {
 // Zeile im Ausschnitt eines Objekts: Name und Zeile oeffnen die Datei direkt im neuen
 // Tab, hinten Herunterladen und der Sprung in die Dokumentenansicht (Verknuepfungen).
 // Die Links tragen eine leere Aktion, damit der Zeilenklick sie nicht doppelt oeffnet.
-function renderAusschnittZeile(d) {
+// Verknuepft zeigt die anderen Eintraege, die die Datei als Quelle nennen, als Links.
+function renderAusschnittZeile(d, fremde) {
   const url = dateiUrl(d.pfad);
-  const anzahl = verweisAnzahl(verweisFuer(d.pfad));
   return `
     <tr class="clickable" data-action="dokument-oeffnen" data-url="${escapeHtml(url)}" title="${escapeHtml(t("dokumente.oeffnen"))}">
       <td class="belege-name"><a class="linkish" href="${escapeHtml(url)}" target="_blank" rel="noopener" data-action="dokument-link">${iconSvg("belege")}<span>${escapeHtml(d.name)}</span></a></td>
@@ -319,12 +321,24 @@ function renderAusschnittZeile(d) {
       <td class="amount">${escapeHtml(formatGroesse(d.groesse, locale()))}</td>
       <td title="${escapeHtml(formatZeit(d.geaendert))}">${escapeHtml(formatTag(d.geaendert))}</td>
       <td>${textZelle(d)}</td>
-      <td class="amount">${anzahl ? `<strong>${anzahl}</strong>` : `<span class="muted">0</span>`}</td>
+      <td class="belege-verknuepft">${verknuepftLinks(d, fremde)}</td>
       <td class="belege-aktionen-zelle"><span class="belege-aktionen-knoepfe">
         <a class="icon-link" href="${escapeHtml(url)}" download="${escapeHtml(d.name)}" data-action="dokument-link" title="${escapeHtml(t("dokumente.herunterladen"))}" aria-label="${escapeHtml(`${t("dokumente.herunterladen")}: ${d.name}`)}">${iconSvg("download")}</a>
         <a class="icon-link" href="${escapeHtml(dokumentRoute(d.pfad))}" data-action="dokument-link" title="${escapeHtml(t("dokumente.inDokumentenZeigen"))}" aria-label="${escapeHtml(`${t("dokumente.inDokumentenZeigen")}: ${d.name}`)}">${iconSvg("folder", { className: "icon-unten-buendig" })}</a>
       </span></td>
     </tr>`;
+}
+
+function verknuepftLinks(d, { andere, buchungen }) {
+  const links = andere.map((v) => {
+    const titel = `${t(`dokumente.entitaet.${v.entitaet}`)}: ${v.label}`;
+    return `<a class="linkish" href="${escapeHtml(v.route)}" data-action="dokument-link" title="${escapeHtml(titel)}">${escapeHtml(v.name || v.id)}</a>`;
+  });
+  if (buchungen) {
+    const text = buchungen === 1 ? t("dokumente.buchungKurz") : t("dokumente.buchungenKurz").replace("{n}", String(buchungen));
+    links.push(`<a class="linkish" href="${escapeHtml(`#/transaktionen/dokument/${kodierePfad(d.pfad.slice(BELEGE_WURZEL.length + 1))}`)}" data-action="dokument-link" title="${escapeHtml(t("dokumente.inTransaktionenAnzeigen"))}">${escapeHtml(text)}</a>`);
+  }
+  return links.length ? links.join("") : `<span class="muted" title="${escapeHtml(t("dokumente.keineWeiterenVerknuepfungen"))}">–</span>`;
 }
 
 function renderZeile(d, gewaehlt, suche) {

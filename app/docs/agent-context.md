@@ -677,7 +677,9 @@ Vorjahresvergleich.
 Vorsorgeansprueche liegen in `DATENROOT/vorsorge.json` und folgen
 `schemas/vorsorge.schema.json`. `art` ist der fachliche Diskriminator, z. B.
 `gesetzliche-rente`, `betriebsrente`, `riester`, `rentenversicherung`,
-`lebensversicherung` oder `schutzversicherung`. `kapitalbildend = true` bedeutet:
+`lebensversicherung` oder `schutzversicherung`. Schutzversicherungen tragen
+zusaetzlich `sparte` (KFZ, Hausrat, Wohngebaeude, BU, Pflege ...), die auf der
+Versicherungskachel als Etikett erscheint. `kapitalbildend = true` bedeutet:
 der aktuelle `rueckkaufswert` fliesst als Aktivum ins Nettovermoegen. Riester ist nie
 kapitalbildend (Validator): das Kapital ist zweckgebunden, zu Rentenbeginn sind
 hoechstens 30 Prozent als Einmalzahlung moeglich, der Rest wird verrentet; der

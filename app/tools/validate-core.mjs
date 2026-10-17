@@ -226,6 +226,7 @@ const schemas = {
       status: { type: "string", enum: ["aktiv", "gekuendigt", "ruhend", "geplant", "laufend", "beendet"] },
       kapitalbildend: { type: "boolean" },
       kapitalwahl: { type: "string", enum: ["offen", "monatsrente", "kapital"] },
+      sparte: { type: "string", enum: ["kfz", "haftpflicht", "rechtsschutz", "hausrat", "wohngebaeude", "photovoltaik", "berufsunfaehigkeit", "pflege", "krankenzusatz", "unfall", "risikoleben", "reise", "sonstige"] },
       geprueft_am: { type: "string", format: "date" },
       leistung_beginn: { type: "string", format: "date" },
       ersetzt_vorsorge_id: { type: "string", pattern: /^VS-\d{3}$/ },

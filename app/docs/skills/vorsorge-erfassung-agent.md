@@ -99,6 +99,8 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
 3. **Vorsorge-Entitaet vorschlagen:** `vorsorge_id`, `art`, `name`, `person_id`,
    `status`, `kapitalbildend`, optional `kapitalwahl`, `leistung_beginn`,
    `aktiv_bis`, `ersetzt_vorsorge_id`, `quelle_standdatum` und `bemerkung`.
+   Bei `schutzversicherung` zusaetzlich `sparte` (z. B. `kfz`, `hausrat`,
+   `wohngebaeude`, `berufsunfaehigkeit`); sie steht als Etikett auf der Kachel.
 4. **Zeitwerte vorschlagen:** nur belegte oder nachvollziehbar geschaetzte Werte
    aus dem Beleg uebernehmen. Jeder Wert wird einzeln mit Quelle, Standdatum und
    Qualitaet gezeigt.

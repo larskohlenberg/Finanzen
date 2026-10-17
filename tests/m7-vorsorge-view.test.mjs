@@ -35,7 +35,7 @@ function fixture() {
       { vorsorge_id: "VS-002", art: "riester", name: "Riester Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: false, kapitalwahl: "offen", leistung_beginn: "2040-02-01", geprueft_am: "2026-08-15", quelle_hinweis: "Standmitteilung 2026", bemerkung: "Kapitalwahl noch offen" },
       { vorsorge_id: "VS-003", art: "lebensversicherung", name: "LV Lena", person_id: "PER-001", status: "aktiv", kapitalbildend: true, leistung_beginn: "2035-05-01", geprueft_am: "2026-08-01" },
       { vorsorge_id: "VS-004", art: "lebensversicherung", name: "LV Martin", person_id: "PER-002", status: "aktiv", kapitalbildend: true },
-      { vorsorge_id: "VS-005", art: "schutzversicherung", name: "Wohngebaeude", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-10-01" },
+      { vorsorge_id: "VS-005", art: "schutzversicherung", sparte: "wohngebaeude", name: "Wohngebaeude", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-10-01" },
       { vorsorge_id: "VS-006", art: "schutzversicherung", name: "Alte Haftpflicht", person_id: "PER-002", status: "gekuendigt", kapitalbildend: false, geprueft_am: "2025-01-01" },
     ],
     zeitwerte: [
@@ -358,6 +358,21 @@ test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farb
     assert.match(karte, /48 % der garantierten Ablaufleistung als Rückkaufswert/);
     const martin = html.slice(html.indexOf('data-vorsorge="VS-004" aria-pressed'));
     assert.doesNotMatch(martin.slice(0, martin.indexOf("</div>")), /class="fortschritt"/, "ohne Werte kein Fortschritt");
+  });
+});
+
+test("Versicherungen: Sparte als Etikett auf der Kachel und in den Vertragsdaten", () => {
+  mitFixture(() => {
+    state.vorsorgeTab = "versicherungen";
+    state.zeigeBeendete = true;
+    state.selectedVorsorgeId = "VS-005";
+    state.klappKacheln = { "vorsorge.vertragsdaten": true };
+    const html = renderVorsorge();
+    const karte = (id) => { const start = html.indexOf(`data-vorsorge="${id}" aria-pressed`); return html.slice(start, html.indexOf("</div>", start)); };
+    assert.match(karte("VS-005"), /<span class="objekt-karte-marke"><span class="chip neutral">Wohngebäude<\/span>/);
+    assert.doesNotMatch(karte("VS-005"), /Schutzversicherung/, "nicht die Vertragsart");
+    assert.doesNotMatch(karte("VS-006"), /class="chip neutral"/, "ohne Sparte kein Etikett");
+    assert.match(html, /Sparte[\s\S]{0,120}Wohngebäude/);
   });
 });
 

@@ -40,6 +40,15 @@ function vorsorgeArtLabel(art) {
   return label === key ? art : label;
 }
 
+function sparteLabel(sparte) {
+  const key = `vorsorge.sparte.${sparte}`;
+  const label = t(key);
+  return label === key ? sparte : label;
+}
+
+// Etikett oben rechts auf der Kachel: bei Versicherungen die Sparte, sonst die Vertragsart.
+const kachelEtikett = (vs, tab) => (tab === "versicherungen" ? (vs.sparte ? sparteLabel(vs.sparte) : "") : vorsorgeArtLabel(vs.art));
+
 const zeitwert = (vs, feld) => aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld);
 // Feste Farbe je Vertrag (vertragsFarben); Vertraege ohne eigene Farbe sind grau.
 const farbKlasse = (farben, id) => (farben.has(id) ? `vertrag-farbe-${farben.get(id)}` : "vertrag-farbe-rest");
@@ -456,7 +465,7 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
   // Kein <button>: die Karte enthaelt mit dem Bezug einen eigenen Link.
   return `
     <div class="objekt-karte ${aktiv ? "active" : ""} ${vs.geprueft_am || istBeendet(vs) ? "" : "objekt-karte-ungeprueft"}" role="button" tabindex="0" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" aria-pressed="${aktiv}">
-      <span class="objekt-karte-kopf"><strong>${farben.has(vs.vorsorge_id) ? farbPunkt(farbKlasse(farben, vs.vorsorge_id)) : ""}${escapeHtml(vs.name)}</strong><span class="objekt-karte-marke">${tab === "versicherungen" ? "" : `<span class="chip neutral">${escapeHtml(vorsorgeArtLabel(vs.art))}</span>`}${logoMarke({ vorsorge: vs })}</span></span>
+      <span class="objekt-karte-kopf"><strong>${farben.has(vs.vorsorge_id) ? farbPunkt(farbKlasse(farben, vs.vorsorge_id)) : ""}${escapeHtml(vs.name)}</strong><span class="objekt-karte-marke">${kachelEtikett(vs, tab) ? `<span class="chip neutral">${escapeHtml(kachelEtikett(vs, tab))}</span>` : ""}${logoMarke({ vorsorge: vs })}</span></span>
       <span class="objekt-karte-wert">${wert}</span>
       ${fortschritt ? `${balkenSvg([{ anteil: fortschritt.anteil, klasse: farbKlasse(farben, vs.vorsorge_id), titel: fortschritt.text }], { klasse: "fortschritt" })}<span class="objekt-karte-zeile">${escapeHtml(fortschritt.text)}</span>` : ""}
       ${zeilen.filter(Boolean).map((z) => `<span class="objekt-karte-zeile">${escapeHtml(z)}</span>`).join("")}
@@ -595,6 +604,7 @@ function renderVertragsdaten(vs, tab, offen) {
       <div class="stammdaten-raster">
         ${detailRow(t("labels.id"), escapeHtml(vs.vorsorge_id))}
         ${detailRow(t("labels.type"), escapeHtml(vorsorgeArtLabel(vs.art)))}
+        ${vs.sparte ? detailRow(t("vorsorge.sparteLabel"), escapeHtml(sparteLabel(vs.sparte))) : ""}
         ${detailRow(t("labels.owner"), escapeHtml(personName(vs.person_id)))}
         ${detailRow(t("labels.status"), statusChip(vs))}
         ${tab === "versicherungen" && !vs.kapitalbildend ? "" : detailRow(t("vorsorge.kapitalbildendLabel"), escapeHtml(vs.kapitalbildend ? t("labels.yes") : t("labels.no")))}

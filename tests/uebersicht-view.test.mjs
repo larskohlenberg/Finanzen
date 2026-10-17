@@ -39,6 +39,7 @@ test("Termin-Kachel listet jährliche Zahlungen der nächsten zwölf Monate mit 
   data.vermoegenswerte = [];
   data.vorsorge = [];
   data.zeitwerte = [];
+  data.fristen = [];
   const basis = { status: "bestaetigt", rhythmus_einheit: "jahr", rhythmus_intervall: 1 };
   data.regelzahlungen = [
     { ...basis, regelzahlung_id: "RZ-901", bezeichnung: "Wohngebäude Jahresbeitrag", betrag: "-480.00", anker_datum: iso(-1, 1, 1), konto_id: "KTO-901" },
@@ -99,6 +100,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   data.darlehen = [];
   data.vermoegenswerte = [];
   data.vorsorge = [];
+  data.fristen = [];
   data.zeitwerte = [
     { entitaet: "konto", entitaet_id: "KTO-901", feld: "depotwert", standdatum: "2026-09-15", wert: "4321.09", qualitaet: "belegt" },
     { entitaet: "konto", entitaet_id: "KTO-903", feld: "kontostand", standdatum: "2026-06-08", wert: "1200.00", qualitaet: "belegt" },
@@ -162,4 +164,45 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.match(kontenTabelle, /Liquiditätsrelevant/);
   assert.doesNotMatch(kontenTabelle, /Wert heute|Belegter Stand|table-sum|1\.150,00|noch nicht belegt/);
   assert.match(zeile("KTO-903"), /chip review/);
+});
+
+test("Termin-Kachel zeigt Fristen mit Spur, Objekt-Link und Hinweis auf bald und ueberfaellig", async () => {
+  const { localTodayIso, addInterval } = await import("../app/liquiditaet.mjs");
+  const heute = localTodayIso();
+  data.validation = { valid: true, errors: [] };
+  data.importfehler = [];
+  data.checks = [];
+  data.konten = [];
+  data.transaktionen = [];
+  data.transfers = [];
+  data.regelzahlungen = [];
+  data.immobilien = [{ immobilie_id: "IMM-901", bezeichnung: "Testhaus", status: "aktiv" }];
+  data.darlehen = [{ darlehen_id: "DAR-901", bezeichnung: "Testdarlehen", status: "aktiv", zinsbindung_bis: addInterval(heute, "monat", 5) }];
+  data.vermoegenswerte = [];
+  data.vorsorge = [{ vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag", person_id: "PER-001", status: "aktiv", kapitalbildend: true }];
+  data.zeitwerte = [];
+  data.fristen = [
+    { frist_id: "FR-901", bezeichnung: "Dynamik widersprechen", art: "widerspruch", datum: addInterval(heute, "tag", 10), vorsorge_id: "VS-901" },
+    { frist_id: "FR-902", bezeichnung: "Alte Frist", art: "sonstiges", datum: addInterval(heute, "tag", -3) },
+    { frist_id: "FR-903", bezeichnung: "Abrechnung pruefen", art: "wiedervorlage", datum: addInterval(heute, "monat", 8), immobilie_id: "IMM-901" },
+    { frist_id: "FR-904", bezeichnung: "Erledigt", art: "sonstiges", datum: addInterval(heute, "monat", 2), erledigt_bis: addInterval(heute, "monat", 2) },
+  ];
+  state.view = "overview";
+  state.lang = "de";
+
+  const kachel = renderOverview().match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
+  const spalte = kachel.match(/<h3 class="termine-titel">Fristen<\/h3>[\s\S]*?<\/ul>/)?.[0] ?? "";
+  assert.match(kachel, />Fristen<\/text>/);
+  assert.equal((kachel.match(/class="terminleiste-marker raute/g) ?? []).length, 4);
+  assert.match(spalte, /<li class="ueberfaellig">[\s\S]*Alte Frist[\s\S]*chip danger">überfällig/);
+  assert.match(spalte, /<li class="bald">[\s\S]*Dynamik widersprechen[\s\S]*data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag[\s\S]*in 10 Tagen/);
+  assert.match(spalte, /Zinsbindung endet[\s\S]*data-action="select-vermoegen-objekt" data-vermoegen="darlehen:DAR-901">Testdarlehen/);
+  assert.match(spalte, /Abrechnung pruefen[\s\S]*data-vermoegen="immobilie:IMM-901">Testhaus/);
+  assert.doesNotMatch(spalte, /Erledigt/);
+  assert.ok(spalte.indexOf("Alte Frist") < spalte.indexOf("Dynamik widersprechen"), "nach Datum sortiert");
+
+  data.fristen = [];
+  data.darlehen = [];
+  const leer = renderOverview().match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.match(leer, /Keine Frist in den nächsten zwölf Monaten/);
 });

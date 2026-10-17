@@ -2683,6 +2683,7 @@ a.linkish {
 }
 .balken-grund { fill: var(--surface-2); }
 .segment-konto { fill: var(--accent); background: var(--accent); }
+.segment-depot { fill: color-mix(in srgb, var(--accent) 50%, var(--surface)); background: color-mix(in srgb, var(--accent) 50%, var(--surface)); }
 .segment-immobilie { fill: #3b6fb6; background: #3b6fb6; }
 .segment-vermoegenswert { fill: #a07a1c; background: #a07a1c; }
 .segment-vorsorge { fill: #8a5cc2; background: #8a5cc2; }
@@ -3294,8 +3295,13 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .vertragsdaten-mit-logo > .logo-marke { width: 48px; height: 48px; margin: 8px 0 0; border-radius: 10px; font-size: 16px; }
 
 
-/* Uebersicht: drei Bereichskacheln und die Termin-Kachel darunter. */
-.uebersicht-kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+/* Uebersicht: drei Bereichskacheln (Vermoegen doppelt breit) und die Termin-Kachel darunter. */
+.uebersicht-kacheln { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 2fr) minmax(0, 1.3fr); gap: 16px; align-items: start; }
+.vermoegen-teile { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.vermoegen-teil { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+.vermoegen-teil-titel { margin: 0; color: var(--muted); font-size: 13px; font-weight: 650; }
+.vermoegen-teil-wert { margin: 4px 0 0; font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.vermoegen-teil .muted { margin: 8px 0 0; font-size: 13px; }
 .uebersicht-kachel { display: flex; flex-direction: column; container-type: inline-size; min-width: 0; }
 .uebersicht-kachel .kpi-value { margin: 8px 0 6px; }
 .uebersicht-kachel .diagramm-wrap { margin-top: 10px; }
@@ -3335,9 +3341,11 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .termine-liste li.bald .termine-datum { color: var(--review); }
 @media (max-width: 1100px) {
   .uebersicht-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .uebersicht-kachel-breit { grid-column: 1 / -1; order: -1; }
 }
 @media (max-width: 760px) {
   .uebersicht-kacheln { grid-template-columns: 1fr; }
+  .vermoegen-teile { grid-template-columns: 1fr; }
   .termine-liste li { grid-template-columns: 5.5em minmax(0, 1fr) auto; gap: 6px; }
 }
 

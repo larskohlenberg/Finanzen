@@ -194,8 +194,8 @@ test("Termin-Kachel zeigt Fristen mit Spur, Objekt-Link und Hinweis auf bald und
   const spalte = kachel.match(/<h3 class="termine-titel">Fristen<\/h3>[\s\S]*?<\/ul>/)?.[0] ?? "";
   assert.match(kachel, />Fristen<\/text>/);
   assert.equal((kachel.match(/class="terminleiste-marker raute/g) ?? []).length, 4);
-  assert.match(spalte, /<li class="ueberfaellig">[\s\S]*Alte Frist[\s\S]*chip danger">überfällig/);
-  assert.match(spalte, /<li class="bald">[\s\S]*Dynamik widersprechen[\s\S]*data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag[\s\S]*in 10 Tagen/);
+  assert.match(spalte, /<li class="ueberfaellig" data-datum="[^"]+">[\s\S]*Alte Frist[\s\S]*chip danger">überfällig/);
+  assert.match(spalte, /<li class="bald" data-datum="[^"]+">[\s\S]*Dynamik widersprechen[\s\S]*data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag[\s\S]*in 10 Tagen/);
   assert.match(spalte, /Zinsbindung endet[\s\S]*data-action="select-vermoegen-objekt" data-vermoegen="darlehen:DAR-901">Testdarlehen/);
   assert.match(spalte, /Abrechnung pruefen[\s\S]*data-vermoegen="immobilie:IMM-901">Testhaus/);
   assert.doesNotMatch(spalte, /Erledigt/);

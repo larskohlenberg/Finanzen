@@ -26,7 +26,7 @@ import {
 import { formatMoney, heuteIso, toggleKlappKachel, oeffneKlappKachel } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
-import { bindDiagrammHover } from "./diagramm-hover.mjs";
+import { bindDiagrammHover, termineListenBegrenzen } from "./diagramm-hover.mjs";
 import { anwendenBaumBreite, bindBelegeTrenner } from "./belege-trenner.mjs";
 import { versionAnzeige, ladeVersion } from "./version.mjs";
 import {
@@ -157,6 +157,7 @@ function render() {
   `;
   restoreScroll(scrollSnap);
   anwendenBaumBreite(app);
+  termineListenBegrenzen(app);
   restoreFocus(focusSnap);
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
@@ -662,6 +663,7 @@ for (const typ of ["dragover", "drop"]) {
 
 // Diagramm-Hover: delegierter pointermove-Handler auf dem App-Container.
 bindDiagrammHover(app);
+window.addEventListener("resize", () => termineListenBegrenzen(app));
 bindBelegeTrenner(app);
 
 async function copyNextAgentPrompt(type = "") {

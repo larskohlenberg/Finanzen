@@ -217,14 +217,14 @@ const fristKlasse = (f) => (f.ueberfaellig ? "ueberfaellig" : f.bald ? "bald" : 
 function renderTermineKachel(today) {
   const fristen = anstehendeFristen(data, today, HORIZONT_MONATE);
   const fristZeilen = fristen.map((f) => `
-            <li class="${fristKlasse(f)}">
+            <li class="${fristKlasse(f)}" data-datum="${escapeHtml(f.datum)}">
               <span class="termine-datum">${escapeHtml(formatDate(f.datum))}</span>
               <span class="termine-text"><span>${escapeHtml(f.bezeichnung)}</span>${f.bezug ? `<span class="muted">${bezugLink(f.bezug)}</span>` : ""}</span>
               <span class="amount">${f.ueberfaellig ? `<span class="chip danger">${escapeHtml(t("overview.fristUeberfaellig"))}</span>` : f.bald ? `<span class="chip review">${escapeHtml(tf("overview.fristInTagen", { n: tageBis(today, f.datum) }))}</span>` : ""}</span>
             </li>`);
   const zahlungen = overviewJahreszahlungen(HORIZONT_MONATE);
   const zahlungZeilen = zahlungen.map(({ datum, regelzahlung: rz }) => `
-            <li>
+            <li data-datum="${escapeHtml(datum)}">
               <span class="termine-datum">${escapeHtml(formatDate(datum))}</span>
               <span class="termine-text">${zielLink(rz)}<span class="muted">${escapeHtml(rz.konto_id ? t("overview.jahreszahlungenKonto").replace("{konto}", kontoName(rz.konto_id)) : t("overview.jahreszahlungenOhneKonto"))}</span></span>
               <span class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</span>
@@ -233,8 +233,8 @@ function renderTermineKachel(today) {
     von: today,
     bis: addInterval(today, "monat", HORIZONT_MONATE),
     spuren: [
-      { label: t("overview.fristen"), form: "raute", marker: fristen.map((f) => ({ datum: f.datum, klasse: fristKlasse(f), label: `${formatDate(f.datum)} · ${f.bezeichnung}` })) },
-      { label: t("overview.zahlungen"), form: "kreis", marker: zahlungen.map(({ datum, regelzahlung: rz }) => ({ datum, klasse: "zahlung", label: `${formatDate(datum)} · ${rz.bezeichnung} · ${formatMoney(toCents(rz.betrag))}` })) },
+      { label: t("overview.fristen"), form: "raute", marker: fristen.map((f) => ({ datum: f.datum, klasse: fristKlasse(f), label: f.bezeichnung })) },
+      { label: t("overview.zahlungen"), form: "kreis", marker: zahlungen.map(({ datum, regelzahlung: rz }) => ({ datum, klasse: "zahlung", label: `${rz.bezeichnung} · ${formatMoney(toCents(rz.betrag))}` })) },
     ],
     formatMonat: formatMonatKurz,
     ariaLabel: t("overview.termine"),

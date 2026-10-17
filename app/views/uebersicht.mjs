@@ -14,7 +14,7 @@ import { anstehendeFristen } from "../fristen.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { bezugLink, fristChip, fristKlasse } from "./fristen.mjs";
 import { terminLeiste } from "../charts.mjs";
-import { erwarteteLeistungen, gesetzlicherRentenbeginn, rentenStufen, vertragsFarben } from "../vorsorge-rechnung.mjs";
+import { erwarteteLeistungen, gesetzlicherRentenbeginn, rentenStufen, tabFuerVorsorge, vertragsFarben } from "../vorsorge-rechnung.mjs";
 import { balkenSvg, tf } from "./vermoegen-teile.mjs";
 
 const HORIZONT_MONATE = 12;
@@ -40,12 +40,13 @@ const ZIEL = {
 };
 
 // Bereichskachel: Kopf mit Titel als Link, Kennzahl, Notiz, Grafik, Zeilen.
-function bereichsKachel({ id, icon, titel, ziel, wert, notiz = "", grafik = "", zeilen = [], zusatz = "" }) {
+function bereichsKachel({ id, icon, titel, ziel, wertTitel = "", wert, notiz = "", grafik = "", zeilen = [], zusatz = "" }) {
   return `
     <section class="panel panel-pad uebersicht-kachel" aria-labelledby="kachel-${id}">
       <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">
         <button class="linkish" ${ziel}>${iconSvg(icon)}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}</button>
       </h2>
+      ${wertTitel ? `<h3 class="vermoegen-teil-titel uebersicht-werttitel">${wertTitel}</h3>` : ""}
       <div class="kpi-value">${wert}</div>
       ${notiz ? `<div class="kpi-note">${notiz}</div>` : ""}
       ${grafik}
@@ -110,6 +111,13 @@ function renderVermoegenKachel() {
   const schnell = (p) => p.klasse === "konto";
   const klasse = (key, ziel) => ({ titel: t(`vermoegen.klassePlural.${key}`), filter: (p) => p.klasse === key, ziel, punkt: `segment-${key}` });
   const darlehen = klasse("darlehen", ZIEL.vermoegenTab("darlehen"));
+  // Rueckkaufswerte fuehren in den Vorsorge-Reiter, der den groessten Teil davon haelt.
+  const jeTab = new Map();
+  for (const p of r.positionen.filter((p) => p.klasse === "vorsorge")) {
+    const tab = tabFuerVorsorge((data.vorsorge ?? []).find((vs) => vs.vorsorge_id === p.id));
+    jeTab.set(tab, (jeTab.get(tab) ?? 0) + p.wert_cents);
+  }
+  const rueckkaufTab = [...jeTab].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "lebensversicherungen";
   const stand = r.positionen.map((p) => p.standdatum).filter(Boolean).sort()[0] ?? "";
   return `
     <section class="panel panel-pad uebersicht-kachel uebersicht-kachel-breit" aria-labelledby="kachel-vermoegen">
@@ -133,7 +141,7 @@ function renderVermoegenKachel() {
           klassen: [
             klasse("immobilie", ZIEL.vermoegenTab("immobilien")),
             klasse("vermoegenswert", ZIEL.vermoegenTab("sonstige")),
-            { ...klasse("vorsorge", ZIEL.vorsorge), titel: t("overview.vorsorgeRueckkauf") },
+            { ...klasse("vorsorge", ZIEL.vorsorgeTab(rueckkaufTab)), titel: t("overview.vorsorgeRueckkauf") },
             darlehen,
           ],
           darlehenKlasse: darlehen,
@@ -184,6 +192,7 @@ function renderVorsorgeKachel() {
     icon: "vorsorge",
     titel: t("nav.vorsorge"),
     ziel: ZIEL.vorsorge,
+    wertTitel: link(ZIEL.vorsorgeTab("renten"), t("overview.monatlicheRenten")),
     wert: `${escapeHtml(formatMoney(gesamt))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonatBrutto"))}</span>`,
     notiz: escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten")),
     grafik: renten.length ? `<div class="uebersicht-balken">${balkenSvg(segmente)}</div>` : "",

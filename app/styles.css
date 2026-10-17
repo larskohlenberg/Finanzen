@@ -3304,7 +3304,9 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .uebersicht-kachel { display: flex; flex-direction: column; container-type: inline-size; min-width: 0; }
 .uebersicht-kachel .kpi-value { margin: 8px 0 6px; font-size: 34px; }
 .uebersicht-zweitwert { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
-.uebersicht-zweitwert h3 .linkish { font: inherit; }
+.uebersicht-zweitwert h3 .linkish,
+.uebersicht-werttitel .linkish { font: inherit; }
+.uebersicht-werttitel { margin-top: 10px; }
 .uebersicht-kachel .diagramm-wrap { margin-top: 10px; }
 .uebersicht-kachel-kopf { margin: 0; font-size: 14px; }
 .uebersicht-kachel-kopf .linkish { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-weight: 650; }

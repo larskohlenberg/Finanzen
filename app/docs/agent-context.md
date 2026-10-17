@@ -65,7 +65,7 @@ ohne MCP.
 | `tools/transaktion-immobilie.mjs` | `immobilienbezug` |
 | `tools/transfer-matcher.mjs` | `transfers` |
 | `tools/regelzahlung-matcher.mjs` | `regelzahlungen_zuordnen` (`details: true` listet jede Zuordnung) |
-| `tools/logos.mjs` | `logos` (ohne `eintraege` ein Bericht; mit `eintraege: [{ name, domain, muster }]` Abruf beim Logodienst, mit `datei` je Eintrag Uebernahme aus einer Bilddatei) |
+| `tools/logos.mjs` | `logos` (ohne `eintraege` ein Bericht; mit `eintraege: [{ name, domain, muster }]` Abruf beim Logodienst; mit `bild` + `quelle` je Eintrag ein mitgebrachtes Bild, mit `datei` eine Bilddatei unter `data/` oder `Belege/`) |
 | `tools/freigabe.mjs` | `freigabe` |
 | `tools/lernen.mjs` | `lernen` (`schreiben: true` = `--anwenden`) |
 | `tools/belege-text.mjs` | `belege_text` |
@@ -720,12 +720,19 @@ Datenbestand, nie im Repo:
 - Quelle ist der Google-Favicon-Dienst (ADR 0030). Welche Domain zu einer
   Gegenpartei gehoert, entscheidet der Agent; `tools/logos.mjs` ruft ab,
   verkleinert, traegt ein und protokolliert im `agent_log.jsonl`.
+- Kennt der Dienst die Domain nicht (404) oder liefert er das falsche Logo
+  (etwa das der Konzernmutter), holt der Agent das Logo von der Website selbst
+  (meist das Favicon aus `<link rel="icon">`), rastert ein SVG lokal zu PNG
+  (macOS: `qlmanage -t -s 256 -o <ordner> <datei.svg>`) und gibt es als `bild`
+  (Base64) mit `quelle` (URL der Herkunft) an `logos`. Fuer ein quadratisches
+  Feld das quadratische Symbol nehmen, nicht den breiten Schriftzug.
 - Liefert der Dienst nur ein winziges Bild, kann das Logo aus einer lokalen
   Bilddatei kommen (Briefkopf, Pressebereich): CLI `--datei <bild>`, MCP
   `logos` mit `datei` je Eintrag (Pfad unter `data/` oder `Belege/`, z. B.
   `data/inbox/<name>.png`). Nur PNG (bis 4096 px Kante, nicht interlaced) oder
-  Baseline-JPEG (bis 1024 px), kein SVG; verkleinert auf hoechstens 128 px. `quelle` ist dann `datei:<dateiname>`, sonst die
-  Dienst-URL.
+  Baseline-JPEG (bis 1024 px), kein SVG; verkleinert auf hoechstens 128 px.
+  Eine https-`quelle` (etwa die Adresse des Pressebereichs) ist optional; ohne
+  sie steht `datei:<dateiname>` im Eintrag.
 
 ## Belege
 

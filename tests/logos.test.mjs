@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { deflateSync, crc32 } from "node:zlib";
 import { dekodierePng, istPng, kodierePng, verkleinere } from "../app/tools/lib/png.mjs";
 import { kuerzel, kuerzelFarbe, logoFuerText, logoVerzeichnis, KUERZEL_FARBEN } from "../app/logos.mjs";
-import { holeLogo, leseLogoDatei, logoBericht, normalisiereDomain, planeLogos, schreibeLogos, uebernehme, dienstUrl } from "../app/tools/logos.mjs";
+import { eigenesLogo, holeLogo, leseLogoDatei, logoBericht, normalisiereDomain, planeLogos, schreibeLogos, uebernehme, dienstUrl } from "../app/tools/logos.mjs";
 import { loadMasterData, validateMasterData } from "../app/tools/validator.mjs";
 
 const DEMO = fileURLToPath(new URL("../app/data/demo/", import.meta.url));
@@ -237,13 +237,41 @@ test("Abruf: 404, weder PNG noch JPEG, Netzfehler und winzige Bilder", async () 
   assert.match(winzig.hinweis, /16x16/);
 });
 
+test("Eigenes Bild: Plan traegt Bild und Quelle, Aufbereitung wie beim Abruf", () => {
+  const base64 = kodierePng(einfarbig(256, 256, [0, 70, 102, 255])).toString("base64");
+  const { plan, fehler } = planeLogos({ logos: [], eintraege: [{ name: "Musterbank", domain: "musterbank.example", muster: "MUSTERBANK", bild: base64, quelle: "https://www.musterbank.example/favicon.svg" }] });
+  assert.deepEqual(fehler, []);
+  assert.equal(plan[0].bild.quelle, "https://www.musterbank.example/favicon.svg");
+  assert.equal(plan[0].eintrag.bild, undefined);
+  const r = eigenesLogo(plan[0].bild);
+  assert.equal(r.ok, true);
+  assert.equal(r.quelle, "https://www.musterbank.example/favicon.svg");
+  assert.deepEqual([r.breite, r.hoehe], [128, 128]);
+  assert.match(eigenesLogo({ base64: Buffer.from("<svg/>").toString("base64"), quelle: "https://a.example/x.svg" }).fehler, /weder PNG noch JPEG/);
+
+  const kaputt = planeLogos({ logos: [], eintraege: [
+    { name: "A", domain: "a.example", muster: "A", bild: base64 },
+    { name: "B", domain: "b.example", muster: "B", bild: base64, quelle: "http://b.example/x.png" },
+    { name: "C", domain: "c.example", muster: "C", quelle: "https://c.example/x.png" },
+    { name: "D", domain: "d.example", muster: "D", bild: base64, quelle: "https://d.example/x.png", datei: "data/inbox/d.png" },
+    { name: "E", domain: "e.example", muster: "E", datei: "data/inbox/e.png", quelle: "http://e.example" },
+  ] });
+  assert.ok(kaputt.fehler.some((f) => /eintraege\[3\]\.datei: nur bild oder datei/.test(f)));
+  assert.ok(kaputt.fehler.some((f) => /eintraege\[4\]\.quelle/.test(f)));
+  assert.ok(kaputt.fehler.some((f) => /eintraege\[0\]\.quelle/.test(f)));
+  assert.ok(kaputt.fehler.some((f) => /eintraege\[1\]\.quelle/.test(f)));
+  assert.ok(kaputt.fehler.some((f) => /eintraege\[2\]\.bild: fehlt/.test(f)));
+});
+
 test("Plan: datei je Eintrag wird mitgefuehrt, leere datei ist ein Fehler", () => {
   const { plan, fehler } = planeLogos({ logos: [], eintraege: [
     { name: "Mit Bild", domain: "bild.example", muster: "BILD", datei: " data/inbox/bild-logo.png " },
     { name: "Ohne Bild", domain: "ohne.example", muster: "OHNE" },
+    { name: "Mit Quelle", domain: "quelle.example", muster: "QUELLE", datei: "data/inbox/q.png", quelle: "https://quelle.example/presse/logo.png" },
   ] });
   assert.deepEqual(fehler, []);
-  assert.equal(plan[0].bilddatei, "data/inbox/bild-logo.png");
+  assert.deepEqual(plan[2].bilddatei, { pfad: "data/inbox/q.png", quelle: "https://quelle.example/presse/logo.png" });
+  assert.deepEqual(plan[0].bilddatei, { pfad: "data/inbox/bild-logo.png" });
   assert.equal("bilddatei" in plan[1], false);
   const leer = planeLogos({ logos: [], eintraege: [{ name: "X", domain: "x.example", muster: "X", datei: "  " }] });
   assert.match(leer.fehler.join(), /eintraege\[0\]\.datei: leer/);
@@ -273,7 +301,7 @@ test("Datei: PNG wird verkleinert, JPEG als PNG abgelegt, quelle nennt den Datei
 
 test("Datei: SVG, fehlende, kaputte und zu grosse Dateien werden abgelehnt", async () => {
   const lesenMit = (bytes) => ({ lesen: async () => bytes });
-  assert.match((await leseLogoDatei("a.svg", lesenMit(Buffer.from("<svg><script/></svg>")))).fehler, /Datei ist weder PNG noch JPEG/);
+  assert.match((await leseLogoDatei("a.svg", lesenMit(Buffer.from("<svg><script/></svg>")))).fehler, /Bild ist weder PNG noch JPEG/);
   assert.match((await leseLogoDatei("a.png", lesenMit(kodierePng(einfarbig(4, 4, [1, 1, 1, 255])).subarray(0, 40)))).fehler, /PNG nicht lesbar/);
   assert.match((await leseLogoDatei("a.png", lesenMit(Buffer.alloc(11 * 1024 * 1024)))).fehler, /zu gross/);
   const fehlt = await leseLogoDatei(join(tmpdir(), "gibt-es-nicht-logo.png"));

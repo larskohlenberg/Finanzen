@@ -53,7 +53,11 @@ MCP-Tool `logos` das Feld `datei` je Eintrag, dort nur unter `data/` oder
 `Belege/`, typisch die Inbox). Die Datei durchlaeuft dieselbe Pruefung wie
 eine Dienstantwort: nur PNG oder Baseline-JPEG (kein SVG), auf hoechstens
 128 px verkleinert, abgelegt als `logos/<domain>.png`. `quelle` nennt dann
-`datei:<dateiname>` statt der Dienst-URL. Der Dienst bleibt der Standard; die
+`datei:<dateiname>` statt der Dienst-URL, oder die https-Adresse, die der Agent
+mitgibt. Neben dem schon vorhandenen Weg, ein Bild als Base64 mitzubringen
+(`bild` + `quelle`, fuer Domains, die der Dienst nicht kennt), spart die Datei
+den Umweg ueber Base64 und funktioniert auch per MCP auf dem Server, wo die
+Datei ueber den Upload in die Inbox kommt. Der Dienst bleibt der Standard; die
 Datei ist die Ausnahme fuer einzelne Logos, die sonst unscharf bleiben. Die
 Bilddatei selbst bleibt liegen, wo sie war; aus der Inbox raeumt der Agent sie
 danach weg.
@@ -74,9 +78,5 @@ danach weg.
   Verzeichnis, Echtdaten.
 - **Feld `logo_id` an Regelzahlung oder Vorsorge:** doppelte Pflege; die Kette
   ueber die gebuchten Transaktionen gibt es schon.
-- **Handweg ueber Logos aus dem Netz** (der Agent laedt ein Bild von einer
-  beliebigen Adresse): wieder SVG, Riesenbilder und fremde Formate, und ein
-  Abruf beliebiger Adressen aus dem Tool. Eine Datei, die der Nutzer bewusst in
-  die Inbox legt, ist pruefbar und reicht fuer die wenigen Faelle.
 - **Mehrere Dateien je Logo (klein und gross, `srcset`):** spart nur Bytes; eine
   128-px-Datei hat wenige Kilobyte und reicht fuer jede Anzeigegroesse.

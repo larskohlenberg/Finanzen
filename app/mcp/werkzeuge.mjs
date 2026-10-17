@@ -241,7 +241,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "logos",
     skript: "logos.mjs",
-    beschreibung: "Logo-Verzeichnis (tools/logos.mjs; DATENROOT/logos.json + logos/<domain>.png). Ohne eintraege ein Bericht: Eintraege, fehlende Dateien, haeufigste Gegenparteien sowie Regelzahlungen, Vorsorgevertraege und Konten ohne Logo (Konten ueber ihren Namen). Mit eintraege [{ name, domain, muster }] ruft es je Domain das Logo beim Logodienst ab (Google-Favicon-Dienst), verkleinert auf hoechstens 128 px und traegt es ein; gleiche Domain = Eintrag aktualisieren. Mit datei im Eintrag (PNG oder Baseline-JPEG unter data/ oder Belege/, z. B. data/inbox/beispiel-logo.png) wird das Bild aus der Datei uebernommen statt abgerufen, etwa wenn der Dienst nur ein winziges Logo hat; quelle wird datei:<name>. muster wie gegenpartei_pattern der Kategorisierungsregeln (Teiltext, | trennt Alternativen). Die Domain bestimmt der Agent. Vorschau ist Default (Abruf laeuft, geschrieben wird nichts).",
+    beschreibung: "Logo-Verzeichnis (tools/logos.mjs; DATENROOT/logos.json + logos/<domain>.png). Ohne eintraege ein Bericht: Eintraege, fehlende Dateien, haeufigste Gegenparteien sowie Regelzahlungen, Vorsorgevertraege und Konten ohne Logo (Konten ueber ihren Namen). Mit eintraege [{ name, domain, muster }] ruft es je Domain das Logo beim Logodienst ab (Google-Favicon-Dienst), verkleinert auf hoechstens 128 px und traegt es ein; gleiche Domain = Eintrag aktualisieren. Kennt der Dienst die Domain nicht oder liefert das falsche Logo, gibt der Agent bild (PNG/JPEG als Base64, z. B. das Website-Symbol, SVG vorher lokal gerastert) und quelle (https-URL der Herkunft) mit; dann wird nichts abgerufen. Liegt eine bessere Bilddatei vor (z. B. aus einem Briefkopf, in die Inbox gelegt), nennt datei ihren Pfad unter data/ oder Belege/ (PNG oder Baseline-JPEG); quelle ist dann optional, sonst datei:<name>. muster wie gegenpartei_pattern der Kategorisierungsregeln (Teiltext, | trennt Alternativen). Die Domain bestimmt der Agent. Vorschau ist Default (Abruf laeuft, geschrieben wird nichts).",
     eigenschaften: {
       eintraege: {
         type: "array",
@@ -253,7 +253,9 @@ const CLI_WERKZEUGE = [
             name: { type: "string", description: "Anzeigename, z. B. Beispielmarkt" },
             domain: { type: "string", description: "z. B. beispielmarkt.de" },
             muster: { type: "string", description: "Gegenpartei-Muster, z. B. BEISPIELMARKT|BSP MARKT" },
-            datei: { type: "string", description: "Optional: lokale Bilddatei statt Logodienst, relativ zum App-Raum unter data/ oder Belege/, z. B. data/inbox/beispielmarkt-logo.png" },
+            bild: { type: "string", maxLength: 1500000, description: "Optional: Logo als PNG oder JPEG, Base64; statt Abruf beim Dienst" },
+            datei: { type: "string", description: "Optional statt bild: lokale Bilddatei, relativ zum App-Raum unter data/ oder Belege/, z. B. data/inbox/beispielmarkt-logo.png" },
+            quelle: { type: "string", description: "Pflicht mit bild, optional mit datei: https-URL, woher das Bild stammt" },
           },
           required: ["name", "domain", "muster"],
           additionalProperties: false,

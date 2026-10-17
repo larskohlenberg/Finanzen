@@ -7,11 +7,13 @@
 //   node app/tools/logos.mjs <datenroot> --plan <datei.json> [--schreiben]
 //   node app/tools/logos.mjs <datenroot> --domain <d> --name <n> --muster <m> [--datei <bild>] [--schreiben]
 //       Logo je Domain beim Logodienst abrufen, auf hoechstens 128 px verkleinern
-//       und eintragen. Plan: [{ "name", "domain", "muster", "datei"? }]. Mit
-//       datei (PNG oder Baseline-JPEG, relativ zum Arbeitsordner) wird das Bild
-//       aus der Datei uebernommen statt abgerufen. Gleiche Domain = Eintrag
-//       aktualisieren. Ohne --schreiben nur Vorschau (der Abruf laeuft,
-//       geschrieben wird nichts).
+//       und eintragen. Plan: [{ "name", "domain", "muster" }]. Gleiche Domain =
+//       Eintrag aktualisieren. Kennt der Dienst die Domain nicht oder liefert das
+//       falsche Logo, bringt der Eintrag das Bild selbst mit: "bild" (PNG oder
+//       JPEG, Base64) und "quelle" (https-URL, woher es stammt). Alternativ nennt
+//       "datei" (bzw. --datei) eine lokale Bilddatei, relativ zum Arbeitsordner,
+//       z. B. ein Logo aus einem Briefkopf; "quelle" ist dann optional. Ohne
+//       --schreiben nur Vorschau (der Abruf laeuft, geschrieben wird nichts).
 //
 // Welche Domain zu einer Gegenpartei gehoert, entscheidet der Agent (ADR 0003,
 // 0010); das Tool ruft ab, prueft und traegt ein. Logos sind Echtdaten (sie
@@ -75,11 +77,17 @@ export function planeLogos({ logos = [], eintraege = [] }) {
     const domain = normalisiereDomain(e?.domain);
     const name = String(e?.name ?? "").trim();
     const muster = String(e?.muster ?? "").trim();
+    const bild = e?.bild === undefined ? null : String(e.bild).trim();
     const bilddatei = e?.datei == null ? null : String(e.datei).trim();
+    const quelle = e?.quelle === undefined ? null : String(e.quelle).trim();
     if (!domain) fehler.push(`${ort}.domain: keine gueltige Domain "${e?.domain ?? ""}"`);
     if (!name) fehler.push(`${ort}.name: fehlt`);
     if (!muster || muster.split("|").some((teil) => !normalizeLoose(teil))) fehler.push(`${ort}.muster: leer oder mit leerem Teil`);
+    if (bild !== null && !bild) fehler.push(`${ort}.bild: leer`);
     if (bilddatei === "") fehler.push(`${ort}.datei: leer`);
+    if (bild !== null && bilddatei !== null) fehler.push(`${ort}.datei: nur bild oder datei, nicht beides`);
+    if ((bild !== null || quelle !== null) && !/^https:\/\/\S+$/.test(quelle ?? "")) fehler.push(`${ort}.quelle: https-URL noetig, wenn das Bild mitkommt`);
+    if (quelle !== null && bild === null && bilddatei === null) fehler.push(`${ort}.bild: fehlt zur quelle (oder datei angeben)`);
     if (domain && gesehen.has(domain)) fehler.push(`${ort}.domain: ${domain} doppelt im Plan`);
     if (fehler.some((f) => f.startsWith(`${ort}.`))) return;
     gesehen.add(domain);
@@ -87,7 +95,8 @@ export function planeLogos({ logos = [], eintraege = [] }) {
     const logo_id = vorhanden?.logo_id ?? naechsteId(arbeit);
     const eintrag = { logo_id, name, gegenpartei_pattern: muster, domain, datei: logoDatei(domain) };
     if (!vorhanden) arbeit = [...arbeit, eintrag];
-    plan.push({ aktion: vorhanden ? "aktualisieren" : "neu", eintrag, ...(bilddatei ? { bilddatei } : {}) });
+    const extra = bild ? { bild: { base64: bild, quelle } } : bilddatei ? { bilddatei: { pfad: bilddatei, ...(quelle ? { quelle } : {}) } } : {};
+    plan.push({ aktion: vorhanden ? "aktualisieren" : "neu", eintrag, ...extra });
   });
   return { plan, fehler };
 }
@@ -105,30 +114,32 @@ export async function holeLogo(domain, { holen = fetch } = {}) {
   }
   if (antwort.status === 404) return { ok: false, quelle, fehler: "Dienst kennt fuer diese Domain kein Logo (404)" };
   if (!antwort.ok) return { ok: false, quelle, fehler: `Dienst antwortet mit HTTP ${antwort.status}` };
-  const bytes = Buffer.from(await antwort.arrayBuffer());
-  if (bytes.length > MAX_BYTES) return { ok: false, quelle, fehler: `Antwort zu gross (${bytes.length} Bytes)` };
-  return bereiteAuf(bytes, quelle, { wer: "Antwort", klein: "Dienst liefert nur" });
+  return bereiteAuf(Buffer.from(await antwort.arrayBuffer()), quelle, "Dienst liefert");
+}
+
+// Mitgebrachtes Bild (Base64) wie einen Abruf aufbereiten; quelle sagt, woher es stammt.
+export function eigenesLogo({ base64, quelle }) {
+  return bereiteAuf(Buffer.from(base64, "base64"), quelle, "Bild hat");
 }
 
 // Logo aus einer lokalen Bilddatei uebernehmen, z. B. aus einem Briefkopf oder
 // Pressebereich, wenn der Dienst nur ein winziges Bild hat. Gleiche Pruefung
 // wie beim Abruf: nur PNG oder Baseline-JPEG (kein SVG), verkleinert auf
-// hoechstens 128 px. quelle nennt die Herkunft als "datei:<name>".
-export async function leseLogoDatei(pfad, { lesen = readFile } = {}) {
-  const quelle = `datei:${basename(String(pfad))}`;
+// hoechstens 128 px. Ohne eigene quelle nennt sie die Herkunft "datei:<name>".
+export async function leseLogoDatei(pfad, { lesen = readFile, quelle = `datei:${basename(String(pfad))}` } = {}) {
   let bytes;
   try {
     bytes = await lesen(pfad);
   } catch (error) {
     return { ok: false, quelle, fehler: error.code === "ENOENT" ? `Datei nicht gefunden: ${pfad}` : `Datei nicht lesbar: ${error.message}` };
   }
-  if (bytes.length > MAX_DATEI_BYTES) return { ok: false, quelle, fehler: `Datei zu gross (${bytes.length} Bytes)` };
-  return bereiteAuf(Buffer.from(bytes), quelle, { wer: "Datei", klein: "Datei hat nur" });
+  return bereiteAuf(Buffer.from(bytes), quelle, "Datei hat", MAX_DATEI_BYTES);
 }
 
-function bereiteAuf(bytes, quelle, { wer, klein: kleinText }) {
+function bereiteAuf(bytes, quelle, wer, maxBytes = MAX_BYTES) {
+  if (bytes.length > maxBytes) return { ok: false, quelle, fehler: `Bild zu gross (${bytes.length} Bytes)` };
   const format = istPng(bytes) ? "PNG" : istJpeg(bytes) ? "JPEG" : null;
-  if (!format) return { ok: false, quelle, fehler: `${wer} ist weder PNG noch JPEG` };
+  if (!format) return { ok: false, quelle, fehler: "Bild ist weder PNG noch JPEG" };
   let bild;
   try {
     bild = format === "PNG" ? dekodierePng(bytes) : dekodiereJpeg(bytes);
@@ -136,7 +147,7 @@ function bereiteAuf(bytes, quelle, { wer, klein: kleinText }) {
     return { ok: false, quelle, fehler: `${format} nicht lesbar: ${error.message}` };
   }
   const klein = verkleinere(bild, ZIEL_GROESSE);
-  const hinweis = Math.max(bild.breite, bild.hoehe) < MIN_QUELLE ? `${kleinText} ${bild.breite}x${bild.hoehe} px, wirkt evtl. unscharf` : undefined;
+  const hinweis = Math.max(bild.breite, bild.hoehe) < MIN_QUELLE ? `${wer} nur ${bild.breite}x${bild.hoehe} px, wirkt evtl. unscharf` : undefined;
   return { ok: true, quelle, png: kodierePng(klein), breite: klein.breite, hoehe: klein.hoehe, quell_breite: bild.breite, quell_hoehe: bild.hoehe, ...(hinweis ? { hinweis } : {}) };
 }
 
@@ -251,7 +262,7 @@ async function main() {
     console.log("\nBericht — nichts geschrieben. Logos nachziehen mit --plan <datei.json> bzw. --domain/--name/--muster.");
     return;
   }
-  if (!Array.isArray(eintraege)) throw new Error("Plan muss eine Liste [{ name, domain, muster, datei? }] sein");
+  if (!Array.isArray(eintraege)) throw new Error("Plan muss eine Liste [{ name, domain, muster, bild?, datei?, quelle? }] sein");
 
   const { plan, fehler } = planeLogos({ logos: data.logos, eintraege });
   if (fehler.length) {
@@ -263,7 +274,10 @@ async function main() {
 
   const ergebnisse = [];
   for (const schritt of plan) {
-    const abruf = schritt.bilddatei ? await leseLogoDatei(resolve(schritt.bilddatei)) : await holeLogo(schritt.eintrag.domain);
+    let abruf;
+    if (schritt.bild) abruf = eigenesLogo(schritt.bild);
+    else if (schritt.bilddatei) abruf = await leseLogoDatei(resolve(schritt.bilddatei.pfad), schritt.bilddatei.quelle ? { quelle: schritt.bilddatei.quelle } : {});
+    else abruf = await holeLogo(schritt.eintrag.domain);
     ergebnisse.push({ ...schritt, abruf });
   }
   const heute = localTodayIso();
@@ -319,6 +333,7 @@ export async function schreibeLogos(root, data, ergebnisse, logos, jetzt) {
     zeitpunkt: jetzt.toISOString(),
     anlass: "logos",
     notiz: `${ok.length} Logo(s) eingetragen`,
+    quellen: ok.map((e) => e.abruf.quelle),
     betroffene_ids: ok.map((e) => e.eintrag.logo_id),
     neu: ok.filter((e) => e.aktion === "neu").map((e) => e.eintrag.logo_id),
     domains: ok.map((e) => e.eintrag.domain),

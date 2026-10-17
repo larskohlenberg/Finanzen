@@ -21,7 +21,7 @@ const { data, state } = await import("../app/runtime.mjs");
 const { renderVermoegen } = await import("../app/views/vermoegen.mjs");
 const { ladeBelege } = await import("../app/views/belege.mjs");
 
-const FELDER = ["konten", "immobilien", "vermoegenswerte", "darlehen", "vorsorge", "zeitwerte", "transaktionen", "regelzahlungen"];
+const FELDER = ["konten", "immobilien", "vermoegenswerte", "darlehen", "vorsorge", "zeitwerte", "transaktionen", "regelzahlungen", "fristen"];
 
 function mitDaten(teil, zustand, pruefe) {
   const vorher = Object.fromEntries(FELDER.map((f) => [f, data[f]]));
@@ -153,6 +153,23 @@ test("Immobilie: Stammdaten immer mit acht Feldern, Darlehen als Links nebeneina
     assert.match(html, /class="darlehen-links"><button[^]*?<\/button><span class="darlehen-trenner" aria-hidden="true">·<\/span><button/);
     assert.match(html, /class="linkish darlehen-link"[^>]*data-vermoegen="darlehen:DAR-001"[^>]*title="Erstes Darlehen mit langem Namen"/);
     assert.doesNotMatch(html, /<br><button class="linkish"/);
+  });
+});
+
+test("Immobilie und Darlehen zeigen ihre Fristen unter den Stammdaten", async () => {
+  const { addInterval, localTodayIso } = await import("../app/liquiditaet.mjs");
+  const bald = addInterval(localTodayIso(), "monat", 2);
+  const imm = { immobilie_id: "IMM-001", bezeichnung: "Haus", status: "aktiv", adresse: "Musterweg 1" };
+  const fristen = [{ frist_id: "FR-001", bezeichnung: "Grundsteuer pruefen", art: "wiedervorlage", datum: bald, immobilie_id: "IMM-001" }];
+  mitDaten({ immobilien: [imm], fristen }, { vermoegenTab: "immobilien" }, (html) => {
+    assert.match(html, /detail-label">Fristen<\/div>\s*<div class="detail-value"><div>[^<]* · Grundsteuer pruefen<\/div>/);
+  });
+  const d = darlehen("DAR-001", { zinsbindung_bis: bald });
+  mitDaten({ darlehen: [d] }, { vermoegenTab: "darlehen" }, (html) => {
+    assert.match(html, /detail-label">Fristen<[\s\S]*Zinsbindung endet/);
+  });
+  mitDaten({ immobilien: [imm] }, { vermoegenTab: "immobilien" }, (html) => {
+    assert.doesNotMatch(html, /detail-label">Fristen</);
   });
 });
 

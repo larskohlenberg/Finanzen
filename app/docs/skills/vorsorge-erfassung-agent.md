@@ -129,6 +129,26 @@ Bei Kuendigung, Anbieterwechsel oder Tarifwechsel:
 - Beitrags-Regelzahlungen so datieren, dass `aktiv_bis` der alten Zahlung und
   `anker_datum` der neuen Zahlung lueckenlos oder bewusst erklaert sind.
 
+## Fristen mit anlegen
+
+Nennt ein Beleg einen Tag, bis zu dem gehandelt werden muss, legst du ihn als
+Frist in `DATENROOT/fristen.json` an (Regeln: `agent-context.md`, Abschnitt
+„Fristen"), nicht nur als Satz in der `bemerkung`:
+
+- **Dynamik-Nachtrag:** Widerspruchsfrist als `art = widerspruch`, jaehrlich
+  (`rhythmus_einheit = jahr`, `rhythmus_intervall = 1`), `datum` = letzter Tag
+  des Widerspruchs, `vorsorge_id` des Vertrags.
+- **Police, Kuendigungshinweis:** Kuendigungsfrist als `art = kuendigung` mit
+  dem letzten Kuendigungstag; bei Verlaengerung um ein Jahr jaehrlich.
+- **Kapitalwahl, Optionen:** nur wenn der Beleg einen eigenen Stichtag fuer die
+  Erklaerung nennt. Der Leistungsbeginn mit `kapitalwahl = offen` erscheint
+  schon von selbst als Entscheidung, dafuer keine Frist anlegen.
+- Beleg und Fundstelle in `bemerkung`.
+- **Abhaken:** ist die Frist erledigt (Widerspruch geschickt, Entscheidung
+  getroffen), `erledigt_bis` auf den erledigten Termin setzen. Bei jaehrlichen
+  Fristen bleibt der naechste Termin offen. Ueberfaellige Termine meldet der
+  Check `frist-ueberfaellig`.
+
 ## Do's
 
 - Werte aus Belegen nur als Vorschlag zeigen und vor dem Schreiben bestaetigen
@@ -137,8 +157,8 @@ Bei Kuendigung, Anbieterwechsel oder Tarifwechsel:
 - `geprueft_am` nur nach Nutzer-Review setzen.
 - Reine Schutzversicherungen ueber Beitrags-Regelzahlungen sichtbar machen, nicht
   als Aktivum.
-- Die Checks `vorsorge-ungeprueft`, `vorsorge-wiedervorlage` und
-  `vorsorge-wechsel` nach dem Lauf offen benennen.
+- Die Checks `vorsorge-ungeprueft`, `vorsorge-wiedervorlage`,
+  `vorsorge-wechsel` und `frist-ueberfaellig` nach dem Lauf offen benennen.
 
 ### Anzeigefarbe festschreiben
 
@@ -167,6 +187,7 @@ der Eintrag macht sie dauerhaft.
 | `DATENROOT/zeitwerte.jsonl` | Rueckkaufswerte, erwartete Renten und erwartete Kapitalleistungen |
 | `DATENROOT/regelzahlungen.json` | Laufende Beitraege mit optionaler `vorsorge_id` |
 | `DATENROOT/szenarien.json` | Szenario-Annahmen inkl. `vorsorge-leistung` |
+| `DATENROOT/fristen.json` | Fristen und Termine, optional mit `vorsorge_id` |
 | `schemas/vorsorge.schema.json` | Vorsorge-Schema |
 | `schemas/zeitwerte.schema.json` | Zeitwert-Schema |
 | `schemas/regelzahlungen.schema.json` | Regelzahlungs-Schema |

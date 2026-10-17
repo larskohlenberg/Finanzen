@@ -11,7 +11,7 @@ import { vermoegensBezug } from "../vorsorge-rechnung.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
   balkenSvg, dokumenteBrowserHtml, geld, kennzahl, laufzeitText, prozent, qualitaetChip, rateJeMonatCents,
-  renderPositionWertstaende, rhythmusLabel, sondertilgungenRow, tf,
+  fristenText, renderPositionWertstaende, rhythmusLabel, sondertilgungenRow, tf,
 } from "./vermoegen-teile.mjs";
 
 const aktiveImmobilien = () => (data.immobilien ?? []).filter((i) => i.status !== "verkauft");
@@ -250,6 +250,7 @@ function renderImmobilieDetail(imm, today) {
         : `<div class="detail-value leer">–</div>`}
     </div>`;
   const anteile = imm.eigentumsanteile?.length ? anteileText(imm.eigentumsanteile) : "";
+  const fristen = fristenText("immobilie", id);
   const stammdaten = klappKachel({ id: "immobilie.stammdaten", titel: t("vermoegen.immobilie.stammdaten"), inhalt: `
       <div class="stammdaten-raster stammdaten-fest">
         ${feld(t("vermoegen.adresse"), imm.adresse ? escapeHtml(imm.adresse) : "", imm.adresse)}
@@ -260,7 +261,8 @@ function renderImmobilieDetail(imm, today) {
         ${feld(t("vermoegen.immobilie.anschaffungskosten"), imm.anschaffungskosten ? escapeHtml(formatMoney(cents(imm.anschaffungskosten))) : "")}
         ${feld(t("vermoegen.immobilie.wertaenderung"), k.wertaenderung_cents !== null ? geld(k.wertaenderung_cents, { negativ: true }) : "")}
         ${feld(t("vermoegen.immobilie.darlehen"), darlehenLinks.length ? `<span class="darlehen-links">${darlehenLinks.join('<span class="darlehen-trenner" aria-hidden="true">·</span>')}</span>` : "")}
-      </div>` });
+      </div>
+      ${fristen ? detailRow(t("vermoegen.fristen"), fristen) : ""}` });
 
   const anhang = anhangPanel("immobilie", t("vermoegen.immobilie.wertstaendeDokumente"), {
     bemerkung: bemerkungHtml(imm.bemerkung),
@@ -395,6 +397,7 @@ function renderDarlehenDetail(d, k, today) {
         ${k.abbezahlt_am ? detailRow(t("vermoegen.darlehen.abbezahlt"), escapeHtml(formatDate(k.abbezahlt_am))) : k.rest_ende_cents > 0 && d.laufzeit_bis ? detailRow(t("vermoegen.restschuldLaufzeitende"), escapeHtml(formatMoney(k.rest_ende_cents))) : ""}</div>`
         : `<p class="muted">${escapeHtml(t("vermoegen.darlehen.keinAnker"))}</p>`}` });
 
+  const fristen = fristenText("darlehen", id);
   const stammdatenPanel = klappKachel({ id: "darlehen.stammdaten", titel: t("vermoegen.immobilie.stammdaten"), inhalt: `
       <div class="detail-zweispaltig">
       ${d.anfangsdatum ? detailRow(t("vermoegen.aufgenommenAm"), escapeHtml(formatDate(d.anfangsdatum))) : ""}
@@ -404,6 +407,7 @@ function renderDarlehenDetail(d, k, today) {
       ${d.zinsbindung_bis ? detailRow(t("vermoegen.zinsbindungBis"), escapeHtml(formatDate(d.zinsbindung_bis))) : ""}
       ${d.laufzeit_bis ? detailRow(t("vermoegen.laufzeit"), `${escapeHtml(laufzeitText(d.anfangsdatum, d.laufzeit_bis))}<br><span class="muted">${escapeHtml(t("vermoegen.bis"))} ${escapeHtml(formatDate(d.laufzeit_bis))}</span>`) : ""}
       ${verknuepft.length ? detailRow(t("vermoegen.verknuepft"), verknuepft.join("<br>")) : ""}
+      ${fristen ? detailRow(t("vermoegen.fristen"), fristen) : ""}
       </div>` });
 
   const anhang = anhangPanel("darlehen", t("vermoegen.darlehen.weiteres"), {

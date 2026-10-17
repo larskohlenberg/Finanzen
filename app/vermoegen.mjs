@@ -5,6 +5,7 @@
 // Modell-Begründungen: ADR 0013 (Anker + Reconciliation), ADR 0014 (Nettovermögen Haushaltssicht).
 
 import { toCents, addInterval } from "./liquiditaet.mjs";
+import { anstehendeFristen } from "./fristen.mjs";
 
 const PERIODEN_PRO_JAHR = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 
@@ -343,6 +344,18 @@ export function computeVermoegenChecks(data, today) {
     if (!nachBeitragStart || nachBeitragStart > addInterval(ende, "tag", 1)) {
       checks.push({ art: "vorsorge-wechsel", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: Deckungslücke — alt endet ${ende}, Nachfolge ${nachfolger.name} beginnt ${nachBeitragStart ?? "ohne Beitrag"}` });
     }
+  }
+
+  // Ueberfaellige, nicht abgehakte Fristen (ADR 0031). Der Link fuehrt zum
+  // Objekt der Frist; ohne Bezug traegt der Check die Frist-ID.
+  for (const termin of anstehendeFristen(data, today, 0)) {
+    if (!termin.ueberfaellig) continue;
+    checks.push({
+      art: "frist-ueberfaellig",
+      entitaet: termin.bezug?.typ ?? "frist",
+      entitaet_id: termin.bezug?.id ?? termin.frist_id,
+      text: `Frist ${termin.frist_id} ${termin.bezeichnung}: fällig am ${termin.datum}, nicht erledigt — erledigen und erledigt_bis setzen`,
+    });
   }
 
   return checks;

@@ -27,6 +27,7 @@ Menschen. Wer ein Feld ergaenzt, pflegt **beide** Stellen: zuerst den Validator
 | Datei | Inhalt |
 |---|---|
 | `regelzahlungen.schema.json` | Wiederkehrende Zahlungen (Einnahmen/Ausgaben); optionales `darlehen_id` verknuepft eine Tilgungsrate mit einem Darlehen |
+| `fristen.schema.json` | Fristen und Termine (Widerspruch, Kuendigung, Entscheidung, Wiedervorlage): Datum, optionaler Rhythmus, hoechstens ein Bezug, `erledigt_bis` zum Abhaken (ADR 0031) |
 | `immobilien.schema.json` | Immobilien mit Eigentumsanteilen (Bruchteile je Person) |
 | `darlehen.schema.json` | Hypotheken und sonstige Darlehen mit Zinssatz und Sollrate |
 | `vermoegenswerte.schema.json` | Weitere Vermoegenswerte (Edelmetalle, Beteiligungen, Sonstiges) mit Eigentumsanteilen |

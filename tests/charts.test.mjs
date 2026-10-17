@@ -250,3 +250,25 @@ test("zeitachseKlein: Marker und Bezugslinie auf der Jahresachse", async () => {
   assert.match(svg, /<title>Kapital A<\/title>/);
   assert.equal(zeitachseKlein({ von: "2026-01-01", marker: [] }), "");
 });
+
+test("terminLeiste: je Spur eine Linie, Raute oder Kreis, ueberfaellige Termine am linken Rand", async () => {
+  const { terminLeiste } = await import("../app/charts.mjs");
+  const svg = terminLeiste({
+    von: "2026-10-17",
+    bis: "2027-10-17",
+    spuren: [
+      { label: "Fristen", form: "raute", marker: [{ datum: "2026-09-01", label: "ueberfaellig", klasse: "ueberfaellig" }, { datum: "2027-04-17", label: "Mitte" }] },
+      { label: "Zahlungen", form: "kreis", marker: [{ datum: "2027-10-17", label: "Ende" }] },
+      { label: "Leer", form: "kreis", marker: [] },
+    ],
+  });
+  assert.match(svg, /^<svg class="terminleiste" viewBox="0 0 960 80"/);
+  assert.match(svg, />Fristen<\/text>[\s\S]*>Zahlungen<\/text>/);
+  assert.doesNotMatch(svg, />Leer</);
+  // Ueberfaellig sitzt am linken Rand (x = 96), Ende am rechten (x = 948).
+  assert.match(svg, /<path d="M96\.00,14 [^"]*" class="terminleiste-marker raute ueberfaellig"><title>ueberfaellig<\/title>/);
+  assert.match(svg, /<circle cx="948\.00" cy="47" r="6" class="terminleiste-marker kreis"><title>Ende<\/title>/);
+  // Zwoelf Monatsanfaenge von November bis Oktober.
+  assert.equal((svg.match(/class="terminleiste-gitter"/g) ?? []).length, 12);
+  assert.equal(terminLeiste({ von: "2026-10-17", bis: "2027-10-17", spuren: [{ label: "Leer", marker: [] }] }), "");
+});

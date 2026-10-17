@@ -183,6 +183,10 @@ Drei getrennte **Zeitwert-`feld`er** halten die drei nicht-vermischbaren Werte: 
 
 **Nachfolge / Wechsel:** ein Versicherungswechsel wird ueber `ersetzt_vorsorge_id` auf der **neuen** Vorsorge ausgedrueckt (einseitig, Rueckrichtung per Filter). Der **Wechsel-Check** (ein schaerferer Verwandter der **Cash-Realismus-Guardrail**) feuert nur fuer Beitraege, deren `aktiv_bis` in der **Zukunft innerhalb des Horizonts** liegt: kein/spaeterer Nachfolger ⇒ Warnung „Wegfall/Deckungsluecke". Vergangene Kuendigungen warnen nie (ihr Wegfall ist schon Realitaet). Versicherung-Lebenszyklus: `aktiv | gekuendigt | ruhend`; Renten-Anwartschaft: `geplant | laufend | beendet`.
 
+## Frist
+
+Ein Tag, bis zu dem gehandelt werden muss: einer Beitragsdynamik widersprechen, einen Vertrag kuendigen, eine Kapitalwahl treffen, etwas wieder vorlegen. **Eigene Liste** (`fristen.json`) nach dem Muster der Regelzahlung, nicht Feld oder Fliesstext am Objekt (ADR 0032): `datum` ist der **letzte Handlungstag**, optional mit Rhythmus fuer jaehrlich wiederkehrende Fristen, und **hoechstens ein** Bezug (Vorsorge, Darlehen, Immobilie, Konto, Vermoegenswert oder Regelzahlung). Fristen **ohne Bezug** sind erlaubt (Steuererklaerung). Abgehakt wird ueber `erledigt_bis` (alle Termine bis einschliesslich diesem Tag sind erledigt), nicht ueber einen Status. Daneben gibt es **abgeleitete Termine**, die aus vorhandenen Feldern folgen (Zinsbindungsende, Laufzeitende, Leistungsbeginn, Vertrags- und Zahlungsende) und nicht zusaetzlich erfasst werden. Ein vorbeigegangener, nicht abgehakter Termin ist **ueberfaellig** und erscheint als Check.
+
 ## Waehrung
 
 Alle Betraege in EUR. Kein `waehrung`-Feld an Konto oder Transaktion. Sollte spaeter ein Fremdwaehrungskonto auftauchen, wird das gezielt nachgeruestet — bis dahin: YAGNI.

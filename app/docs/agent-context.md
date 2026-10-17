@@ -76,7 +76,8 @@ ohne MCP.
 | Datei schreiben, editieren | `datei_schreiben`, `datei_ersetzen` (nur unter `data/`) |
 | Beleg wegsortieren | `beleg_ablegen` (`data/inbox/...` nach `Belege/...`, sprechend benannt) |
 | Sammelscan teilen | `beleg_teilen` (`quelle` unter `data/inbox/`, `teile` als `[{ seiten: "1-4", name }]`; jede Seite genau einem Teil, Teile in die Inbox-Wurzel, Original in den Papierkorb; Vorschau ist Default) |
-| Nachgereichte Seiten einfuegen | `beleg_ergaenzen` (`quelle` PDF unter `data/inbox/`, `ziel` PDF unter `Belege/`, optional `nach_seite`, 0 = vorn, ohne = ans Ende; alte Fassung samt Zwilling und Quelle in den Papierkorb, danach `belege_text`; Vorschau ist Default) |
+| Nachgereichte Seiten einfuegen | `beleg_ergaenzen` (`quelle` PDF unter `data/inbox/` oder schon unter `Belege/`, `ziel` PDF unter `Belege/`, optional `nach_seite`, 0 = vorn, ohne = ans Ende; alte Fassung samt Zwilling und Quelle in den Papierkorb, danach `belege_text`; Vorschau ist Default) |
+| Beleg verwerfen | `beleg_verwerfen` (`pfad` unter `Belege/`, optional `grund`; Beleg samt Zwilling in den Papierkorb, z. B. eine Doublette; abgewiesen, solange Daten auf ihn verweisen; Vorschau ist Default) |
 | Inbox-Datei verwerfen | `inbox_verwerfen` (`pfad` unter `data/inbox/`, optional `grund`; verschiebt in den Papierkorb, z. B. ein erkanntes Duplikat) |
 | Aus `error/` zurueckholen | `inbox_zurueckholen` (`pfad` unter `data/inbox/error/`; zurueck in die Inbox-Wurzel, bricht bei gleichem Namen ab) |
 
@@ -88,7 +89,7 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
 - **Rechte je Schluessel:** `--recht=lesen` erlaubt nur Lese-Tools und
   Vorschau-Laeufe; `--recht=schreiben` zusaetzlich `schreiben: true`,
   `datei_schreiben`, `datei_ersetzen`, `beleg_ablegen`, `beleg_teilen`,
-  `beleg_ergaenzen`, `inbox_verwerfen` und `inbox_zurueckholen`.
+  `beleg_ergaenzen`, `beleg_verwerfen`, `inbox_verwerfen` und `inbox_zurueckholen`.
 - **Papierkorb statt Loeschen:** `inbox_verwerfen` loescht nie, sondern
   verschiebt nach `data/papierkorb/<JJJJ-MM-TT>/` und behaelt die Unterstruktur
   unterhalb von `data/inbox/` (`error/`, `standardized/`, `processed/`). Mit
@@ -937,4 +938,9 @@ Beleg (etwa eine beim Scannen vergessene Rueckseite), geht mit
 `beleg_ergaenzen`: Die Seiten werden an der richtigen Stelle in den Beleg
 eingefuegt, Pfad und Name bleiben, so stimmt jeder `quelle_hinweis` weiter. Die
 alte Fassung samt Zwilling und die Inbox-Datei landen im Papierkorb; danach
-`belege_text` fuer den neuen Zwilling.
+`belege_text` fuer den neuen Zwilling. Wurde die Seite schon versehentlich als
+eigener Beleg abgelegt, ist sie selbst die `quelle` (Pfad unter `Belege/`): sie
+wandert samt Zwilling in den Papierkorb, und Verweise auf sie in Stamm- und
+Bewegungsdaten zeigen danach auf den ergaenzten Beleg. Eine reine Doublette
+unter `Belege/` nimmt `beleg_verwerfen` heraus; nennen die Daten sie noch, erst
+den Verweis umstellen.

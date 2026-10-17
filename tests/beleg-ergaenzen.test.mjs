@@ -86,6 +86,39 @@ test("beleg_ergaenzen: ohne nach_seite ans Ende, mit 0 nach vorn", { skip: !POPP
   }
 });
 
+test("beleg_ergaenzen: Quelle schon unter Belege/ abgelegt, Verweise zeigen danach auf den Beleg", { skip: !POPPLER && "poppler fehlt" }, async () => {
+  const rel = "Belege/Vorsorge/VS-001_Muster/2026";
+  writeFileSync(join(ordner, "nachtrag.pdf"), musterPdf(2));
+  writeFileSync(join(ordner, "nachtrag_Seite-2.pdf"), extraPdf(1));
+  writeFileSync(join(ordner, "nachtrag_Seite-2.txt"), "Zwilling der Einzelseite\n");
+  const vorsorge = join(abzug.master, "vorsorge.json");
+  const vorher = readFileSync(vorsorge, "utf8");
+  writeFileSync(vorsorge, vorher.replace('"quelle_hinweis": "Vertragsstand 2025"', `"quelle_hinweis": "${rel}/nachtrag_Seite-2.pdf"`));
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const args = { quelle: `${rel}/nachtrag_Seite-2.pdf`, ziel: `${rel}/nachtrag.pdf`, nach_seite: 1 };
+    const vorschau = await s.werkzeug("beleg_ergaenzen", args);
+    assert.ok(!vorschau.isError, vorschau.text);
+    assert.match(vorschau.text, /Verweise umgestellt in vorsorge\.json: 1/);
+    assert.ok(existsSync(join(ordner, "nachtrag_Seite-2.pdf")));
+
+    const r = await s.werkzeug("beleg_ergaenzen", { ...args, schreiben: true });
+    assert.ok(!r.isError, r.text);
+    assert.match(text(join(ordner, "nachtrag.pdf")), /Seite 1[\s\S]*Extra 1[\s\S]*Seite 2/);
+    assert.ok(!existsSync(join(ordner, "nachtrag_Seite-2.pdf")));
+    assert.ok(!existsSync(join(ordner, "nachtrag_Seite-2.txt")));
+    const korb = join(abzug.app, "data", "papierkorb", localTodayIso(), "Belege", "Vorsorge", "VS-001_Muster", "2026");
+    assert.ok(existsSync(join(korb, "nachtrag_Seite-2.pdf")));
+    assert.equal(readFileSync(join(korb, "nachtrag_Seite-2.txt"), "utf8"), "Zwilling der Einzelseite\n");
+    const nachher = readFileSync(vorsorge, "utf8");
+    assert.ok(nachher.includes(`"quelle_hinweis": "${rel}/nachtrag.pdf"`));
+    assert.ok(!nachher.includes("nachtrag_Seite-2"));
+  } finally {
+    await s.beenden();
+    writeFileSync(vorsorge, vorher);
+  }
+});
+
 test("beleg_ergaenzen: falsche Seite, fehlendes Ziel, Nicht-PDF und fremde Pfade werden abgewiesen", { skip: !POPPLER && "poppler fehlt" }, async () => {
   writeFileSync(join(ordner, "kurz.pdf"), musterPdf(2));
   writeFileSync(join(inbox, "blatt.pdf"), extraPdf(1));

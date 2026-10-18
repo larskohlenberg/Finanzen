@@ -60,7 +60,10 @@ function bereichsKachel({ id, icon, titel, ziel, wertTitel = "", wert, notiz = "
 
 // ------------------------------------------------------------- Einnahmen/Ausgaben/Sparquote
 
+// Wie viele Kategorien einzeln stehen; der Rest klappt unter "Übrige" auf.
+// Die Reihenfolge ergibt sich je Zeitraum neu aus den Betraegen.
 const TOP_KATEGORIEN = 3;
+const TOP_AUSGABEN = 5;
 const formatMonatLang = (ym) => new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short", year: "numeric" }).format(new Date(`${ym}-01T00:00:00`));
 const formatProzent = (anteil) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "percent", maximumFractionDigits: 0 }).format(anteil);
 
@@ -68,11 +71,11 @@ const kategorieZiel = (id, mittel) => `data-action="kategorie-transactions" data
 
 // Die groessten Kategorien einzeln (als Link in die Buchungen des Zeitraums), der
 // Rest als aufklappbares "Übrige" mit allen weiteren Kategorien.
-function kategorieTeile(kategorien, mittel) {
-  const weitere = kategorien.slice(TOP_KATEGORIEN);
+function kategorieTeile(kategorien, mittel, top = TOP_KATEGORIEN) {
+  const weitere = kategorien.slice(top);
   const rest = weitere.reduce((a, k) => a + k.mittel_cents, 0);
   return [
-    ...kategorien.slice(0, TOP_KATEGORIEN).map((k, i) => ({ ...k, klasse: `vertrag-farbe-${i}`, ziel: kategorieZiel(k.kategorie_id, mittel) })),
+    ...kategorien.slice(0, top).map((k, i) => ({ ...k, klasse: `vertrag-farbe-${i}`, ziel: kategorieZiel(k.kategorie_id, mittel) })),
     ...(rest > 0 ? [{ name: t("overview.uebrige"), mittel_cents: rest, klasse: "vertrag-farbe-rest", ziel: "", unter: weitere.map((k) => ({ ...k, ziel: kategorieZiel(k.kategorie_id, mittel) })) }] : []),
   ];
 }
@@ -116,14 +119,15 @@ function renderEinnahmenAusgaben(today) {
   const zielLinkFuer = (ids) => (ids.length === 1 ? `data-action="kategorie-transactions" data-kategorie="${escapeHtml(ids[0])}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` : "");
   const ZIEL_KLASSE = { liquide: "segment-konto", depot: "segment-depot", versicherung: "segment-vorsorge" };
   // Kurzfristig liquide in seine Teile: liquide Kategorien (Festgeld) mit Link in
-  // die Buchungen, der Rest auf Konten und Tagesgeld mit Link zur Liquiditaet.
+  // die Buchungen, der Rest auf Konten und Tagesgeld mit Link auf die
+  // Umbuchungen zwischen eigenen Konten im Zeitraum.
   const sparTeile = sparen.ziele.flatMap((z) => {
     if (z.ziel !== "liquide") {
       return z.mittel_cents ? [{ name: t(`overview.sparziel.${z.ziel}`), mittel_cents: z.mittel_cents, klasse: ZIEL_KLASSE[z.ziel], ziel: zielLinkFuer(z.kategorien) }] : [];
     }
     return [
       ...z.teile.map((k) => ({ name: k.name, mittel_cents: k.mittel_cents, klasse: "segment-liquide-teil", ziel: kategorieZiel(k.kategorie_id, mittel) })),
-      ...(z.konten_cents ? [{ name: t(z.konten_cents < 0 ? "overview.kontenEntnommen" : "overview.kontenTagesgeld"), mittel_cents: z.konten_cents, klasse: ZIEL_KLASSE.liquide, ziel: ZIEL.liquiditaet }] : []),
+      ...(z.konten_cents ? [{ name: t(z.konten_cents < 0 ? "overview.kontenEntnommen" : "overview.kontenTagesgeld"), mittel_cents: z.konten_cents, klasse: ZIEL_KLASSE.liquide, ziel: `data-action="kategorie-transactions" data-transfer="only" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` }] : []),
     ];
   });
   const sondereffekte = mittel.sondereffekte.map((se) => {
@@ -134,7 +138,7 @@ function renderEinnahmenAusgaben(today) {
   return `
     <div class="uebersicht-flach">
       ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.einnahmen.kategorien, mittel) })}
-      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.ausgaben.kategorien, mittel) })}
+      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.ausgaben.kategorien, mittel, TOP_AUSGABEN) })}
       ${flacheKachel({
         id: "sparquote",
         titel: t("overview.sparquote"),

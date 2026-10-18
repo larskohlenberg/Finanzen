@@ -258,3 +258,27 @@ test("terminLeiste: je Spur eine Linie, Raute oder Kreis, ueberfaellige Termine 
   assert.equal((svg.match(/class="terminleiste-gitter"/g) ?? []).length, 12);
   assert.equal(terminLeiste({ von: "2026-10-17", bis: "2027-10-17", spuren: [{ label: "Leer", marker: [] }] }), "");
 });
+
+test("zeitstrahlDiagramm: Ereignistexte ueberlagern sich nie, ohne Platz bleibt nur die Linie", async () => {
+  const { zeitstrahlDiagramm } = await import("../app/charts.mjs");
+  const spalten = Array.from({ length: 12 }, (_, i) => ({ label: String(i + 1) }));
+  const lang = "Eine recht lange Beschriftung";
+  const svg = zeitstrahlDiagramm({
+    spalten,
+    serien: [{ klasse: "s", label: "S", werte: spalten.map((_, i) => i * 100) }],
+    ereignisse: [0.5, 1.5, 2.5, 3.5].map((pos) => ({ pos, label: lang })),
+    breite: 560,
+    plotHoehe: 90,
+  });
+  assert.equal((svg.match(/class="ereignis-marker"/g) ?? []).length, 4, "jede Linie bleibt");
+  const texte = [...svg.matchAll(/<text x="([\d.]+)" y="([\d.]+)" text-anchor="(\w+)"[^>]*class="ereignis-label"/g)];
+  assert.ok(texte.length < 4, "nicht alle passen");
+  const breite = lang.length * 11 * 0.6 + 4;
+  const intervall = ([, x, , a]) => { const px = Number(x); return a === "start" ? [px, px + breite] : a === "end" ? [px - breite, px] : [px - breite / 2, px + breite / 2]; };
+  for (let i = 0; i < texte.length; i++) for (let j = i + 1; j < texte.length; j++) {
+    if (texte[i][2] !== texte[j][2]) continue;
+    const [a0, a1] = intervall(texte[i]);
+    const [b0, b1] = intervall(texte[j]);
+    assert.ok(a1 <= b0 || b1 <= a0, "gleiche Zeile ohne Ueberlappung");
+  }
+});

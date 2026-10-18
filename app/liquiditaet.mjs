@@ -220,16 +220,30 @@ export const GROSSE_BUCHUNG_CENTS = 400000;
 
 const normName = (text) => String(text ?? "").toLowerCase().replace(/[^a-z0-9äöüß]+/g, " ").trim();
 
-// Beschriftung einer Buchung: die Gegenpartei, ausser sie ist jemand aus dem
-// Haushalt (Umbuchung, Festgeld); dann Verwendungszweck, Bemerkung oder Kategorie.
+// Beschriftung einer Buchung, kurz (hoechstens 32 Zeichen): die Gegenpartei,
+// ausser sie ist jemand aus dem Haushalt (Umbuchung, Festgeld); dann die
+// Bemerkung bis zum ersten Satzzeichen, der Verwendungszweck ohne Bankdaten und
+// Namen aus dem Haushalt, zuletzt die Kategorie.
+const LABEL_MAX = 32;
+const kuerzen = (text) => (text.length > LABEL_MAX ? `${text.slice(0, LABEL_MAX - 1).trim()}…` : text);
+// Bankdaten und Codes: Schluesselwoerter samt Wert, IBANs und Zeichenketten ab
+// acht Zeichen mit Ziffer (Kontonummern, Referenzen), Datum und Uhrzeit.
+const BANKDATEN = /\b(BLZ|Kto|Konto|BIC|IBAN|DATUM|UHR)\b:?\s*[\w.,:]*|\bDE\d{2}[\d\s]{10,}|\b(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{8,}\b|\b\d{1,2}\.\d{1,2}\.\d{0,4}|\b\d{1,2}[.:]\d{2}\b/gi;
+
 function buchungsLabel(tx, data) {
-  const gegen = normName(tx.gegenpartei);
-  const eigen = gegen && (data.personen ?? []).some((p) => normName(p.name).split(" ").filter(Boolean).every((teil) => gegen.includes(teil)));
-  if (tx.gegenpartei && !eigen) return tx.gegenpartei.trim();
-  if (/[A-Za-zÄÖÜäöüß]{4,}/.test(tx.verwendungszweck ?? "")) return tx.verwendungszweck.trim();
-  const bemerkung = String(tx.bemerkung ?? "").split(/[,(.:;]/)[0].trim();
-  if (bemerkung) return bemerkung;
-  return (data.kategorien ?? []).find((k) => k.kategorie_id === tx.kategorie_id)?.name ?? tx.gegenpartei ?? "";
+  const namen = (data.personen ?? []).map((p) => normName(p.name).split(" ").filter(Boolean));
+  const istEigen = (text) => {
+    const n = normName(text);
+    return Boolean(n) && namen.some((teile) => teile.length && teile.every((teil) => n.includes(teil)));
+  };
+  if (tx.gegenpartei?.trim() && !istEigen(tx.gegenpartei)) return kuerzen(tx.gegenpartei.trim());
+  const bemerkung = String(tx.bemerkung ?? "").split(/[,(.:;]/)[0].replace(BANKDATEN, " ").replace(/\s+/g, " ").trim();
+  if (bemerkung) return kuerzen(bemerkung);
+  let zweck = String(tx.verwendungszweck ?? "").replace(BANKDATEN, " ");
+  for (const teile of namen) for (const teil of teile) zweck = zweck.replace(new RegExp(`\\b${teil}\\b`, "gi"), " ");
+  zweck = zweck.replace(/\s+/g, " ").trim();
+  if (/[A-Za-zÄÖÜäöüß]{4,}/.test(zweck)) return kuerzen(zweck);
+  return kuerzen((data.kategorien ?? []).find((k) => k.kategorie_id === tx.kategorie_id)?.name ?? tx.gegenpartei ?? "");
 }
 
 // Grosse Einzelbuchungen der liquiden Konten von `von` bis `bis`: ab der

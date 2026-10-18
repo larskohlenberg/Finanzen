@@ -293,9 +293,13 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   assert.match(kachel("einnahmen"), /1 Monat · /);
   assert.match(kachel("ausgaben"), /<div class="kpi-value">1\.650\s€/);
   // Drei groesste Kategorien als Link in die Buchungen, der Rest als "Übrige".
-  assert.match(kachel("ausgaben"), new RegExp(`data-action="kategorie-transactions" data-kategorie="KAT-003" data-von="${vorMonat}" data-bis="[0-9-]+">Wohnen</button>`));
-  assert.match(kachel("ausgaben"), /Mobilitaet<\/button>[\s\S]*<span>Übrige<\/span><span class="amount">50\s€/);
+  assert.match(kachel("ausgaben"), new RegExp(`data-action="kategorie-transactions" data-kategorie="KAT-003" data-von="${vorMonat}" data-bis="[0-9-]+" title="Wohnen">Wohnen</button>`));
+  assert.match(kachel("ausgaben"), /Mobilitaet<\/button>[\s\S]*<span title="Übrige">Übrige<\/span><span class="amount">50\s€/);
   assert.doesNotMatch(kachel("ausgaben"), /KAT-006/);
+
+  // Sparquote: (3000 - 1650) / 3000 = 45 %, Rest bleibt auf den Konten.
+  assert.match(kachel("sparquote"), /Sparquote[\s\S]*<div class="kpi-value">45\s%<\/div>[\s\S]*1\.350\s€ \/ Monat übrig/);
+  assert.match(kachel("sparquote"), /Auf den Konten<\/span><span class="amount">1\.350\s€/);
 
   data.transaktionen = [];
   assert.doesNotMatch(renderOverview(), /uebersicht-flach/);

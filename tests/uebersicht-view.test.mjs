@@ -280,9 +280,11 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
     { kategorie_id: "KAT-004", name: "Lebensmittel", typ: "ausgabe" },
     { kategorie_id: "KAT-005", name: "Mobilitaet", typ: "ausgabe" },
     { kategorie_id: "KAT-006", name: "Freizeit", typ: "ausgabe" },
+    { kategorie_id: "KAT-007", name: "Gesundheit", typ: "ausgabe" },
+    { kategorie_id: "KAT-008", name: "Sonstiges", typ: "ausgabe" },
   ];
   const tx = (betrag, kategorie_id) => ({ konto_id: "KTO-901", buchungsdatum: vorMonat, betrag, kategorie_id, ist_transfer: false });
-  data.transaktionen = [tx("3000.00", "KAT-001"), tx("-1000.00", "KAT-003"), tx("-400.00", "KAT-004"), tx("-200.00", "KAT-005"), tx("-50.00", "KAT-006")];
+  data.transaktionen = [tx("3000.00", "KAT-001"), tx("-1000.00", "KAT-003"), tx("-400.00", "KAT-004"), tx("-200.00", "KAT-005"), tx("-50.00", "KAT-006"), tx("-30.00", "KAT-007"), tx("-20.00", "KAT-008")];
   state.view = "overview";
   state.lang = "de";
 
@@ -291,16 +293,16 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   assert.ok(html.indexOf("uebersicht-flach") < html.indexOf("uebersicht-kacheln"), "ganz oben");
   assert.match(kachel("einnahmen"), /Monatliche Einnahmen[\s\S]*<div class="kpi-value">3\.000\s€ <span class="betrag-einheit">/);
   assert.match(kachel("einnahmen"), /1 Monat · /);
-  assert.match(kachel("ausgaben"), /<div class="kpi-value">1\.650\s€/);
-  // Drei groesste Kategorien als Link in die Buchungen, der Rest als "Übrige".
+  assert.match(kachel("ausgaben"), /<div class="kpi-value">1\.700\s€/);
+  // Bei den Ausgaben die fuenf groessten Kategorien als Link in die Buchungen, der Rest als "Übrige".
   assert.match(kachel("ausgaben"), new RegExp(`data-action="kategorie-transactions" data-kategorie="KAT-003" data-von="${vorMonat}" data-bis="[0-9-]+" title="Wohnen">Wohnen</button>`));
-  assert.match(kachel("ausgaben"), /Mobilitaet<\/button>[\s\S]*<span>Übrige<\/span><span class="amount">50\s€/);
+  assert.match(kachel("ausgaben"), /Gesundheit<\/button>[\s\S]*<span>Übrige<\/span><span class="amount">20\s€/);
   // "Übrige" klappt die weiteren Kategorien auf, jede mit Link in die Buchungen.
-  assert.match(kachel("ausgaben"), /<details><summary>[\s\S]*Übrige[\s\S]*<ul class="flach-unterliste"><li><button class="linkish" data-action="kategorie-transactions" data-kategorie="KAT-006"/);
+  assert.match(kachel("ausgaben"), /<details><summary>[\s\S]*Übrige[\s\S]*<ul class="flach-unterliste"><li><button class="linkish" data-action="kategorie-transactions" data-kategorie="KAT-008"/);
 
-  // Sparquote: (3000 - 1650) / 3000 = 45 %, Rest bleibt auf den Konten.
-  assert.match(kachel("sparquote"), /Sparquote[\s\S]*<div class="kpi-value">45\s%<\/div>[\s\S]*1\.350\s€ \/ Monat übrig/);
-  assert.match(kachel("sparquote"), /data-view="liquiditaet" title="Konten &amp; Tagesgeld">Konten &amp; Tagesgeld<\/button><span class="amount">1\.350\s€/);
+  // Sparquote: (3000 - 1700) / 3000 = 43 %, Rest bleibt auf den Konten.
+  assert.match(kachel("sparquote"), /Sparquote[\s\S]*<div class="kpi-value">43\s%<\/div>[\s\S]*1\.300\s€ \/ Monat übrig/);
+  assert.match(kachel("sparquote"), /data-action="kategorie-transactions" data-transfer="only" data-von="[0-9-]+" data-bis="[0-9-]+" title="Konten &amp; Tagesgeld">Konten &amp; Tagesgeld<\/button><span class="amount">1\.300\s€/);
   assert.match(kachel("sparquote"), /class="info-tipp"[\s\S]*Sparquote = \(Einnahmen − Ausgaben\)/);
   assert.doesNotMatch(kachel("sparquote"), /flach-fuss/);
 

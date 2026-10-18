@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { fensterTage, matchRegelzahlungen } from "../app/tools/regelzahlung-matcher.mjs";
+import { fensterTage, gleicheGegenpartei, matchRegelzahlungen } from "../app/tools/regelzahlung-matcher.mjs";
 
 const run = promisify(execFile);
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -252,4 +252,18 @@ test("CLI: ungueltiger Stand nach dem Schreiben setzt Exitcode", async () => {
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("Gekuerzte Gegenpartei aus einem anderen Auszugsformat zaehlt mit", () => {
+  const voll = { gegenpartei: "Arbeitgeberverband fuer das Beispielland e.V.", kategorie_id: "KAT-001" };
+  const gekuerzt = { gegenpartei: "Arbeitgeberverband fuer das Beispi", kategorie_id: "KAT-001" };
+  const transaktionen = [
+    tx("KTO-001", "2026-06-26", "8000.00", voll),
+    tx("KTO-001", "2026-07-27", "8100.00", voll),
+    tx("KTO-001", "2026-08-26", "8050.00", gekuerzt),
+    tx("KTO-001", "2026-09-28", "8050.00", gekuerzt),
+  ];
+  const out = matchRegelzahlungen(transaktionen, [rz("RZ-001", "8000.00", "2026-06-26", { kategorie_id: "KAT-001", qualitaet: "geschaetzt" })]);
+  assert.deepEqual(zugeordnet(out, "RZ-001"), ["2026-06-26", "2026-07-27", "2026-08-26", "2026-09-28"]);
+  assert.equal(gleicheGegenpartei("musterfirma gmbh", "musterfirma"), false, "zu kurz fuer eine Kuerzung");
 });

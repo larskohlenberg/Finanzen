@@ -47,11 +47,22 @@ function kennungVon(tx) {
 }
 const kennungSchluessel = (k) => `${k.signal}|${k.wert}`;
 
+// Gleiche Gegenpartei. Manche Auszuege (z. B. PDF statt CSV derselben Bank)
+// kuerzen den Namen nach einer festen Laenge; ein Name, der mit dem anderen
+// beginnt, zaehlt deshalb mit, sofern der kuerzere mindestens 20 Zeichen hat.
+const MIN_GEKUERZT = 20;
+export function gleicheGegenpartei(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const [kurz, lang] = a.length < b.length ? [a, b] : [b, a];
+  return kurz.length >= MIN_GEKUERZT && lang.startsWith(kurz);
+}
+
 function passtZurKennung(tx, rz, kennung) {
   if (kennung.signal === "mandat") {
     return normalizeWhitespace(tx.mandatsreferenz) === kennung.wert && imRahmen(tx, rz, TOLERANZ_MANDAT);
   }
-  return normalizeLoose(tx.gegenpartei) === kennung.wert
+  return gleicheGegenpartei(normalizeLoose(tx.gegenpartei), kennung.wert)
     && (!rz.kategorie_id || tx.kategorie_id === rz.kategorie_id)
     && imRahmen(tx, rz, TOLERANZ_GEGENPARTEI);
 }

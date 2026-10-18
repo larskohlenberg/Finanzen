@@ -284,38 +284,45 @@ function renderTabbar() {
 
 function renderTopbar() {
   const demoActive = state.dataMode === "demo";
+  const openCategories = openCategoryTransactions().length;
   return `
     <header class="topbar">
-      <div class="work-status">
-        <strong>${escapeHtml(t("chrome.workStatus"))}</strong>
-        <span class="chip ${demoActive ? "demo" : "neutral"}" title="${escapeHtml(demoActive ? t("chrome.demoDataHint") : t("chrome.liveDataHint"))}">
-          ${iconSvg("masterdata")}${escapeHtml(demoActive ? t("chrome.demoData") : t("chrome.liveData"))}
-        </span>
+      <div class="work-status" role="group" aria-label="${escapeHtml(t("chrome.workStatus"))}">
+        ${demoActive ? `<span class="chip demo" title="${escapeHtml(t("chrome.demoDataHint"))}">${iconSvg("masterdata")}${escapeHtml(t("chrome.demoData"))}</span>` : ""}
         ${data.validation?.valid
-          ? `<span class="chip success" title="${escapeHtml(t("chrome.validationPassedHint"))}">${iconSvg("success")}${escapeHtml(t("chrome.validationPassed"))}</span>`
+          ? `<span class="chip success icon-chip" role="img" aria-label="${escapeHtml(t("chrome.validationPassed"))}" title="${escapeHtml(`${t("chrome.validationPassed")} – ${t("chrome.validationPassedHint")}`)}">${iconSvg("success")}</span>`
           : `<button class="chip danger linkish" data-action="show-validation" title="${escapeHtml(t("chrome.validationFailedHint"))}">${iconSvg("warning")}${data.validation?.errors.length ?? 0} ${escapeHtml(t("chrome.validationFailed"))}</button>`}
-        <button class="chip neutral linkish" data-action="reload-data" aria-label="${escapeHtml(t("chrome.reloadData"))}" title="${escapeHtml(t("chrome.reloadData"))}">${iconSvg("regelzahlungen")}${escapeHtml(t("chrome.reloadData"))}</button>
-        <button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategoryTransactions().length} ${escapeHtml(t("chrome.categoryOpen"))}</button>
+        <button class="chip neutral linkish icon-chip" data-action="reload-data" aria-label="${escapeHtml(t("chrome.reloadData"))}" title="${escapeHtml(t("chrome.reloadData"))}">${iconSvg("regelzahlungen")}</button>
+        ${openCategories > 0 ? `<button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategories} ${escapeHtml(t("chrome.categoryOpen"))}</button>` : ""}
         ${offeneChecksAnzahl() > 0 ? `<button class="chip review linkish" data-action="show-checks">${iconSvg("review")}${offeneChecksAnzahl()} ${escapeHtml(t("chrome.openChecks"))}</button>` : ""}
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
         ${renderNextActionButton()}
       </div>
-      <div class="controls">
-        <select class="control-select mode-select" data-control="data-mode" aria-label="${escapeHtml(t("chrome.dataMode"))}" title="${escapeHtml(t("chrome.dataMode"))}">
-          <option value="live" ${state.dataMode === "live" ? "selected" : ""}>${escapeHtml(t("chrome.liveDataShort"))}</option>
-          <option value="demo" ${state.dataMode === "demo" ? "selected" : ""}>${escapeHtml(t("chrome.demoDataShort"))}</option>
-        </select>
-        <select class="control-select icon-select" data-control="lang" aria-label="${escapeHtml(t("chrome.language"))}" title="${escapeHtml(t("chrome.language"))}">
-          <option value="de" ${state.lang === "de" ? "selected" : ""}>🇩🇪</option>
-          <option value="en" ${state.lang === "en" ? "selected" : ""}>🇬🇧</option>
-        </select>
-        <select class="control-select icon-select" data-control="theme" aria-label="${escapeHtml(t("chrome.appearance"))}" title="${escapeHtml(t("chrome.appearance"))}">
-          <option value="system" ${state.theme === "system" ? "selected" : ""}>◐</option>
-          <option value="light" ${state.theme === "light" ? "selected" : ""}>☀</option>
-          <option value="dark" ${state.theme === "dark" ? "selected" : ""}>☾</option>
-        </select>
-      </div>
+      ${renderSettingsMenu()}
     </header>
+  `;
+}
+
+// Ein Zahnrad statt drei Auswahlfeldern: Datenmodus, Sprache und Darstellung
+// als Knopfreihen im aufklappbaren Menue (Muster wie die Granularitaet in Liquiditaet).
+function renderSettingsMenu() {
+  const gruppe = (setting, label, optionen) => `
+    <div class="settings-group" role="group" aria-label="${escapeHtml(label)}">
+      <span class="settings-label">${escapeHtml(label)}</span>
+      <div class="settings-options">
+        ${optionen.map(([value, text, aktiv]) => `<button class="chip ${aktiv ? "success" : "neutral"} linkish" data-action="set-setting" data-setting="${setting}" data-value="${value}" aria-pressed="${aktiv}">${escapeHtml(text)}</button>`).join("")}
+      </div>
+    </div>`;
+  return `
+    <div class="settings-control">
+      <button class="chip neutral linkish icon-chip settings-toggle" data-action="toggle-settings-menu" aria-haspopup="true" aria-expanded="${state.settingsMenuOpen}" aria-label="${escapeHtml(t("chrome.settings"))}" title="${escapeHtml(t("chrome.settings"))}">${iconSvg("settings")}</button>
+      ${state.settingsMenuOpen ? `
+        <div class="settings-menu">
+          ${gruppe("data-mode", t("chrome.dataMode"), [["live", t("chrome.liveDataShort"), state.dataMode !== "demo"], ["demo", t("chrome.demoDataShort"), state.dataMode === "demo"]])}
+          ${gruppe("lang", t("chrome.language"), [["de", "Deutsch", state.lang === "de"], ["en", "English", state.lang === "en"]])}
+          ${gruppe("theme", t("chrome.appearance"), [["system", t("chrome.themeSystem"), state.theme === "system"], ["light", t("chrome.themeLight"), state.theme === "light"], ["dark", t("chrome.themeDark"), state.theme === "dark"]])}
+        </div>` : ""}
+    </div>
   `;
 }
 
@@ -323,14 +330,14 @@ function renderNextActionButton() {
   const nextActionActions = buildNextAgentActions(data);
   const nextAction = nextActionActions[0] ?? { type: "none", label: t("chrome.noAgentAction"), prompt: "" };
   const disabled = nextAction.type === "none" ? " disabled" : "";
-  const label = state.nextActionCopied ? t("chrome.agentPromptCopied") : t("chrome.copyAgentPrompt");
+  const label = state.nextActionCopied ? t("chrome.agentPromptCopied") : t("chrome.copyPromptShort");
   const detail = nextAction.type === "none" ? t("chrome.noAgentAction") : nextAction.label;
   const hasMenu = nextActionActions.length > 1;
   const menuOpen = hasMenu && state.nextActionMenuOpen;
   return `
     <span class="next-action-control">
-      <button class="chip neutral linkish next-action-copy" data-action="copy-next-agent-prompt" data-next-action-type="${escapeHtml(nextAction.type)}"${disabled} title="${escapeHtml(detail)}">
-        ${iconSvg("copy")}${escapeHtml(label)} · ${escapeHtml(detail)}
+      <button class="chip neutral linkish next-action-copy" data-action="copy-next-agent-prompt" data-next-action-type="${escapeHtml(nextAction.type)}"${disabled} title="${escapeHtml(`${t("chrome.copyAgentPrompt")}: ${detail}`)}">
+        ${iconSvg("copy")}<span class="chip-text">${escapeHtml(label)} · ${escapeHtml(detail)}</span>
       </button>
       ${hasMenu ? `
         <button class="chip neutral linkish next-action-menu-toggle" data-action="toggle-next-action-menu" aria-expanded="${menuOpen}" title="${escapeHtml(t("chrome.nextAction"))}">
@@ -428,6 +435,11 @@ app.addEventListener("error", (event) => {
 }, true);
 
 app.addEventListener("click", guard((event) => {
+  if (state.settingsMenuOpen && !event.target.closest(".settings-control")) {
+    state.settingsMenuOpen = false;
+    render();
+  }
+
   const errorDismiss = event.target.closest("[data-error-dismiss]");
   if (errorDismiss) {
     state.uiError = null;
@@ -531,6 +543,12 @@ app.addEventListener("click", guard((event) => {
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
 const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-wertstaende-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
 app.addEventListener("keydown", guard((event) => {
+  if (event.key === "Escape" && state.settingsMenuOpen) {
+    state.settingsMenuOpen = false;
+    render();
+    app.querySelector(".settings-toggle")?.focus();
+    return;
+  }
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
   if (!el || typeof el.matches !== "function") return;
@@ -576,29 +594,9 @@ app.addEventListener("change", guard((event) => {
     return;
   }
   const control = event.target.closest("[data-control]");
-  if (control?.dataset.control === "data-mode") {
-    state.dataMode = control.value === "demo" ? "demo" : "live";
-    localStorage.setItem(storageKeys.dataMode, state.dataMode);
-    const url = new URL(window.location.href);
-    url.searchParams.set("_reload", String(Date.now()));
-    window.location.assign(url);
-    return;
-  }
   if (control?.dataset.control === "szenario-vergleich") {
     state.szenarioVergleichMit = control.value || "";
     commitNavigation();
-    return;
-  }
-  if (control?.dataset.control === "lang") {
-    state.lang = control.value;
-    localStorage.setItem(storageKeys.lang, state.lang);
-    render();
-    return;
-  }
-  if (control?.dataset.control === "theme") {
-    state.theme = control.value;
-    localStorage.setItem(storageKeys.theme, state.theme);
-    render();
     return;
   }
   if (control?.dataset.control === "liquiditaet-bis") {
@@ -694,12 +692,43 @@ async function copyNextAgentPrompt(type = "") {
   }
 }
 
+function applySetting(setting, value) {
+  if (setting === "data-mode") {
+    const mode = value === "demo" ? "demo" : "live";
+    if (mode === state.dataMode) return;
+    state.dataMode = mode;
+    localStorage.setItem(storageKeys.dataMode, state.dataMode);
+    const url = new URL(window.location.href);
+    url.searchParams.set("_reload", String(Date.now()));
+    window.location.assign(url);
+    return;
+  }
+  if (setting === "lang") {
+    state.lang = value === "en" ? "en" : "de";
+    localStorage.setItem(storageKeys.lang, state.lang);
+  }
+  if (setting === "theme") {
+    state.theme = ["light", "dark"].includes(value) ? value : "system";
+    localStorage.setItem(storageKeys.theme, state.theme);
+  }
+  render();
+}
+
 async function handleAction(element) {
   const action = element.dataset.action;
   // Links in klickbaren Zeilen: der Browser oeffnet sie selbst, die Zeile nicht zusaetzlich.
   if (action === "dokument-link") return;
   if (action === "dokument-oeffnen") {
     window.open(element.dataset.url, "_blank", "noopener");
+    return;
+  }
+  if (action === "toggle-settings-menu") {
+    state.settingsMenuOpen = !state.settingsMenuOpen;
+    render();
+    return;
+  }
+  if (action === "set-setting") {
+    applySetting(element.dataset.setting, element.dataset.value);
     return;
   }
   if (action === "toggle-next-action-menu") {

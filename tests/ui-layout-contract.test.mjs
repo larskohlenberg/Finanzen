@@ -175,7 +175,21 @@ test("disabled next-action copy buttons do not look interactive", () => {
 
 test("open-category chip remains the navigation entry for open transactions", () => {
   assert.match(main, /data-action="filter-open-category"/);
-  assert.match(main, /openCategoryTransactions\(\)\.length[^\n]*chrome\.categoryOpen/);
+  assert.match(main, /const openCategories = openCategoryTransactions\(\)\.length/);
+  assert.match(main, /openCategories > 0 \?[^\n]*chrome\.categoryOpen/);
+});
+
+test("topbar keeps data mode, language and theme behind one settings menu", () => {
+  assert.match(main, /data-action="toggle-settings-menu"/);
+  assert.match(main, /data-action="set-setting" data-setting="\$\{setting\}"/);
+  for (const setting of ["data-mode", "lang", "theme"]) {
+    assert.match(main, new RegExp(`gruppe\\("${setting}"`));
+  }
+  assert.doesNotMatch(main, /data-control="(data-mode|lang|theme)"/);
+  assert.match(main, /event\.key === "Escape" && state\.settingsMenuOpen/);
+  assert.match(css, /\.settings-menu/);
+  // Demodaten bleiben sichtbar markiert, Echtdaten brauchen keinen Chip.
+  assert.match(main, /demoActive \? `<span class="chip demo"/);
 });
 
 test("IBAN fields render with grouped display format", () => {

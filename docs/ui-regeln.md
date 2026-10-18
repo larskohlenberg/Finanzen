@@ -116,3 +116,14 @@ je Terminart, darunter die Listen). Der Kopf jeder Kachel fuehrt auf die Seite d
 Bereichs, jede Zeile auf ihr Objekt oder ihren Reiter. Was eine andere Seite schon
 vollstaendig zeigt (Kontentabellen, naechste Aktion im Arbeitsstatus), steht hier
 nicht noch einmal. Diagramme in schmalen Kacheln kommen ohne Achsen aus.
+
+## Kopfzeile
+
+Die Kopfzeile bleibt einzeilig: links die Statuschips, rechts ein Zahnrad.
+
+- Datenmodus, Sprache und Darstellung liegen im Zahnrad-Menue (Knopfreihen, Esc
+  oder Klick daneben schliesst). Keine eigenen Auswahlfelder in der Kopfzeile.
+- Text bekommt nur, was Aufmerksamkeit braucht: Demodaten, Validierungsfehler,
+  offene Kategorien und Checks (nur bei mehr als null), Importfehler. Bestandene
+  Validierung und Neu laden sind reine Symbole mit Tooltip.
+- Der Prompt-Chip kuerzt seinen Text mit "…", statt die Zeile umbrechen zu lassen.

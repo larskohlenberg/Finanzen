@@ -113,6 +113,7 @@ export const state = {
   moreMenuOpen: false,
   nextActionCopied: false,
   nextActionMenuOpen: false,
+  settingsMenuOpen: false,
   nextActionPromptFallback: "",
   liquiditaet: {
     granularitaet: "monat",

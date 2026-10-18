@@ -3045,11 +3045,14 @@ a.linkish {
   font-style: normal;
   line-height: 1.45;
   text-align: left;
+  /* Geschlossen ohne Platzbedarf, sonst ragt er am rechten Rand ueber die Seite. */
+  display: none;
   visibility: hidden;
   opacity: 0;
   transition: opacity 0.12s;
 }
-.info-tipp:hover .info-tipp-text, .info-tipp:focus .info-tipp-text { visibility: visible; opacity: 1; }
+.info-tipp:hover .info-tipp-text, .info-tipp:focus .info-tipp-text { display: block; visibility: visible; opacity: 1; }
+@starting-style { .info-tipp:hover .info-tipp-text, .info-tipp:focus .info-tipp-text { opacity: 0; } }
 .farbpunkt { flex: 0 0 auto; display: inline-block; width: 9px; height: 9px; border-radius: 2px; align-self: center; }
 .vorsorge-kopf-mit-grafik { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .donut-diagramm { flex: 0 0 auto; width: 72px; height: 72px; overflow: visible; }

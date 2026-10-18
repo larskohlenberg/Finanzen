@@ -109,7 +109,8 @@ function flacheKachel({ id, titel, info = "", wert, notiz, teile }) {
 }
 
 function renderEinnahmenAusgaben(today) {
-  const mittel = monatsMittel(data, today);
+  // Nur Monate, die auf allen Konten vollstaendig gebucht sind (Stand wie in der Liquiditaet).
+  const mittel = monatsMittel(data, today, { vollstaendigBis: overviewAccountGroups().konten.aeltester });
   if (!mittel.anzahl_monate) return "";
   const zeitraum = mittel.anzahl_monate === 1 ? formatMonatLang(mittel.monate[0]) : `${formatMonatLang(mittel.monate[0])} – ${formatMonatLang(mittel.monate.at(-1))}`;
   const basisNotiz = `${escapeHtml(tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate }))} · ${escapeHtml(zeitraum)}`;

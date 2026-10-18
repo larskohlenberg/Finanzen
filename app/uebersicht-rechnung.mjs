@@ -144,10 +144,19 @@ export function checkVorschau(items, limit = 4) {
 //   der Rest des Ueberschusses bleibt kurzfristig liquide (Konten, Tagesgeld,
 //   Festgeld; negativ: aus Ruecklagen entnommen).
 // Bei kuerzerer Historie wird nur durch die Monate seit der ersten Buchung geteilt.
+// vollstaendigBis (aeltester Kontenstand): ein Monat zaehlt erst, wenn alle Konten
+// bis zu seinem letzten Tag belegt sind, sonst fehlen noch Buchungen.
 const KATEGORIE_UNGEKLAERT = "KAT-012";
 
-export function monatsMittel(data, today) {
-  const laufend = today.slice(0, 7);
+function letzterVollerMonat(datum) {
+  const [y, m, d] = datum.split("-").map(Number);
+  const monatsletzter = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return d >= monatsletzter ? datum.slice(0, 7) : new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7);
+}
+
+export function monatsMittel(data, today, { vollstaendigBis = "" } = {}) {
+  const grenze = vollstaendigBis ? letzterVollerMonat(vollstaendigBis) : "";
+  const laufend = grenze && grenze < today.slice(0, 7) ? new Date(Date.UTC(Number(grenze.slice(0, 4)), Number(grenze.slice(5, 7)), 1)).toISOString().slice(0, 7) : today.slice(0, 7);
   const vorher = (data.transaktionen ?? []).map((tx) => tx.buchungsdatum?.slice(0, 7)).filter((m) => m && m < laufend).sort();
   const monate = [];
   if (vorher.length) {

@@ -716,17 +716,25 @@ export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = 
     }
   });
 
-  // Ereignisse: Marker durch die Plotflaeche, Beschriftung abwechselnd in zwei Zeilen.
+  // Ereignisse: Marker durch die Plotflaeche, Beschriftung in der ersten von zwei
+  // Zeilen, in der sie nichts ueberdeckt. Passt sie in keine, bleibt nur die Linie
+  // (Details dann im Hover), statt dass sich Texte ueberlagern.
   const belegt = [[], []];
   for (const e of ereignisse) {
     const px = links + spalte * e.pos;
-    const textBreite = String(e.label).length * (SCHRIFT - 2) * 0.6 + 12;
-    const zeile = belegt[0].every((b) => Math.abs(b - px) > textBreite) ? 0 : 1;
-    belegt[zeile].push(px);
-    const ty = 8 + bandHoehe + 12 + zeile * 15;
+    const textBreite = String(e.label).length * (SCHRIFT - 2) * 0.6 + 4;
     const anchor = px - links < textBreite / 2 ? "start" : breite - rechts - px < textBreite / 2 ? "end" : "middle";
-    teile.push(`<line x1="${runde(px)}" x2="${runde(px)}" y1="${runde(ty + 3)}" y2="${runde(hoehe - unten)}" class="ereignis-marker" />`);
-    teile.push(`<text x="${runde(px)}" y="${runde(ty)}" text-anchor="${anchor}" font-size="${SCHRIFT - 2}" class="ereignis-label">${esc(e.label)}</text>`);
+    const x0 = anchor === "start" ? px : anchor === "end" ? px - textBreite : px - textBreite / 2;
+    const frei = (zeile) => belegt[zeile].every(([a0, a1]) => x0 + textBreite + 6 <= a0 || x0 >= a1 + 6);
+    const zeile = frei(0) ? 0 : frei(1) ? 1 : -1;
+    if (zeile < 0) {
+      teile.push(`<line x1="${runde(px)}" x2="${runde(px)}" y1="${runde(oben)}" y2="${runde(hoehe - unten)}" class="ereignis-marker" />`);
+      continue;
+    }
+    belegt[zeile].push([x0, x0 + textBreite]);
+    const tyZeile = 8 + bandHoehe + 12 + zeile * 15;
+    teile.push(`<line x1="${runde(px)}" x2="${runde(px)}" y1="${runde(tyZeile + 3)}" y2="${runde(hoehe - unten)}" class="ereignis-marker" />`);
+    teile.push(`<text x="${runde(px)}" y="${runde(tyZeile)}" text-anchor="${anchor}" font-size="${SCHRIFT - 2}" class="ereignis-label">${esc(e.label)}</text>`);
   }
 
   // Jede schritt-te Spalte beschriftet; die letzte nur, wenn sie Abstand zur

@@ -14,6 +14,8 @@ const monatKurz = (monat) => {
   const name = new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short" }).format(new Date(`${monat}-01T00:00:00`));
   return monat.endsWith("-01") ? monat.slice(0, 4) : name.replace(".", "");
 };
+// Kurzbetrag in Tausend Euro mit hoechstens einer Nachkommastelle ("-20 T€", "+4,8 T€").
+const tausend = (c) => `${new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { maximumFractionDigits: 1 }).format(c / 100000)} ${state.lang === "en" ? "k€" : "T€"}`;
 const monatsAchse = (monate) => monate.map((m) => ({ label: monatKurz(m), titel: formatMonth(m) }));
 
 function renderSaldoVerlauf(verlauf, emptyKey) {
@@ -74,18 +76,18 @@ function istKachel(ist, today) {
   const chipKlasse = ist.qualitaet.fehlende_anker > 0 ? "review" : "success";
   const notiz = `<span class="chip ${chipKlasse}">${iconSvg(chipKlasse)}${escapeHtml(String(ist.qualitaet.fehlende_anker))} ${escapeHtml(t("liquiditaet.qualityMissingAnchors"))}</span>`;
   const verlauf = liquiditaetVerlauf(data, today);
-  // Grosse Buchungen erklaeren die Spruenge: am Monat ein Marker mit der
-  // groessten, im Hover alle mit Datum und Betrag.
+  // Grosse Buchungen erklaeren die Spruenge: am Monat ein Marker mit ihrer
+  // Summe in Tausend (kurz, damit sich nichts ueberlagert), im Hover jede mit
+  // Tag, kurzer Bezeichnung und Betrag.
+  const tagMonat = (iso) => `${Number(iso.slice(8, 10))}.${Number(iso.slice(5, 7))}.`;
   const spalten = monatsAchse(verlauf.map((p) => p.monat)).map((sp, i) => ({
     ...sp,
-    zusatz: verlauf[i].grosse.map((g) => ({ klasse: "keine", label: `${formatDate(g.datum)} ${g.label}`, wert: formatMoney(g.betrag_cents) })),
+    zusatz: verlauf[i].grosse.map((g) => ({ klasse: "keine", label: `${tagMonat(g.datum)} ${g.label}`, wert: formatMoney(g.betrag_cents) })),
   }));
   const ereignisse = verlauf.flatMap((p, i) => {
     if (!p.grosse.length) return [];
-    const top = [...p.grosse].sort((a, b) => Math.abs(b.betrag_cents) - Math.abs(a.betrag_cents))[0];
-    const name = top.label.length > 14 ? `${top.label.slice(0, 13).trim()}…` : top.label;
-    const mehr = p.grosse.length > 1 ? ` +${p.grosse.length - 1}` : "";
-    return [{ pos: i + 0.5, label: `${name} ${top.betrag_cents > 0 ? "+" : ""}${geldOhneCent(top.betrag_cents)}${mehr}` }];
+    const summe = p.grosse.reduce((a, g) => a + g.betrag_cents, 0);
+    return [{ pos: i + 0.5, label: `${summe > 0 ? "+" : ""}${tausend(summe)}` }];
   });
   const unten = zeitverlaufKlein({
     spalten,

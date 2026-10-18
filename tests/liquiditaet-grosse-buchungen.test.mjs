@@ -55,3 +55,16 @@ test("Liquiditaetsverlauf haengt die grossen Buchungen an ihren Monat", () => {
   assert.deepEqual(v.find((p) => p.monat === "2026-08").grosse.map((b) => b.transaktion_id), ["T-D1"]);
   assert.deepEqual(v.find((p) => p.monat === "2026-10").grosse, []);
 });
+
+test("Beschriftung kurz: ohne Bankdaten, Codes, Datum und eigene Namen, hoechstens 32 Zeichen", () => {
+  const d = daten();
+  d.transaktionen = [
+    tx("T-1", "KTO-001", "2026-09-01", "-5000.00", { verwendungszweck: "Erika Muster BLZ: 12345678 Kto: 1234567890 BIC: TESTDEFFXXX IBAN: DE00123456781234567890", kategorie_id: "KAT-100" }),
+    tx("T-2", "KTO-001", "2026-09-02", "-5000.00", { gegenpartei: "Erika Muster", verwendungszweck: "Uebertrag Urlaub DATUM 27.08.2026, 08.08 UHR" }),
+    tx("T-3", "KTO-001", "2026-09-03", "-5000.00", { gegenpartei: "Ein sehr langer Haendlername GmbH und Co KG Niederlassung" }),
+    tx("T-4", "KTO-001", "2026-09-04", "-5000.00", { gegenpartei: "Erika Muster", bemerkung: "Festgeld Beispielbank 1234567890, Anlage 3 Monate" }),
+  ];
+  assert.deepEqual(grosseBuchungen(d, "2026-09-01", "2026-09-30").map((b) => b.label), [
+    "Geldanlage", "Uebertrag Urlaub", "Ein sehr langer Haendlername Gm…", "Festgeld Beispielbank",
+  ]);
+});

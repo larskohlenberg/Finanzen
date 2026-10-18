@@ -3380,8 +3380,6 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .flach-unterliste li { display: flex; align-items: baseline; gap: 6px; }
 .flach-unterliste .linkish { flex: 1 1 auto; text-align: left; font-size: 12px; white-space: nowrap; }
 .flach-unterliste .amount { font-variant-numeric: tabular-nums; color: var(--muted); }
-.flach-fuss { margin: 10px 0 0; padding-top: 8px; border-top: 1px dashed var(--border); color: var(--muted); font-size: 12px; }
-.flach-fuss .linkish { font-size: 12px; }
 .uebersicht-flach-kachel .uebersicht-kachel-kopf { display: flex; align-items: center; gap: 6px; }
 @container (max-width: 260px) {
   .flach-inhalt { grid-template-columns: 1fr; gap: 8px; }

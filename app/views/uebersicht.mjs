@@ -89,7 +89,7 @@ function legendenZeile(k) {
 
 // Flache Kachel: Kennzahl und Notiz, darunter links die kurze Leiste und
 // rechts die Legende untereinander. Teile mit negativem Betrag stehen nur in der Legende.
-function flacheKachel({ id, titel, info = "", wert, notiz, teile, fuss = "" }) {
+function flacheKachel({ id, titel, info = "", wert, notiz, teile }) {
   const basis = Math.max(teile.filter((k) => k.mittel_cents > 0).reduce((a, k) => a + k.mittel_cents, 0), 1);
   const segmente = teile.filter((k) => k.mittel_cents > 0).map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
   const legende = teile.map(legendenZeile).join("");
@@ -105,7 +105,6 @@ function flacheKachel({ id, titel, info = "", wert, notiz, teile, fuss = "" }) {
         <div class="uebersicht-balken">${segmente.length ? balkenSvg(segmente) : ""}</div>
         <ul class="flach-legende">${legende}</ul>
       </div>` : ""}
-      ${fuss}
     </section>`;
 }
 
@@ -130,11 +129,6 @@ function renderEinnahmenAusgaben(today) {
       ...(z.konten_cents ? [{ name: t(z.konten_cents < 0 ? "overview.kontenEntnommen" : "overview.kontenTagesgeld"), mittel_cents: z.konten_cents, klasse: ZIEL_KLASSE.liquide, ziel: `data-action="kategorie-transactions" data-transfer="only" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` }] : []),
     ];
   });
-  const sondereffekte = mittel.sondereffekte.map((se) => {
-    const monate = [...new Set(se.buchungen.map((b) => formatMonatLang(b.datum.slice(0, 7))))].join(", ");
-    return `<button class="linkish" data-action="kategorie-transactions" data-kategorie="${escapeHtml(se.kategorie_id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}">${escapeHtml(se.name)}</button> ${escapeHtml(geldOhneCent(se.summe_cents))} (${escapeHtml(monate)})`;
-  });
-  const sonderFuss = sondereffekte.length ? `<p class="flach-fuss">${escapeHtml(t("overview.sondereffekt"))}: ${sondereffekte.join(" · ")}</p>` : "";
   return `
     <div class="uebersicht-flach">
       ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.einnahmen.kategorien, mittel) })}
@@ -146,7 +140,6 @@ function renderEinnahmenAusgaben(today) {
         wert: sparen.quote === null ? "–" : escapeHtml(formatProzent(sparen.quote)),
         notiz: `${escapeHtml(tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) }))} · ${basisNotiz}`,
         teile: sparTeile,
-        fuss: sonderFuss,
       })}
     </div>`;
 }

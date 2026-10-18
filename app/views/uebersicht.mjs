@@ -192,11 +192,12 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null }) {
 }
 
 // Breite Kachel: oben das Nettovermoegen, darunter schnell verfuegbar (Konten,
-// Depots) und langfristig gebunden (Immobilien, Sachwerte, Vorsorge minus Darlehen).
+// Festgeld, Depots) und langfristig gebunden (Immobilien, Sachwerte, Vorsorge minus Darlehen).
 function renderVermoegenKachel() {
   const r = currentNettovermoegen();
-  const depots = new Set(data.konten.filter((k) => k.kontotyp === "depot").map((k) => k.konto_id));
-  const istDepot = (p) => p.klasse === "konto" && depots.has(p.id);
+  const kontotyp = new Map(data.konten.map((k) => [k.konto_id, k.kontotyp]));
+  const istDepot = (p) => p.klasse === "konto" && kontotyp.get(p.id) === "depot";
+  const istFestgeld = (p) => p.klasse === "konto" && kontotyp.get(p.id) === "festgeld";
   const schnell = (p) => p.klasse === "konto";
   const klasse = (key, ziel) => ({ titel: t(`vermoegen.klassePlural.${key}`), filter: (p) => p.klasse === key, ziel, punkt: `segment-${key}` });
   const darlehen = klasse("darlehen", ZIEL.vermoegenTab("darlehen"));
@@ -220,7 +221,8 @@ function renderVermoegenKachel() {
           titel: t("overview.vermoegenSchnell"),
           positionen: r.positionen.filter(schnell),
           klassen: [
-            { titel: t("overview.accounts"), filter: (p) => !istDepot(p), ziel: ZIEL.vermoegenTab("konten"), punkt: "segment-konto" },
+            { titel: t("overview.accounts"), filter: (p) => !istDepot(p) && !istFestgeld(p), ziel: ZIEL.vermoegenTab("konten"), punkt: "segment-konto" },
+            { titel: t("overview.festgeld"), filter: istFestgeld, ziel: ZIEL.vermoegenTab("konten"), punkt: "segment-festgeld" },
             { titel: t("overview.depots"), filter: istDepot, ziel: ZIEL.vermoegenTab("konten"), punkt: "segment-depot" },
           ],
         })}

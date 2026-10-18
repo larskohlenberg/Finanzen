@@ -3072,6 +3072,15 @@ a.linkish {
 .zeitstrahl-punkt.vermoegen-restschuld-linie { fill: var(--danger); }
 .zeitstrahl-linie.liquiditaet-linie { stroke: var(--accent); fill: none; }
 .zeitstrahl-punkt.liquiditaet-linie { fill: var(--accent); }
+.zeitstrahl-linie.liquiditaet-trend-linie { stroke: #d0743c; stroke-width: 1.6; stroke-dasharray: 6 4; fill: none; }
+.zeitstrahl-punkt.liquiditaet-trend-linie { display: none; }
+:root[data-theme="dark"] .zeitstrahl-linie.liquiditaet-trend-linie { stroke: #e8955f; }
+.diagramm-hover-swatch.liquiditaet-trend-linie { border-top: 2px dashed #d0743c; }
+.liquiditaet-trend-notiz { display: block; margin-top: 4px; }
+/* Legende des Liquiditaetsverlaufs: kurze Linienstuecke statt Farbquadrate. */
+.liquiditaet-legende { margin-top: 2px; }
+.liquiditaet-legende .legende-linie { width: 16px; height: 0; border-radius: 0; background: none; border-top: 2px solid var(--accent); vertical-align: middle; }
+.liquiditaet-legende .legende-linie.liquiditaet-trend-linie { border-top: 2px dashed #d0743c; }
 .zeitstrahl-linie.liquiditaet-prognose-linie { stroke: var(--accent); stroke-dasharray: 5 3; fill: none; }
 .zeitstrahl-punkt.liquiditaet-prognose-linie { fill: var(--accent); }
 .kontotyp-farbe-giro { --farbe: #2a78d6; }

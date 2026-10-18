@@ -68,3 +68,13 @@ test("Beschriftung kurz: ohne Bankdaten, Codes, Datum und eigene Namen, hoechste
     "Geldanlage", "Uebertrag Urlaub", "Ein sehr langer Haendlername Gm…", "Festgeld Beispielbank",
   ]);
 });
+
+test("Grundtrend: Saldo ohne die grossen Buchungen nach dem ersten Monatsende", () => {
+  const v = liquiditaetVerlauf(daten(), "2026-10-05");
+  assert.equal(v[0].grundtrend_cents, v[0].saldo_cents, "beginnt mit dem Saldo");
+  const aug = v.find((p) => p.monat === "2026-08");
+  const sep = v.find((p) => p.monat === "2026-09");
+  // August: Depot-Umbuchung -6.000 herausgerechnet; September zusaetzlich -20.000 und -11.199,70.
+  assert.equal(aug.grundtrend_cents - aug.saldo_cents, 600000);
+  assert.equal(sep.grundtrend_cents - sep.saldo_cents, 600000 + 2000000 + 1119970);
+});

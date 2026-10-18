@@ -7,8 +7,10 @@ const kategorien = [
   { kategorie_id: "KAT-003", name: "Wohnen", typ: "ausgabe" },
   { kategorie_id: "KAT-004", name: "Lebensmittel", typ: "ausgabe" },
   { kategorie_id: "KAT-008", name: "Kinder", typ: "ausgabe" },
-  { kategorie_id: "KAT-009", name: "Sparen & Umbuchung", typ: "neutral" },
-  { kategorie_id: "KAT-014", name: "Altersvorsorge", typ: "neutral" },
+  { kategorie_id: "KAT-009", name: "Sparen & Umbuchung", typ: "neutral", sparziel: "depot" },
+  { kategorie_id: "KAT-014", name: "Altersvorsorge", typ: "neutral", sparziel: "versicherung" },
+  { kategorie_id: "KAT-026", name: "Festgeld", typ: "neutral", sparziel: "liquide" },
+  { kategorie_id: "KAT-030", name: "Steuern", typ: "ausgabe", gutschriften_sondereffekt: true },
   { kategorie_id: "KAT-012", name: "Noch zu klaeren", typ: "neutral" },
 ];
 const tx = (buchungsdatum, betrag, kategorie_id, extra = {}) => ({ buchungsdatum, betrag, kategorie_id, ist_transfer: false, ...extra });
@@ -83,6 +85,22 @@ test("monatsMittel: Kategorie mit Gutschrift-Ueberhang zaehlt als Einnahme, Spar
   assert.equal(r.ausgaben.je_monat[0], 200000);
   assert.equal(r.sparen.ueberschuss_cents, 220000);
   assert.equal(Math.round(r.sparen.quote * 1000), 524);
-  assert.deepEqual(r.sparen.kategorien.map((k) => [k.kategorie_id, k.mittel_cents]), [["KAT-009", 100000], ["KAT-014", 50000]]);
-  assert.equal(r.sparen.rest_cents, 70000);
+  assert.deepEqual(r.sparen.ziele.map((z) => [z.ziel, z.mittel_cents]), [["liquide", 70000], ["depot", 100000], ["versicherung", 50000]]);
+  assert.deepEqual(r.sparen.ziele[1].kategorien, ["KAT-009"]);
+});
+
+test("monatsMittel: Steuererstattung ist Sondereffekt, Steuerzahlung bleibt Ausgabe, Festgeld bleibt liquide", () => {
+  const transaktionen = [];
+  for (let m = 1; m <= 12; m++) transaktionen.push(tx(`2025-${String(m).padStart(2, "0")}-01`, "3000.00", "KAT-001"));
+  transaktionen.push(
+    tx("2025-03-10", "12000.00", "KAT-030"), // Erstattung
+    tx("2025-09-28", "-120.00", "KAT-030"), // Kfz-Steuer
+    tx("2025-05-01", "-6000.00", "KAT-026"), // Festgeld angelegt
+  );
+  const r = monatsMittel({ transaktionen, kategorien }, "2026-01-20");
+  assert.equal(r.einnahmen.mittel_cents, 300000);
+  assert.equal(r.ausgaben.mittel_cents, 1000);
+  assert.deepEqual(r.sondereffekte, [{ kategorie_id: "KAT-030", name: "Steuern", summe_cents: 1200000, buchungen: [{ datum: "2025-03-10", betrag_cents: 1200000 }] }]);
+  // Festgeld ist kein Depot und keine Versicherung: alles bleibt liquide.
+  assert.deepEqual(r.sparen.ziele.map((z) => z.mittel_cents), [299000, 0, 0]);
 });

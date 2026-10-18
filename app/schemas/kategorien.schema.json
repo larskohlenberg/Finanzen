@@ -13,7 +13,9 @@
       "typ": { "type": "string", "enum": ["einnahme", "ausgabe", "neutral"] },
       "lebenshaltung_relevant": { "type": "boolean" },
       "status": { "type": "string", "enum": ["aktiv", "inaktiv"] },
-      "aktiv_bis": { "type": "string", "format": "date" }
+      "aktiv_bis": { "type": "string", "format": "date" },
+      "gutschriften_sondereffekt": { "type": "boolean", "description": "Gutschriften dieser Kategorie (z. B. Steuererstattungen) zaehlen nicht zu den monatlichen Einnahmen, sondern als Sondereffekt; Belastungen bleiben Ausgaben." },
+      "sparziel": { "type": "string", "enum": ["liquide", "depot", "versicherung"], "description": "Nur neutrale Kategorien: wohin das Geld in der Sparquote fliesst. Ohne Angabe zaehlt es zum kurzfristig liquiden Rest." }
     }
   }
 }

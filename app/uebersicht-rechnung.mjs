@@ -133,9 +133,12 @@ export function checkVorschau(items, limit = 4) {
 //   Kategorie) zaehlen netto je Kategorie: Ueberwiegen die Gutschriften (etwa
 //   Steuererstattungen, Kindergeld), ist die Kategorie eine Einnahme, sonst eine
 //   Ausgabe. Eine einzelne Erstattung mindert so nur ihre Kategorie.
-// - Neutrale Kategorien (Sparen, Altersvorsorge) sind keine Ausgaben, sondern
-//   zeigen in der Sparquote, wohin der Ueberschuss geht; der Rest bleibt auf den
-//   Konten (negativ: aus Ruecklagen entnommen).
+// - Gutschriften einer Kategorie mit gutschriften_sondereffekt (Steuererstattung)
+//   sind keine laufende Einnahme: sie stehen als Sondereffekt daneben.
+// - Neutrale Kategorien sind keine Ausgaben. In der Sparquote zeigen die mit
+//   sparziel "depot" bzw. "versicherung", was in Depots und Vertraege fliesst;
+//   der Rest des Ueberschusses bleibt kurzfristig liquide (Konten, Tagesgeld,
+//   Festgeld; negativ: aus Ruecklagen entnommen).
 // Bei kuerzerer Historie wird nur durch die Monate seit der ersten Buchung geteilt.
 const KATEGORIE_UNGEKLAERT = "KAT-012";
 
@@ -153,6 +156,7 @@ export function monatsMittel(data, today) {
   const index = new Map(monate.map((m, i) => [m, i]));
   const typ = new Map((data.kategorien ?? []).map((k) => [k.kategorie_id, k]));
   const istNeutral = (id) => typ.get(id)?.typ === "neutral" && id !== KATEGORIE_UNGEKLAERT;
+  const sondereffekte = new Map();
 
   // Netto je Kategorie, gesamt und je Monat (Vorzeichen wie gebucht).
   const netto = new Map();
@@ -161,8 +165,15 @@ export function monatsMittel(data, today) {
     const i = index.get(tx.buchungsdatum?.slice(0, 7));
     if (i === undefined) continue;
     const key = tx.kategorie_id ?? "";
-    const k = netto.get(key) ?? { summe: 0, je_monat: monate.map(() => 0) };
     const cents = toCents(tx.betrag);
+    if (cents > 0 && typ.get(key)?.gutschriften_sondereffekt === true) {
+      const se = sondereffekte.get(key) ?? { kategorie_id: key, name: typ.get(key).name, summe_cents: 0, buchungen: [] };
+      se.summe_cents += cents;
+      se.buchungen.push({ datum: tx.buchungsdatum, betrag_cents: cents });
+      sondereffekte.set(key, se);
+      continue;
+    }
+    const k = netto.get(key) ?? { summe: 0, je_monat: monate.map(() => 0) };
     k.summe += cents;
     k.je_monat[i] += cents;
     netto.set(key, k);
@@ -186,17 +197,19 @@ export function monatsMittel(data, today) {
   const einnahmen = seite(1);
   const ausgaben = seite(-1);
 
-  const neutral = [...netto].filter(([id]) => istNeutral(id));
   const ueberschuss = einnahmen.mittel_cents - ausgaben.mittel_cents;
+  const zielSumme = (ziel) => mittel(0 - [...netto].filter(([id]) => istNeutral(id) && typ.get(id)?.sparziel === ziel).reduce((a, [, k]) => a + k.summe, 0));
+  const depot = zielSumme("depot");
+  const versicherung = zielSumme("versicherung");
+  const zielKategorien = (ziel) => (data.kategorien ?? []).filter((k) => k.typ === "neutral" && k.sparziel === ziel).map((k) => k.kategorie_id);
   const sparen = {
     ueberschuss_cents: ueberschuss,
     quote: einnahmen.mittel_cents > 0 ? ueberschuss / einnahmen.mittel_cents : null,
-    kategorien: neutral
-      .filter(([, k]) => k.summe < 0)
-      .map(([kategorie_id, k]) => ({ kategorie_id, name: name(kategorie_id), mittel_cents: mittel(-k.summe) }))
-      .filter((k) => k.mittel_cents > 0)
-      .sort((a, b) => b.mittel_cents - a.mittel_cents),
-    rest_cents: ueberschuss + mittel(neutral.reduce((a, [, k]) => a + k.summe, 0)),
+    ziele: [
+      { ziel: "liquide", mittel_cents: ueberschuss - depot - versicherung, kategorien: [] },
+      { ziel: "depot", mittel_cents: depot, kategorien: zielKategorien("depot") },
+      { ziel: "versicherung", mittel_cents: versicherung, kategorien: zielKategorien("versicherung") },
+    ],
   };
 
   const letzterTag = n ? new Date(Date.UTC(Number(monate.at(-1).slice(0, 4)), Number(monate.at(-1).slice(5, 7)), 0)).toISOString().slice(0, 10) : "";
@@ -208,5 +221,6 @@ export function monatsMittel(data, today) {
     einnahmen,
     ausgaben,
     sparen,
+    sondereffekte: [...sondereffekte.values()],
   };
 }

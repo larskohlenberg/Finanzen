@@ -174,7 +174,7 @@ function nettoKachel(r, je, today) {
     ${balkenSvg(segmente)}
     ${balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(r.passiva_cents)}` }], { laenge: r.passiva_cents / aktiva })}
     <div class="vermoegen-legende">${legende}</div>`;
-  return kennzahlKachel({ label: t("vermoegen.netto"), wert: escapeHtml(formatMoney(r.netto_cents)), notiz, unten });
+  return kennzahlKachel({ label: t("vermoegen.netto"), wert: escapeHtml(formatMoney(r.netto_cents)), notiz, unten, info: t("vermoegen.uebersicht.nettoInfo") });
 }
 
 function restschuldKachel(r, today) {

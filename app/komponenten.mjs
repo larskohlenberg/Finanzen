@@ -203,13 +203,14 @@ export function toggleKlappKachel(id, standard = true) {
 // Kennzahl-Kachel der Bereichsseiten (Vorsorge, Vermoegen, Liquiditaet), immer
 // gleich gebaut: Label, Wert, Notiz; grafik (Donut) rechts neben dem Wert;
 // unten ein flacher Zeitverlauf; darunter die Aufschluesselung (zeilen aus
-// kachelZeile), damit die Summe ohne Rechnen aufgeht. wert und notiz sind HTML.
-export function kennzahlKachel({ label, wert, notiz = "", zeilen = [], grafik = "", unten = "" }) {
+// kachelZeile), damit die Summe ohne Rechnen aufgeht. wert und notiz sind HTML;
+// info (Text) erscheint als Infosymbol hinter dem Label mit Erklaerung beim Hovern.
+export function kennzahlKachel({ label, wert, notiz = "", zeilen = [], grafik = "", unten = "", info = "" }) {
   return `
       <section class="panel panel-pad vorsorge-kopf-kz">
         <div class="${grafik ? "vorsorge-kopf-mit-grafik" : ""}">
           <div>
-            <div class="muted">${escapeHtml(label)}</div>
+            <div class="muted">${escapeHtml(label)}${info ? infoTipp(info) : ""}</div>
             <div class="vorsorge-kopf-wert">${wert}</div>
             ${notiz ? `<div class="kpi-note">${notiz}</div>` : ""}
           </div>
@@ -218,6 +219,11 @@ export function kennzahlKachel({ label, wert, notiz = "", zeilen = [], grafik = 
         ${unten}
         ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : ""}
       </section>`;
+}
+
+// Kleines "i" mit Erklaerung, sichtbar bei Hover und Tastaturfokus (reines CSS).
+export function infoTipp(text) {
+  return `<span class="info-tipp" tabindex="0" aria-label="${escapeHtml(text)}">i<span class="info-tipp-text" role="tooltip">${escapeHtml(text)}</span></span>`;
 }
 
 export const farbPunkt = (klasse) => `<i class="farbpunkt ${klasse}" aria-hidden="true"></i>`;

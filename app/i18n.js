@@ -500,6 +500,7 @@ window.FINANCE_I18N = {
       uebersicht: {
         veraenderung: "{betrag} seit {seit}",
         nettoVerlauf: "Nettovermögen im Zeitverlauf",
+        nettoInfo: "So entsteht der Verlauf: je Monatsende ab der ersten Buchung, zuletzt heute. Kontostände werden von den Kontoauszügen über die Buchungen vor- und zurückgerechnet. Immobilien zählen ab dem Kauf, erst mit den Anschaffungskosten, dann mit dem jeweils letzten Marktwert. Darlehen laufen ab Anfangsbetrag und Anfangsdatum mit ihrer Rate. Für Depots, sonstige Werte und Rückkaufswerte gibt es oft keinen älteren Stand; dort gilt rückwärts der älteste bekannte Wert. Der Verlauf ist dort eine Näherung.",
         restschuld: "Restschuld der Darlehen",
         restschuldVerlauf: "Restschuld je Jahresende",
         jahresende: "Ende {jahr}",
@@ -1531,6 +1532,7 @@ window.FINANCE_I18N = {
       uebersicht: {
         veraenderung: "{betrag} since {seit}",
         nettoVerlauf: "Net worth over time",
+        nettoInfo: "How the curve is built: one point per month end from the first transaction, the last one today. Account balances are rolled forward and back from the statements through the transactions. Property counts from purchase, first at acquisition cost, then at the latest market value. Loans run from their initial amount and start date with their instalment. Depots, other assets and surrender values often have no older value; there the oldest known value applies backwards, so the curve is an approximation there.",
         restschuld: "Outstanding loans",
         restschuldVerlauf: "Outstanding balance at year end",
         jahresende: "End of {jahr}",

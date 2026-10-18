@@ -26,6 +26,48 @@ function ensureOverlay() {
 function hide() {
   if (overlay) overlay.hidden = true;
   for (const li of document.querySelectorAll(".termine-liste li.aktiv")) li.classList.remove("aktiv");
+  donutZuruecksetzen();
+}
+
+// Donuts (charts.mjs donutDiagramm): das Segment unter dem Zeiger rueckt entlang
+// seiner Mittelachse heraus (data-dx/dy, Uebergang per CSS), die Box zeigt
+// Bezeichnung, Betrag und Anteil, und in der Liste derselben Kachel wird die
+// Zeile mit derselben Farbe hervorgehoben. Gesetzt wird ueber CSSOM, das die
+// CSP der App erlaubt (anders als style-Attribute im Markup).
+let donutAktiv = null;
+
+function donutZuruecksetzen() {
+  if (!donutAktiv) return;
+  donutAktiv.classList.remove("aktiv");
+  donutAktiv.style.transform = "";
+  for (const li of document.querySelectorAll(".vorsorge-kopf-liste li.aktiv")) li.classList.remove("aktiv");
+  donutAktiv = null;
+}
+
+function zeigeDonut(segment, event) {
+  if (donutAktiv !== segment) {
+    donutZuruecksetzen();
+    donutAktiv = segment;
+    segment.classList.add("aktiv");
+    segment.style.transform = `translate(${Number(segment.dataset.dx) || 0}px, ${Number(segment.dataset.dy) || 0}px)`;
+    const farben = [...segment.classList].filter((k) => k !== "donut-segment" && k !== "aktiv");
+    const kachel = segment.closest("section");
+    if (kachel && farben.length) {
+      for (const li of kachel.querySelectorAll(".vorsorge-kopf-liste li")) {
+        const punkt = li.querySelector(".farbpunkt");
+        if (punkt && farben.every((k) => punkt.classList.contains(k))) li.classList.add("aktiv");
+      }
+    }
+  }
+  const el = ensureOverlay();
+  el.hidden = false;
+  el.querySelector(".diagramm-hover-linie").style.height = "0";
+  for (const punkt of el.querySelectorAll(".diagramm-hover-punkt")) punkt.hidden = true;
+  const box = el.querySelector(".diagramm-hover-box");
+  box.classList.add("seitlich");
+  box.innerHTML = `<div>${escapeHtml(segment.dataset.titel)}</div>`;
+  box.style.left = `${event.clientX + window.scrollX}px`;
+  box.style.top = `${event.clientY + window.scrollY}px`;
 }
 
 // Wertebereich exakt wie charts.mjs: liefert das Diagramm ihn mit (gerundete
@@ -185,6 +227,14 @@ function escapeHtml(text) {
 
 export function bindDiagrammHover(root) {
   root.addEventListener("pointermove", (event) => {
+    const segment = event.target.closest?.(".donut-segment[data-titel]");
+    // Beim Donut steht die Box links neben dem Zeiger (zeigeDonut), sonst verdeckt
+    // sie den Ring; alle anderen Diagramme zeigen sie wieder darueber.
+    if (!segment) overlay?.querySelector(".diagramm-hover-box")?.classList.remove("seitlich");
+    if (segment) {
+      zeigeDonut(segment, event);
+      return;
+    }
     const terminSvg = event.target.closest?.("svg[data-termine]");
     if (terminSvg) {
       zeigeTermine(terminSvg, event);

@@ -224,7 +224,10 @@ test("donutDiagramm: ein Segment je Teil mit Tooltip, Vollkreis bei einem Teil, 
   const { donutDiagramm } = await import("../app/charts.mjs");
   const svg = donutDiagramm({ teile: [{ wert: 300, klasse: "a", label: "A" }, { wert: 100, klasse: "b", label: "B" }, { wert: 0, klasse: "c", label: "C" }], formatWert: (c) => `${c} €` });
   assert.equal((svg.match(/<path /g) ?? []).length, 2, "Teile ohne Wert fallen weg");
-  assert.match(svg, /<title>A: 300 € \(75 %\)<\/title>/);
+  assert.match(svg, /data-titel="A: 300 € \(75 %\)"/);
+  assert.doesNotMatch(svg, /<title>/, "Hover-Box statt Browser-Tooltip");
+  // A deckt 0 bis 270 Grad, Mitte 135 Grad: nach rechts unten heraus.
+  assert.match(svg, /data-titel="A[^"]*" aria-label="[^"]*" data-dx="4\.24" data-dy="4\.24"/);
   assert.match(svg, /class="donut-segment b"/);
   assert.match(donutDiagramm({ teile: [{ wert: 5, klasse: "a", label: "A" }] }), /<circle[^>]*class="donut-voll"/);
   assert.equal(donutDiagramm({ teile: [] }), "");

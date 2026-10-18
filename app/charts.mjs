@@ -345,10 +345,13 @@ export function donutDiagramm({ teile, formatWert = String, ariaLabel = "" }) {
   const punkt = (winkel, radius) => [50 + radius * Math.sin(winkel), 50 - radius * Math.cos(winkel)].map((v) => runde(v));
   const prozent = (w) => `${Math.round((w / summe) * 100)} %`;
   let start = 0;
+  // Hover (diagramm-hover.mjs): data-titel fuer die Box, data-dx/dy schieben das
+  // Segment entlang seiner Mittelachse heraus. Kein <title>, sonst doppelter Tooltip.
   const segmente = gueltig.map((tl) => {
-    const titel = `<title>${esc(`${tl.label}: ${formatWert(tl.wert)} (${prozent(tl.wert)})`)}</title>`;
+    const text = esc(`${tl.label}: ${formatWert(tl.wert)} (${prozent(tl.wert)})`);
+    const hover = `data-titel="${text}" aria-label="${text}"`;
     if (gueltig.length === 1) {
-      return `<g class="donut-segment ${esc(tl.klasse)}"><circle cx="50" cy="50" r="${runde((r + innen) / 2)}" fill="none" stroke-width="${r - innen}" class="donut-voll">${titel}</circle></g>`;
+      return `<g class="donut-segment ${esc(tl.klasse)}" ${hover} data-dx="0" data-dy="0"><circle cx="50" cy="50" r="${runde((r + innen) / 2)}" fill="none" stroke-width="${r - innen}" class="donut-voll"></circle></g>`;
     }
     const winkel = (tl.wert / summe) * Math.PI * 2;
     const ende = start + winkel;
@@ -357,8 +360,10 @@ export function donutDiagramm({ teile, formatWert = String, ariaLabel = "" }) {
     const [bx, by] = punkt(ende, r);
     const [cx, cy] = punkt(ende, innen);
     const [dx, dy] = punkt(start, innen);
+    const mitte = start + winkel / 2;
     start = ende;
-    return `<path d="M${ax},${ay} A${r},${r} 0 ${gross} 1 ${bx},${by} L${cx},${cy} A${innen},${innen} 0 ${gross} 0 ${dx},${dy} Z" class="donut-segment ${esc(tl.klasse)}">${titel}</path>`;
+    const raus = `data-dx="${runde(6 * Math.sin(mitte))}" data-dy="${runde(-6 * Math.cos(mitte))}"`;
+    return `<path d="M${ax},${ay} A${r},${r} 0 ${gross} 1 ${bx},${by} L${cx},${cy} A${innen},${innen} 0 ${gross} 0 ${dx},${dy} Z" class="donut-segment ${esc(tl.klasse)}" ${hover} ${raus}></path>`;
   });
   return `<svg class="donut-diagramm" viewBox="0 0 100 100" role="img" aria-label="${esc(ariaLabel)}">${segmente.join("")}</svg>`;
 }
@@ -751,7 +756,11 @@ export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = 
   const hover = spalten.map((s, i) => ({
     x: Math.round(mx(i)),
     titel: s.titel ?? s.label,
-    zeilen: gueltig.map((serie) => ({ klasse: serie.klasse, label: serie.label, wert: serie.werte[i] == null ? "—" : formatWert(serie.werte[i]) })),
+    // spalten[i].zusatz: weitere fertige Hover-Zeilen, z. B. grosse Buchungen des Monats.
+    zeilen: [
+      ...gueltig.map((serie) => ({ klasse: serie.klasse, label: serie.label, wert: serie.werte[i] == null ? "—" : formatWert(serie.werte[i]) })),
+      ...(s.zusatz ?? []),
+    ],
   }));
   const plot = { left: links, right: breite - rechts, top: oben, bottom: hoehe - unten };
   return `<svg class="balken-diagramm zeitstrahl-diagramm" viewBox="0 0 ${breite} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(hover, plot)}>${teile.join("")}</svg>`;

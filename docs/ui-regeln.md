@@ -26,6 +26,10 @@ Bereichsseiten (Vorsorge, Vermoegen, Liquiditaet) bauen ihre Kennzahlen aus
 `kennzahlKachel` (`app/komponenten.mjs`): Wert, Notiz, flacher Verlauf
 (`zeitverlaufKlein`), Aufschluesselung als Liste; je zwei nebeneinander
 (`kachel-paare`). Jede Zahl steht einmal da; Tabs duerfen ihre Summe tragen.
+Erklaerungen zu einer Kennzahl stehen als Infosymbol am Label (`info` bzw.
+`infoTipp`). Donut-Segmente ruecken beim Hovern heraus, zeigen Betrag und Anteil
+und heben die Zeile gleicher Farbe in der Liste hervor. Im Liquiditaetsverlauf
+markieren Ereignisse grosse Einzelbuchungen (`grosseBuchungen`, ab 4.000 Euro).
 
 Reihenfolge und Standard je Detailansicht:
 

@@ -126,11 +126,11 @@ test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", () => {
     assert.match(rkw, /data-tab="lebensversicherungen">1 ohne Wert/);
     // Donut der Rueckkaufswerte und Farbpunkte in derselben Vertragsfarbe.
     assert.match(rkw, /class="donut-diagramm"/);
-    assert.match(rkw, /class="donut-segment vertrag-farbe-2"><circle[^>]*class="donut-voll"><title>LV Lena: 12\.000,00\s€ \(100 %\)/);
+    assert.match(rkw, /class="donut-segment vertrag-farbe-2" data-titel="LV Lena: 12\.000,00\s€ \(100 %\)"[^>]*><circle[^>]*class="donut-voll"/);
     assert.match(rkw, /<i class="farbpunkt vertrag-farbe-2" aria-hidden="true"><\/i><button[^>]*data-vorsorge="VS-003"/);
     assert.doesNotMatch(rkw, /Riester Lena/, "Riester steht nicht bei den Rueckkaufswerten im Vermoegen");
     // Beitraege als Donut je Bereich.
-    assert.match(kachel("Beiträge"), /class="donut-segment tab-farbe-renten"><title>Renten &amp; Anwartschaften pro Jahr: 1\.800,00/);
+    assert.match(kachel("Beiträge"), /class="donut-segment tab-farbe-renten" data-titel="Renten &amp; Anwartschaften pro Jahr: 1\.800,00/);
     assert.match(kachel("Kapitalleistungen"), /LV Lena<\/button><span class="muted">2035<\/span><span class="amount">25\.000,00/);
     const beitraege = kachel("Beiträge");
     assert.match(beitraege, /data-tab="renten">Renten &amp; Anwartschaften<\/button><span class="amount">150,00\s€ \/ Monat/);

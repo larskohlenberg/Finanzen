@@ -197,17 +197,71 @@ export function computeLiquiditaetIst(data, { today }) {
 
 // Liquiditaet je Monatsende der letzten `monate` Monate, der laufende Monat zum
 // heutigen Tag. Gleiche Konten und Rechnung wie computeLiquiditaetIst; Konten
-// ohne Anker zaehlen nicht mit.
+// ohne Anker zaehlen nicht mit. Je Monat dazu die grossen Buchungen, die den
+// Sprung erklaeren (grosseBuchungen).
 export function liquiditaetVerlauf(data, today, monate = 12) {
   const konten = liquiditaetsKonten(data.konten);
+  const erster = addInterval(`${today.slice(0, 7)}-01`, "monat", -(monate - 1));
+  const grosse = grosseBuchungen(data, erster, today);
   const punkte = [];
   for (let i = monate - 1; i >= 0; i--) {
     const monat = addInterval(`${today.slice(0, 7)}-01`, "monat", -i).slice(0, 7);
     const datum = i === 0 ? today : addInterval(addInterval(`${monat}-01`, "monat", 1), "tag", -1);
     const saldo = konten.reduce((a, k) => a + (kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum).saldo_cents ?? 0), 0);
-    punkte.push({ monat, datum, saldo_cents: saldo });
+    punkte.push({ monat, datum, saldo_cents: saldo, grosse: grosse.filter((g) => g.monat === monat) });
   }
   return punkte;
+}
+
+// Ab diesem Betrag gilt eine Einzelbuchung als gross (4.000 Euro): darunter
+// bleiben normale Monatsausgaben, darueber liegen Anschaffungen, Anlagen und
+// Erstattungen, die einen Sprung von 8.000 bis 10.000 Euro erklaeren.
+export const GROSSE_BUCHUNG_CENTS = 400000;
+
+const normName = (text) => String(text ?? "").toLowerCase().replace(/[^a-z0-9äöüß]+/g, " ").trim();
+
+// Beschriftung einer Buchung: die Gegenpartei, ausser sie ist jemand aus dem
+// Haushalt (Umbuchung, Festgeld); dann Verwendungszweck, Bemerkung oder Kategorie.
+function buchungsLabel(tx, data) {
+  const gegen = normName(tx.gegenpartei);
+  const eigen = gegen && (data.personen ?? []).some((p) => normName(p.name).split(" ").filter(Boolean).every((teil) => gegen.includes(teil)));
+  if (tx.gegenpartei && !eigen) return tx.gegenpartei.trim();
+  if (/[A-Za-zÄÖÜäöüß]{4,}/.test(tx.verwendungszweck ?? "")) return tx.verwendungszweck.trim();
+  const bemerkung = String(tx.bemerkung ?? "").split(/[,(.:;]/)[0].trim();
+  if (bemerkung) return bemerkung;
+  return (data.kategorien ?? []).find((k) => k.kategorie_id === tx.kategorie_id)?.name ?? tx.gegenpartei ?? "";
+}
+
+// Grosse Einzelbuchungen der liquiden Konten von `von` bis `bis`: ab der
+// Schwelle, ohne Umbuchungen zwischen zwei liquiden Konten (sie heben sich auf),
+// ohne Regelzahlungen und ohne Gegenparteien, die in mindestens drei Monaten mit
+// aehnlichem Betrag (+-20 %) wiederkehren, etwa das Gehalt. Nach Datum.
+export function grosseBuchungen(data, von, bis, schwelle = GROSSE_BUCHUNG_CENTS) {
+  const liquide = new Set(liquiditaetsKonten(data.konten).map((k) => k.konto_id));
+  const kontoVon = new Map((data.transaktionen ?? []).map((tx) => [tx.transaktion_id, tx.konto_id]));
+  const transfers = new Map((data.transfers ?? []).map((tr) => [tr.transfer_id, tr]));
+  const intern = (tx) => {
+    const tr = tx.transfer_id && transfers.get(tx.transfer_id);
+    if (!tr) return false;
+    const andere = tr.abgang_transaktion_id === tx.transaktion_id ? tr.zugang_transaktion_id : tr.abgang_transaktion_id;
+    return liquide.has(kontoVon.get(andere));
+  };
+  const kandidaten = (data.transaktionen ?? []).filter((tx) =>
+    liquide.has(tx.konto_id) && tx.buchungsdatum >= von && tx.buchungsdatum <= bis
+    && Math.abs(toCents(tx.betrag)) >= schwelle && !tx.regelzahlung_id && !intern(tx));
+  const wiederkehrend = (tx) => {
+    const name = normName(tx.gegenpartei);
+    if (!name) return false;
+    const betrag = toCents(tx.betrag);
+    const monate = new Set(kandidaten
+      .filter((o) => normName(o.gegenpartei) === name && Math.sign(toCents(o.betrag)) === Math.sign(betrag) && Math.abs(toCents(o.betrag) - betrag) <= Math.abs(betrag) * 0.2)
+      .map((o) => o.buchungsdatum.slice(0, 7)));
+    return monate.size >= 3;
+  };
+  return kandidaten
+    .filter((tx) => !wiederkehrend(tx))
+    .map((tx) => ({ transaktion_id: tx.transaktion_id, datum: tx.buchungsdatum, monat: tx.buchungsdatum.slice(0, 7), betrag_cents: toCents(tx.betrag), label: buchungsLabel(tx, data) }))
+    .sort((a, b) => a.datum.localeCompare(b.datum) || a.transaktion_id.localeCompare(b.transaktion_id));
 }
 
 export function computeLiquiditaetPrognose(data, { today, horizonEnd }) {

@@ -74,8 +74,22 @@ function istKachel(ist, today) {
   const chipKlasse = ist.qualitaet.fehlende_anker > 0 ? "review" : "success";
   const notiz = `<span class="chip ${chipKlasse}">${iconSvg(chipKlasse)}${escapeHtml(String(ist.qualitaet.fehlende_anker))} ${escapeHtml(t("liquiditaet.qualityMissingAnchors"))}</span>`;
   const verlauf = liquiditaetVerlauf(data, today);
+  // Grosse Buchungen erklaeren die Spruenge: am Monat ein Marker mit der
+  // groessten, im Hover alle mit Datum und Betrag.
+  const spalten = monatsAchse(verlauf.map((p) => p.monat)).map((sp, i) => ({
+    ...sp,
+    zusatz: verlauf[i].grosse.map((g) => ({ klasse: "keine", label: `${formatDate(g.datum)} ${g.label}`, wert: formatMoney(g.betrag_cents) })),
+  }));
+  const ereignisse = verlauf.flatMap((p, i) => {
+    if (!p.grosse.length) return [];
+    const top = [...p.grosse].sort((a, b) => Math.abs(b.betrag_cents) - Math.abs(a.betrag_cents))[0];
+    const name = top.label.length > 14 ? `${top.label.slice(0, 13).trim()}…` : top.label;
+    const mehr = p.grosse.length > 1 ? ` +${p.grosse.length - 1}` : "";
+    return [{ pos: i + 0.5, label: `${name} ${top.betrag_cents > 0 ? "+" : ""}${geldOhneCent(top.betrag_cents)}${mehr}` }];
+  });
   const unten = zeitverlaufKlein({
-    spalten: monatsAchse(verlauf.map((p) => p.monat)),
+    spalten,
+    ereignisse,
     serien: [{ klasse: "liquiditaet-linie", label: t("liquiditaet.balance"), werte: verlauf.map((p) => p.saldo_cents) }],
     formatWert: (c) => formatMoney(c),
     formatAchse: geldOhneCent,

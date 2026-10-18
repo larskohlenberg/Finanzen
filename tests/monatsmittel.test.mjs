@@ -198,3 +198,15 @@ test("monatsMittel: Abgleich zerlegt in Sondereffekt, Investition, neutrale Buch
   assert.deepEqual(liquide.bestandteile.map((b) => [b.art, b.mittel_cents]), [["sondereffekt", -20000], ["investition", 10000], ["neutral", -1000], ["umbuchungen", 5000]]);
   assert.equal(liquide.veraenderung_cents + liquide.bestandteile.reduce((a, b) => a + b.mittel_cents, 0), liquide.konten_cents);
 });
+
+test("verteileRundung: gerundete Teile ergeben genau die gerundete Summe", async () => {
+  const { verteileRundung } = await import("../app/uebersicht-rechnung.mjs");
+  // 3 x 33,33 = 99,99 -> Summe 100 Euro, einzeln gerundet waeren es 99.
+  assert.deepEqual(verteileRundung([3333, 3333, 3333], 9999), [3400, 3300, 3300]);
+  // Mit negativen Teilen: 1.828,40 - 1.278,40 + 474,40 - 108,40 - 33,90 = 882,10 -> 882.
+  const teile = [182840, -127840, 47440, -10840, -3390];
+  const r = verteileRundung(teile, teile.reduce((a, b) => a + b, 0));
+  assert.equal(r.reduce((a, b) => a + b, 0), 88200);
+  assert.ok(r.every((c, i) => Math.abs(c - teile[i]) < 100));
+  assert.deepEqual(verteileRundung([], 0), []);
+});

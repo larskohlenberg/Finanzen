@@ -126,6 +126,19 @@ export function checkVorschau(items, limit = 4) {
   ].slice(0, limit);
 }
 
+// Rundet Cent-Betraege so auf ganze Euro, dass ihre Summe genau dem auf Euro
+// gerundeten Ziel entspricht (groesste Reste zuerst). Ergebnis wieder in Cent.
+export function verteileRundung(werteCents, zielCents) {
+  const ziel = Math.round(zielCents / 100);
+  const basis = werteCents.map((c) => Math.floor(c / 100));
+  let rest = ziel - basis.reduce((a, b) => a + b, 0);
+  const reihenfolge = werteCents.map((c, i) => ({ i, bruch: c / 100 - Math.floor(c / 100) }));
+  reihenfolge.sort((a, b) => b.bruch - a.bruch || a.i - b.i);
+  for (let k = 0; rest > 0 && reihenfolge.length; k = (k + 1) % reihenfolge.length, rest--) basis[reihenfolge[k].i] += 1;
+  for (let k = reihenfolge.length - 1; rest < 0 && reihenfolge.length; k = (k - 1 + reihenfolge.length) % reihenfolge.length, rest++) basis[reihenfolge[k].i] -= 1;
+  return basis.map((e) => e * 100);
+}
+
 // Monatliche Einnahmen, Ausgaben und Sparquote: Durchschnitt der letzten zwoelf
 // vollen Monate aus den Buchungen, die vor dem laufenden Monat und spaetestens
 // mit dem Monat der letzten Buchung enden (so drueckt ein noch nicht importierter

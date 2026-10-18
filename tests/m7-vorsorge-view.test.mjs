@@ -378,6 +378,9 @@ test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farb
     const karte = html.slice(start, html.indexOf("</div>", start));
     assert.match(karte, /<strong><i class="farbpunkt vertrag-farbe-\d" aria-hidden="true"><\/i>LV Lena<\/strong><\/span><span class="objekt-karte-marke"><span class="chip neutral">Lebensversicherung<\/span><span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">LL<\/span><\/span>/);
     assert.match(karte, /class="fortschritt"[\s\S]*width="48\.000"/, "12.000 von 25.000 = 48 %");
+    const balken = karte.slice(karte.indexOf('class="fortschritt"'), karte.indexOf("</svg>", karte.indexOf('class="fortschritt"')));
+    assert.match(balken, /class="fortschritt-wert"/, "Balken in einheitlicher Farbe");
+    assert.doesNotMatch(balken, /vertrag-farbe/, "Vertragsfarbe traegt keine Bedeutung fuer den Fortschritt");
     assert.match(karte, /48 % der garantierten Ablaufleistung als Rückkaufswert/);
     const martin = html.slice(html.indexOf('data-vorsorge="VS-004" aria-pressed'));
     assert.doesNotMatch(martin.slice(0, martin.indexOf("</div>")), /class="fortschritt"/, "ohne Werte kein Fortschritt");

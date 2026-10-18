@@ -342,50 +342,67 @@ button {
   display: none;
 }
 
-.work-status,
-.controls {
+/* Eine Zeile: Statuschips links (nicht umbrechend, der Prompt-Chip kuerzt mit "…"),
+   das Zahnrad fuer die Einstellungen rechts. */
+.work-status {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
-}
-
-.work-status {
   color: var(--muted);
   font-size: 13px;
 }
 
-.work-status strong {
-  color: var(--text);
-  font-weight: 700;
+.work-status > .chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
-.controls {
-  justify-content: flex-end;
+/* Reine Symbol-Chips (Validierung bestanden, Neu laden, Zahnrad): quadratisch statt Pill-Text. */
+.chip.icon-chip {
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
 }
 
-/* Chip-Hoehe (26px) und Pill-Form, damit die Selects nicht aus der Statuszeile ragen. */
-.control-select {
-  height: 26px;
-  padding: 0 8px;
+.settings-control {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.settings-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  gap: 12px;
+  min-width: 220px;
+  padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.settings-group {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-label {
   color: var(--muted);
-  font-size: 13px;
-}
-
-.control-select.icon-select {
-  min-width: 48px;
-  width: 48px;
-  padding: 0 6px;
-  text-align: center;
-}
-
-.control-select.mode-select {
-  min-width: 82px;
+  font-size: 12px;
   font-weight: 700;
-  color: var(--text);
+}
+
+.settings-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .page-head {
@@ -486,11 +503,21 @@ button {
 }
 
 .next-action-copy {
+  min-width: 0;
   max-width: min(520px, 100%);
+}
+
+.next-action-copy .chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .next-action-control {
   position: relative;
+  flex: 0 1 auto;
+  min-width: 48px;
   display: inline-flex;
   align-items: center;
   max-width: min(640px, 100%);
@@ -1600,38 +1627,8 @@ tr.angesteuert td:first-child {
   }
 
   .work-status {
-    flex: 1 1 auto;
-    min-width: 0;
-    flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
-  }
-
-  .work-status strong {
-    display: none;
-  }
-
-  .work-status .chip {
-    flex: 0 0 auto;
-    white-space: nowrap;
-  }
-
-  .controls {
-    flex: 0 0 auto;
-  }
-
-  .control-select {
-    flex: 0 0 auto;
-  }
-
-  .control-select.icon-select {
-    width: 44px;
-    min-width: 44px;
-  }
-
-  .control-select.mode-select {
-    min-width: 68px;
-    width: 68px;
   }
 
   .sidebar {

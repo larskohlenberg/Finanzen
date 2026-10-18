@@ -257,10 +257,10 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   assert.doesNotMatch(teil("Schnell verfügbar"), /Immobilien|Darlehen/);
   // Langfristig netto: Immobilien minus Darlehen, mit Schuldenbalken.
   // Jede Immobilie eine eigene Zeile, die wertvollste zuerst, keine Sammelzeile.
-  assert.match(teil("Langfristig gebunden"), /vermoegen-teil-wert">250\.000,00\s€[\s\S]*segment-darlehen[\s\S]*data-tab="immobilien"[^>]*>Testhaus<\/button><span class="amount">300\.000,00\s€[\s\S]*data-tab="immobilien"[^>]*>Testwohnung<\/button><span class="amount">50\.000,00\s€[\s\S]*Darlehen/);
+  assert.match(teil("Langfristig gebunden"), /vermoegen-teil-wert">250\.000,00\s€[\s\S]*segment-darlehen[\s\S]*data-vklasse="immobilie" data-vid="IMM-901"[^>]*>Testhaus<\/button><span class="amount">300\.000,00\s€[\s\S]*data-vklasse="immobilie" data-vid="IMM-902"[^>]*>Testwohnung<\/button><span class="amount">50\.000,00\s€[\s\S]*Darlehen/);
   assert.doesNotMatch(teil("Langfristig gebunden"), />Immobilien</);
   // Lange Namen werden per CSS abgeschnitten; der volle Name steht im Tooltip.
-  assert.match(teil("Langfristig gebunden"), /<button class="linkish" data-action="vermoegen-tab" data-tab="immobilien" title="Testhaus">Testhaus<\/button>/);
+  assert.match(teil("Langfristig gebunden"), /<button class="linkish" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="IMM-901" title="Testhaus">Testhaus<\/button>/);
 
   const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.doesNotMatch(vorsorge, /Beiträge|Offene Punkte/);

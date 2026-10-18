@@ -101,6 +101,7 @@ function zeigeAnteil(segment, event) {
   box.innerHTML = `<div>${escapeHtml(segment.dataset.titel)}</div>`;
   box.style.left = `${event.clientX + window.scrollX}px`;
   box.style.top = `${event.clientY + window.scrollY}px`;
+  boxEinpassen(box);
 }
 
 // Zeiger auf einer Legendenzeile: zugehoerigen Abschnitt in derselben Kachel
@@ -183,6 +184,7 @@ function zeigeSpalte(svg, event) {
     + nah.zeilen.map((z) => `<div class="diagramm-hover-zeile"><span class="diagramm-hover-swatch ${escapeHtml(z.klasse)}"></span><span>${escapeHtml(z.label)}</span><strong>${escapeHtml(z.wert)}</strong></div>`).join("");
   box.style.left = `${clientX}px`;
   box.style.top = `${topPx}px`;
+  boxEinpassen(box);
 }
 
 // Terminleiste der Uebersicht (charts.mjs, data-termine): die Linie folgt dem
@@ -237,6 +239,7 @@ function zeigeTermine(svg, event) {
     + nah.map((t) => `<div class="diagramm-hover-termin"><span class="diagramm-hover-swatch ${escapeHtml(t.klasse)}"></span><span class="muted">${escapeHtml(formatDate(t.datum))}</span><span>${escapeHtml(t.label)}</span></div>`).join("");
   box.style.left = `${clientX}px`;
   box.style.top = `${topPx}px`;
+  boxEinpassen(box);
 
   // Listen: Termine im Fenster markieren, den ersten ab dem Fenster nach oben scrollen.
   // Ueberfaellige Fristen sitzen am linken Rand, zaehlen also als `von`.
@@ -273,7 +276,39 @@ function escapeHtml(text) {
   return String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
+// Versatz in px, damit ein Element mit diesen Kanten im Fenster bleibt
+// (Abstand `rand` zum Rand); 0, wenn es schon passt. Passt es gar nicht,
+// gewinnt die linke Kante.
+export function einpassVersatz(links, rechts, fensterBreite, rand = 8) {
+  if (links < rand) return rand - links;
+  if (rechts > fensterBreite - rand) return Math.max(rand - links, fensterBreite - rand - rechts);
+  return 0;
+}
+
+// Hover-Box nach dem Positionieren ins Fenster ruecken, sonst waechst die
+// Seite am rechten Rand und bekommt einen horizontalen Scrollbalken.
+function boxEinpassen(box) {
+  const r = box.getBoundingClientRect();
+  const dx = einpassVersatz(r.left, r.right, document.documentElement.clientWidth);
+  if (dx) box.style.left = `${parseFloat(box.style.left) + dx}px`;
+}
+
+// Erklaertexte (komponenten.mjs infoTipp) nach dem Oeffnen ins Fenster ruecken.
+function infoTippEinpassen(event) {
+  const text = event.target.closest?.(".info-tipp")?.querySelector(".info-tipp-text");
+  if (!text) return;
+  text.style.left = "";
+  requestAnimationFrame(() => {
+    const r = text.getBoundingClientRect();
+    if (!r.width) return;
+    const dx = einpassVersatz(r.left, r.right, document.documentElement.clientWidth);
+    if (dx) text.style.left = `${parseFloat(getComputedStyle(text).left) + dx}px`;
+  });
+}
+
 export function bindDiagrammHover(root) {
+  root.addEventListener("pointerover", infoTippEinpassen);
+  root.addEventListener("focusin", infoTippEinpassen);
   root.addEventListener("pointermove", (event) => {
     const segment = event.target.closest?.(ANTEIL);
     // Beim Donut steht die Box neben dem Zeiger (zeigeAnteil); alle anderen
@@ -373,6 +408,7 @@ export function bindDiagrammHover(root) {
     box.innerHTML = zeilen.join("");
     box.style.left = `${clientX}px`;
     box.style.top = `${topPx}px`;
+    boxEinpassen(box);
   });
 
   root.addEventListener("pointerleave", hide);

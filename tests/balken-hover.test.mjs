@@ -11,7 +11,7 @@ globalThis.fetch = async (path) => {
 };
 await import("../app/i18n.js");
 const { balkenSvg } = await import("../app/views/vermoegen-teile.mjs");
-const { passendeLegende } = await import("../app/diagramm-hover.mjs");
+const { passendeLegende, einpassVersatz } = await import("../app/diagramm-hover.mjs");
 
 test("balkenSvg: Abschnitte mit Titel sind hoverbar (data-titel, data-label) statt <title>", () => {
   const svg = balkenSvg([
@@ -43,4 +43,14 @@ test("passendeLegende: Farbe entscheidet, bei gleicher Farbe der Name", () => {
   // Unbekannter Name bei gleicher Farbe: alle Zeilen dieser Farbe.
   assert.deepEqual(passendeLegende(["segment-immobilie"], "Anderes", legende), [1, 2]);
   assert.deepEqual(passendeLegende(["segment-vorsorge"], "Rueckkauf", legende), []);
+});
+
+test("einpassVersatz: Box und Erklaertext bleiben im Fenster", () => {
+  assert.equal(einpassVersatz(100, 300, 1000), 0);
+  // Rechts ueber den Rand: nach links bis 8 px Abstand.
+  assert.equal(einpassVersatz(900, 1080, 1000), -88);
+  // Links ueber den Rand: nach rechts.
+  assert.equal(einpassVersatz(-20, 150, 1000), 28);
+  // Breiter als das Fenster: linke Kante gewinnt.
+  assert.equal(einpassVersatz(100, 1200, 1000), -92);
 });

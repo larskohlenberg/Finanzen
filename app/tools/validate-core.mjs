@@ -43,6 +43,8 @@ const schemas = {
       status: { type: "string", enum: ["aktiv", "inaktiv"] },
       aktiv_bis: { type: "string", format: "date" },
       gutschriften_sondereffekt: { type: "boolean" },
+      investition: { type: "boolean" },
+      brutto: { type: "boolean" },
       sparziel: { type: "string", enum: ["liquide", "depot", "versicherung"] },
     },
   },

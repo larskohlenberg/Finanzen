@@ -86,6 +86,28 @@ export function darlehensKategorien(data, darlehenIds) {
   return new Set((data.regelzahlungen ?? []).filter((rz) => ids.has(rz.darlehen_id) && rz.kategorie_id).map((rz) => rz.kategorie_id));
 }
 
+// Kategorien mit dem Merkmal investition (Modernisierung samt Zuschuessen).
+export function investitionsKategorien(data) {
+  return new Set((data.kategorien ?? []).filter((k) => k.investition === true).map((k) => k.kategorie_id));
+}
+
+// Alle Investitionsbuchungen einer Immobilie ueber die ganze Zeit, neueste zuerst.
+// investiert_cents ist positiv: Ausgaben abzueglich Zuschuessen.
+export function immobilienInvestitionen(data, immobilieId) {
+  const kategorien = investitionsKategorien(data);
+  const buchungen = (data.transaktionen ?? [])
+    .filter((tx) => tx.immobilie_id === immobilieId && !tx.ist_transfer && kategorien.has(tx.kategorie_id))
+    .sort((a, b) => String(b.buchungsdatum).localeCompare(String(a.buchungsdatum)));
+  let ausgaben = 0;
+  let zuschuesse = 0;
+  for (const tx of buchungen) {
+    const c = toCents(tx.betrag);
+    if (c < 0) ausgaben -= c;
+    else zuschuesse += c;
+  }
+  return { buchungen, ausgaben_cents: ausgaben, zuschuesse_cents: zuschuesse, investiert_cents: ausgaben - zuschuesse };
+}
+
 // Die letzten `anzahl` abgeschlossenen Monate vor dem Monat von `today`.
 function letzteMonate(today, anzahl) {
   const erster = addInterval(`${today.slice(0, 7)}-01`, "monat", -anzahl);

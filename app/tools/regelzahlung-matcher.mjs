@@ -63,9 +63,11 @@ const FUELLWOERTER = new Set([
 
 // Markante Woerter einer Gegenpartei: an Nicht-Buchstaben/-Ziffern getrennt,
 // ohne Fuellwoerter, ohne Woerter unter vier Zeichen und ohne Woerter mit
-// Ziffern (Bestell- und Referenznummern).
+// Ziffern (Bestell- und Referenznummern). Bei Kartenzahlungen steht hinter
+// dem ersten "/" der Ort ("DIENST.SUB/DUBLIN"); er kennzeichnet keinen
+// Empfaenger und zaehlt nicht.
 export function markanteWoerter(name) {
-  return new Set(String(name ?? "").toLowerCase().split(/[^\p{L}\p{N}]+/u)
+  return new Set(String(name ?? "").split("/")[0].toLowerCase().split(/[^\p{L}\p{N}]+/u)
     .filter((w) => w.length >= 4 && !/\p{N}/u.test(w) && !FUELLWOERTER.has(w)));
 }
 

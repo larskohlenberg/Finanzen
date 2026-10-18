@@ -271,6 +271,9 @@ test("Gekuerzte Gegenpartei aus einem anderen Auszugsformat zaehlt mit", () => {
 
 test("Markante Woerter: ohne Zahlungsdienstleister, Fuellwoerter, kurze Woerter und Nummern", () => {
   assert.deepEqual([...markanteWoerter("PAYPAL..MUSIKDIENST.P3D119")], ["musikdienst"]);
+  // Der Ort hinter dem Schraegstrich einer Kartenzahlung zaehlt nicht.
+  assert.deepEqual([...markanteWoerter("TEXTWERK..DENKFABRIK.SUBSCR/MUSTERSTADT")], ["textwerk", "denkfabrik"]);
+  assert.equal(gleicheGegenpartei("TEXTWERK..DENKFABRIK.SUBSCR/MUSTERSTADT", "SOFTWARELADEN24/MUSTERSTADT"), false);
   assert.deepEqual([...markanteWoerter("Streamfix Abo Subscription GmbH www.streamfix.de")], ["streamfix"]);
   assert.deepEqual([...markanteWoerter("Stadtwerke Musterstadt")], ["musterstadt"]);
   assert.deepEqual([...markanteWoerter("")], []);

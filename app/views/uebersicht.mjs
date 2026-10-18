@@ -82,8 +82,8 @@ function kategorieTeile(kategorien, mittel, top = TOP_KATEGORIEN) {
 
 function legendenZeile(k) {
   const name = k.ziel ? `<button class="linkish" ${k.ziel} title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>` : `<span title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</span>`;
-  const betrag = `<span class="amount">${escapeHtml(geldOhneCent(k.mittel_cents))}</span>`;
-  if (!k.unter?.length) return `<li>${k.klasse ? farbPunkt(k.klasse) : ""}${name}${betrag}</li>`;
+  const betrag = `<span class="amount">${k.mitVorzeichen && k.mittel_cents > 0 ? "+" : ""}${escapeHtml(geldOhneCent(k.mittel_cents))}</span>`;
+  if (!k.unter?.length) return `<li${k.zeilenKlasse ? ` class="${k.zeilenKlasse}"` : ""}>${k.klasse ? farbPunkt(k.klasse) : ""}${name}${betrag}</li>`;
   return `<li class="flach-uebrige"><details><summary>${farbPunkt(k.klasse)}<span>${escapeHtml(k.name)}</span>${betrag}</summary><ul class="flach-unterliste">${k.unter.map(legendenZeile).join("")}</ul></details></li>`;
 }
 
@@ -134,9 +134,21 @@ function renderEinnahmenAusgaben(today) {
         ziel: "",
         // Aufgeklappt: tatsaechliche Veraenderung je Konto (Link auf dessen Buchungen
         // im Zeitraum), dazu der Abgleich mit Sondereffekten und Investitionen.
+        // Darunter die Zwischensumme und, mit Vorzeichen, was auf den Konten liegt,
+        // aber nicht aus dem laufenden Ueberschuss kommt; jede Zeile mit Link.
         unter: [
           ...z.konten.map((k) => ({ name: k.name, mittel_cents: k.mittel_cents, ziel: `data-action="kategorie-transactions" data-konto="${escapeHtml(k.konto_id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` })),
-          ...(z.abgleich_cents ? [{ name: t("overview.kontenAbgleich"), mittel_cents: z.abgleich_cents, ziel: "" }] : []),
+          ...(z.bestandteile.length ? [
+            { name: t("overview.kontenVeraenderung"), mittel_cents: z.veraenderung_cents, ziel: "", zeilenKlasse: "flach-zwischensumme" },
+            ...z.bestandteile.map((b) => ({
+              name: b.art === "umbuchungen" || b.art === "rest" ? t(`overview.abgleich.${b.art}`) : tf(`overview.abgleich.${b.art}`, { name: b.name }),
+              mittel_cents: b.mittel_cents,
+              mitVorzeichen: true,
+              ziel: b.art === "rest" ? "" : b.art === "umbuchungen"
+                ? `data-action="kategorie-transactions" data-transfer="only" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"`
+                : kategorieZiel(b.kategorie_id, mittel),
+            })),
+          ] : []),
         ],
       }] : []),
     ];

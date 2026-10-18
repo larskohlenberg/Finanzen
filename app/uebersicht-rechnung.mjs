@@ -170,6 +170,7 @@ export function monatsMittel(data, today, { vollstaendigBis = "" } = {}) {
   const typ = new Map((data.kategorien ?? []).map((k) => [k.kategorie_id, k]));
   const istNeutral = (id) => typ.get(id)?.typ === "neutral" && id !== KATEGORIE_UNGEKLAERT;
   const sondereffekte = new Map();
+  const investNetto = new Map();
 
   // Netto je Kategorie, gesamt und je Monat (Vorzeichen wie gebucht).
   const netto = new Map();
@@ -178,8 +179,11 @@ export function monatsMittel(data, today, { vollstaendigBis = "" } = {}) {
     const i = index.get(tx.buchungsdatum?.slice(0, 7));
     if (i === undefined) continue;
     const id = tx.kategorie_id ?? "";
-    if (typ.get(id)?.investition === true) continue;
     const cents = toCents(tx.betrag);
+    if (typ.get(id)?.investition === true) {
+      investNetto.set(id, (investNetto.get(id) ?? 0) + cents);
+      continue;
+    }
     const key = typ.get(id)?.brutto === true ? `${id}${cents >= 0 ? "+" : "-"}` : id;
     if (cents > 0 && typ.get(id)?.gutschriften_sondereffekt === true) {
       const se = sondereffekte.get(id) ?? { kategorie_id: id, name: typ.get(id).name, summe_cents: 0, buchungen: [] };
@@ -223,9 +227,12 @@ export function monatsMittel(data, today, { vollstaendigBis = "" } = {}) {
   // Tatsaechliche Veraenderung je Konto (alle Buchungen samt Umbuchungen, ohne
   // Depots) erklaert den Rest; der Abgleich sind Sondereffekte, Investitionen u. Ae.
   const kontoMittel = new Map();
+  const depotKonten = new Set((data.konten ?? []).filter((k) => k.kontotyp === "depot").map((k) => k.konto_id));
+  let umbuchungen = 0;
   for (const tx of data.transaktionen ?? []) {
     if (!index.has(tx.buchungsdatum?.slice(0, 7))) continue;
     kontoMittel.set(tx.konto_id, (kontoMittel.get(tx.konto_id) ?? 0) + toCents(tx.betrag));
+    if (tx.ist_transfer === true && !depotKonten.has(tx.konto_id)) umbuchungen += toCents(tx.betrag);
   }
   const konten = (data.konten ?? [])
     .filter((k) => k.kontotyp !== "depot" && kontoMittel.has(k.konto_id))
@@ -241,7 +248,19 @@ export function monatsMittel(data, today, { vollstaendigBis = "" } = {}) {
     ziele: [
       (() => {
         const konten_cents = liquide - liquideTeile.reduce((a, k) => a + k.mittel_cents, 0);
-        return { ziel: "liquide", mittel_cents: liquide, kategorien: [], teile: liquideTeile, konten_cents, konten, abgleich_cents: konten_cents - konten.reduce((a, k) => a + k.mittel_cents, 0) };
+        const veraenderung_cents = konten.reduce((a, k) => a + k.mittel_cents, 0);
+        // Was auf den Konten liegt, aber nicht aus dem laufenden Ueberschuss kommt:
+        // Vorzeichen so, dass Veraenderung + Bestandteile = konten_cents.
+        const bestandteile = [
+          ...[...sondereffekte.values()].map((se) => ({ art: "sondereffekt", kategorie_id: se.kategorie_id, name: se.name, mittel_cents: 0 - mittel(se.summe_cents) })),
+          ...[...investNetto].map(([id, summe]) => ({ art: "investition", kategorie_id: id, name: name(id), mittel_cents: 0 - mittel(summe) })),
+          ...[...netto.values()].filter((k) => istNeutral(k.kategorie_id) && !typ.get(k.kategorie_id)?.sparziel).map((k) => ({ art: "neutral", kategorie_id: k.kategorie_id, name: name(k.kategorie_id), mittel_cents: 0 - mittel(k.summe) })),
+          { art: "umbuchungen", mittel_cents: 0 - mittel(umbuchungen) },
+        ].filter((b) => b.mittel_cents !== 0);
+        const rest = konten_cents - veraenderung_cents - bestandteile.reduce((a, b) => a + b.mittel_cents, 0);
+        // Rundungscent aus den Monatsmitteln erst ab einem Euro zeigen.
+        if (Math.abs(rest) >= 100) bestandteile.push({ art: "rest", mittel_cents: rest });
+        return { ziel: "liquide", mittel_cents: liquide, kategorien: [], teile: liquideTeile, konten_cents, konten, veraenderung_cents, bestandteile, abgleich_cents: konten_cents - veraenderung_cents };
       })(),
       { ziel: "depot", mittel_cents: depot, kategorien: zielKategorien("depot") },
       { ziel: "versicherung", mittel_cents: versicherung, kategorien: zielKategorien("versicherung") },

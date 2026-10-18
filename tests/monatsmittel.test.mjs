@@ -132,3 +132,17 @@ test("monatsMittel: Investitionen zaehlen nicht, brutto-Kategorien teilen nach V
   assert.deepEqual(r.ausgaben.kategorien.map((k) => k.kategorie_id), ["KAT-008"]);
   assert.equal(r.sparen.ueberschuss_cents, 295000);
 });
+
+test("monatsMittel: Zeitraum endet mit dem letzten Monat, den alle Konten vollstaendig belegen", () => {
+  const kat = [{ kategorie_id: "KAT-001", name: "Gehalt", typ: "einnahme" }];
+  const transaktionen = [];
+  for (let m = 1; m <= 9; m++) transaktionen.push(tx(`2026-${String(m).padStart(2, "0")}-01`, "1000.00", "KAT-001"));
+  // Ein Konto ist erst bis 15.09. belegt: der September zaehlt noch nicht.
+  const halb = monatsMittel({ transaktionen, kategorien: kat }, "2026-10-18", { vollstaendigBis: "2026-09-15" });
+  assert.equal(halb.monate.at(-1), "2026-08");
+  assert.equal(halb.bis, "2026-08-31");
+  // Alle Konten bis 30.09. belegt: September zaehlt.
+  assert.equal(monatsMittel({ transaktionen, kategorien: kat }, "2026-10-18", { vollstaendigBis: "2026-09-30" }).monate.at(-1), "2026-09");
+  // Stand im laufenden Monat aendert nichts: der laufende Monat zaehlt nie.
+  assert.equal(monatsMittel({ transaktionen, kategorien: kat }, "2026-10-18", { vollstaendigBis: "2026-10-31" }).monate.at(-1), "2026-09");
+});

@@ -198,9 +198,8 @@ export function computeLiquiditaetIst(data, { today }) {
 // Liquiditaet je Monatsende der letzten `monate` Monate, der laufende Monat zum
 // heutigen Tag. Gleiche Konten und Rechnung wie computeLiquiditaetIst; Konten
 // ohne Anker zaehlen nicht mit. Je Monat dazu die grossen Buchungen, die den
-// Sprung erklaeren (grosseBuchungen), und der Grundtrend: der Saldo, als haette
-// es die grossen Buchungen nach dem ersten Monatsende nicht gegeben. Er beginnt
-// mit dem Saldo und zeigt, was der laufende Alltag zuruecklegt oder verbraucht.
+// Sprung erklaeren (grosseBuchungen), und der Trend aus gleitender Regression
+// (trendVerlauf).
 export function liquiditaetVerlauf(data, today, monate = 12) {
   const konten = liquiditaetsKonten(data.konten);
   const erster = addInterval(`${today.slice(0, 7)}-01`, "monat", -(monate - 1));
@@ -212,12 +211,28 @@ export function liquiditaetVerlauf(data, today, monate = 12) {
     const saldo = konten.reduce((a, k) => a + (kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum).saldo_cents ?? 0), 0);
     punkte.push({ monat, datum, saldo_cents: saldo, grosse: grosse.filter((g) => g.monat === monat) });
   }
-  const basis = punkte[0]?.datum;
-  for (const p of punkte) {
-    const sonder = grosse.filter((g) => g.datum > basis && g.datum <= p.datum).reduce((a, g) => a + g.betrag_cents, 0);
-    p.grundtrend_cents = p.saldo_cents - sonder;
-  }
+  trendVerlauf(punkte.map((p) => p.saldo_cents)).forEach((tr, i) => Object.assign(punkte[i], tr));
   return punkte;
+}
+
+// Gleitende lineare Regression (kleinste Quadrate) ueber die jeweils letzten
+// `fenster` Monatswerte: je Monat die Steigung in Cent je Monat und der Wert der
+// Ausgleichsgeraden am Fensterende. So entsteht eine Trendkurve aus dem
+// tatsaechlichen Verlauf, die kippt, wenn sich das Verhalten aendert. Vor dem
+// ersten vollen Fenster null. Die Statistik ist eine Kennzahl zur Anzeige: sie
+// rechnet mit Bruechen und rundet das Ergebnis auf Cent.
+export const TREND_FENSTER = 6;
+
+export function trendVerlauf(werte, fenster = TREND_FENSTER) {
+  const xMittel = (fenster - 1) / 2;
+  const nenner = Array.from({ length: fenster }, (_, x) => (x - xMittel) ** 2).reduce((a, b) => a + b, 0);
+  return werte.map((_, i) => {
+    if (i < fenster - 1) return { trend_cents: null, steigung_cents: null };
+    const y = werte.slice(i - fenster + 1, i + 1);
+    const yMittel = y.reduce((a, b) => a + b, 0) / fenster;
+    const steigung = y.reduce((a, w, x) => a + (x - xMittel) * (w - yMittel), 0) / nenner;
+    return { trend_cents: Math.round(yMittel + steigung * (fenster - 1 - xMittel)), steigung_cents: Math.round(steigung) };
+  });
 }
 
 // Ab diesem Betrag gilt eine Einzelbuchung als gross (4.000 Euro): darunter

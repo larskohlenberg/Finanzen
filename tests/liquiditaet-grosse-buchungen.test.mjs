@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { grosseBuchungen, liquiditaetVerlauf } from "../app/liquiditaet.mjs";
+import { grosseBuchungen, liquiditaetVerlauf, trendVerlauf } from "../app/liquiditaet.mjs";
 
 const konto = (konto_id, extra = {}) => ({ konto_id, name: konto_id, kontotyp: "giro", status: "aktiv", liquiditaetsrelevant: true, ...extra });
 const tx = (id, konto_id, buchungsdatum, betrag, extra = {}) => ({ transaktion_id: id, konto_id, buchungsdatum, betrag, gegenpartei: "", verwendungszweck: "", ...extra });
@@ -69,12 +69,18 @@ test("Beschriftung kurz: ohne Bankdaten, Codes, Datum und eigene Namen, hoechste
   ]);
 });
 
-test("Grundtrend: Saldo ohne die grossen Buchungen nach dem ersten Monatsende", () => {
-  const v = liquiditaetVerlauf(daten(), "2026-10-05");
-  assert.equal(v[0].grundtrend_cents, v[0].saldo_cents, "beginnt mit dem Saldo");
-  const aug = v.find((p) => p.monat === "2026-08");
-  const sep = v.find((p) => p.monat === "2026-09");
-  // August: Depot-Umbuchung -6.000 herausgerechnet; September zusaetzlich -20.000 und -11.199,70.
-  assert.equal(aug.grundtrend_cents - aug.saldo_cents, 600000);
-  assert.equal(sep.grundtrend_cents - sep.saldo_cents, 600000 + 2000000 + 1119970);
+test("Trend: gleitende Regression ueber sechs Monate, Steigung und Wert am Fensterende", () => {
+  // Gerade mit +100 je Monat: Trend folgt exakt, Steigung 100.
+  const gerade = trendVerlauf([0, 100, 200, 300, 400, 500, 600]);
+  assert.deepEqual(gerade.slice(0, 5).map((t) => t.trend_cents), [null, null, null, null, null]);
+  assert.deepEqual(gerade.slice(5), [{ trend_cents: 500, steigung_cents: 100 }, { trend_cents: 600, steigung_cents: 100 }]);
+  // Erst steigend, dann fallend: die Steigung kippt.
+  const kipp = trendVerlauf([0, 1000, 2000, 3000, 4000, 5000, 4000, 3000, 2000, 1000, 0]);
+  assert.ok(kipp[5].steigung_cents > 0);
+  assert.ok(kipp[10].steigung_cents < 0);
+  // Einzelner Sprung um 6.000 im letzten Monat: Mittel 2.000, Summe der
+  // Abweichungsprodukte 2.500 + 12.500, Quadratsumme 17,5 -> Steigung 857.
+  const sprung = trendVerlauf([1000, 1000, 1000, 1000, 1000, 7000]);
+  assert.equal(sprung[5].steigung_cents, 857);
+  assert.equal(liquiditaetVerlauf(daten(), "2026-10-05").length, 12);
 });

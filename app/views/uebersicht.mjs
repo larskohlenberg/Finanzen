@@ -40,6 +40,7 @@ const ZIEL = {
   termineTab: (tab) => `data-action="termine-tab" data-tab="${escapeHtml(tab)}"`,
   vermoegenTab: (tab) => `data-action="vermoegen-tab" data-tab="${escapeHtml(tab)}"`,
   vorsorgeTab: (tab) => `data-action="vorsorge-tab" data-tab="${escapeHtml(tab)}"`,
+  vermoegenObjekt: (klasse, id) => `data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(klasse)}" data-vid="${escapeHtml(id)}"`,
 };
 
 // Bereichskachel: Kopf mit Titel als Link, Kennzahl, Notiz, Grafik, Zeilen.
@@ -225,9 +226,9 @@ function renderVermoegenKachel() {
   const schnell = (p) => p.klasse === "konto";
   const klasse = (key, ziel) => ({ titel: t(`vermoegen.klassePlural.${key}`), filter: (p) => p.klasse === key, ziel, punkt: `segment-${key}` });
   const darlehen = klasse("darlehen", ZIEL.vermoegenTab("darlehen"));
-  // Immobilien einzeln, die wertvollste zuerst.
+  // Immobilien einzeln, die wertvollste zuerst; der Link oeffnet ihre Details.
   const immobilien = r.positionen.filter((p) => p.klasse === "immobilie").sort((a, b) => b.wert_cents - a.wert_cents)
-    .map((imm) => ({ titel: imm.name, filter: (p) => p.klasse === "immobilie" && p.id === imm.id, ziel: ZIEL.vermoegenTab("immobilien"), punkt: "segment-immobilie" }));
+    .map((imm) => ({ titel: imm.name, filter: (p) => p.klasse === "immobilie" && p.id === imm.id, ziel: ZIEL.vermoegenObjekt("immobilie", imm.id), punkt: "segment-immobilie" }));
   // Rueckkaufswerte fuehren in den Vorsorge-Reiter, der den groessten Teil davon haelt.
   const jeTab = new Map();
   for (const p of r.positionen.filter((p) => p.klasse === "vorsorge")) {

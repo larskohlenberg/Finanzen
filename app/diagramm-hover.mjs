@@ -95,7 +95,9 @@ function zeigeAnteil(segment, event) {
   el.querySelector(".diagramm-hover-linie").style.height = "0";
   for (const punkt of el.querySelectorAll(".diagramm-hover-punkt")) punkt.hidden = true;
   const box = el.querySelector(".diagramm-hover-box");
-  box.classList.add("seitlich");
+  // Donut: Box links neben dem Zeiger, sonst verdeckt sie den Ring. Balken: Box
+  // mittig ueber dem Zeiger, sonst verdeckt sie den Balken.
+  box.classList.toggle("seitlich", segment.classList.contains("donut-segment"));
   box.innerHTML = `<div>${escapeHtml(segment.dataset.titel)}</div>`;
   box.style.left = `${event.clientX + window.scrollX}px`;
   box.style.top = `${event.clientY + window.scrollY}px`;
@@ -274,8 +276,8 @@ function escapeHtml(text) {
 export function bindDiagrammHover(root) {
   root.addEventListener("pointermove", (event) => {
     const segment = event.target.closest?.(ANTEIL);
-    // Bei Anteilen steht die Box neben dem Zeiger (zeigeAnteil), sonst verdeckt
-    // sie den Ring; alle anderen Diagramme zeigen sie wieder darueber.
+    // Beim Donut steht die Box neben dem Zeiger (zeigeAnteil); alle anderen
+    // Diagramme zeigen sie darueber.
     if (!segment) overlay?.querySelector(".diagramm-hover-box")?.classList.remove("seitlich");
     if (segment) {
       zeigeAnteil(segment, event);

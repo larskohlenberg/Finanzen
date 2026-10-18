@@ -222,6 +222,7 @@ const schemas = {
       vorsorge_id: { type: "string", pattern: /^VS-\d{3}$/ },
       art: { type: "string", enum: ["lebensversicherung", "rentenversicherung", "gesetzliche-rente", "betriebsrente", "riester", "ruerup", "schutzversicherung", "sonstig"] },
       name: { type: "string", minLength: 1 },
+      versicherungsnummer: { type: "string", minLength: 1 },
       person_id: { type: "string", pattern: /^PER-\d{3}$/ },
       status: { type: "string", enum: ["aktiv", "gekuendigt", "ruhend", "geplant", "laufend", "beendet"] },
       kapitalbildend: { type: "boolean" },

@@ -210,6 +210,18 @@ test("Renten-Tab: Karte je Vertrag, erster gewaehlt, Detail in voller Breite", (
   });
 });
 
+test("Versicherungsnummer steht als eigene Zeile direkt unter dem Namen der Karte und in den Vertragsdaten", () => {
+  mitFixture(() => {
+    state.vorsorgeTab = "renten";
+    data.vorsorge = data.vorsorge.map((vs) => vs.vorsorge_id === "VS-001" ? { ...vs, versicherungsnummer: "12 345678 X 001" } : vs);
+    toggleKlappKachel("vorsorge.vertragsdaten", false);
+    const html = renderVorsorge();
+    assert.match(html, /DRV Lena<\/strong><span class="objekt-karte-nummer">12 345678 X 001<\/span><\/span><span class="objekt-karte-marke">/);
+    assert.equal(anzahl(html, /class="objekt-karte-nummer"/g), 1, "ohne Nummer keine leere Zeile");
+    assert.match(html, /Versicherungsnummer[\s\S]*?12 345678 X 001/);
+  });
+});
+
 test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten und Anhang", () => {
   mitFixture(() => {
     state.selectedVorsorgeId = "VS-002";
@@ -364,7 +376,7 @@ test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farb
     const html = renderVorsorge();
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-003" aria-pressed');
     const karte = html.slice(start, html.indexOf("</div>", start));
-    assert.match(karte, /<strong><i class="farbpunkt vertrag-farbe-\d" aria-hidden="true"><\/i>LV Lena<\/strong><span class="objekt-karte-marke"><span class="chip neutral">Lebensversicherung<\/span><span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">LL<\/span><\/span>/);
+    assert.match(karte, /<strong><i class="farbpunkt vertrag-farbe-\d" aria-hidden="true"><\/i>LV Lena<\/strong><\/span><span class="objekt-karte-marke"><span class="chip neutral">Lebensversicherung<\/span><span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">LL<\/span><\/span>/);
     assert.match(karte, /class="fortschritt"[\s\S]*width="48\.000"/, "12.000 von 25.000 = 48 %");
     assert.match(karte, /48 % der garantierten Ablaufleistung als Rückkaufswert/);
     const martin = html.slice(html.indexOf('data-vorsorge="VS-004" aria-pressed'));

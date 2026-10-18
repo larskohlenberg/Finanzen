@@ -2779,6 +2779,9 @@ a.linkish {
 .objekt-karte-kopf .chip { flex: 0 0 auto; white-space: nowrap; }
 .objekt-karte-wert { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .objekt-karte-zeile { color: var(--muted); font-size: 12px; }
+/* Versicherungsnummer als eigene Zeile direkt unter dem Namen, nie mitten im Namen umbrochen. */
+.objekt-karte-titel { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.objekt-karte-nummer { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; user-select: all; }
 /* ID des Objekts klein unten rechts, damit sie im Gespraech mit dem Agenten ohne Umweg ablesbar ist. */
 .objekt-karte-fuss { display: flex; align-items: flex-end; gap: 8px; margin-top: auto; }
 .objekt-karte-fuss .objekt-karte-chips { flex: 1 1 auto; }

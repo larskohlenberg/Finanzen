@@ -198,7 +198,9 @@ export function computeLiquiditaetIst(data, { today }) {
 // Liquiditaet je Monatsende der letzten `monate` Monate, der laufende Monat zum
 // heutigen Tag. Gleiche Konten und Rechnung wie computeLiquiditaetIst; Konten
 // ohne Anker zaehlen nicht mit. Je Monat dazu die grossen Buchungen, die den
-// Sprung erklaeren (grosseBuchungen).
+// Sprung erklaeren (grosseBuchungen), und der Grundtrend: der Saldo, als haette
+// es die grossen Buchungen nach dem ersten Monatsende nicht gegeben. Er beginnt
+// mit dem Saldo und zeigt, was der laufende Alltag zuruecklegt oder verbraucht.
 export function liquiditaetVerlauf(data, today, monate = 12) {
   const konten = liquiditaetsKonten(data.konten);
   const erster = addInterval(`${today.slice(0, 7)}-01`, "monat", -(monate - 1));
@@ -209,6 +211,11 @@ export function liquiditaetVerlauf(data, today, monate = 12) {
     const datum = i === 0 ? today : addInterval(addInterval(`${monat}-01`, "monat", 1), "tag", -1);
     const saldo = konten.reduce((a, k) => a + (kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum).saldo_cents ?? 0), 0);
     punkte.push({ monat, datum, saldo_cents: saldo, grosse: grosse.filter((g) => g.monat === monat) });
+  }
+  const basis = punkte[0]?.datum;
+  for (const p of punkte) {
+    const sonder = grosse.filter((g) => g.datum > basis && g.datum <= p.datum).reduce((a, g) => a + g.betrag_cents, 0);
+    p.grundtrend_cents = p.saldo_cents - sonder;
   }
   return punkte;
 }

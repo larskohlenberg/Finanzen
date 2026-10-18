@@ -16,7 +16,11 @@ const monatKurz = (monat) => {
 };
 // Kurzbetrag in Tausend Euro mit hoechstens einer Nachkommastelle ("-20 T€", "+4,8 T€").
 const tausend = (c) => `${new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { maximumFractionDigits: 1 }).format(c / 100000)} ${state.lang === "en" ? "k€" : "T€"}`;
-const monatsAchse = (monate) => monate.map((m) => ({ label: monatKurz(m), titel: formatMonth(m) }));
+// Ueber zwoelf Monate nur Quartalsanfaenge beschriften (Januar mit Jahr), sonst wird es eng.
+const monatsAchse = (monate) => monate.map((m) => ({
+  label: monate.length <= 12 || ["01", "04", "07", "10"].includes(m.slice(5, 7)) ? monatKurz(m) : "",
+  titel: formatMonth(m),
+}));
 
 function renderSaldoVerlauf(verlauf, emptyKey) {
   if (!verlauf.length) return `<p class="muted">${escapeHtml(t(emptyKey))}</p>`;
@@ -74,8 +78,15 @@ function granKnoepfe() {
 // darunter der Stand je Konto.
 function istKachel(ist, today) {
   const chipKlasse = ist.qualitaet.fehlende_anker > 0 ? "review" : "success";
-  const notiz = `<span class="chip ${chipKlasse}">${iconSvg(chipKlasse)}${escapeHtml(String(ist.qualitaet.fehlende_anker))} ${escapeHtml(t("liquiditaet.qualityMissingAnchors"))}</span>`;
-  const verlauf = liquiditaetVerlauf(data, today);
+  const verlauf = liquiditaetVerlauf(data, today, 24);
+  // Grundtrend je Monat ueber das letzte Halbjahr: was der Alltag ohne die
+  // grossen Buchungen zuruecklegt (+) oder verbraucht (-).
+  const vorher = verlauf.at(-7);
+  const jeMonat = vorher ? Math.round((verlauf.at(-1).grundtrend_cents - vorher.grundtrend_cents) / 6) : null;
+  const notiz = [
+    `<span class="chip ${chipKlasse}">${iconSvg(chipKlasse)}${escapeHtml(String(ist.qualitaet.fehlende_anker))} ${escapeHtml(t("liquiditaet.qualityMissingAnchors"))}</span>`,
+    jeMonat === null ? "" : `<span class="liquiditaet-trend-notiz">${escapeHtml(tf("liquiditaet.grundtrendNotiz", { betrag: `${jeMonat > 0 ? "+" : ""}${geldOhneCent(jeMonat)}` }))}</span>`,
+  ].join(" ");
   // Grosse Buchungen erklaeren die Spruenge: am Monat ein Marker mit ihrer
   // Summe in Tausend (kurz, damit sich nichts ueberlagert), im Hover jede mit
   // Tag, kurzer Bezeichnung und Betrag.
@@ -92,7 +103,10 @@ function istKachel(ist, today) {
   const unten = zeitverlaufKlein({
     spalten,
     ereignisse,
-    serien: [{ klasse: "liquiditaet-linie", label: t("liquiditaet.balance"), werte: verlauf.map((p) => p.saldo_cents) }],
+    serien: [
+      { klasse: "liquiditaet-linie", label: t("liquiditaet.balance"), werte: verlauf.map((p) => p.saldo_cents) },
+      { klasse: "liquiditaet-trend-linie", label: t("liquiditaet.grundtrend"), werte: verlauf.map((p) => p.grundtrend_cents) },
+    ],
     formatWert: (c) => formatMoney(c),
     formatAchse: geldOhneCent,
     labelSchritt: 1,
@@ -101,7 +115,8 @@ function istKachel(ist, today) {
   const zeilen = [...ist.konten]
     .sort((a, b) => (b.saldo_cents ?? -Infinity) - (a.saldo_cents ?? -Infinity))
     .map((k) => kachelZeile(`<button class="linkish" data-action="account-transactions" data-account="${escapeHtml(k.konto_id)}" title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>`, k.saldo_cents === null ? "—" : formatMoney(k.saldo_cents)));
-  return kennzahlKachel({ label: t("liquiditaet.ist"), wert: escapeHtml(formatMoney(ist.saldo_cents)), notiz, zeilen, unten });
+  const legende = unten ? `<div class="vermoegen-legende liquiditaet-legende"><span><i class="legende-linie liquiditaet-linie"></i>${escapeHtml(t("liquiditaet.balance"))}</span><span><i class="legende-linie liquiditaet-trend-linie"></i>${escapeHtml(t("liquiditaet.grundtrend"))}</span></div>` : "";
+  return kennzahlKachel({ label: t("liquiditaet.ist"), wert: escapeHtml(formatMoney(ist.saldo_cents)), notiz, zeilen, unten: unten + legende });
 }
 
 // Prognose: Stand am Horizont, Verlauf je Monatsende bis dahin, darunter die

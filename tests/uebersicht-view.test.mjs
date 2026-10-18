@@ -233,13 +233,17 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   data.transfers = [];
   data.regelzahlungen = [];
   data.fristen = [];
-  data.immobilien = [{ immobilie_id: "IMM-901", bezeichnung: "Testhaus", status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] }];
+  data.immobilien = [
+    { immobilie_id: "IMM-901", bezeichnung: "Testhaus", status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] },
+    { immobilie_id: "IMM-902", bezeichnung: "Testwohnung", status: "aktiv", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] },
+  ];
   data.darlehen = [{ darlehen_id: "DAR-901", bezeichnung: "Testdarlehen", status: "aktiv" }];
   data.vermoegenswerte = [];
   data.vorsorge = [{ vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2040-12-01" }];
   data.zeitwerte = [
     { entitaet: "konto", entitaet_id: "KTO-901", feld: "kontostand", standdatum: "2026-09-01", wert: "1000.00", qualitaet: "belegt" },
     { entitaet: "immobilie", entitaet_id: "IMM-901", feld: "marktwert", standdatum: "2026-01-01", wert: "300000.00", qualitaet: "geschaetzt" },
+    { entitaet: "immobilie", entitaet_id: "IMM-902", feld: "marktwert", standdatum: "2026-01-01", wert: "50000.00", qualitaet: "geschaetzt" },
     { entitaet: "darlehen", entitaet_id: "DAR-901", feld: "restschuld", standdatum: "2026-09-01", wert: "100000.00", qualitaet: "belegt" },
     { entitaet: "vorsorge", entitaet_id: "VS-901", feld: "erwartete_kapitalleistung", standdatum: "2026-01-01", wert: "150000.00", qualitaet: "belegt" },
   ];
@@ -248,11 +252,13 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
 
   const html = renderOverview();
   const teil = (titel) => html.match(new RegExp(`<h3 class="vermoegen-teil-titel">${titel}</h3>[\\s\\S]*?</ul>`))?.[0] ?? "";
-  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?<div class="kpi-value">201\.000,00\s€/);
+  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?<div class="kpi-value">251\.000,00\s€/);
   assert.match(teil("Schnell verfügbar"), /vermoegen-teil-wert">1\.000,00\s€[\s\S]*Konten/);
   assert.doesNotMatch(teil("Schnell verfügbar"), /Immobilien|Darlehen/);
-  // Langfristig netto: Immobilie minus Darlehen, mit Schuldenbalken.
-  assert.match(teil("Langfristig gebunden"), /vermoegen-teil-wert">200\.000,00\s€[\s\S]*segment-darlehen[\s\S]*Immobilien[\s\S]*Darlehen/);
+  // Langfristig netto: Immobilien minus Darlehen, mit Schuldenbalken.
+  // Jede Immobilie eine eigene Zeile, die wertvollste zuerst, keine Sammelzeile.
+  assert.match(teil("Langfristig gebunden"), /vermoegen-teil-wert">250\.000,00\s€[\s\S]*segment-darlehen[\s\S]*data-tab="immobilien">Testhaus<\/button><span class="amount">300\.000,00\s€[\s\S]*data-tab="immobilien">Testwohnung<\/button><span class="amount">50\.000,00\s€[\s\S]*Darlehen/);
+  assert.doesNotMatch(teil("Langfristig gebunden"), />Immobilien</);
 
   const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.doesNotMatch(vorsorge, /Beiträge|Offene Punkte/);

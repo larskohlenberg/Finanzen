@@ -172,4 +172,29 @@ test("monatsMittel: Konten & Tagesgeld je Konto aufgeteilt, Abgleich mit Sondere
   assert.deepEqual(liquide.konten.map((k) => [k.konto_id, k.mittel_cents]), [["KTO-2", 60000], ["KTO-1", 50000]]);
   // Die Erstattung liegt zusaetzlich auf dem Giro: Abgleich -100/Monat.
   assert.equal(liquide.abgleich_cents, -10000);
+  assert.equal(liquide.veraenderung_cents, 110000);
+  assert.deepEqual(liquide.bestandteile, [{ art: "sondereffekt", kategorie_id: "KAT-009", name: "Steuern", mittel_cents: -10000 }]);
+});
+
+test("monatsMittel: Abgleich zerlegt in Sondereffekt, Investition, neutrale Buchungen und Umbuchungen", () => {
+  const kat = [
+    { kategorie_id: "KAT-001", name: "Gehalt", typ: "einnahme" },
+    { kategorie_id: "KAT-009", name: "Steuern", typ: "ausgabe", gutschriften_sondereffekt: true },
+    { kategorie_id: "KAT-011", name: "Transfer", typ: "neutral" },
+    { kategorie_id: "KAT-027", name: "Investition", typ: "ausgabe", investition: true },
+  ];
+  const konten = [{ konto_id: "KTO-1", name: "Giro", kontotyp: "giro" }];
+  const transaktionen = [];
+  for (let m = 1; m <= 12; m++) transaktionen.push({ ...tx(`2025-${String(m).padStart(2, "0")}-01`, "1000.00", "KAT-001"), konto_id: "KTO-1" });
+  transaktionen.push(
+    { ...tx("2025-03-01", "2400.00", "KAT-009"), konto_id: "KTO-1" },
+    { ...tx("2025-04-01", "-1200.00", "KAT-027"), konto_id: "KTO-1" },
+    { ...tx("2025-05-01", "120.00", "KAT-011"), konto_id: "KTO-1" },
+    { ...tx("2025-06-01", "-600.00", "KAT-011", { ist_transfer: true }), konto_id: "KTO-1" }, // an ein Depot
+  );
+  const liquide = monatsMittel({ transaktionen, kategorien: kat, konten }, "2026-01-20").sparen.ziele[0];
+  assert.equal(liquide.konten_cents, 100000);
+  assert.equal(liquide.veraenderung_cents, 106000);
+  assert.deepEqual(liquide.bestandteile.map((b) => [b.art, b.mittel_cents]), [["sondereffekt", -20000], ["investition", 10000], ["neutral", -1000], ["umbuchungen", 5000]]);
+  assert.equal(liquide.veraenderung_cents + liquide.bestandteile.reduce((a, b) => a + b.mittel_cents, 0), liquide.konten_cents);
 });

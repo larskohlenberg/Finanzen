@@ -146,3 +146,30 @@ test("monatsMittel: Zeitraum endet mit dem letzten Monat, den alle Konten vollst
   // Stand im laufenden Monat aendert nichts: der laufende Monat zaehlt nie.
   assert.equal(monatsMittel({ transaktionen, kategorien: kat }, "2026-10-18", { vollstaendigBis: "2026-10-31" }).monate.at(-1), "2026-09");
 });
+
+test("monatsMittel: Konten & Tagesgeld je Konto aufgeteilt, Abgleich mit Sondereffekten", () => {
+  const kat = [
+    { kategorie_id: "KAT-001", name: "Gehalt", typ: "einnahme" },
+    { kategorie_id: "KAT-009", name: "Steuern", typ: "ausgabe", gutschriften_sondereffekt: true },
+    { kategorie_id: "KAT-011", name: "Transfer", typ: "neutral" },
+  ];
+  const konten = [
+    { konto_id: "KTO-1", name: "Giro", kontotyp: "giro" },
+    { konto_id: "KTO-2", name: "Tagesgeld", kontotyp: "tagesgeld" },
+    { konto_id: "KTO-3", name: "Depot", kontotyp: "depot" },
+  ];
+  const transaktionen = [];
+  for (let m = 1; m <= 12; m++) {
+    const monat = `2025-${String(m).padStart(2, "0")}`;
+    transaktionen.push({ ...tx(`${monat}-01`, "1000.00", "KAT-001"), konto_id: "KTO-1" });
+    transaktionen.push({ ...tx(`${monat}-02`, "-600.00", "KAT-011", { ist_transfer: true }), konto_id: "KTO-1" });
+    transaktionen.push({ ...tx(`${monat}-02`, "600.00", "KAT-011", { ist_transfer: true }), konto_id: "KTO-2" });
+  }
+  transaktionen.push({ ...tx("2025-05-05", "1200.00", "KAT-009"), konto_id: "KTO-1" }); // Steuererstattung
+  const r = monatsMittel({ transaktionen, kategorien: kat, konten }, "2026-01-20");
+  const liquide = r.sparen.ziele[0];
+  assert.equal(liquide.konten_cents, 100000);
+  assert.deepEqual(liquide.konten.map((k) => [k.konto_id, k.mittel_cents]), [["KTO-2", 60000], ["KTO-1", 50000]]);
+  // Die Erstattung liegt zusaetzlich auf dem Giro: Abgleich -100/Monat.
+  assert.equal(liquide.abgleich_cents, -10000);
+});

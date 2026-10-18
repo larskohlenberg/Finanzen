@@ -220,6 +220,18 @@ export function monatsMittel(data, today, { vollstaendigBis = "" } = {}) {
   // Kurzfristig liquide in Teile: was in liquide Kategorien floss (Festgeld) und
   // der Rest auf Konten und Tagesgeld (negativ: dort entnommen).
   const liquide = ueberschuss - depot - versicherung;
+  // Tatsaechliche Veraenderung je Konto (alle Buchungen samt Umbuchungen, ohne
+  // Depots) erklaert den Rest; der Abgleich sind Sondereffekte, Investitionen u. Ae.
+  const kontoMittel = new Map();
+  for (const tx of data.transaktionen ?? []) {
+    if (!index.has(tx.buchungsdatum?.slice(0, 7))) continue;
+    kontoMittel.set(tx.konto_id, (kontoMittel.get(tx.konto_id) ?? 0) + toCents(tx.betrag));
+  }
+  const konten = (data.konten ?? [])
+    .filter((k) => k.kontotyp !== "depot" && kontoMittel.has(k.konto_id))
+    .map((k) => ({ konto_id: k.konto_id, name: k.name, mittel_cents: mittel(kontoMittel.get(k.konto_id)) }))
+    .filter((k) => k.mittel_cents !== 0)
+    .sort((a, b) => b.mittel_cents - a.mittel_cents);
   const liquideTeile = zielKategorien("liquide")
     .map((id) => ({ kategorie_id: id, name: name(id), mittel_cents: mittel(0 - (netto.get(id)?.summe ?? 0)) }))
     .filter((k) => k.mittel_cents !== 0);
@@ -227,7 +239,10 @@ export function monatsMittel(data, today, { vollstaendigBis = "" } = {}) {
     ueberschuss_cents: ueberschuss,
     quote: einnahmen.mittel_cents > 0 ? ueberschuss / einnahmen.mittel_cents : null,
     ziele: [
-      { ziel: "liquide", mittel_cents: liquide, kategorien: [], teile: liquideTeile, konten_cents: liquide - liquideTeile.reduce((a, k) => a + k.mittel_cents, 0) },
+      (() => {
+        const konten_cents = liquide - liquideTeile.reduce((a, k) => a + k.mittel_cents, 0);
+        return { ziel: "liquide", mittel_cents: liquide, kategorien: [], teile: liquideTeile, konten_cents, konten, abgleich_cents: konten_cents - konten.reduce((a, k) => a + k.mittel_cents, 0) };
+      })(),
       { ziel: "depot", mittel_cents: depot, kategorien: zielKategorien("depot") },
       { ziel: "versicherung", mittel_cents: versicherung, kategorien: zielKategorien("versicherung") },
     ],

@@ -912,15 +912,16 @@ async function handleAction(element) {
     // Aus der Monatstabelle einer Immobilie oder den Einnahmen/Ausgaben der
     // Uebersicht: optional auf Monat bzw. Zeitraum und
     // Kategorie eingeschraenkt; Transfers fehlen dort, also auch hier — ausser die
-    // Tabelle zeigt den Eigenanteil (data-transfer "only" bzw. "all").
-    const { monat = "", von = "", bis = "", kategorie = "", transfer = "" } = element.dataset;
+    // Tabelle zeigt den Eigenanteil (data-transfer "only" bzw. "all"). Mit data-konto
+    // alle Buchungen eines Kontos im Zeitraum, Umbuchungen eingeschlossen.
+    const { monat = "", von = "", bis = "", kategorie = "", transfer = "", konto = "" } = element.dataset;
     const mitZeit = Boolean(monat || von);
     state.view = "transactions";
     state.transactionFilters = {
-      account: "",
+      account: konto,
       status: "",
       category: kategorie,
-      transfer: transfer === "only" ? "only" : transfer === "all" || !mitZeit ? "" : "without",
+      transfer: transfer === "only" ? "only" : transfer === "all" || konto || !mitZeit ? "" : "without",
       origin: "",
       search: element.dataset.immobilie || "",
       beleg: "",

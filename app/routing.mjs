@@ -11,6 +11,7 @@ const VIEW_SLUG = {
   overview: "uebersicht",
   transactions: "transaktionen",
   liquiditaet: "liquiditaet",
+  planIst: "plan-ist",
   vermoegen: "vermoegen",
   vorsorge: "vorsorge",
   termine: "termine",
@@ -83,6 +84,8 @@ export function routeFromState(state) {
     if (state.selectedRegelzahlungId) return `#/termine/regelzahlungen/${encodeURIComponent(state.selectedRegelzahlungId)}`;
     return "#/termine";
   }
+  // Plan & Ist mit gewaehltem Zeitraum (#/plan-ist/2026-Q2).
+  if (state.view === "planIst" && state.planIst?.periode) return `#/plan-ist/${encodeURIComponent(state.planIst.periode)}`;
   return `#/${VIEW_SLUG[state.view] || state.view}`;
 }
 
@@ -100,6 +103,9 @@ export function parseRoute(hash) {
     return SLUG_VIEW[head] ? { view: SLUG_VIEW[head] } : { view: "overview" };
   }
 
+  if (head === "plan-ist") {
+    return /^(12m|\d{4}|\d{4}-Q[1-4]|\d{4}-\d{2})$/.test(tail) ? { view: "planIst", planIstPeriode: tail } : { view: "planIst" };
+  }
   if (head === "dokumente") {
     return tail ? { view: "belege", selectedBeleg: belegPfadAusRoute(tail) } : { view: "belege" };
   }

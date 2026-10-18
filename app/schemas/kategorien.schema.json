@@ -16,6 +16,7 @@
       "aktiv_bis": { "type": "string", "format": "date" },
       "gutschriften_sondereffekt": { "type": "boolean", "description": "Gutschriften dieser Kategorie (z. B. Steuererstattungen) zaehlen nicht zu den monatlichen Einnahmen, sondern als Sondereffekt; Belastungen bleiben Ausgaben." },
       "investition": { "type": "boolean", "description": "Investitionen (z. B. Modernisierung einer Immobilie samt Zuschuessen): zaehlen weder in die monatlichen Einnahmen/Ausgaben noch in die Sparquote; am Haus als eigene Spalte und Kachel." },
+      "ohne_einzelposten": { "type": "boolean", "description": "Grosse Belastungen dieser Kategorie sind keine Einzelposten ausserhalb des Plans (z. B. Bargeld: Abhebungen sind gross, der Konsumplan rechnet sie ein)." },
       "brutto": { "type": "boolean", "description": "Gutschriften dieser Kategorie zaehlen als Einnahme, Belastungen als Ausgabe, statt sie zu verrechnen (z. B. Kinder: Taschengeld raus, Rueckzahlungen rein)." },
       "sparziel": { "type": "string", "enum": ["liquide", "depot", "versicherung"], "description": "Nur neutrale Kategorien: wohin das Geld in der Sparquote fliesst. Ohne Angabe zaehlt es zum kurzfristig liquiden Rest." }
     }

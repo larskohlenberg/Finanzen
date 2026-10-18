@@ -64,6 +64,9 @@ export const navItems = [
   ["liquiditaet", "nav.liquiditaet", "liquiditaet"],
   ["vermoegen", "nav.vermoegen", "vermoegen"],
   ["vorsorge", "nav.vorsorge", "vorsorge"],
+  // Plan & Ist: Regelzahlungen gegen Buchungen, direkt vor den Terminen,
+  // die die Regelzahlungen fuehren (hinter den Kernsichten der Tab-Bar).
+  ["planIst", "nav.planIst", "planIst"],
   // Termine buendelt Regelzahlungen und Fristen (Reiter der Seite).
   ["termine", "nav.termine", "termine"],
   ["szenarien", "nav.szenarien", "szenarien"],
@@ -120,6 +123,10 @@ export const state = {
     bisDatum: defaultHorizonEnd(localTodayIso()),
   },
   liquiditaetExpanded: new Set(),
+  // Plan & Ist: Granularitaet der Auswahl, Zeitraum ("" Bestand, "12m", "2026",
+  // "2026-Q2", "2026-05"), Darstellung Ø je Monat oder Summe; offene Kategorien.
+  planIst: { granularitaet: "jahr", periode: "", darstellung: "monat" },
+  planIstOffen: new Set(),
   // Vermoegensseite: aktiver Tab und ausgewaehltes Objekt ("klasse:id").
   vermoegenTab: "uebersicht",
   selectedVermoegenId: "",

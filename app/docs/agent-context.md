@@ -53,6 +53,7 @@ ohne MCP.
 | CLI | MCP-Tool |
 | --- | --- |
 | Uebersicht der Web-App | `kennzahlen` (dieselben Kennzahlen wie die Uebersicht, frisch gerechnet; optional `stichtag`; erste Wahl fuer "Wie stehen wir?"; listet auch die anstehenden Fristen aus `anstehendeFristen` und die Absicherung je versicherter Person) |
+| Seite Plan & Ist der Web-App | `plan_ist` (Plan aus den Regelzahlungen gegen das Ist der Buchungen, je Kategorie mit Regelzahlungen, Einzelposten ab 400 Euro und Terminen ohne Buchung; `zeitraum` gesamt, 12m, Jahr, Quartal oder Monat; optional `verlauf` und `darstellung`). Die Kurzfassung der letzten zwoelf Monate steht auch in `kennzahlen`. |
 | Fristen anlegen, abhaken | `datei_lesen` / `datei_ersetzen` auf `DATENROOT/fristen.json` (kein eigenes Tool; Validator laeuft danach) |
 | `tools/neuer-bestand.mjs` | — (nur CLI: legt einmalig einen leeren Datenbestand mit Grundkategorien an, bevor es einen MCP-Server gibt) |
 | `tools/validator.mjs` | `status` (Validator-Ergebnis mit Fehlern; laeuft ausserdem nach jedem Schreiben) |
@@ -663,7 +664,11 @@ matcht nur noch:
    50 % Toleranz (Beitragsdynamik ueber Jahre). Signal `gegenpartei`: gleiche
    Gegenpartei und Kategorie, Betrag in 10 % Toleranz. Ein gekuerzter Name
    (PDF-Auszug statt CSV) zaehlt als gleich, wenn der kuerzere mit mindestens
-   20 Zeichen der Anfang des anderen ist.
+   20 Zeichen der Anfang des anderen ist. Schreibt die Bank den Namen jedes Mal
+   anders (Kartenzahlung ueber einen Zahlungsdienstleister, mit Bestellnummer),
+   reicht ein gemeinsames markantes Wort: ohne Zahlungsdienstleister,
+   Rechtsformen, Buchungsarten, Branchenwoerter wie „Stadtwerke“ oder
+   „Versicherung“, Woerter unter vier Zeichen und Woerter mit Ziffern.
 6. **Eindeutig.** Je Termin hoechstens eine Buchung, je Buchung hoechstens ein
    Termin. Vergeben werden gegenseitig beste Paare (kleinste Betragsabweichung,
    dann kleinster Abstand). Gleich gute Alternativen stehen unter `mehrdeutig`.

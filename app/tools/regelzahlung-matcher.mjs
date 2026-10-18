@@ -47,15 +47,42 @@ function kennungVon(tx) {
 }
 const kennungSchluessel = (k) => `${k.signal}|${k.wert}`;
 
+// Woerter, die keinen Empfaenger kennzeichnen: Zahlungsdienstleister,
+// Buchungsarten, Rechtsformen und Branchenwoerter, die viele Firmen teilen
+// ("Stadtwerke X" und "Stadtwerke Y" sind verschiedene Empfaenger). Woerter
+// unter vier Zeichen fallen ohnehin weg.
+const FUELLWOERTER = new Set([
+  "paypal", "klarna", "sumup", "visa", "mastercard", "girocard", "maestro", "debit", "sepa", "stripe", "adyen",
+  "zahlung", "zahlungen", "lastschrift", "gutschrift", "kartenzahlung", "debitkartenumsatz", "kartenumsatz",
+  "ueberweisung", "dauerauftrag", "einzug", "payment", "payments", "europe", "deutschland", "germany",
+  "subscription", "subscr", "subsc", "abonnement", "monthly", "beitrag", "rechnung", "kundennr", "mandat", "referenz",
+  "gmbh", "limited", "holding", "group", "gruppe", "international", "digital", "media",
+  "stadtwerke", "versicherung", "versicherungen", "versicherungs", "bank", "sparkasse", "volksbank", "raiffeisenbank",
+  "stadt", "gemeinde", "verwaltung", "kasse", "service", "services", "online", "shop", "store", "markt", "center",
+]);
+
+// Markante Woerter einer Gegenpartei: an Nicht-Buchstaben/-Ziffern getrennt,
+// ohne Fuellwoerter, ohne Woerter unter vier Zeichen und ohne Woerter mit
+// Ziffern (Bestell- und Referenznummern).
+export function markanteWoerter(name) {
+  return new Set(String(name ?? "").toLowerCase().split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length >= 4 && !/\p{N}/u.test(w) && !FUELLWOERTER.has(w)));
+}
+
 // Gleiche Gegenpartei. Manche Auszuege (z. B. PDF statt CSV derselben Bank)
 // kuerzen den Namen nach einer festen Laenge; ein Name, der mit dem anderen
 // beginnt, zaehlt deshalb mit, sofern der kuerzere mindestens 20 Zeichen hat.
+// Kartenzahlungen schreibt die Bank jedes Mal anders ("PAYPAL..DIENST.P3D1",
+// "Dienst"); dann reicht ein gemeinsames markantes Wort. Gegen Fehlgriffe
+// sichern Konto, Kategorie und Betragstoleranz ab.
 const MIN_GEKUERZT = 20;
 export function gleicheGegenpartei(a, b) {
   if (!a || !b) return false;
   if (a === b) return true;
   const [kurz, lang] = a.length < b.length ? [a, b] : [b, a];
-  return kurz.length >= MIN_GEKUERZT && lang.startsWith(kurz);
+  if (kurz.length >= MIN_GEKUERZT && lang.startsWith(kurz)) return true;
+  const woerterLang = markanteWoerter(lang);
+  return [...markanteWoerter(kurz)].some((w) => woerterLang.has(w));
 }
 
 function passtZurKennung(tx, rz, kennung) {

@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { fensterTage, gleicheGegenpartei, matchRegelzahlungen } from "../app/tools/regelzahlung-matcher.mjs";
+import { fensterTage, gleicheGegenpartei, markanteWoerter, matchRegelzahlungen } from "../app/tools/regelzahlung-matcher.mjs";
 
 const run = promisify(execFile);
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -265,5 +265,75 @@ test("Gekuerzte Gegenpartei aus einem anderen Auszugsformat zaehlt mit", () => {
   ];
   const out = matchRegelzahlungen(transaktionen, [rz("RZ-001", "8000.00", "2026-06-26", { kategorie_id: "KAT-001", qualitaet: "geschaetzt" })]);
   assert.deepEqual(zugeordnet(out, "RZ-001"), ["2026-06-26", "2026-07-27", "2026-08-26", "2026-09-28"]);
-  assert.equal(gleicheGegenpartei("musterfirma gmbh", "musterfirma"), false, "zu kurz fuer eine Kuerzung");
+  assert.equal(gleicheGegenpartei("beispiel kg", "beispiel kommanditges"), true, "markantes Wort statt Kuerzung");
+  assert.equal(gleicheGegenpartei("abc gmbh", "abc"), false, "zu kurz fuer Kuerzung und markantes Wort");
+});
+
+test("Markante Woerter: ohne Zahlungsdienstleister, Fuellwoerter, kurze Woerter und Nummern", () => {
+  assert.deepEqual([...markanteWoerter("PAYPAL..MUSIKDIENST.P3D119")], ["musikdienst"]);
+  assert.deepEqual([...markanteWoerter("Streamfix Abo Subscription GmbH www.streamfix.de")], ["streamfix"]);
+  assert.deepEqual([...markanteWoerter("Stadtwerke Musterstadt")], ["musterstadt"]);
+  assert.deepEqual([...markanteWoerter("")], []);
+  assert.deepEqual([...markanteWoerter(undefined)], []);
+});
+
+test("Kartenzahlung mit wechselnder Schreibweise der Gegenpartei", () => {
+  // Varianten wie im Bankexport: Zahlungsdienstleister davor, Bestellnummer
+  // dahinter, Produkt- und Firmenname mal so, mal so.
+  const gleich = [
+    ["paypal..musikdienst.p3d119", "paypal..musikdienst.p46397b/35314369001"],
+    ["paypal..musikdienst.p3d119", "musikdienst"],
+    ["textwerk.ai.subscription", "denkfabrik textwerk subsc"],
+    ["denkfabrik..textwerk.sub/", "textwerk.ai.subscription"],
+    ["streamfix..plusplan.subscr", "streamfix - plus plan"],
+  ];
+  for (const [a, b] of gleich) {
+    assert.equal(gleicheGegenpartei(a, b), true, `${a} ~ ${b}`);
+    assert.equal(gleicheGegenpartei(b, a), true, `${b} ~ ${a}`);
+  }
+});
+
+test("Verschiedene Empfaenger mit nur gemeinsamen Fuellwoertern gelten nicht als gleich", () => {
+  const verschieden = [
+    ["stadtwerke musterstadt", "stadtwerke beispielstadt"],
+    ["musterversicherung ag", "beispiel versicherung ag"],
+    ["paypal..musikdienst.p3d119", "paypal..streamfix.p46397b"],
+    ["sparkasse musterstadt kartenzahlung", "volksbank beispielstadt kartenzahlung"],
+    ["online shop gmbh", "online store gmbh"],
+    ["abo 12345", "abo 12345 6789"],
+  ];
+  for (const [a, b] of verschieden) assert.equal(gleicheGegenpartei(a, b), false, `${a} != ${b}`);
+  assert.equal(gleicheGegenpartei("", "musikdienst"), false);
+  assert.equal(gleicheGegenpartei("musikdienst", ""), false);
+  assert.equal(gleicheGegenpartei("", ""), false);
+  assert.equal(gleicheGegenpartei(undefined, "musikdienst"), false);
+});
+
+test("Matcher ordnet Kartenzahlungen mit wechselnder Gegenpartei zu, sonst nicht", () => {
+  const k = { kategorie_id: "KAT-007" };
+  const transaktionen = [
+    tx("KTO-001", "2026-05-10", "-10.99", { ...k, gegenpartei: "PAYPAL..MUSIKDIENST.P3D119" }),
+    tx("KTO-001", "2026-06-10", "-10.99", { ...k, gegenpartei: "PAYPAL..MUSIKDIENST.P46397B/35314369001" }),
+    tx("KTO-001", "2026-07-11", "-11.49", { ...k, gegenpartei: "Musikdienst" }),
+    // fremder Dienst gleichen Betrags ueber denselben Zahlungsdienstleister
+    tx("KTO-001", "2026-08-10", "-10.99", { ...k, gegenpartei: "PAYPAL..STREAMFIX.P9X1" }),
+    // gleicher Dienst, andere Kategorie
+    tx("KTO-001", "2026-09-10", "-10.99", { kategorie_id: "KAT-003", gegenpartei: "Musikdienst" }),
+    // gleicher Dienst, Betrag ausserhalb der Toleranz
+    tx("KTO-001", "2026-10-10", "-14.99", { ...k, gegenpartei: "Musikdienst" }),
+  ];
+  const out = matchRegelzahlungen(transaktionen, [rz("RZ-005", "-10.99", "2026-06-10", k)]);
+  assert.deepEqual(zugeordnet(out, "RZ-005"), ["2026-05-10", "2026-06-10", "2026-07-11"]);
+  assert.ok(out.zuordnungen.every((z) => z.signal === "gegenpartei"));
+});
+
+test("Stadtwerke verschiedener Orte werden nicht vermischt", () => {
+  const k = { kategorie_id: "KAT-002" };
+  const transaktionen = [
+    tx("KTO-001", "2026-05-02", "-80.00", { ...k, gegenpartei: "Stadtwerke Musterstadt" }),
+    tx("KTO-001", "2026-06-01", "-80.00", { ...k, gegenpartei: "Stadtwerke Beispielstadt" }),
+    tx("KTO-001", "2026-07-01", "-80.00", { ...k, gegenpartei: "Stadtwerke Musterstadt GmbH" }),
+  ];
+  const out = matchRegelzahlungen(transaktionen, [rz("RZ-006", "-80.00", "2026-07-01", k)]);
+  assert.deepEqual(zugeordnet(out, "RZ-006"), ["2026-05-02", "2026-07-01"]);
 });

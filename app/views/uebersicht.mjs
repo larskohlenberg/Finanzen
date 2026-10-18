@@ -15,6 +15,8 @@ import { addInterval, toCents } from "../liquiditaet.mjs";
 import { anstehendeFristen } from "../fristen.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { monatsMittel, verteileRundung } from "../uebersicht-rechnung.mjs";
+import { planIst } from "../plan-ist.mjs";
+import { abweichungHtml } from "./plan-ist.mjs";
 import { bezugLink, fristChip, fristKlasse } from "./fristen.mjs";
 import { terminLeiste } from "../charts.mjs";
 import { erwarteteLeistungen, gesetzlicherRentenbeginn, rentenStufen, tabFuerVorsorge, vertragsFarben } from "../vorsorge-rechnung.mjs";
@@ -112,7 +114,7 @@ function rundeUnter(unter, zielCents) {
 
 // Flache Kachel: Kennzahl und Notiz, darunter links die kurze Leiste und
 // rechts die Legende untereinander. Teile mit negativem Betrag stehen nur in der Legende.
-function flacheKachel({ id, titel, info = "", wert, notiz, teile: roh, summe_cents }) {
+function flacheKachel({ id, titel, info = "", wert, notiz, plan = "", teile: roh, summe_cents }) {
   const teile = summe_cents === undefined ? roh : rundeTeile(roh, summe_cents);
   const basis = Math.max(teile.filter((k) => k.mittel_cents > 0).reduce((a, k) => a + k.mittel_cents, 0), 1);
   const segmente = teile.filter((k) => k.mittel_cents > 0).map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
@@ -124,6 +126,7 @@ function flacheKachel({ id, titel, info = "", wert, notiz, teile: roh, summe_cen
       </h2>
       <div class="kpi-value">${wert}</div>
       <div class="kpi-note">${notiz}</div>
+      ${plan ? `<div class="kpi-plan">${plan}</div>` : ""}
       ${teile.length ? `
       <div class="flach-inhalt">
         <div class="uebersicht-balken">${segmente.length ? balkenSvg(segmente) : ""}</div>
@@ -140,6 +143,15 @@ function renderEinnahmenAusgaben(today) {
   const basisNotiz = `${escapeHtml(tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate }))} · ${escapeHtml(zeitraum)}`;
   const jeMonat = (cents) => `${escapeHtml(geldOhneCent(cents))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonat"))}</span>`;
   const { sparen } = mittel;
+  // Planzeile: Plan aus den Regelzahlungen im selben Zeitraum, Abweichung
+  // gefaerbt; der Link oeffnet Plan & Ist mit den letzten zwoelf Monaten.
+  const plan = planIst(data, mittel.monate);
+  const planMittel = (c) => Math.round(c / mittel.anzahl_monate);
+  const planLink = (text) => `<button class="linkish" data-action="plan-ist" data-periode="12m">${escapeHtml(text)}</button>`;
+  const planZeile = (ist, planCents, mehrIstGut) => `${planLink(tf("planIst.kachelPlan", { betrag: geldOhneCent(planCents) }))} · ${abweichungHtml(ist, planCents, { mehrIstGut })}`;
+  const quotePlan = plan.sparen.plan.quote;
+  const quoteDiff = sparen.quote !== null && quotePlan !== null ? Math.round((sparen.quote - quotePlan) * 100) : null;
+  const quoteZeile = quotePlan === null ? "" : `${planLink(tf("planIst.kachelPlan", { betrag: formatProzent(quotePlan) }))}${quoteDiff === null ? "" : ` · <span class="${quoteDiff > 0 ? "abw-gut" : quoteDiff < 0 ? "abw-schlecht" : "abw-neutral"}">${quoteDiff > 0 ? "+" : quoteDiff < 0 ? "−" : "±"}${Math.abs(quoteDiff)} ${escapeHtml(t("planIst.prozentpunkte"))}</span>`}`;
   const zielLinkFuer = (ids) => (ids.length === 1 ? `data-action="kategorie-transactions" data-kategorie="${escapeHtml(ids[0])}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` : "");
   const ZIEL_KLASSE = { liquide: "segment-konto", depot: "segment-depot", versicherung: "segment-vorsorge" };
   // Kurzfristig liquide in seine Teile: liquide Kategorien (Festgeld) mit Link in
@@ -180,14 +192,15 @@ function renderEinnahmenAusgaben(today) {
   });
   return `
     <div class="uebersicht-flach">
-      ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.einnahmen.kategorien, mittel), summe_cents: mittel.einnahmen.mittel_cents })}
-      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.ausgaben.kategorien, mittel, TOP_AUSGABEN), summe_cents: mittel.ausgaben.mittel_cents })}
+      ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), notiz: basisNotiz, plan: planZeile(mittel.einnahmen.mittel_cents, planMittel(plan.einnahmen.plan_cents), true), teile: kategorieTeile(mittel.einnahmen.kategorien, mittel), summe_cents: mittel.einnahmen.mittel_cents })}
+      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), notiz: basisNotiz, plan: planZeile(mittel.ausgaben.mittel_cents, planMittel(plan.ausgaben.plan_cents), false), teile: kategorieTeile(mittel.ausgaben.kategorien, mittel, TOP_AUSGABEN), summe_cents: mittel.ausgaben.mittel_cents })}
       ${flacheKachel({
         id: "sparquote",
         titel: t("overview.sparquote"),
         info: t("overview.sparquoteInfo"),
         wert: sparen.quote === null ? "–" : escapeHtml(formatProzent(sparen.quote)),
         notiz: `${escapeHtml(tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) }))} · ${basisNotiz}`,
+        plan: quoteZeile,
         teile: sparTeile,
         summe_cents: sparen.ueberschuss_cents,
       })}

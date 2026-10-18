@@ -275,7 +275,7 @@ kuenftige Regel zum selben Merchant. Den Weg dorthin zeigt der Herkunftsfilter
 der Transaktionsansicht.
 
 Davon unberuehrt sind die technischen Eroeffnungsbuchungen weiter unten: die
-tragen `KAT-012` als bestaetigte Nutzerentscheidung und sind an
+tragen die neutrale Kategorie „Startzustand" und sind an
 `transaktionstyp = "Startzustand"` erkennbar.
 
 Nach-Kategorisierung bewertet offene Transaktionen und regelbasierte Eintraege neu.
@@ -593,29 +593,25 @@ Log rechnet er zusaetzlich jede Kette aufeinanderfolgender belegter Anker nach
 (Anker + Buchungen bis zum naechsten Anker = naechster Anker); was dort nicht
 aufgeht, steht immer im Bericht.
 
-### Startzustandsbuchungen — bewusst KAT-012, kein Review-Fall
+### Startzustandsbuchungen — eigene neutrale Kategorie, kein Review-Fall
 
 Wo die Importhistorie erst nach dem Kontoleben beginnt, traegt eine technische
 Eroeffnungsbuchung die Differenz, damit „Summe aller Buchungen ab null" den
-belegten Anker trifft. Es gibt aktuell zwei:
+belegten Anker trifft. Herleitung je Buchung: rueckgerechnet aus einem belegten
+Stand minus Bewegungssumme, oder direkt belegt aus dem ersten Auszug.
 
-| Konto | Datum | Betrag | Herleitung |
-| --- | --- | ---: | --- |
-| KTO-001 | 2024-01-01 | +1.234,56 | rueckgerechnet aus belegtem Stand 2024-12-30 minus Bewegungssumme |
-| KTO-002 | 2023-01-01 | +2.345,67 | direkt belegt aus Auszug 2023-01 (Stand 31.12.2022) |
+Solche Buchungen tragen `transaktionstyp = "Startzustand"` und sind
+**`bestaetigt` unter einer eigenen Kategorie „Startzustand" mit `typ = neutral`**
+(Nutzerentscheid 2026-10-18; vorher standen sie unter „Noch zu klaeren"). Fachlich
+sind sie weder Einnahme noch Ausgabe, sondern ein Bilanz-Startpunkt; als neutrale
+Kategorie fallen sie aus allen Einnahmen- und Ausgabensummen. Plan & Ist laesst
+den Bestand erst mit dem Monat beginnen, ab dem alle so importierten Konten ihren
+Startzustand haben.
 
-Beide sind **`bestaetigt` unter `KAT-012` „Noch zu klaeren"** — Nutzerentscheidung
-am 2026-08-11, ausdruecklich so gewollt. Fachlich sind sie weder Einnahme noch
-Ausgabe, sondern ein Bilanz-Startpunkt.
-
-**Bekannte Nebenwirkung, bewusst in Kauf genommen:** `KAT-012` hat
-`typ = ausgabe`; die positiven Betraege mindern daher jede Ausgabensumme, die
-stumpf ueber die Kategorie laeuft (zusammen +3.580,23). Auswertungen der
-Ausgabenseite muessen `transaktionstyp = "Startzustand"` ausschliessen.
-
-Ein Agent soll das **nicht erneut als Kategorisierungsfehler melden** und die
-Buchungen nicht umkategorisieren. Sie sind an `transaktionstyp = "Startzustand"`
-und `gegenpartei = "Muster-Gegenpartei-001"` erkennbar.
+Fehlt die Kategorie in einem Bestand, legt der Agent sie an (neutral, nicht
+lebenshaltungsrelevant, vor „Noch zu klaeren", das letztes Element bleibt). Ein
+Agent soll Startzustandsbuchungen **nicht als Kategorisierungsfehler melden** und
+nicht anders kategorisieren.
 
 Darlehen duerfen zusaetzlich Vertragsdaten wie `zinsbindung_bis`, `laufzeit_bis`
 und `restschuld_laufzeitende` enthalten. Diese Felder dokumentieren Vertrag bzw.

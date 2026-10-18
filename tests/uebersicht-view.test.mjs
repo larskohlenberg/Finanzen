@@ -276,7 +276,7 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   data.validation = { valid: true, errors: [] };
   data.importfehler = [];
   data.checks = [];
-  data.konten = [];
+  data.konten = [{ konto_id: "KTO-901", name: "Testgiro", kontotyp: "giro", inhaber_person_ids: [], liquiditaetsrelevant: true, status: "aktiv" }];
   data.transfers = [];
   data.regelzahlungen = [];
   data.immobilien = [];
@@ -313,7 +313,7 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
 
   // Sparquote: (3000 - 1700) / 3000 = 43 %, Rest bleibt auf den Konten.
   assert.match(kachel("sparquote"), /Sparquote[\s\S]*<div class="kpi-value">43\s%<\/div>[\s\S]*1\.300\s€ \/ Monat übrig/);
-  assert.match(kachel("sparquote"), /data-action="kategorie-transactions" data-transfer="only" data-von="[0-9-]+" data-bis="[0-9-]+" title="Konten &amp; Tagesgeld">Konten &amp; Tagesgeld<\/button><span class="amount">1\.300\s€/);
+  assert.match(kachel("sparquote"), /<summary>[\s\S]*?Konten &amp; Tagesgeld<\/span><span class="amount">1\.300\s€[\s\S]*?data-konto="KTO-901"/);
   assert.match(kachel("sparquote"), /class="info-tipp"[\s\S]*Sparquote = \(Einnahmen − Ausgaben\)/);
   assert.doesNotMatch(kachel("sparquote"), /flach-fuss/);
 

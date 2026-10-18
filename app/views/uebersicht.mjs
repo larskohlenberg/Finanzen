@@ -127,7 +127,18 @@ function renderEinnahmenAusgaben(today) {
     }
     return [
       ...z.teile.map((k) => ({ name: k.name, mittel_cents: k.mittel_cents, klasse: "segment-liquide-teil", ziel: kategorieZiel(k.kategorie_id, mittel) })),
-      ...(z.konten_cents ? [{ name: t(z.konten_cents < 0 ? "overview.kontenEntnommen" : "overview.kontenTagesgeld"), mittel_cents: z.konten_cents, klasse: ZIEL_KLASSE.liquide, ziel: `data-action="kategorie-transactions" data-transfer="only" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` }] : []),
+      ...(z.konten_cents ? [{
+        name: t(z.konten_cents < 0 ? "overview.kontenEntnommen" : "overview.kontenTagesgeld"),
+        mittel_cents: z.konten_cents,
+        klasse: ZIEL_KLASSE.liquide,
+        ziel: "",
+        // Aufgeklappt: tatsaechliche Veraenderung je Konto (Link auf dessen Buchungen
+        // im Zeitraum), dazu der Abgleich mit Sondereffekten und Investitionen.
+        unter: [
+          ...z.konten.map((k) => ({ name: k.name, mittel_cents: k.mittel_cents, ziel: `data-action="kategorie-transactions" data-konto="${escapeHtml(k.konto_id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` })),
+          ...(z.abgleich_cents ? [{ name: t("overview.kontenAbgleich"), mittel_cents: z.abgleich_cents, ziel: "" }] : []),
+        ],
+      }] : []),
     ];
   });
   return `

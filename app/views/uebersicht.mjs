@@ -14,7 +14,7 @@ import { currentNettovermoegen, overviewAccountGroups, overviewJahreszahlungen }
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { anstehendeFristen } from "../fristen.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
-import { monatsMittel } from "../uebersicht-rechnung.mjs";
+import { monatsMittel, verteileRundung } from "../uebersicht-rechnung.mjs";
 import { bezugLink, fristChip, fristKlasse } from "./fristen.mjs";
 import { terminLeiste } from "../charts.mjs";
 import { erwarteteLeistungen, gesetzlicherRentenbeginn, rentenStufen, tabFuerVorsorge, vertragsFarben } from "../vorsorge-rechnung.mjs";
@@ -88,9 +88,32 @@ function legendenZeile(k) {
   return `<li class="flach-uebrige"><details><summary>${farbPunkt(k.klasse)}<span>${escapeHtml(k.name)}</span>${betrag}</summary><ul class="flach-unterliste">${k.unter.map(legendenZeile).join("")}</ul></details></li>`;
 }
 
+// Rundet die Legende so, dass jede Ebene genau aufgeht: die Teile ergeben die
+// angezeigte Summe, aufgeklappte Teile ihre Zeile. Gibt es darin Gruppen-Koepfe
+// (Zwischensummen), gehen erst die Koepfe auf die Zeile auf, dann ihre Teile auf den Kopf.
+function rundeTeile(teile, zielCents) {
+  const gerundet = verteileRundung(teile.map((k) => k.mittel_cents), zielCents);
+  return teile.map((k, i) => (k.unter?.length
+    ? { ...k, mittel_cents: gerundet[i], unter: rundeUnter(k.unter, gerundet[i]) }
+    : { ...k, mittel_cents: gerundet[i] }));
+}
+
+function rundeUnter(unter, zielCents) {
+  const istKopf = (k) => String(k.zeilenKlasse ?? "").includes("flach-gruppe");
+  if (!unter.some(istKopf)) return rundeTeile(unter, zielCents);
+  const gruppen = [];
+  for (const k of unter) {
+    if (istKopf(k)) gruppen.push({ kopf: k, teile: [] });
+    else gruppen.at(-1)?.teile.push(k);
+  }
+  const koepfe = verteileRundung(gruppen.map((g) => g.kopf.mittel_cents), zielCents);
+  return gruppen.flatMap((g, i) => [{ ...g.kopf, mittel_cents: koepfe[i] }, ...rundeTeile(g.teile, koepfe[i])]);
+}
+
 // Flache Kachel: Kennzahl und Notiz, darunter links die kurze Leiste und
 // rechts die Legende untereinander. Teile mit negativem Betrag stehen nur in der Legende.
-function flacheKachel({ id, titel, info = "", wert, notiz, teile }) {
+function flacheKachel({ id, titel, info = "", wert, notiz, teile: roh, summe_cents }) {
+  const teile = summe_cents === undefined ? roh : rundeTeile(roh, summe_cents);
   const basis = Math.max(teile.filter((k) => k.mittel_cents > 0).reduce((a, k) => a + k.mittel_cents, 0), 1);
   const segmente = teile.filter((k) => k.mittel_cents > 0).map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
   const legende = teile.map(legendenZeile).join("");
@@ -157,8 +180,8 @@ function renderEinnahmenAusgaben(today) {
   });
   return `
     <div class="uebersicht-flach">
-      ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.einnahmen.kategorien, mittel) })}
-      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.ausgaben.kategorien, mittel, TOP_AUSGABEN) })}
+      ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.einnahmen.kategorien, mittel), summe_cents: mittel.einnahmen.mittel_cents })}
+      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.ausgaben.kategorien, mittel, TOP_AUSGABEN), summe_cents: mittel.ausgaben.mittel_cents })}
       ${flacheKachel({
         id: "sparquote",
         titel: t("overview.sparquote"),
@@ -166,6 +189,7 @@ function renderEinnahmenAusgaben(today) {
         wert: sparen.quote === null ? "–" : escapeHtml(formatProzent(sparen.quote)),
         notiz: `${escapeHtml(tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) }))} · ${basisNotiz}`,
         teile: sparTeile,
+        summe_cents: sparen.ueberschuss_cents,
       })}
     </div>`;
 }

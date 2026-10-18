@@ -107,3 +107,28 @@ test("monatsMittel: Steuererstattung ist Sondereffekt, Steuerzahlung bleibt Ausg
   assert.deepEqual(r.sparen.ziele[0].teile, [{ kategorie_id: "KAT-026", name: "Festgeld", mittel_cents: 50000 }]);
   assert.equal(r.sparen.ziele[0].konten_cents, 249000);
 });
+
+test("monatsMittel: Investitionen zaehlen nicht, brutto-Kategorien teilen nach Vorzeichen", () => {
+  const kat = [
+    { kategorie_id: "KAT-001", name: "Gehalt", typ: "einnahme" },
+    { kategorie_id: "KAT-008", name: "Kinder", typ: "ausgabe", brutto: true },
+    { kategorie_id: "KAT-027", name: "Investition Immobilie", typ: "ausgabe", investition: true },
+  ];
+  const transaktionen = [];
+  for (let m = 1; m <= 12; m++) {
+    const monat = `2025-${String(m).padStart(2, "0")}`;
+    transaktionen.push(tx(`${monat}-01`, "3000.00", "KAT-001"));
+    transaktionen.push(tx(`${monat}-05`, "-100.00", "KAT-008")); // Taschengeld
+  }
+  transaktionen.push(
+    tx("2025-06-01", "600.00", "KAT-008"), // Rueckzahlung Fuehrerschein
+    tx("2025-04-01", "-30000.00", "KAT-027"), // Heizung
+    tx("2025-08-01", "15000.00", "KAT-027"), // Zuschuss
+  );
+  const r = monatsMittel({ transaktionen, kategorien: kat }, "2026-01-20");
+  assert.equal(r.einnahmen.mittel_cents, 305000);
+  assert.deepEqual(r.einnahmen.kategorien.map((k) => [k.kategorie_id, k.mittel_cents]), [["KAT-001", 300000], ["KAT-008", 5000]]);
+  assert.equal(r.ausgaben.mittel_cents, 10000);
+  assert.deepEqual(r.ausgaben.kategorien.map((k) => k.kategorie_id), ["KAT-008"]);
+  assert.equal(r.sparen.ueberschuss_cents, 295000);
+});

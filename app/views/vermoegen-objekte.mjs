@@ -6,7 +6,7 @@
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
 import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel, bemerkungInhalt } from "../komponenten.mjs";
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
-import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, immobilienMonate } from "../vermoegen-details.mjs";
+import { darlehenKennzahlen, darlehensKategorien, immobilienInvestitionen, immobilienKennzahlen, immobilienMonate, investitionsKategorien } from "../vermoegen-details.mjs";
 import { vermoegensBezug } from "../vorsorge-rechnung.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
@@ -122,15 +122,43 @@ function immobilieDokumente(id, darlehenIds) {
   return dokumenteBrowserHtml([id, ...darlehenIds, ...vertraege.map((vs) => vs.vorsorge_id)], ordner);
 }
 
+// Investitionen eines Hauses ueber die ganze Zeit: jede Buchung mit Link, unten
+// Ausgaben, Zuschuesse und was netto investiert ist. Ohne Investitionen keine Kachel.
+function investitionenPanel(id) {
+  const inv = immobilienInvestitionen(data, id);
+  if (!inv.buchungen.length) return "";
+  const zeilen = inv.buchungen.map((tx) => `
+        <tr class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}" tabindex="0">
+          <td>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
+          <td>${escapeHtml(tx.gegenpartei || tx.verwendungszweck || "")}</td>
+          <td class="amount">${geld(cents(tx.betrag), { negativ: true })}</td>
+        </tr>`).join("");
+  return klappKachel({ id: "immobilie.investitionen", titel: t("vermoegen.immobilie.investitionen"), inhalt: `
+      <p class="muted diagramm-lead">${escapeHtml(t("vermoegen.immobilie.investitionenLead"))}</p>
+      <div class="table-wrap">
+        <table class="monats-tabelle">
+          <thead><tr><th>${escapeHtml(t("vermoegen.immobilie.datum"))}</th><th>${escapeHtml(t("vermoegen.immobilie.gegenpartei"))}</th><th class="amount">${escapeHtml(t("vermoegen.immobilie.betrag"))}</th></tr></thead>
+          <tbody>${zeilen}
+            ${inv.zuschuesse_cents ? `<tr class="table-sum"><td colspan="2">${escapeHtml(t("vermoegen.immobilie.investAusgaben"))}</td><td class="amount">${geld(-inv.ausgaben_cents, { negativ: true })}</td></tr>
+            <tr class="table-sum"><td colspan="2">${escapeHtml(t("vermoegen.immobilie.investZuschuesse"))}</td><td class="amount">${geld(inv.zuschuesse_cents, { negativ: true })}</td></tr>` : ""}
+            <tr class="table-sum"><td colspan="2"><strong>${escapeHtml(t("vermoegen.immobilie.investNetto"))}</strong></td><td class="amount"><strong>${geld(-inv.investiert_cents, { negativ: true })}</strong></td></tr>
+          </tbody>
+        </table>
+      </div>` });
+}
+
 function renderImmobilieDetail(imm, today) {
   const id = imm.immobilie_id;
   const k = immobilienKennzahlen(data, id, today);
   const ohneRate = state.immobilieOhneRate;
   const rateKategorien = darlehensKategorien(data, k.darlehen_ids);
   const m = immobilienMonate(data, id, today, { ohneKategorien: ohneRate ? rateKategorien : [], mitEigenanteil: !ohneRate });
-  const mitBuchungen = immobilienMonate(data, id, today);
+  // Investitionen (samt Zuschuessen) bleiben aus Wohnkosten und Mietrendite heraus.
+  const investKategorien = investitionsKategorien(data);
+  const mitBuchungen = immobilienMonate(data, id, today, { ohneKategorien: [...investKategorien] });
+  const investSumme = m.kategorien.filter((kat) => !kat.eigenanteil && investKategorien.has(kat.kategorie_id)).reduce((a, kat) => a + kat.summe_cents, 0);
 
-  const durchschnitt = m.anzahl_buchungen ? Math.round(m.summe.saldo / m.monate.length) : null;
+  const durchschnitt = m.anzahl_buchungen ? Math.round((m.summe.saldo - investSumme) / m.monate.length) : null;
   let viertesLabel = t("vermoegen.immobilie.monatssaldo");
   let viertesNotiz = "";
   if (imm.nutzung === "selbstgenutzt" && durchschnitt !== null) viertesLabel = t("vermoegen.immobilie.wohnkosten");
@@ -157,11 +185,12 @@ function renderImmobilieDetail(imm, today) {
     achsenTitel: t("vermoegen.immobilie.achse"),
     ariaLabel: t("vermoegen.immobilie.monateTitel"),
   });
-  // Spalten: Einnahmen und Ausgaben fassen alle Kategorien ausser Rate und Eigenanteil
-  // zusammen; ein Klick klappt die Aufteilung nach Kategorie auf (Drill-down).
+  // Spalten: Einnahmen und Ausgaben fassen alle Kategorien ausser Rate, Investitionen
+  // und Eigenanteil zusammen; ein Klick klappt die Aufteilung nach Kategorie auf (Drill-down).
   const kategorien = m.kategorien;
-  const rest = kategorien.filter((kat) => !kat.eigenanteil && !rateKategorien.has(kat.kategorie_id));
+  const rest = kategorien.filter((kat) => !kat.eigenanteil && !rateKategorien.has(kat.kategorie_id) && !investKategorien.has(kat.kategorie_id));
   const rate = kategorien.filter((kat) => !kat.eigenanteil && rateKategorien.has(kat.kategorie_id));
+  const invest = kategorien.filter((kat) => !kat.eigenanteil && investKategorien.has(kat.kategorie_id));
   const eigen = kategorien.find((kat) => kat.eigenanteil);
   const summiere = (liste, feld) => m.monate.map((_, i) => liste.reduce((a, kat) => a + kat[feld][i], 0));
   const zeitraum = { von: `${m.monate[0]}-01`, bis: `${m.monate.at(-1)}-31` };
@@ -169,6 +198,7 @@ function renderImmobilieDetail(imm, today) {
   const spalten = [
     { art: "ein", name: t("vermoegen.immobilie.einnahmen"), werte: summiere(rest, "ein"), drill: true },
     { art: "aus", name: t("vermoegen.immobilie.ausgaben"), werte: summiere(rest, "aus"), drill: true },
+    ...(invest.length ? [{ art: "invest", name: t("vermoegen.immobilie.investitionen"), werte: summiere(invest, "werte"), filter: invest.length === 1 ? { kategorie: invest[0].kategorie_id } : {} }] : []),
     ...(rate.length ? [{ art: "rate", name: categoryName(rate[0].kategorie_id), werte: summiere(rate, "werte"), filter: rate.length === 1 ? { kategorie: rate[0].kategorie_id } : {} }] : []),
     ...(eigen ? [{ art: "eigen", name: t("vermoegen.immobilie.eigenanteil"), titel: t("vermoegen.immobilie.eigenanteilHinweis"), werte: eigen.werte, filter: { kategorie: eigen.kategorie_id, transfer: "only" } }] : []),
   ];
@@ -276,6 +306,7 @@ function renderImmobilieDetail(imm, today) {
     <div class="objekt-detail">
       ${stammdaten}
       ${monatsPanel}
+      ${investitionenPanel(id)}
       ${anhang}
     </div>`;
 }

@@ -231,6 +231,40 @@ test("Immobilie: Monatstabelle und Umschalter ohne Darlehensrate", () => {
   });
 });
 
+test("Immobilie: Investitionen als eigene Spalte und Kachel, nicht in den Ausgaben", () => {
+  const imm = { immobilie_id: "IMM-001", bezeichnung: "Haus", status: "aktiv", nutzung: "selbstgenutzt", eigentumsanteile: [{ person_id: "PER-001", zaehler: 1, nenner: 1 }] };
+  const monat = new Date().toISOString().slice(0, 7);
+  const vormonat = new Date(Date.UTC(Number(monat.slice(0, 4)), Number(monat.slice(5, 7)) - 2, 15)).toISOString().slice(0, 10);
+  const kategorienVorher = data.kategorien;
+  data.kategorien = [
+    { kategorie_id: "KAT-003", name: "Haus laufend", typ: "ausgabe", lebenshaltung_relevant: true, status: "aktiv" },
+    { kategorie_id: "KAT-027", name: "Investition Immobilie", typ: "ausgabe", lebenshaltung_relevant: false, status: "aktiv", investition: true },
+  ];
+  try {
+    mitDaten({
+      immobilien: [imm],
+      transaktionen: [
+        { transaktion_id: "T1", konto_id: "KTO-001", immobilie_id: "IMM-001", buchungsdatum: vormonat, betrag: "-50.00", kategorie_id: "KAT-003" },
+        { transaktion_id: "T2", konto_id: "KTO-001", immobilie_id: "IMM-001", buchungsdatum: vormonat, betrag: "-30000.00", kategorie_id: "KAT-027", gegenpartei: "Heizungsbau" },
+        { transaktion_id: "T3", konto_id: "KTO-001", immobilie_id: "IMM-001", buchungsdatum: "2020-05-01", betrag: "10000.00", kategorie_id: "KAT-027", gegenpartei: "Foerderbank" },
+      ],
+    }, { vermoegenTab: "immobilien" }, (html) => {
+      const tabelle = html.slice(html.indexOf('class="monats-tabelle"'));
+      assert.match(tabelle, /<th class="amount">Investitionen<\/th>/);
+      // Ausgaben-Spalte ohne die Investition, Investitionsspalte mit Link auf die Kategorie.
+      assert.match(tabelle, /data-kategorie="KAT-027"[^>]*>[^<]*<span class="betrag-negativ">-30\.000,00/);
+      // Wohnkosten ohne Investition: 50 / 12.
+      assert.match(html, /Wohnkosten[\s\S]*?-4,17/);
+      // Kachel ueber die ganze Zeit, mit Zuschuss und Nettobetrag.
+      assert.match(html, /data-kachel="immobilie\.investitionen"/);
+      assert.match(html, /data-action="open-transaction" data-transaction="T3"[\s\S]*Foerderbank/);
+      assert.match(html, /Investiert \(netto\)[\s\S]*?-20\.000,00/);
+    });
+  } finally {
+    data.kategorien = kategorienVorher;
+  }
+});
+
 test("Kein style-Attribut im HTML: die CSP der App wuerde es blockieren", () => {
   const anker = { entitaet: "darlehen", entitaet_id: "DAR-001", feld: "restschuld", wert: "80000.00", standdatum: "2025-01-31", qualitaet: "belegt" };
   for (const vermoegenTab of ["uebersicht", "konten", "immobilien", "darlehen"]) {

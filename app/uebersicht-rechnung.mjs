@@ -136,6 +136,9 @@ export function checkVorschau(items, limit = 4) {
 //   Ausgabe. Eine einzelne Erstattung mindert so nur ihre Kategorie.
 // - Gutschriften einer Kategorie mit gutschriften_sondereffekt (Steuererstattung)
 //   sind keine laufende Einnahme: sie stehen als Sondereffekt daneben.
+// - Kategorien mit investition (Modernisierung samt Zuschuss) zaehlen gar nicht.
+// - Kategorien mit brutto teilen nach Vorzeichen: Gutschriften als Einnahme,
+//   Belastungen als Ausgabe (je eine Zeile unter derselben Kategorie).
 // - Neutrale Kategorien sind keine Ausgaben. In der Sparquote zeigen die mit
 //   sparziel "depot" bzw. "versicherung", was in Depots und Vertraege fliesst;
 //   der Rest des Ueberschusses bleibt kurzfristig liquide (Konten, Tagesgeld,
@@ -165,16 +168,18 @@ export function monatsMittel(data, today) {
     if (tx.ist_transfer === true) continue;
     const i = index.get(tx.buchungsdatum?.slice(0, 7));
     if (i === undefined) continue;
-    const key = tx.kategorie_id ?? "";
+    const id = tx.kategorie_id ?? "";
+    if (typ.get(id)?.investition === true) continue;
     const cents = toCents(tx.betrag);
-    if (cents > 0 && typ.get(key)?.gutschriften_sondereffekt === true) {
-      const se = sondereffekte.get(key) ?? { kategorie_id: key, name: typ.get(key).name, summe_cents: 0, buchungen: [] };
+    const key = typ.get(id)?.brutto === true ? `${id}${cents >= 0 ? "+" : "-"}` : id;
+    if (cents > 0 && typ.get(id)?.gutschriften_sondereffekt === true) {
+      const se = sondereffekte.get(id) ?? { kategorie_id: id, name: typ.get(id).name, summe_cents: 0, buchungen: [] };
       se.summe_cents += cents;
       se.buchungen.push({ datum: tx.buchungsdatum, betrag_cents: cents });
-      sondereffekte.set(key, se);
+      sondereffekte.set(id, se);
       continue;
     }
-    const k = netto.get(key) ?? { summe: 0, je_monat: monate.map(() => 0) };
+    const k = netto.get(key) ?? { kategorie_id: id, summe: 0, je_monat: monate.map(() => 0) };
     k.summe += cents;
     k.je_monat[i] += cents;
     netto.set(key, k);
@@ -184,13 +189,13 @@ export function monatsMittel(data, today) {
   const mittel = (summe) => (n ? Math.round(summe / n) : 0);
   const name = (id) => typ.get(id)?.name ?? id;
   const seite = (vorzeichen) => {
-    const keys = [...netto].filter(([id, k]) => !istNeutral(id) && (vorzeichen > 0 ? k.summe >= 0 : k.summe < 0));
+    const keys = [...netto].filter(([, k]) => !istNeutral(k.kategorie_id) && (vorzeichen > 0 ? k.summe >= 0 : k.summe < 0));
     const je_monat = monate.map((_, i) => keys.reduce((a, [, k]) => a + vorzeichen * k.je_monat[i], 0));
     return {
       mittel_cents: mittel(keys.reduce((a, [, k]) => a + vorzeichen * k.summe, 0)),
       je_monat,
       kategorien: keys
-        .map(([kategorie_id, k]) => ({ kategorie_id, name: name(kategorie_id), mittel_cents: mittel(vorzeichen * k.summe) }))
+        .map(([, k]) => ({ kategorie_id: k.kategorie_id, name: name(k.kategorie_id), mittel_cents: mittel(vorzeichen * k.summe) }))
         .filter((k) => k.mittel_cents > 0)
         .sort((a, b) => b.mittel_cents - a.mittel_cents),
     };

@@ -36,7 +36,7 @@ Reihenfolge und Standard je Detailansicht:
 | Ansicht | Kacheln (zu = per Standard zugeklappt) |
 | --- | --- |
 | Vorsorgevertrag | Kennzahlen (vier, mit Beitragsdynamik fuenf), Vertragsdaten (zu), Dokumente, Gebuchte Beitraege, Bemerkung und Wertstaende (zu) |
-| Immobilie | Stammdaten, Monatstabelle, Dokumente, Bemerkung und Wertstaende (zu) |
+| Immobilie | Stammdaten, Monatstabelle (Investitionen als eigene Spalte), Investitionen (nur wenn vorhanden), Dokumente, Bemerkung und Wertstaende (zu) |
 | Darlehen | Kennzahlen, Restschuldverlauf, Stammdaten, Dokumente, Bemerkung/Wertstaende/Sondertilgungen (zu) |
 | Vermoegen, Uebersicht | Tabs direkt unter dem Seitenkopf; im Tab: Nettovermoegen (Verlauf je Monat) und Restschuld (je Jahresende bis zur Tilgung) nebeneinander, Konten und Depots, Immobilien und weitere Werte, offene Punkte, Wertstaende (zu; ein Sprung "Alle Wertstaende" oeffnet sie) |
 | Liquiditaet | Liquiditaet heute (letzte 24 Monate, dazu gestrichelt der Trend aus gleitender Regression ueber sechs Monate) und Prognose (Horizont standardmaessig zwoelf Monate) nebeneinander, Bewegungen im laufenden Monat (zu), Prognose-Tabelle (zu) |

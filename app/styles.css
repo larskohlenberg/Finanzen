@@ -3392,8 +3392,10 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .flach-unterliste .linkish,
 .flach-unterliste li > span:not(.amount) { flex: 1 1 auto; text-align: left; font-size: 12px; white-space: normal; overflow: visible; text-overflow: clip; }
 .flach-unterliste .amount { font-variant-numeric: tabular-nums; color: var(--muted); }
-.flach-unterliste .flach-zwischensumme { margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--border); font-weight: 650; }
-.flach-unterliste .flach-zwischensumme .amount { color: inherit; }
+.flach-unterliste .flach-gruppe { font-weight: 650; color: var(--text); }
+.flach-unterliste .flach-gruppe .amount { color: inherit; }
+.flach-unterliste .flach-gruppe-folge { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--border); }
+.flach-unterliste:has(.flach-gruppe) li:not(.flach-gruppe) { padding-left: 10px; }
 .uebersicht-flach-kachel .uebersicht-kachel-kopf { display: flex; align-items: center; gap: 6px; }
 @container (max-width: 260px) {
   .flach-inhalt { grid-template-columns: 1fr; gap: 8px; }

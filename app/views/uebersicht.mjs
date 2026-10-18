@@ -135,12 +135,13 @@ function renderEinnahmenAusgaben(today) {
         ziel: "",
         // Aufgeklappt: tatsaechliche Veraenderung je Konto (Link auf dessen Buchungen
         // im Zeitraum), dazu der Abgleich mit Sondereffekten und Investitionen.
-        // Darunter die Zwischensumme und, mit Vorzeichen, was auf den Konten liegt,
-        // aber nicht aus dem laufenden Ueberschuss kommt; jede Zeile mit Link.
+        // Zwei Gruppen, jede mit ihrer Zwischensumme als Kopf: die Veraenderung je
+        // Konto und, mit Vorzeichen, was nicht aus dem laufenden Ueberschuss kommt.
         unter: [
+          { name: t("overview.kontenVeraenderung"), mittel_cents: z.veraenderung_cents, ziel: "", zeilenKlasse: "flach-gruppe" },
           ...z.konten.map((k) => ({ name: k.name, mittel_cents: k.mittel_cents, ziel: `data-action="kategorie-transactions" data-konto="${escapeHtml(k.konto_id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` })),
           ...(z.bestandteile.length ? [
-            { name: t("overview.kontenVeraenderung"), mittel_cents: z.veraenderung_cents, ziel: "", zeilenKlasse: "flach-zwischensumme" },
+            { name: t("overview.kontenSondereffekte"), mittel_cents: z.abgleich_cents, mitVorzeichen: true, ziel: "", zeilenKlasse: "flach-gruppe flach-gruppe-folge" },
             ...z.bestandteile.map((b) => ({
               name: b.art === "umbuchungen" || b.art === "rest" ? t(`overview.abgleich.${b.art}`) : tf(`overview.abgleich.${b.art}`, { name: b.name }),
               mittel_cents: b.mittel_cents,

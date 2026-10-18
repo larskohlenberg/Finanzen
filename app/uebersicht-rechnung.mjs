@@ -85,8 +85,9 @@ export function kontoStandDatum(data, konto) {
 export function kontoRang(konto) {
   if (konto.kontotyp === "giro") return 0;
   if (konto.kontotyp === "tagesgeld") return 1;
-  if (konto.kontotyp === "depot") return 2;
-  return 3;
+  if (konto.kontotyp === "festgeld") return 2;
+  if (konto.kontotyp === "depot") return 3;
+  return 4;
 }
 
 export function sortierteKonten(data) {

@@ -30,7 +30,7 @@ export function kontoWert(konto, zeitwerte, transaktionen, today) {
     if (!dw) return { wert_cents: null, basis: "depotwert-fehlt", standdatum: null, qualitaet: null };
     return { wert_cents: toCents(dw.wert), basis: "depotwert", standdatum: dw.standdatum, qualitaet: dw.qualitaet };
   }
-  // giro | spar | tagesgeld | kreditkarte: Anker + Buchungen danach.
+  // giro | spar | tagesgeld | festgeld | kreditkarte: Anker + Buchungen danach.
   // Importierte Buchungen stammen selbst aus Belegen (Export, Auszug, Screenshot):
   // der Stand reicht deshalb bis zur letzten eingerechneten Buchung, nicht nur
   // bis zum Ankerdatum. anker_datum haelt den Kontoauszug-Stand fest.

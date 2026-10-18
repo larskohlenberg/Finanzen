@@ -289,9 +289,12 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
 - **Freistellungsblock** („Gesamtzinsertraege"): Er summiert alle Konten des
   Kunden bei dieser Bank. Steigt er staerker als die Habenzinsen des Auszugs, hat
   ein anderes Konto derselben Bank Zinsen gutgeschrieben, ein Hinweis auf eine
-  Festgeld-Rueckzahlung. Festgeld bekommt nie ein eigenes Konto
-  (Nutzerentscheidung): Anlage und Rueckzahlung laufen ueber das Tagesgeldkonto
-  auf `KAT-010`, mit `bemerkung`.
+  Festgeld-Rueckzahlung. Festgeld hat je Inhaber ein Konto vom Kontotyp
+  `festgeld` (nicht liquiditaetsrelevant, Startstand 0 am Tag vor der ersten
+  Anlage). Anlage und Rueckzahlung auf dem Tagesgeld sind interne Transfers mit
+  Gegenbuchung auf dem Festgeldkonto; der Zins steht dort als eigene
+  Zinseinnahme vor der Rueckzahlung. Die Gegenbuchungen entstehen von Hand aus
+  dem Tagesgeld-Auszug (`rohquelle` nennt ihn), mit `bemerkung`.
 
 ## Broker-Kontoauszug mit Kontouebersicht und Barmitteluebersicht
 

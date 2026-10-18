@@ -3087,11 +3087,13 @@ a.linkish {
 .kontotyp-farbe-tagesgeld { --farbe: #1baf7a; }
 .kontotyp-farbe-spar { --farbe: #69c1fc; }
 .kontotyp-farbe-kreditkarte { --farbe: #eb6834; }
+.kontotyp-farbe-festgeld { --farbe: #eda100; }
 .kontotyp-farbe-depot { --farbe: #6250d6; }
 :root[data-theme="dark"] .kontotyp-farbe-giro { --farbe: #3987e5; }
 :root[data-theme="dark"] .kontotyp-farbe-tagesgeld { --farbe: #199e70; }
 :root[data-theme="dark"] .kontotyp-farbe-spar { --farbe: #95cde9; }
 :root[data-theme="dark"] .kontotyp-farbe-kreditkarte { --farbe: #d95926; }
+:root[data-theme="dark"] .kontotyp-farbe-festgeld { --farbe: #c98500; }
 :root[data-theme="dark"] .kontotyp-farbe-depot { --farbe: #9085e9; }
 [class*="kontotyp-farbe-"] { fill: var(--farbe); background: var(--farbe); }
 .zeitstrahl-punkt.vorsorge-kapital { fill: #b7791f; }

@@ -131,7 +131,7 @@ function ausgewaehltePosition(r, klasse) {
 // und die Wertstaende (zu). Die Klassensummen stehen schon in den Tabs.
 const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
 const positionLink = (klasse, id, name) => `<button class="linkish" data-action="select-vermoegen" data-vermoegen="${escapeHtml(`${klasse}:${id}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
-const KONTOTYPEN = ["giro", "tagesgeld", "spar", "kreditkarte", "depot"];
+const KONTOTYPEN = ["giro", "tagesgeld", "spar", "festgeld", "kreditkarte", "depot"];
 
 function renderUebersichtTab(r, je, today, checks) {
   return `

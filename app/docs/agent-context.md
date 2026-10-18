@@ -661,7 +661,9 @@ matcht nur noch:
    `aktiv_bis` der Vorgaengerin zurueck.
 5. **Kandidaten je Termin.** Signal `mandat`: gleiche Mandatsreferenz, Betrag in
    50 % Toleranz (Beitragsdynamik ueber Jahre). Signal `gegenpartei`: gleiche
-   Gegenpartei und Kategorie, Betrag in 10 % Toleranz.
+   Gegenpartei und Kategorie, Betrag in 10 % Toleranz. Ein gekuerzter Name
+   (PDF-Auszug statt CSV) zaehlt als gleich, wenn der kuerzere mit mindestens
+   20 Zeichen der Anfang des anderen ist.
 6. **Eindeutig.** Je Termin hoechstens eine Buchung, je Buchung hoechstens ein
    Termin. Vergeben werden gegenseitig beste Paare (kleinste Betragsabweichung,
    dann kleinster Abstand). Gleich gute Alternativen stehen unter `mehrdeutig`.

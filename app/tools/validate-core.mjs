@@ -42,6 +42,8 @@ const schemas = {
       lebenshaltung_relevant: { type: "boolean" },
       status: { type: "string", enum: ["aktiv", "inaktiv"] },
       aktiv_bis: { type: "string", format: "date" },
+      gutschriften_sondereffekt: { type: "boolean" },
+      sparziel: { type: "string", enum: ["liquide", "depot", "versicherung"] },
     },
   },
   transaktionen: {

@@ -9,7 +9,7 @@
 // unter Vermögen, die nächste Aktion im Arbeitsstatus oben.
 import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatDate, formatMoney, renderPageHead, heuteIso } from "../komponenten.mjs";
+import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso } from "../komponenten.mjs";
 import { currentNettovermoegen, overviewAccountGroups, overviewJahreszahlungen } from "../selektoren.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { anstehendeFristen } from "../fristen.mjs";
@@ -75,14 +75,14 @@ function kategorieTeile(kategorien, mittel) {
 
 // Flache Kachel: Kennzahl und Notiz, darunter links die kurze Leiste und
 // rechts die Legende untereinander. Teile mit negativem Betrag stehen nur in der Legende.
-function flacheKachel({ id, titel, wert, notiz, teile }) {
+function flacheKachel({ id, titel, info = "", wert, notiz, teile, fuss = "" }) {
   const basis = Math.max(teile.filter((k) => k.mittel_cents > 0).reduce((a, k) => a + k.mittel_cents, 0), 1);
   const segmente = teile.filter((k) => k.mittel_cents > 0).map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
   const legende = teile.map((k) => `<li>${farbPunkt(k.klasse)}${k.ziel ? `<button class="linkish" ${k.ziel} title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>` : `<span title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</span>`}<span class="amount">${escapeHtml(geldOhneCent(k.mittel_cents))}</span></li>`).join("");
   return `
     <section class="panel panel-pad uebersicht-flach-kachel" aria-labelledby="kachel-${id}">
       <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">
-        <button class="linkish" ${ZIEL.liquiditaet}>${iconSvg("liquiditaet")}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}</button>
+        <button class="linkish" ${ZIEL.liquiditaet}>${iconSvg("liquiditaet")}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}</button>${info ? infoTipp(info) : ""}
       </h2>
       <div class="kpi-value">${wert}</div>
       <div class="kpi-note">${notiz}</div>
@@ -91,6 +91,7 @@ function flacheKachel({ id, titel, wert, notiz, teile }) {
         <div class="uebersicht-balken">${segmente.length ? balkenSvg(segmente) : ""}</div>
         <ul class="flach-legende">${legende}</ul>
       </div>` : ""}
+      ${fuss}
     </section>`;
 }
 
@@ -101,10 +102,19 @@ function renderEinnahmenAusgaben(today) {
   const basisNotiz = `${escapeHtml(tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate }))} · ${escapeHtml(zeitraum)}`;
   const jeMonat = (cents) => `${escapeHtml(geldOhneCent(cents))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonat"))}</span>`;
   const { sparen } = mittel;
-  const sparTeile = [
-    ...kategorieTeile(sparen.kategorien, mittel),
-    ...(sparen.rest_cents ? [{ name: t(sparen.rest_cents > 0 ? "overview.aufDenKonten" : "overview.ausRuecklagen"), mittel_cents: sparen.rest_cents, klasse: "segment-konto", ziel: "" }] : []),
-  ];
+  const zielLinkFuer = (ids) => (ids.length === 1 ? `data-action="kategorie-transactions" data-kategorie="${escapeHtml(ids[0])}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` : "");
+  const ZIEL_KLASSE = { liquide: "segment-konto", depot: "segment-depot", versicherung: "segment-vorsorge" };
+  const sparTeile = sparen.ziele.filter((z) => z.mittel_cents).map((z) => ({
+    name: t(z.ziel === "liquide" && z.mittel_cents < 0 ? "overview.ausRuecklagen" : `overview.sparziel.${z.ziel}`),
+    mittel_cents: z.mittel_cents,
+    klasse: ZIEL_KLASSE[z.ziel],
+    ziel: zielLinkFuer(z.kategorien),
+  }));
+  const sondereffekte = mittel.sondereffekte.map((se) => {
+    const monate = [...new Set(se.buchungen.map((b) => formatMonatLang(b.datum.slice(0, 7))))].join(", ");
+    return `<button class="linkish" data-action="kategorie-transactions" data-kategorie="${escapeHtml(se.kategorie_id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}">${escapeHtml(se.name)}</button> ${escapeHtml(geldOhneCent(se.summe_cents))} (${escapeHtml(monate)})`;
+  });
+  const sonderFuss = sondereffekte.length ? `<p class="flach-fuss">${escapeHtml(t("overview.sondereffekt"))}: ${sondereffekte.join(" · ")}</p>` : "";
   return `
     <div class="uebersicht-flach">
       ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.einnahmen.kategorien, mittel) })}
@@ -112,9 +122,11 @@ function renderEinnahmenAusgaben(today) {
       ${flacheKachel({
         id: "sparquote",
         titel: t("overview.sparquote"),
+        info: t("overview.sparquoteInfo"),
         wert: sparen.quote === null ? "–" : escapeHtml(formatProzent(sparen.quote)),
         notiz: `${escapeHtml(tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) }))} · ${basisNotiz}`,
         teile: sparTeile,
+        fuss: sonderFuss,
       })}
     </div>`;
 }

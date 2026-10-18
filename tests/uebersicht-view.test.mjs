@@ -299,7 +299,9 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
 
   // Sparquote: (3000 - 1650) / 3000 = 45 %, Rest bleibt auf den Konten.
   assert.match(kachel("sparquote"), /Sparquote[\s\S]*<div class="kpi-value">45\s%<\/div>[\s\S]*1\.350\s€ \/ Monat übrig/);
-  assert.match(kachel("sparquote"), /Auf den Konten<\/span><span class="amount">1\.350\s€/);
+  assert.match(kachel("sparquote"), /Kurzfristig liquide<\/span><span class="amount">1\.350\s€/);
+  assert.match(kachel("sparquote"), /class="info-tipp"[\s\S]*Sparquote = \(Einnahmen − Ausgaben\)/);
+  assert.doesNotMatch(kachel("sparquote"), /flach-fuss/);
 
   data.transaktionen = [];
   assert.doesNotMatch(renderOverview(), /uebersicht-flach/);

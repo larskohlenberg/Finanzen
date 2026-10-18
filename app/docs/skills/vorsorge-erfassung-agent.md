@@ -30,6 +30,9 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
 
 ## Belegarten und Uebertragung
 
+- **Versicherungsnummer:** die Vertrags- bzw. Versicherungsnummer aus dem
+  Beleg so wie gedruckt in `versicherungsnummer` uebernehmen, nicht in den
+  `name`. Die Kachel zeigt sie als eigene Zeile unter dem Namen.
 - **Standmitteilung / Vertragsstand:** `rueckkaufswert` als Zeitwert mit
   `entitaet = "vorsorge"`, `entitaet_id = vorsorge_id`, `feld =
   "rueckkaufswert"`, `standdatum`, `qualitaet` und `quelle_hinweis` erfassen.

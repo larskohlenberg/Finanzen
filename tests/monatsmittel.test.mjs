@@ -103,4 +103,7 @@ test("monatsMittel: Steuererstattung ist Sondereffekt, Steuerzahlung bleibt Ausg
   assert.deepEqual(r.sondereffekte, [{ kategorie_id: "KAT-030", name: "Steuern", summe_cents: 1200000, buchungen: [{ datum: "2025-03-10", betrag_cents: 1200000 }] }]);
   // Festgeld ist kein Depot und keine Versicherung: alles bleibt liquide.
   assert.deepEqual(r.sparen.ziele.map((z) => z.mittel_cents), [299000, 0, 0]);
+  // Davon Festgeld 500/Monat, der Rest auf Konten und Tagesgeld.
+  assert.deepEqual(r.sparen.ziele[0].teile, [{ kategorie_id: "KAT-026", name: "Festgeld", mittel_cents: 50000 }]);
+  assert.equal(r.sparen.ziele[0].konten_cents, 249000);
 });

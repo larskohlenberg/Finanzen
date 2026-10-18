@@ -202,11 +202,17 @@ export function monatsMittel(data, today) {
   const depot = zielSumme("depot");
   const versicherung = zielSumme("versicherung");
   const zielKategorien = (ziel) => (data.kategorien ?? []).filter((k) => k.typ === "neutral" && k.sparziel === ziel).map((k) => k.kategorie_id);
+  // Kurzfristig liquide in Teile: was in liquide Kategorien floss (Festgeld) und
+  // der Rest auf Konten und Tagesgeld (negativ: dort entnommen).
+  const liquide = ueberschuss - depot - versicherung;
+  const liquideTeile = zielKategorien("liquide")
+    .map((id) => ({ kategorie_id: id, name: name(id), mittel_cents: mittel(0 - (netto.get(id)?.summe ?? 0)) }))
+    .filter((k) => k.mittel_cents !== 0);
   const sparen = {
     ueberschuss_cents: ueberschuss,
     quote: einnahmen.mittel_cents > 0 ? ueberschuss / einnahmen.mittel_cents : null,
     ziele: [
-      { ziel: "liquide", mittel_cents: ueberschuss - depot - versicherung, kategorien: [] },
+      { ziel: "liquide", mittel_cents: liquide, kategorien: [], teile: liquideTeile, konten_cents: liquide - liquideTeile.reduce((a, k) => a + k.mittel_cents, 0) },
       { ziel: "depot", mittel_cents: depot, kategorien: zielKategorien("depot") },
       { ziel: "versicherung", mittel_cents: versicherung, kategorien: zielKategorien("versicherung") },
     ],

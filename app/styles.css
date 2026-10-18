@@ -3367,6 +3367,17 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .flach-legende li { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .flach-legende .linkish, .flach-legende li > span:not(.amount) { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-size: 12px; }
 .flach-legende .amount { flex: 0 0 auto; font-variant-numeric: tabular-nums; color: var(--muted); }
+.segment-liquide-teil { --farbe: color-mix(in srgb, var(--accent) 45%, var(--surface)); fill: var(--farbe); background: var(--farbe); }
+.flach-uebrige { position: relative; display: block !important; }
+.flach-uebrige summary { display: flex; align-items: baseline; gap: 6px; cursor: pointer; list-style: none; color: var(--accent-strong); }
+.flach-uebrige summary::-webkit-details-marker { display: none; }
+.flach-uebrige summary > span:not(.amount) { flex: 1 1 auto; }
+.flach-uebrige summary > span:not(.amount)::after { content: " ▾"; color: var(--muted); font-size: 10px; }
+.flach-uebrige details[open] summary > span:not(.amount)::after { content: " ▴"; }
+.flach-unterliste { position: absolute; right: 0; z-index: 5; display: grid; gap: 3px; min-width: 220px; margin: 4px 0 0; padding: 8px 10px; list-style: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgb(0 0 0 / 0.18); }
+.flach-unterliste li { display: flex; align-items: baseline; gap: 6px; }
+.flach-unterliste .linkish { flex: 1 1 auto; text-align: left; font-size: 12px; white-space: nowrap; }
+.flach-unterliste .amount { font-variant-numeric: tabular-nums; color: var(--muted); }
 .flach-fuss { margin: 10px 0 0; padding-top: 8px; border-top: 1px dashed var(--border); color: var(--muted); font-size: 12px; }
 .flach-fuss .linkish { font-size: 12px; }
 .uebersicht-flach-kachel .uebersicht-kachel-kopf { display: flex; align-items: center; gap: 6px; }

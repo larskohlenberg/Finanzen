@@ -31,7 +31,7 @@ function zeile(linkHtml, betrag, { zusatz = "", punkt = "" } = {}) {
   return `<li>${punkt ? farbPunkt(punkt) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${betrag}</span></li>`;
 }
 
-const link = (ziel, text) => `<button class="linkish" ${ziel}>${escapeHtml(text)}</button>`;
+const link = (ziel, text, { title = "" } = {}) => `<button class="linkish" ${ziel}${title ? ` title="${escapeHtml(title)}"` : ""}>${escapeHtml(text)}</button>`;
 const ZIEL = {
   liquiditaet: `data-view="liquiditaet"`,
   vermoegen: `data-view="vermoegen"`,
@@ -193,7 +193,7 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null }) {
   const balken = aktiva || schulden
     ? `<div class="uebersicht-balken">${balkenSvg(segmente)}${schulden ? balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(schulden)}` }], { laenge: schulden / basis }) : ""}</div>`
     : "";
-  const zeilen = sichtbar.map((k) => zeile(link(k.ziel, k.titel), escapeHtml(formatMoney(summe(k.filter))), { punkt: k.punkt }));
+  const zeilen = sichtbar.map((k) => zeile(link(k.ziel, k.titel, { title: k.titel }), escapeHtml(formatMoney(summe(k.filter))), { punkt: k.punkt }));
   return `
         <div class="vermoegen-teil">
           <h3 class="vermoegen-teil-titel">${escapeHtml(titel)}</h3>

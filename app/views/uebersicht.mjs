@@ -193,7 +193,7 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null }) {
 }
 
 // Breite Kachel: oben das Nettovermoegen, darunter schnell verfuegbar (Konten,
-// Festgeld, Depots) und langfristig gebunden (Immobilien, Sachwerte, Vorsorge minus Darlehen).
+// Festgeld, Depots) und langfristig gebunden (Immobilien einzeln, Sachwerte, Vorsorge minus Darlehen).
 function renderVermoegenKachel() {
   const r = currentNettovermoegen();
   const kontotyp = new Map(data.konten.map((k) => [k.konto_id, k.kontotyp]));
@@ -202,6 +202,9 @@ function renderVermoegenKachel() {
   const schnell = (p) => p.klasse === "konto";
   const klasse = (key, ziel) => ({ titel: t(`vermoegen.klassePlural.${key}`), filter: (p) => p.klasse === key, ziel, punkt: `segment-${key}` });
   const darlehen = klasse("darlehen", ZIEL.vermoegenTab("darlehen"));
+  // Immobilien einzeln, die wertvollste zuerst.
+  const immobilien = r.positionen.filter((p) => p.klasse === "immobilie").sort((a, b) => b.wert_cents - a.wert_cents)
+    .map((imm) => ({ titel: imm.name, filter: (p) => p.klasse === "immobilie" && p.id === imm.id, ziel: ZIEL.vermoegenTab("immobilien"), punkt: "segment-immobilie" }));
   // Rueckkaufswerte fuehren in den Vorsorge-Reiter, der den groessten Teil davon haelt.
   const jeTab = new Map();
   for (const p of r.positionen.filter((p) => p.klasse === "vorsorge")) {
@@ -231,7 +234,7 @@ function renderVermoegenKachel() {
           titel: t("overview.vermoegenLangfristig"),
           positionen: r.positionen.filter((p) => !schnell(p)),
           klassen: [
-            klasse("immobilie", ZIEL.vermoegenTab("immobilien")),
+            ...immobilien,
             klasse("vermoegenswert", ZIEL.vermoegenTab("sonstige")),
             { ...klasse("vorsorge", ZIEL.vorsorgeTab(rueckkaufTab)), titel: t("overview.vorsorgeRueckkauf") },
             darlehen,

@@ -89,6 +89,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
     { ...basis, konto_id: "KTO-903", name: "Giro belegt", kontotyp: "giro" },
     { ...basis, konto_id: "KTO-904", name: "Giro ohne Anker", kontotyp: "giro" },
     { ...basis, konto_id: "KTO-905", name: "Kasse", kontotyp: "bar", liquiditaetsrelevant: false },
+    { ...basis, konto_id: "KTO-906", name: "Festgeld", kontotyp: "festgeld", liquiditaetsrelevant: false },
   ];
   data.transaktionen = [
     { transaktion_id: "TXN-T1", konto_id: "KTO-903", buchungsdatum: "2026-05-01", betrag: "-4000.00" },
@@ -104,6 +105,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   data.zeitwerte = [
     { entitaet: "konto", entitaet_id: "KTO-901", feld: "depotwert", standdatum: "2026-09-15", wert: "4321.09", qualitaet: "belegt" },
     { entitaet: "konto", entitaet_id: "KTO-903", feld: "kontostand", standdatum: "2026-06-08", wert: "1200.00", qualitaet: "belegt" },
+    { entitaet: "konto", entitaet_id: "KTO-906", feld: "kontostand", standdatum: "2026-06-01", wert: "20000.00", qualitaet: "belegt" },
   ];
   state.view = "overview";
   state.lang = "de";
@@ -156,9 +158,12 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.doesNotMatch(bereich("liquiditaet"), /diagramm-wrap|Tiefster Stand|In zwölf Monaten/);
   assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten">Konten<\/button>[\s\S]*?1\.150,00/);
   assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten">Depots<\/button>[\s\S]*?4\.321,09/);
-  // Konten und Depots in der Unterkachel "Schnell verfuegbar", zusammen 5.471,09.
+  // Festgeld als eigene Zeile zwischen Konten und Depots, nicht unter Konten.
+  assert.match(bereich("vermoegen"), /data-tab="konten">Konten<\/button>[\s\S]*?data-tab="konten">Festgeld<\/button><span class="amount">20\.000,00\s€[\s\S]*?data-tab="konten">Depots<\/button>/);
+  assert.match(bereich("vermoegen"), /segment-festgeld/);
+  // Konten, Festgeld und Depots in der Unterkachel "Schnell verfuegbar", zusammen 25.471,09.
   assert.match(bereich("vermoegen"), /uebersicht-kachel-breit/);
-  assert.match(bereich("vermoegen"), /Schnell verfügbar<\/h3>\s*<div class="vermoegen-teil-wert">5\.471,09\s€/);
+  assert.match(bereich("vermoegen"), /Schnell verfügbar<\/h3>\s*<div class="vermoegen-teil-wert">25\.471,09\s€/);
   assert.match(bereich("vermoegen"), /Langfristig gebunden<\/h3>[\s\S]*Nichts erfasst/);
   assert.match(bereich("vermoegen"), /<svg class="vermoegen-balken"/);
   assert.match(bereich("vorsorge"), /Keine erwarteten Renten erfasst/);

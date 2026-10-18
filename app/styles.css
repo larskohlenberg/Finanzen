@@ -2671,6 +2671,7 @@ a.linkish {
 }
 .balken-grund { fill: var(--surface-2); }
 .segment-konto { --farbe: var(--accent); fill: var(--accent); background: var(--accent); }
+.segment-festgeld { --farbe: color-mix(in srgb, var(--accent) 75%, var(--surface)); fill: color-mix(in srgb, var(--accent) 75%, var(--surface)); background: color-mix(in srgb, var(--accent) 75%, var(--surface)); }
 .segment-depot { --farbe: color-mix(in srgb, var(--accent) 50%, var(--surface)); fill: color-mix(in srgb, var(--accent) 50%, var(--surface)); background: color-mix(in srgb, var(--accent) 50%, var(--surface)); }
 .segment-immobilie { --farbe: #3b6fb6; fill: #3b6fb6; background: #3b6fb6; }
 .segment-vermoegenswert { --farbe: #a07a1c; fill: #a07a1c; background: #a07a1c; }

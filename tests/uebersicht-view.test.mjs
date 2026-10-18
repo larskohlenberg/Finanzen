@@ -322,3 +322,14 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   data.transaktionen = [];
   assert.doesNotMatch(renderOverview(), /uebersicht-flach/);
 });
+
+test("Termine: Eintraege einzeilig, voller Text im Tooltip", () => {
+  data.validation = { valid: true, errors: [] };
+  data.vorsorge = [{ vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag mit langem Namen", person_id: "PER-001", status: "aktiv" }];
+  data.fristen = [{ frist_id: "FR-901", bezeichnung: "Dynamik widersprechen", art: "widerspruch", datum: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), vorsorge_id: "VS-901" }];
+  state.view = "overview";
+  state.lang = "de";
+  const html = renderOverview();
+  const termine = html.match(/aria-labelledby="kachel-termine">[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.match(termine, /<span class="termine-text" title="Dynamik widersprechen · Testvertrag mit langem Namen"><span>Dynamik widersprechen<\/span><span class="muted"><button/);
+});

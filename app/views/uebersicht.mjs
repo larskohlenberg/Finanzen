@@ -360,6 +360,13 @@ function zielLink(rz) {
 
 const formatMonatKurz = (iso) => new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short" }).format(new Date(`${iso}T00:00:00`));
 
+// Text einer Terminzeile: einzeilig, Bezug wird zuerst gekuerzt (CSS); der volle
+// Text steht im Tooltip. Die Teile sind schon escapetes HTML, daher nur Tags weg.
+function terminText(teile) {
+  const voll = teile.map((html) => html.replace(/<[^>]*>/g, "")).filter(Boolean).join(" · ");
+  return `<span class="termine-text" title="${voll}">${teile.map((html, i) => (i ? `<span class="muted">${html}</span>` : html)).join("")}</span>`;
+}
+
 function terminSpalte(titel, ziel, zeilen, leer) {
   return `
         <div class="termine-spalte">
@@ -373,14 +380,14 @@ function renderTermineKachel(today) {
   const fristZeilen = fristen.map((f) => `
             <li class="${fristKlasse(f)}" data-datum="${escapeHtml(f.datum)}">
               <span class="termine-datum">${escapeHtml(formatDate(f.datum))}</span>
-              <span class="termine-text"><span>${escapeHtml(f.bezeichnung)}</span>${f.bezug ? `<span class="muted">${bezugLink(f.bezug)}</span>` : ""}</span>
+              ${terminText([`<span>${escapeHtml(f.bezeichnung)}</span>`, ...(f.bezug ? [bezugLink(f.bezug)] : [])])}
               <span class="amount">${fristChip(f, today)}</span>
             </li>`);
   const zahlungen = overviewJahreszahlungen(HORIZONT_MONATE);
   const zahlungZeilen = zahlungen.map(({ datum, regelzahlung: rz }) => `
             <li data-datum="${escapeHtml(datum)}">
               <span class="termine-datum">${escapeHtml(formatDate(datum))}</span>
-              <span class="termine-text">${zielLink(rz)}<span class="muted">${escapeHtml(rz.konto_id ? t("overview.jahreszahlungenKonto").replace("{konto}", kontoName(rz.konto_id)) : t("overview.jahreszahlungenOhneKonto"))}</span></span>
+              ${terminText([zielLink(rz), escapeHtml(rz.konto_id ? t("overview.jahreszahlungenKonto").replace("{konto}", kontoName(rz.konto_id)) : t("overview.jahreszahlungenOhneKonto"))])}
               <span class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</span>
             </li>`);
   const leiste = terminLeiste({

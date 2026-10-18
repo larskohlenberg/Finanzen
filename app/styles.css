@@ -3431,9 +3431,14 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .termine-liste li.aktiv { background: var(--accent-soft); }
 .termine-liste li { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--border); }
 .termine-datum { color: var(--muted); font-variant-numeric: tabular-nums; }
-.termine-text { display: flex; flex-wrap: wrap; gap: 0 8px; min-width: 0; }
-.termine-text .linkish { text-align: left; overflow-wrap: break-word; }
+/* Einzeilig: der Name behaelt Vorrang, der graue Bezug wird zuerst gekuerzt; voller Text im title. */
+.termine-text { display: flex; gap: 0 8px; min-width: 0; white-space: nowrap; }
+.termine-text > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.termine-text > :first-child { flex: 0 1 auto; }
+.termine-text > .muted { flex: 1 1 0; }
+.termine-text .linkish { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; vertical-align: bottom; }
 .termine-liste .amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.termine-liste .chip { min-height: 0; padding: 1px 6px; } /* Hinweis wie "in 28 Tagen" nicht hoeher als die Zeile */
 .terminleiste { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; }
 .diagramm-hover-termin { display: grid; grid-template-columns: auto auto 1fr; gap: 0 6px; align-items: center; }
 .diagramm-hover-termin .muted { font-variant-numeric: tabular-nums; }

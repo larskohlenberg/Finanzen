@@ -19,7 +19,7 @@ import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { abfragen } from "./abfrage.mjs";
 import { pruefeArgumente } from "./argumente.mjs";
-import { istKalenderdatum, kennzahlenText } from "./kennzahlen.mjs";
+import { istKalenderdatum, kennzahlenText, planIstText } from "./kennzahlen.mjs";
 import { LESE_WURZELN, PfadFehler, SCHREIB_WURZELN, loesePfad } from "./pfade.mjs";
 import { kopiereDatenroot, mitRollback } from "./schreiben.mjs";
 
@@ -417,6 +417,28 @@ const kennzahlen = {
     // Wie runtime.mjs im Browser: Validator-Ergebnis, keine vorab geladenen Checks.
     Object.assign(daten, { validation: validateMasterData(daten), checks: [], importfehler: [] });
     return ergebnis(kennzahlenText(daten, stichtag));
+  },
+};
+
+const planIstWerkzeug = {
+  name: "plan_ist",
+  description: "Plan gegen Ist wie die Seite Plan & Ist: Einnahmen, Ausgaben und Sparquote aus den Buchungen gegen die Termine der Regelzahlungen, je Kategorie mit Regelzahlungen (Plan/gebucht), Einzelposten ab 400 EUR ohne Regelzahlung und Terminen ohne zugeordnete Buchung. Zeitraum: gesamt (Default, ganzer Bestand der vollen Monate), 12m, Jahr (2026), Quartal (2026-Q2) oder Monat (2026-05). Optional der Verlauf je jahr/quartal/monat. Frisch gerechnet, rein lesend.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      zeitraum: { type: "string", pattern: "^(gesamt|12m|\\d{4}|\\d{4}-Q[1-4]|\\d{4}-\\d{2})$", description: "gesamt, 12m, 2026, 2026-Q2 oder 2026-05 (Default gesamt)" },
+      darstellung: { type: "string", enum: ["je_monat", "summe"], description: "Ø je Monat (Default) oder Summe ueber den Zeitraum" },
+      verlauf: { type: "string", enum: ["jahr", "quartal", "monat"], description: "Zusaetzlich den Verlauf je Zeitraum dieser Granularitaet" },
+      stichtag: { ...DATUM, description: "Heute fuer die Grenze der vollen Monate (Default heute)" },
+    },
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: true },
+  async ausfuehren(ctx, args) {
+    const stichtag = args.stichtag ?? localTodayIso();
+    if (!istKalenderdatum(stichtag)) return ergebnis(`Ungueltiger Stichtag: ${stichtag} (YYYY-MM-DD, gueltiges Kalenderdatum)`, true);
+    const daten = await loadMasterData(pathToFileURL(`${ctx.datenroot}${path.sep}`));
+    return ergebnis(planIstText(daten, stichtag, { zeitraum: args.zeitraum ?? "gesamt", darstellung: args.darstellung, verlauf: args.verlauf }));
   },
 };
 
@@ -1133,7 +1155,7 @@ const inboxZurueckholen = {
   },
 };
 
-export const WERKZEUGE = [status, kennzahlen, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, belegErgaenzen, belegVerwerfen, inboxVerwerfen, inboxZurueckholen];
+export const WERKZEUGE = [status, kennzahlen, planIstWerkzeug, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, belegErgaenzen, belegVerwerfen, inboxVerwerfen, inboxZurueckholen];
 
 export function sichtbareWerkzeuge(ctx) {
   return WERKZEUGE

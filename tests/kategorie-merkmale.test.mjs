@@ -11,3 +11,8 @@ test("Kategorie-Merkmale gutschriften_sondereffekt und sparziel werden geprueft"
   assert.equal(fehler(kategorie({ sparziel: "konto" })).length, 1);
   assert.equal(fehler(kategorie({ gutschriften_sondereffekt: "ja" })).length, 1);
 });
+
+test("Kategorie-Merkmal ohne_einzelposten ist ein Wahrheitswert", () => {
+  assert.deepEqual(fehler(kategorie({ typ: "ausgabe", ohne_einzelposten: true })), []);
+  assert.equal(fehler(kategorie({ typ: "ausgabe", ohne_einzelposten: "ja" })).length, 1);
+});

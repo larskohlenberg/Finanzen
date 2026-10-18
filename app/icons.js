@@ -17,6 +17,14 @@ const icons = {
     '<path d="M4 14h9"/>',
     '<path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2"/>',
   ],
+  // Balken gegen gestrichelte Planlinie: Plan & Ist.
+  planIst: [
+    '<path d="M3 3v18h18"/>',
+    '<path d="M8 17v-5"/>',
+    '<path d="M13 17V9"/>',
+    '<path d="M18 17v-3"/>',
+    '<path d="M6 7h2m3 0h2m3 0h2"/>',
+  ],
   regelzahlungen: [
     '<path d="M21 12a9 9 0 0 1-9 9 9.8 9.8 0 0 1-6.74-2.74L3 16"/>',
     '<path d="M3 21v-5h5"/>',

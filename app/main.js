@@ -10,6 +10,7 @@ import { setWertstaendeFilter, resetWertstaendeFilters, toggleWertstaendeSort } 
 import { renderSzenarien, MAX_VERGLEICH } from "./views/szenarien.mjs";
 import { renderTransactions, filteredTransactions, transactionPageForId, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
+import { renderPlanIst } from "./views/plan-ist.mjs";
 import { renderTermine } from "./views/termine.mjs";
 import { renderOverview } from "./views/uebersicht.mjs";
 import { renderMasterdata } from "./views/stammdaten.mjs";
@@ -54,6 +55,7 @@ const FOCUS_ATTRS = [
   "data-tab", "data-person", "data-kachel", "data-wertstaende-sort", "data-wertstaende-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
   "data-rule", "data-regel-sort", "data-next-action-type", "data-vorsorge",
   "data-beleg", "data-beleg-sort", "data-beleg-ordner", "data-dok-ausschnitt",
+  "data-zeile", "data-gran", "data-darstellung", "data-periode",
 ];
 const SCROLL_SELECTORS = [".nav", ".table-wrap"];
 
@@ -417,6 +419,7 @@ function renderUiErrorBanner() {
 function renderView() {
   if (state.view === "transactions") return renderTransactions();
   if (state.view === "liquiditaet") return renderLiquiditaet();
+  if (state.view === "planIst") return renderPlanIst();
   if (state.view === "termine") return renderTermine();
   if (state.view === "vermoegen") return renderVermoegen();
   if (state.view === "vorsorge") return renderVorsorge();
@@ -596,6 +599,12 @@ app.addEventListener("change", guard((event) => {
   const control = event.target.closest("[data-control]");
   if (control?.dataset.control === "szenario-vergleich") {
     state.szenarioVergleichMit = control.value || "";
+    commitNavigation();
+    return;
+  }
+  if (control?.dataset.control === "plan-ist-periode") {
+    state.planIst.periode = control.value || "";
+    state.planIstOffen.clear();
     commitNavigation();
     return;
   }
@@ -1147,6 +1156,34 @@ async function handleAction(element) {
     document.getElementById?.(`regelzahlung-${state.selectedRegelzahlungId}`)?.scrollIntoView?.({ block: "center" });
     return;
   }
+  // Plan & Ist: aus den Kacheln der Uebersicht (data-periode "12m") oder der
+  // Verlaufstabelle in einen Zeitraum springen; Granularitaet, Darstellung und
+  // aufgeklappte Kategorien wechseln innerhalb der Seite.
+  if (action === "plan-ist" || action === "plan-ist-periode") {
+    state.view = "planIst";
+    state.planIst.periode = element.dataset.periode ?? "";
+    state.planIstOffen.clear();
+    commitNavigation(true);
+    return;
+  }
+  if (action === "plan-ist-gran") {
+    state.planIst.granularitaet = element.dataset.gran || "jahr";
+    if (state.planIst.periode !== "12m") state.planIst.periode = "";
+    commitNavigation();
+    return;
+  }
+  if (action === "plan-ist-darstellung") {
+    state.planIst.darstellung = element.dataset.darstellung === "summe" ? "summe" : "monat";
+    render();
+    return;
+  }
+  if (action === "plan-ist-zeile") {
+    const key = element.dataset.zeile ?? "";
+    if (state.planIstOffen.has(key)) state.planIstOffen.delete(key);
+    else state.planIstOffen.add(key);
+    render();
+    return;
+  }
   if (action === "termine-tab") {
     state.view = "termine";
     state.termineTab = element.dataset.tab || "regelzahlungen";
@@ -1271,6 +1308,7 @@ function snapshotState() {
     szenarioVergleichMit: state.szenarioVergleichMit,
     szenarioVergleichIds: [...state.szenarioVergleichIds],
     selectedBeleg: state.selectedBeleg,
+    planIstPeriode: state.planIst.periode,
   };
 }
 
@@ -1300,6 +1338,7 @@ function restoreState(snapshot) {
   state.szenarioVergleichMit = snapshot.szenarioVergleichMit || "";
   state.szenarioVergleichIds = snapshot.szenarioVergleichIds || [];
   state.selectedBeleg = snapshot.selectedBeleg || "";
+  state.planIst.periode = snapshot.planIstPeriode || "";
 }
 
 // Neuer History-Eintrag nur bei echtem View-Wechsel. Zustandsaenderungen
@@ -1379,6 +1418,14 @@ function applyRoute(route) {
       state.selectedVorsorgeId = "";
       state.vorsorgeTab = route.vorsorgeTab || "uebersicht";
     }
+  }
+  if (route.view === "planIst") {
+    state.planIst.periode = route.planIstPeriode || "";
+    // Granularitaet passend zum Zeitraum, damit die Auswahl ihn zeigt.
+    const p = state.planIst.periode;
+    if (/^\d{4}$/.test(p)) state.planIst.granularitaet = "jahr";
+    else if (/-Q\d$/.test(p)) state.planIst.granularitaet = "quartal";
+    else if (/^\d{4}-\d{2}$/.test(p)) state.planIst.granularitaet = "monat";
   }
   if (route.view === "termine") {
     state.termineTab = route.termineTab || "regelzahlungen";

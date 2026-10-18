@@ -6,7 +6,9 @@ const kategorien = [
   { kategorie_id: "KAT-001", name: "Gehalt", typ: "einnahme" },
   { kategorie_id: "KAT-003", name: "Wohnen", typ: "ausgabe" },
   { kategorie_id: "KAT-004", name: "Lebensmittel", typ: "ausgabe" },
+  { kategorie_id: "KAT-008", name: "Kinder", typ: "ausgabe" },
   { kategorie_id: "KAT-009", name: "Sparen & Umbuchung", typ: "neutral" },
+  { kategorie_id: "KAT-014", name: "Altersvorsorge", typ: "neutral" },
   { kategorie_id: "KAT-012", name: "Noch zu klaeren", typ: "neutral" },
 ];
 const tx = (buchungsdatum, betrag, kategorie_id, extra = {}) => ({ buchungsdatum, betrag, kategorie_id, ist_transfer: false, ...extra });
@@ -60,4 +62,27 @@ test("monatsMittel: Fenster endet mit dem letzten Buchungsmonat, nicht mit leere
   assert.equal(r.monate.at(-1), "2025-12");
   assert.equal(r.bis, "2025-12-31");
   assert.equal(r.einnahmen.mittel_cents, 120000);
+});
+
+test("monatsMittel: Kategorie mit Gutschrift-Ueberhang zaehlt als Einnahme, Sparquote mit Aufteilung", () => {
+  const transaktionen = [];
+  for (let m = 1; m <= 12; m++) {
+    const monat = `2025-${String(m).padStart(2, "0")}`;
+    transaktionen.push(tx(`${monat}-01`, "4000.00", "KAT-001"));
+    transaktionen.push(tx(`${monat}-02`, "-2000.00", "KAT-003"));
+    transaktionen.push(tx(`${monat}-03`, "250.00", "KAT-008")); // Kindergeld
+    transaktionen.push(tx(`${monat}-04`, "-50.00", "KAT-008")); // Kinderausgabe
+    transaktionen.push(tx(`${monat}-05`, "-1000.00", "KAT-009"));
+    transaktionen.push(tx(`${monat}-06`, "-500.00", "KAT-014"));
+  }
+  const r = monatsMittel({ transaktionen, kategorien }, "2026-01-20");
+  // Kinder netto +200/Monat -> Einnahme.
+  assert.equal(r.einnahmen.mittel_cents, 420000);
+  assert.deepEqual(r.einnahmen.kategorien.map((k) => k.kategorie_id), ["KAT-001", "KAT-008"]);
+  assert.equal(r.ausgaben.mittel_cents, 200000);
+  assert.equal(r.ausgaben.je_monat[0], 200000);
+  assert.equal(r.sparen.ueberschuss_cents, 220000);
+  assert.equal(Math.round(r.sparen.quote * 1000), 524);
+  assert.deepEqual(r.sparen.kategorien.map((k) => [k.kategorie_id, k.mittel_cents]), [["KAT-009", 100000], ["KAT-014", 50000]]);
+  assert.equal(r.sparen.rest_cents, 70000);
 });

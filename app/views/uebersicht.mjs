@@ -1,6 +1,6 @@
 // app/views/uebersicht.mjs
-// Ganz oben zwei flache Kacheln: monatliche Einnahmen und Ausgaben (Ø der
-// letzten zwoelf Monate aus den Buchungen, nach Kategorie).
+// Ganz oben drei flache Kacheln: monatliche Einnahmen, Ausgaben und Sparquote
+// (Ø der letzten zwoelf Monate aus den Buchungen, nach Kategorie).
 // Übersicht als Dashboard: je Bereich (Liquidität, Vermögen, Vorsorge) eine Kachel
 // mit Kennzahl und Zeilen, die ins Detail führen; Vermögen breit mit zwei
 // Unterkacheln (schnell verfügbar, langfristig gebunden). Darunter die
@@ -58,42 +58,64 @@ function bereichsKachel({ id, icon, titel, ziel, wertTitel = "", wert, notiz = "
     </section>`;
 }
 
-// ------------------------------------------------------------- Einnahmen/Ausgaben
+// ------------------------------------------------------------- Einnahmen/Ausgaben/Sparquote
 
 const TOP_KATEGORIEN = 3;
 const formatMonatLang = (ym) => new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short", year: "numeric" }).format(new Date(`${ym}-01T00:00:00`));
+const formatProzent = (anteil) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "percent", maximumFractionDigits: 0 }).format(anteil);
 
-// Flache Kachel: Durchschnitt pro Monat und Kategorien-Leiste mit
-// den groessten Kategorien und dem Rest. Kategorien fuehren in die Buchungen.
-function flacheKachel(id, titel, seite, mittel) {
-  const zeitraum = mittel.anzahl_monate === 1 ? formatMonatLang(mittel.monate[0]) : `${formatMonatLang(mittel.monate[0])} – ${formatMonatLang(mittel.monate.at(-1))}`;
-  const top = seite.kategorien.slice(0, TOP_KATEGORIEN);
-  const rest = seite.kategorien.slice(TOP_KATEGORIEN).reduce((a, k) => a + k.mittel_cents, 0);
-  const basis = Math.max(seite.kategorien.reduce((a, k) => a + k.mittel_cents, 0), 1);
-  const teile = [
-    ...top.map((k, i) => ({ ...k, klasse: `vertrag-farbe-${i}`, ziel: `data-action="kategorie-transactions" data-kategorie="${escapeHtml(k.kategorie_id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` })),
+// Die groessten Kategorien einzeln (als Link in die Buchungen des Zeitraums), der Rest als "Übrige".
+function kategorieTeile(kategorien, mittel) {
+  const rest = kategorien.slice(TOP_KATEGORIEN).reduce((a, k) => a + k.mittel_cents, 0);
+  return [
+    ...kategorien.slice(0, TOP_KATEGORIEN).map((k, i) => ({ ...k, klasse: `vertrag-farbe-${i}`, ziel: `data-action="kategorie-transactions" data-kategorie="${escapeHtml(k.kategorie_id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` })),
     ...(rest > 0 ? [{ name: t("overview.uebrige"), mittel_cents: rest, klasse: "vertrag-farbe-rest", ziel: "" }] : []),
   ];
-  const segmente = teile.map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
-  const legende = teile.map((k) => `<li>${farbPunkt(k.klasse)}${k.ziel ? `<button class="linkish" ${k.ziel}>${escapeHtml(k.name)}</button>` : `<span>${escapeHtml(k.name)}</span>`}<span class="amount">${escapeHtml(geldOhneCent(k.mittel_cents))}</span></li>`).join("");
+}
+
+// Flache Kachel: Kennzahl und Notiz, darunter links die kurze Leiste und
+// rechts die Legende untereinander. Teile mit negativem Betrag stehen nur in der Legende.
+function flacheKachel({ id, titel, wert, notiz, teile }) {
+  const basis = Math.max(teile.filter((k) => k.mittel_cents > 0).reduce((a, k) => a + k.mittel_cents, 0), 1);
+  const segmente = teile.filter((k) => k.mittel_cents > 0).map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
+  const legende = teile.map((k) => `<li>${farbPunkt(k.klasse)}${k.ziel ? `<button class="linkish" ${k.ziel} title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>` : `<span title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</span>`}<span class="amount">${escapeHtml(geldOhneCent(k.mittel_cents))}</span></li>`).join("");
   return `
     <section class="panel panel-pad uebersicht-flach-kachel" aria-labelledby="kachel-${id}">
       <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">
         <button class="linkish" ${ZIEL.liquiditaet}>${iconSvg("liquiditaet")}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}</button>
       </h2>
-      <div class="kpi-value">${escapeHtml(geldOhneCent(seite.mittel_cents))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonat"))}</span></div>
-      <div class="kpi-note">${escapeHtml(tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate }))} · ${escapeHtml(zeitraum)}</div>
-      ${segmente.length ? `<div class="uebersicht-balken">${balkenSvg(segmente)}</div><ul class="flach-legende">${legende}</ul>` : ""}
+      <div class="kpi-value">${wert}</div>
+      <div class="kpi-note">${notiz}</div>
+      ${teile.length ? `
+      <div class="flach-inhalt">
+        <div class="uebersicht-balken">${segmente.length ? balkenSvg(segmente) : ""}</div>
+        <ul class="flach-legende">${legende}</ul>
+      </div>` : ""}
     </section>`;
 }
 
 function renderEinnahmenAusgaben(today) {
   const mittel = monatsMittel(data, today);
   if (!mittel.anzahl_monate) return "";
+  const zeitraum = mittel.anzahl_monate === 1 ? formatMonatLang(mittel.monate[0]) : `${formatMonatLang(mittel.monate[0])} – ${formatMonatLang(mittel.monate.at(-1))}`;
+  const basisNotiz = `${escapeHtml(tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate }))} · ${escapeHtml(zeitraum)}`;
+  const jeMonat = (cents) => `${escapeHtml(geldOhneCent(cents))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonat"))}</span>`;
+  const { sparen } = mittel;
+  const sparTeile = [
+    ...kategorieTeile(sparen.kategorien, mittel),
+    ...(sparen.rest_cents ? [{ name: t(sparen.rest_cents > 0 ? "overview.aufDenKonten" : "overview.ausRuecklagen"), mittel_cents: sparen.rest_cents, klasse: "segment-konto", ziel: "" }] : []),
+  ];
   return `
     <div class="uebersicht-flach">
-      ${flacheKachel("einnahmen", t("overview.monatlicheEinnahmen"), mittel.einnahmen, mittel)}
-      ${flacheKachel("ausgaben", t("overview.monatlicheAusgaben"), mittel.ausgaben, mittel)}
+      ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.einnahmen.kategorien, mittel) })}
+      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), notiz: basisNotiz, teile: kategorieTeile(mittel.ausgaben.kategorien, mittel) })}
+      ${flacheKachel({
+        id: "sparquote",
+        titel: t("overview.sparquote"),
+        wert: sparen.quote === null ? "–" : escapeHtml(formatProzent(sparen.quote)),
+        notiz: `${escapeHtml(tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) }))} · ${basisNotiz}`,
+        teile: sparTeile,
+      })}
     </div>`;
 }
 

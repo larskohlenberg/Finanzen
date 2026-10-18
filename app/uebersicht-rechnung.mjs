@@ -125,12 +125,17 @@ export function checkVorschau(items, limit = 4) {
   ].slice(0, limit);
 }
 
-// Monatliche Einnahmen und Ausgaben: Durchschnitt der letzten zwoelf vollen
-// Monate aus den Buchungen, die vor dem laufenden Monat und spaetestens mit dem
-// Monat der letzten Buchung enden (so drueckt ein noch nicht importierter Monat
-// den Schnitt nicht). Transfers und neutrale Kategorien (Sparen &
-// Umbuchung) zaehlen nicht, "Noch zu klaeren" und Buchungen ohne Kategorie nach
-// Vorzeichen. Eine Erstattung in einer Ausgabenkategorie mindert die Ausgaben.
+// Monatliche Einnahmen, Ausgaben und Sparquote: Durchschnitt der letzten zwoelf
+// vollen Monate aus den Buchungen, die vor dem laufenden Monat und spaetestens
+// mit dem Monat der letzten Buchung enden (so drueckt ein noch nicht importierter
+// Monat den Schnitt nicht). Transfers zaehlen nicht.
+// - Einnahme- und Ausgabenkategorien (auch "Noch zu klaeren" und Buchungen ohne
+//   Kategorie) zaehlen netto je Kategorie: Ueberwiegen die Gutschriften (etwa
+//   Steuererstattungen, Kindergeld), ist die Kategorie eine Einnahme, sonst eine
+//   Ausgabe. Eine einzelne Erstattung mindert so nur ihre Kategorie.
+// - Neutrale Kategorien (Sparen, Altersvorsorge) sind keine Ausgaben, sondern
+//   zeigen in der Sparquote, wohin der Ueberschuss geht; der Rest bleibt auf den
+//   Konten (negativ: aus Ruecklagen entnommen).
 // Bei kuerzerer Historie wird nur durch die Monate seit der ersten Buchung geteilt.
 const KATEGORIE_UNGEKLAERT = "KAT-012";
 
@@ -147,44 +152,61 @@ export function monatsMittel(data, today) {
   }
   const index = new Map(monate.map((m, i) => [m, i]));
   const typ = new Map((data.kategorien ?? []).map((k) => [k.kategorie_id, k]));
-  const seite = () => ({ je_monat: monate.map(() => 0), je_kategorie: new Map() });
-  const einnahmen = seite();
-  const ausgaben = seite();
+  const istNeutral = (id) => typ.get(id)?.typ === "neutral" && id !== KATEGORIE_UNGEKLAERT;
 
+  // Netto je Kategorie, gesamt und je Monat (Vorzeichen wie gebucht).
+  const netto = new Map();
   for (const tx of data.transaktionen ?? []) {
     if (tx.ist_transfer === true) continue;
     const i = index.get(tx.buchungsdatum?.slice(0, 7));
     if (i === undefined) continue;
-    const cents = toCents(tx.betrag);
-    const kat = typ.get(tx.kategorie_id);
-    let ziel;
-    if (kat?.typ === "einnahme") ziel = einnahmen;
-    else if (kat?.typ === "ausgabe") ziel = ausgaben;
-    else if (!kat || tx.kategorie_id === KATEGORIE_UNGEKLAERT) ziel = cents >= 0 ? einnahmen : ausgaben;
-    else continue;
-    const wert = ziel === einnahmen ? cents : -cents;
-    ziel.je_monat[i] += wert;
     const key = tx.kategorie_id ?? "";
-    ziel.je_kategorie.set(key, (ziel.je_kategorie.get(key) ?? 0) + wert);
+    const k = netto.get(key) ?? { summe: 0, je_monat: monate.map(() => 0) };
+    const cents = toCents(tx.betrag);
+    k.summe += cents;
+    k.je_monat[i] += cents;
+    netto.set(key, k);
   }
 
   const n = monate.length;
   const mittel = (summe) => (n ? Math.round(summe / n) : 0);
-  const auswerten = (s) => ({
-    mittel_cents: mittel(s.je_monat.reduce((a, b) => a + b, 0)),
-    je_monat: s.je_monat,
-    kategorien: [...s.je_kategorie]
-      .map(([kategorie_id, summe]) => ({ kategorie_id, name: typ.get(kategorie_id)?.name ?? kategorie_id, mittel_cents: mittel(summe) }))
+  const name = (id) => typ.get(id)?.name ?? id;
+  const seite = (vorzeichen) => {
+    const keys = [...netto].filter(([id, k]) => !istNeutral(id) && (vorzeichen > 0 ? k.summe >= 0 : k.summe < 0));
+    const je_monat = monate.map((_, i) => keys.reduce((a, [, k]) => a + vorzeichen * k.je_monat[i], 0));
+    return {
+      mittel_cents: mittel(keys.reduce((a, [, k]) => a + vorzeichen * k.summe, 0)),
+      je_monat,
+      kategorien: keys
+        .map(([kategorie_id, k]) => ({ kategorie_id, name: name(kategorie_id), mittel_cents: mittel(vorzeichen * k.summe) }))
+        .filter((k) => k.mittel_cents > 0)
+        .sort((a, b) => b.mittel_cents - a.mittel_cents),
+    };
+  };
+  const einnahmen = seite(1);
+  const ausgaben = seite(-1);
+
+  const neutral = [...netto].filter(([id]) => istNeutral(id));
+  const ueberschuss = einnahmen.mittel_cents - ausgaben.mittel_cents;
+  const sparen = {
+    ueberschuss_cents: ueberschuss,
+    quote: einnahmen.mittel_cents > 0 ? ueberschuss / einnahmen.mittel_cents : null,
+    kategorien: neutral
+      .filter(([, k]) => k.summe < 0)
+      .map(([kategorie_id, k]) => ({ kategorie_id, name: name(kategorie_id), mittel_cents: mittel(-k.summe) }))
       .filter((k) => k.mittel_cents > 0)
       .sort((a, b) => b.mittel_cents - a.mittel_cents),
-  });
+    rest_cents: ueberschuss + mittel(neutral.reduce((a, [, k]) => a + k.summe, 0)),
+  };
+
   const letzterTag = n ? new Date(Date.UTC(Number(monate.at(-1).slice(0, 4)), Number(monate.at(-1).slice(5, 7)), 0)).toISOString().slice(0, 10) : "";
   return {
     monate,
     anzahl_monate: n,
     von: n ? `${monate[0]}-01` : "",
     bis: letzterTag,
-    einnahmen: auswerten(einnahmen),
-    ausgaben: auswerten(ausgaben),
+    einnahmen,
+    ausgaben,
+    sparen,
   };
 }

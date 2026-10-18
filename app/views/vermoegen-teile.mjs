@@ -140,7 +140,12 @@ export function balkenSvg(teile, { klasse = "vermoegen-balken", laenge = 1 } = {
   let x = 0;
   const rects = teile.filter((tl) => tl.anteil > 0).map((tl) => {
     const breite = Math.min(tl.anteil, 1 - x) * 100;
-    const rect = `<rect x="${(x * 100).toFixed(3)}" y="0" width="${breite.toFixed(3)}" height="10" class="${tl.klasse}">${tl.titel ? `<title>${escapeHtml(tl.titel)}</title>` : ""}</rect>`;
+    // Mit Titel hoverbar (diagramm-hover.mjs): data-titel fuer die Box, data-label
+    // ordnet den Abschnitt seiner Legendenzeile zu. Kein <title>, sonst doppelter Tooltip.
+    const trenner = tl.titel ? tl.titel.lastIndexOf(": ") : -1;
+    const label = tl.label ?? (trenner > 0 ? tl.titel.slice(0, trenner) : tl.titel);
+    const hover = tl.titel ? ` data-titel="${escapeHtml(tl.titel)}" data-label="${escapeHtml(label)}"` : "";
+    const rect = `<rect x="${(x * 100).toFixed(3)}" y="0" width="${breite.toFixed(3)}" height="10" class="${tl.titel ? "balken-segment " : ""}${tl.klasse}"${hover}></rect>`;
     x += breite / 100;
     return rect;
   }).join("");

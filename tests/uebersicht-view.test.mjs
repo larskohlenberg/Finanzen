@@ -266,7 +266,7 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   assert.doesNotMatch(vorsorge, /Beiträge|Offene Punkte/);
   // Einmalzahlungen gross, mit Leiste und Zeile je Vertrag, die in den Vertrag fuehrt.
   assert.match(vorsorge, /Einmalzahlungen fällig<\/button><\/h3>\s*<div class="kpi-value">150\.000,00\s€/);
-  assert.match(vorsorge, /<svg class="vermoegen-balken"[\s\S]*<title>Testvertrag: 150\.000,00\s€<\/title>/);
+  assert.match(vorsorge, /<svg class="vermoegen-balken"[\s\S]*data-titel="Testvertrag: 150\.000,00\s€" data-label="Testvertrag"/);
   assert.match(vorsorge, /data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag<\/button><span class="muted">1\.12\.2040<\/span><span class="amount">150\.000\s€/);
   assert.match(teil("Langfristig gebunden"), /data-action="vorsorge-tab" data-tab="lebensversicherungen"[^>]*>Rückkaufswerte</);
   assert.match(vorsorge, /<h3 class="vermoegen-teil-titel uebersicht-werttitel"><button class="linkish" data-action="vorsorge-tab" data-tab="renten">Monatliche Renten<\/button><\/h3>\s*<div class="kpi-value">/);

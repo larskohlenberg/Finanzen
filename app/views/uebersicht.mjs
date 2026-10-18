@@ -64,13 +64,24 @@ const TOP_KATEGORIEN = 3;
 const formatMonatLang = (ym) => new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short", year: "numeric" }).format(new Date(`${ym}-01T00:00:00`));
 const formatProzent = (anteil) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "percent", maximumFractionDigits: 0 }).format(anteil);
 
-// Die groessten Kategorien einzeln (als Link in die Buchungen des Zeitraums), der Rest als "Übrige".
+const kategorieZiel = (id, mittel) => `data-action="kategorie-transactions" data-kategorie="${escapeHtml(id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"`;
+
+// Die groessten Kategorien einzeln (als Link in die Buchungen des Zeitraums), der
+// Rest als aufklappbares "Übrige" mit allen weiteren Kategorien.
 function kategorieTeile(kategorien, mittel) {
-  const rest = kategorien.slice(TOP_KATEGORIEN).reduce((a, k) => a + k.mittel_cents, 0);
+  const weitere = kategorien.slice(TOP_KATEGORIEN);
+  const rest = weitere.reduce((a, k) => a + k.mittel_cents, 0);
   return [
-    ...kategorien.slice(0, TOP_KATEGORIEN).map((k, i) => ({ ...k, klasse: `vertrag-farbe-${i}`, ziel: `data-action="kategorie-transactions" data-kategorie="${escapeHtml(k.kategorie_id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` })),
-    ...(rest > 0 ? [{ name: t("overview.uebrige"), mittel_cents: rest, klasse: "vertrag-farbe-rest", ziel: "" }] : []),
+    ...kategorien.slice(0, TOP_KATEGORIEN).map((k, i) => ({ ...k, klasse: `vertrag-farbe-${i}`, ziel: kategorieZiel(k.kategorie_id, mittel) })),
+    ...(rest > 0 ? [{ name: t("overview.uebrige"), mittel_cents: rest, klasse: "vertrag-farbe-rest", ziel: "", unter: weitere.map((k) => ({ ...k, ziel: kategorieZiel(k.kategorie_id, mittel) })) }] : []),
   ];
+}
+
+function legendenZeile(k) {
+  const name = k.ziel ? `<button class="linkish" ${k.ziel} title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>` : `<span title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</span>`;
+  const betrag = `<span class="amount">${escapeHtml(geldOhneCent(k.mittel_cents))}</span>`;
+  if (!k.unter?.length) return `<li>${k.klasse ? farbPunkt(k.klasse) : ""}${name}${betrag}</li>`;
+  return `<li class="flach-uebrige"><details><summary>${farbPunkt(k.klasse)}<span>${escapeHtml(k.name)}</span>${betrag}</summary><ul class="flach-unterliste">${k.unter.map(legendenZeile).join("")}</ul></details></li>`;
 }
 
 // Flache Kachel: Kennzahl und Notiz, darunter links die kurze Leiste und
@@ -78,7 +89,7 @@ function kategorieTeile(kategorien, mittel) {
 function flacheKachel({ id, titel, info = "", wert, notiz, teile, fuss = "" }) {
   const basis = Math.max(teile.filter((k) => k.mittel_cents > 0).reduce((a, k) => a + k.mittel_cents, 0), 1);
   const segmente = teile.filter((k) => k.mittel_cents > 0).map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
-  const legende = teile.map((k) => `<li>${farbPunkt(k.klasse)}${k.ziel ? `<button class="linkish" ${k.ziel} title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>` : `<span title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</span>`}<span class="amount">${escapeHtml(geldOhneCent(k.mittel_cents))}</span></li>`).join("");
+  const legende = teile.map(legendenZeile).join("");
   return `
     <section class="panel panel-pad uebersicht-flach-kachel" aria-labelledby="kachel-${id}">
       <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">
@@ -104,12 +115,17 @@ function renderEinnahmenAusgaben(today) {
   const { sparen } = mittel;
   const zielLinkFuer = (ids) => (ids.length === 1 ? `data-action="kategorie-transactions" data-kategorie="${escapeHtml(ids[0])}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` : "");
   const ZIEL_KLASSE = { liquide: "segment-konto", depot: "segment-depot", versicherung: "segment-vorsorge" };
-  const sparTeile = sparen.ziele.filter((z) => z.mittel_cents).map((z) => ({
-    name: t(z.ziel === "liquide" && z.mittel_cents < 0 ? "overview.ausRuecklagen" : `overview.sparziel.${z.ziel}`),
-    mittel_cents: z.mittel_cents,
-    klasse: ZIEL_KLASSE[z.ziel],
-    ziel: zielLinkFuer(z.kategorien),
-  }));
+  // Kurzfristig liquide in seine Teile: liquide Kategorien (Festgeld) mit Link in
+  // die Buchungen, der Rest auf Konten und Tagesgeld mit Link zur Liquiditaet.
+  const sparTeile = sparen.ziele.flatMap((z) => {
+    if (z.ziel !== "liquide") {
+      return z.mittel_cents ? [{ name: t(`overview.sparziel.${z.ziel}`), mittel_cents: z.mittel_cents, klasse: ZIEL_KLASSE[z.ziel], ziel: zielLinkFuer(z.kategorien) }] : [];
+    }
+    return [
+      ...z.teile.map((k) => ({ name: k.name, mittel_cents: k.mittel_cents, klasse: "segment-liquide-teil", ziel: kategorieZiel(k.kategorie_id, mittel) })),
+      ...(z.konten_cents ? [{ name: t(z.konten_cents < 0 ? "overview.kontenEntnommen" : "overview.kontenTagesgeld"), mittel_cents: z.konten_cents, klasse: ZIEL_KLASSE.liquide, ziel: ZIEL.liquiditaet }] : []),
+    ];
+  });
   const sondereffekte = mittel.sondereffekte.map((se) => {
     const monate = [...new Set(se.buchungen.map((b) => formatMonatLang(b.datum.slice(0, 7))))].join(", ");
     return `<button class="linkish" data-action="kategorie-transactions" data-kategorie="${escapeHtml(se.kategorie_id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}">${escapeHtml(se.name)}</button> ${escapeHtml(geldOhneCent(se.summe_cents))} (${escapeHtml(monate)})`;

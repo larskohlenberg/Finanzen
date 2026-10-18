@@ -88,7 +88,7 @@ test("Uebersicht zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und B
     assert.match(html, /Erwartetes Alterseinkommen/);
     assert.match(html, /2\.550,00/, "DRV + Riester");
     assert.match(html, /voll ab 1\.4\.2040/);
-    assert.match(html, /class="vertrag-farbe-\d"><title>Gesetzliche Rente/, "Balken je Rente in Vertragsfarbe");
+    assert.match(html, /class="balken-segment vertrag-farbe-\d" data-titel="Gesetzliche Rente/, "Balken je Rente in Vertragsfarbe");
     assert.match(html, /Kapitalleistungen[\s\S]*25\.000,00[\s\S]*fällig 2035/);
     assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*12\.000,00/, "nur kapitalbildende mit Wert, Riester ist gebunden");
     assert.match(html, /1 von 2 kapitalbildenden bewertet/);
@@ -379,7 +379,7 @@ test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farb
     assert.match(karte, /<strong><i class="farbpunkt vertrag-farbe-\d" aria-hidden="true"><\/i>LV Lena<\/strong><\/span><span class="objekt-karte-marke"><span class="chip neutral">Lebensversicherung<\/span><span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">LL<\/span><\/span>/);
     assert.match(karte, /class="fortschritt"[\s\S]*width="48\.000"/, "12.000 von 25.000 = 48 %");
     const balken = karte.slice(karte.indexOf('class="fortschritt"'), karte.indexOf("</svg>", karte.indexOf('class="fortschritt"')));
-    assert.match(balken, /class="fortschritt-wert"/, "Balken in einheitlicher Farbe");
+    assert.match(balken, /class="[^"]*\bfortschritt-wert"/, "Balken in einheitlicher Farbe");
     assert.doesNotMatch(balken, /vertrag-farbe/, "Vertragsfarbe traegt keine Bedeutung fuer den Fortschritt");
     assert.match(karte, /48 % der garantierten Ablaufleistung als Rückkaufswert/);
     const martin = html.slice(html.indexOf('data-vorsorge="VS-004" aria-pressed'));

@@ -26,39 +26,70 @@ function ensureOverlay() {
 function hide() {
   if (overlay) overlay.hidden = true;
   for (const li of document.querySelectorAll(".termine-liste li.aktiv")) li.classList.remove("aktiv");
-  donutZuruecksetzen();
+  anteilZuruecksetzen();
 }
 
-// Donuts (charts.mjs donutDiagramm): das Segment unter dem Zeiger rueckt entlang
-// seiner Mittelachse heraus (data-dx/dy, Uebergang per CSS), die Box zeigt
-// Bezeichnung, Betrag und Anteil, und in der Liste derselben Kachel wird die
-// Zeile mit derselben Farbe hervorgehoben. Gesetzt wird ueber CSSOM, das die
-// CSP der App erlaubt (anders als style-Attribute im Markup).
-let donutAktiv = null;
+// Anteile (Donut aus charts.mjs donutDiagramm, gestapelter Balken aus
+// vermoegen-teile.mjs balkenSvg): Unter dem Zeiger hebt sich der Abschnitt ab,
+// die uebrigen treten zurueck, die Box zeigt Bezeichnung und Betrag, und in
+// derselben Kachel wird die zugehoerige Legendenzeile hervorgehoben. Umgekehrt
+// hebt eine Legendenzeile ihren Abschnitt hervor. Der Donut-Abschnitt rueckt
+// entlang seiner Mittelachse heraus (data-dx/dy), der Balken streckt sich (CSS).
+// Gesetzt wird ueber CSSOM, das die CSP der App erlaubt (anders als style-Attribute).
+const ANTEIL = ".donut-segment[data-titel], .balken-segment[data-titel]";
+const LEGENDE = "li, .vermoegen-legende > span";
+const FARB_NEBEN = new Set(["donut-segment", "balken-segment", "aktiv", "farbpunkt"]);
+let anteilAktiv = null;
 
-function donutZuruecksetzen() {
-  if (!donutAktiv) return;
-  donutAktiv.classList.remove("aktiv");
-  donutAktiv.style.transform = "";
-  for (const li of document.querySelectorAll(".vorsorge-kopf-liste li.aktiv")) li.classList.remove("aktiv");
-  donutAktiv = null;
+const farbKlassen = (el) => [...el.classList].filter((k) => !FARB_NEBEN.has(k));
+
+// Welche Legendenzeilen gehoeren zu einem Abschnitt? Die Farbe entscheidet;
+// teilen sich mehrere Zeilen die Farbe (etwa Immobilien), zusaetzlich der Name.
+// kandidaten: [{ farben, name }], Rueckgabe: Indizes.
+export function passendeLegende(farben, label, kandidaten) {
+  if (!farben.length) return [];
+  const gleich = kandidaten.map((k, i) => (farben.every((f) => k.farben.includes(f)) ? i : -1)).filter((i) => i >= 0);
+  if (gleich.length < 2) return gleich;
+  const name = gleich.filter((i) => kandidaten[i].name === label || kandidaten[i].name.startsWith(`${label} `));
+  return name.length ? name : gleich;
 }
 
-function zeigeDonut(segment, event) {
-  if (donutAktiv !== segment) {
-    donutZuruecksetzen();
-    donutAktiv = segment;
-    segment.classList.add("aktiv");
+function legendenKandidaten(kachel) {
+  return [...kachel.querySelectorAll(LEGENDE)]
+    .map((zeile) => ({ zeile, punkt: [...zeile.children].find((c) => c.tagName === "I") ?? zeile.querySelector(":scope > details > summary > i") }))
+    .filter((k) => k.punkt)
+    .map(({ zeile, punkt }) => {
+      const name = zeile.querySelector(":scope > .linkish, :scope > details > summary > span, :scope > span:not(.amount)")?.textContent ?? zeile.textContent;
+      return { zeile, farben: [...punkt.classList], name: name.trim() };
+    });
+}
+
+function anteilZuruecksetzen() {
+  if (!anteilAktiv) return;
+  anteilAktiv.classList.remove("aktiv");
+  anteilAktiv.style.transform = "";
+  anteilAktiv.ownerSVGElement?.classList.remove("hat-aktiv");
+  for (const el of document.querySelectorAll(".legende-aktiv")) el.classList.remove("legende-aktiv");
+  anteilAktiv = null;
+}
+
+function anteilHervorheben(segment) {
+  if (anteilAktiv === segment) return;
+  anteilZuruecksetzen();
+  anteilAktiv = segment;
+  segment.classList.add("aktiv");
+  segment.ownerSVGElement?.classList.add("hat-aktiv");
+  if (segment.classList.contains("donut-segment")) {
     segment.style.transform = `translate(${Number(segment.dataset.dx) || 0}px, ${Number(segment.dataset.dy) || 0}px)`;
-    const farben = [...segment.classList].filter((k) => k !== "donut-segment" && k !== "aktiv");
-    const kachel = segment.closest("section");
-    if (kachel && farben.length) {
-      for (const li of kachel.querySelectorAll(".vorsorge-kopf-liste li")) {
-        const punkt = li.querySelector(".farbpunkt");
-        if (punkt && farben.every((k) => punkt.classList.contains(k))) li.classList.add("aktiv");
-      }
-    }
   }
+  const kachel = segment.closest("section");
+  if (!kachel) return;
+  const kandidaten = legendenKandidaten(kachel);
+  for (const i of passendeLegende(farbKlassen(segment), segment.dataset.label ?? "", kandidaten)) kandidaten[i].zeile.classList.add("legende-aktiv");
+}
+
+function zeigeAnteil(segment, event) {
+  anteilHervorheben(segment);
   const el = ensureOverlay();
   el.hidden = false;
   el.querySelector(".diagramm-hover-linie").style.height = "0";
@@ -68,6 +99,21 @@ function zeigeDonut(segment, event) {
   box.innerHTML = `<div>${escapeHtml(segment.dataset.titel)}</div>`;
   box.style.left = `${event.clientX + window.scrollX}px`;
   box.style.top = `${event.clientY + window.scrollY}px`;
+}
+
+// Zeiger auf einer Legendenzeile: zugehoerigen Abschnitt in derselben Kachel
+// hervorheben (ohne Box, die Zeile nennt Name und Betrag schon). true = gefunden.
+function legendeHervorheben(zeile) {
+  const kachel = zeile.closest("section");
+  const segmente = kachel ? [...kachel.querySelectorAll(ANTEIL)] : [];
+  if (!segmente.length) return false;
+  const kandidaten = legendenKandidaten(kachel);
+  if (!kandidaten.some((k) => k.zeile === zeile)) return false;
+  const treffer = segmente.find((s) => passendeLegende(farbKlassen(s), s.dataset.label ?? "", kandidaten).some((i) => kandidaten[i].zeile === zeile));
+  if (!treffer) return false;
+  anteilHervorheben(treffer);
+  if (overlay) overlay.hidden = true;
+  return true;
 }
 
 // Wertebereich exakt wie charts.mjs: liefert das Diagramm ihn mit (gerundete
@@ -227,14 +273,16 @@ function escapeHtml(text) {
 
 export function bindDiagrammHover(root) {
   root.addEventListener("pointermove", (event) => {
-    const segment = event.target.closest?.(".donut-segment[data-titel]");
-    // Beim Donut steht die Box links neben dem Zeiger (zeigeDonut), sonst verdeckt
+    const segment = event.target.closest?.(ANTEIL);
+    // Bei Anteilen steht die Box neben dem Zeiger (zeigeAnteil), sonst verdeckt
     // sie den Ring; alle anderen Diagramme zeigen sie wieder darueber.
     if (!segment) overlay?.querySelector(".diagramm-hover-box")?.classList.remove("seitlich");
     if (segment) {
-      zeigeDonut(segment, event);
+      zeigeAnteil(segment, event);
       return;
     }
+    const legende = event.target.closest?.(LEGENDE);
+    if (legende && legendeHervorheben(legende)) return;
     const terminSvg = event.target.closest?.("svg[data-termine]");
     if (terminSvg) {
       zeigeTermine(terminSvg, event);

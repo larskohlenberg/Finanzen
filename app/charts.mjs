@@ -349,7 +349,7 @@ export function donutDiagramm({ teile, formatWert = String, ariaLabel = "" }) {
   // Segment entlang seiner Mittelachse heraus. Kein <title>, sonst doppelter Tooltip.
   const segmente = gueltig.map((tl) => {
     const text = esc(`${tl.label}: ${formatWert(tl.wert)} (${prozent(tl.wert)})`);
-    const hover = `data-titel="${text}" aria-label="${text}"`;
+    const hover = `data-titel="${text}" data-label="${esc(tl.label)}" aria-label="${text}"`;
     if (gueltig.length === 1) {
       return `<g class="donut-segment ${esc(tl.klasse)}" ${hover} data-dx="0" data-dy="0"><circle cx="50" cy="50" r="${runde((r + innen) / 2)}" fill="none" stroke-width="${r - innen}" class="donut-voll"></circle></g>`;
     }

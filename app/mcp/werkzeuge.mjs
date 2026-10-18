@@ -444,7 +444,7 @@ const planIstWerkzeug = {
 
 const transaktionenAbfragen = {
   name: "transaktionen_abfragen",
-  description: "Transaktionen filtern und optional gruppieren. Alle Filter sind UND-verknuepft; text sucht case-insensitiv als Teilstring in Gegenpartei und Verwendungszweck. Ohne gruppieren_nach: Zeilen (limit Default 100, max 1000) plus Anzahl und Gesamtsumme. Mit gruppieren_nach: Summen je Gruppe; Zeilen nur mit mit_zeilen:true. Summen sind Decimal-Strings, cent-genau gerechnet. Hinweis: Startzustandsbuchungen (transaktionstyp Startzustand) stehen unter KAT-012 und verzerren Ausgabensummen.",
+  description: "Transaktionen filtern und optional gruppieren. Alle Filter sind UND-verknuepft; text sucht case-insensitiv als Teilstring in Gegenpartei und Verwendungszweck. Ohne gruppieren_nach: Zeilen (limit Default 100, max 1000) plus Anzahl und Gesamtsumme. Mit gruppieren_nach: Summen je Gruppe; Zeilen nur mit mit_zeilen:true. Summen sind Decimal-Strings, cent-genau gerechnet. Hinweis: Startzustandsbuchungen (transaktionstyp Startzustand) stehen unter der neutralen Kategorie Startzustand; in reinen Summen ueber alle Buchungen sind sie enthalten.",
   inputSchema: {
     type: "object",
     properties: {

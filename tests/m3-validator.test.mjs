@@ -128,3 +128,18 @@ test("Validator lehnt aktive Kategorisierungsregel ohne Pattern ab", () => {
   assert.equal(result.valid, false);
   assert.match(result.errors.join("\n"), /aktive Regel.*pattern/i);
 });
+
+test("Kontotyp Festgeld: interner Transfer vom Tagesgeld ist gueltig, Rang vor dem Depot", async () => {
+  const data = basis({
+    konten: [
+      ...basis().konten,
+      { konto_id: "KTO-003", name: "Festgeld", kontotyp: "festgeld", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: false, status: "aktiv" },
+    ],
+    transaktionen: [tx(TXN_ABGANG, "KTO-002", "-100.00"), tx(TXN_ZUGANG, "KTO-003", "100.00")],
+    transfers: [internerTransfer()],
+  });
+  assert.deepEqual(validateMasterData(data).errors, []);
+  const { kontoRang } = await import("../app/uebersicht-rechnung.mjs");
+  assert.ok(kontoRang({ kontotyp: "tagesgeld" }) < kontoRang({ kontotyp: "festgeld" }));
+  assert.ok(kontoRang({ kontotyp: "festgeld" }) < kontoRang({ kontotyp: "depot" }));
+});

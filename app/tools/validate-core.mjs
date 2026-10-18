@@ -25,7 +25,7 @@ const schemas = {
     fields: {
       konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
       name: { type: "string", minLength: 1 },
-      kontotyp: { type: "string", enum: ["giro", "spar", "tagesgeld", "depot", "kreditkarte", "bar"] },
+      kontotyp: { type: "string", enum: ["giro", "spar", "tagesgeld", "festgeld", "depot", "kreditkarte", "bar"] },
       kontoreferenz: { type: "string", minLength: 1 },
       inhaber_person_ids: { type: "array", minItems: 1, itemPattern: /^PER-\d{3}$/, uniqueItems: true },
       liquiditaetsrelevant: { type: "boolean" },

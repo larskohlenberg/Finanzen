@@ -318,6 +318,12 @@ export function bindDiagrammHover(root) {
       zeigeAnteil(segment, event);
       return;
     }
+    // Aufgeklappte Unterliste (Übrige, Konten & Tagesgeld) liegt als Overlay ueber
+    // der Kachel: dort keine Hervorhebung, sonst greift die Zeile darunter.
+    if (event.target.closest?.(".flach-unterliste")) {
+      hide();
+      return;
+    }
     const legende = event.target.closest?.(LEGENDE);
     if (legende && legendeHervorheben(legende)) return;
     const terminSvg = event.target.closest?.("svg[data-termine]");

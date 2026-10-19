@@ -2,6 +2,7 @@
 // JSON-RPC 2.0 / MCP ohne SDK. verarbeiteZeile nimmt eine Zeile von stdin und
 // liefert die Antwortzeile (oder null bei Benachrichtigungen).
 import { holePrompt, leseRessource, listePrompts, listeRessourcen } from "./inhalte.mjs";
+import { OHNE_RELEASE, veraltetHinweis } from "./version.mjs";
 import { KATEGORIE_REGEL, rufeWerkzeug, sichtbareWerkzeuge } from "./werkzeuge.mjs";
 
 export const VERSIONEN = ["2025-06-18", "2025-03-26", "2024-11-05"];
@@ -26,7 +27,7 @@ async function methode(ctx, name, params = {}) {
       return {
         protocolVersion: VERSIONEN.includes(params.protocolVersion) ? params.protocolVersion : VERSIONEN[0],
         capabilities: { tools: { listChanged: false }, prompts: { listChanged: false }, resources: { listChanged: false } },
-        serverInfo: { name: "finanzen", version: "1.0.0" },
+        serverInfo: { name: "finanzen", version: ctx.release ?? OHNE_RELEASE },
         instructions: anleitung(ctx),
       };
     case "ping":
@@ -35,6 +36,10 @@ async function methode(ctx, name, params = {}) {
       return { tools: sichtbareWerkzeuge(ctx) };
     case "tools/call": {
       if (typeof params.name !== "string") throw new RpcFehler(-32602, "name fehlt");
+      // Nach einem Deploy: alter Code darf neue Daten weder schreiben noch
+      // deuten. Nur status bleibt (zeigt beide Release-Staende).
+      const veraltet = params.name === "status" ? null : veraltetHinweis(ctx);
+      if (veraltet) return { content: [{ type: "text", text: veraltet }], isError: true };
       const ergebnis = await rufeWerkzeug(ctx, params.name, params.arguments ?? {});
       if (!ergebnis) throw new RpcFehler(-32602, `Unbekanntes Tool: ${params.name}`);
       return ergebnis;

@@ -23,6 +23,7 @@ import { pruefeArgumente } from "./argumente.mjs";
 import { istKalenderdatum, kennzahlenText, planIstText } from "./kennzahlen.mjs";
 import { LESE_WURZELN, PfadFehler, bestandWurzeln, loesePfad, pruefeEndung, pruefeKeinAktiverTyp } from "./pfade.mjs";
 import { kopiereDatenroot, mitRollback } from "./schreiben.mjs";
+import { releaseStand } from "./version.mjs";
 
 const MAX_TEXT = 2 * 1024 * 1024;
 const MAX_SCHREIBEN = 10 * 1024 * 1024;
@@ -409,7 +410,7 @@ const status = {
   annotations: { readOnlyHint: true },
   async ausfuehren(ctx) {
     // Einmal laden, fuer Zaehler und Validator.
-    const bericht = { datenroot: ctx.datenrootRel, recht: ctx.recht };
+    const bericht = { datenroot: ctx.datenrootRel, recht: ctx.recht, ...(ctx.release ? { version: releaseStand(ctx) } : {}) };
     let validator;
     try {
       const daten = await loadMasterData(pathToFileURL(`${ctx.datenroot}${path.sep}`));

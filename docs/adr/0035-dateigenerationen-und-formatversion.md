@@ -43,3 +43,4 @@ Jedes Manifest traegt `format` (heute `1`). Code liest und schreibt nur das Form
 - Der Datenbestand braucht ein POSIX-Dateisystem mit Hardlinks und Symlinks (VM: ext4). Der Platz waechst mit N mal der Groesse der geaenderten Dateien.
 - Das Lease- und Marker-Protokoll ist eigener Code. Die Kill- und Nebenlaeufigkeitstests (`tests/generationen.test.mjs`) bleiben darum dauerhaft in der CI.
 - Undo-Generationen liegen auf derselben Platte und ersetzen keine Sicherung.
+- Werkzeuge (E1 Schritt 6): `verlauf` und `rueckgaengig` (CLI und MCP). Ein Undo ist eine neue Generation mit dem Inhalt einer frueheren; das Manifest nennt dazu `quelle` und das ausloesende Werkzeug (`wer`, optional, gleiche Formatversion). `behalten` steht in `EINSTELLUNGEN.json` im Basisordner (nicht in einer Generation), damit CLI, MCP und Server dieselbe Zahl nutzen.

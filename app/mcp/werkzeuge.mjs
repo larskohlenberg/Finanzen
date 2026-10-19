@@ -26,7 +26,10 @@ import { abfragen } from "./abfrage.mjs";
 import { pruefeArgumente } from "./argumente.mjs";
 import { istKalenderdatum, kennzahlenText, planIstText } from "./kennzahlen.mjs";
 import { LESE_WURZELN, PfadFehler, bestandWurzeln, loesePfad, pruefeEndung, pruefeKeinAktiverTyp } from "./pfade.mjs";
-import { erwarteterStand, mitRollback } from "./schreiben.mjs";
+import { erwarteterStand, mitRollback, werkzeugName } from "./schreiben.mjs";
+import { rueckgaengigSchreiben, rueckgaengigVorschau } from "../tools/rueckgaengig.mjs";
+import { verlaufBericht } from "../tools/verlauf.mjs";
+import { OhneVerlauf } from "../tools/lib/generationen.mjs";
 import { bestandFingerabdruck } from "../tools/lib/fingerabdruck.mjs";
 import { releaseStand } from "./version.mjs";
 
@@ -1266,7 +1269,59 @@ const inboxZurueckholen = {
   },
 };
 
-export const WERKZEUGE = [status, kennzahlen, planIstWerkzeug, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, belegErgaenzen, belegVerwerfen, inboxVerwerfen, inboxZurueckholen];
+// ---------------------------------------------------------------- Verlauf
+
+// Im einfachen Ordner gibt es keinen Verlauf: klare Meldung statt Fehlerstapel.
+const ohneVerlauf = (fn) => async (ctx, args) => {
+  try {
+    return await fn(ctx, args);
+  } catch (error) {
+    if (error instanceof OhneVerlauf) return ergebnis(error.message, true);
+    throw error;
+  }
+};
+
+const verlauf = {
+  name: "verlauf",
+  description: "Verlauf des Bestands: die letzten Generationen (neueste zuerst) mit Zeit, ausloesendem Werkzeug und Kurzfassung der Aenderungen gegenueber der vorherigen (je Datei +neu ~geaendert -entfernt Datensaetze; Wiederherstellungen sind markiert). Nennt auch, wie viele fruehere Generationen aufbewahrt werden (behalten). Rein lesend; rueckgaengig machen mit rueckgaengig. Nur bei einem Bestand mit Generationen.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      anzahl: { type: "integer", minimum: 1, maximum: 50, description: "Wie viele Generationen (Default 10)" },
+      json: { type: "boolean", description: "true = strukturiertes Ergebnis mit allen IDs statt Text" },
+    },
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: true },
+  ausfuehren: ohneVerlauf(async (ctx, args) => {
+    const { verlauf: v, text } = await verlaufBericht(ctx.datenroot, { anzahl: args.anzahl ?? 10 });
+    return ergebnis(args.json ? json(v) : text);
+  }),
+};
+
+const rueckgaengigWerkzeug = {
+  name: "rueckgaengig",
+  description: "Letzten Schreibvorgang rueckgaengig machen: stellt die vorherige Generation (oder `schritte` zurueck, oder `ziel` wie \"G000041\" aus verlauf) als NEUE Generation wieder her; nichts wird geloescht, ein Undo laesst sich selbst rueckgaengig machen. Vorschau ist Default und zeigt den Diff gegenueber dem aktuellen Stand: Dateien, Zahl der Datensaetze neu/geaendert/entfernt, bei Buchungen und anderen Datensaetzen mit Id die IDs. Erst schreiben:true mit dem Fingerabdruck der Vorschau (Pflicht) stellt wieder her; der Validator prueft, neue Fehler verhindern die Uebernahme. Inbox und Belege/ liegen ausserhalb des Bestands und bleiben, wie sie sind. Nur bei einem Bestand mit Generationen.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      schritte: { type: "integer", minimum: 1, maximum: 1000, description: "Wie viele Generationen zurueck (Default 1)" },
+      ziel: { type: "string", pattern: "^G?\\d{6,}$", description: "Statt schritte: diese Generation wiederherstellen, z. B. \"G000041\"" },
+      schreiben: SCHREIBEN,
+    },
+    additionalProperties: false,
+  },
+  nurSchreiben: true,
+  ausfuehren: ohneVerlauf(async (ctx, args) => {
+    if (args.schritte !== undefined && args.ziel !== undefined) return ergebnis("Entweder schritte oder ziel angeben, nicht beides.", true);
+    const auswahl = { schritte: args.schritte ?? 1, ziel: args.ziel };
+    if (!args.schreiben) return ergebnis((await rueckgaengigVorschau(ctx.datenroot, auswahl)).text);
+    const r = await rueckgaengigSchreiben(ctx.datenroot, { ...auswahl, erwartet: erwarteterStand.getStore(), wer: "MCP rueckgaengig" });
+    return ergebnis(r.text, r.exitCode !== 0);
+  }),
+};
+
+export const WERKZEUGE = [status, kennzahlen, planIstWerkzeug, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, belegErgaenzen, belegVerwerfen, inboxVerwerfen, inboxZurueckholen, verlauf, rueckgaengigWerkzeug];
 
 // Jedes Werkzeug mit Vorschau nimmt den Fingerabdruck der Vorschau an.
 for (const w of WERKZEUGE) {
@@ -1312,7 +1367,7 @@ export async function rufeWerkzeug(ctx, name, args = {}) {
       const zeile = `Fingerabdruck: ${fingerabdruck}`;
       return alsErgebnis(typeof r.text !== "string" || r.text.includes(zeile) ? r : { ...r, text: `${r.text}\n\n${zeile} (mit schreiben:true als fingerabdruck mitgeben, dann wird nur gegen diesen Stand geschrieben)` });
     }
-    const lauf = () => erwarteterStand.run(args.fingerabdruck, () => werkzeug.ausfuehren(ctx, args));
+    const lauf = () => werkzeugName.run(name, () => erwarteterStand.run(args.fingerabdruck, () => werkzeug.ausfuehren(ctx, args)));
     return alsErgebnis(await (schreibt ? nacheinander(lauf) : lauf()));
   } catch (error) {
     return alsErgebnis(ergebnis(error instanceof PfadFehler ? `Pfad abgewiesen: ${error.message}` : `Fehler: ${error.message}`, true));

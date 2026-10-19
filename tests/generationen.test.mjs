@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   aktuelleId, bestandsArt, einrichten, FORMAT, FormatUnbekannt, generationsOrdner, mitLeser, mitSchreiber,
-  oeffneLeser, ORDNER, pruefeGeneration, rueckgaengig, StandVeraltet, veroeffentlichteIds,
+  oeffneGeneration, oeffneLeser, ORDNER, pruefeGeneration, rueckgaengig, StandVeraltet, veroeffentlichteIds,
 } from "../app/tools/lib/generationen.mjs";
 import { nimmSperre, SPERRDATEI, SperreBelegt } from "../app/tools/lib/schreibsperre.mjs";
 import { loadMasterData, validateMasterData } from "../app/tools/validator.mjs";
@@ -311,6 +311,14 @@ test("Leser ohne Lease: Schonfrist schuetzt seine Generation, danach weist er ab
   const r = await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{\"n\":9}\n"), { behalten: 0 });
   assert.deepEqual(r.aufgeraeumt, ["000001"]);
   assert.deepEqual(await veroeffentlichteIds(basis), ["000002", "000003", "000004", "000005"]);
+  // Fruehere Generation ohne Lease: nur, solange ihre Abloesung jung genug ist.
+  const frueher = await oeffneGeneration(basis, "000003", { lease: false });
+  assert.equal(await frueher.lies("farben.json"), "{\"n\":1}\n");
+  await utimes(genPfad(basis, "000003", "MANIFEST.json"), vorEinerStunde, vorEinerStunde);
+  await assert.rejects(oeffneGeneration(basis, "000002", { lease: false }), /000002/);
+  const mitLease = await oeffneGeneration(basis, "000002");
+  assert.equal(mitLease.lease, true, "mit Lease weiter lesbar");
+  await mitLease.schliessen();
   // Frist abgelaufen: lieber laut abweisen als eine geraeumte Generation lesen.
   const kurz = await oeffneLeser(basis, { lease: false, fristMs: 0 });
   await new Promise((resolve) => setTimeout(resolve, 5));

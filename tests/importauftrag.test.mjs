@@ -201,3 +201,40 @@ test("MCP status nennt den Importbericht", async () => {
     abzug.aufraeumen();
   }
 });
+
+test("Wiederanlauf: zurueck unter dem Originalnamen; zwei gleiche Dateien haben je eine Marke", () => {
+  const abzug = abzugMitProfil();
+  try {
+    const inhalt = csv("12.09.2026;-18,00;Testladen Auftrag;Einkauf H");
+    mkdirSync(join(abzug.inbox, "processed"), { recursive: true });
+    writeFileSync(join(abzug.inbox, "processed", "auftrag-7.csv"), "alter Auszug\n");
+    writeFileSync(join(abzug.inbox, "auftrag-7.csv"), inhalt);
+    writeFileSync(join(abzug.inbox, "auftrag-7 (1).csv"), inhalt);
+    assert.equal(inboxLauf(abzug).status, 0);
+    const marken = readdirSync(join(abzug.inbox, ".auftraege")).sort();
+    assert.equal(marken.length, 2);
+    const marke = JSON.parse(readFileSync(join(abzug.inbox, ".auftraege", marken.find((m) => JSON.parse(readFileSync(join(abzug.inbox, ".auftraege", m), "utf8")).quelle === "data/inbox/auftrag-7.csv")), "utf8"));
+    assert.equal(marke.archiv, "data/inbox/processed/auftrag-7-2.csv");
+    // Uebernahme nicht passiert: Auftraege aus dem Bestand entfernen.
+    writeFileSync(join(abzug.master, "importauftraege.jsonl"), "");
+    const r = inboxLauf(abzug, false);
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(bericht(r.stdout).zurueckgeholt.sort(), ["data/inbox/processed/auftrag-7 (1).csv", "data/inbox/processed/auftrag-7-2.csv"].sort());
+  } finally {
+    abzug.aufraeumen();
+  }
+});
+
+test("Teilweise uebernommene Datei, die nach einem Abbruch noch in der Inbox liegt, wird neu gelesen (nicht nur archiviert)", () => {
+  const abzug = abzugMitProfil();
+  try {
+    writeFileSync(join(abzug.inbox, "auftrag-8.csv"), csv("13.09.2026;-19,00;Testladen Auftrag;Einkauf I", "kaputt;x;y;z"));
+    assert.equal(inboxLauf(abzug).status, 0);
+    renameSync(join(abzug.inbox, "error", "auftrag-8.csv"), join(abzug.inbox, "auftrag-8.csv"));
+    const r = inboxLauf(abzug);
+    assert.equal(bericht(r.stdout).laeufe[0].wiederaufgenommen, undefined);
+    assert.equal(bericht(r.stdout).laeufe[0].geschrieben, 0);
+  } finally {
+    abzug.aufraeumen();
+  }
+});

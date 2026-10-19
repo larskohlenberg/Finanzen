@@ -225,11 +225,17 @@ async function planeArchivName(inboxRoot, ordner, datei, vergeben) {
   }
 }
 
-async function archiviere(inboxRoot, { quelle, datei, ordner, notiz, name: geplant }) {
+// Der geplante Name, solange er frei ist; sonst der naechste freie.
+async function endgueltigerName(inboxRoot, { datei, ordner, name: geplant }) {
+  const zielOrdner = new URL(`${ordner}/`, inboxRoot);
+  return geplant && (await freierArchivName(zielOrdner, geplant)) === geplant ? geplant : freierArchivName(zielOrdner, datei);
+}
+
+async function archiviere(inboxRoot, eintrag) {
+  const { quelle, ordner, notiz } = eintrag;
   const zielOrdner = new URL(`${ordner}/`, inboxRoot);
   await mkdir(zielOrdner, { recursive: true });
-  // Der geplante Name, solange er frei ist; sonst der naechste freie.
-  const name = geplant && (await freierArchivName(zielOrdner, geplant)) === geplant ? geplant : await freierArchivName(zielOrdner, datei);
+  const name = await endgueltigerName(inboxRoot, eintrag);
   await rename(fileURLToPath(quelle), fileURLToPath(new URL(encodeURIComponent(name), zielOrdner)));
   if (notiz) await ersetzeDatei(new URL(encodeURIComponent(`${name}.fehler.txt`), zielOrdner), notiz);
   return `${inboxName(inboxRoot)}/${ordner}/${name}`;
@@ -271,7 +277,11 @@ async function wiederanlauf(inboxRoot, auftraege, schreiben) {
     if (marke && !uebernommen.has(`${marke.auftrag_id}|${marke.quelle_sha256}`)) {
       // Der Lauf hat archiviert, sein Bestand wurde aber nicht uebernommen.
       const archiv = archivRelativ(inboxRoot, marke.archiv);
-      const ziel = archiv ? new URL(encodeURIComponent(archiv.name), inboxRoot) : null;
+      // Unter dem Namen, unter dem die Quelle in der Inbox lag (das Profil erkennt sie daran).
+      const praefix = `${inboxName(inboxRoot)}/`;
+      const original = typeof marke.quelle === "string" && marke.quelle.startsWith(praefix) ? marke.quelle.slice(praefix.length) : "";
+      const name = original && !original.includes("/") && !original.startsWith(".") ? original : archiv?.name;
+      const ziel = archiv ? new URL(encodeURIComponent(name), inboxRoot) : null;
       if (archiv && await existiert(archiv.url) && !(await existiert(ziel))) {
         if (schreiben) {
           await rename(fileURLToPath(archiv.url), fileURLToPath(ziel));
@@ -458,15 +468,18 @@ async function main() {
     // Wiederaufnahme: schon uebernommen, nur das Archivieren fehlt.
     let frueher = null;
     for (const a of bisherigeAuftraege) {
-      if (a.quelle_sha256 !== quelle_sha256 || a.status === "abgewiesen") continue;
+      // Nur vollstaendig uebernommene: bei teilweise ist ein neuer Lauf harmlos
+      // (die Dublettenpruefung ergaenzt nur Fehlendes) und schreibt die Fehlernotiz neu.
+      if (a.quelle_sha256 !== quelle_sha256 || a.status !== "uebernommen") continue;
       const ziel = archivRelativ(inboxRoot, a.archiv);
       // Nie archiviert (Abbruch davor): weder die Datei noch ihre Fehlernotiz
       // liegt am Ziel. Liegt die Notiz in error/, hat jemand die Datei bewusst
       // zurueckgeholt, um sie neu einzulesen.
       const notiz = ziel ? new URL(`${ziel.ordner}/${encodeURIComponent(`${ziel.name}.fehler.txt`)}`, inboxRoot) : null;
-      if (ziel && !(await existiert(ziel.url)) && !(await existiert(notiz))) frueher = { auftrag: a, ziel };
+      if (ziel && !vergeben.has(`${ziel.ordner}/${ziel.name}`) && !(await existiert(ziel.url)) && !(await existiert(notiz))) frueher = { auftrag: a, ziel };
     }
     if (frueher) {
+      vergeben.add(`${frueher.ziel.ordner}/${frueher.ziel.name}`);
       const lauf = { datei: auftrag.datei, art: "csv", wiederaufgenommen: frueher.auftrag.auftrag_id, hinweis: "schon uebernommen, nur archiviert" };
       bericht.laeufe.push(lauf);
       archiv.push({ quelle, datei: auftrag.datei, ordner: frueher.ziel.ordner, name: frueher.ziel.name, notiz: null, lauf });
@@ -583,10 +596,12 @@ async function main() {
   // Marke vor dem Verschieben: wird der Entwurf nicht uebernommen, holt der
   // naechste Lauf die Quelle zurueck (wiederanlauf).
   for (const eintrag of archiv) {
+    // Der Name, unter dem tatsaechlich abgelegt wird (der geplante, solange frei).
+    eintrag.name = await endgueltigerName(inboxRoot, eintrag);
     if (eintrag.auftrag) {
       await mkdir(new URL(MARKEN, inboxRoot), { recursive: true });
-      const { auftrag_id, quelle_sha256, quelle, archiv: ziel } = eintrag.auftrag;
-      await ersetzeDatei(new URL(`${MARKEN}${quelle_sha256}.json`, inboxRoot), `${JSON.stringify({ auftrag_id, quelle_sha256, quelle, archiv: ziel })}\n`);
+      const { auftrag_id, quelle_sha256, quelle } = eintrag.auftrag;
+      await ersetzeDatei(new URL(`${MARKEN}${auftrag_id}.json`, inboxRoot), `${JSON.stringify({ auftrag_id, quelle_sha256, quelle, archiv: anzeige(eintrag.ordner, eintrag.name) })}\n`);
     }
     eintrag.lauf.abgelegt = await archiviere(inboxRoot, eintrag);
   }

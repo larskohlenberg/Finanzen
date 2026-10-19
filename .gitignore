@@ -68,3 +68,6 @@ app/sitzung.json
 
 # Typpruefung (npm run typen), lokal installiertes TypeScript
 .typpruefung/
+
+# Wiederanlauf-Marken des Inbox-Laufs (Importauftraege), auch in der Demo-Inbox
+**/inbox/.auftraege/

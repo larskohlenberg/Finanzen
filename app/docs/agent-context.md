@@ -278,11 +278,14 @@ Davon unberuehrt sind die technischen Eroeffnungsbuchungen weiter unten: die
 tragen die neutrale Kategorie „Startzustand" und sind an
 `transaktionstyp = "Startzustand"` erkennbar.
 
-Nach-Kategorisierung bewertet offene Transaktionen und regelbasierte Eintraege neu.
-Agenten-Einzelvorschlaege, manuelle Kategorien und abgelehnte Vorschlaege bleiben
-unangetastet. Widerspricht ein neuer Regelstand einer bestaetigten regelbasierten
-Kategorie, wird die Transaktion als Wiedervorlage sichtbar gemacht statt still
-ueberschrieben.
+Nach-Kategorisierung bewertet offene Transaktionen, regelbasierte Vorschlaege und
+Auto-Freigaben neu. Agenten-Einzelvorschlaege, manuelle Kategorien, abgelehnte
+Vorschlaege und menschliche Bestaetigungen (`bestaetigt_durch = mensch`, auch mit
+Herkunft `regel`) bleiben unangetastet, samt `matched_regeln`. Widerspricht ein
+neuer Regelstand einer menschlichen Bestaetigung, listet der Pruefbericht sie
+unter „Menschliche Entscheidungen im Widerspruch zum Regelwerk"; eine
+Wiedervorlage gaebe die naechste Freigabe sonst still mit der neuen Kategorie
+frei.
 
 Bei Bestaetigung bleibt die Herkunft erhalten: `regel` bleibt `regel`, `agent`
 bleibt `agent`. Nur wenn der Nutzer eine andere Kategorie nennt oder direkt eine
@@ -301,7 +304,10 @@ Uebersteuerung) oder bewusst kein Regelfall entsteht.
 Transaktionen koennen ein optionales Feld `matched_regeln: ["REG-…", …]` tragen.
 Es enthaelt die IDs aller Regeln, die beim Kategorisierungslauf auf die Buchung
 gepasst haben. Das Feld wird **beim Import oder bei der Nach-Kategorisierung
-geschrieben**, nicht nachtraeglich aus dem aktuellen Regelwerk berechnet.
+geschrieben**, nicht nachtraeglich aus dem aktuellen Regelwerk berechnet. Bei
+einer menschlichen Bestaetigung ist es der Regelbezug zum Zeitpunkt der
+Entscheidung und bleibt so stehen; was das Regelwerk heute sagt, rechnen Gate,
+Probelauf und Pruefbericht jeweils frisch.
 
 **Invariante:**
 
@@ -364,8 +370,8 @@ solche Agenten-Buchung eindeutig:
   Herkunft `regel`), wie bei jeder Auto-Freigabe.
 - **kein eindeutiger Treffer:** unveraendert.
 
-Menschlich bestaetigte Agenten-Buchungen (`bestaetigt_durch = mensch`) fasst
-die Nach-Kategorisierung nie an.
+Menschlich bestaetigte Buchungen (`bestaetigt_durch = mensch`) fasst die
+Nach-Kategorisierung nie an, gleich welcher Herkunft.
 
 ## Validierung und Tools
 
@@ -392,8 +398,9 @@ Wichtige Tools:
 - `tools/regel-vorschlag.mjs`: offenen Rueckstand zu Regelkandidaten buendeln.
 - `tools/regel-probelauf.mjs`: Regelkandidaten gegen den Gesamtbestand rechnen,
   **bevor** etwas geschrieben wird. Blockiert mit Exit-Code 2 bei Strukturfehlern,
-  unspezifischen Mustern, neuen Regelkonflikten, Wiedervorlagen und **verlorenen
-  bestaetigten Treffern**: eine Einengung laesst bereits bestaetigte Buchungen aus
+  unspezifischen Mustern, neuen Regelkonflikten, Wiedervorlagen (Kandidat
+  widerspricht einer Auto-Freigabe), **Widerspruechen zu menschlichen
+  Entscheidungen** und **verlorenen bestaetigten Treffern**: eine Einengung laesst bereits bestaetigte Buchungen aus
   der Regel fallen, sie verlieren ihre Kategorie und landen wieder auf `offen`.
   Die gemeldeten Trefferzahlen gelten fuer den Gesamtbestand, nicht nur fuer den
   Offen-Stapel — sonst erschiene eine Regel bei leerem Offen-Stapel als
@@ -404,11 +411,15 @@ Wichtige Tools:
 - `tools/freigabe.mjs`: vorgeschlagene Buchungen automatisch bestaetigen, soweit
   ihre Regel das Gate besteht (aktiv, Kommentar, `belegstufe` E1-E4 und nicht
   gesperrt, Muster spezifisch, Belegstufe auf diesem Konto nicht nur geliehen).
-  Schreibt `bestaetigt_durch = auto`. `npm run freigabe` ist die Vorschau.
+  Vor der Freigabe kategorisiert es jeden Regelvorschlag frisch gegen das
+  vollstaendige Regelwerk; weicht Kategorie oder Trefferliste vom gespeicherten
+  Vorschlag ab, haelt es mit dem Grund `abweichung` zurueck, bis
+  `recategorize.mjs` den Vorschlag erneuert hat. Schreibt `bestaetigt_durch = auto`. `npm run freigabe` ist die Vorschau.
 - `tools/pruefbericht.mjs`: Nachkontrolle nach einem Durchlauf — groesste
   Auto-Freigaben, Merchants ohne jede menschliche Bestaetigung,
   Kategorie-Ausreisser, alle auto-freigegebenen `KAT-012`, Zahl der
-  Agenten-Schaetzungen (Herkunft `agent`), am Gate gescheiterte
+  Agenten-Schaetzungen (Herkunft `agent`), menschliche Entscheidungen im
+  Widerspruch zum Regelwerk, am Gate gescheiterte
   Regeln, Regeln auf Konten ohne menschlichen Anker, E4-Regeln, Konten ohne
   Anker, nicht reconciliierte Kontostaende. Rein lesend, blockiert nie.
 - `tools/lernen.mjs`: wertet `agent_log.jsonl` aus — Korrekturquote je Regel und
@@ -491,9 +502,10 @@ ein zweites Mal aendert nichts.
 
 ### Wer darf welche Entscheidung anfassen
 
-- **Automatische Laeufe** (`import.mjs`, `recategorize.mjs`) fassen menschlich
-  `bestaetigt`, `abgelehnt` und `manuell` nie an. Auto-Freigaben darf
-  `recategorize.mjs` neu bewerten (siehe Kategorisierung und Herkunft).
+- **Automatische Laeufe** (`import.mjs`, `recategorize.mjs`, `freigabe.mjs`)
+  fassen menschlich `bestaetigt`, `abgelehnt` und `manuell` nie an, auch nicht
+  deren `matched_regeln`. Auto-Freigaben darf `recategorize.mjs` neu bewerten
+  (siehe Kategorisierung und Herkunft).
 - **`confirm.mjs`** ist der menschliche Kanal und darf eine fruehere Entscheidung
   korrigieren — aber nur mit ausdruecklichem `--auch-entschiedene`. Ohne das Flag
   ueberspringt es entschiedene Buchungen und zaehlt sie als `uebersprungen`.

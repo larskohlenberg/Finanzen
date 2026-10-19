@@ -34,7 +34,8 @@ Nutze ihn, wenn der Nutzer
 - eine im **Pruefbericht** auffaellige Auto-Freigabe korrigieren will,
 - offene Vorschlaege durchgehen will („was steht zur Bestaetigung an?", „arbeite die Vorschlaege ab"),
 - nach einem Regel-Lauf die neu erzeugten `vorgeschlagen`-Eintraege bestaetigen will,
-- **Wiedervorlagen** klaeren will (ein Regel-Tuning hat einer fruheren Bestaetigung widersprochen).
+- **Wiedervorlagen** klaeren will (ein Regel-Tuning hat einer Auto-Freigabe widersprochen),
+- **Widersprueche** aus dem Pruefbericht klaeren will (das Regelwerk gibt einer menschlichen Bestaetigung heute eine andere Kategorie; die Buchung bleibt, bis der Nutzer neu entscheidet oder die Regel geschaerft ist).
 
 Nicht nutzen fuer:
 - Regeln anlegen/aendern → **kategorisierungsregel-pflege** (die *erzeugt* die Vorschlaege).
@@ -109,7 +110,7 @@ Zu Beginn `DATENROOT/transaktionen.jsonl` auf `kategorisierung_status = vorgesch
 
 | Aktion | `status` | `kategorie_herkunft` | `matched_regeln` | Wirkung beim naechsten Regel-Lauf |
 | --- | --- | --- | --- | --- |
-| Bulk-Bestaetigen (Regel stimmt) | `bestaetigt` | `regel` | **bleibt erhalten** | ein spaeteres Regel-Tuning, das widerspricht, kommt als **Wiedervorlage** — gewollt |
+| Bulk-Bestaetigen (Regel stimmt) | `bestaetigt` | `regel` | **bleibt erhalten** | von Regellaeufen **unangetastet**; ein spaeteres Regel-Tuning, das widerspricht, steht im Pruefbericht unter **Widerspruch** |
 | Agenten-Vorschlag bestaetigen | `bestaetigt` | `agent` | nie vorhanden | von Regellaeufen **unangetastet** |
 | Einzelkorrektur (andere Kategorie) | `bestaetigt` | `manuell` | **entfernen** | von Regellaeufen **unangetastet** |
 | Ablehnen | `abgelehnt` | entfernt | **entfernen** | von Regellaeufen **unangetastet** |

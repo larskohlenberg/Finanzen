@@ -3,6 +3,13 @@
 Statushinweis 2026-10-11: Die Belegstufe E6 endet nicht mehr auf `KAT-012`,
 sondern auf einer Schaetzung des Agenten (ADR 0029).
 
+Statushinweis 2026-10-19: Das Gate vertraut gespeicherten `matched_regeln`
+nicht mehr. Es kategorisiert jeden Regelvorschlag vor der Freigabe frisch gegen
+das vollstaendige Regelwerk; weicht Kategorie oder Trefferliste ab, haelt es
+mit dem Grund `abweichung` zurueck, bis die Nach-Kategorisierung den Vorschlag
+erneuert. Menschliche Bestaetigungen legt die Nach-Kategorisierung nicht mehr
+vor (ADR 0017).
+
 Vorgeschlagene Kategorien werden nicht mehr einzeln vom Nutzer bestaetigt,
 sondern von einem deterministischen Gate automatisch freigegeben. Die Kontrolle
 verschiebt sich von einer Zustimmung vorab auf einen Pruefbericht danach.

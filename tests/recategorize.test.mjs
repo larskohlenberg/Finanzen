@@ -47,8 +47,10 @@ test("offen ohne Treffer bleibt offen", () => {
   assert.equal(out.report.unveraendert, 1);
 });
 
-test("bestaetigt+regel mit gleicher Kategorie bleibt unveraendert", () => {
-  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel" });
+// Neu bewertet wird eine Bestaetigung nur, wenn sie eine Auto-Freigabe ist;
+// menschliche Bestaetigungen stehen in menschliche-entscheidung.test.mjs.
+test("bestaetigt+regel+auto mit gleicher Kategorie bleibt unveraendert", () => {
+  const t = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", bestaetigt_durch: "auto", kategorie_id: "KAT-003", kategorie_herkunft: "regel" });
   const out = recategorize({ transaktionen: [t], regeln });
   const r = out.transaktionen[0];
   // matched_regeln wird jetzt konsistent gestempelt — Kategorie und Status bleiben gleich.
@@ -60,9 +62,9 @@ test("bestaetigt+regel mit gleicher Kategorie bleibt unveraendert", () => {
   assert.equal(out.report.unveraendert, 1);
 });
 
-test("bestaetigt+regel mit anderer konkreter Kategorie wird wiedervorgelegt", () => {
+test("bestaetigt+regel+auto mit anderer konkreter Kategorie wird wiedervorgelegt", () => {
   // Bestaetigt auf KAT-003, aber das Regelwerk liefert fuer MusterladenB jetzt KAT-005.
-  const t = tx({ gegenpartei: "MusterladenB City", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel" });
+  const t = tx({ gegenpartei: "MusterladenB City", kategorisierung_status: "bestaetigt", bestaetigt_durch: "auto", kategorie_id: "KAT-003", kategorie_herkunft: "regel" });
   const out = recategorize({ transaktionen: [t], regeln });
   const r = out.transaktionen[0];
   assert.equal(r.kategorisierung_status, "vorgeschlagen");
@@ -71,19 +73,19 @@ test("bestaetigt+regel mit anderer konkreter Kategorie wird wiedervorgelegt", ()
   assert.equal(out.report.wiedervorlage, 1);
 });
 
-test("bestaetigt+regel ohne Treffer bleibt unveraendert", () => {
-  const t = tx({ gegenpartei: "Unbekannt", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel" });
+test("bestaetigt+regel+auto ohne Treffer bleibt unveraendert", () => {
+  const t = tx({ gegenpartei: "Unbekannt", kategorisierung_status: "bestaetigt", bestaetigt_durch: "auto", kategorie_id: "KAT-003", kategorie_herkunft: "regel" });
   const out = recategorize({ transaktionen: [t], regeln });
   assert.deepEqual(out.transaktionen[0], t);
   assert.equal(out.report.unveraendert, 1);
 });
 
-test("bestaetigt+regel bei Regel-Konflikt bleibt unveraendert", () => {
+test("bestaetigt+regel+auto bei Regel-Konflikt bleibt unveraendert", () => {
   const konfliktRegeln = [
     { regel_id: "REG-A", gegenpartei_pattern: "tankstelle", kategorie_id: "KAT-003", status: "aktiv", erstellt_am: "2026-06-01" },
     { regel_id: "REG-B", gegenpartei_pattern: "tankstelle", kategorie_id: "KAT-005", status: "aktiv", erstellt_am: "2026-06-01" },
   ];
-  const t = tx({ gegenpartei: "Tankstelle Nord", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel" });
+  const t = tx({ gegenpartei: "Tankstelle Nord", kategorisierung_status: "bestaetigt", bestaetigt_durch: "auto", kategorie_id: "KAT-003", kategorie_herkunft: "regel" });
   const out = recategorize({ transaktionen: [t], regeln: konfliktRegeln });
   assert.deepEqual(out.transaktionen[0], t);
   assert.equal(out.report.unveraendert, 1);
@@ -153,9 +155,9 @@ test("recategorize laesst manuell unangetastet (kein matched_regeln)", () => {
   assert.equal(out.transaktionen[0].matched_regeln, undefined);
 });
 
-test("recategorize entfernt veraltete Quelle bei bestaetigt ohne aktuellen Treffer", () => {
+test("recategorize entfernt veraltete Quelle bei auto-bestaetigt ohne aktuellen Treffer", () => {
   const regeln = [];
-  const t = tx({ transaktion_id: "TXN-w", kategorisierung_status: "bestaetigt", kategorie_herkunft: "regel", kategorie_id: "KAT-003", matched_regeln: ["REG-001"], gegenpartei: "Alt", verwendungszweck: "" });
+  const t = tx({ transaktion_id: "TXN-w", kategorisierung_status: "bestaetigt", bestaetigt_durch: "auto", kategorie_herkunft: "regel", kategorie_id: "KAT-003", matched_regeln: ["REG-001"], gegenpartei: "Alt", verwendungszweck: "" });
   const out = recategorize({ transaktionen: [t], regeln });
   assert.equal(out.transaktionen[0].matched_regeln, undefined);
 });
@@ -258,11 +260,12 @@ test("agent+mensch bleibt unveraendert, auch bei gleicher Kategorie", () => {
   assert.equal(out.report.uebersprungen, 2);
 });
 
-test("regel+auto und regel+mensch mit gleicher Kategorie bleiben bestaetigt", () => {
+test("regel+auto bekommt den aktuellen Regelbezug, regel+mensch bleibt wie entschieden", () => {
   const auto = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", bestaetigt_durch: "auto" });
   const mensch = tx({ gegenpartei: "MusterladenA", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", bestaetigt_durch: "mensch" });
   const out = recategorize({ transaktionen: [auto, mensch], regeln });
-  assert.deepEqual(out.transaktionen, [{ ...auto, matched_regeln: ["REG-001"] }, { ...mensch, matched_regeln: ["REG-001"] }]);
-  assert.equal(out.report.unveraendert, 2);
+  assert.deepEqual(out.transaktionen, [{ ...auto, matched_regeln: ["REG-001"] }, mensch]);
+  assert.equal(out.report.unveraendert, 1);
+  assert.equal(out.report.uebersprungen, 1);
   assert.equal(out.report.belegt, 0);
 });

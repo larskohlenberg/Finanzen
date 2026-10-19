@@ -43,9 +43,9 @@ test("Kandidat, der mit einer Bestandsregel kollidiert, blockiert als neuer Konf
   assert.equal(out.blockiert, true);
 });
 
-test("Kandidat, der einer bestaetigten Regel-Kategorie widerspricht, blockiert als Wiedervorlage", () => {
+test("Kandidat, der einer auto-freigegebenen Regel-Kategorie widerspricht, blockiert als Wiedervorlage", () => {
   const out = probelauf({
-    transaktionen: [tx({ gegenpartei: "MusterladenA Mitte", kategorisierung_status: "bestaetigt", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"] })],
+    transaktionen: [tx({ gegenpartei: "MusterladenA Mitte", kategorisierung_status: "bestaetigt", bestaetigt_durch: "auto", kategorie_id: "KAT-003", kategorie_herkunft: "regel", matched_regeln: ["REG-001"] })],
     bestandsRegeln: [bestand[0]],
     // Deaktiviert die alte Regel und setzt eine andere Kategorie: eindeutiger
     // Treffer, aber Widerspruch zur bestaetigten Kategorie.

@@ -45,6 +45,8 @@ das ist **kategorisierung-review**.
    Gate-Grund `anker` heisst nicht „Regel kaputt", sondern: eine bewaehrte
    Regel reicht in ein Konto hinein, auf dem niemand ihre Kategorie je
    entschieden hat. Das ist eine Entscheidung je Paar aus Regel und Konto.
+   Grund `abweichung` heisst: der gespeicherte Vorschlag ist aelter als der
+   Regelstand. Dann `nachkategorisieren` und erneut freigeben.
    Danach Tool `regelzahlungen_zuordnen` mit `schreiben: true`: die neuen
    Buchungen bekommen ihre `regelzahlung_id`. Regelzahlungen unter
    `uebersprungen` (ausser Konsumplaenen) oder `mehrdeutig` im Bericht nennen.

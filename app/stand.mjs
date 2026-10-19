@@ -2,9 +2,10 @@
 //
 // Datenstand fuer den App-Server (nur Node, nie im Browser): eine Kennung des
 // aktuellen Stands eines Bestands und der Snapshot dazu (alle Dateien aus
-// BESTAND_TEILE plus Validator-Befund). Der Browser fragt den Stand ab und
-// laedt den Snapshot nur, wenn sich die Kennung geaendert hat (server.mjs:
-// GET /api/v1/stand, GET /api/v1/snapshot mit ETag).
+// BESTAND_TEILE plus Validator-Befund), aus dem die Lese-APIs rechnen. Der
+// Browser bekommt davon nur die Grunddaten (ohne Buchungen und Transfers),
+// fragt den Stand ab und laedt sie nur, wenn sich die Kennung geaendert hat
+// (server.mjs: GET /api/v1/stand, GET /api/v1/grunddaten mit ETag).
 //
 // Quelle der Kennung: im Generationsbestand (ADR 0035) die Generations-Id, der
 // Snapshot kommt dann aus einer Lease auf genau diese Generation. Im
@@ -17,6 +18,7 @@ import { join } from "node:path";
 import { BESTAND_TEILE, parseJsonl } from "./data-loader.mjs";
 import { strukturSicher, validateMasterData } from "./tools/validate-core.mjs";
 import { ORDNER, lesestandId, mitLesestand } from "./tools/lib/lesestand.mjs";
+import { logoVerzeichnis } from "./logos.mjs";
 
 // Erhoehen, wenn sich die Form des Snapshots aendert: dann gilt kein alter
 // Stand mehr, und Browser mit altem Stand laden neu.
@@ -100,8 +102,20 @@ export async function leseSnapshot(datenDir) {
   }
 }
 
+// Was der Browser vom Bestand bekommt: alles ausser Buchungen und Transfers
+// (die rechnen die Lese-APIs, lese-api.mjs), dazu je Regelzahlung die Id des
+// Logos, das sie von ihren gebuchten Gegenparteien erbt (logos.mjs).
+export const NUR_SERVER = Object.freeze(["transaktionen", "transfers"]);
+
+export function grunddatenAus(snapshot) {
+  const daten = Object.fromEntries(Object.entries(snapshot.daten).filter(([schluessel]) => !NUR_SERVER.includes(schluessel)));
+  const verzeichnis = logoVerzeichnis(snapshot.daten);
+  daten.regelzahlung_logos = Object.fromEntries((snapshot.daten.regelzahlungen ?? []).map((rz) => [rz.regelzahlung_id, verzeichnis.fuerRegelzahlung(rz)?.logo_id ?? null]));
+  return { format: snapshot.format, stand: snapshot.stand, validierung: snapshot.validierung, daten };
+}
+
 // Je Bestand der zuletzt gelesene Stand: die geparsten Daten (fuer die
-// schmalen APIs, lese-api.mjs), der Snapshot als JSON-Text erst bei Bedarf.
+// schmalen APIs, lese-api.mjs), die Grunddaten als JSON-Text erst bei Bedarf.
 // Neu gelesen wird nur bei neuem Stand; gleichzeitige Anfragen teilen sich das
 // Lesen. Abgeleitete Werte merkt sich merke() je Stand.
 export function erstelleSnapshotQuelle(datenDir) {
@@ -131,9 +145,9 @@ export function erstelleSnapshotQuelle(datenDir) {
   return {
     stand: () => standKennung(datenDir),
     bestand,
-    async snapshot() {
+    async grunddaten() {
       const eintrag = await bestand();
-      eintrag.body ??= JSON.stringify(eintrag.snapshot);
+      eintrag.body ??= JSON.stringify(grunddatenAus(eintrag.snapshot));
       return { stand: eintrag.stand, body: eintrag.body };
     },
   };

@@ -23,9 +23,10 @@
 // GET /api/export/{dokumente|daten|komplett}[?quelle=demo] liefert ein Backup
 // als ZIP (app/export.mjs), gebaut beim Herunterladen, ohne Datei auf der Platte.
 // GET /api/v1/stand[?quelle=demo] nennt die Kennung des aktuellen Datenstands,
-// GET /api/v1/snapshot[?quelle=demo] den ganzen Bestand samt Validator-Befund
-// (app/stand.mjs), mit ETag = Stand: If-None-Match mit dem aktuellen Stand gibt
-// 304. Die Bestandsdateien selbst liefert der Server nicht statisch aus.
+// GET /api/v1/grunddaten[?quelle=demo] die Grunddaten (Bestand ohne Buchungen
+// und Transfers) samt Validator-Befund (app/stand.mjs), mit ETag = Stand:
+// If-None-Match mit dem aktuellen Stand gibt 304. Die Bestandsdateien selbst
+// liefert der Server nicht statisch aus; Buchungen nur ueber die Lese-APIs.
 // GET /api/v1/<ansicht>[?quelle=demo&...] liefert, was eine Ansicht zeigt,
 // gerechnet aus dem Stand (app/lese-api.mjs, z. B. transaktionen, regelwirkung).
 //
@@ -59,7 +60,7 @@ const API_INBOX = "/api/inbox";
 const API_BELEGE = "/api/belege";
 const API_EXPORT = "/api/export";
 const API_STAND = "/api/v1/stand";
-const API_SNAPSHOT = "/api/v1/snapshot";
+const API_GRUNDDATEN = "/api/v1/grunddaten";
 const API_V1 = "/api/v1/";
 const OCR_KOPF = "# Kein Textlayer";
 
@@ -230,7 +231,7 @@ export function parseArgs(argv, { appDir }) {
 // Was der Browser aus app/ bekommt; alles andere ist 404.
 // - App-Shell: SHELL plus die Module aus browserModule (Modulgraph ab index.html)
 // - data/<bestand>/: nur die Logos in data/<bestand>/logos/, dort nur PNG, wie
-//   es tools/logos.mjs ablegt. Die Bestandsdateien kommen ueber den Snapshot.
+//   es tools/logos.mjs ablegt. Die Bestandsdateien kommen ueber die Grunddaten.
 // - Belege/ und data/demo-belege/: Dokumente, aber nichts, was der Browser
 //   ausfuehren koennte
 // - data/inbox/: nur wartende Uploads (oberste Ebene, Upload-Endungen), fuer
@@ -668,10 +669,10 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     return sendeJson(res, 200, { stand });
   }
 
-  async function liefereSnapshot(req, res, quelle) {
+  async function liefereGrunddaten(req, res, quelle) {
     if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
     const snapshotQuelle = snapshotQuellen[quelle];
-    let snapshot;
+    let grunddaten;
     try {
       const stand = await snapshotQuelle.stand();
       if (etagPasst(req.headers["if-none-match"], stand)) {
@@ -679,16 +680,16 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
         res.end();
         return;
       }
-      snapshot = await snapshotQuelle.snapshot();
+      grunddaten = await snapshotQuelle.grunddaten();
     } catch (fehler) {
-      return bestandUnlesbar(res, "snapshot", quelle, fehler);
+      return bestandUnlesbar(res, "grunddaten", quelle, fehler);
     }
     res.writeHead(200, {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Length": Buffer.byteLength(snapshot.body),
-      ETag: `"${snapshot.stand}"`,
+      "Content-Length": Buffer.byteLength(grunddaten.body),
+      ETag: `"${grunddaten.stand}"`,
     });
-    res.end(snapshot.body);
+    res.end(grunddaten.body);
   }
 
   async function liefereAnsicht(req, res, quelle, name) {
@@ -734,7 +735,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       return sendeJson(res, 200, { dateien: await listeBelege(demo ? demoBelegeDir : belegeDir) });
     }
     if (rohPfad === API_STAND) return liefereStand(req, res, demo ? "demo" : "live");
-    if (rohPfad === API_SNAPSHOT) return liefereSnapshot(req, res, demo ? "demo" : "live");
+    if (rohPfad === API_GRUNDDATEN) return liefereGrunddaten(req, res, demo ? "demo" : "live");
     if (rohPfad.startsWith(API_V1) && LESE_ANSICHTEN.includes(rohPfad.slice(API_V1.length))) {
       return liefereAnsicht(req, res, demo ? "demo" : "live", rohPfad.slice(API_V1.length));
     }

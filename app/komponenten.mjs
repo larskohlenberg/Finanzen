@@ -11,10 +11,12 @@ import { dataModes } from "./data-loader.mjs";
 import { kuerzel, kuerzelFarbe, logoVerzeichnis } from "./logos.mjs";
 
 let logoStand = null;
+// Das von Buchungen geerbte Logo je Regelzahlung kommt mit den Grunddaten
+// (regelzahlung_logos, stand.mjs).
 function logos() {
-  const { logos: liste, transaktionen, regelzahlungen } = data;
-  if (logoStand?.liste !== liste || logoStand.transaktionen !== transaktionen || logoStand.regelzahlungen !== regelzahlungen) {
-    logoStand = { liste, transaktionen, regelzahlungen, verzeichnis: logoVerzeichnis({ logos: liste, transaktionen, regelzahlungen }) };
+  const { logos: liste, regelzahlungen, regelzahlung_logos: regelzahlungLogos } = data;
+  if (logoStand?.liste !== liste || logoStand.regelzahlungen !== regelzahlungen || logoStand.regelzahlungLogos !== regelzahlungLogos) {
+    logoStand = { liste, regelzahlungen, regelzahlungLogos, verzeichnis: logoVerzeichnis({ logos: liste, regelzahlungen, regelzahlungLogos }) };
   }
   return logoStand.verzeichnis;
 }

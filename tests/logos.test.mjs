@@ -465,3 +465,24 @@ test("Schreiben: ein schon vorher vorhandener Validatorfehler macht den Lauf nic
     await rm(ordner, { recursive: true, force: true });
   }
 });
+
+test("Grunddaten: geerbte Logos als Id, ein Vertrag erbt wie mit Buchungen das haeufigste", async () => {
+  const { logoVerzeichnis } = await import("../app/logos.mjs");
+  const { grunddatenAus } = await import("../app/stand.mjs");
+  const logos = [
+    { logo_id: "LOGO-001", name: "Alpha", gegenpartei_pattern: "Alpha Versicherung", datei: "logos/alpha.png" },
+    { logo_id: "LOGO-002", name: "Beta", gegenpartei_pattern: "Beta Versicherung", datei: "logos/beta.png" },
+  ];
+  const regelzahlungen = ["RZ-1", "RZ-2", "RZ-3"].map((id) => ({ regelzahlung_id: id, bezeichnung: `Beitrag ${id}`, vorsorge_id: "VS-1" }));
+  regelzahlungen.push({ regelzahlung_id: "RZ-4", bezeichnung: "Ohne Buchung" });
+  const gp = { "RZ-1": "Beta Versicherung", "RZ-2": "Alpha Versicherung", "RZ-3": "Alpha Versicherung" };
+  const transaktionen = Object.entries(gp).map(([rz, g], i) => ({ transaktion_id: `T${i}`, regelzahlung_id: rz, gegenpartei: g }));
+  const vs = { vorsorge_id: "VS-1", name: "Vertrag" };
+  const vorher = logoVerzeichnis({ logos, transaktionen, regelzahlungen });
+  const { daten } = JSON.parse(JSON.stringify(grunddatenAus({ format: 1, stand: "s", validierung: {}, daten: { logos, transaktionen, regelzahlungen } })));
+  assert.deepEqual(daten.regelzahlung_logos, { "RZ-1": "LOGO-002", "RZ-2": "LOGO-001", "RZ-3": "LOGO-001", "RZ-4": null });
+  const nachher = logoVerzeichnis({ logos: daten.logos, regelzahlungen: daten.regelzahlungen, regelzahlungLogos: daten.regelzahlung_logos });
+  assert.equal(nachher.fuerVorsorge(vs)?.logo_id, vorher.fuerVorsorge(vs)?.logo_id);
+  assert.equal(nachher.fuerVorsorge(vs)?.logo_id, "LOGO-001");
+  for (const rz of regelzahlungen) assert.equal(nachher.fuerRegelzahlung(rz)?.logo_id ?? null, vorher.fuerRegelzahlung(rz)?.logo_id ?? null, rz.regelzahlung_id);
+});

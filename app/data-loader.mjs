@@ -16,10 +16,11 @@ export const dataModes = {
   },
 };
 
-// Was die App aus einem Datenbestand bekommt: Datei, Schluessel im Bestand und,
-// fuer optionale Dateien, der Ersatz, wenn sie fehlen. Der App-Server liest
-// genau diese Dateien fuer den Snapshot (app/stand.mjs); fehlt eine Pflichtdatei
-// oder ist eine unlesbar, gibt es keinen Snapshot.
+// Was ein Datenbestand umfasst: Datei, Schluessel im Bestand und, fuer
+// optionale Dateien, der Ersatz, wenn sie fehlen. Der App-Server liest genau
+// diese Dateien (app/stand.mjs); fehlt eine Pflichtdatei oder ist eine
+// unlesbar, gibt es keinen Stand. Der Browser bekommt davon die Grunddaten:
+// alles ausser Buchungen und Transfers (NUR_SERVER in stand.mjs).
 export const BESTAND_TEILE = Object.freeze([
   { datei: "personen.json", schluessel: "personen" },
   { datei: "konten.json", schluessel: "konten" },
@@ -65,8 +66,8 @@ export function standUrl(dataMode) {
   return `./api/v1/stand${normalizeDataMode(dataMode) === "demo" ? "?quelle=demo" : ""}`;
 }
 
-export function snapshotUrl(dataMode) {
-  return `./api/v1/snapshot${normalizeDataMode(dataMode) === "demo" ? "?quelle=demo" : ""}`;
+export function grunddatenUrl(dataMode) {
+  return `./api/v1/grunddaten${normalizeDataMode(dataMode) === "demo" ? "?quelle=demo" : ""}`;
 }
 
 async function fehlerAus(response, url) {
@@ -84,22 +85,22 @@ export async function ladeStand(dataMode) {
   return stand;
 }
 
-// Ganzer Bestand samt Validator-Befund des Servers. Mit stand fragt der Browser
+// Grunddaten samt Validator-Befund des Servers. Mit stand fragt der Browser
 // bedingt (If-None-Match): ist der Stand unveraendert, kommt 304 und hier null.
 // Kein Browser-Cache: die Finanzdaten bleiben no-store.
-export async function ladeSnapshot({ dataMode, stand = null } = {}) {
-  const url = snapshotUrl(dataMode);
+export async function ladeGrunddaten({ dataMode, stand = null } = {}) {
+  const url = grunddatenUrl(dataMode);
   const response = await fetch(url, { cache: "no-store", headers: stand ? { "If-None-Match": `"${stand}"` } : {} });
   if (response.status === 304) return null;
   if (!response.ok) throw await fehlerAus(response, url);
-  return bundleAusSnapshot(await response.json(), dataMode);
+  return bundleAusGrunddaten(await response.json(), dataMode);
 }
 
-export function bundleAusSnapshot(snapshot, dataMode) {
+export function bundleAusGrunddaten(grunddaten, dataMode) {
   const mode = dataModes[normalizeDataMode(dataMode)];
-  const { stand, validierung, daten } = snapshot ?? {};
+  const { stand, validierung, daten } = grunddaten ?? {};
   if (typeof stand !== "string" || !daten || typeof daten !== "object" || typeof validierung?.valid !== "boolean") {
-    throw new Error("Snapshot unvollstaendig");
+    throw new Error("Grunddaten unvollstaendig");
   }
   return {
     metadata: {
@@ -118,5 +119,5 @@ export function bundleAusSnapshot(snapshot, dataMode) {
 }
 
 export async function loadFinanceData(options = {}) {
-  return ladeSnapshot({ dataMode: options.dataMode });
+  return ladeGrunddaten({ dataMode: options.dataMode });
 }

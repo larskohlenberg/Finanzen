@@ -73,7 +73,11 @@ function haeufigstes(logos) {
 // Nachschlagewerk fuer einen Bestand { logos, transaktionen, regelzahlungen }.
 // Ergebnisse werden je Text bzw. ID gemerkt; der Bestand aendert sich in der
 // App nur mit einem Neuladen.
-export function logoVerzeichnis({ logos = [], transaktionen = [], regelzahlungen = [] }) {
+// regelzahlungLogos: je Regelzahlung die Id des schon ermittelten Logos (oder
+// null; Grunddaten des App-Servers, stand.mjs); damit braucht der Browser keine
+// Buchungen. Aufgeloest wird gegen logos, damit gleiche Logos dasselbe Objekt
+// sind (haeufigstes zaehlt nach Identitaet).
+export function logoVerzeichnis({ logos = [], transaktionen = [], regelzahlungen = [], regelzahlungLogos = null }) {
   const jeText = new Map();
   const jeRz = new Map();
   const jeVs = new Map();
@@ -88,6 +92,10 @@ export function logoVerzeichnis({ logos = [], transaktionen = [], regelzahlungen
 
   const fuerRegelzahlung = (rz) => {
     if (!rz) return null;
+    if (!jeRz.has(rz.regelzahlung_id) && regelzahlungLogos && Object.hasOwn(regelzahlungLogos, rz.regelzahlung_id)) {
+      const id = regelzahlungLogos[rz.regelzahlung_id];
+      jeRz.set(rz.regelzahlung_id, id ? (logos.find((l) => l.logo_id === id) ?? null) : null);
+    }
     if (!jeRz.has(rz.regelzahlung_id)) {
       if (!buchungenJeRz) {
         buchungenJeRz = new Map();

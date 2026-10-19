@@ -1,27 +1,20 @@
-// MCP-Tool `kennzahlen`: dieselben Werte wie die Uebersicht. Die Uebersicht
-// wird hier mit den Demodaten im Browser-Modus geladen (runtime.mjs mit
-// fetch-Shim), das Tool laeuft als eigener Server-Prozess auf einem Abzug mit
-// denselben Demodaten als data/master.
+// MCP-Tool `kennzahlen`: dieselben Werte wie die Uebersicht. Die Werte der
+// Uebersicht rechnen dieselben Module (uebersicht-rechnung.mjs, vermoegen.mjs)
+// ueber den Demobestand, wie es die Lese-APIs des App-Servers tun; das Tool
+// laeuft als eigener Server-Prozess auf einem Abzug mit denselben Demodaten
+// als data/master.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import test, { after, before } from "node:test";
 import { centsToDecimal } from "../app/tools/lib/text.mjs";
 import { legeAbzugAn, starteServer } from "./mcp-hilfe.mjs";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
 
-globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
-globalThis.localStorage = { getItem: () => null, setItem: () => {} };
-globalThis.window = globalThis;
-globalThis.fetch = async (pfad) => {
-  const bestand = bestandAntwort(pfad);
-  if (bestand) return bestand;
-  const rein = String(pfad).replace(/^\.\//, "").replace(/\?.*$/, "").replace(/^data\/master\//, "data/demo/");
-  const body = readFileSync(new URL(`../app/${rein}`, import.meta.url), "utf8");
-  return { ok: true, status: 200, json: async () => JSON.parse(body), text: async () => body };
-};
-await import("../app/i18n.js");
-const { data } = await import("../app/runtime.mjs");
-const selektoren = await import("../app/selektoren.mjs");
+const { leseSnapshot } = await import("../app/stand.mjs");
+const { daten: demo } = await leseSnapshot(fileURLToPath(new URL("../app/data/demo/", import.meta.url)));
+// Wie der Bestand der Uebersicht: mit (leeren) Checks fuer checkItems.
+const data = { ...demo, checks: [] };
+const { computeNettovermoegen } = await import("../app/vermoegen.mjs");
+const { kontenGruppen, kontoZeile, saldoGeladenerKonten, sortierteKonten } = await import("../app/uebersicht-rechnung.mjs");
 const { buildNextAgentAction } = await import("../app/next-action.mjs");
 const { localTodayIso } = await import("../app/liquiditaet.mjs");
 const { checkItems, checkVorschau } = await import("../app/uebersicht-rechnung.mjs");
@@ -41,12 +34,12 @@ test("kennzahlen liefert dieselben Werte wie die Uebersicht", async () => {
     const text = r.text;
     assert.match(text, new RegExp(`Stichtag ${heute}`));
 
-    const netto = selektoren.currentNettovermoegen();
+    const netto = computeNettovermoegen(data, heute);
     assert.ok(text.includes(`Nettovermoegen: ${eur(netto.netto_cents)}`), text);
     assert.ok(text.includes(`Aktiva ${eur(netto.aktiva_cents)}`));
     assert.ok(text.includes(`Passiva ${eur(netto.passiva_cents)}`));
-    assert.ok(text.includes(`Summe geladener Bewegungen (Konten): ${eur(selektoren.loadedTotalAccountsBalance())}`));
-    const gruppen = selektoren.overviewAccountGroups();
+    assert.ok(text.includes(`Summe geladener Bewegungen (Konten): ${eur(saldoGeladenerKonten(data))}`));
+    const gruppen = kontenGruppen(data, heute);
     assert.ok(text.includes(`Verfuegbares Geld: ${eur(gruppen.konten.summe_cents)} (= Summe Konten der Tabelle, ${gruppen.konten.belegt} von ${gruppen.konten.gesamt} belegt`), text);
     assert.ok(text.includes(`Summe Depots: ${eur(gruppen.depots.summe_cents)}`), text);
     // Trend der Kacheln: Jahresvergleich der Summen (oder der Hinweis, dass Vormonate fehlen).
@@ -55,10 +48,10 @@ test("kennzahlen liefert dieselben Werte wie die Uebersicht", async () => {
     // Kontentabelle in derselben Reihenfolge und mit denselben Salden.
     const zeilen = text.split("\n");
     const kontoZeilen = zeilen.filter((z) => /^- KTO-/.test(z));
-    const konten = selektoren.sortedOverviewAccounts();
+    const konten = sortierteKonten(data);
     assert.deepEqual(kontoZeilen.map((z) => z.slice(2).split(" ")[0]), konten.map((k) => k.konto_id));
     for (const [i, konto] of konten.entries()) {
-      const z = selektoren.overviewAccountRow(konto);
+      const z = kontoZeile(data, konto, heute);
       if (z.wert_cents === null) assert.ok(kontoZeilen[i].includes(`kein Wert (${z.basis})`), kontoZeilen[i]);
       else assert.ok(kontoZeilen[i].includes(`${eur(z.wert_cents)}, ${z.qualitaet} zum ${z.belegdatum}${z.veraltet ? ", veraltet" : ""}`), kontoZeilen[i]);
       assert.doesNotMatch(kontoZeilen[i], /letzte Buchung/);

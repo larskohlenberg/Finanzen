@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort, demoBuchungen } from "./hilfe-bestand.mjs";
 
 // Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
 let appDaten = null;
@@ -25,8 +25,10 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const transactionsView = await import("../app/views/transaktionen.mjs");
 const vermoegenView = await import("../app/views/vermoegen.mjs");
-const { data, state, transaktionenById } = runtime;
+const { data, state } = runtime;
 appDaten = data;
+// Buchungen hat nur der Server; data dient hier als sein Bestand.
+Object.assign(data, demoBuchungen());
 const { renderTransactions } = transactionsView;
 const { renderVermoegen } = vermoegenView;
 
@@ -104,13 +106,11 @@ test("Transaktions-Rail zeigt die abgeleitete Vorsorge anklickbar", async () => 
       transactionPage: state.transactionPage,
       transactionFilters: state.transactionFilters,
     },
-    transactionMapEntry: transaktionenById.get(tx.transaktion_id),
   };
   try {
     data.transaktionen = [tx];
     data.regelzahlungen = [{ regelzahlung_id: "RZ-001", vorsorge_id: "VS-003" }];
     data.vorsorge = [{ vorsorge_id: "VS-003", name: "Riester Lena" }];
-    transaktionenById.set(tx.transaktion_id, tx);
     resetTransactionState();
     state.selectedTransactionId = tx.transaktion_id;
 
@@ -128,8 +128,6 @@ test("Transaktions-Rail zeigt die abgeleitete Vorsorge anklickbar", async () => 
     state.detailRailClosed = saved.transactionState.detailRailClosed;
     state.transactionPage = saved.transactionState.transactionPage;
     state.transactionFilters = saved.transactionState.transactionFilters;
-    if (saved.transactionMapEntry === undefined) transaktionenById.delete(tx.transaktion_id);
-    else transaktionenById.set(tx.transaktion_id, saved.transactionMapEntry);
   }
 });
 

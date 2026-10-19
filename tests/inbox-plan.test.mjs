@@ -32,6 +32,19 @@ test("CSV-Laufbericht behaelt die neu geschriebenen Transaktions-IDs", () => {
   assert.equal(bericht.geschrieben, 2);
 });
 
+test("CSV-Laufbericht nennt alle Lese- und Importfehler, nicht nur die ersten drei", () => {
+  const lesefehler = [3, 4, 5, 6, 7].map((zeile) => ({ zeile, grund: "Betrag fehlt", rohzeile: `zeile ${zeile}` }));
+  const importfehler = [1, 2, 3, 4].map((row) => ({ row, reason: "format", detail: "konto_id unbekannt", raw: { konto_id: "KTO-999" } }));
+  const bericht = importLaufBericht({
+    auftrag: { datei: "test.csv", art: "csv" },
+    profil: { profil_id: "test-profil" },
+    normalized: { eintraege: [{}, {}, {}, {}], fehler: lesefehler },
+    result: { written: [], skipped_dedupe: [], errors: importfehler, transfers_matched: [] },
+  });
+  assert.deepEqual(bericht.lesefehler_details, lesefehler);
+  assert.deepEqual(bericht.importfehler_details, importfehler.map(({ row, reason, detail }) => ({ row, reason, detail })));
+});
+
 test("Inbox-Protokoll aggregiert betroffene IDs stabil ueber alle CSV-Laeufe", () => {
   const ids = betroffeneTransaktionsIds([
     { art: "pdf-text" },

@@ -122,8 +122,14 @@ inbox  schreiben: true     # anwenden   (lokal: npm run inbox / inbox:schreiben)
 ```
 
 `tools/inbox.mjs` ordnet jede Datei ihrem Profil zu (`data/import-profile/`),
-normalisiert deterministisch, faehrt die Import-Pipeline, verschiebt die Datei
-nach `processed/` bzw. `error/` und schreibt den Laufeintrag ins `agent_log.jsonl`.
+normalisiert deterministisch, faehrt die Import-Pipeline, schreibt den Laufeintrag
+ins `agent_log.jsonl` und verschiebt die Datei erst danach, wenn der Bestand
+geschrieben und validiert ist: vollstaendig gelesen nach `processed/`, abgebrochen
+oder mit Zeilenfehlern samt Fehlernotiz `<name>.fehler.txt` nach `error/` (die
+guten Zeilen sind dann schon importiert; nach der Korrektur ueberspringt ein
+erneuter Lauf sie als Dubletten). Gleichnamige Dateien bekommen ein Suffix
+(`-2`, `-3` ...). Bringt der Lauf neue Validatorfehler, wird nichts geschrieben und
+nichts verschoben.
 
 Der Handablauf unten gilt weiterhin fuer:
 
@@ -443,8 +449,8 @@ ueberschreibt nie einen vorhandenen Zwilling.
 | --- | --- |
 | `data/inbox/` | Rohdateien zum Verarbeiten |
 | `data/inbox/standardized/` | Normalisierte Zwischenform, Durchgangsstation |
-| `data/inbox/processed/` | Erfolgreich verarbeitete Rohdateien |
-| `data/inbox/error/` | Fehlgeschlagene Importe + Begleitdatei |
+| `data/inbox/processed/` | Vollstaendig verarbeitete Rohdateien |
+| `data/inbox/error/` | Abgebrochene oder teilweise importierte Dateien + Fehlernotiz |
 | `DATENROOT/transaktionen.jsonl` | Finale Transaktionen |
 | `DATENROOT/transfers.json` | Transfer-Paarungen |
 | `DATENROOT/konten.json` | Konten-Stammdaten (fuer Zuordnung) |

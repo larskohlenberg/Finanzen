@@ -56,10 +56,11 @@ before(async () => {
   inboxDir = join(appDir, "data", "inbox");
   await mkdir(join(appDir, "views"), { recursive: true });
   await mkdir(inboxDir, { recursive: true });
-  await writeFile(join(appDir, "index.html"), "<!doctype html><title>t</title>");
-  await writeFile(join(appDir, "main.js"), "export {};");
+  await writeFile(join(appDir, "index.html"), '<!doctype html><title>t</title><script src="./main.js" type="module"></script>');
+  await writeFile(join(appDir, "main.js"), 'import "./views/a.mjs";');
   await writeFile(join(appDir, "views", "a.mjs"), "export const a = 1;");
-  await writeFile(join(appDir, "daten.json"), "{}");
+  await mkdir(join(appDir, "data", "master"), { recursive: true });
+  await writeFile(join(appDir, "data", "master", "personen.json"), "[]");
   await writeFile(join(wurzel, "geheim.txt"), "GEHEIM");
   await symlink(join(wurzel, "geheim.txt"), join(appDir, "link.txt"));
   await symlink(wurzel, join(appDir, "linkdir"));
@@ -88,7 +89,7 @@ test("Statik: / liefert index.html mit No-Cache- und Sicherheits-Kopfzeilen", as
 test("Statik: MIME-Typen fuer Module und JSON, HEAD ohne Body", async () => {
   assert.match((await anfrage({ path: "/views/a.mjs" })).headers["content-type"], /^text\/javascript/);
   assert.match((await anfrage({ path: "/main.js?v=1" })).headers["content-type"], /^text\/javascript/);
-  assert.match((await anfrage({ path: "/daten.json" })).headers["content-type"], /^application\/json/);
+  assert.match((await anfrage({ path: "/data/master/personen.json" })).headers["content-type"], /^application\/json/);
   const head = await anfrage({ method: "HEAD", path: "/main.js" });
   assert.equal(head.status, 200);
   assert.equal(head.text, "");
@@ -162,7 +163,7 @@ test("Upload: Angriffe im Dateinamen schreiben nie ausserhalb der Inbox", async 
     assert.equal(r.json?.status, "abgelehnt", name);
   }
   assert.deepEqual(await inboxInhalt(), vorher);
-  assert.deepEqual((await readdir(join(appDir, "data"))).sort(), ["inbox"]);
+  assert.deepEqual((await readdir(join(appDir, "data"))).sort(), ["inbox", "master"]);
 });
 
 test("Upload: Kopfzeile und Origin sind Pflicht", async () => {

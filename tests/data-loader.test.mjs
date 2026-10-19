@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { loadJson, loadJsonl, loadFinanceData, parseJsonl } from "../app/data-loader.mjs";
+import { DATEN_DATEIEN, loadJson, loadJsonl, loadFinanceData, parseJsonl } from "../app/data-loader.mjs";
 
 test("parseJsonl parses non-empty lines and ignores blanks", () => {
   assert.deepEqual(parseJsonl('{"a":1}\n\n{"b":2}\n'), [{ a: 1 }, { b: 2 }]);
@@ -182,4 +182,19 @@ test("loadFinanceData nutzt standardmaessig Live-Masterdaten", async (t) => {
   assert.ok(calls.every((path) => path.startsWith("./data/master/")), "default requests should target app/data/master");
   assert.equal(data.metadata.bundleVersion, "live-master");
   assert.equal(data.metadata.dataMode, "live");
+});
+
+test("loadFinanceData laedt nur Dateien aus DATEN_DATEIEN (Statik-Allowlist des Servers)", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const geladen = new Set();
+  globalThis.fetch = async (path) => {
+    const filename = path.split("/").pop().split("?")[0];
+    geladen.add(filename);
+    return { ok: true, json: async () => (filename === "farben.json" ? {} : []), text: async () => "" };
+  };
+  await loadFinanceData({ dataMode: "demo" });
+  assert.deepEqual([...geladen].sort(), [...DATEN_DATEIEN].sort());
 });

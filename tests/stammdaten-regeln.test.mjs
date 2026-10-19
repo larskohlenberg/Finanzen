@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -22,6 +25,7 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const stammdatenView = await import("../app/views/stammdaten.mjs");
 const { data, state, kontenById } = runtime;
+appDaten = data;
 const { renderMasterdata } = stammdatenView;
 
 test("Konten-Stammdaten zeigen die Konto-ID", () => {
@@ -131,7 +135,7 @@ test("Kategorien-Stammdaten zeigen die Kategorie-ID", () => {
   assert.match(html, /<td>KAT-SICHTBAR<\/td>/);
 });
 
-test("Regelliste zeigt REG-001 und Trefferanzahl 1", () => {
+test("Regelliste zeigt REG-001 und Trefferanzahl 1", async () => {
   data.kategorisierungsregeln = [
     {
       regel_id: "REG-001",
@@ -155,12 +159,14 @@ test("Regelliste zeigt REG-001 und Trefferanzahl 1", () => {
   state.masterSection = "regeln";
   state.selectedRegel = "";
 
+  renderMasterdata();
+  await apiAbwarten();
   const html = renderMasterdata();
   assert.match(html, /REG-001/, "REG-001 must appear in the rule list");
-  assert.match(html, /\b1\b/, "Hit count 1 must appear");
+  assert.match(html, /<span class="rule-hits-cell">1<\/span>/, "Hit count 1 from the API must appear");
 });
 
-test("Regeldetail zeigt Klartext und Beispiel-Gegenpartei", () => {
+test("Regeldetail zeigt Klartext und Beispiel-Gegenpartei", async () => {
   data.kategorisierungsregeln = [
     {
       regel_id: "REG-001",
@@ -184,6 +190,8 @@ test("Regeldetail zeigt Klartext und Beispiel-Gegenpartei", () => {
   state.masterSection = "regeln";
   state.selectedRegel = "REG-001";
 
+  renderMasterdata();
+  await apiAbwarten();
   const html = renderMasterdata();
   assert.match(html, /Bucht auf/, "Klartext condition must contain 'Bucht auf'");
   assert.match(html, /MusterladenB Markt/, "Example counterparty must appear in detail view");

@@ -20,7 +20,8 @@ globalThis.fetch = async (path) => {
 };
 await import("../app/i18n.js");
 
-const { renderHerkunft, matchesOriginFilter } = await import("../app/views/transaktionen.mjs");
+const { renderHerkunft } = await import("../app/views/transaktionen.mjs");
+const { passtHerkunft: matchesOriginFilter } = await import("../app/transaktionen-abfrage.mjs");
 
 // renderHerkunft(tx) is a pure string function — no DOM, no data access needed.
 

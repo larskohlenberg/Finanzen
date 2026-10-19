@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -23,6 +26,7 @@ const runtime = await import("../app/runtime.mjs");
 const transactionsView = await import("../app/views/transaktionen.mjs");
 const vermoegenView = await import("../app/views/vermoegen.mjs");
 const { data, state, transaktionenById } = runtime;
+appDaten = data;
 const { renderTransactions } = transactionsView;
 const { renderVermoegen } = vermoegenView;
 
@@ -55,8 +59,10 @@ function resetVermoegenState() {
   state.vermoegenTab = "uebersicht";
 }
 
-test("transactions initial render has no selected row and no visible detail rail", () => {
+test("transactions initial render has no selected row and no visible detail rail", async () => {
   resetTransactionState();
+  renderTransactions();
+  await apiAbwarten();
   const html = renderTransactions();
 
   assert.equal(state.selectedTransactionId, "");
@@ -65,7 +71,7 @@ test("transactions initial render has no selected row and no visible detail rail
   assert.match(html, /layout-with-rail rail-closed/);
 });
 
-test("Transaktions-Rail zeigt die abgeleitete Vorsorge anklickbar", () => {
+test("Transaktions-Rail zeigt die abgeleitete Vorsorge anklickbar", async () => {
   const tx = {
     transaktion_id: "TXN-11111111-1111-4111-8111-111111111111",
     regelzahlung_id: "RZ-001",
@@ -98,6 +104,8 @@ test("Transaktions-Rail zeigt die abgeleitete Vorsorge anklickbar", () => {
     resetTransactionState();
     state.selectedTransactionId = tx.transaktion_id;
 
+    renderTransactions();
+    await apiAbwarten();
     const html = renderTransactions();
     assert.match(html, /Vorsorge/);
     assert.match(html, /data-action="open-vorsorge" data-vorsorge="VS-003"/);

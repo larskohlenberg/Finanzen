@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
@@ -25,7 +25,7 @@ const vermoegenView = await import("../app/views/vermoegen.mjs");
 const vermoegen = await import("../app/vermoegen.mjs");
 const liquiditaet = await import("../app/liquiditaet.mjs");
 const { data, state } = runtime;
-const { filteredTransactions, renderTransactions } = transactionsView;
+const { renderTransactions } = transactionsView;
 const { renderVermoegen } = vermoegenView;
 const { computeNettovermoegen } = vermoegen;
 const { localTodayIso } = liquiditaet;
@@ -48,15 +48,20 @@ function resetTransactionFilters() {
   state.transactionPage = 1;
 }
 
-test("transactions show filtered hits out of total hits even without active filters", () => {
+// Treffer und Gesamtzahl kommen aus der Transaktionen-API (hier wie der Server ueber den Demobestand).
+async function gerendert() {
+  renderTransactions();
+  await apiAbwarten();
+  return renderTransactions();
+}
+
+test("transactions show filtered hits out of total hits even without active filters", async () => {
   resetTransactionFilters();
   const total = data.transaktionen.length;
 
-  assert.match(renderTransactions(), new RegExp(`${total} von ${total} Treffer`));
+  assert.match(await gerendert(), new RegExp(`${total} von ${total} Treffer`));
 
   state.transactionFilters.search = data.transaktionen[0].transaktion_id;
-  const filtered = filteredTransactions().length;
-  assert.ok(filtered > 0);
-  assert.match(renderTransactions(), new RegExp(`${filtered} von ${total} Treffer`));
+  assert.match(await gerendert(), new RegExp(`1 von ${total} Treffer`));
 });
 

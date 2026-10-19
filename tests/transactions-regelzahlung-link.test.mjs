@@ -23,8 +23,12 @@ globalThis.fetch = async (path) => {
 };
 await import("../app/i18n.js");
 
-const { regelzahlungForTransaction, renderTransactionDetail } = await import("../app/views/transaktionen.mjs");
+const { renderTransactionDetail } = await import("../app/views/transaktionen.mjs");
 const { data } = await import("../app/runtime.mjs");
+const { transaktionDetail } = await import("../app/transaktionen-abfrage.mjs");
+// Detail und Bezuege rechnet der Server (transaktionDetail); hier ueber den geladenen Bestand.
+const renderDetail = (tx) => renderTransactionDetail(transaktionDetail(data, tx));
+const regelzahlungForTransaction = (tx) => transaktionDetail(data, tx).regelzahlung ?? undefined;
 
 // Keine echte ID im Testcode: die Regelzahlung wird aus dem geladenen Bestand
 // gezogen, damit der Test nicht bricht, wenn sich der Datenbestand aendert.
@@ -62,7 +66,7 @@ test("regelzahlungForTransaction: bekannte ID loest die Regelzahlung auf", () =>
 
 test("Detail-Ansicht zeigt die verknuepfte Regelzahlung als Querlink", () => {
   assert.ok(eineRegelzahlung, "Testvoraussetzung: es gibt mindestens eine Regelzahlung");
-  const html = renderTransactionDetail(txMit({ regelzahlung_id: eineRegelzahlung.regelzahlung_id }));
+  const html = renderDetail(txMit({ regelzahlung_id: eineRegelzahlung.regelzahlung_id }));
 
   assert.match(html, /Regelzahlung/, "Label fehlt");
   assert.match(html, /data-action="open-regelzahlung"/, "Querlink-Aktion fehlt");
@@ -74,7 +78,7 @@ test("Detail-Ansicht zeigt die verknuepfte Regelzahlung als Querlink", () => {
 });
 
 test("Detail-Ansicht zeigt keine Regelzahlungs-Zeile, wenn die Buchung keine traegt", () => {
-  const html = renderTransactionDetail(txMit());
+  const html = renderDetail(txMit());
   assert.doesNotMatch(html, /data-action="open-regelzahlung"/);
 });
 

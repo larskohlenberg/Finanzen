@@ -157,7 +157,7 @@ export function transaktionenSeite(daten, {
     seiten,
     groesse: proSeite,
     zeilen: treffer.slice(start, start + proSeite).map(mitGegenbuchung),
-    auswahl: gewaehlt ? detailFuer(daten, mitGegenbuchung(gewaehlt)) : null,
+    auswahl: gewaehlt ? transaktionDetail(daten, mitGegenbuchung(gewaehlt)) : null,
     monate: datumsteile(daten.transaktionen ?? [], 7),
     jahre: datumsteile(daten.transaktionen ?? [], 4),
   };
@@ -165,7 +165,7 @@ export function transaktionenSeite(daten, {
 
 // Buchung mit ihren Bezuegen fuer das Detail: Regelzahlung, Vorsorge (nur ueber
 // die Regelzahlung, agent-context: Transaktion -> Regelzahlung -> Vorsorge), Immobilie.
-function detailFuer(daten, tx) {
+export function transaktionDetail(daten, tx) {
   const regelzahlung = tx.regelzahlung_id ? (daten.regelzahlungen ?? []).find((rz) => rz.regelzahlung_id === tx.regelzahlung_id) : undefined;
   const vorsorge = regelzahlung?.vorsorge_id ? (daten.vorsorge ?? []).find((vs) => vs.vorsorge_id === regelzahlung.vorsorge_id) : undefined;
   const immobilie = tx.immobilie_id ? (daten.immobilien ?? []).find((im) => im.immobilie_id === tx.immobilie_id) : undefined;
@@ -192,6 +192,7 @@ export function regelWirkungAntwort(daten, { regel = "", zeilen = 50 } = {}) {
     anzahl,
     regel: regel ? {
       regel_id: regel,
+      anzahl: trefferDerRegel.length,
       beispiele: [...new Set(trefferDerRegel.map((tx) => tx.gegenpartei).filter(Boolean))].slice(0, 5),
       zeilen: trefferDerRegel.slice(0, zeilen).map((tx) => ({ transaktion_id: tx.transaktion_id, buchungsdatum: tx.buchungsdatum, gegenpartei: tx.gegenpartei })),
     } : null,

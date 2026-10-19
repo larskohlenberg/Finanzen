@@ -128,7 +128,9 @@ test("neuer Stand: naechster Klick laedt neu, ohne Reload, Filter und Auswahl bl
   assert.equal(state.transactionFilters.search, "Testbuchung");
   assert.equal(state.selectedKonto, "KTO-001");
   assert.deepEqual(reloads, [], "kein Seiten-Reload");
-  assert.equal(srStatus.textContent, "Neuer Datenstand geladen");
+  // Hinweis plus Statusmeldung der Ansicht mit den Zahlen aus der Transaktionen-API.
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.match(srStatus.textContent, /^Neuer Datenstand geladen\. Transaktionen: 1 Treffer/);
   const bedingt = server.anfragen.filter((a) => a.pfad.includes("api/v1/snapshot")).at(-1);
   assert.equal(bedingt.optionen.headers["If-None-Match"], '"stand-1"');
 });

@@ -78,32 +78,3 @@ export function overviewAccountRank(konto) {
 export function sortedOverviewAccounts() {
   return sortierteKonten(data);
 }
-
-// Reine Inversion (testbar ohne Modulzustand): matched_regeln -> Regel-Treffer.
-export function regelWirkungAus(transaktionen) {
-  const map = new Map();
-  for (const tx of transaktionen) {
-    for (const id of tx.matched_regeln ?? []) {
-      let eintrag = map.get(id);
-      if (!eintrag) {
-        eintrag = { transaktionen: [], anzahl: 0 };
-        map.set(id, eintrag);
-      }
-      eintrag.transaktionen.push(tx);
-      eintrag.anzahl += 1;
-    }
-  }
-  return map;
-}
-
-// Memoisiert ueber die Array-Referenz: wird nur bei Reload (neues data.transaktionen)
-// neu berechnet. Ein O(N)-Tally-Pass, kein String-Matching.
-let _wirkungQuelle = null;
-let _wirkungCache = null;
-export function regelWirkung() {
-  if (_wirkungQuelle !== data.transaktionen) {
-    _wirkungQuelle = data.transaktionen;
-    _wirkungCache = regelWirkungAus(data.transaktionen);
-  }
-  return _wirkungCache;
-}

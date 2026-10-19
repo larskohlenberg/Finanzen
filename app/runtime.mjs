@@ -105,6 +105,8 @@ export const state = {
   },
   transactionSort: { key: "date", dir: "desc" },
   transactionPage: 1,
+  // Buchungs-Id, auf deren Seite gesprungen werden soll (rechnet der Server).
+  transactionJumpTo: "",
   pageSize: 10,
   selectedTransactionId: "",
   detailRailClosed: false,

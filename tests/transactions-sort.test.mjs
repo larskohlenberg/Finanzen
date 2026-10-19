@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
@@ -22,20 +22,23 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const transactionsView = await import("../app/views/transaktionen.mjs");
 const { data, state, cents } = runtime;
-const { filteredTransactions, renderTransactions } = transactionsView;
+const { renderTransactions } = transactionsView;
+const { filtereTransaktionen, sortiereTransaktionen } = await import("../app/transaktionen-abfrage.mjs");
+// Wie der Server (GET /api/v1/transaktionen): gefiltert und sortiert ueber den Bestand.
+const filteredTransactions = () => sortiereTransaktionen(filtereTransaktionen(data, state.transactionFilters), data, state.transactionSort, "Keine Kategorie");
 
-function withTransactionSort(sort, fn) {
+async function withTransactionSort(sort, fn) {
   const previousSort = state.transactionSort;
   state.transactionSort = sort;
   try {
-    fn();
+    await fn();
   } finally {
     state.transactionSort = previousSort;
   }
 }
 
-test("transactions can be sorted by amount ascending", () => {
-  withTransactionSort({ key: "amount", dir: "asc" }, () => {
+test("transactions can be sorted by amount ascending", async () => {
+  await withTransactionSort({ key: "amount", dir: "asc" }, () => {
     const rows = filteredTransactions();
     assert.ok(rows.length > 1);
     for (let index = 1; index < rows.length; index += 1) {
@@ -44,20 +47,22 @@ test("transactions can be sorted by amount ascending", () => {
   });
 });
 
-test("transactions can be sorted by counterparty descending", () => {
-  withTransactionSort({ key: "counterparty", dir: "desc" }, () => {
+test("transactions can be sorted by counterparty descending", async () => {
+  await withTransactionSort({ key: "counterparty", dir: "desc" }, () => {
     const rows = filteredTransactions();
     assert.ok(rows.length > 1);
     for (let index = 1; index < rows.length; index += 1) {
       const previous = String(rows[index - 1].gegenpartei ?? "");
       const current = String(rows[index].gegenpartei ?? "");
-      assert.ok(previous.localeCompare(current) >= 0);
+      assert.ok(previous.localeCompare(current, "de") >= 0);
     }
   });
 });
 
-test("transactions render sortable column headers", () => {
-  withTransactionSort({ key: "category", dir: "asc" }, () => {
+test("transactions render sortable column headers", async () => {
+  await withTransactionSort({ key: "category", dir: "asc" }, async () => {
+    renderTransactions();
+    await apiAbwarten();
     const html = renderTransactions();
     for (const key of ["date", "account", "counterparty", "purpose", "amount", "category"]) {
       assert.match(html, new RegExp(`data-transaction-sort="${key}"`));

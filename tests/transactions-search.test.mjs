@@ -22,7 +22,9 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const transactionsView = await import("../app/views/transaktionen.mjs");
 const { data, state, kontenById } = runtime;
-const { filteredTransactions } = transactionsView;
+const { filtereTransaktionen, sortiereTransaktionen } = await import("../app/transaktionen-abfrage.mjs");
+// Wie der Server (GET /api/v1/transaktionen): gefiltert und sortiert ueber den Bestand.
+const filteredTransactions = () => sortiereTransaktionen(filtereTransaktionen(data, state.transactionFilters), data, state.transactionSort, "Keine Kategorie");
 
 // Synthetisches Szenario: ein Konto mit "MusterbankA" im Namen und eine Buchung darauf,
 // deren Freitextfelder das Wort "MusterbankA" NICHT enthalten. So lässt sich der frühere

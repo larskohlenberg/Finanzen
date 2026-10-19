@@ -148,9 +148,15 @@ test("Bestandsdateien sind statisch nicht mehr abrufbar", async () => {
 
 test("Snapshot-Quelle: baut je Stand einmal, gleichzeitige Anfragen teilen sich den Bau", async () => {
   const quelle = erstelleSnapshotQuelle(demo);
-  const [a, b] = await Promise.all([quelle.snapshot(), quelle.snapshot()]);
-  assert.equal(a, b);
-  assert.equal(await quelle.snapshot(), a, "gleicher Stand: kein Neubau");
-  assert.equal(JSON.parse(a.body).stand, a.stand);
+  const [a, b] = await Promise.all([quelle.bestand(), quelle.bestand()]);
+  assert.equal(a, b, "ein gemeinsamer Lesevorgang");
+  assert.equal(await quelle.bestand(), a, "gleicher Stand: kein Neulesen");
+  assert.ok(Array.isArray(a.daten.transaktionen), "geparste Daten fuer die Lese-APIs");
+  let gerechnet = 0;
+  assert.equal(a.merke("x", () => ++gerechnet), 1);
+  assert.equal(a.merke("x", () => ++gerechnet), 1, "abgeleitete Werte einmal je Stand");
+  const snap = await quelle.snapshot();
+  assert.equal(JSON.parse(snap.body).stand, a.stand);
+  assert.equal((await quelle.snapshot()).body, snap.body);
   assert.equal(a.stand, (await leseSnapshot(demo)).stand);
 });

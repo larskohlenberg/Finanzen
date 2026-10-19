@@ -9,7 +9,8 @@ import { renderVorsorge, resetVorsorgeFilters } from "./views/vorsorge.mjs";
 import { tabFuerVorsorge } from "./vorsorge-rechnung.mjs";
 import { setWertstaendeFilter, resetWertstaendeFilters, toggleWertstaendeSort } from "./views/vermoegen-wertstaende.mjs";
 import { renderSzenarien, MAX_VERGLEICH } from "./views/szenarien.mjs";
-import { renderTransactions, filteredTransactions, transactionPageForId, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
+import { renderTransactions, transaktionenAntwort, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
+import { beiApiAntwort, leereApiCaches, verwerfeApiCaches } from "./api-daten.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
 import { renderPlanIst } from "./views/plan-ist.mjs";
 import { renderTermine } from "./views/termine.mjs";
@@ -22,8 +23,8 @@ import {
   toggleBelegeSort, toggleBelegeOrdner, ordnerDerAuswahl, waehleAusschnittOrdner, toggleAusschnittOrdner,
 } from "./views/belege.mjs";
 import {
-  app, data, state, storageKeys, navItems, TABBAR_VIEWS, transaktionenById,
-  t, escapeHtml, cents, verwerfeDaten, ersetzeDaten,
+  app, data, state, storageKeys, navItems, TABBAR_VIEWS,
+  t, escapeHtml, verwerfeDaten, ersetzeDaten,
 } from "./runtime.mjs";
 import { ladeSnapshot, ladeStand } from "./data-loader.mjs";
 import { erstelleStandWaechter } from "./stand-wechsel.mjs";
@@ -127,17 +128,21 @@ function statusMessage() {
   const navLabel = navItems.find(([view]) => view === state.view)?.[1];
   const title = navLabel ? t(navLabel) : "";
   if (state.view === "transactions") {
-    const rows = filteredTransactions();
-    const balance = rows.reduce((sum, tx) => sum + cents(tx.betrag), 0);
-    return `${title}: ${rows.length} ${t("transactions.hits")}, ${t("transactions.filteredBalance")} ${formatMoney(balance)}`;
+    const { antwort } = transaktionenAntwort();
+    if (!antwort) return title;
+    return `${title}: ${antwort.treffer} ${t("transactions.hits")}, ${t("transactions.filteredBalance")} ${formatMoney(antwort.saldo_cent)}`;
   }
   return title;
 }
 
+// "Neuer Datenstand geladen" bleibt vor der Statusmeldung stehen, bis der
+// naechste Klick kommt; die Antworten der Lese-APIs zeichnen danach erneut.
+let standHinweis = "";
+
 function announceStatus() {
   const region = document.querySelector("#sr-status");
   if (!region) return;
-  const msg = statusMessage();
+  const msg = standHinweis ? `${standHinweis}. ${statusMessage()}` : statusMessage();
   if (region.textContent !== msg) region.textContent = msg;
 }
 
@@ -977,8 +982,8 @@ async function handleAction(element) {
     state.transactionFilters.vorsorge = "";
     clearTransactionTimeFilter();
     state.selectedTransactionId = element.dataset.transaction;
-    // Seite der Zielbuchung, sonst steht die Rail offen, die Zeile aber auf einer spaeteren Seite.
-    state.transactionPage = transactionPageForId(state.selectedTransactionId);
+    // Seite der Zielbuchung (rechnet der Server), sonst steht die Rail offen, die Zeile aber auf einer spaeteren Seite.
+    state.transactionJumpTo = state.selectedTransactionId;
     state.detailRailClosed = false;
     commitNavigation();
     return;
@@ -1025,16 +1030,17 @@ async function handleAction(element) {
     state.view = "transactions";
     const transactionId = element.dataset.transaction;
     state.selectedTransactionId = transactionId;
-    const paired = transaktionenById.get(transactionId);
-    if (paired) {
-      state.transactionFilters.account = paired.konto_id;
+    // Konto der Gegenbuchung steht am Knopf (aus der Antwort der Transaktionen-API).
+    const kontoId = element.dataset.account;
+    if (kontoId) {
+      state.transactionFilters.account = kontoId;
       state.transactionFilters.beleg = "";
     state.transactionFilters.vorsorge = "";
       state.transactionFilters.status = "";
       state.transactionFilters.category = "";
       state.transactionFilters.transfer = "";
       state.detailRailClosed = false;
-      state.transactionPage = transactionPageForId(transactionId);
+      state.transactionJumpTo = transactionId;
     }
     commitNavigation();
     return;
@@ -1266,7 +1272,7 @@ async function handleAction(element) {
       state.transactionFilters.status = "";
       state.transactionFilters.category = "";
       state.transactionFilters.transfer = "";
-      state.transactionPage = transactionPageForId(entity);
+      state.transactionJumpTo = entity;
     } else {
       zeigeChecks();
     }
@@ -1375,14 +1381,16 @@ function applyRoute(route) {
   if (route.selectedKonto) state.selectedKonto = route.selectedKonto;
   if (route.selectedRegel) state.selectedRegel = route.selectedRegel;
 
-  if (route.selectedTransactionId && transaktionenById.has(route.selectedTransactionId)) {
+  // Ob es die Buchung gibt, weiss der Server: liegt sie nicht im (geleerten)
+  // Filter, faellt die Auswahl mit der Antwort weg.
+  if (route.selectedTransactionId) {
     Object.assign(state.transactionFilters, {
       account: "", status: "", category: "", transfer: "", search: "", beleg: "", vorsorge: "",
       timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
     });
     state.selectedTransactionId = route.selectedTransactionId;
     state.detailRailClosed = false;
-    state.transactionPage = transactionPageForId(route.selectedTransactionId);
+    state.transactionJumpTo = route.selectedTransactionId;
   }
 
   // Transaktionen gefiltert auf ein Quelldokument: uebrige Filter leeren, damit
@@ -1455,9 +1463,11 @@ const standWaechter = erstelleStandWaechter({
   uebernehme: (neu) => {
     if (sitzungGesperrt) return;
     ersetzeDaten(neu);
+    // Antworten der Lese-APIs gehoeren zum alten Stand; neu geholt wird beim
+    // Zeichnen nur, was die aktive Ansicht braucht.
+    verwerfeApiCaches();
+    standHinweis = t("chrome.dataUpdated");
     render();
-    const region = document.querySelector("#sr-status");
-    if (region) region.textContent = t("chrome.dataUpdated");
   },
 });
 
@@ -1473,7 +1483,10 @@ function pruefeStand(optionen) {
 }
 
 // Nach dem Klick-Handler: erst reagiert die Oberflaeche, dann kommt ggf. der neue Stand.
-app.addEventListener("click", () => pruefeStand());
+app.addEventListener("click", () => {
+  standHinweis = "";
+  pruefeStand();
+});
 window.addEventListener("hashchange", () => pruefeStand());
 window.addEventListener("popstate", () => pruefeStand());
 window.addEventListener("focus", () => pruefeStand());
@@ -1500,6 +1513,9 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () 
   if (state.theme === "system") render();
 });
 
+// Ist eine Antwort einer Lese-API da, zeichnet die Ansicht neu.
+beiApiAntwort(() => render());
+
 applyRoute(parseRoute(location.hash));
 lastCommittedView = state.view;
 history.replaceState(snapshotState(), "", routeFromState(state));
@@ -1519,6 +1535,7 @@ function sperreSitzung(grund) {
   for (const id of sitzungsTimer) clearInterval(id);
   const hinweis = t("chrome.locked");
   verwerfeDaten();
+  leereApiCaches();
   app.className = "app-shell sitzung-gesperrt";
   app.innerHTML = `<p class="sitzung-hinweis" role="status">${iconSvg("lock")}<span>${escapeHtml(hinweis)}</span></p>`;
   const sr = document.querySelector("#sr-status");

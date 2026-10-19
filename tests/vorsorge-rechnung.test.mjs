@@ -29,9 +29,9 @@ function daten() {
       zw("VS-006", "erwartete_rente", "100.00"),
     ],
     regelzahlungen: [
-      { regelzahlung_id: "RZ-001", vorsorge_id: "VS-002", betrag: "-150.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-06-01" },
-      { regelzahlung_id: "RZ-002", vorsorge_id: "VS-004", betrag: "-120.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2025-11-03" },
-      { regelzahlung_id: "RZ-003", vorsorge_id: "VS-003", betrag: "-30.00", rhythmus_einheit: "monat", rhythmus_intervall: 3, anker_datum: "2026-01-15", aktiv_bis: "2026-06-30" },
+      { regelzahlung_id: "RZ-001", vorsorge_id: "VS-002", betrag: "-150.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-06-01", status: "bestaetigt" },
+      { regelzahlung_id: "RZ-002", vorsorge_id: "VS-004", betrag: "-120.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2025-11-03", status: "bestaetigt" },
+      { regelzahlung_id: "RZ-003", vorsorge_id: "VS-003", betrag: "-30.00", rhythmus_einheit: "monat", rhythmus_intervall: 3, anker_datum: "2026-01-15", aktiv_bis: "2026-06-30", status: "bestaetigt" },
     ],
     transaktionen: [
       { transaktion_id: "TXN-1", regelzahlung_id: "RZ-002", buchungsdatum: "2024-11-04", betrag: "-100.00" },

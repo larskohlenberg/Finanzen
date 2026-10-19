@@ -602,3 +602,25 @@ test("Wertentwicklung ohne Beitragssumme vergleicht mit Stand plus Beitraegen un
     assert.doesNotMatch(raster, /Eingezahlt|Wert minus Beiträge/);
   }, { zeitwerte });
 });
+
+test("Kapitalleistungen: bedingte Todesfallsumme steht da, wird aber nicht faellig genannt (0A.6)", () => {
+  const risiko = { vorsorge_id: "VS-007", art: "lebensversicherung", name: "Risiko-LV Martin", person_id: "PER-002", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-08-01" };
+  mitFixture(() => {
+    const html = renderVorsorge();
+    const kachel = html.slice(html.indexOf("Kapitalleistungen"), html.indexOf("Rückkaufswerte im Vermögen"));
+    assert.match(kachel, /25\.000,00[\s\S]*fällig 2035 · dazu 200\.000,00\s€ bedingt oder ohne Termin, nicht eingerechnet/);
+    assert.doesNotMatch(kachel, /225\.000,00/, "keine Summe aus Faelligem und Bedingtem");
+    assert.match(kachel, /Risiko-LV Martin[\s\S]*bedingt[\s\S]*200\.000,00|Risiko-LV Martin[\s\S]*200\.000,00[\s\S]*bedingt/);
+  }, { vorsorge: [...fixture().vorsorge, risiko], zeitwerte: [...fixture().zeitwerte, zw("VS-007", "erwartete_kapitalleistung", "200000.00")] });
+});
+
+test("Beitraege: abgelehnte und erst kuenftig beginnende Regelzahlungen zaehlen nicht (0A.6)", () => {
+  const extra = [
+    { regelzahlung_id: "RZ-008", bezeichnung: "abgelehnt", vorsorge_id: "VS-002", betrag: "-900.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "abgelehnt" },
+    { regelzahlung_id: "RZ-009", bezeichnung: "kuenftig", vorsorge_id: "VS-004", betrag: "-110.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2099-01-01", status: "bestaetigt" },
+  ];
+  mitFixture(() => {
+    const html = renderVorsorge();
+    assert.match(html, /230,00[\s\S]*\/ Monat/, "weiterhin nur Riester + LV Martin");
+  }, { regelzahlungen: [...fixture().regelzahlungen, ...extra] });
+});

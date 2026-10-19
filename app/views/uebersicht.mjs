@@ -19,7 +19,7 @@ import { planIst } from "../plan-ist.mjs";
 import { abweichungHtml } from "./plan-ist.mjs";
 import { bezugLink, fristChip, fristKlasse } from "./fristen.mjs";
 import { terminLeiste } from "../charts.mjs";
-import { erwarteteLeistungen, gesetzlicherRentenbeginn, rentenStufen, tabFuerVorsorge, vertragsFarben } from "../vorsorge-rechnung.mjs";
+import { gesetzlicherRentenbeginn, kapitalLeistungen, rentenStufen, tabFuerVorsorge, vertragsFarben } from "../vorsorge-rechnung.mjs";
 import { balkenSvg, tf } from "./vermoegen-teile.mjs";
 
 const HORIZONT_MONATE = 12;
@@ -311,7 +311,7 @@ function renderVermoegenKachel() {
 
 // Zwei gleich grosse Werte: die monatliche Rente und die faelligen Einmalzahlungen.
 // Beitraege und offene Punkte stehen auf der Vorsorgeseite.
-function renderVorsorgeKachel() {
+function renderVorsorgeKachel(today) {
   const { renten, stufen, gesamt_cents: gesamt } = rentenStufen(data);
   const farben = vertragsFarben(data);
   const farbKlasse = (id) => (farben.has(id) ? `vertrag-farbe-${farben.get(id)}` : "vertrag-farbe-rest");
@@ -323,12 +323,15 @@ function renderVorsorgeKachel() {
   const sortiert = [...renten].sort((a, b) => b.wert_cents - a.wert_cents);
   const segmente = sortiert.map((l) => ({ anteil: l.wert_cents / Math.max(gesamt, 1), klasse: farbKlasse(l.vorsorge.vorsorge_id), titel: `${l.vorsorge.name}: ${formatMoney(l.wert_cents)}` }));
 
-  // Faellig ist nur, was ein Datum hat; eine Todesfallsumme ohne Ablauf zaehlt nicht.
-  const kapital = erwarteteLeistungen(data).filter((l) => l.typ === "kapital" && l.beginn);
-  const kapitalJahre = [...new Set(kapital.map((l) => l.beginn?.slice(0, 4)).filter(Boolean))].sort();
-  // Einmalzahlungen = erwartete Kapitalleistung je Vertrag (Ablaufleistung laut
-  // Vertrag/Standmitteilung), deshalb hoeher als der heutige Rueckkaufswert.
-  const kapitalSumme = kapital.reduce((a, l) => a + l.wert_cents, 0);
+  // Faellig ist nur, was ein Datum hat; bedingte (z. B. Todesfallsumme) und
+  // undatierte Leistungen nennt die Notiz, ohne sie einzurechnen. Gleiche Rechnung
+  // wie die Vorsorgeseite. Einmalzahlungen = erwartete Kapitalleistung je Vertrag
+  // (Ablaufleistung laut Vertrag/Standmitteilung), deshalb hoeher als der Rueckkaufswert.
+  const gruppen = kapitalLeistungen(data, today);
+  const kapital = gruppen.terminiert;
+  const kapitalJahre = gruppen.jahre;
+  const kapitalSumme = gruppen.terminiert_cents;
+  const nichtFaellig = gruppen.bedingt_cents + gruppen.undatiert_cents;
   const kapitalSegmente = [...kapital].sort((a, b) => b.wert_cents - a.wert_cents)
     .map((l) => ({ anteil: l.wert_cents / Math.max(kapitalSumme, 1), klasse: farbKlasse(l.vorsorge.vorsorge_id), titel: `${l.vorsorge.name}: ${formatMoney(l.wert_cents)}` }));
   const kapitalZeilen = kapital.map((l) => zeile(
@@ -340,7 +343,7 @@ function renderVorsorgeKachel() {
       <div class="uebersicht-zweitwert">
         <h3 class="vermoegen-teil-titel">${link(ZIEL.vorsorgeTab("lebensversicherungen"), t("overview.kapitalFaellig"))}</h3>
         <div class="kpi-value">${escapeHtml(formatMoney(kapitalSumme))} <span class="betrag-einheit">${escapeHtml(t("overview.einmalig"))}</span></div>
-        <div class="kpi-note">${escapeHtml(tf("vorsorge.kopf.kapitalFaellig", { jahre: kapitalJahre.join(" · ") }))}</div>
+        <div class="kpi-note">${escapeHtml([tf("vorsorge.kopf.kapitalFaellig", { jahre: kapitalJahre.join(" · ") }), nichtFaellig ? tf("vorsorge.kopf.nichtFaellig", { betrag: geldOhneCent(nichtFaellig) }) : ""].filter(Boolean).join(" · "))}</div>
         <div class="uebersicht-balken">${balkenSvg(kapitalSegmente)}</div>
         <ul class="vorsorge-kopf-liste">${kapitalZeilen.join("")}</ul>
       </div>` : "";
@@ -434,7 +437,7 @@ export function renderOverview() {
     <div class="uebersicht-kacheln">
       ${renderLiquiditaetKachel()}
       ${renderVermoegenKachel()}
-      ${renderVorsorgeKachel()}
+      ${renderVorsorgeKachel(today)}
     </div>
     ${renderTermineKachel(today)}
     ${renderAbsicherungKacheln(today)}

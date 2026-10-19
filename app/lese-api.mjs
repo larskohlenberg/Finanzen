@@ -50,9 +50,17 @@ function datum(suche, name, standard) {
   return wert;
 }
 
-// Stichtag der Oberflaeche (Tests setzen ihn fest), sonst heute.
+// Stichtag der Oberflaeche (Tests setzen ihn fest), sonst heute. Begrenzt auf
+// MAX_STICHTAG_JAHRE zurueck und ein Jahr voraus: Verlaeufe laufen monatsweise
+// bis zum Stichtag, ein Stichtag im Jahr 9999 blockierte den Server.
+export const MAX_STICHTAG_JAHRE = 10;
 function heute(suche) {
-  return datum(suche, "heute", localTodayIso());
+  const jetzt = localTodayIso();
+  const tag = datum(suche, "heute", jetzt);
+  if (tag > addInterval(jetzt, "jahr", 1) || tag < addInterval(jetzt, "jahr", -MAX_STICHTAG_JAHRE)) {
+    throw new AnfrageFehler(`heute: hoechstens ein Jahr voraus und ${MAX_STICHTAG_JAHRE} Jahre zurueck`);
+  }
+  return tag;
 }
 
 // Je Stand gemerkt wird nur der heutige Tag; andere Stichtage (Tests, ein

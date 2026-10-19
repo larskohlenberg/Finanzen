@@ -227,7 +227,10 @@ test("Konten und Vermoegen: nur Zahlen und Ids, keine Buchungslisten; Stichtag g
     assert.deepEqual(Object.keys(imm).sort(), ["alle_buchungen", "investitionen", "monate_mit_rate", "monate_ohne_investitionen", "monate_ohne_rate"]);
     for (const b of imm.investitionen.buchungen) assert.deepEqual(Object.keys(b).sort(), ["bemerkung", "betrag", "buchungsdatum", "gegenpartei", "transaktion_id", "verwendungszweck"]);
   }
-  for (const pfad of ["konten", "vermoegen"]) {
-    assert.equal((await hole(`/api/v1/${pfad}?quelle=demo&heute=2026-02-30`)).status, 400, pfad);
+  // Stichtag begrenzt: ein Verlauf bis ins Jahr 9999 blockierte den Server.
+  for (const pfad of ["konten", "vermoegen", "uebersicht", "kopfleiste", "liquiditaet", "plan-ist"]) {
+    for (const tag of ["2026-02-30", "9999-12-31", "1900-01-01"]) {
+      assert.equal((await hole(`/api/v1/${pfad}?quelle=demo&heute=${tag}`)).status, 400, `${pfad} ${tag}`);
+    }
   }
 });

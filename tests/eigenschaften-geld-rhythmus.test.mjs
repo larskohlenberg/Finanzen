@@ -21,7 +21,13 @@ function zufall(saat) {
 const SAAT = 20261020;
 const RUNDEN = 500;
 const ganz = (r, min, max) => min + Math.floor(r() * (max - min + 1));
-const datum = (r) => `${ganz(r, 2000, 2040)}-${String(ganz(r, 1, 12)).padStart(2, "0")}-${String(ganz(r, 1, 28)).padStart(2, "0")}`;
+const monatsLaenge = (j, m) => new Date(Date.UTC(j, m, 0)).getUTCDate();
+// Tage bis zum Monatsende (29.-31. haeufig), damit die Klemmung greift.
+const datum = (r) => {
+  const j = ganz(r, 2000, 2040), m = ganz(r, 1, 12);
+  const t = r() < 0.5 ? monatsLaenge(j, m) - ganz(r, 0, 2) : ganz(r, 1, monatsLaenge(j, m));
+  return `${j}-${String(m).padStart(2, "0")}-${String(t).padStart(2, "0")}`;
+};
 const EINHEITEN = ["tag", "woche", "monat", "jahr"];
 
 test("Geld: Decimal-String und Cent sind verlustfrei umkehrbar", () => {
@@ -83,6 +89,12 @@ test("Rhythmus: Termine aufsteigend, im Fenster, Monatsende geklemmt; Termin k i
     const vor = termine(anker, einheit, intervall, { bis });
     if (vor.length) assert.equal(vor[0], anker);
     for (let k = 0; k < vor.length; k++) assert.equal(vor[k], termin(anker, einheit, intervall, k));
+    // Monatsrhythmus: Tag des Ankers, im kuerzeren Monat geklemmt auf dessen letzten Tag.
+    for (let k = -3; k <= 14; k++) {
+      const d = termin(anker, "monat", intervall, k);
+      const soll = Math.min(Number(anker.slice(8, 10)), monatsLaenge(Number(d.slice(0, 4)), Number(d.slice(5, 7))));
+      assert.equal(Number(d.slice(8, 10)), soll, `${anker} k=${k}: ${d}`);
+    }
   }
 });
 

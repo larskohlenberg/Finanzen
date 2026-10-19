@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 import { legeAbzugAn } from "./mcp-hilfe.mjs";
 import { loadMasterData } from "../app/tools/validator.mjs";
 import { kontenGruppen } from "../app/uebersicht-rechnung.mjs";
@@ -29,7 +30,7 @@ const lauf = (abzug, werkzeug, ...args) => {
   return r.stdout;
 };
 const bericht = (stdout) => JSON.parse(stdout.slice(stdout.indexOf("{"), stdout.lastIndexOf("}") + 1));
-const bestand = (abzug) => loadMasterData(new URL(`file://${abzug.master}/`));
+const bestand = (abzug) => loadMasterData(pathToFileURL(`${abzug.master}/`));
 const neue = (data) => data.transaktionen.filter((t) => t.konto_id === "KTO-001" && t.buchungsdatum >= "2026-07-01").sort((a, b) => a.buchungsdatum.localeCompare(b.buchungsdatum));
 
 test("Golden-Pipeline: Roh-CSV -> Inbox -> Freigabe -> Kennzahlen", async (t) => {

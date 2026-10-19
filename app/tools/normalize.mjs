@@ -12,22 +12,53 @@
 // benennbar (fehlende Spalte), statt Werte falsch zuzuordnen.
 import { centsToDecimal } from "./lib/text.mjs";
 
-function splitLine(line, sep) {
-  const felder = [];
-  let aktuell = "";
+// Zerlegt den ganzen Text in Datensaetze statt in Zeilen: ein zitiertes Feld
+// darf Zeilenumbrueche enthalten. Ein Umbruch im Feld wird zu einem
+// Leerzeichen, weil Verwendungszweck und Gegenpartei einzeilig weiterlaufen.
+// Jeder Datensatz traegt seine physische Startzeile (fuer Fehlermeldungen)
+// und seinen Rohtext. Bleibt ein Anfuehrungszeichen offen, reicht das Feld bis
+// zum Dateiende — das ist kein lesbarer Datensatz, sondern ein harter Fehler.
+function parseDatensaetze(text, sep) {
+  const datensaetze = [];
+  let felder = [];
+  let feld = "";
   let inQuotes = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const zeichen = line[i];
+  let zeile = 1;
+  let start = 0;
+  let startZeile = 1;
+  const abschliessen = (ende) => {
+    felder.push(feld);
+    datensaetze.push({
+      felder: felder.map((f) => f.replace(/\s*\r?\n\s*/g, " ").trim()),
+      zeile: startZeile,
+      roh: text.slice(start, ende).replace(/\r$/, ""),
+    });
+    felder = [];
+    feld = "";
+  };
+  for (let i = 0; i < text.length; i += 1) {
+    const zeichen = text[i];
     if (zeichen === '"') {
-      if (inQuotes && line[i + 1] === '"') { aktuell += '"'; i += 1; continue; }
+      if (inQuotes && text[i + 1] === '"') { feld += '"'; i += 1; continue; }
       inQuotes = !inQuotes;
       continue;
     }
-    if (zeichen === sep && !inQuotes) { felder.push(aktuell); aktuell = ""; continue; }
-    aktuell += zeichen;
+    if (zeichen === "\n") {
+      zeile += 1;
+      if (inQuotes) { feld += zeichen; continue; }
+      abschliessen(i);
+      start = i + 1;
+      startZeile = zeile;
+      continue;
+    }
+    if (zeichen === sep && !inQuotes) { felder.push(feld); feld = ""; continue; }
+    feld += zeichen;
   }
-  felder.push(aktuell);
-  return felder.map((f) => f.trim());
+  if (inQuotes) {
+    throw new Error(`Anfuehrungszeichen aus Zeile ${startZeile} nicht geschlossen — das Feld reicht bis zum Dateiende. Datei pruefen.`);
+  }
+  if (start < text.length) abschliessen(text.length);
+  return datensaetze;
 }
 
 function parseDatum(rohwert, format) {
@@ -46,16 +77,52 @@ function parseDatum(rohwert, format) {
   return iso;
 }
 
-function parseCents(rohwert, dezimal) {
-  const wert = String(rohwert ?? "").trim();
-  if (wert === "") return null;
-  const tausender = dezimal === "," ? "." : ",";
-  const bereinigt = wert.split(tausender).join("").replace(dezimal, ".").replace(/\s|€|EUR/g, "");
-  if (!/^-?\d+(\.\d{1,2})?$/.test(bereinigt)) return null;
-  const negativ = bereinigt.startsWith("-");
-  const [euro, frac = ""] = bereinigt.replace("-", "").split(".");
-  const cents = Number(euro) * 100 + Number((frac + "00").slice(0, 2));
-  return negativ ? -cents : cents;
+// Strikte Betragsgrammatik je Profil: optionales Vorzeichen, der Ganzzahlteil
+// entweder ohne Gruppierung oder durchgehend in Dreiergruppen, bis zu zwei
+// Nachkommastellen. Bei Dezimalkomma ist "12.34" deshalb kein Betrag statt
+// still 1.234,00. Ein Waehrungszeichen davor oder dahinter ist erlaubt.
+function betragsGrammatik(dezimal) {
+  const d = dezimal === "." ? "\\." : ",";
+  const t = dezimal === "." ? "," : "\\.";
+  return new RegExp(`^([+-])?(\\d{1,3}(?:${t}\\d{3})+|\\d+)(?:${d}(\\d{1,2}))?$`);
+}
+
+// { leer: true } fuer ein leeres Feld, { cents } fuer einen Betrag,
+// { unlesbar: true } fuer alles andere. Leer und unlesbar sind verschieden:
+// ein unlesbarer Wert darf nie wie ein leerer behandelt werden.
+function leseBetrag(rohwert, grammatik) {
+  const wert = String(rohwert ?? "").trim().replace(/^(?:EUR|€)\s*|\s*(?:EUR|€)$/g, "");
+  if (wert === "") return { leer: true };
+  const treffer = wert.match(grammatik);
+  if (!treffer) return { unlesbar: true };
+  const [, vorzeichen, ganz, frac = ""] = treffer;
+  const cents = Number(ganz.replace(/[.,]/g, "")) * 100 + Number(frac.padEnd(2, "0"));
+  return { cents: vorzeichen === "-" ? -cents : cents };
+}
+
+// Soll/Haben-Regel: ein leeres Feld und 0,00 zaehlen beide als "nicht
+// gefuellt". Genau eine Seite ungleich null bestimmt den Betrag (Soll negativ,
+// Haben positiv). Beide ungleich null ist ein Konflikt, beide leer ein
+// fehlender Betrag; eine ausdrueckliche 0,00 ohne Gegenseite bleibt 0,00.
+function betragAusSollHaben(sollRoh, habenRoh, grammatik) {
+  const soll = leseBetrag(sollRoh, grammatik);
+  const haben = leseBetrag(habenRoh, grammatik);
+  if (soll.unlesbar) return { grund: `Soll nicht lesbar: "${sollRoh}"` };
+  if (haben.unlesbar) return { grund: `Haben nicht lesbar: "${habenRoh}"` };
+  if (soll.leer && haben.leer) return { grund: "Betrag fehlt (weder Soll noch Haben gefuellt)" };
+  const sollCents = Math.abs(soll.cents ?? 0);
+  const habenCents = Math.abs(haben.cents ?? 0);
+  if (sollCents !== 0 && habenCents !== 0) {
+    return { grund: `Soll und Haben zugleich gefuellt ("${sollRoh}" / "${habenRoh}") — Richtung nicht eindeutig` };
+  }
+  return { cents: sollCents !== 0 ? -sollCents : habenCents };
+}
+
+function betragAusSpalte(roh, grammatik) {
+  const betrag = leseBetrag(roh, grammatik);
+  if (betrag.unlesbar) return { grund: `Betrag nicht lesbar: "${roh}"` };
+  if (betrag.leer) return { grund: "Betrag fehlt" };
+  return betrag;
 }
 
 function feldWert(spec, zeile, spaltenIndex) {
@@ -80,13 +147,17 @@ function benoetigteSpalten(felder) {
 
 export function normalizeCsv({ text, profil, rohquelle }) {
   const sep = profil.trennzeichen ?? ";";
-  const zeilen = String(text).replace(/^﻿/, "").split(/\r?\n/);
-  const kopfIndex = zeilen.findIndex((z) => z.includes(profil.kopfzeile) && splitLine(z, sep).length > 1);
+  if (profil.dezimal !== "," && profil.dezimal !== ".") {
+    throw new Error(`Profil ${profil.profil_id}: dezimal muss "," oder "." sein — ohne Dezimalzeichen ist kein Betrag eindeutig lesbar`);
+  }
+  const grammatik = betragsGrammatik(profil.dezimal);
+  const datensaetze = parseDatensaetze(String(text).replace(/^﻿/, ""), sep);
+  const kopfIndex = datensaetze.findIndex((d) => d.roh.includes(profil.kopfzeile) && d.felder.length > 1);
   if (kopfIndex === -1) {
     throw new Error(`Kopfzeile nicht gefunden — Profil ${profil.profil_id} erwartet eine Zeile mit "${profil.kopfzeile}"`);
   }
 
-  const spalten = splitLine(zeilen[kopfIndex], sep);
+  const spalten = datensaetze[kopfIndex].felder;
   const spaltenIndex = new Map(spalten.map((name, i) => [name, i]));
   const fehlend = benoetigteSpalten(profil.felder).filter((name) => !spaltenIndex.has(name));
   if (fehlend.length) {
@@ -96,36 +167,29 @@ export function normalizeCsv({ text, profil, rohquelle }) {
   const eintraege = [];
   const fehler = [];
 
-  for (let i = kopfIndex + 1; i < zeilen.length; i += 1) {
-    const zeilennummer = i + 1;
-    const zeile = splitLine(zeilen[i], sep);
+  for (const datensatz of datensaetze.slice(kopfIndex + 1)) {
+    const { felder: zeile, zeile: zeilennummer, roh: rohzeile } = datensatz;
     if (zeile.every((f) => f === "")) continue;
 
     const betragSpec = profil.felder.betrag;
-    let cents = null;
-    if (betragSpec.soll || betragSpec.haben) {
-      const soll = parseCents(zeile[spaltenIndex.get(betragSpec.soll)], profil.dezimal);
-      const haben = parseCents(zeile[spaltenIndex.get(betragSpec.haben)], profil.dezimal);
-      if (soll !== null) cents = -Math.abs(soll);
-      else if (haben !== null) cents = Math.abs(haben);
-    } else {
-      cents = parseCents(zeile[spaltenIndex.get(betragSpec.spalte)], profil.dezimal);
-    }
-    if (cents === null) {
-      fehler.push({ zeile: zeilennummer, grund: "Betrag nicht lesbar (weder Soll noch Haben gefuellt)", rohzeile: zeilen[i] });
+    const betrag = betragSpec.soll || betragSpec.haben
+      ? betragAusSollHaben(zeile[spaltenIndex.get(betragSpec.soll)], zeile[spaltenIndex.get(betragSpec.haben)], grammatik)
+      : betragAusSpalte(zeile[spaltenIndex.get(betragSpec.spalte)], grammatik);
+    if (betrag.grund) {
+      fehler.push({ zeile: zeilennummer, grund: betrag.grund, rohzeile });
       continue;
     }
 
     const buchungsdatum = parseDatum(feldWert(profil.felder.buchungsdatum, zeile, spaltenIndex), profil.datumsformat);
     if (!buchungsdatum) {
-      fehler.push({ zeile: zeilennummer, grund: `Buchungsdatum nicht im Format ${profil.datumsformat}`, rohzeile: zeilen[i] });
+      fehler.push({ zeile: zeilennummer, grund: `Buchungsdatum nicht im Format ${profil.datumsformat}`, rohzeile });
       continue;
     }
 
     const eintrag = {
       konto_id: profil.konto_id,
       buchungsdatum,
-      betrag: centsToDecimal(cents),
+      betrag: centsToDecimal(betrag.cents),
       gegenpartei: feldWert(profil.felder.gegenpartei ?? { konstante: "" }, zeile, spaltenIndex),
       verwendungszweck: feldWert(profil.felder.verwendungszweck ?? { konstante: "" }, zeile, spaltenIndex),
       rohquelle,

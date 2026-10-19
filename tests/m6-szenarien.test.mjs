@@ -132,11 +132,11 @@ test("cash-realismus: geschätzter Plan deutlich unter Ist", () => {
   const data = { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
     kategorien: [{ kategorie_id: "KAT-003", name: "Lebensmittel", typ: "ausgabe", lebenshaltung_relevant: true, status: "aktiv" }],
     transaktionen: [
-      { konto_id: "KTO-001", buchungsdatum: "2026-03-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
-      { konto_id: "KTO-001", buchungsdatum: "2026-04-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
-      { konto_id: "KTO-001", buchungsdatum: "2026-05-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" }],
+      { konto_id: "KTO-001", buchungsdatum: "2026-03-15", betrag: "-380.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-04-15", betrag: "-380.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-05-15", betrag: "-380.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" }],
     darlehen: [], immobilien: [], vermoegenswerte: [], zeitwerte: [],
-    regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "Lebensmittel-Plan", betrag: "-500.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt", qualitaet: "geschaetzt", kategorie_id: "KAT-003", erstellt_am: "2026-06-01" }] };
+    regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "Lebensmittel-Plan", betrag: "-200.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt", qualitaet: "geschaetzt", kategorie_id: "KAT-003", erstellt_am: "2026-06-01" }] };
   const w = guardrailWarnungen(data, "2026-06-22");
   assert.ok(w.some((x) => x.code === "cash-realismus"));
 });
@@ -145,9 +145,9 @@ test("kategorie-ungeplant: materielles Ist ohne Regelzahlung", () => {
   const data = { konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
     kategorien: [{ kategorie_id: "KAT-003", name: "Lebensmittel", typ: "ausgabe", lebenshaltung_relevant: true, status: "aktiv" }],
     transaktionen: [
-      { konto_id: "KTO-001", buchungsdatum: "2026-03-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
-      { konto_id: "KTO-001", buchungsdatum: "2026-04-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
-      { konto_id: "KTO-001", buchungsdatum: "2026-05-15", betrag: "-800.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" }],
+      { konto_id: "KTO-001", buchungsdatum: "2026-03-15", betrag: "-380.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-04-15", betrag: "-380.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" },
+      { konto_id: "KTO-001", buchungsdatum: "2026-05-15", betrag: "-380.00", ist_transfer: false, kategorie_id: "KAT-003", kategorisierung_status: "bestaetigt" }],
     darlehen: [], immobilien: [], vermoegenswerte: [], zeitwerte: [], regelzahlungen: [] };
   const w = guardrailWarnungen(data, "2026-06-22");
   assert.ok(w.some((x) => x.code === "kategorie-ungeplant"));

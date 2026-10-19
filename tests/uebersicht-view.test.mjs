@@ -340,7 +340,7 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   assert.match(kachel("ausgaben"), new RegExp(`data-action="kategorie-transactions" data-kategorie="KAT-003" data-von="${vorMonat}" data-bis="[0-9-]+" title="Wohnen">Wohnen</button>`));
   assert.match(kachel("ausgaben"), /Gesundheit<\/button>[\s\S]*<span>Übrige<\/span><span class="amount">20\s€/);
   // "Übrige" klappt die weiteren Kategorien auf, jede mit Link in die Buchungen.
-  assert.match(kachel("ausgaben"), /<details><summary>[\s\S]*Übrige[\s\S]*<ul class="flach-unterliste"><li><button class="linkish" data-action="kategorie-transactions" data-kategorie="KAT-008"/);
+  assert.match(kachel("ausgaben"), /<details data-details="uebersicht\.uebrige\.ausgaben"><summary>[\s\S]*Übrige[\s\S]*<ul class="flach-unterliste"><li><button class="linkish" data-action="kategorie-transactions" data-kategorie="KAT-008"/);
 
   // Sparquote: (3000 - 1700) / 3000 = 43 %, Rest bleibt auf den Konten.
   assert.match(kachel("sparquote"), /Sparquote[\s\S]*<div class="kpi-value">43\s%<\/div>[\s\S]*1\.300\s€ \/ Monat übrig/);

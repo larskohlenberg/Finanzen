@@ -7,6 +7,7 @@
 // Im Demo-Modus nur die Demo-Dokumente (demo-modus.mjs).
 // In der Oberflaeche heisst eine Datei "Dokument", nie "Beleg" (CONTEXT.md).
 import { state, t, tf, fmt, escapeHtml, kontenById } from "../runtime.mjs";
+import { beiDatenwechsel } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { renderPageHead, formatDate } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
@@ -38,16 +39,32 @@ const formatZeit = (iso) => fmt().zeitpunkt(iso);
 
 // --- Laden und Bedienung (von main.js aufgerufen) ------------------------------
 
+// Bei Sitzungssperre: Liste vergessen, laufende Abrufe abbrechen; eine
+// spaete Antwort gehoert zur alten Generation und wird verworfen.
+let ladeGeneration = 0;
+let ladeAbbruch = null;
+beiDatenwechsel((grund) => {
+  if (grund !== "sperre") return;
+  ladeGeneration += 1;
+  ladeAbbruch?.abort();
+  Object.assign(ansicht, { zustand: "unbekannt", dateien: [], nachPfad: new Map(), aufgeklapptFuer: null, suche: "" });
+});
+
 export async function ladeBelege(aktualisiere) {
   ansicht.zustand = "laedt";
+  const meine = ++ladeGeneration;
+  ladeAbbruch?.abort();
+  ladeAbbruch = new AbortController();
   try {
-    const antwort = await fetch(belegeApiUrl(state.dataMode), { cache: "no-store" });
+    const antwort = await fetch(belegeApiUrl(state.dataMode), { cache: "no-store", signal: ladeAbbruch.signal });
     const json = antwort.ok ? await antwort.json() : null;
+    if (meine !== ladeGeneration) return;
     if (!Array.isArray(json?.dateien)) throw new Error("keine Belege-API");
     ansicht.dateien = ordneZwillingeZu(json.dateien);
     ansicht.nachPfad = new Map(ansicht.dateien.map((d) => [belegSchluessel(d.pfad), d]));
     ansicht.zustand = "ok";
   } catch {
+    if (meine !== ladeGeneration) return;
     ansicht.dateien = [];
     ansicht.nachPfad = new Map();
     ansicht.zustand = "nicht-verfuegbar";

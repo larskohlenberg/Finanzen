@@ -8,6 +8,7 @@
 // Absicherung bei Berufsunfähigkeit und im Todesfall als zwei Kacheln. Konten- und Depottabellen stehen nur noch
 // unter Vermögen, die nächste Aktion im Arbeitsstatus oben.
 import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
+import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, zielElement, hrefAttr } from "../komponenten.mjs";
@@ -95,11 +96,11 @@ function kategorieTeile(kategorien, mittel, top = TOP_KATEGORIEN, { vergleich = 
   ];
 }
 
-function legendenZeile(k) {
+function legendenZeile(k, kachel = "") {
   const name = k.ziel ? zielElement(k.ziel, escapeHtml(k.name), { title: k.name }) : `<span title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</span>`;
   const betrag = `<span class="amount">${k.mitVorzeichen && k.mittel_cents > 0 ? "+" : ""}${escapeHtml(geldOhneCent(k.mittel_cents))}</span>`;
   if (!k.unter?.length) return `<li${k.zeilenKlasse ? ` class="${k.zeilenKlasse}"` : ""}>${k.klasse ? farbPunkt(k.klasse) : ""}${name}${k.trend ?? ""}${betrag}</li>`;
-  return `<li class="flach-uebrige"><details><summary>${farbPunkt(k.klasse)}<span>${escapeHtml(k.name)}</span>${betrag}</summary><ul class="flach-unterliste">${k.unter.map(legendenZeile).join("")}</ul></details></li>`;
+  return `<li class="flach-uebrige"><details${detailsAttr(`uebersicht.uebrige.${kachel}`)}><summary>${farbPunkt(k.klasse)}<span>${escapeHtml(k.name)}</span>${betrag}</summary><ul class="flach-unterliste">${k.unter.map((u) => legendenZeile(u, kachel)).join("")}</ul></details></li>`;
 }
 
 // Rundet die Legende so, dass jede Ebene genau aufgeht: die Teile ergeben die
@@ -130,7 +131,7 @@ function flacheKachel({ id, titel, info = "", wert, trend = "", notiz, plan = ""
   const teile = summe_cents === undefined ? roh : rundeTeile(roh, summe_cents);
   const basis = Math.max(teile.filter((k) => k.mittel_cents > 0).reduce((a, k) => a + k.mittel_cents, 0), 1);
   const segmente = teile.filter((k) => k.mittel_cents > 0).map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
-  const legende = teile.map(legendenZeile).join("");
+  const legende = teile.map((k) => legendenZeile(k, id)).join("");
   return `
     <section class="panel panel-pad uebersicht-flach-kachel" aria-labelledby="kachel-${id}">
       <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">

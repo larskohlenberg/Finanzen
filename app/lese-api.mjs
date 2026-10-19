@@ -10,9 +10,11 @@
 //   GET /api/v1/uebersicht?quelle=&heute=
 //   GET /api/v1/kopfleiste?quelle=&heute=
 //   GET /api/v1/liquiditaet?quelle=&heute=&bis=&granularitaet=
+//   GET /api/v1/plan-ist?quelle=&heute=&periode=&granularitaet=
 import { istKalenderdatum } from "./mcp/kennzahlen.mjs";
 import { kopfleisteModell } from "./kopfleiste.mjs";
 import { GRANULARITAETEN, liquiditaetModell } from "./liquiditaet-modell.mjs";
+import { planIstModell } from "./plan-ist-modell.mjs";
 import { addInterval, defaultHorizonEnd, localTodayIso } from "./liquiditaet.mjs";
 import { uebersichtModell } from "./uebersicht-modell.mjs";
 import { LEERER_FILTER, SEITENGROESSEN, SORTIERUNGEN, regelWirkungAntwort, transaktionenSeite } from "./transaktionen-abfrage.mjs";
@@ -103,6 +105,15 @@ const ANSICHTEN = {
     const bis = datum(suche, "bis", defaultHorizonEnd(tag));
     if (bis > addInterval(tag, "jahr", MAX_HORIZONT_JAHRE)) throw new AnfrageFehler(`bis: hoechstens ${MAX_HORIZONT_JAHRE} Jahre voraus`);
     return liquiditaetModell(bestand.daten, { heute: tag, bis, granularitaet });
+  },
+  "plan-ist": (bestand, suche) => {
+    const granularitaet = text(suche, "granularitaet") || "jahr";
+    if (!GRANULARITAETEN.includes(granularitaet)) throw new AnfrageFehler(`granularitaet: ${GRANULARITAETEN.join(", ")}`);
+    // Zeitraum wie im MCP-Werkzeug plan_ist: "" ganzer Bestand, 12m, Jahr, Quartal, Monat.
+    const periode = text(suche, "periode");
+    if (periode && !/^(12m|\d{4}|\d{4}-Q[1-4]|\d{4}-(0[1-9]|1[0-2]))$/.test(periode)) throw new AnfrageFehler("periode: 12m, JJJJ, JJJJ-Qn oder JJJJ-MM");
+    const tag = heute(suche);
+    return jeStand(bestand, `plan-ist:${periode}:${granularitaet}`, tag, () => planIstModell(bestand.daten, { heute: tag, periode, granularitaet }));
   },
   kopfleiste: (bestand, suche, { quelle }) => {
     const tag = heute(suche);

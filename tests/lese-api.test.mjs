@@ -181,3 +181,18 @@ test("Liquiditaet: Ist, Verlauf, Prognose und Zahlungen; Parameter geprueft", as
     assert.equal((await hole(`/api/v1/liquiditaet?quelle=demo&${q}`)).status, 400, q);
   }
 });
+
+test("Plan & Ist: Monate, Rechnung des Zeitraums, Verlauf nur mit Summen; Parameter geprueft", async () => {
+  const a = (await hole("/api/v1/plan-ist?quelle=demo&heute=2026-10-19&periode=12m&granularitaet=quartal")).json();
+  assert.deepEqual(Object.keys(a).sort(), ["alle", "heute", "r", "stand", "verlauf"]);
+  assert.equal(a.r.anzahl_monate, 12);
+  assert.ok(a.verlauf.every((p) => /-Q\d$/.test(p.schluessel)));
+  for (const p of a.verlauf) assert.deepEqual(Object.keys(p.r).sort(), ["ausgaben", "einnahmen", "sparen"]);
+  for (const k of a.r.ausgaben.kategorien) {
+    for (const b of k.einzel_buchungen) assert.deepEqual(Object.keys(b).sort(), ["betrag_cents", "datum", "gegenpartei", "transaktion_id"]);
+  }
+  for (const l of a.r.luecken) assert.equal(typeof l.konto_name, "string");
+  for (const q of ["periode=letzte", "periode=2026-13", "granularitaet=woche", "heute=2026-02-30"]) {
+    assert.equal((await hole(`/api/v1/plan-ist?quelle=demo&${q}`)).status, 400, q);
+  }
+});

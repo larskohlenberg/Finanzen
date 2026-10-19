@@ -21,9 +21,16 @@ const { renderPlanIst, abweichungHtml } = await import("../app/views/plan-ist.mj
 const { renderOverview } = await import("../app/views/uebersicht.mjs");
 const { parseRoute, routeFromState } = await import("../app/routing.mjs");
 
-test("Plan & Ist: Auswahl, drei Kennzahlen, Verlauf und Kategorien", () => {
+// Plan und Ist kommen vom Server (GET /api/v1/plan-ist): zeichnen, warten, erneut zeichnen.
+async function gezeichnet() {
+  renderPlanIst();
+  await apiAbwarten();
+  return renderPlanIst();
+}
+
+test("Plan & Ist: Auswahl, drei Kennzahlen, Verlauf und Kategorien", async () => {
   state.planIst = { granularitaet: "jahr", periode: "", darstellung: "monat" };
-  const html = renderPlanIst();
+  const html = await gezeichnet();
   assert.match(html, /data-control="plan-ist-periode"/);
   assert.match(html, /data-action="plan-ist-gran" data-gran="quartal"/);
   assert.match(html, /data-action="plan-ist-darstellung" data-darstellung="summe"/);
@@ -34,12 +41,12 @@ test("Plan & Ist: Auswahl, drei Kennzahlen, Verlauf und Kategorien", () => {
   assert.match(html, /data-action="plan-ist-zeile"/);
 });
 
-test("Plan & Ist: aufgeklappte Kategorie zeigt Regelzahlungen und den Sprung in die Buchungen", () => {
+test("Plan & Ist: aufgeklappte Kategorie zeigt Regelzahlungen und den Sprung in die Buchungen", async () => {
   state.planIst = { granularitaet: "quartal", periode: "12m", darstellung: "summe" };
-  const zu = renderPlanIst();
+  const zu = await gezeichnet();
   const key = zu.match(/data-action="plan-ist-zeile" data-zeile="([^"]+)"/)[1];
   state.planIstOffen.add(key);
-  const offen = renderPlanIst();
+  const offen = await gezeichnet();
   state.planIstOffen.clear();
   assert.match(offen, /plan-ist-detail/);
   assert.match(offen, /data-action="kategorie-transactions"/);

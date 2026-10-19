@@ -332,7 +332,7 @@ const CLI_WERKZEUGE = [
     schreibFlag: "--schreiben",
     rueckrollungBeiFehler: false,
     mitBelegen: true,
-    argv: async () => [],
+    argv: async (ctx, a, root) => [root],
   }),
   cli({
     name: "belege_umziehen",

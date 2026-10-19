@@ -4,6 +4,7 @@
 // `kennzahlen` rufen dieselben Funktionen, damit beide gleich rechnen.
 import { toCents } from "./tools/lib/text.mjs";
 import { aktivAm } from "./bewertung.mjs";
+import { vermoegenCheckText } from "./check-texte.mjs";
 import { ausschlussZaehler, buchungsKlasse, kategorienIndex, KATEGORIE_UNGEKLAERT } from "./klassifikation.mjs";
 import { bestandsMonate } from "./plan-ist.mjs";
 import { computeVermoegenChecks, kontoWert, standVeraltet } from "./vermoegen.mjs";
@@ -105,7 +106,7 @@ export function vermoegenCheckItem(check) {
     scope: "vermoegen",
     severity: "review",
     title_key: `vermoegen.checkArt.${check.art}`,
-    detail: check.text,
+    detail: vermoegenCheckText(check),
     entity_id: check.entitaet_id,
     entitaet: check.entitaet,
   };

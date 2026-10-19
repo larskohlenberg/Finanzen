@@ -12,6 +12,7 @@ import { zeitstrahlDiagramm, stapelDiagramm } from "../charts.mjs";
 import { computeSzenario, rechneSzenario, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte, szenarioAenderungen, ereignisAnnahmen } from "../szenarien.mjs";
 import { addInterval } from "../liquiditaet.mjs";
 import { betragJeMonatCents } from "../rhythmus.mjs";
+import { szenarioWarnungText } from "../check-texte.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 
 // Aus den Buchungen brauchen die Szenarien nur den Startbestand (Positionen
@@ -257,7 +258,7 @@ function warnungenHtml(warnungen) {
   return `
     <details class="szenario-warnungen"${detailsAttr(`szenario.warnungen.${state.selectedSzenarioId || "liste"}`)}>
       <summary>${codes.map((w) => `<span class="chip ${warnGefahr(w.code) ? "danger" : "review"}">${iconSvg("review")}${escapeHtml(warnKlartext(w.code))}</span>`).join(" ")}</summary>
-      <ul>${warnungen.map((w) => `<li>${escapeHtml(w.text)}</li>`).join("")}</ul>
+      <ul>${warnungen.map((w) => `<li>${escapeHtml(szenarioWarnungText(w, { geld: formatMoney, datum: formatDate }))}</li>`).join("")}</ul>
     </details>`;
 }
 

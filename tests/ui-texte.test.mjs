@@ -24,7 +24,9 @@ await import("../app/i18n.js");
 
 const { data, state } = await import("../app/runtime.mjs");
 appDaten = data;
-const { renderChecks, lesbarerCheckText } = await import("../app/views/checks.mjs");
+const { renderChecks } = await import("../app/views/checks.mjs");
+const { vermoegenCheckText } = await import("../app/check-texte.mjs");
+const { formatMoney, formatDate } = await import("../app/komponenten.mjs");
 const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
 // Die Pruefungen rechnet der Server (GET /api/v1/checks): Antworten verwerfen,
 // zeichnen, auf die Antwort warten, erneut zeichnen.
@@ -71,17 +73,17 @@ test("Administration: 0 fehlende Kontoreferenzen ist keine Warnung", async () =>
   }
 });
 
-test("lesbarerCheckText: Betraege und ISO-Daten lokal, IDs bleiben", async () => {
+test("Check-Saetze: Betraege und Daten mit den lokalen Formatierern, IDs bleiben", async () => {
   state.lang = "de";
-  const lesbar = (text) => lesbarerCheckText(text).replace(/\u00a0/g, " ");
+  const anzeige = { geld: formatMoney, datum: formatDate };
+  const lesbar = (c) => vermoegenCheckText(c, anzeige).replace(/\u00a0/g, " ");
   assert.equal(
-    lesbar("Konto Giro: Buchungen passen nicht zum Kontoauszug 2026-03-31 (erwartet 34792.40, belegt -12.05)"),
+    lesbar({ art: "reconciliation-drift", entitaet: "konto", entitaet_id: "KTO-001", name: "Giro", von: "2026-02-28", bis: "2026-03-31", erwartet_cents: 3479240, belegt_cents: -1205, differenz_cents: -3480445 }),
     "Konto Giro: Buchungen passen nicht zum Kontoauszug 31.3.2026 (erwartet 34.792,40 €, belegt -12,05 €)",
   );
-  assert.equal(lesbar("Frist FR-012 Kuendigung: fällig am 2026-11-30"), "Frist FR-012 Kuendigung: fällig am 30.11.2026");
-  assert.equal(lesbar("Vorsorge VS-003: Dynamik zum 12-01 entscheiden"), "Vorsorge VS-003: Dynamik zum 12-01 entscheiden");
+  assert.equal(lesbar({ art: "frist-ueberfaellig", entitaet: "frist", entitaet_id: "FR-012", frist_id: "FR-012", name: "Kuendigung", datum: "2026-11-30" }), "Frist FR-012 Kuendigung: fällig am 30.11.2026, nicht erledigt — erledigen und erledigt_bis setzen");
   state.lang = "en";
-  assert.match(lesbar("erwartet 34792.40 am 2026-03-31"), /€34,792\.40 am 31\/03\/2026/);
+  assert.match(lesbar({ art: "reconciliation-drift", entitaet: "konto", entitaet_id: "KTO-001", name: "Giro", bis: "2026-03-31", erwartet_cents: 3479240, belegt_cents: 0 }), /€34,792\.40/);
   state.lang = "de";
 });
 

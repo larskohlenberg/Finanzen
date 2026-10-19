@@ -16,7 +16,6 @@ const MATERIALITAET_MONAT_CENTS = 5000;
 // positionen: die Positionen von computeNettovermoegen, schon gerechnet (der
 // Browser bekommt sie vom App-Server, GET /api/v1/szenarien, und hat selbst
 // keine Buchungen); ohne sie rechnet startbestand sie hier.
-const KLASSE_TEXT = { konto: "Konto", immobilie: "Immobilie", vermoegenswert: "Vermögenswert", vorsorge: "Vorsorge", darlehen: "Darlehen" };
 
 function startbestand(data, today, positionen = null) {
   const nv = positionen ? { positionen } : computeNettovermoegen(data, today);
@@ -67,16 +66,16 @@ export function modifizierteRegelzahlungen(data, szenario) {
     const liste = jeRegelzahlung.get(id).sort((x, y) => x.ab.localeCompare(y.ab) || String(x.annahme_id).localeCompare(String(y.annahme_id)));
     const original = rzs.find((r) => r.regelzahlung_id === id);
     if (!original) {
-      for (const ae of liste) warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung auf unbekannte Regelzahlung ${ae.regelzahlung_id}` });
+      for (const ae of liste) warnungen.push({ code: "aenderung-wirkungslos", fall: "unbekannt", annahme_id: ae.annahme_id, regelzahlung_id: ae.regelzahlung_id });
       continue;
     }
     const ende = original.aktiv_bis;
     let aktuell = original; // laufender Abschnitt
     let beendet = false;
     for (const ae of liste) {
-      if (ae.ab < original.anker_datum) { warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung ${ae.annahme_id} liegt vor dem Anker der Regelzahlung` }); continue; }
-      if (ende && ende < ae.ab) { warnungen.push({ code: "aenderung-wirkungslos", text: `Regelzahlung ${ae.regelzahlung_id} ist vor ${ae.ab} bereits abgelaufen` }); continue; }
-      if (beendet) { warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung ${ae.annahme_id}: Regelzahlung ${ae.regelzahlung_id} ist im Szenario bereits beendet` }); continue; }
+      if (ae.ab < original.anker_datum) { warnungen.push({ code: "aenderung-wirkungslos", fall: "vor-anker", annahme_id: ae.annahme_id, regelzahlung_id: ae.regelzahlung_id, datum: ae.ab }); continue; }
+      if (ende && ende < ae.ab) { warnungen.push({ code: "aenderung-wirkungslos", fall: "abgelaufen", annahme_id: ae.annahme_id, regelzahlung_id: ae.regelzahlung_id, datum: ae.ab }); continue; }
+      if (beendet) { warnungen.push({ code: "aenderung-wirkungslos", fall: "beendet", annahme_id: ae.annahme_id, regelzahlung_id: ae.regelzahlung_id }); continue; }
       aktuell.aktiv_bis = addInterval(ae.ab, "tag", -1);
       if (ae.aktion === "beenden") {
         beendet = true;
@@ -244,16 +243,16 @@ export function expandVorsorgeLeistungen(data, szenario, today) {
   for (const a of szenario.annahmen ?? []) {
     if (a.art === "ereignis") {
       const folgen = ereignisAnnahmen(data, a, today);
-      if (!folgen.length) warnungen.push({ code: "ereignis-ohne-wirkung", text: `Ereignis ${a.annahme_id}: kein Vertrag mit Beitragsbefreiung oder BU-Leistung für ${a.person_id}` });
+      if (!folgen.length) warnungen.push({ code: "ereignis-ohne-wirkung", annahme_id: a.annahme_id, person_id: a.person_id });
       annahmen.push(...folgen);
       continue;
     }
     if (a.art !== "vorsorge-leistung") { annahmen.push(a); continue; }
     const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === a.vorsorge_id);
-    if (!vs) { warnungen.push({ code: "vorsorge-unbekannt", text: `Annahme ${a.annahme_id} verweist auf unbekannte Vorsorge ${a.vorsorge_id}` }); continue; }
+    if (!vs) { warnungen.push({ code: "vorsorge-unbekannt", annahme_id: a.annahme_id, vorsorge_id: a.vorsorge_id }); continue; }
     const feld = a.arm === "kapital" ? "erwartete_kapitalleistung" : "erwartete_rente";
     const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", a.vorsorge_id, feld, today);
-    if (!zw) { warnungen.push({ code: "vorsorge-leistung-ohne-wert", text: `Vorsorge ${a.vorsorge_id} hat keinen ${feld}-Zeitwert` }); continue; }
+    if (!zw) { warnungen.push({ code: "vorsorge-leistung-ohne-wert", annahme_id: a.annahme_id, vorsorge_id: a.vorsorge_id, feld }); continue; }
     const qualitaet = vs.geprueft_am ? (zw.qualitaet ?? "offen") : "offen";
     if (a.arm === "kapital") {
       annahmen.push({ annahme_id: a.annahme_id, art: "einmalzahlung", datum: a.ab, betrag: zw.wert, qualitaet,
@@ -281,7 +280,7 @@ export function rechneSzenario(data, szenario, today, { positionen = null } = {}
 
   const start = startbestand(data, today, positionen);
   if (start.unbekannt.length) {
-    warnungen.push({ code: "startbestand-unbekannt", text: `Startbestand unvollständig, ohne belegten Wert: ${start.unbekannt.map((u) => `${KLASSE_TEXT[u.klasse] ?? u.klasse} ${u.name}`).join(", ")}` });
+    warnungen.push({ code: "startbestand-unbekannt", positionen: start.unbekannt.map(({ klasse, id, name }) => ({ klasse, id, name })) });
   }
 
   // Schuld und Raten je laufendem Darlehen aus einer Quelle (Zahlungsplan):
@@ -319,7 +318,7 @@ export function rechneSzenario(data, szenario, today, { positionen = null } = {}
     let eff = g.cash_cents;
     if (g.cash_cents > 0) {
       eff = Math.min(g.cash_cents, vorhanden);
-      if (eff < g.cash_cents) warnungen.push({ code: "depot-ueberzogen", text: `Verkauf übersteigt verfügbaren Depotwert (${g.annahme_id})`, datum: g.datum });
+      if (eff < g.cash_cents) warnungen.push({ code: "depot-ueberzogen", annahme_id: g.annahme_id, konto_id: g.ziel_id, datum: g.datum });
     }
     depotLauf.set(g.ziel_id, vorhanden - eff);
     depotReihe.get(g.ziel_id).push({ datum: g.datum, wert_cents: depotLauf.get(g.ziel_id) });
@@ -327,7 +326,7 @@ export function rechneSzenario(data, szenario, today, { positionen = null } = {}
   }
   for (const a of szenario.annahmen ?? []) {
     if (a.gegenbuchung?.ziel_typ === "depot") {
-      warnungen.push({ code: "depot-vorbehalt", text: a.gegenbuchung.vorbehalt ?? `Gegenbuchung auf Depot ${a.gegenbuchung.ziel_id} ist ein Vorbehalt, kein Garant`, datum: undefined });
+      warnungen.push({ code: "depot-vorbehalt", annahme_id: a.annahme_id, konto_id: a.gegenbuchung.ziel_id, vorbehalt: a.gegenbuchung.vorbehalt ?? null });
     }
   }
 
@@ -387,7 +386,7 @@ export function rechneSzenario(data, szenario, today, { positionen = null } = {}
   const startDatum = (a) => (a.art === "einmalzahlung" ? a.datum : a.ab);
   for (const a of szenario.annahmen ?? []) {
     const d = startDatum(a);
-    if (d && d <= today) { warnungen.push({ code: "annahme-vergangen", text: `Annahme ${a.annahme_id} liegt vor dem Rechenstichtag`, datum: d }); }
+    if (d && d <= today) { warnungen.push({ code: "annahme-vergangen", annahme_id: a.annahme_id, datum: d }); }
     if (a.art === "einmalzahlung" && !a.gegenbuchung && a.datum > today && a.datum <= horizon && a.betrag && a.betrag !== "0.00") {
       ereignisse.push({ datum: a.datum, cents: toCents(a.betrag), art: "einmal" });
     }
@@ -436,7 +435,7 @@ export function rechneSzenario(data, szenario, today, { positionen = null } = {}
     ...rzs.filter((rz) => occurrences(rz, today, horizon).length).map((rz) => rz.qualitaet),
     ...start.qualitaeten,
   ]);
-  if (punkte.length && punkte[0].liquide_cents < 0) warnungen.push({ code: "liquiditaet-negativ", text: `Liquidität bereits im ersten Monat negativ`, datum: punkte[0].monat });
+  if (punkte.length && punkte[0].liquide_cents < 0) warnungen.push({ code: "liquiditaet-negativ", monat: punkte[0].monat, liquide_cents: punkte[0].liquide_cents });
 
   // Bestätigte Bestands-Regelzahlungen (nicht szenario-neu) mit mindestens einem Termin im
   // Zeitraum — für die Herleitungs-Sicht der Views.
@@ -487,10 +486,10 @@ export function guardrailWarnungen(data, today, { vollstaendigBis = "" } = {}) {
     const plan = Math.round(z.plan_cents / n);
     if (z.regelzahlungen.some((e) => geschaetzt.has(e.regelzahlung_id))) {
       if (plan < GUARDRAIL_SCHWELLE * ist) {
-        warnungen.push({ code: "cash-realismus", kategorie_id: kat, plan_cents: plan, ist_cents: ist, text: `Geplante Ausgaben für ${kat} (${(plan / 100).toFixed(2)}/Monat) liegen deutlich unter dem Ist-Durchschnitt (${(ist / 100).toFixed(2)}/Monat)` });
+        warnungen.push({ code: "cash-realismus", kategorie_id: kat, plan_cents: plan, ist_cents: ist });
       }
     } else if (!z.regelzahlungen.length && ist > MATERIALITAET_MONAT_CENTS) {
-      warnungen.push({ code: "kategorie-ungeplant", kategorie_id: kat, ist_cents: ist, text: `Kategorie ${kat} hat materielles Ist (${(ist / 100).toFixed(2)}/Monat), aber keine geplante Regelzahlung` });
+      warnungen.push({ code: "kategorie-ungeplant", kategorie_id: kat, ist_cents: ist });
     }
   }
   return warnungen;

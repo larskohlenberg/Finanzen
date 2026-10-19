@@ -1,5 +1,6 @@
 // Szenario-Rechenfehler aus dem Architektur-Review (0A.4): Schlussrate (F4),
 // Startbestand (F5), Reihenfolge von Regelzahlungsaenderungen (F7).
+import { szenarioWarnungText } from "../app/check-texte.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { rechneSzenario, modifizierteRegelzahlungen } from "../app/szenarien.mjs";
@@ -123,8 +124,8 @@ test("F5: fehlende Anker sind unbekannt, mit Warnung, und die Qualitaet ist nie 
   assert.deepEqual(ids, ["DAR-001", "IMM-001", "KTO-001"]);
   const w = r.warnungen.find((x) => x.code === "startbestand-unbekannt");
   assert.ok(w, "Warnung startbestand-unbekannt");
-  assert.match(w.text, /Giro/);
-  assert.match(w.text, /Kredit/);
+  assert.match(szenarioWarnungText(w), /Giro/);
+  assert.match(szenarioWarnungText(w), /Kredit/);
   assert.notEqual(r.qualitaet, "belegt");
 });
 
@@ -185,7 +186,7 @@ test("F7: Aenderung nach dem Beenden ist wirkungslos, gleich in welcher Reihenfo
   const liste = [aend("A1", "2027-01-01", "beenden"), aend("A2", "2027-07-01", "betrag-aendern", "-700.00")];
   for (const p of permutationen(liste)) {
     const { warnungen } = modifizierteRegelzahlungen({ regelzahlungen: [miete] }, { annahmen: p });
-    assert.ok(warnungen.some((w) => w.code === "aenderung-wirkungslos" && w.text.includes("A2")));
+    assert.ok(warnungen.some((w) => w.code === "aenderung-wirkungslos" && w.annahme_id === "A2"));
     assert.ok(!plan(p).some((t) => t >= "2027-01-01"));
   }
 });

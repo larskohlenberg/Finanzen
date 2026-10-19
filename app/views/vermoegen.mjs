@@ -16,6 +16,7 @@ import { balkenSvg, dokumenteHtml, geld, qualitaetChip, rateJeMonatCents, render
 import { renderWertstaendeTabelle } from "./vermoegen-wertstaende.mjs";
 import { kontenAntwort } from "./konten-daten.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
+import { vermoegenCheckText } from "../check-texte.mjs";
 
 // Was Buchungen braucht (Nettovermoegen, offene Punkte, Verlauf, Monate und
 // Investitionen der Immobilien), rechnet der App-Server (GET /api/v1/vermoegen,
@@ -291,7 +292,7 @@ function renderOffenePunkte(checks) {
     const key = `${c.entitaet}:${c.entitaet_id}`;
     if (!je.has(key)) je.set(key, { c, arten: new Set(), texte: [] });
     je.get(key).arten.add(t(`vermoegen.checkArt.${c.art}`));
-    je.get(key).texte.push(c.text);
+    je.get(key).texte.push(vermoegenCheckText(c, { geld: formatMoney, datum: formatDate }));
   }
   if (!je.size && !vorsorge) return `<p class="vorsorge-offen-keine"><span class="chip success">${iconSvg("success")}${escapeHtml(t("vermoegen.uebersicht.offenKeine"))}</span></p>`;
   const zeilen = [...je.values()].map(({ c, arten, texte }) => {

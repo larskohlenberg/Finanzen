@@ -1,3 +1,4 @@
+import { vermoegenCheckText } from "../app/check-texte.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { anstehendeFristen, fristenZuObjekt } from "../app/fristen.mjs";
@@ -92,7 +93,7 @@ test("ueberfaellige Frist erscheint als Check", () => {
   const checks = computeVermoegenChecks(data, HEUTE).filter((c) => c.art === "frist-ueberfaellig");
   assert.equal(checks.length, 1);
   assert.equal(checks[0].entitaet_id, "FR-001");
-  assert.match(checks[0].text, /Kuendigen/);
+  assert.match(vermoegenCheckText(checks[0]), /Kuendigen/);
 });
 
 function bestand(fristen) {

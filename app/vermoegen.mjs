@@ -83,6 +83,9 @@ export function reconciliationDrift(konto, zeitwerte, transaktionen, bis = null)
   return drift;
 }
 
+// Pruefbefunde der Vermoegensrechnung als strukturierte Werte: art (Code),
+// entitaet und entitaet_id (Objekt), name, dazu je Art Betraege in Cent und
+// Daten als ISO-Text. Saetze baut erst die Anzeige (check-texte.mjs).
 export function computeVermoegenChecks(data, today) {
   const checks = [];
 
@@ -92,40 +95,40 @@ export function computeVermoegenChecks(data, today) {
     if (konto.status === "geschlossen" || konto.kontotyp === "bar" || konto.kontotyp === "depot") continue;
     const anker = aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand", today);
     if (!anker) {
-      checks.push({ art: "anker-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, text: `Konto ${konto.name}: kein belegter Kontostand` });
+      checks.push({ art: "anker-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, name: konto.name });
       continue;
     }
     for (const d of reconciliationDrift(konto, data.zeitwerte, data.transaktionen, today)) {
-      checks.push({ art: "reconciliation-drift", entitaet: "konto", entitaet_id: konto.konto_id, text: `Konto ${konto.name}: Buchungen passen nicht zum Kontoauszug ${d.bis} (erwartet ${(d.erwartet_cents / 100).toFixed(2)}, belegt ${(d.belegt_cents / 100).toFixed(2)})` });
+      checks.push({ art: "reconciliation-drift", entitaet: "konto", entitaet_id: konto.konto_id, name: konto.name, von: d.von, bis: d.bis, erwartet_cents: d.erwartet_cents, belegt_cents: d.belegt_cents, differenz_cents: d.differenz_cents });
     }
   }
 
   for (const konto of data.konten ?? []) {
     if (konto.kontotyp !== "depot" || konto.status === "geschlossen") continue;
     const dw = aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert", today);
-    if (!dw) { checks.push({ art: "marktwert-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, text: `Depot ${konto.name}: kein Depotwert` }); continue; }
+    if (!dw) { checks.push({ art: "marktwert-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, name: konto.name }); continue; }
     const schwelle = standSchwelleMonate(konto, data.transaktionen, today);
     if (standVeraltet(konto, dw.standdatum, data.transaktionen, today)) {
-      checks.push({ art: "bewertung-veraltet", entitaet: "konto", entitaet_id: konto.konto_id, text: `Depot ${konto.name}: Depotwert vom ${dw.standdatum} älter als ${schwelle} Monat(e)` });
+      checks.push({ art: "bewertung-veraltet", entitaet: "konto", entitaet_id: konto.konto_id, name: konto.name, standdatum: dw.standdatum, schwelle_monate: schwelle });
     }
   }
 
   for (const imm of data.immobilien ?? []) {
     if (imm.status === "verkauft") continue;
     const mw = aktuellerZeitwert(data.zeitwerte, "immobilie", imm.immobilie_id, "marktwert", today);
-    if (!mw) { checks.push({ art: "marktwert-fehlt", entitaet: "immobilie", entitaet_id: imm.immobilie_id, text: `Immobilie ${imm.bezeichnung}: kein Marktwert` }); continue; }
+    if (!mw) { checks.push({ art: "marktwert-fehlt", entitaet: "immobilie", entitaet_id: imm.immobilie_id, name: imm.bezeichnung }); continue; }
     if (monateZwischen(mw.standdatum, today) >= STANDDATUM_SCHWELLEN.immobilie) {
-      checks.push({ art: "bewertung-veraltet", entitaet: "immobilie", entitaet_id: imm.immobilie_id, text: `Immobilie ${imm.bezeichnung}: Marktwert vom ${mw.standdatum} älter als ${STANDDATUM_SCHWELLEN.immobilie} Monate` });
+      checks.push({ art: "bewertung-veraltet", entitaet: "immobilie", entitaet_id: imm.immobilie_id, name: imm.bezeichnung, standdatum: mw.standdatum, schwelle_monate: STANDDATUM_SCHWELLEN.immobilie });
     }
   }
 
   for (const vmw of data.vermoegenswerte ?? []) {
     if (vmw.status === "veraeussert") continue;
     const mw = aktuellerZeitwert(data.zeitwerte, "vermoegenswert", vmw.vermoegenswert_id, "marktwert", today);
-    if (!mw) { checks.push({ art: "marktwert-fehlt", entitaet: "vermoegenswert", entitaet_id: vmw.vermoegenswert_id, text: `Vermögenswert ${vmw.bezeichnung}: kein Marktwert` }); continue; }
+    if (!mw) { checks.push({ art: "marktwert-fehlt", entitaet: "vermoegenswert", entitaet_id: vmw.vermoegenswert_id, name: vmw.bezeichnung }); continue; }
     const schwelle = STANDDATUM_SCHWELLEN[`vermoegenswert_${vmw.typ}`] ?? 12;
     if (monateZwischen(mw.standdatum, today) >= schwelle) {
-      checks.push({ art: "bewertung-veraltet", entitaet: "vermoegenswert", entitaet_id: vmw.vermoegenswert_id, text: `Vermögenswert ${vmw.bezeichnung}: Wert vom ${mw.standdatum} älter als ${schwelle} Monat(e)` });
+      checks.push({ art: "bewertung-veraltet", entitaet: "vermoegenswert", entitaet_id: vmw.vermoegenswert_id, name: vmw.bezeichnung, standdatum: mw.standdatum, schwelle_monate: schwelle });
     }
   }
 
@@ -133,15 +136,15 @@ export function computeVermoegenChecks(data, today) {
     if (dar.status === "abgeloest") continue;
     const anker = aktuellerZeitwert(data.zeitwerte, "darlehen", dar.darlehen_id, "restschuld", today);
     // kein continue — fehlender Anker und fehlende Regelzahlung sind unabhängige Befunde
-    if (!anker) checks.push({ art: "anker-fehlt", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: kein belegter Restschuldstand` });
+    if (!anker) checks.push({ art: "anker-fehlt", entitaet: "darlehen", entitaet_id: dar.darlehen_id, name: dar.bezeichnung });
     const hatRate = (data.regelzahlungen ?? []).some((rz) => rz.darlehen_id === dar.darlehen_id && rz.status === "bestaetigt");
-    if (!hatRate) checks.push({ art: "darlehen-ohne-regelzahlung", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: Rate nicht in der Liquiditätsprognose — Regelzahlung anlegen?` });
+    if (!hatRate) checks.push({ art: "darlehen-ohne-regelzahlung", entitaet: "darlehen", entitaet_id: dar.darlehen_id, name: dar.bezeichnung });
     // Die Regelzahlung bestimmt Rate und Tilgung (darlehen.mjs); weicht ihr
     // Betrag heute von der Sollrate ab, ist eins von beiden zu pruefen.
     for (const rz of darlehensRegelzahlungen(dar, data.regelzahlungen)) {
       if (rz.anker_datum > today || (rz.aktiv_bis && rz.aktiv_bis < today)) continue;
       const rate = Math.abs(toCents(rz.betrag));
-      if (rate !== toCents(dar.sollrate)) checks.push({ art: "darlehen-rate-abweichung", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: Regelzahlung ${rz.regelzahlung_id} zahlt ${(rate / 100).toFixed(2)}, Sollrate ${dar.sollrate} — Tilgung rechnet mit der Regelzahlung` });
+      if (rate !== toCents(dar.sollrate)) checks.push({ art: "darlehen-rate-abweichung", entitaet: "darlehen", entitaet_id: dar.darlehen_id, name: dar.bezeichnung, regelzahlung_id: rz.regelzahlung_id, rate_cents: rate, sollrate_cents: toCents(dar.sollrate) });
     }
   }
 
@@ -150,11 +153,10 @@ export function computeVermoegenChecks(data, today) {
     // Beitragsdynamik: Termin naht ohne Entscheidung, oder ein Angebot liegt vor.
     const dynamik = dynamikStand(vs, today);
     if (dynamik?.entscheidung_noetig) {
-      const regel = dynamik.vorschlag ? ` — nach der Regel „nur jede dritte annehmen“: ${dynamik.vorschlag}${dynamik.letzte_chance ? " (ein weiterer Widerspruch beendet das Dynamikrecht)" : ""}` : " — Verlauf unvollständig, frühere Entscheidungen aus den Lastschriften klären";
-      checks.push({ art: "vorsorge-dynamik", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: Dynamik zum ${dynamik.naechster_termin} entscheiden${regel}` });
+      checks.push({ art: "vorsorge-dynamik", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, name: vs.name, termin: dynamik.naechster_termin, vorschlag: dynamik.vorschlag ?? null, letzte_chance: Boolean(dynamik.letzte_chance) });
     }
     if (!vs.geprueft_am) {
-      checks.push({ art: "vorsorge-ungeprueft", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: ungeprüfter Anspruch — darf nicht als sicherer Zukunftswert gelten` });
+      checks.push({ art: "vorsorge-ungeprueft", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, name: vs.name });
       continue;
     }
 
@@ -167,7 +169,7 @@ export function computeVermoegenChecks(data, today) {
     }
 
     if (monateZwischen(juengstes, today) >= STANDDATUM_SCHWELLEN.vorsorge) {
-      checks.push({ art: "vorsorge-wiedervorlage", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: letzte Prüfung/Mitteilung vom ${juengstes} älter als ${STANDDATUM_SCHWELLEN.vorsorge} Monate — Werte verifizieren (z. B. Gesetzesänderung)` });
+      checks.push({ art: "vorsorge-wiedervorlage", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, name: vs.name, standdatum: juengstes, schwelle_monate: STANDDATUM_SCHWELLEN.vorsorge });
     }
   }
 
@@ -184,7 +186,7 @@ export function computeVermoegenChecks(data, today) {
 
     const nachfolger = (data.vorsorge ?? []).find((v) => v.vorsorge_id !== vs.vorsorge_id && v.ersetzt_vorsorge_id === vs.vorsorge_id);
     if (!nachfolger) {
-      checks.push({ art: "vorsorge-wechsel", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: Beitrag endet ${ende}, keine Nachfolge erkennbar — Wechsel oder bewusste Kündigung?` });
+      checks.push({ art: "vorsorge-wechsel", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, name: vs.name, fall: "ohne-nachfolge", ende });
       continue;
     }
 
@@ -193,7 +195,7 @@ export function computeVermoegenChecks(data, today) {
       .map((rz) => rz.anker_datum)
       .sort()[0];
     if (!nachBeitragStart || nachBeitragStart > addInterval(ende, "tag", 1)) {
-      checks.push({ art: "vorsorge-wechsel", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, text: `Vorsorge ${vs.name}: Deckungslücke — alt endet ${ende}, Nachfolge ${nachfolger.name} beginnt ${nachBeitragStart ?? "ohne Beitrag"}` });
+      checks.push({ art: "vorsorge-wechsel", entitaet: "vorsorge", entitaet_id: vs.vorsorge_id, name: vs.name, fall: "deckungsluecke", ende, nachfolger_id: nachfolger.vorsorge_id, nachfolger_name: nachfolger.name, beginn: nachBeitragStart ?? null });
     }
   }
 
@@ -205,7 +207,9 @@ export function computeVermoegenChecks(data, today) {
       art: "frist-ueberfaellig",
       entitaet: termin.bezug?.typ ?? "frist",
       entitaet_id: termin.bezug?.id ?? termin.frist_id,
-      text: `Frist ${termin.frist_id} ${termin.bezeichnung}: fällig am ${termin.datum}, nicht erledigt — erledigen und erledigt_bis setzen`,
+      frist_id: termin.frist_id,
+      name: termin.bezeichnung,
+      datum: termin.datum,
     });
   }
 

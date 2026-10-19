@@ -4,7 +4,7 @@
 // Datei mit Zeilenfehlern ist nicht "verarbeitet"; nichts wird ueberschrieben.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { legeAbzugAn, starteServer } from "./mcp-hilfe.mjs";
@@ -211,6 +211,31 @@ test("import.mjs protokolliert Dubletten-Prueffaelle beim Schreiben (fuer den Pr
     assert.equal(log.at(-1).anlass, "import");
     assert.equal(log.at(-1).dubletten_pruefen[0].art, "teilweise_vorhanden");
     assert.equal(log.at(-1).dubletten_pruefen[0].quelle, "b.jsonl");
+  } finally {
+    abzug.aufraeumen();
+  }
+});
+
+test("Bestand mit eigener Inbox (nicht data/master): Archivieren ueberlebt das Uebernehmen des Entwurfs", () => {
+  const abzug = legeAbzugAn();
+  try {
+    const bestand = join(abzug.app, "data", "nebenbestand");
+    cpSync(abzug.master, bestand, { recursive: true });
+    mkdirSync(join(bestand, "import-profile"), { recursive: true });
+    mkdirSync(join(bestand, "inbox"), { recursive: true });
+    writeFileSync(join(bestand, "import-profile", "test-lauf.json"), JSON.stringify(PROFIL));
+    writeFileSync(join(bestand, "inbox", "lauf-9.csv"), csv("09.09.2026;-9,99;Testladen Neun;Einkauf Neun"));
+    const vorher = readFileSync(join(bestand, "transaktionen.jsonl"), "utf8").trim().split("\n").length;
+    const r = spawnSync(process.execPath, [join(realpathSync(abzug.app), "tools", "inbox.mjs"), realpathSync(bestand), "--schreiben"], { cwd: abzug.wurzel, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(readFileSync(join(bestand, "transaktionen.jsonl"), "utf8").trim().split("\n").length, vorher + 1);
+    assert.ok(!existsSync(join(bestand, "inbox", "lauf-9.csv")), "Quelle wieder in der Inbox");
+    assert.deepEqual(liste(join(bestand, "inbox", "processed")), ["lauf-9.csv"]);
+    const neu = JSON.parse(readFileSync(join(bestand, "transaktionen.jsonl"), "utf8").trim().split("\n").at(-1));
+    assert.equal(neu.rohquelle, "data/nebenbestand/inbox/processed/lauf-9.csv");
+    assert.ok(!readdirSync(bestand).some((n) => n.startsWith(".entwurf")));
+    // Die echte Inbox von data/master blieb unberuehrt.
+    assert.deepEqual(liste(join(abzug.app, "data", "inbox", "processed")), []);
   } finally {
     abzug.aufraeumen();
   }

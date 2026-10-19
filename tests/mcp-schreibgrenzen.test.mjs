@@ -140,18 +140,18 @@ test("mitRollback: Werkzeugfehler setzt den Bestand zurueck, auch ohne neue Vali
   cpSync(demoQuelle, master, { recursive: true });
   const logVorher = readFileSync(join(master, "agent_log.jsonl"), "utf8");
   try {
-    const r = await mitRollback(master, async () => {
-      writeFileSync(join(master, "agent_log.jsonl"), `${logVorher}{"anlass":"halb"}\n`);
-      writeFileSync(join(master, "neu.txt"), "halb");
+    const r = await mitRollback(master, async (s) => {
+      writeFileSync(join(s.ordner, "agent_log.jsonl"), `${logVorher}{"anlass":"halb"}\n`);
+      writeFileSync(join(s.ordner, "neu.txt"), "halb");
       return { text: "Teil 2 gescheitert", isError: true };
     });
     assert.equal(r.isError, true);
-    assert.match(r.text, /zurueckgesetzt/);
+    assert.match(r.text, /kein Commit, der Bestand ist unveraendert/);
     assert.equal(readFileSync(join(master, "agent_log.jsonl"), "utf8"), logVorher);
     assert.ok(!existsSync(join(master, "neu.txt")));
 
-    const wurf = await mitRollback(master, async () => {
-      writeFileSync(join(master, "agent_log.jsonl"), "kaputt-aber-egal\n");
+    const wurf = await mitRollback(master, async (s) => {
+      writeFileSync(join(s.ordner, "agent_log.jsonl"), "kaputt-aber-egal\n");
       throw new Error("Abbruch");
     });
     assert.equal(wurf.isError, true);
@@ -191,21 +191,21 @@ test("mitRollback: schon vorher ungueltiger Bestand – alte Fehler sind kein We
   konten[0].inhaber_person_ids = ["PER-999"];
   writeFileSync(join(master, "konten.json"), `${JSON.stringify(konten, null, 2)}\n`);
   try {
-    const ok = await mitRollback(master, async () => {
-      writeFileSync(join(master, "neu.txt"), "bleibt");
+    const ok = await mitRollback(master, async (s) => {
+      writeFileSync(join(s.ordner, "neu.txt"), "bleibt");
       return { text: "CLI fertig (Exitcode 0)" };
     });
     assert.ok(existsSync(join(master, "neu.txt")), ok.text);
     assert.match(ok.text, /alle schon vorher vorhanden/);
 
     // Die CLIs melden alte Fehler nicht mehr mit Exitcode 1; ein Fehler ist
-    // damit ein echter Werkzeugfehler und setzt zurueck, wie beim gueltigen Bestand.
-    const fehler = await mitRollback(master, async () => {
-      writeFileSync(join(master, "halb.txt"), "halb");
+    // damit ein echter Werkzeugfehler und wird nicht uebernommen, wie beim gueltigen Bestand.
+    const fehler = await mitRollback(master, async (s) => {
+      writeFileSync(join(s.ordner, "halb.txt"), "halb");
       return { text: "Teil 2 gescheitert", isError: true };
     });
     assert.ok(!existsSync(join(master, "halb.txt")), fehler.text);
-    assert.match(fehler.text, /zurueckgesetzt/);
+    assert.match(fehler.text, /kein Commit/);
   } finally {
     rmSync(wurzel, { recursive: true, force: true });
   }

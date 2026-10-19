@@ -2,20 +2,23 @@
 //
 // Nach-Kategorisierung des Bestands (ADR 0017): deterministischer Voll-Recompute
 // der infrage kommenden Buchungen gegen das volle aktuelle Regelwerk. Nutzt
-// dieselbe categorize() wie der Import. Schreibt nie still eine menschliche
-// Entscheidung um: manuell/abgelehnt bleiben unangetastet; ein Widerspruch zu
-// einer bestaetigten Regel-Kategorie wird als Wiedervorlage sichtbar gemacht.
+// dieselbe categorize() wie der Import. Menschliche Entscheidungen (manuell,
+// abgelehnt, bestaetigt durch mensch) fasst der Lauf nie an, auch nicht ihren
+// Regelbezug. Widerspricht ihnen das Regelwerk, zaehlt der Bericht das unter
+// `widerspruch`, und der Pruefbericht listet sie. Wiedervorgelegt wird nur eine
+// Auto-Freigabe: die naechste Freigabe gaebe sonst eine menschliche
+// Entscheidung still mit der neuen Kategorie frei.
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { istWiderspruch, menschlichEntschieden } from "./lib/entscheidung.mjs";
 
 // Kandidat fuer die Neubewertung: offene Buchungen plus alles, was per Regel
-// kategorisiert wurde. Menschliche Akte (manuell, abgelehnt) sind tabu.
+// kategorisiert wurde. Menschliche Akte sind tabu, auch mit Herkunft regel.
 function istKandidat(tx) {
-  if (tx.kategorie_herkunft === "manuell") return false;
-  if (tx.kategorisierung_status === "abgelehnt") return false;
+  if (menschlichEntschieden(tx)) return false;
   // Eine Auto-Freigabe ist kein menschlicher Akt: nie hat jemand hingeschaut,
   // also darf ein spaeterer Regellauf sie neu bewerten (ADR 0025).
   if (tx.bestaetigt_durch === "auto") return true;
@@ -54,9 +57,9 @@ function recompute(tx, regeln) {
   const treffer = verdict.status === "vorgeschlagen";
 
   if (tx.kategorisierung_status === "bestaetigt") {
-    // Bestaetigt (herkunft regel, oder agent bei Auto-Freigabe): eine bestaetigte Kategorie ist Fakt (ADR 0002)
-    // und wird nie still gekippt. Nur eine ANDERE konkrete Kategorie loest eine
-    // Wiedervorlage aus; gleiche Kategorie oder kein eindeutiger Treffer => unveraendert.
+    // Hier nur Auto-Freigaben (herkunft regel oder agent). Nur eine ANDERE
+    // konkrete Kategorie loest eine Wiedervorlage aus; gleiche Kategorie oder
+    // kein eindeutiger Treffer => unveraendert.
     if (treffer && verdict.kategorie_id !== tx.kategorie_id) {
       return alsRegelVorschlag(tx, verdict);
     }
@@ -98,11 +101,12 @@ function fachlichChanged(a, b) {
 }
 
 export function recategorize({ transaktionen, regeln }) {
-  const report = { neu_vorgeschlagen: 0, wiedervorlage: 0, belegt: 0, zurueckgesetzt: 0, unveraendert: 0, uebersprungen: 0 };
+  const report = { neu_vorgeschlagen: 0, wiedervorlage: 0, belegt: 0, zurueckgesetzt: 0, unveraendert: 0, uebersprungen: 0, widerspruch: 0 };
 
   const next = transaktionen.map((tx) => {
     if (!istKandidat(tx)) {
       report.uebersprungen += 1;
+      if (menschlichEntschieden(tx) && istWiderspruch(tx, categorize(tx, regeln))) report.widerspruch += 1;
       return tx;
     }
     const result = recompute(tx, regeln);

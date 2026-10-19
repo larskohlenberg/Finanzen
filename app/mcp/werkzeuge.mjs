@@ -101,7 +101,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "pruefbericht",
     skript: "pruefbericht.mjs",
-    beschreibung: "Pruefbericht nach einem Durchlauf (tools/pruefbericht.mjs): groesste Auto-Freigaben, Merchants ohne menschliche Bestaetigung, auto-freigegebene KAT-012, am Gate gescheiterte Regeln, Konten ohne Anker, nicht reconciliierte Kontostaende. Rein lesend. Dem Nutzer ungekuerzt zeigen.",
+    beschreibung: "Pruefbericht nach einem Durchlauf (tools/pruefbericht.mjs): groesste Auto-Freigaben, Merchants ohne menschliche Bestaetigung, auto-freigegebene KAT-012, menschliche Entscheidungen im Widerspruch zum Regelwerk, am Gate gescheiterte Regeln, Konten ohne Anker, nicht reconciliierte Kontostaende. Rein lesend. Dem Nutzer ungekuerzt zeigen.",
     argv: async (ctx, a, root) => [root],
   }),
   cli({
@@ -135,7 +135,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "regel_probelauf",
     skript: "regel-probelauf.mjs",
-    beschreibung: "Regelkandidaten gegen den Gesamtbestand rechnen, bevor etwas geschrieben wird (tools/regel-probelauf.mjs). Kandidaten in Endfassung inkl. belegstufe (E1-E4) und kommentar. Exitcode 2 = blockiert (Strukturfehler, unspezifisch, neue Konflikte, Wiedervorlagen, verlorene bestaetigte Treffer) — dann nicht schreiben. Rein lesend.",
+    beschreibung: "Regelkandidaten gegen den Gesamtbestand rechnen, bevor etwas geschrieben wird (tools/regel-probelauf.mjs). Kandidaten in Endfassung inkl. belegstufe (E1-E4) und kommentar. Exitcode 2 = blockiert (Strukturfehler, unspezifisch, neue Konflikte, Wiedervorlagen, Widersprueche zu menschlichen Entscheidungen, verlorene bestaetigte Treffer) — dann nicht schreiben. Rein lesend.",
     eigenschaften: {
       kandidaten: { type: "array", items: { type: "object" }, minItems: 1, description: "Regelkandidaten als Objekte im Schema von kategorisierungsregeln.json" },
       kandidaten_datei: { type: "string", description: "Alternativ: JSON-Datei mit Kandidaten unter data/" },
@@ -163,7 +163,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "nachkategorisieren",
     skript: "recategorize.mjs",
-    beschreibung: "Bestand nach Regelaenderungen neu bewerten (tools/recategorize.mjs): offene und regelbasierte Buchungen gegen das aktuelle Regelwerk; bestaetigt/abgelehnt/manuell bleiben unangetastet. Vorschau ist Default (laeuft gegen eine Kopie des Datenroots).",
+    beschreibung: "Bestand nach Regelaenderungen neu bewerten (tools/recategorize.mjs): offene, regelbasierte und auto-freigegebene Buchungen gegen das aktuelle Regelwerk; menschlich bestaetigte, abgelehnte und manuelle bleiben samt Regelbezug unangetastet, Widersprueche zaehlt widerspruch (Liste im Pruefbericht). Vorschau ist Default (laeuft gegen eine Kopie des Datenroots).",
     schreibFlag: true,
     ohneVorschau: true,
     argv: async (ctx, a, root) => [root],
@@ -285,7 +285,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "freigabe",
     skript: "freigabe.mjs",
-    beschreibung: "Vorgeschlagene Buchungen automatisch bestaetigen, soweit ihre Regel das Gate besteht (tools/freigabe.mjs; bestaetigt_durch=auto). Gate-Grund 'anker' = Regel reicht in ein Konto ohne menschlichen Anker. Vorschau ist Default.",
+    beschreibung: "Vorgeschlagene Buchungen automatisch bestaetigen, soweit ihre Regel das Gate besteht (tools/freigabe.mjs; bestaetigt_durch=auto). Gate-Grund 'anker' = Regel reicht in ein Konto ohne menschlichen Anker; 'abweichung' = der gespeicherte Vorschlag entspricht nicht mehr dem aktuellen Regelstand, erst nachkategorisieren. Vorschau ist Default.",
     schreibFlag: "--schreiben",
     argv: async (ctx, a, root) => [root],
   }),

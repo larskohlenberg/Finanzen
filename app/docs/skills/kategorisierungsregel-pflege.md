@@ -169,8 +169,9 @@ Darum gilt eng begrenzt:
 
    - **Strukturfehlern** — Pflichtfeld fehlt, `regel_id` schon vergeben, Kategorie unbekannt.
    - **Neuen Regelkonflikten** — zwei Regeln mit verschiedenen Kategorien treffen dieselbe Buchung. Ergebnis ist `offen`, nicht `vorgeschlagen`; **das Review sieht solche Buchungen nie**, der Schaden bliebe unsichtbar. Muster schaerfen, nicht umgehen.
-   - **Wiedervorlagen** — der Kandidat widerspricht einer bereits `bestaetigt`-en Regel-Kategorie. Das ist Nacharbeit an einer getroffenen Nutzerentscheidung: **hier ausdruecklich nachfragen**, bevor irgendetwas geschrieben wird.
-   - **Verlorenen bestaetigten Treffern** — eine **Einengung** (schaerferes Muster, zusaetzliches `konto_id`, Stilllegung) laesst bereits `bestaetigt`-e Buchungen aus der Regel fallen. Sie verlieren ihre Kategorie und landen wieder auf `offen`. Das ist derselbe Eingriff in eine Nutzerentscheidung wie eine Wiedervorlage, nur von der anderen Seite: dort widerspricht die Regel, hier verschwindet sie. **Hier ausdruecklich nachfragen** — mit Umfang je Regel, den der Bericht nennt.
+   - **Wiedervorlagen** — der Kandidat widerspricht einer Auto-Freigabe. Die Nach-Kategorisierung legte sie wieder vor, die naechste Freigabe kippte ihre Kategorie: **hier ausdruecklich nachfragen**, bevor irgendetwas geschrieben wird.
+   - **Widerspruechen zu menschlichen Entscheidungen** — der Kandidat widerspricht einer Buchung mit `bestaetigt_durch = mensch`. Die Buchung bleibt unveraendert, die Regel stuende aber gegen die Entscheidung des Nutzers: **hier ausdruecklich nachfragen**.
+   - **Verlorenen bestaetigten Treffern** — eine **Einengung** (schaerferes Muster, zusaetzliches `konto_id`, Stilllegung) laesst bereits automatisch freigegebene Buchungen aus der Regel fallen (menschliche Bestaetigungen behalten Kategorie und Regelbezug). Sie verlieren ihre Kategorie und landen wieder auf `offen`. Das ist derselbe Eingriff in eine Nutzerentscheidung wie eine Wiedervorlage, nur von der anderen Seite: dort widerspricht die Regel, hier verschwindet sie. **Hier ausdruecklich nachfragen** — mit Umfang je Regel, den der Bericht nennt.
 
    Der Kandidat wird **in seiner Endfassung** geprueft, `belegstufe` eingeschlossen
    (gueltig ist E1 bis E4). Nichts nach der Pruefung nachtragen: was das Tool nicht
@@ -222,7 +223,7 @@ Darum gilt eng begrenzt:
    Kategorie von einer greifenden Regel ab, ist das eine Nutzerentscheidung
    (`bestaetigen` mit `aktion: kategorie`) oder eine Regelreparatur.
 
-7. **Bericht.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `belegt`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`) und in `DATENROOT/agent_log.jsonl` protokollieren.
+7. **Bericht.** Den Zaehlerbericht zusammenfassen (`neu_vorgeschlagen`, `wiedervorlage`, `belegt`, `zurueckgesetzt`, `unveraendert`, `uebersprungen`, `widerspruch`) und in `DATENROOT/agent_log.jsonl` protokollieren.
 
    Die Uebergabe erfolgt **regelweise** als Tabelle: Regel → Muster → Kategorie →
    Treffer → **Belegstufe**. Dazu die Zahl der Schaetzungen (E5/E6) je
@@ -245,7 +246,7 @@ Darum gilt eng begrenzt:
 - **Keine Belegstufe hochstufen.** Eine Schaetzung bleibt E6, auch wenn eine Websuche irgendetwas geliefert hat. Die Belegleiter ist der Test fuer Regeln, nicht das Bauchgefuehl.
 - **Ort, Rechtsform, Betrag und Zeitraum sind keine Belege** fuer eine Regel. Auch nicht zu dritt.
 - **Nicht lange suchen.** Ein kurzer Blick je Merchant, dann schaetzen. `KAT-012` ist kein Ausweg aus einer muehsamen Recherche, sondern die Ausnahme ohne jeden Anhaltspunkt.
-- **Nie am blockierenden Probelauf vorbei schreiben.** Exit-Code 2 heisst: Muster schaerfen (Konflikt) oder nachfragen (Wiedervorlage). Nicht das Tool ueberstimmen.
+- **Nie am blockierenden Probelauf vorbei schreiben.** Exit-Code 2 heisst: Muster schaerfen (Konflikt) oder nachfragen (Wiedervorlage, Widerspruch). Nicht das Tool ueberstimmen.
 - **Nicht reimportieren, um nachzukategorisieren.** Der Reimport ueberspringt Bekanntes per Dedupe und ruehrt den Bestand nicht an. Nach-Kategorisierung laeuft ausschliesslich ueber `recategorize.mjs`.
 - **Bestaetigt/manuell/abgelehnt nicht umbiegen.** Das Tool fasst sie nicht an, und du auch nicht.
 - **Regel deckt eine `manuell`-Buchung mit gleicher Kategorie?** Dann ist die `manuell`-Markierung die Altlast (jemand hat Regel **und** `manuell` zugleich gesetzt). `recategorize.mjs` heilt das nicht (es laesst `manuell` in Ruhe). Solche Buchungen gezielt auf `kategorie_herkunft = regel` zuruecksetzen und `matched_regeln` stempeln — **nur**, wenn die treffende Regel **dieselbe** Kategorie liefert. Weicht die Nutzer-Kategorie ab, ist es eine bewusste Uebersteuerung und bleibt `manuell`.
@@ -256,7 +257,7 @@ Darum gilt eng begrenzt:
 
 **Fragen, bevor du handelst:**
 
-- Der Probelauf meldet **Wiedervorlagen** oder **verlorene bestaetigte Treffer**. Umfang je Regel nennen und Entscheidung einholen.
+- Der Probelauf meldet **Wiedervorlagen**, **Widersprueche zu menschlichen Entscheidungen** oder **verlorene bestaetigte Treffer**. Umfang je Regel nennen und Entscheidung einholen.
 - Eine geplante Regelaenderung wuerde viele `bestaetigt`-Eintraege betreffen.
 - Der Nutzer hat eine Kategorie zuvor ausdruecklich anders entschieden und die Recherche widerspricht ihr.
 

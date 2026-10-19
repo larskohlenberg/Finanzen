@@ -5,7 +5,9 @@
 // ein Mensch sich ansehen sollte — vor allem das, was nie ein Mensch gesehen hat.
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { categorize } from "./categorizer.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { istWiderspruch, menschlichEntschieden } from "./lib/entscheidung.mjs";
 import { centsToDecimal, normalizeLoose, toCents } from "./lib/text.mjs";
 import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
 import { kontoanker, ungedeckteKonten } from "./lib/kontoanker.mjs";
@@ -52,6 +54,24 @@ function ausreisser(transaktionen) {
     }
   }
   return treffer;
+}
+
+// Menschliche Entscheidungen, denen das Regelwerk heute eine andere Kategorie
+// gibt. Kein Regellauf fasst sie an; ohne diese Liste blieben sie nach einem
+// Regel-Tuning still stale (der Grund, aus dem ADR 0017 "tabu" einst verwarf).
+function widersprueche(transaktionen, regeln) {
+  const liste = [];
+  for (const tx of transaktionen) {
+    if (!menschlichEntschieden(tx)) continue;
+    const jetzt = categorize(tx, regeln);
+    if (!istWiderspruch(tx, jetzt)) continue;
+    liste.push({
+      transaktion_id: tx.transaktion_id, buchungsdatum: tx.buchungsdatum, betrag: tx.betrag,
+      gegenpartei: tx.gegenpartei, konto_id: tx.konto_id,
+      ist_kategorie: tx.kategorie_id, regel_kategorie: jetzt.kategorie_id, regeln: jetzt.matched_regeln,
+    });
+  }
+  return liste;
 }
 
 // Der Import-Agent schreibt die Differenz als `{ konto_id, betrag, grund }`
@@ -153,6 +173,7 @@ export function pruefbericht({ transaktionen, regeln, konten, zeitwerte, log }) 
     // Schaetzungen des Agenten (ADR 0029): nur Information, kein Blocker. Was
     // ein Mensch schon bestaetigt oder korrigiert hat, ist keine Schaetzung mehr.
     agent_geschaetzt: (transaktionen ?? []).filter((tx) => tx.kategorie_herkunft === "agent" && tx.bestaetigt_durch !== "mensch").length,
+    widersprueche: widersprueche(transaktionen ?? [], regeln ?? []),
     gate_durchfall: letzteFreigabe?.gate_durchfall ?? [],
     // Was das Gate gehalten hat, steht schon im Logeintrag. Diese Liste zeigt
     // die ganze Flaeche: jedes Konto, auf dem eine Regel wirkt, ohne dass dort
@@ -188,6 +209,10 @@ export function renderBericht(b) {
 
   z.push("", `VOM AGENTEN GESCHAETZT, HERKUNFT AGENT (${b.agent_geschaetzt})`);
   z.push("  nur zur Kenntnis — korrigieren ueber Transaktionen, Filter Herkunft = Agent");
+
+  z.push("", `MENSCHLICHE ENTSCHEIDUNGEN IM WIDERSPRUCH ZUM REGELWERK (${b.widersprueche.length})`);
+  z.push("  bleiben unveraendert — Regel schaerfen oder die Buchung neu entscheiden (bestaetigen, auch entschiedene)");
+  for (const w of b.widersprueche) z.push(zeile(w.betrag, `${w.buchungsdatum}  ${w.gegenpartei}  ${w.ist_kategorie} -> ${w.regel_kategorie}  [${w.regeln.join(", ")}]`));
 
   z.push("", `AM GATE GESCHEITERT (${b.gate_durchfall.length})`);
   for (const d of b.gate_durchfall) z.push(`  ${d.regel_id}${d.konto_id ? ` auf ${d.konto_id}` : ""}: ${d.grund}`);

@@ -1,5 +1,15 @@
 # Nach-Kategorisierung des Bestands bei Regelaenderung
 
+Statushinweis 2026-10-19: Seit der Auto-Freigabe (ADR 0025) haette eine
+Wiedervorlage eine menschliche Bestaetigung ueber das Gate still mit der neuen
+Kategorie ueberschrieben. Menschlich bestaetigte Buchungen
+(`bestaetigt_durch = mensch`) sind darum fuer jeden Regellauf tabu, auch mit
+Herkunft `regel` und samt `matched_regeln` (Regelbezug zum Zeitpunkt der
+Entscheidung). Den Einwand gegen „strikt tabu" unten, stale Bestaetigungen
+blieben unbemerkt, loest der Pruefbericht: Er listet jede menschliche
+Entscheidung, der das aktuelle Regelwerk eindeutig eine andere Kategorie gibt.
+Wiedervorgelegt werden nur noch Auto-Freigaben.
+
 Werden Kategorisierungsregeln **nach** einem Import angelegt, geaendert oder geloescht, wirken sie auf den bereits importierten Bestand ueber eine eigene, deterministische **Nach-Kategorisierung** — **nicht** ueber einen erneuten Import. Reimport bleibt rein fuers Einspielen zustaendig und ueberspringt Bekanntes per Dedupe; er kann den Bestand also gar nicht nachkategorisieren.
 
 Die Nach-Kategorisierung ist herkunfts-bewusst und ueberschreibt nie still eine menschliche Entscheidung.

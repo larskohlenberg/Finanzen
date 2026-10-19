@@ -15,9 +15,12 @@
 //   Buchung. Ergebnis ist `offen` statt `vorgeschlagen` — der Review sieht nur
 //   `vorgeschlagen` und bekommt den Schaden also nie zu Gesicht. Unsichtbar
 //   schlimmer als gar keine Regel.
-// - WIEDERVORLAGE: der Kandidat widerspricht einer bereits BESTAETIGTEN
-//   Regel-Kategorie. Das ist Nacharbeit an einer Entscheidung, die der Nutzer
-//   schon getroffen hat — das darf der Agent nicht im Alleingang ausloesen.
+// - WIEDERVORLAGE: der Kandidat widerspricht einer AUTO-FREIGABE. Die
+//   Nach-Kategorisierung legte sie wieder vor, die naechste Freigabe kippte
+//   ihre Kategorie — das darf der Agent nicht im Alleingang ausloesen.
+// - WIDERSPRUCH: der Kandidat widerspricht einer MENSCHLICHEN Bestaetigung.
+//   Die Buchung bleibt unveraendert (kein Regellauf fasst sie an), aber eine
+//   Regel gegen eine Nutzerentscheidung braucht vorher eine Rueckfrage.
 // - TREFFERVERLUST: eine Einengung laesst BESTAETIGTE Buchungen aus der Regel
 //   fallen. Sie verlieren ihre Kategorie und landen wieder auf `offen` — der
 //   Schaden ist derselbe wie bei einer Wiedervorlage, nur von der anderen
@@ -32,6 +35,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { hatLeerenZweig, toCents } from "./lib/text.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { istWiderspruch, menschlichEntschieden } from "./lib/entscheidung.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 
 const PFLICHTFELDER = ["regel_id", "kategorie_id", "status", "erstellt_am", "kommentar"];
@@ -75,13 +79,6 @@ function strukturFehler(kandidaten, bestandsRegeln, kategorieIds, aenderung) {
   return fehler;
 }
 
-// Menschliche Akte sind fuer Wiedervorlage und Trefferverlust tabu —
-// recategorize.mjs fasst sie ohnehin nie an, also kann ein Kandidat dort weder
-// etwas umbiegen noch etwas wegnehmen.
-function istUnantastbar(tx) {
-  return tx.kategorie_herkunft === "manuell" || tx.kategorisierung_status === "abgelehnt";
-}
-
 export function probelauf({ transaktionen, bestandsRegeln, kandidaten, kategorieIds = null, aenderung = false }) {
   const struktur_fehler = strukturFehler(kandidaten, bestandsRegeln, kategorieIds, aenderung);
 
@@ -100,6 +97,7 @@ export function probelauf({ transaktionen, bestandsRegeln, kandidaten, kategorie
   const pro_regel = Object.fromEntries(kandidaten.map((r) => [r.regel_id, { kategorie_id: r.kategorie_id, treffer: 0, treffer_bestaetigt: 0, verliert_bestaetigt: 0, summe_cents: 0, beispiele: [] }]));
   const neue_konflikte = [];
   const wiedervorlagen = [];
+  const widersprueche = [];
   const verlorene_bestaetigte = [];
   let treffer = 0;
   let treffer_bestaetigt = 0;
@@ -147,7 +145,7 @@ export function probelauf({ transaktionen, bestandsRegeln, kandidaten, kategorie
       continue;
     }
 
-    if (tx.kategorisierung_status !== "bestaetigt" || istUnantastbar(tx)) continue;
+    if (tx.kategorisierung_status !== "bestaetigt") continue;
     // Deckt eine andere Regel die Buchung mit derselben Kategorie weiter ab,
     // aendert sich fachlich nichts — das ist kein Verlust und kein Fall.
     if (nachher.kategorie_id === tx.kategorie_id) continue;
@@ -160,6 +158,17 @@ export function probelauf({ transaktionen, bestandsRegeln, kandidaten, kategorie
       ist_kategorie: tx.kategorie_id,
       neu_kategorie: nachher.kategorie_id,
     };
+
+    // Menschliche Akte fasst recategorize.mjs nie an: ein Kandidat kann dort
+    // weder etwas umbiegen noch wegnehmen. Bleibt der Widerspruch. Einen, den
+    // es mit derselben Kategorie vorher schon gab, verursacht nicht der Kandidat.
+    if (menschlichEntschieden(tx)) {
+      if (!istWiderspruch(tx, nachher)) continue;
+      const alt = vorher ?? categorize(tx, bestandsRegeln);
+      if (istWiderspruch(tx, alt) && alt.kategorie_id === nachher.kategorie_id) continue;
+      widersprueche.push({ ...befund, regeln: nachher.matched_regeln });
+      continue;
+    }
 
     if (trafVorher && !trifftJetzt) {
       // Die Buchung faellt aus der Regel. `regeln` nennt die Kandidaten, die
@@ -183,9 +192,9 @@ export function probelauf({ transaktionen, bestandsRegeln, kandidaten, kategorie
     .map((regel) => ({ regel_id: regel.regel_id }));
 
   const blockiert = struktur_fehler.length > 0 || neue_konflikte.length > 0 || wiedervorlagen.length > 0
-    || verlorene_bestaetigte.length > 0 || unspezifisch.length > 0;
+    || widersprueche.length > 0 || verlorene_bestaetigte.length > 0 || unspezifisch.length > 0;
 
-  return { treffer, treffer_bestaetigt, pro_regel, neue_konflikte, wiedervorlagen, verlorene_bestaetigte, ohne_treffer, struktur_fehler, unspezifisch, blockiert };
+  return { treffer, treffer_bestaetigt, pro_regel, neue_konflikte, wiedervorlagen, widersprueche, verlorene_bestaetigte, ohne_treffer, struktur_fehler, unspezifisch, blockiert };
 }
 
 async function readJsonl(url) {
@@ -251,11 +260,19 @@ function bericht(out) {
     if (out.verlorene_bestaetigte.length > MAX_ZEILEN) zeilen.push(`      ... und ${out.verlorene_bestaetigte.length - MAX_ZEILEN} weitere (vollstaendig in --json)`);
   }
 
+  if (out.widersprueche.length) {
+    zeilen.push("");
+    zeilen.push(`WIDERSPRUECHE ZU MENSCHLICHEN ENTSCHEIDUNGEN (${out.widersprueche.length}) — blockiert:`);
+    zeilen.push("  Diese Buchungen hat ein Mensch bestaetigt. Sie bleiben unveraendert, die");
+    zeilen.push("  Regel stuende aber gegen diese Entscheidung — vor dem Schreiben nachfragen.");
+    for (const w of out.widersprueche) zeilen.push(`  - ${w.buchungsdatum} ${String(w.betrag).padStart(10)}  ${w.gegenpartei}  ${w.ist_kategorie} -> ${w.neu_kategorie}  [${w.regeln.join(", ")}]`);
+  }
+
   if (out.wiedervorlagen.length) {
     zeilen.push("");
     zeilen.push(`WIEDERVORLAGEN (${out.wiedervorlagen.length}) — blockiert:`);
-    zeilen.push("  Diese Buchungen sind bereits bestaetigt. Ein Widerspruch ist Nacharbeit an");
-    zeilen.push("  einer Nutzerentscheidung — vor dem Schreiben ausdruecklich nachfragen.");
+    zeilen.push("  Diese Buchungen sind automatisch freigegeben. Die Nach-Kategorisierung legte");
+    zeilen.push("  sie wieder vor und die Freigabe kippte ihre Kategorie — vorher nachfragen.");
     for (const w of out.wiedervorlagen) zeilen.push(`  - ${w.buchungsdatum} ${String(w.betrag).padStart(10)}  ${w.gegenpartei}  ${w.ist_kategorie} -> ${w.neu_kategorie}  [${w.regeln.join(", ")}]`);
   }
 
@@ -268,8 +285,8 @@ const USAGE = `Aufruf: node app/tools/regel-probelauf.mjs <datenroot> <kandidate
 
 Rechnet Regelkandidaten gegen den gesamten Bestand, bevor etwas geschrieben wird.
 Exit-Code 2 bei Strukturfehlern, unspezifischen Mustern, neuen Regelkonflikten,
-Wiedervorlagen und verlorenen bestaetigten Treffern (Einengung laesst bestaetigte
-Buchungen aus der Regel fallen).
+Wiedervorlagen, Widerspruechen zu menschlichen Entscheidungen und verlorenen
+bestaetigten Treffern (Einengung laesst bestaetigte Buchungen aus der Regel fallen).
 --aenderung erlaubt Kandidaten mit bereits vergebener regel_id (Regel bewusst aendern).`;
 
 async function main() {

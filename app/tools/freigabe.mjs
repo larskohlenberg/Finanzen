@@ -11,6 +11,7 @@
 // anfassbar, weil nie jemand hingeschaut hat.
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { categorize } from "./categorizer.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
@@ -22,8 +23,8 @@ const BELEGSTUFEN = new Set(["E1", "E2", "E3", "E4"]);
 // Warum eine Regel nicht automatisch freigeben darf. null heisst: sie darf.
 //
 // Kein Konfliktkriterium — categorize() liefert bei Regeln mit verschiedenen
-// Kategorien "offen", nie "vorgeschlagen". Eine konfliktbehaftete Buchung
-// erreicht dieses Gate also gar nicht.
+// Kategorien "offen", nie "vorgeschlagen". Ein Konflikt, der erst nach dem
+// letzten Lauf entstand, faellt im frischen Lauf unten als `abweichung` auf.
 function gateGrund(regel, konto_id, { referenz, gesperrt, anker }) {
   if (!regel) return "unbekannt";
   if (regel.status !== "aktiv") return "inaktiv";
@@ -37,6 +38,17 @@ function gateGrund(regel, konto_id, { referenz, gesperrt, anker }) {
   // (ADR 0027).
   if (stufeVerliehen(regel, konto_id, anker)) return "anker";
   return null;
+}
+
+// Gespeicherte matched_regeln sind der Stand des letzten Laufs, nicht der von
+// heute. Eine seither geaenderte Kategorie, ein anderes Muster, Konto oder
+// Vorzeichen, eine neu hinzugekommene Regel: all das stuende sonst ungeprueft
+// hinter der Freigabe.
+function weichtAb(tx, frisch) {
+  if (frisch.status !== "vorgeschlagen" || frisch.kategorie_id !== tx.kategorie_id) return true;
+  const gespeichert = [...(tx.matched_regeln ?? [])].sort();
+  const jetzt = [...frisch.matched_regeln].sort();
+  return gespeichert.length !== jetzt.length || gespeichert.some((id, i) => id !== jetzt[i]);
 }
 
 export function freigabe({ transaktionen, regeln, gesperrteBelegstufen = [] }) {
@@ -81,6 +93,13 @@ export function freigabe({ transaktionen, regeln, gesperrteBelegstufen = [] }) {
     const gruende = ids.map((id) => [id, pruefe(id, tx.konto_id)]).filter(([, grund]) => grund !== null);
     if (ids.length === 0 || gruende.length > 0) {
       for (const [id, grund] of gruende) merkeDurchfall(id, grund, tx.konto_id);
+      zurueckgehalten += 1;
+      return tx;
+    }
+    // Frei wird nur, was das vollstaendige Regelwerk heute sagt. Weicht das ab,
+    // bleibt der Vorschlag liegen, bis die Nach-Kategorisierung ihn erneuert.
+    if (weichtAb(tx, categorize(tx, regeln))) {
+      for (const id of ids) merkeDurchfall(id, "abweichung", tx.konto_id);
       zurueckgehalten += 1;
       return tx;
     }

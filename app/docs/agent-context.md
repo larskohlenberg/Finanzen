@@ -57,6 +57,8 @@ ohne MCP.
 | Fristen anlegen, abhaken | `datei_lesen` / `datei_ersetzen` auf `DATENROOT/fristen.json` (kein eigenes Tool; Validator laeuft danach) |
 | `tools/neuer-bestand.mjs` | — (nur CLI: legt einmalig einen leeren Datenbestand mit Grundkategorien an, bevor es einen MCP-Server gibt) |
 | `tools/generationen-einrichten.mjs` | — (nur CLI, vom Nutzer auf der VM: stellt einen einfachen Bestandsordner einmalig auf Generationen um, mit Sicherung, Byte-Vergleich und Rueckweg; kein Agentenwerkzeug) |
+| `tools/verlauf.mjs` | `verlauf` (letzte Generationen mit Zeit, ausloesendem Werkzeug und Kurzfassung; `anzahl`, `json`. `--behalten=N` nur per CLI vom Nutzer) |
+| `tools/rueckgaengig.mjs` | `rueckgaengig` (stellt die vorherige Generation, `schritte` zurueck oder `ziel` als neue Generation wieder her; Vorschau zeigt den Diff mit IDs; nur `--recht=schreiben`) |
 | `tools/deploy-pruefung.mjs` | — (nur fuer das Deploy-Skript `ops/aktualisieren.sh`: Schreibsperre ueber den Release-Wechsel, Kennzahlen-Rauchtest; kein Agentenwerkzeug) |
 | `tools/validator.mjs` | `status` (Validator-Ergebnis mit Fehlern; laeuft ausserdem nach jedem Schreiben) |
 | `tools/inbox.mjs` | `inbox` |
@@ -120,6 +122,16 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
   geschrieben (CLI: Exitcode 4); dann die Vorschau neu ansehen. Empfohlen fuer
   jeden Schreibaufruf; ohne Fingerabdruck wird gegen den aktuellen Stand
   geschrieben.
+- **Verlauf und Rueckgaengig:** Bei einem Bestand mit Generationen ist jeder
+  Schreiblauf eine neue Generation. `verlauf` zeigt die letzten (wer, wann, was).
+  Ein falscher Lauf wird mit `rueckgaengig` zurueckgenommen: erst die Vorschau
+  (Diff gegenueber dem aktuellen Stand, bei Buchungen mit IDs) dem Nutzer zeigen,
+  dann mit `schreiben: true` und dem Fingerabdruck. Das legt eine neue
+  Generation mit dem alten Inhalt an; nichts wird geloescht, ein Undo laesst sich
+  mit `ziel` wieder zuruecknehmen. Inbox und `Belege/` liegen ausserhalb des
+  Bestands und werden nicht zurueckgenommen; Verweise darauf pruefen. Aufbewahrt
+  werden die letzten `behalten` (Default 10) frueheren Generationen. Im
+  einfachen Ordner melden beide „Verlauf erst nach Umstellung verfuegbar“.
 - **Version nach Deploy:** Der MCP-Server merkt sich beim Start die
   Release-Kennung (`app/version.json`, auch `serverInfo.version`). Ist danach
   ein neuer Stand installiert, weist er alle Tools ausser `status` mit

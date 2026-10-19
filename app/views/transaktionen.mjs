@@ -1,13 +1,13 @@
 // app/views/transaktionen.mjs
 // Transaktions-Ansicht: Tabelle, Filter (inkl. Zeitfilter), Pagination, Detail-Rail.
-import { data, state, t, escapeHtml, cents, kontenById } from "../runtime.mjs";
+import { data, state, t, tf, escapeHtml, cents, kontenById } from "../runtime.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, mitLogo, statusChip, renderPageHead, renderTableFilters, categoryName, detailRow, quelleHtml } from "../komponenten.mjs";
 import { formatIban } from "../tools/lib/text.mjs";
 import { dokumentRoute } from "../belege.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
-import { aktiveFilter, ohneZeitfilter } from "../navigation.mjs";
+import { aktiveFilter, ohneZeitfilter, BETRAG_MUSTER } from "../navigation.mjs";
 
 // Die Liste rechnet der App-Server (GET /api/v1/transaktionen, Filter, Sortierung,
 // Seite, Sprung zu einer Buchung, Detail der Auswahl); der Browser bekommt nur
@@ -18,6 +18,8 @@ function anfragePfad({ seite = state.transactionPage, auswahl = state.selectedTr
   const suche = new URLSearchParams();
   if (state.dataMode === "demo") suche.set("quelle", "demo");
   for (const [name, wert] of Object.entries(state.transactionFilters)) {
+    // Halb getippte Betraege ("12,") nicht schicken; das Feld zeigt sie als ungueltig.
+    if (name.startsWith("betrag") && !BETRAG_MUSTER.test(wert)) continue;
     if (wert) suche.set(name, wert);
   }
   suche.set("sort", state.transactionSort.key);
@@ -90,6 +92,7 @@ export function renderTransactions() {
           <div class="summary-cell"><span class="muted">${escapeHtml(t("chrome.categoryOpen"))}</span><strong>${antwort.offen}</strong></div>
         </section>
         ${renderTransactionFilters(antwort)}
+        ${renderGruppen(antwort)}
         <section class="panel${laedt ? " laedt" : ""}" aria-busy="${laedt ? "true" : "false"}">
           ${renderTransactionTableToolbar()}
           <div class="table-wrap">
@@ -129,9 +132,36 @@ export function renderTransactions() {
   `;
 }
 
+// Summen je Gruppe ueber alle Treffer (nicht nur die Seite). Eine Zeile
+// schraenkt die Liste auf ihre Buchungen ein.
+function renderGruppen(antwort) {
+  const gruppe = state.transactionFilters.gruppe;
+  if (!gruppe || !antwort.gruppen) return "";
+  const name = (g) => (gruppe === "monat" ? formatMonth(g.schluessel) : g.name || "—");
+  return `
+    <section class="panel panel-pad transaktion-gruppen" aria-labelledby="gruppen-titel">
+      <h2 class="section-title" id="gruppen-titel">${escapeHtml(tf("transactions.gruppenTitel", { gruppe: t(`transactions.gruppe.${gruppe}`) }))}</h2>
+      <ul class="gruppen-liste">
+        <li class="gruppen-kopf" aria-hidden="true"><span>${escapeHtml(t(`transactions.gruppe.${gruppe}`))}</span><span class="amount">${escapeHtml(t("transactions.gruppeAnzahl"))}</span><span class="amount">${escapeHtml(t("transactions.gruppeSumme"))}</span></li>
+        ${antwort.gruppen.map((g) => `
+          <li>
+            ${gruppe === "gegenpartei" && !g.schluessel ? `<span class="muted">—</span>` : `<button class="linkish" data-action="gruppe-filtern" data-gruppe="${escapeHtml(gruppe)}" data-schluessel="${escapeHtml(g.schluessel)}" title="${escapeHtml(t("transactions.gruppeFiltern"))}">${escapeHtml(name(g))}</button>`}
+            <span class="amount muted">${g.anzahl}</span>
+            <span class="amount">${escapeHtml(formatMoney(g.summe_cent))}</span>
+          </li>`).join("")}
+      </ul>
+    </section>`;
+}
+
 function renderTransactionTableToolbar() {
   return `
     <div class="table-toolbar">
+      <label class="table-page-size">
+        <span>${escapeHtml(t("transactions.gruppieren"))}</span>
+        <select data-filter="gruppe" aria-label="${escapeHtml(t("transactions.gruppieren"))}">
+          ${["", "kategorie", "monat", "gegenpartei"].map((g) => `<option value="${g}" ${state.transactionFilters.gruppe === g ? "selected" : ""}>${escapeHtml(t(`transactions.gruppe.${g}`))}</option>`).join("")}
+        </select>
+      </label>
       <label class="table-page-size">
         <span>${escapeHtml(t("transactions.rowsPerPage"))}</span>
         <select data-filter="pageSize" aria-label="${escapeHtml(t("transactions.rowsPerPage"))}">
@@ -222,11 +252,25 @@ function filterChip(name) {
   }
   if (name === "account") return chip({ label: t("transactions.filterAccount"), wertHtml: text(kontenById.get(f.account)?.name || f.account) });
   if (name === "status") return chip({ label: t("transactions.filterStatus"), wertHtml: text(t(`status.${f.status}`)) });
-  if (name === "category") return chip({ label: t("transactions.filterCategory"), wertHtml: text(categoryName(f.category)) });
+  if (name === "category") return chip({ label: t("transactions.filterCategory"), wertHtml: text(f.category === "ohne" ? t("labels.noCategory") : categoryName(f.category)) });
+  if (name === "gegenpartei") return chip({ label: t("labels.counterparty"), wertHtml: text(f.gegenpartei) });
   if (name === "transfer") return chip({ label: t("transactions.filterTransfer"), wertHtml: text(t(f.transfer === "only" ? "transactions.onlyTransfers" : "transactions.withoutTransfers")) });
   if (name === "origin") return chip({ label: t("transactions.filterOrigin"), wertHtml: text(t({ regel: "transactions.originRule", agent: "transactions.originAgent", manuell: "transactions.originManual" }[f.origin] ?? f.origin)) });
   if (name === "zeit") return chip({ label: t("transactions.filterTime"), wertHtml: text(zeitfilterText(f)) });
+  if (name === "richtung") return chip({ label: t("transactions.filterRichtung"), wertHtml: text(t(`transactions.${f.richtung}`)) });
+  if (name === "betrag") return chip({ label: t("transactions.filterBetrag"), wertHtml: text(betragText(f)) });
+  if (name === "regelzahlung") {
+    const rz = (data.regelzahlungen ?? []).find((r) => r.regelzahlung_id === f.regelzahlung);
+    return chip({ icon: "regelzahlungen", label: t("transactions.filterRegelzahlung"), titel: f.regelzahlung, wertHtml: `<a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", f.regelzahlung))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(f.regelzahlung)}">${escapeHtml(rz?.bezeichnung || f.regelzahlung)}</a>` });
+  }
   return "";
+}
+
+// "ab 500 €", "bis 50 €", "100 € – 500 €"
+function betragText(f) {
+  const euro = (wert) => formatMoney(Math.round(Number(String(wert).replace(",", ".")) * 100));
+  if (f.betragVon && f.betragBis) return `${euro(f.betragVon)} – ${euro(f.betragBis)}`;
+  return f.betragVon ? `≥ ${euro(f.betragVon)}` : `≤ ${euro(f.betragBis)}`;
 }
 
 function zeitfilterText(f) {
@@ -273,6 +317,7 @@ function renderTransactionFilters(antwort) {
         label: t("transactions.filterCategory"),
         options: [
         ["", t("transactions.allCategories")],
+        ["ohne", t("labels.noCategory")],
         ...data.kategorien.map((kategorie) => [kategorie.kategorie_id, kategorie.name]),
         ],
       },
@@ -283,6 +328,27 @@ function renderTransactionFilters(antwort) {
         ["", t("transactions.allTransfers")],
         ["only", t("transactions.onlyTransfers")],
         ["without", t("transactions.withoutTransfers")],
+        ],
+      },
+      {
+        name: "richtung",
+        label: t("transactions.filterRichtung"),
+        options: [
+          ["", t("transactions.alleRichtungen")],
+          ["einnahme", t("transactions.einnahme")],
+          ["ausgabe", t("transactions.ausgabe")],
+        ],
+      },
+      { name: "betragVon", type: "betrag", label: t("transactions.betragVon") },
+      { name: "betragBis", type: "betrag", label: t("transactions.betragBis") },
+      {
+        name: "regelzahlung",
+        label: t("transactions.filterRegelzahlung"),
+        options: [
+          ["", t("transactions.alleRegelzahlungen")],
+          ...[...(data.regelzahlungen ?? [])]
+            .sort((a, b) => String(a.bezeichnung).localeCompare(String(b.bezeichnung), "de"))
+            .map((rz) => [rz.regelzahlung_id, rz.bezeichnung || rz.regelzahlung_id]),
         ],
       },
       {
@@ -402,9 +468,16 @@ function renderTransactionRow(tx) {
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei), { groesse: "tabelle" })}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}${tx.bemerkung ? `<div class="tx-bemerkung" title="${escapeHtml(t("transactions.bemerkung"))}">${escapeHtml(tx.bemerkung)}</div>` : ""}</td>
       <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${tx.kategorie_herkunft === "manuell" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originManual"))}">M</span>` : ""}${tx.kategorie_herkunft === "agent" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originAgent"))}">A</span>` : ""}${renderTransferMarke(tx)}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${herkunftMarke(tx)}${renderTransferMarke(tx)}</td>
     </tr>
   `;
+}
+
+// Wer die Kategorie gesetzt hat, als Wort (die Regel ist der Normalfall und
+// bleibt ohne Marke).
+function herkunftMarke(tx) {
+  const schluessel = { manuell: "transactions.originManual", agent: "transactions.originAgent" }[tx.kategorie_herkunft];
+  return schluessel ? ` <span class="herkunft-marke muted">${escapeHtml(t(schluessel))}</span>` : "";
 }
 
 // Transfer-Symbol in der Kategorie-Zelle; bei gepaartem Transfer ein Sprung zur Gegenbuchung.

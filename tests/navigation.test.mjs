@@ -90,3 +90,12 @@ test("seitenTitel nennt Seite und App", () => {
   assert.equal(seitenTitel(["Transaktionen", "TX-1"], "Finanzmodell"), "TX-1 · Transaktionen · Finanzmodell");
   assert.equal(seitenTitel(["Übersicht", ""], "Finanzmodell"), "Übersicht · Finanzmodell");
 });
+
+test("Betrag, Richtung, Regelzahlung und Gruppe stehen in der URL; Gruppe ist kein Filter-Chip", () => {
+  const filter = { ...LEERE_FILTER, richtung: "ausgabe", betragVon: "500", regelzahlung: "RZ-1", gruppe: "monat" };
+  const query = filterAlsQuery(filter);
+  assert.equal(query, "?richtung=ausgabe&betrag_von=500&regelzahlung=RZ-1&gruppe=monat");
+  assert.deepEqual(filterAusQuery(query.slice(1)), filter);
+  assert.deepEqual(filterAusQuery("richtung=quer&betrag_von=abc&gruppe=konto"), LEERE_FILTER, "ungueltige Werte fallen weg");
+  assert.deepEqual(aktiveFilter(filter).map((f) => f.name), ["regelzahlung", "richtung", "betrag"]);
+});

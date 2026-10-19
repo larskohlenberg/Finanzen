@@ -308,6 +308,12 @@ test("Immobilien-Ruecklink oeffnet die Transaktionssuche nur mit der Immobilien-
     quarterYear: "",
     quarter: "1",
     year: "",
+    betragVon: "",
+    betragBis: "",
+    richtung: "",
+    regelzahlung: "",
+    gegenpartei: "",
+    gruppe: "",
   });
   assert.equal(state.transactionPage, 1);
   assert.equal(state.selectedTransactionId, "");
@@ -423,6 +429,12 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
       quarterYear: "",
       quarter: "1",
       year: "",
+      betragVon: "",
+      betragBis: "",
+      richtung: "",
+      regelzahlung: "",
+      gegenpartei: "",
+      gruppe: "",
     });
     assert.ok(app.innerHTML.includes("transaction-row selected"));
     assert.ok(app.innerHTML.includes(`data-transaction="${transactionId}"`));

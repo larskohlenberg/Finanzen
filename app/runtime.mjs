@@ -5,6 +5,7 @@
 // Referenz). Bewusst ohne DOM-Render-Logik (die liegt in main.js/views/).
 import { loadFinanceData, normalizeDataMode } from "./data-loader.mjs";
 import { escapeHtml, formatierer, fuelle } from "./format.mjs";
+import { LEERE_FILTER } from "./navigation.mjs";
 import { defaultHorizonEnd, localTodayIso, toCents } from "./liquiditaet.mjs";
 
 export const app = document.querySelector("#app");
@@ -52,6 +53,7 @@ export const storageKeys = {
   theme: "finance-m2-theme",
   dataMode: DATA_MODE_STORAGE_KEY,
   sidebarCollapsed: "finance-m2-sidebar-collapsed",
+  pageSize: "finance-m2-page-size",
 };
 
 // Reihenfolge gilt fuer Desktop-Sidebar UND mobile Tab-Bar/Mehr-Menue
@@ -86,29 +88,14 @@ export const state = {
   theme: localStorage.getItem(storageKeys.theme) || "system",
   dataMode: normalizeDataMode(data.metadata?.dataMode),
   sidebarCollapsed: localStorage.getItem(storageKeys.sidebarCollapsed) === "true",
-  transactionFilters: {
-    account: "",
-    status: "",
-    category: "",
-    transfer: "",
-    origin: "",
-    search: "",
-    beleg: "",
-    // VS-ID: nur die Beitragsbuchungen dieses Vorsorgevertrags (ueber seine Regelzahlungen).
-    vorsorge: "",
-    timeMode: "none",
-    dateFrom: "",
-    dateTo: "",
-    month: "",
-    quarterYear: "",
-    quarter: "1",
-    year: "",
-  },
+  // Filter der Buchungsliste (navigation.mjs: LEERE_FILTER, Spruenge, URL).
+  transactionFilters: { ...LEERE_FILTER },
   transactionSort: { key: "date", dir: "desc" },
   transactionPage: 1,
   // Buchungs-Id, auf deren Seite gesprungen werden soll (rechnet der Server).
   transactionJumpTo: "",
-  pageSize: 10,
+  // Zeilen je Seite der Buchungsliste; gemerkt im Browser.
+  pageSize: [10, 20, 50, 100].includes(Number(localStorage.getItem(storageKeys.pageSize))) ? Number(localStorage.getItem(storageKeys.pageSize)) : 50,
   selectedTransactionId: "",
   detailRailClosed: false,
   masterSection: "konten",

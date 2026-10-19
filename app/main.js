@@ -11,7 +11,7 @@ import { defaultHorizonEnd } from "./liquiditaet.mjs";
 import { seitenTitel } from "./navigation.mjs";
 import { rahmen, renderSidebar, renderTabbar, renderTopbar, renderPromptFallback, renderValidationBanner, renderUiErrorBanner } from "./rahmen.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
-import { app, data, state, navItems, t, escapeHtml, verwerfeDaten, ersetzeDaten } from "./runtime.mjs";
+import { app, data, state, storageKeys, navItems, t, escapeHtml, verwerfeDaten, ersetzeDaten } from "./runtime.mjs";
 import { AKTIVITAETS_EREIGNISSE, PRUEF_INTERVALL_MS, erstelleSitzungswaechter, ladeSitzungKonfig, zielNachSperre } from "./sitzung.mjs";
 import { erstelleStandWaechter } from "./stand-wechsel.mjs";
 import { oeffneSzenario, snapshotState, restoreState, commitNavigation, applyRoute } from "./verlauf.mjs";
@@ -324,7 +324,8 @@ function verarbeiteEingabe(event) {
   if (!filter) return;
   state.transactionFilters[filter.dataset.filter] = filter.value;
   state.transactionPage = 1;
-  if (filter.type === "search") sucheEntprellt();
+  // Suche und Betragsfelder fragen den Server: entprellt.
+  if (filter.type === "search" || filter.inputMode === "decimal") sucheEntprellt();
   else render();
 }
 app.addEventListener("input", guard((event) => {
@@ -409,6 +410,7 @@ app.addEventListener("change", guard((event) => {
   if (filter) {
     if (filter.dataset.filter === "pageSize") {
       state.pageSize = Number(filter.value);
+      localStorage.setItem(storageKeys.pageSize, String(state.pageSize));
       state.transactionPage = 1;
       state.view = "transactions";
       commitNavigation();

@@ -13,7 +13,20 @@ export const SORTIERUNGEN = Object.freeze(["date", "account", "counterparty", "p
 export const LEERER_FILTER = Object.freeze({
   account: "", status: "", category: "", transfer: "", origin: "", search: "", beleg: "", vorsorge: "",
   timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
+  // Betrag ohne Vorzeichen in Euro ("500", "12.50"), Richtung einnahme|ausgabe, Regelzahlung (RZ-ID).
+  betragVon: "", betragBis: "", richtung: "", regelzahlung: "",
+  // Genau diese Gegenpartei (Gruppenzeile), anders als die Freitextsuche.
+  gegenpartei: "",
 });
+
+// Kategorie-Filter fuer Buchungen ohne Kategorie.
+export const OHNE_KATEGORIE = "ohne";
+
+export const RICHTUNGEN = Object.freeze(["einnahme", "ausgabe"]);
+export const GRUPPEN = Object.freeze(["kategorie", "monat", "gegenpartei"]);
+// Eurobetrag ohne Vorzeichen mit hoechstens zwei Nachkommastellen, Punkt oder Komma.
+export const BETRAG_MUSTER = /^\d{1,9}([.,]\d{1,2})?$/;
+const betragCent = (wert) => toCents(String(wert).replace(",", "."));
 
 function suchfelder(tx) {
   return [
@@ -76,12 +89,21 @@ export function filtereTransaktionen(daten, filter) {
     if (vorsorgeRz && !vorsorgeRz.has(tx.regelzahlung_id)) return false;
     if (f.account && tx.konto_id !== f.account) return false;
     if (f.status && tx.kategorisierung_status !== f.status) return false;
-    if (f.category && tx.kategorie_id !== f.category) return false;
+    if (f.category === OHNE_KATEGORIE ? Boolean(tx.kategorie_id) : f.category && tx.kategorie_id !== f.category) return false;
+    if (f.gegenpartei && String(tx.gegenpartei ?? "").trim() !== f.gegenpartei) return false;
     if (f.transfer === "only" && !tx.ist_transfer) return false;
     if (f.transfer === "without" && tx.ist_transfer) return false;
     if (!passtHerkunft(tx, f.origin)) return false;
     if (!passtBeleg(tx, f.beleg)) return false;
     if (!passtZeitraum(tx, f)) return false;
+    if (f.regelzahlung && tx.regelzahlung_id !== f.regelzahlung) return false;
+    if (f.richtung || f.betragVon || f.betragBis) {
+      const cent = toCents(tx.betrag);
+      if (f.richtung === "einnahme" && cent <= 0) return false;
+      if (f.richtung === "ausgabe" && cent >= 0) return false;
+      if (f.betragVon && Math.abs(cent) < betragCent(f.betragVon)) return false;
+      if (f.betragBis && Math.abs(cent) > betragCent(f.betragBis)) return false;
+    }
     if (f.search && !matchesQuery(suchfelder(tx), f.search)) return false;
     return true;
   });
@@ -128,8 +150,33 @@ function datumsteile(transaktionen, ende) {
 // seite wird auf den gueltigen Bereich begrenzt; mit zeige (Buchungs-Id)
 // springt sie auf die Seite dieser Buchung. auswahl (Id) liefert die Buchung
 // samt Bezuegen fuer das Detail, aber nur, wenn sie im Filter liegt.
+// Summen je Gruppe ueber alle Treffer des Filters (nicht nur die Seite):
+// Kategorie und Gegenpartei nach Betrag ohne Vorzeichen absteigend, Monate
+// neueste zuerst.
+export function gruppenSummen(daten, treffer, gruppe, ohneKategorie = "") {
+  if (!GRUPPEN.includes(gruppe)) return null;
+  const kategorien = new Map((daten.kategorien ?? []).map((k) => [k.kategorie_id, k.name]));
+  const je = new Map();
+  for (const tx of treffer) {
+    const schluessel = gruppe === "kategorie" ? tx.kategorie_id || ""
+      : gruppe === "monat" ? String(tx.buchungsdatum ?? "").slice(0, 7)
+        : String(tx.gegenpartei ?? "").trim();
+    const eintrag = je.get(schluessel) ?? { schluessel, name: "", anzahl: 0, summe_cent: 0 };
+    eintrag.anzahl += 1;
+    eintrag.summe_cent += toCents(tx.betrag);
+    je.set(schluessel, eintrag);
+  }
+  const liste = [...je.values()].map((g) => ({
+    ...g,
+    name: gruppe === "kategorie" ? (g.schluessel ? kategorien.get(g.schluessel) || g.schluessel : ohneKategorie) : g.schluessel,
+  }));
+  return gruppe === "monat"
+    ? liste.sort((a, b) => b.schluessel.localeCompare(a.schluessel))
+    : liste.sort((a, b) => Math.abs(b.summe_cent) - Math.abs(a.summe_cent) || a.name.localeCompare(b.name, "de"));
+}
+
 export function transaktionenSeite(daten, {
-  filter = {}, sort = {}, seite = 1, groesse = 10, auswahl = "", zeige = "", ohneKategorie = "",
+  filter = {}, sort = {}, seite = 1, groesse = 10, auswahl = "", zeige = "", ohneKategorie = "", gruppe = "",
 } = {}) {
   const proSeite = SEITENGROESSEN.includes(groesse) ? groesse : 10;
   const treffer = sortiereTransaktionen(filtereTransaktionen(daten, filter), daten, sort, ohneKategorie);
@@ -160,6 +207,7 @@ export function transaktionenSeite(daten, {
     auswahl: gewaehlt ? transaktionDetail(daten, mitGegenbuchung(gewaehlt)) : null,
     monate: datumsteile(daten.transaktionen ?? [], 7),
     jahre: datumsteile(daten.transaktionen ?? [], 4),
+    gruppen: gruppenSummen(daten, treffer, gruppe, ohneKategorie),
   };
 }
 

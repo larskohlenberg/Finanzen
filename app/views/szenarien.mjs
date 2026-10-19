@@ -10,6 +10,7 @@ import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead, heu
 import { zeitstrahlDiagramm, stapelDiagramm } from "../charts.mjs";
 import { computeSzenario, rechneSzenario, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte, szenarioAenderungen, ereignisAnnahmen } from "../szenarien.mjs";
 import { addInterval } from "../liquiditaet.mjs";
+import { betragJeMonatCents } from "../rhythmus.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 
 // Aus den Buchungen brauchen die Szenarien nur den Startbestand (Positionen
@@ -29,7 +30,6 @@ function szenarienAntwort(heute) {
 }
 
 export const MAX_VERGLEICH = 7;
-const PPJ = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 
 function qualitaetChip(q) {
   const stil = { belegt: ["success", "success", "Belegt"], geschaetzt: ["neutral", "", "Geschaetzt"], offen: ["review", "review", "Offen"] };
@@ -118,7 +118,7 @@ function annahmeName(a) {
 }
 
 const istEinmalig = (a) => a.art === "einmalzahlung" || (a.art === "vorsorge-leistung" && a.arm === "kapital");
-const monatsBetrag = (betrag, einheit, intervall) => Math.round((cents(betrag) * PPJ[einheit ?? "monat"]) / 12 / Number(intervall || 1));
+const monatsBetrag = (betrag, einheit, intervall) => betragJeMonatCents(cents(betrag), einheit, intervall);
 
 // --- Raster: Spalten (Jahr oder Monat) und Positionen auf der Zeitachse ---------
 

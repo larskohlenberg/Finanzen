@@ -14,8 +14,9 @@ function planGrenze(darlehen, today) {
   return darlehen.laufzeit_bis || addInterval(today, "jahr", 50);
 }
 
-export function darlehenKennzahlen(darlehen, zeitwerte, today) {
-  const plan = darlehensplan(darlehen, zeitwerte, planGrenze(darlehen, today));
+// regelzahlungen: die Raten des Darlehens (Zahlungsplan, darlehen.mjs).
+export function darlehenKennzahlen(darlehen, zeitwerte, today, regelzahlungen = []) {
+  const plan = darlehensplan(darlehen, zeitwerte, planGrenze(darlehen, today), regelzahlungen);
   if (!plan) return null;
   const { anker, raten } = plan;
   const ankerCents = toCents(anker.wert);
@@ -63,7 +64,7 @@ export function immobilienKennzahlen(data, immobilieId, today) {
   let restschuld = 0;
   let vollstaendig = true;
   for (const d of darlehen) {
-    const r = restschuldHeute(d, data.zeitwerte, today);
+    const r = restschuldHeute(d, data.zeitwerte, today, data.regelzahlungen);
     if (r.wert_cents === null) vollstaendig = false;
     else restschuld += r.wert_cents;
   }

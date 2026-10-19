@@ -11,6 +11,7 @@
 //   Leistungsbeginn, Vertrags- und Zahlungsende), ohne eigene Eintraege. Sie
 //   zaehlen ab heute; was vorbei ist, ist Geschichte, nicht ueberfaellig.
 import { addInterval } from "./liquiditaet.mjs";
+import { termine } from "./rhythmus.mjs";
 import { FRIST_BEZUEGE } from "./tools/validate-core.mjs";
 
 export const BALD_TAGE = 60;
@@ -24,13 +25,7 @@ function fristBezug(frist) {
 function fristTermine(frist, bis) {
   const erledigt = frist.erledigt_bis ?? "";
   if (!frist.rhythmus_einheit) return frist.datum > erledigt && frist.datum <= bis ? [frist.datum] : [];
-  const termine = [];
-  let cur = frist.datum;
-  for (let step = 1; cur <= bis && step < 10000; step++) {
-    if (cur > erledigt) termine.push(cur);
-    cur = addInterval(frist.datum, frist.rhythmus_einheit, frist.rhythmus_intervall * step);
-  }
-  return termine;
+  return termine(frist.datum, frist.rhythmus_einheit, frist.rhythmus_intervall, { bis }).filter((d) => d > erledigt);
 }
 
 function abgeleiteteTermine(data) {

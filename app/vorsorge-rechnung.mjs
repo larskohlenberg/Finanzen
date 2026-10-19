@@ -5,6 +5,7 @@
 
 import { addInterval, naechsteFaelligkeit, toCents } from "./liquiditaet.mjs";
 import { aktuellerZeitwert } from "./vermoegen.mjs";
+import { betragJeJahrCents, betragJeMonatCents } from "./rhythmus.mjs";
 
 export const VORSORGE_TABS = ["uebersicht", "renten", "lebensversicherungen", "versicherungen"];
 
@@ -27,17 +28,14 @@ export function tabFuerVorsorge(vs) {
 
 export const istBeendet = (vs) => vs.status === "beendet" || vs.status === "gekuendigt";
 
-const PERIODEN_PRO_JAHR = { tag: 365, woche: 52, monat: 12, jahr: 1 };
-
-const periodenProJahr = (rz) => (PERIODEN_PRO_JAHR[rz.rhythmus_einheit] ?? 12) / (Number(rz.rhythmus_intervall) || 1);
-
-// Abfluss einer Regelzahlung als positiver Monats- bzw. Jahresbetrag.
+// Abfluss einer Regelzahlung als positiver Monats- bzw. Jahresbetrag
+// (Perioden/Jahr aus rhythmus.mjs).
 export function beitragJeMonatCents(rz) {
-  return Math.round((-toCents(rz.betrag) * periodenProJahr(rz)) / 12);
+  return betragJeMonatCents(-toCents(rz.betrag), rz.rhythmus_einheit, rz.rhythmus_intervall);
 }
 
 export function beitragJeJahrCents(rz) {
-  return Math.round(-toCents(rz.betrag) * periodenProJahr(rz));
+  return betragJeJahrCents(-toCents(rz.betrag), rz.rhythmus_einheit, rz.rhythmus_intervall);
 }
 
 // Beitrags-Regelzahlungen eines Vertrags, die am Stichtag laufen: bestaetigt,

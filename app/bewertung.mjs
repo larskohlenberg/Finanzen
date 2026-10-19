@@ -34,9 +34,9 @@
 // - Vorsorge: nur kapitalbildende Vertraege, bewertet mit dem Rueckkaufswert.
 //   Erwartete Leistungen (Kapital, Rente) sind eine andere Groesse und fliessen
 //   nie in den Stand.
-import { addInterval, toCents } from "./liquiditaet.mjs";
-
-const PERIODEN_PRO_JAHR = { tag: 365, woche: 52, monat: 12, jahr: 1 };
+import { toCents } from "./tools/lib/text.mjs";
+import { zahlungsplan } from "./darlehen.mjs";
+import { termine } from "./rhythmus.mjs";
 
 export function aktuellerZeitwert(zeitwerte, entitaet, entitaetId, feld, bis = null) {
   let best = null;
@@ -107,45 +107,25 @@ export function kontoStand(konto, zeitwerte, transaktionen, datum) {
   return { wert_cents: summe, basis: "anker-rueckwaerts", standdatum: datum, anker_datum: spaeter.standdatum, qualitaet: spaeter.qualitaet, herkunft: herkunftVon(spaeter), lebenszyklus: "aktiv" };
 }
 
-// Faelligkeitstermine eines Darlehens strikt nach `nach` (exklusiv) bis `bis` (inklusiv).
+// Faelligkeitstermine des Vertragsplans strikt nach `nach` bis `bis` (inklusiv).
 export function faelligkeiten(darlehen, nach, bis) {
-  const dates = [];
-  let step = 0;
-  let guard = 0;
-  let cur = darlehen.anfangsdatum;
-  while (cur <= bis && guard < 100000) {
-    if (cur > nach) dates.push(cur);
-    step++;
-    cur = addInterval(darlehen.anfangsdatum, darlehen.rhythmus_einheit, darlehen.rhythmus_intervall * step);
-    guard++;
-  }
-  return dates;
+  return termine(darlehen.anfangsdatum, darlehen.rhythmus_einheit, darlehen.rhythmus_intervall, { nach, bis });
 }
 
-// Annuitaet ab dem juengsten Restschuld-Anker bis `bis`: je Ratentermin Zins,
-// Tilgung und Rest. Endet, sobald der Rest 0 ist. Deckt die Rate den Zins nicht,
-// waechst der Rest; die Grenze ist dann allein `bis`. Ohne Anker null.
-export function darlehensplan(darlehen, zeitwerte, bis) {
+// Raten ab dem juengsten Restschuld-Anker bis `bis` aus dem Zahlungsplan
+// (darlehen.mjs: Regelzahlungen des Darlehens, sonst Vertragsplan): je Rate
+// Zahlung, Zins, Tilgung und Rest. Endet, sobald der Rest 0 ist. Ohne Anker null.
+export function darlehensplan(darlehen, zeitwerte, bis, regelzahlungen = []) {
   const anker = aktuellerZeitwert(zeitwerte, "darlehen", darlehen.darlehen_id, "restschuld", bis);
   if (!anker) return null;
-  let rest = toCents(anker.wert);
-  const rateCents = toCents(darlehen.sollrate);
-  const zinssatzProzent = Number(darlehen.zinssatz); // % p.a., kein Cent-Wert
-  const ppj = PERIODEN_PRO_JAHR[darlehen.rhythmus_einheit] / darlehen.rhythmus_intervall;
-  const raten = [];
-  for (const datum of faelligkeiten(darlehen, anker.standdatum, bis)) {
-    if (rest <= 0) break;
-    const zins = Math.round((rest * zinssatzProzent) / 100 / ppj);
-    const tilgung = Math.min(rateCents - zins, rest);
-    rest -= tilgung;
-    raten.push({ datum, zins_cents: zins, tilgung_cents: tilgung, rest_cents: rest });
-  }
+  const plan = zahlungsplan(darlehen, { start: { datum: anker.standdatum, rest_cents: toCents(anker.wert) }, bis, regelzahlungen });
+  const raten = plan.ereignisse.filter((e) => e.typ === "rate").map(({ datum, zahlung_cents, zins_cents, tilgung_cents, rest_cents, quelle, regelzahlung_id }) => ({ datum, zahlung_cents, zins_cents, tilgung_cents, rest_cents, quelle, ...(regelzahlung_id ? { regelzahlung_id } : {}) }));
   return { anker, raten };
 }
 
 // Restschuld nach Annuitaet: Anker + Tilgung der seit Anker faelligen Perioden (ADR 0013).
-export function restschuldHeute(darlehen, zeitwerte, today) {
-  const plan = darlehensplan(darlehen, zeitwerte, today);
+export function restschuldHeute(darlehen, zeitwerte, today, regelzahlungen = []) {
+  const plan = darlehensplan(darlehen, zeitwerte, today, regelzahlungen);
   if (!plan) return { wert_cents: null, basis: "anker-fehlt", standdatum: null, qualitaet: null };
   const { anker, raten } = plan;
   // Die Fortschreibung erzeugt die Zwischenstaende ohnehin: als Verlauf festhalten
@@ -155,12 +135,12 @@ export function restschuldHeute(darlehen, zeitwerte, today) {
 }
 
 // Restschuld zum Stichtag samt Rueckfall auf Anfangsbetrag und Anfangsdatum.
-function darlehenStand(darlehen, zeitwerte, datum) {
-  const r = restschuldHeute(darlehen, zeitwerte, datum);
+function darlehenStand(darlehen, zeitwerte, datum, regelzahlungen) {
+  const r = restschuldHeute(darlehen, zeitwerte, datum, regelzahlungen);
   if (r.wert_cents !== null) return r;
   if (darlehen.anfangsbetrag && darlehen.anfangsdatum) {
     const start = { entitaet: "darlehen", entitaet_id: darlehen.darlehen_id, feld: "restschuld", wert: darlehen.anfangsbetrag, standdatum: darlehen.anfangsdatum, qualitaet: "geschaetzt" };
-    const plan = darlehensplan(darlehen, [start], datum);
+    const plan = darlehensplan(darlehen, [start], datum, regelzahlungen);
     const rest = plan.raten.at(-1)?.rest_cents ?? toCents(start.wert);
     return { wert_cents: rest, basis: "anfangsbetrag+tilgung", standdatum: darlehen.anfangsdatum, qualitaet: "geschaetzt", herkunft: null };
   }
@@ -269,7 +249,7 @@ export function stand(data, datum) {
     if (beendet("darlehen", dar, dar.darlehen_id, dar.bezeichnung)) continue;
     const restAnker = aktuellerZeitwert(data.zeitwerte, "darlehen", dar.darlehen_id, "restschuld", datum);
     if (!restAnker && dar.anfangsdatum && datum < dar.anfangsdatum) { ausserhalb.push({ klasse: "darlehen", id: dar.darlehen_id, name: dar.bezeichnung, lebenszyklus: "noch-nicht" }); continue; }
-    aufnehmen("darlehen", dar.darlehen_id, dar.bezeichnung, darlehenStand(dar, data.zeitwerte, datum), -1);
+    aufnehmen("darlehen", dar.darlehen_id, dar.bezeichnung, darlehenStand(dar, data.zeitwerte, datum, data.regelzahlungen), -1);
   }
 
   return {

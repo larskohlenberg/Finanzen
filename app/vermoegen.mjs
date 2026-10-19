@@ -6,6 +6,7 @@
 
 import { toCents, addInterval } from "./liquiditaet.mjs";
 import { aktuellerZeitwert, darlehensplan, kontoStand, stand } from "./bewertung.mjs";
+import { darlehensRegelzahlungen } from "./darlehen.mjs";
 import { dynamikStand } from "./vorsorge-dynamik.mjs";
 import { anstehendeFristen } from "./fristen.mjs";
 
@@ -135,6 +136,13 @@ export function computeVermoegenChecks(data, today) {
     if (!anker) checks.push({ art: "anker-fehlt", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: kein belegter Restschuldstand` });
     const hatRate = (data.regelzahlungen ?? []).some((rz) => rz.darlehen_id === dar.darlehen_id && rz.status === "bestaetigt");
     if (!hatRate) checks.push({ art: "darlehen-ohne-regelzahlung", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: Rate nicht in der Liquiditätsprognose — Regelzahlung anlegen?` });
+    // Die Regelzahlung bestimmt Rate und Tilgung (darlehen.mjs); weicht ihr
+    // Betrag heute von der Sollrate ab, ist eins von beiden zu pruefen.
+    for (const rz of darlehensRegelzahlungen(dar, data.regelzahlungen)) {
+      if (rz.anker_datum > today || (rz.aktiv_bis && rz.aktiv_bis < today)) continue;
+      const rate = Math.abs(toCents(rz.betrag));
+      if (rate !== toCents(dar.sollrate)) checks.push({ art: "darlehen-rate-abweichung", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: Regelzahlung ${rz.regelzahlung_id} zahlt ${(rate / 100).toFixed(2)}, Sollrate ${dar.sollrate} — Tilgung rechnet mit der Regelzahlung` });
+    }
   }
 
   for (const vs of data.vorsorge ?? []) {
@@ -239,7 +247,7 @@ export function restschuldJahre(data, today) {
   const grenze = `${start + 40}-12-31`;
   const plaene = (data.darlehen ?? [])
     .filter((d) => d.status !== "abgeloest")
-    .map((d) => ({ darlehen: d, plan: darlehensplan(d, data.zeitwerte, grenze) }))
+    .map((d) => ({ darlehen: d, plan: darlehensplan(d, data.zeitwerte, grenze, data.regelzahlungen) }))
     .filter((x) => x.plan);
   if (!plaene.length) return null;
   const ereignisse = [];

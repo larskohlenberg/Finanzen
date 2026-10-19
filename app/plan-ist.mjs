@@ -10,6 +10,7 @@
 // Cent; das Monatsmittel teilt die Ansicht durch anzahl_monate.
 // Rein, ohne DOM: Uebersicht, Seite Plan & Ist und MCP rechnen hiermit.
 import { addInterval, periodenSchluessel } from "./liquiditaet.mjs";
+import { termine } from "./rhythmus.mjs";
 import { dayDiff, toCents } from "./tools/lib/text.mjs";
 import { ausschlussZaehler, buchungsKlasse, kategorienIndex, KATEGORIE_UNGEKLAERT, STARTZUSTAND } from "./klassifikation.mjs";
 
@@ -29,12 +30,7 @@ const monatsEnde = (ym) => new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.s
 // Termine einer Regelzahlung zwischen von und bis (inklusive), vom Anker aus vor-
 // und rueckwaerts; aktiv_bis begrenzt.
 export function termineImZeitraum(rz, von, bis) {
-  const ende = rz.aktiv_bis && rz.aktiv_bis < bis ? rz.aktiv_bis : bis;
-  const termin = (k) => addInterval(rz.anker_datum, rz.rhythmus_einheit, Number(rz.rhythmus_intervall) * k);
-  const termine = [];
-  for (let k = 0, d = termin(0); d <= ende && k < 5000; d = termin(++k)) if (d >= von) termine.push(d);
-  for (let k = -1, d = termin(-1); d >= von && k > -5000; d = termin(--k)) if (d <= ende) termine.unshift(d);
-  return termine;
+  return termine(rz.anker_datum, rz.rhythmus_einheit, rz.rhythmus_intervall, { von, bis, ende: rz.aktiv_bis, vorAnker: true });
 }
 
 // Ab wann eine Regelzahlung zaehlt: ihre erste zugeordnete Buchung (abzueglich

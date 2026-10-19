@@ -832,6 +832,7 @@ window.FINANCE_I18N = {
       },
       checkArt: {
         "anker-fehlt": "Anker fehlt",
+        "darlehen-rate-abweichung": "Rate weicht von der Sollrate ab",
         "marktwert-fehlt": "Marktwert fehlt",
         "reconciliation-drift": "Abgleich-Differenz",
         "bewertung-veraltet": "Bewertung veraltet",
@@ -1998,6 +1999,7 @@ window.FINANCE_I18N = {
       },
       checkArt: {
         "anker-fehlt": "Anchor missing",
+        "darlehen-rate-abweichung": "Payment differs from contract rate",
         "marktwert-fehlt": "Market value missing",
         "reconciliation-drift": "Reconciliation drift",
         "bewertung-veraltet": "Valuation outdated",

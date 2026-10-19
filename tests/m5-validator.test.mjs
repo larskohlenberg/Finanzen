@@ -188,3 +188,20 @@ test("Immobilie mit Nutzung und Wohnflaeche ist valide, falsche Werte nicht", ()
     assert.equal(validateMasterData(schlecht).valid, false, JSON.stringify(extra));
   }
 });
+
+test("Zeitwerte: zwei verschiedene Werte fuer denselben Stand sind ein Fehler", () => {
+  const data = basis();
+  const zw = { entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "100.00", standdatum: "2026-01-31", qualitaet: "belegt" };
+  data.zeitwerte.push(zw, { ...zw, standdatum: "2026-02-28", wert: "120.00" });
+  assert.deepEqual(validateMasterData(data).errors, []);
+
+  // Gleicher Wert doppelt: harmlos, die Rechnung bleibt eindeutig.
+  data.zeitwerte.push({ ...zw, qualitaet: "geschaetzt" });
+  assert.deepEqual(validateMasterData(data).errors, []);
+
+  // Verschiedener Wert: heute entschiede die Dateireihenfolge.
+  data.zeitwerte.push({ ...zw, wert: "150.00" });
+  const result = validateMasterData(data);
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /zeitwerte\[3\]: konto KTO-001 kontostand 2026-01-31 hat schon einen anderen Wert \(zeitwerte\[0\]\)/);
+});

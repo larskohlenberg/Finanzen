@@ -623,6 +623,17 @@ function validateCrossFieldRules(data, errors) {
     darlehen: ["restschuld"],
     vorsorge: ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "beitragssumme"],
   };
+  // Je (Entitaet, ID, Feld, Standdatum) ein Wert: sonst entschiede die Dateireihenfolge,
+  // welcher Wert gilt (aktuellerZeitwert nimmt den ersten). Gleicher Wert doppelt ist harmlos.
+  const zeitwertStaende = new Map();
+  data.zeitwerte?.forEach((zw, i) => {
+    const schluessel = [zw.entitaet, zw.entitaet_id, zw.feld, zw.standdatum].join("|");
+    const frueher = zeitwertStaende.get(schluessel);
+    if (!frueher) zeitwertStaende.set(schluessel, { index: i, wert: zw.wert });
+    else if (frueher.wert !== zw.wert) {
+      errors.push(`zeitwerte[${i}]: ${zw.entitaet} ${zw.entitaet_id} ${zw.feld} ${zw.standdatum} hat schon einen anderen Wert (zeitwerte[${frueher.index}])`);
+    }
+  });
   data.zeitwerte?.forEach((zw, i) => {
     const map = Object.hasOwn(zeitwertEntitaeten, zw.entitaet) ? zeitwertEntitaeten[zw.entitaet] : undefined;
     if (map && !map.has(zw.entitaet_id)) {

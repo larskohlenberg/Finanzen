@@ -3573,3 +3573,15 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .spalte-link:hover .spalte-flaeche { fill: var(--accent-soft); fill-opacity: 0.35; }
 .spalte-link:focus-visible { outline: none; }
 .spalte-link:focus-visible .spalte-flaeche { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+
+/* Importbericht auf der Upload-Seite: Schritte je Auftrag als Leiste */
+.import-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.import-eintrag { display: grid; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.import-kopf strong { overflow-wrap: anywhere; }
+.import-schritte { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; counter-reset: schritt; }
+.import-schritte li { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; }
+.import-schritte li.offen { color: var(--muted); border-style: dashed; }
+.import-schritte li.erledigt.success { border-color: var(--success, var(--accent)); }
+.import-schritte li.erledigt.review { border-color: var(--warning, var(--accent)); }
+.import-schritte li.erledigt.danger { border-color: var(--danger); }
+.import-rohzeile { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }

@@ -645,9 +645,8 @@ async function pruefeEntwurf(entwurf, pruefe) {
  */
 
 /**
- * @template T
  * @param {string} basis
- * @param {(tx: { ordner: string, sperre: string|null, lies: Function, schreibe: Function }) => Promise<T>} fn
+ * @param {(tx: { ordner: string, sperre: string|null, vorher: string|null, lies: Function, schreibe: Function, loesche: (rel: string) => Promise<void> }) => Promise<unknown>} fn  schreibt in den Entwurf
  * @param {Schreiboptionen} [optionen]
  */
 export async function mitSchreiber(basis, fn, optionen = {}) {

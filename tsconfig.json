@@ -22,6 +22,7 @@
     "app/tools/lib/fingerabdruck.mjs",
     "app/tools/lib/schreibsperre.mjs",
     "app/tools/lib/schreiblauf.mjs",
+    "app/tools/rueckgaengig.mjs",
     "app/mcp/werkzeuge.mjs"
   ]
 }

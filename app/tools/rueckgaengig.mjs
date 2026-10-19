@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 // app/tools/rueckgaengig.mjs
 // Macht den letzten Schreibvorgang rueckgaengig (ADR 0035, E1 Schritt 6): Die
 // vorherige Generation (oder --schritte=N zurueck, oder --ziel=G000041) wird

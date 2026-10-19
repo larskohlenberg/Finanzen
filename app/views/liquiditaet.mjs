@@ -2,10 +2,24 @@
 // Liquiditaets-Ansicht im Aufbau der Bereichsseiten: oben zwei Kacheln (heute
 // mit den letzten zwoelf Monaten, Prognose bis zum Horizont), darunter die
 // Tabellen als zugeklappte Kacheln.
-import { data, state, t, escapeHtml } from "../runtime.mjs";
+import { state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzahlKachel, kachelZeile, zeitverlaufKlein, klappKachel } from "../komponenten.mjs";
-import { anstehendeJahreszahlungen, computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, liquiditaetVerlauf, toCents } from "../liquiditaet.mjs";
+import { toCents } from "../liquiditaet.mjs";
+import { erstelleApiCache } from "../api-daten.mjs";
+
+// Salden, Verlaeufe und Prognose rechnet der App-Server (GET /api/v1/liquiditaet,
+// Modell in app/liquiditaet-modell.mjs); hier wird nur gezeichnet.
+const cache = erstelleApiCache({ maxEintraege: 8 });
+
+function liquiditaetAntwort(heute) {
+  const suche = new URLSearchParams();
+  if (state.dataMode === "demo") suche.set("quelle", "demo");
+  suche.set("heute", heute);
+  if (state.liquiditaet.bisDatum) suche.set("bis", state.liquiditaet.bisDatum);
+  suche.set("granularitaet", state.liquiditaet.granularitaet);
+  return cache.hole(`./api/v1/liquiditaet?${suche}`);
+}
 
 const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
 const tf = (key, werte) => Object.entries(werte).reduce((text, [k, v]) => text.replaceAll(`{${k}}`, String(v)), t(key));
@@ -49,18 +63,18 @@ function renderSaldoVerlauf(verlauf, emptyKey) {
 }
 
 export function renderLiquiditaet() {
-  const today = heuteIso();
-  const ist = computeLiquiditaetIst(data, { today });
-  const prognose = computeLiquiditaetPrognoseDetail(data, {
-    today,
-    horizonEnd: state.liquiditaet.bisDatum,
-    granularitaet: state.liquiditaet.granularitaet,
-  });
+  const { antwort: modell, fehler } = liquiditaetAntwort(heuteIso());
+  if (!modell) {
+    return `
+    ${renderPageHead(t("liquiditaet.title"), t("liquiditaet.lead"))}
+    <section class="panel panel-pad"><p class="muted" role="status">${escapeHtml(fehler ? `${t("liquiditaet.loadFailed")} (${fehler.message})` : t("liquiditaet.loading"))}</p></section>`;
+  }
+  const { ist, prognose } = modell;
   return `
     ${renderPageHead(t("liquiditaet.title"), t("liquiditaet.lead"))}
     <div class="kachel-paare kachel-paare-oben">
-      ${istKachel(ist, today)}
-      ${prognoseKachel(prognose, today)}
+      ${istKachel(ist, modell.verlauf)}
+      ${prognoseKachel(prognose, modell.zahlungen)}
     </div>
     ${klappKachel({ id: "liquiditaet.bewegungen", titel: `${t("liquiditaet.ist")} · ${t("liquiditaet.monthlyTable")}`, inhalt: renderSaldoVerlauf(ist.monatsverlauf, "liquiditaet.emptyIst"), offen: false, klasse: "section-spacing" })}
     ${klappKachel({ id: "liquiditaet.prognose", titel: `${t("liquiditaet.prognose")} · ${t("liquiditaet.forecastTable")}`, kopfExtra: granKnoepfe(), inhalt: renderLiquiditaetPrognoseDetail(prognose), offen: false, klasse: "section-spacing" })}
@@ -76,9 +90,8 @@ function granKnoepfe() {
 
 // Heute: Saldo der liquiden Konten, Verlauf der letzten zwoelf Monatsenden,
 // darunter der Stand je Konto.
-function istKachel(ist, today) {
+function istKachel(ist, verlauf) {
   const chipKlasse = ist.qualitaet.fehlende_anker > 0 ? "review" : "success";
-  const verlauf = liquiditaetVerlauf(data, today, 24);
   // Trend der letzten sechs Monate (gleitende Regression): Steigung je Monat mit
   // Pfeil; unter 100 Euro je Monat gilt er als seitwaerts.
   const jeMonat = verlauf.at(-1)?.steigung_cents ?? null;
@@ -121,7 +134,7 @@ function istKachel(ist, today) {
 
 // Prognose: Stand am Horizont, Verlauf je Monatsende bis dahin, darunter die
 // naechsten grossen Zahlungen (jaehrliche Abfluesse der naechsten drei Monate).
-function prognoseKachel(prognose, today) {
+function prognoseKachel(prognose, zahlungen) {
   const q = prognose.qualitaet;
   const notiz = [
     `<span class="chip neutral">${escapeHtml(String(q.bestaetigte_regelzahlungen))} ${escapeHtml(t("liquiditaet.qualityConfirmed"))}</span>`,
@@ -141,7 +154,6 @@ function prognoseKachel(prognose, today) {
     labelSchritt: monate.length > 24 ? null : 1,
     ariaLabel: t("liquiditaet.verlaufPrognose"),
   }) : "";
-  const zahlungen = anstehendeJahreszahlungen(data.regelzahlungen, today, 3);
   const zeilen = zahlungen.map(({ datum, regelzahlung: rz }) => kachelZeile(
     `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}" title="${escapeHtml(rz.bezeichnung)}">${escapeHtml(rz.bezeichnung)}</button>`,
     formatMoney(toCents(rz.betrag)),

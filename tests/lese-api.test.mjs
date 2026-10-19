@@ -160,3 +160,18 @@ test("Kopfleiste: Zaehler und Aktionen; Prompt nennt den Bestand der Anfrage", a
   const echt = (await hole("/api/v1/kopfleiste?heute=2026-10-19")).json();
   if (echt.aktionen[0]?.prompt) assert.match(echt.aktionen[0].prompt, /data\/master/);
 });
+
+test("Liquiditaet: Ist, Verlauf, Prognose und Zahlungen; Parameter geprueft", async () => {
+  const a = (await hole("/api/v1/liquiditaet?quelle=demo&heute=2026-10-19&granularitaet=quartal")).json();
+  assert.deepEqual(Object.keys(a).sort(), ["heute", "ist", "prognose", "stand", "verlauf", "zahlungen"]);
+  assert.equal(a.verlauf.length, 24);
+  assert.ok(a.prognose.perioden.every((p) => /-Q\d$/.test(p.periode)));
+  for (const z of a.zahlungen) assert.deepEqual(Object.keys(z.regelzahlung).sort(), ["betrag", "bezeichnung", "regelzahlung_id"]);
+  // Keine Buchungslisten: Ist je Konto nur Id, Name, Saldo und Basis.
+  for (const k of a.ist.konten) assert.deepEqual(Object.keys(k).sort(), ["basis", "konto_id", "name", "saldo_cents"]);
+  const mitBis = (await hole("/api/v1/liquiditaet?quelle=demo&heute=2026-10-19&bis=2027-03-31")).json();
+  assert.equal(mitBis.prognose.horizont_ende, "2027-03-31");
+  for (const q of ["granularitaet=woche", "bis=2027-02-30", "heute=gestern"]) {
+    assert.equal((await hole(`/api/v1/liquiditaet?quelle=demo&${q}`)).status, 400, q);
+  }
+});

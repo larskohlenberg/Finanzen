@@ -313,7 +313,8 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   data.darlehen = [];
   data.vermoegenswerte = [];
   data.vorsorge = [];
-  data.zeitwerte = [];
+  // Kontoauszug bis heute: belegt den Vormonat vollstaendig (Importabdeckung).
+  data.zeitwerte = [{ entitaet: "konto", entitaet_id: "KTO-901", feld: "kontostand", wert: "0.00", standdatum: localTodayIso(), qualitaet: "belegt" }];
   data.fristen = [];
   data.kategorien = [
     { kategorie_id: "KAT-001", name: "Gehalt", typ: "einnahme" },

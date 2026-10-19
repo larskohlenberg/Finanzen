@@ -26,6 +26,7 @@ import { szenarienModell } from "./szenarien-modell.mjs";
 import { checksModell } from "./checks-modell.mjs";
 import { buchungsBelege } from "./belege.mjs";
 import { GRANULARITAETEN, liquiditaetModell } from "./liquiditaet-modell.mjs";
+import { importAbdeckung } from "./klassifikation.mjs";
 import { planIstMonate, planIstRechnung, planIstVerlauf } from "./plan-ist-modell.mjs";
 import { PERIODE_MUSTER } from "./plan-ist.mjs";
 import { addInterval, defaultHorizonEnd, localTodayIso } from "./liquiditaet.mjs";
@@ -141,7 +142,9 @@ const ANSICHTEN = {
     const verlauf = jeStand(bestand, `plan-ist-verlauf:${granularitaet}`, tag, () => planIstVerlauf(bestand.daten, alle, granularitaet));
     const rechne = () => planIstRechnung(bestand.daten, alle, periode);
     const r = periode === "" || periode === "12m" ? jeStand(bestand, `plan-ist-rechnung:${periode}`, tag, rechne) : rechne();
-    return { heute: tag, alle, r, verlauf };
+    // Umfang: Importabdeckung je Konto, aus der die Monatsliste folgt.
+    const umfang = jeStand(bestand, "import-abdeckung", tag, () => importAbdeckung(bestand.daten, tag));
+    return { heute: tag, alle, umfang, r, verlauf };
   },
   konten: (bestand, suche) => {
     const tag = heute(suche);

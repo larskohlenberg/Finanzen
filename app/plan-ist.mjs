@@ -11,14 +11,12 @@
 // Rein, ohne DOM: Uebersicht, Seite Plan & Ist und MCP rechnen hiermit.
 import { addInterval, periodenSchluessel } from "./liquiditaet.mjs";
 import { dayDiff, toCents } from "./tools/lib/text.mjs";
+import { ausschlussZaehler, buchungsKlasse, kategorienIndex, KATEGORIE_UNGEKLAERT, STARTZUSTAND } from "./klassifikation.mjs";
 
 // Ausgaben ab 400 Euro ohne Regelzahlung (Urlaub, Anschaffungen) stehen bewusst
 // nicht im Plan (Nutzerentscheid 2026-10-12); die Seite weist sie je Kategorie aus.
 // Kategorien mit ohne_einzelposten (Bargeld) haben keine.
 export const EINZELPOSTEN_CENTS = 40000;
-const KATEGORIE_UNGEKLAERT = "KAT-012";
-// Anfangssaldo eines Kontos beim Import: weder Einnahme noch Ausgabe.
-const STARTZUSTAND = "Startzustand";
 const RHYTHMUS_TAGE = { tag: 1, woche: 7, monat: 30, jahr: 365 };
 
 // Fenster um einen Termin wie im Matcher: ein Viertel des Rhythmus, hoechstens 15 Tage.
@@ -111,7 +109,7 @@ export function planIst(data, monate) {
   const von = n ? `${monate[0]}-01` : "";
   const bis = n ? monatsEnde(monate.at(-1)) : "";
   const imZeitraum = new Set(monate);
-  const typ = new Map((data.kategorien ?? []).map((k) => [k.kategorie_id, k]));
+  const typ = kategorienIndex(data);
   const istNeutral = (id) => typ.get(id)?.typ === "neutral" && id !== KATEGORIE_UNGEKLAERT;
   const zeilen = new Map();
   const zeile = (key, id) => {
@@ -121,6 +119,7 @@ export function planIst(data, monate) {
   const schluessel = (id, cents) => (typ.get(id)?.brutto === true ? `${id}${cents >= 0 ? "+" : "-"}` : id);
   let sondereffekte = 0;
   let investitionen = 0;
+  const ausschluesse = ausschlussZaehler();
 
   // Ist; dazu je Regelzahlung, was im Zeitraum tatsaechlich gebucht wurde.
   const gebucht = new Map();
@@ -134,10 +133,12 @@ export function planIst(data, monate) {
       g.daten.push(tx.buchungsdatum);
       gebucht.set(tx.regelzahlung_id, g);
     }
-    if (tx.ist_transfer === true || tx.transaktionstyp === STARTZUSTAND) continue;
+    const klasse = buchungsKlasse(tx, typ);
+    ausschluesse.zaehle(klasse, cents);
+    if (klasse === "transfer" || klasse === "startzustand") continue;
     const id = tx.kategorie_id ?? "";
-    if (typ.get(id)?.investition === true) { investitionen += cents; continue; }
-    if (cents > 0 && typ.get(id)?.gutschriften_sondereffekt === true) { sondereffekte += cents; continue; }
+    if (klasse === "investition") { investitionen += cents; continue; }
+    if (klasse === "sondereffekt") { sondereffekte += cents; continue; }
     const z = zeile(schluessel(id, cents), id);
     z.ist += cents;
     if (cents <= -EINZELPOSTEN_CENTS && !tx.regelzahlung_id && !istNeutral(id) && typ.get(id)?.ohne_einzelposten !== true) {
@@ -231,5 +232,6 @@ export function planIst(data, monate) {
     sondereffekte_cents: sondereffekte,
     investitionen_cents: 0 - investitionen,
     luecken: luecken.sort((a, b) => b.fehlend.length - a.fehlend.length),
+    ausschluesse: ausschluesse.ergebnis(),
   };
 }

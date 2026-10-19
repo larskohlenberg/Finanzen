@@ -5,6 +5,7 @@
 // vorsorge-rechnung, fristen, absicherung). Zurueck geht nur, was die Kacheln
 // zeigen: Summen, Namen und Ids, keine Rohlisten.
 import { absicherung } from "./absicherung.mjs";
+import { importAbdeckung } from "./klassifikation.mjs";
 import { anstehendeFristen } from "./fristen.mjs";
 import { anstehendeJahreszahlungen } from "./liquiditaet.mjs";
 import { planIst } from "./plan-ist.mjs";
@@ -35,8 +36,10 @@ const vertrag = (vs) => ({ vorsorge_id: vs?.vorsorge_id, name: vs?.name });
 
 export function uebersichtModell(daten, heute) {
   const gruppen = kontenGruppen(daten, heute);
-  // Nur Monate, die auf allen Konten vollstaendig gebucht sind (Stand wie in der Liquiditaet).
-  const mittel = monatsMittel(daten, heute, { vollstaendigBis: gruppen.konten.aeltester });
+  // Nur Monate, die auf allen Konten vollstaendig gebucht sind (Importabdeckung
+  // je Konto, dieselbe Monatsliste wie Plan & Ist).
+  const abdeckung = importAbdeckung(daten, heute);
+  const mittel = monatsMittel(daten, heute, { vollstaendigBis: abdeckung.vollstaendig_bis });
   const plan = mittel.anzahl_monate ? planIst(daten, mittel.monate) : null;
 
   const netto = computeNettovermoegen(daten, heute);
@@ -68,6 +71,9 @@ export function uebersichtModell(daten, heute) {
       einnahmen: { mittel_cents: mittel.einnahmen.mittel_cents, kategorien: mittel.einnahmen.kategorien },
       ausgaben: { mittel_cents: mittel.ausgaben.mittel_cents, kategorien: mittel.ausgaben.kategorien },
       sparen: mittel.sparen,
+      // Umfang: welche Konten wie weit belegt sind; Ausschluesse: Anzahl und Summe je ausgeschlossener Klasse.
+      umfang: abdeckung,
+      ausschluesse: mittel.ausschluesse,
     },
     // Pfeile der Kacheln: letzte zwoelf Monate gegen die zwoelf davor (null ohne volle Vorjahresmonate).
     trend: mittelVergleich(mittel, vorjahresMittel(daten, mittel)),

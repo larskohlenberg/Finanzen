@@ -146,10 +146,18 @@ function announceStatus() {
   if (region.textContent !== msg) region.textContent = msg;
 }
 
+let zeigerGedrueckt = false;
+let zeichnenAufgeschoben = false;
+
 function render() {
   // Nach der Sitzungssperre ist der Bestand verworfen; nachlaufende
   // Ladevorgaenge (Version, Inbox, Dokumente) duerfen nichts mehr zeichnen.
   if (sitzungGesperrt) return;
+  // Waehrend eine Maustaste gedrueckt ist, nicht unter dem Zeiger austauschen.
+  if (zeigerGedrueckt) {
+    zeichnenAufgeschoben = true;
+    return;
+  }
   applyTheme();
   const focusSnap = captureFocus();
   const scrollSnap = captureScroll();
@@ -631,6 +639,22 @@ function verarbeiteEingabe(event) {
 app.addEventListener("input", guard((event) => {
   if (eingabeBereit(event)) verarbeiteEingabe(event);
 }, setUiError, "input"));
+// Ein Klick braucht Druecken und Loslassen auf demselben Element. Zeichnet
+// dazwischen etwas neu (eine eintreffende API-Antwort, die entprellte Suche),
+// ersetzt es das Element unter dem Zeiger und der Klick geht verloren. Darum
+// wartet jedes Neuzeichnen, solange gedrueckt ist, und kommt nach dem Klick.
+app.addEventListener("pointerdown", () => { zeigerGedrueckt = true; }, true);
+for (const typ of ["pointerup", "pointercancel", "blur"]) {
+  window.addEventListener(typ, (event) => {
+    // blur nur des Fensters (Capture sieht auch das Blur jedes Feldes).
+    if (typ === "blur" && event.target !== window) return;
+    zeigerGedrueckt = false;
+    if (!zeichnenAufgeschoben) return;
+    zeichnenAufgeschoben = false;
+    // Nach dem Klick-Ereignis, das noch in dieser Runde folgt.
+    setTimeout(render, 0);
+  }, true);
+}
 // Beginnt eine Komposition, darf kein anstehendes Neuzeichnen sie zerstoeren.
 app.addEventListener("compositionstart", () => sucheEntprellt.abbrechen());
 app.addEventListener("compositionend", guard((event) => verarbeiteEingabe(event), setUiError, "compositionend"));

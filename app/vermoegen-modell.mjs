@@ -38,7 +38,8 @@ export function vermoegenModell(daten, heute) {
     heute,
     netto: computeNettovermoegen(daten, heute),
     checks: computeVermoegenChecks(daten, heute),
-    verlauf: nettovermoegenVerlauf(daten, heute).map(({ monat, netto_cents }) => ({ monat, netto_cents })),
+    // unbekannt: Zahl der Positionen ohne Wert zu diesem Monatsende (Bewertungsstand).
+    verlauf: nettovermoegenVerlauf(daten, heute).map(({ monat, netto_cents, unbekannt }) => ({ monat, netto_cents, unbekannt })),
     immobilien: Object.fromEntries((daten.immobilien ?? []).filter((i) => i.status !== "verkauft").map((imm) => [imm.immobilie_id, immobilie(daten, imm, heute)])),
     vorsorge_bezug: bezug,
   };

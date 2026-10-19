@@ -48,7 +48,7 @@ test("kennzahlen liefert dieselben Werte wie die Uebersicht", async () => {
     // Kontentabelle in derselben Reihenfolge und mit denselben Salden.
     const zeilen = text.split("\n");
     const kontoZeilen = zeilen.filter((z) => /^- KTO-/.test(z));
-    const konten = sortierteKonten(data);
+    const konten = sortierteKonten(data, heute);
     assert.deepEqual(kontoZeilen.map((z) => z.slice(2).split(" ")[0]), konten.map((k) => k.konto_id));
     for (const [i, konto] of konten.entries()) {
       const z = kontoZeile(data, konto, heute);

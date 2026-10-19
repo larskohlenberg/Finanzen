@@ -115,6 +115,9 @@ test("F5: Start-Nettovermoegen = Nettovermoegen der Vermoegensrechnung (nicht li
 test("F5: fehlende Anker sind unbekannt, mit Warnung, und die Qualitaet ist nie belegt", () => {
   const d = startDaten();
   d.zeitwerte = d.zeitwerte.filter((z) => !(z.entitaet_id === "KTO-001" || z.entitaet_id === "DAR-001" || z.entitaet_id === "IMM-001"));
+  // Laufendes Darlehen (begonnen) ohne Anker; ein noch nicht begonnenes ohne
+  // Anker ist keine Schuld (Bewertungsstand, Lebenszyklus).
+  d.darlehen[0].anfangsdatum = "2026-01-01";
   const r = rechneSzenario(d, sz(), HEUTE);
   const ids = r.unbekannt.map((u) => u.id).sort();
   assert.deepEqual(ids, ["DAR-001", "IMM-001", "KTO-001"]);

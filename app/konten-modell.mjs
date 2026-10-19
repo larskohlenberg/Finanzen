@@ -6,22 +6,16 @@
 // Saldoverlauf), dazu die Reihenfolge der Kontentabellen und die Bloecke der
 // Vermoegensseite als Konto-Ids. Stammdaten der Konten kennt der Browser.
 import { toCents } from "./tools/lib/text.mjs";
-import { aktuellerZeitwert, kontoWert } from "./vermoegen.mjs";
+import { kontoWert } from "./vermoegen.mjs";
 import { kontoSaldoVerlauf } from "./vermoegen-details.mjs";
 import { kontenGruppen, kontoZeile, sortierteKonten } from "./uebersicht-rechnung.mjs";
 
-// Buchungen seit dem juengsten Kontostand-Anker bis heute (Detail einer
-// Kontoposition); Depots und Konten ohne Anker haben keine.
-function seitAnkerCents(daten, konto, heute) {
-  if (konto.kontotyp === "depot") return null;
-  const zw = aktuellerZeitwert(daten.zeitwerte, "konto", konto.konto_id, "kontostand");
-  if (!zw) return null;
-  let summe = 0;
-  for (const tx of daten.transaktionen ?? []) {
-    if (tx.konto_id !== konto.konto_id || tx.buchungsdatum <= zw.standdatum || tx.buchungsdatum > heute) continue;
-    summe += toCents(tx.betrag);
-  }
-  return summe;
+// Buchungen seit dem juengsten Kontostand-Anker bis zum Stichtag (Detail einer
+// Kontoposition): Wert minus Anker, wenn der Wert vorwaerts vom Anker kommt;
+// Depots, Konten ohne Anker und Rueckrechnungen haben keine.
+function seitAnkerCents(wert) {
+  if (wert.basis !== "anker+buchungen") return null;
+  return wert.wert_cents - toCents(wert.herkunft.wert);
 }
 
 const gruppe = (g) => ({
@@ -35,10 +29,11 @@ const gruppe = (g) => ({
 export function kontenModell(daten, heute) {
   const konten = {};
   for (const konto of daten.konten ?? []) {
+    const wert = kontoWert(konto, daten.zeitwerte, daten.transaktionen, heute);
     konten[konto.konto_id] = {
-      wert: kontoWert(konto, daten.zeitwerte, daten.transaktionen, heute),
+      wert,
       zeile: kontoZeile(daten, konto, heute),
-      seit_anker_cents: seitAnkerCents(daten, konto, heute),
+      seit_anker_cents: seitAnkerCents(wert),
       saldo_verlauf: kontoSaldoVerlauf(daten, konto, heute).map((p) => p.wert_cents),
     };
   }
@@ -46,7 +41,7 @@ export function kontenModell(daten, heute) {
   return {
     heute,
     konten,
-    reihenfolge: sortierteKonten(daten).map((k) => k.konto_id),
+    reihenfolge: sortierteKonten(daten, heute).map((k) => k.konto_id),
     gruppen: { konten: gruppe(g.konten), depots: gruppe(g.depots), weitere: gruppe(g.weitere) },
   };
 }

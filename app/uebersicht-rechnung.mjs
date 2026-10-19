@@ -3,7 +3,8 @@
 // kommt als Argument. Die Uebersicht (ueber selektoren.mjs) und das MCP-Tool
 // `kennzahlen` rufen dieselben Funktionen, damit beide gleich rechnen.
 import { toCents } from "./tools/lib/text.mjs";
-import { aktuellerZeitwert, computeVermoegenChecks, kontoWert, standVeraltet } from "./vermoegen.mjs";
+import { aktivAm } from "./bewertung.mjs";
+import { computeVermoegenChecks, kontoWert, standVeraltet } from "./vermoegen.mjs";
 
 // Summe aller geladenen Buchungen eines Kontos (kein Anfangssaldo, kein Stichtag).
 export function kontoSaldoGeladen(data, kontoId) {
@@ -22,12 +23,6 @@ export function saldoGeladenerKonten(data) {
     .reduce((sum, tx) => sum + toCents(tx.betrag), 0);
 }
 
-function letzteBuchung(data, kontoId) {
-  return data.transaktionen
-    .filter((tx) => tx.konto_id === kontoId)
-    .reduce((latest, tx) => (String(tx.buchungsdatum ?? "") > latest ? String(tx.buchungsdatum ?? "") : latest), "");
-}
-
 // Eine Zeile der Kontentabelle: Wert zum Stichtag aus derselben Rechnung wie das
 // Nettovermoegen (Depot = Depotwert, sonst belegter Anker + Buchungen danach),
 // dazu Qualitaet, Stichtag des Belegs und ob dieser Stand veraltet ist
@@ -43,13 +38,14 @@ export function kontoZeile(data, konto, today) {
   };
 }
 
-// Konten, die ins "Verfuegbare Geld" der Uebersicht einfliessen.
-export function istVerfuegbaresKonto(konto) {
-  return konto.kontotyp !== "depot" && konto.kontotyp !== "bar" && konto.liquiditaetsrelevant === true && konto.status !== "geschlossen";
+// Konten, die ins "Verfuegbare Geld" der Uebersicht einfliessen (wie die
+// Liquiditaet: geschlossene bis aktiv_bis).
+export function istVerfuegbaresKonto(konto, today) {
+  return konto.kontotyp !== "depot" && konto.kontotyp !== "bar" && konto.liquiditaetsrelevant === true && aktivAm(konto, "geschlossen", today);
 }
 
-function istOffenesDepot(konto) {
-  return konto.kontotyp === "depot" && konto.status !== "geschlossen";
+function istOffenesDepot(konto, today) {
+  return konto.kontotyp === "depot" && aktivAm(konto, "geschlossen", today);
 }
 
 function kontoGruppe(data, konten, today) {
@@ -67,19 +63,20 @@ function kontoGruppe(data, konten, today) {
 // Kontentabelle in Bloecken: konten (Summe = Verfuegbares Geld, Kachel der
 // Uebersicht), depots, weitere (nicht liquide, bar, geschlossen; ohne Summe).
 export function kontenGruppen(data, today) {
-  const sortiert = sortierteKonten(data);
+  const sortiert = sortierteKonten(data, today);
+  const verfuegbar = (k) => istVerfuegbaresKonto(k, today);
+  const depot = (k) => istOffenesDepot(k, today);
   return {
-    konten: kontoGruppe(data, sortiert.filter(istVerfuegbaresKonto), today),
-    depots: kontoGruppe(data, sortiert.filter(istOffenesDepot), today),
-    weitere: kontoGruppe(data, sortiert.filter((k) => !istVerfuegbaresKonto(k) && !istOffenesDepot(k)), today),
+    konten: kontoGruppe(data, sortiert.filter(verfuegbar), today),
+    depots: kontoGruppe(data, sortiert.filter(depot), today),
+    weitere: kontoGruppe(data, sortiert.filter((k) => !verfuegbar(k) && !depot(k)), today),
   };
 }
 
-export function kontoStandDatum(data, konto) {
-  if (konto.kontotyp === "depot") {
-    return aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert")?.standdatum || "";
-  }
-  return letzteBuchung(data, konto.konto_id) || aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand")?.standdatum || "";
+// Stand eines Kontos zum Stichtag (Bewertungsstand): Datum des Depotwerts bzw.
+// der letzten eingerechneten Buchung; nichts nach dem Stichtag.
+export function kontoStandDatum(data, konto, today) {
+  return kontoWert(konto, data.zeitwerte, data.transaktionen, today).standdatum || "";
 }
 
 export function kontoRang(konto) {
@@ -90,11 +87,12 @@ export function kontoRang(konto) {
   return 4;
 }
 
-export function sortierteKonten(data) {
+export function sortierteKonten(data, today) {
+  const datum = new Map(data.konten.map((k) => [k.konto_id, kontoStandDatum(data, k, today)]));
   return data.konten.slice().sort((a, b) => {
     const rank = kontoRang(a) - kontoRang(b);
     if (rank !== 0) return rank;
-    const dateCmp = kontoStandDatum(data, b).localeCompare(kontoStandDatum(data, a));
+    const dateCmp = datum.get(b.konto_id).localeCompare(datum.get(a.konto_id));
     if (dateCmp !== 0) return dateCmp;
     return a.name.localeCompare(b.name);
   });

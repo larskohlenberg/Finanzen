@@ -151,9 +151,10 @@ export function kennzahlenText(data, stichtag) {
     `Kennzahlen der Uebersicht, Stichtag ${stichtag}. Betraege in EUR als Decimal-String.`,
     "",
     `Nettovermoegen: ${eur(netto.netto_cents)} (Aktiva ${eur(netto.aktiva_cents)}, Passiva ${eur(netto.passiva_cents)})`,
-    `  Qualitaet: belegt ${q.belegt}, geschaetzt ${q.geschaetzt}, fehlend ${q.fehlend}, gesamt ${q.gesamt ?? "offen"}`,
-    "  Positionen (Wert zum Stichtag; Konten = belegter Anker + Buchungen danach, Stand = letzte eingerechnete Buchung):",
-    ...netto.positionen.map((p) => `  * ${p.klasse} ${p.id} ${p.name}: ${p.fehlt ? `fehlt (${p.basis})` : `${eur(p.wert_cents)}, Stand ${p.standdatum ?? "-"}, ${p.qualitaet ?? "offen"}`}`),
+    `  Qualitaet: belegt ${q.belegt}, geschaetzt ${q.geschaetzt}, fehlend ${q.fehlend}, gesamt ${q.gesamt ?? "offen"}${netto.unbekannt ? ` (${netto.unbekannt} Position(en) unbekannt, zaehlen 0: Summe ist ein bekannter Teilbestand)` : ""}`,
+    "  Positionen (Bewertungsstand zum Stichtag; nur Werte bis zum Stichtag; Konten = juengster Anker + Buchungen danach, ohne Anker bis dahin aus dem naechsten spaeteren Anker zurueckgerechnet; Methode in Klammern):",
+    ...netto.positionen.map((p) => `  * ${p.klasse} ${p.id} ${p.name}: ${p.unbekannt ? `unbekannt (${p.basis})` : `${eur(p.wert_cents)}, Stand ${p.standdatum ?? "-"}, ${p.qualitaet ?? "offen"} (${p.methode})`}`),
+    ...(netto.ausserhalb.length ? [`  Nicht im Stand (Lebenszyklus): ${netto.ausserhalb.map((x) => `${x.klasse} ${x.id} ${x.lebenszyklus}`).join(", ")}`] : []),
     "",
     `Verfuegbares Geld: ${eur(gruppen.konten.summe_cents)} (= Summe Konten der Tabelle, ${abdeckung(gruppen.konten)})`,
     `Summe Depots: ${eur(gruppen.depots.summe_cents)} (${abdeckung(gruppen.depots)})`,
@@ -163,8 +164,8 @@ export function kennzahlenText(data, stichtag) {
     `Summe geladener Bewegungen (Konten): ${eur(saldoGeladenerKonten(data))}`,
     "  Nur geladene Buchungen liquiditaetsrelevanter Konten ohne Depots, kein Anfangssaldo, ohne Stichtagsbezug.",
     "",
-    "Konten (Tabelle der Uebersicht; Wert = Depotwert bzw. belegter Anker + Buchungen danach, wie im Nettovermoegen):",
-    ...sortierteKonten(data).map((k) => {
+    "Konten (Tabelle der Uebersicht; Wert und Stand aus dem Bewertungsstand wie im Nettovermoegen):",
+    ...sortierteKonten(data, stichtag).map((k) => {
       const z = kontoZeile(data, k, stichtag);
       const wert = z.wert_cents === null ? `kein Wert (${z.basis})` : `${eur(z.wert_cents)}, ${z.qualitaet ?? "offen"} zum ${z.belegdatum}${z.veraltet ? ", veraltet" : ""}`;
       return `- ${k.konto_id} ${k.name} (${k.kontotyp}${k.status === "geschlossen" ? ", geschlossen" : ""}): ${wert}`;

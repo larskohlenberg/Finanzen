@@ -49,8 +49,8 @@ test("Sidebar: Stand nennt den Datenmodus, nicht pauschal Masterdaten", async ()
   assert.equal(t("de", "chrome.releaseStateDemo"), "Web-App · Demodaten");
   assert.ok(t("en", "chrome.releaseStateLive") && t("en", "chrome.releaseStateDemo"));
   assert.equal(t("de", "chrome.releaseState"), undefined, "alter Schluessel ohne Modus ist weg");
-  const main = readFileSync(new URL("../app/main.js", import.meta.url), "utf8");
-  assert.match(main, /state\.dataMode === "demo" \? "chrome\.releaseStateDemo" : "chrome\.releaseStateLive"/);
+  const rahmen = readFileSync(new URL("../app/rahmen.mjs", import.meta.url), "utf8");
+  assert.match(rahmen, /state\.dataMode === "demo" \? "chrome\.releaseStateDemo" : "chrome\.releaseStateLive"/);
 });
 
 test("Liquiditaet: Hinweis ohne veraltete Meilensteine", async () => {

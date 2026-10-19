@@ -1,125 +1,54 @@
-import { defaultHorizonEnd } from "./liquiditaet.mjs";
-import { iconSvg } from "./icons.js";
-import { routeFromState, parseRoute } from "./routing.mjs";
-import { LEERE_FILTER, zuBuchungen, ohneZeitfilter, neuerVerlaufseintrag, seitenTitel } from "./navigation.mjs";
-import { hashNachModuswechsel } from "./demo-modus.mjs";
-import { renderVermoegen } from "./views/vermoegen.mjs";
-import { TAB_FUER_KLASSE } from "./vermoegen-routen.mjs";
-import { renderVorsorge, resetVorsorgeFilters } from "./views/vorsorge.mjs";
-import { tabFuerVorsorge } from "./vorsorge-rechnung.mjs";
-import { setWertstaendeFilter, resetWertstaendeFilters, toggleWertstaendeSort } from "./views/vermoegen-wertstaende.mjs";
-import { renderSzenarien, MAX_VERGLEICH } from "./views/szenarien.mjs";
-import { renderTransactions, transaktionenAntwort, applyTransactionTimeModeDefaults } from "./views/transaktionen.mjs";
+import { ablauf } from "./ablauf.mjs";
 import { beiApiAntwort, leereApiCaches, verwerfeApiCaches } from "./api-daten.mjs";
+import { anwendenBaumBreite, bindBelegeTrenner } from "./belege-trenner.mjs";
+import { ladeGrunddaten, ladeStand } from "./data-loader.mjs";
+import { bindDiagrammHover, termineListenBegrenzen, versteckeDiagrammHover } from "./diagramm-hover.mjs";
+import { safeRender, guard } from "./error.mjs";
+import { captureFocus, restoreFocus, captureScroll, restoreScroll } from "./fokus.mjs";
+import { formatMoney, heuteIso } from "./komponenten.mjs";
+import { beiDatenwechsel, datenwechselMelden, erstelleEntpreller, eingabeBereit, merkeDetails } from "./lebenszyklus.mjs";
+import { defaultHorizonEnd } from "./liquiditaet.mjs";
+import { seitenTitel } from "./navigation.mjs";
+import { rahmen, renderSidebar, renderTabbar, renderTopbar, renderPromptFallback, renderValidationBanner, renderUiErrorBanner } from "./rahmen.mjs";
+import { routeFromState, parseRoute } from "./routing.mjs";
+import { app, data, state, navItems, t, escapeHtml, verwerfeDaten, ersetzeDaten } from "./runtime.mjs";
+import { AKTIVITAETS_EREIGNISSE, PRUEF_INTERVALL_MS, erstelleSitzungswaechter, ladeSitzungKonfig, zielNachSperre } from "./sitzung.mjs";
+import { erstelleStandWaechter } from "./stand-wechsel.mjs";
+import { oeffneSzenario, snapshotState, restoreState, commitNavigation, applyRoute } from "./verlauf.mjs";
+import { ladeVersion } from "./version.mjs";
+import { renderBelege, belegeBeiBedarfLaden, setBelegeSuche, setBelegeZwillinge } from "./views/belege.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
 import { renderPlanIst } from "./views/plan-ist.mjs";
-import { renderTermine } from "./views/termine.mjs";
-import { renderOverview } from "./views/uebersicht.mjs";
 import { renderMasterdata } from "./views/stammdaten.mjs";
-import { renderUpload, dateienEinreihen, ladeInbox, inboxBeiBedarfLaden } from "./views/upload.mjs";
-import {
-  renderBelege, belegeBeiBedarfLaden, ladeBelege, belegDateienStand, setBelegeSuche, setBelegeZwillinge,
-  toggleBelegeSort, toggleBelegeOrdner, ordnerDerAuswahl, waehleAusschnittOrdner, toggleAusschnittOrdner,
-} from "./views/belege.mjs";
-import {
-  app, data, state, storageKeys, navItems, TABBAR_VIEWS,
-  t, escapeHtml, verwerfeDaten, ersetzeDaten,
-} from "./runtime.mjs";
-import { ladeGrunddaten, ladeStand } from "./data-loader.mjs";
-import { erstelleStandWaechter } from "./stand-wechsel.mjs";
-import { formatMoney, heuteIso, toggleKlappKachel, oeffneKlappKachel } from "./komponenten.mjs";
-import { kopfleisteAntwort, kopfleisteFehler } from "./views/kopfleiste-daten.mjs";
-import { renderErrorPanel, safeRender, guard } from "./error.mjs";
-import { bindDiagrammHover, termineListenBegrenzen, versteckeDiagrammHover } from "./diagramm-hover.mjs";
-import { beiDatenwechsel, datenwechselMelden, erstelleEntpreller, eingabeBereit, merkeDetails } from "./lebenszyklus.mjs";
-import { anwendenBaumBreite, bindBelegeTrenner } from "./belege-trenner.mjs";
-import { versionAnzeige, ladeVersion } from "./version.mjs";
-import {
-  AKTIVITAETS_EREIGNISSE, PRUEF_INTERVALL_MS, erstelleSitzungswaechter, ladeSitzungKonfig, zielNachSperre,
-} from "./sitzung.mjs";
+import { renderSzenarien } from "./views/szenarien.mjs";
+import { renderTermine } from "./views/termine.mjs";
+import { renderTransactions, transaktionenAntwort, applyTransactionTimeModeDefaults } from "./views/transaktionen.mjs";
+import { renderOverview } from "./views/uebersicht.mjs";
+import { renderUpload, dateienEinreihen, inboxBeiBedarfLaden } from "./views/upload.mjs";
+import { setWertstaendeFilter, toggleWertstaendeSort } from "./views/vermoegen-wertstaende.mjs";
+import { renderVermoegen } from "./views/vermoegen.mjs";
+import { renderVorsorge } from "./views/vorsorge.mjs";
+import { aktionen as rahmenAktionen } from "./aktionen/rahmen.mjs";
+import { aktionen as dokumentAktionen } from "./aktionen/dokumente.mjs";
+import { aktionen as stammdatenAktionen } from "./aktionen/stammdaten.mjs";
+import { aktionen as buchungsAktionen } from "./aktionen/transaktionen.mjs";
+import { aktionen as vermoegenAktionen } from "./aktionen/vermoegen.mjs";
+import { aktionen as vorsorgeAktionen } from "./aktionen/vorsorge.mjs";
+import { aktionen as szenarioAktionen } from "./aktionen/szenarien.mjs";
+import { aktionen as planTermineAktionen } from "./aktionen/plan-termine.mjs";
+import { iconSvg } from "./icons.js";
 
-let nextActionCopiedTimer = null;
-// undefined = noch nicht geladen (nichts anzeigen), null = keine version.json.
-let appVersion;
-// Sitzungsschutz (sitzung.mjs): null = Konfiguration noch nicht geladen.
-let sitzungKonfig = null;
-let sitzungswaechter = null;
 let sitzungGesperrt = false;
+
+// Die ausgelagerten Teile (verlauf.mjs, rahmen.mjs, aktionen/*) zeichnen,
+// melden Fehler und pruefen den Stand ueber ablauf.mjs.
+Object.assign(ablauf, { render, setUiError, pruefeStand });
 
 function applyTheme() {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const theme = state.theme === "system" ? (systemDark ? "dark" : "light") : state.theme;
   document.documentElement.dataset.theme = theme;
   document.documentElement.lang = state.lang;
-}
-
-const FOCUS_ATTRS = [
-  "id", "data-view", "data-action", "data-account", "data-transaction",
-  "data-vermoegen", "data-szenario", "data-liquiditaet-toggle", "data-liquiditaet-gran", "data-master-section",
-  "data-tab", "data-person", "data-kachel", "data-wertstaende-sort", "data-wertstaende-filter", "data-transaction-sort", "data-control", "data-filter-name", "data-scope", "data-entity",
-  "data-rule", "data-regel-sort", "data-next-action-type", "data-vorsorge",
-  "data-beleg", "data-beleg-sort", "data-beleg-ordner", "data-dok-ausschnitt",
-  "data-zeile", "data-gran", "data-darstellung", "data-periode",
-];
-const SCROLL_SELECTORS = [".nav", ".table-wrap"];
-
-// render() ersetzt den kompletten DOM (app.innerHTML). Ohne Gegenmassnahme
-// springt der Fokus auf <body> und horizontale Scrollpositionen gehen verloren.
-// Vor jedem Re-Render Fokus + Scroll sichern und danach wiederherstellen.
-function captureFocus() {
-  const el = document.activeElement;
-  if (!el || el === document.body || !app.contains(el)) return null;
-  const parts = [];
-  for (const attr of FOCUS_ATTRS) {
-    const value = el.getAttribute?.(attr);
-    if (value != null) parts.push(`[${attr}="${CSS.escape(value)}"]`);
-  }
-  if (!parts.length) return null;
-  const selectionStart = typeof el.selectionStart === "number" ? el.selectionStart : null;
-  const selectionEnd = typeof el.selectionEnd === "number" ? el.selectionEnd : null;
-  return { selector: el.tagName.toLowerCase() + parts.join(""), selectionStart, selectionEnd };
-}
-
-function restoreFocus(snap) {
-  if (!snap) return;
-  let target = null;
-  try {
-    target = app.querySelector(snap.selector);
-  } catch {
-    target = null;
-  }
-  if (!target) return;
-  target.focus({ preventScroll: true });
-  if (snap.selectionStart != null && typeof target.setSelectionRange === "function") {
-    try {
-      target.setSelectionRange(snap.selectionStart, snap.selectionEnd);
-    } catch {
-      /* z. B. input[type=date] erlaubt keine Selektion – ignorieren */
-    }
-  }
-}
-
-function captureScroll() {
-  const map = {};
-  for (const sel of SCROLL_SELECTORS) {
-    map[sel] = [...app.querySelectorAll(sel)].map((el) => ({ left: el.scrollLeft, top: el.scrollTop }));
-  }
-  return { x: window.scrollX, y: window.scrollY, map };
-}
-
-function restoreScroll(snap) {
-  if (!snap) return;
-  for (const sel of SCROLL_SELECTORS) {
-    const els = app.querySelectorAll(sel);
-    (snap.map[sel] || []).forEach((pos, i) => {
-      const el = els[i];
-      if (el) {
-        el.scrollLeft = pos.left;
-        el.scrollTop = pos.top;
-      }
-    });
-  }
-  window.scrollTo(snap.x, snap.y);
 }
 
 // Schlanke Statusmeldung fuer Screenreader. Sitzt in #sr-status ausserhalb von
@@ -159,8 +88,8 @@ function render() {
     return;
   }
   applyTheme();
-  const focusSnap = captureFocus();
-  const scrollSnap = captureScroll();
+  const focusSnap = captureFocus(app);
+  const scrollSnap = captureScroll(app);
   app.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
   app.innerHTML = `
     ${renderSidebar()}
@@ -173,10 +102,10 @@ function render() {
     </main>
     ${renderTabbar()}
   `;
-  restoreScroll(scrollSnap);
+  restoreScroll(app, scrollSnap);
   anwendenBaumBreite(app);
   termineListenBegrenzen(app);
-  restoreFocus(focusSnap);
+  restoreFocus(app, focusSnap);
   document.title = seitenTitel([seitenName(), seitenDetail()], t("appTitle"));
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
@@ -204,233 +133,6 @@ function seitenDetail() {
   return "";
 }
 
-// Ein Objekt der Vermoegensseite oeffnen ("klasse:id"); Vorsorge hat ihre eigene Seite.
-function oeffneVermoegenObjekt(schluessel) {
-  const [klasse, id] = String(schluessel ?? "").split(":");
-  if (klasse === "vorsorge") {
-    resetVorsorgeFilters();
-    state.view = "vorsorge";
-    state.selectedVorsorgeId = id || "";
-    commitNavigation();
-    return;
-  }
-  state.view = "vermoegen";
-  state.vermoegenTab = TAB_FUER_KLASSE[klasse] ?? "uebersicht";
-  state.selectedVermoegenId = TAB_FUER_KLASSE[klasse] && id ? `${klasse}:${id}` : "";
-  if (klasse === "konto") state.selectedKonto = id || "";
-  state.vermoegenDetailRailClosed = false;
-  commitNavigation();
-}
-
-function renderSidebar() {
-  return `
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">FM</div>
-        <div class="brand-copy">
-          <div class="brand-title">${escapeHtml(t("appTitle"))}</div>
-        </div>
-        <button class="sidebar-toggle" data-action="toggle-sidebar" aria-label="${escapeHtml(state.sidebarCollapsed ? t("chrome.expandNav") : t("chrome.collapseNav"))}" title="${escapeHtml(state.sidebarCollapsed ? t("chrome.expandNav") : t("chrome.collapseNav"))}">
-          ${state.sidebarCollapsed ? iconSvg("chevronRight") : iconSvg("chevronLeft")}
-        </button>
-      </div>
-      <nav class="nav" aria-label="${escapeHtml(t("chrome.mainNav"))}">
-        ${navItems
-          .map(([view, labelKey, icon]) => `
-            <button class="nav-button ${state.view === view ? "active" : ""}" data-view="${view}" aria-label="${escapeHtml(t(labelKey))}" title="${escapeHtml(t(labelKey))}">
-              <span class="nav-icon">${iconSvg(icon)}</span>
-              <span class="nav-label">${escapeHtml(t(labelKey))}</span>
-            </button>
-          `)
-          .join("")}
-      </nav>
-      <div class="sidebar-fuss">
-        <div class="sidebar-meta">
-          <span>${escapeHtml(t("chrome.workState"))}</span>
-          <strong>${escapeHtml(t(state.dataMode === "demo" ? "chrome.releaseStateDemo" : "chrome.releaseStateLive"))}</strong>
-          ${renderVersion()}
-        </div>
-        ${renderAbmelden()}
-      </div>
-    </aside>
-  `;
-}
-
-function renderVersion() {
-  if (appVersion === undefined) return "";
-  const v = versionAnzeige(appVersion, {
-    lang: state.lang,
-    lokal: t("chrome.versionLocal"),
-  });
-  if (v.lokal) return `<span class="sidebar-version">${escapeHtml(v.text)}</span>`;
-  const rest = [v.datum, v.branch].filter(Boolean).map(escapeHtml).join(" · ");
-  return `
-    <span class="sidebar-version">
-      <a href="${escapeHtml(v.href)}" target="_blank" rel="noopener" title="${escapeHtml(t("chrome.versionCommitHint"))}">${escapeHtml(v.kurz)}</a> · ${rest}
-    </span>`;
-}
-
-// Nur mit konfigurierter Logout-URL (sitzung.json); lokal gibt es nichts abzumelden.
-function renderAbmelden() {
-  if (!sitzungKonfig?.abmeldenUrl) return "";
-  return `
-    <button type="button" class="nav-button sidebar-abmelden" data-action="abmelden" aria-label="${escapeHtml(t("chrome.signOut"))}" title="${escapeHtml(t("chrome.signOut"))}">
-      <span class="nav-icon">${iconSvg("logout")}</span>
-      <span class="nav-label">${escapeHtml(t("chrome.signOut"))}</span>
-    </button>`;
-}
-
-function renderTabbar() {
-  const primary = navItems.filter(([view]) => TABBAR_VIEWS.includes(view));
-  const secondary = navItems.filter(([view]) => !TABBAR_VIEWS.includes(view));
-  const moreActive = secondary.some(([view]) => view === state.view);
-  return `
-    <nav class="tabbar" aria-label="${escapeHtml(t("chrome.mobileNav"))}">
-      ${state.moreMenuOpen ? `
-        <div class="tabbar-more-menu">
-          ${secondary
-            .map(([view, labelKey, icon]) => `
-              <button class="tabbar-more-item ${state.view === view ? "active" : ""}" data-view="${view}">
-                <span class="nav-icon">${iconSvg(icon)}</span>${escapeHtml(t(labelKey))}
-              </button>
-            `)
-            .join("")}
-          ${sitzungKonfig?.abmeldenUrl ? `
-            <button type="button" class="tabbar-more-item" data-action="abmelden">
-              <span class="nav-icon">${iconSvg("logout")}</span>${escapeHtml(t("chrome.signOut"))}
-            </button>` : ""}
-        </div>` : ""}
-      <div class="tabbar-row">
-        ${primary
-          .map(([view, labelKey, icon]) => `
-            <button class="tabbar-button ${state.view === view ? "active" : ""}" data-view="${view}" aria-label="${escapeHtml(t(labelKey))}">
-              <span class="nav-icon">${iconSvg(icon)}</span>
-              <span class="tabbar-label">${escapeHtml(t(labelKey))}</span>
-            </button>
-          `)
-          .join("")}
-        <button class="tabbar-button ${moreActive ? "active" : ""}" data-action="toggle-more-menu" aria-expanded="${state.moreMenuOpen}" aria-label="${escapeHtml(t("chrome.more"))}">
-          <span class="nav-icon">${iconSvg("more")}</span>
-          <span class="tabbar-label">${escapeHtml(t("chrome.more"))}</span>
-        </button>
-      </div>
-    </nav>
-  `;
-}
-
-function renderTopbar() {
-  const demoActive = state.dataMode === "demo";
-  // Zaehler und naechste Aktion rechnet der Server (GET /api/v1/kopfleiste).
-  const kopf = kopfleisteAntwort();
-  const openCategories = kopf?.offene_kategorien ?? 0;
-  const offeneChecks = kopf?.offene_checks ?? 0;
-  return `
-    <header class="topbar">
-      <div class="work-status" role="group" aria-label="${escapeHtml(t("chrome.workStatus"))}">
-        ${demoActive ? `<span class="chip demo" title="${escapeHtml(t("chrome.demoDataHint"))}">${iconSvg("masterdata")}${escapeHtml(t("chrome.demoData"))}</span>` : ""}
-        ${data.validation?.valid
-          ? `<span class="chip success icon-chip" role="img" aria-label="${escapeHtml(t("chrome.validationPassed"))}" title="${escapeHtml(`${t("chrome.validationPassed")} – ${t("chrome.validationPassedHint")}`)}">${iconSvg("success")}</span>`
-          : `<button class="chip danger linkish" data-action="show-validation" title="${escapeHtml(t("chrome.validationFailedHint"))}">${iconSvg("warning")}${data.validation?.errors.length ?? 0} ${escapeHtml(t("chrome.validationFailed"))}</button>`}
-        <button class="chip neutral linkish icon-chip" data-action="reload-data" aria-label="${escapeHtml(t("chrome.reloadData"))}" title="${escapeHtml(t("chrome.reloadData"))}">${iconSvg("regelzahlungen")}</button>
-        ${kopfleisteFehler() ? `<button class="chip danger linkish" data-action="reload-data" title="${escapeHtml(kopfleisteFehler().message)}">${iconSvg("warning")}${escapeHtml(t("chrome.kopfleisteFehler"))}</button>` : ""}
-        ${openCategories > 0 ? `<button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategories} ${escapeHtml(t("chrome.categoryOpen"))}</button>` : ""}
-        ${offeneChecks > 0 ? `<button class="chip review linkish" data-action="show-checks">${iconSvg("review")}${offeneChecks} ${escapeHtml(t("chrome.openChecks"))}</button>` : ""}
-        ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
-        ${renderNextActionButton(kopf?.aktionen ?? [])}
-      </div>
-      ${renderSettingsMenu()}
-    </header>
-  `;
-}
-
-// Ein Zahnrad statt drei Auswahlfeldern: Datenmodus, Sprache und Darstellung
-// als Knopfreihen im aufklappbaren Menue (Muster wie die Granularitaet in Liquiditaet).
-function renderSettingsMenu() {
-  const gruppe = (setting, label, optionen) => `
-    <div class="settings-group" role="group" aria-label="${escapeHtml(label)}">
-      <span class="settings-label">${escapeHtml(label)}</span>
-      <div class="settings-options">
-        ${optionen.map(([value, text, aktiv]) => `<button class="chip ${aktiv ? "success" : "neutral"} linkish" data-action="set-setting" data-setting="${setting}" data-value="${value}" aria-pressed="${aktiv}">${escapeHtml(text)}</button>`).join("")}
-      </div>
-    </div>`;
-  return `
-    <div class="settings-control">
-      <button class="chip neutral linkish icon-chip settings-toggle" data-action="toggle-settings-menu" aria-haspopup="true" aria-expanded="${state.settingsMenuOpen}" aria-label="${escapeHtml(t("chrome.settings"))}" title="${escapeHtml(t("chrome.settings"))}">${iconSvg("settings")}</button>
-      ${state.settingsMenuOpen ? `
-        <div class="settings-menu">
-          ${gruppe("data-mode", t("chrome.dataMode"), [["live", t("chrome.liveDataShort"), state.dataMode !== "demo"], ["demo", t("chrome.demoDataShort"), state.dataMode === "demo"]])}
-          ${gruppe("lang", t("chrome.language"), [["de", "Deutsch", state.lang === "de"], ["en", "English", state.lang === "en"]])}
-          ${gruppe("theme", t("chrome.appearance"), [["system", t("chrome.themeSystem"), state.theme === "system"], ["light", t("chrome.themeLight"), state.theme === "light"], ["dark", t("chrome.themeDark"), state.theme === "dark"]])}
-        </div>` : ""}
-    </div>
-  `;
-}
-
-function renderNextActionButton(nextActionActions) {
-  const nextAction = nextActionActions[0] ?? { type: "none", label: t("chrome.noAgentAction"), prompt: "" };
-  const disabled = nextAction.type === "none" ? " disabled" : "";
-  const label = state.nextActionCopied ? t("chrome.agentPromptCopied") : t("chrome.copyPromptShort");
-  const detail = nextAction.type === "none" ? t("chrome.noAgentAction") : nextAction.label;
-  const hasMenu = nextActionActions.length > 1;
-  const menuOpen = hasMenu && state.nextActionMenuOpen;
-  return `
-    <span class="next-action-control">
-      <button class="chip neutral linkish next-action-copy" data-action="copy-next-agent-prompt" data-next-action-type="${escapeHtml(nextAction.type)}"${disabled} title="${escapeHtml(`${t("chrome.copyAgentPrompt")}: ${detail}`)}">
-        ${iconSvg("copy")}<span class="chip-text">${escapeHtml(label)} · ${escapeHtml(detail)}</span>
-      </button>
-      ${hasMenu ? `
-        <button class="chip neutral linkish next-action-menu-toggle" data-action="toggle-next-action-menu" aria-expanded="${menuOpen}" title="${escapeHtml(t("chrome.nextAction"))}">
-          ${iconSvg("chevronDown")}
-        </button>
-        ${menuOpen ? `
-          <div class="next-action-menu" role="menu">
-            ${nextActionActions.map((candidate) => `
-              <button class="next-action-menu-item linkish" role="menuitem" data-action="copy-next-agent-prompt" data-next-action-type="${escapeHtml(candidate.type)}" title="${escapeHtml(candidate.label)}">
-                ${iconSvg("copy")}<span>${escapeHtml(candidate.count)} · ${escapeHtml(candidate.label)}</span>
-              </button>
-            `).join("")}
-          </div>` : ""}
-      ` : ""}
-    </span>
-  `;
-}
-
-function renderPromptFallback() {
-  if (!state.nextActionPromptFallback) return "";
-  return `
-    <section class="prompt-fallback panel panel-pad" aria-labelledby="prompt-fallback-title">
-      <h2 class="section-title" id="prompt-fallback-title">${escapeHtml(t("chrome.agentPromptFallbackTitle"))}</h2>
-      <p class="page-lead">${escapeHtml(t("chrome.agentPromptFallbackLead"))}</p>
-      <textarea readonly rows="10">${escapeHtml(state.nextActionPromptFallback)}</textarea>
-      <button class="linkish" data-action="close-prompt-fallback">${escapeHtml(t("chrome.closeDetails"))}</button>
-    </section>
-  `;
-}
-
-// Rotes Banner ueber jeder Ansicht, wenn der geladene Bestand den Datenvertrag
-// verletzt — gleiche Logik wie `npm run validate:master`. Sichtbar machen statt
-// still falsch rechnen. Liste gedeckelt, damit ein kaputter Bestand die UI nicht sprengt.
-function renderValidationBanner() {
-  const v = data.validation;
-  if (!v || v.valid) return "";
-  const MAX = 50;
-  const shown = v.errors.slice(0, MAX);
-  const rest = v.errors.length - shown.length;
-  return `
-    <section id="validation-banner" class="validation-banner" role="alert" tabindex="-1">
-      <div class="validation-banner-head">
-        ${iconSvg("warning")}
-        <strong>${escapeHtml(t("chrome.validationBannerTitle"))}</strong>
-        <span class="chip danger">${v.errors.length}</span>
-      </div>
-      <p class="validation-banner-lead">${escapeHtml(t("chrome.validationBannerLead"))}</p>
-      <ul class="validation-banner-list">
-        ${shown.map((e) => `<li><code>${escapeHtml(e)}</code></li>`).join("")}
-      </ul>
-      ${rest > 0 ? `<p class="muted">+${rest} ${escapeHtml(t("chrome.validationBannerMore"))}</p>` : ""}
-    </section>`;
-}
-
 // Aktions-Grenze: ein in einem Handler geworfener Fehler wird als schliessbares
 // Banner sichtbar, statt nur in der Konsole zu landen.
 function setUiError(error, kontext = "aktion") {
@@ -440,17 +142,6 @@ function setUiError(error, kontext = "aktion") {
     kontext,
   };
   render();
-}
-
-function renderUiErrorBanner() {
-  if (!state.uiError) return "";
-  return `
-    <div class="error-banner">
-      ${renderErrorPanel(state.uiError, state.uiError.kontext)}
-      <button class="chip neutral linkish error-banner-dismiss" data-error-dismiss>
-        ${escapeHtml(t("error.dismiss"))}
-      </button>
-    </div>`;
 }
 
 function renderView() {
@@ -772,670 +463,17 @@ bindDiagrammHover(app);
 window.addEventListener("resize", () => termineListenBegrenzen(app));
 bindBelegeTrenner(app);
 
-async function copyNextAgentPrompt(type = "") {
-  const nextActionActions = kopfleisteAntwort()?.aktionen ?? [];
-  const nextAction = nextActionActions.find((candidate) => candidate.type === type) ?? nextActionActions[0];
-  if (!nextAction?.prompt) return;
-  try {
-    await navigator.clipboard.writeText(nextAction.prompt);
-    if (nextActionCopiedTimer) clearTimeout(nextActionCopiedTimer);
-    state.nextActionCopied = true;
-    state.nextActionMenuOpen = false;
-    state.nextActionPromptFallback = "";
-    render();
-    nextActionCopiedTimer = window.setTimeout(() => {
-      state.nextActionCopied = false;
-      nextActionCopiedTimer = null;
-      render();
-    }, 1800);
-  } catch {
-    if (nextActionCopiedTimer) {
-      clearTimeout(nextActionCopiedTimer);
-      nextActionCopiedTimer = null;
-    }
-    state.nextActionCopied = false;
-    state.nextActionMenuOpen = false;
-    state.nextActionPromptFallback = nextAction.prompt;
-    render();
-  }
-}
-
-function applySetting(setting, value) {
-  if (setting === "data-mode") {
-    const mode = value === "demo" ? "demo" : "live";
-    if (mode === state.dataMode) return;
-    state.dataMode = mode;
-    localStorage.setItem(storageKeys.dataMode, state.dataMode);
-    // Voller Neuladen leert alle Caches (Dokumente, Inbox, Verweis-Index);
-    // ausgewaehlte Datensaetze und Dokumente gehoeren zum anderen Bestand.
-    const url = new URL(window.location.href);
-    url.searchParams.set("_reload", String(Date.now()));
-    url.hash = hashNachModuswechsel(url.hash);
-    window.location.assign(url);
-    return;
-  }
-  if (setting === "lang") {
-    state.lang = value === "en" ? "en" : "de";
-    localStorage.setItem(storageKeys.lang, state.lang);
-  }
-  if (setting === "theme") {
-    state.theme = ["light", "dark"].includes(value) ? value : "system";
-    localStorage.setItem(storageKeys.theme, state.theme);
-  }
-  render();
-}
+// Alle Aktionen (data-action) je Bereich; Namen sind eindeutig.
+const AKTIONEN = {
+  ...rahmenAktionen, ...dokumentAktionen, ...stammdatenAktionen, ...buchungsAktionen,
+  ...vermoegenAktionen, ...vorsorgeAktionen, ...szenarioAktionen, ...planTermineAktionen,
+};
 
 async function handleAction(element) {
   const action = element.dataset.action;
   // Links in klickbaren Zeilen: der Browser oeffnet sie selbst, die Zeile nicht zusaetzlich.
   if (action === "dokument-link") return;
-  if (action === "dokument-oeffnen") {
-    window.open(element.dataset.url, "_blank", "noopener");
-    return;
-  }
-  if (action === "toggle-settings-menu") {
-    state.settingsMenuOpen = !state.settingsMenuOpen;
-    render();
-    return;
-  }
-  if (action === "set-setting") {
-    applySetting(element.dataset.setting, element.dataset.value);
-    return;
-  }
-  if (action === "toggle-next-action-menu") {
-    state.nextActionMenuOpen = !state.nextActionMenuOpen;
-    render();
-    return;
-  }
-  if (action === "copy-next-agent-prompt") {
-    await copyNextAgentPrompt(element.dataset.nextActionType);
-    return;
-  }
-  if (action === "close-prompt-fallback") {
-    state.nextActionPromptFallback = "";
-    render();
-    return;
-  }
-  if (action === "abmelden") {
-    sitzungswaechter?.abmelden();
-    return;
-  }
-  if (action === "reload-data") {
-    // Ohne Seiten-Reload: Bestand bedingt neu holen, Antworten der Lese-APIs
-    // (auch gescheiterte) neu abrufen, Dokumente und Inbox frisch listen.
-    verwerfeApiCaches();
-    pruefeStand({ erzwingen: true });
-    render();
-    if (state.view === "upload") void ladeInbox(render);
-    if (belegDateienStand().zustand !== "unbekannt") void ladeBelege(render);
-    return;
-  }
-  if (action === "upload-choose") {
-    document.getElementById("upload-input")?.click();
-    return;
-  }
-  if (action === "upload-refresh") {
-    void ladeInbox(render);
-    return;
-  }
-  if (action === "belege-refresh") {
-    void ladeBelege(render);
-    return;
-  }
-  if (action === "select-beleg") {
-    state.view = "belege";
-    state.selectedBeleg = element.dataset.beleg || "";
-    commitNavigation();
-    return;
-  }
-  if (action === "close-beleg") {
-    state.selectedBeleg = ordnerDerAuswahl(state.selectedBeleg);
-    commitNavigation();
-    return;
-  }
-  if (action === "select-dok-ausschnitt-ordner") {
-    waehleAusschnittOrdner(element.dataset.dokAusschnitt, element.dataset.belegOrdner);
-    render();
-    return;
-  }
-  if (action === "toggle-dok-ausschnitt-ordner") {
-    toggleAusschnittOrdner(element.dataset.dokAusschnitt, element.dataset.belegOrdner);
-    render();
-    return;
-  }
-  if (action === "toggle-beleg-ordner") {
-    toggleBelegeOrdner(element.dataset.belegOrdner);
-    render();
-    return;
-  }
-  if (action === "sort-belege") {
-    toggleBelegeSort(element.dataset.belegSort);
-    render();
-    return;
-  }
-  if (action === "toggle-more-menu") {
-    state.moreMenuOpen = !state.moreMenuOpen;
-    render();
-    return;
-  }
-  if (action === "toggle-sidebar") {
-    state.sidebarCollapsed = !state.sidebarCollapsed;
-    localStorage.setItem(storageKeys.sidebarCollapsed, String(state.sidebarCollapsed));
-    render();
-    return;
-  }
-  if (action === "go-overview") {
-    state.view = "overview";
-    commitNavigation();
-    return;
-  }
-  if (action === "show-import-errors" || action === "show-checks") {
-    zeigeChecks();
-    commitNavigation();
-    return;
-  }
-  if (action === "show-validation") {
-    const banner = document.getElementById("validation-banner");
-    if (banner) {
-      banner.scrollIntoView({ behavior: "smooth", block: "start" });
-      banner.focus();
-    }
-    return;
-  }
-  if (action === "open-account-master") {
-    state.view = "masterdata";
-    state.masterSection = "konten";
-    state.selectedKonto = element.dataset.account || "";
-    commitNavigation();
-    return;
-  }
-  if (action === "select-master-account") {
-    state.view = "masterdata";
-    state.masterSection = "konten";
-    state.selectedKonto = element.dataset.account || "";
-    commitNavigation();
-    return;
-  }
-  if (action === "close-account-rail") {
-    state.selectedKonto = "";
-    commitNavigation();
-    return;
-  }
-  if (action === "filter-open-category") {
-    zuBuchungen(state, { filter: { status: "offen" } });
-    commitNavigation();
-    return;
-  }
-  if (action === "clear-transaction-filter") {
-    const name = element.dataset.filterName;
-    if (name === "zeit") state.transactionFilters = ohneZeitfilter(state.transactionFilters);
-    else if (Object.hasOwn(state.transactionFilters, name)) state.transactionFilters[name] = LEERE_FILTER[name];
-    else return;
-    state.transactionPage = 1;
-    // Auch Dokument- und Vertragsfilter (Pfadteile) sind Filter: ersetzen.
-    commitNavigation({ ersetzen: true });
-    return;
-  }
-  if (action === "reset-transaction-filters") {
-    state.transactionFilters = { ...LEERE_FILTER };
-    state.transactionPage = 1;
-    commitNavigation();
-    return;
-  }
-  if (action === "account-transactions") {
-    zuBuchungen(state, { filter: { account: element.dataset.account } });
-    commitNavigation();
-    return;
-  }
-  if (action === "immobilie-transactions" || action === "kategorie-transactions") {
-    // Aus der Monatstabelle einer Immobilie oder den Einnahmen/Ausgaben der
-    // Uebersicht: optional auf Monat bzw. Zeitraum und
-    // Kategorie eingeschraenkt; Transfers fehlen dort, also auch hier — ausser die
-    // Tabelle zeigt den Eigenanteil (data-transfer "only" bzw. "all"). Mit data-konto
-    // alle Buchungen eines Kontos im Zeitraum, Umbuchungen eingeschlossen.
-    const { monat = "", von = "", bis = "", kategorie = "", transfer = "", konto = "" } = element.dataset;
-    const mitZeit = Boolean(monat || von);
-    zuBuchungen(state, {
-      filter: {
-        account: konto,
-        category: kategorie,
-        transfer: transfer === "only" ? "only" : transfer === "all" || konto || !mitZeit ? "" : "without",
-        search: element.dataset.immobilie || "",
-        timeMode: monat ? "month" : von ? "range" : "none",
-        dateFrom: von,
-        dateTo: bis,
-        month: monat,
-      },
-    });
-    commitNavigation();
-    return;
-  }
-  if (action === "select-transaction") {
-    // Erstes Oeffnen ist ein neuer Eintrag, der Wechsel zwischen Buchungen ersetzt ihn.
-    const wechsel = Boolean(state.selectedTransactionId) && !state.detailRailClosed;
-    state.selectedTransactionId = element.dataset.transaction;
-    state.detailRailClosed = false;
-    commitNavigation({ ersetzen: wechsel });
-    return;
-  }
-  if (action === "open-transaction") {
-    // Aus einer anderen Ansicht (z. B. Regel-Detail) eine konkrete Buchung
-    // oeffnen: alle Filter leeren, damit die Zielbuchung sicher im gefilterten
-    // Bestand liegt und das Detail-Rail sie zeigt.
-    // Seite der Zielbuchung rechnet der Server (transactionJumpTo).
-    zuBuchungen(state, { auswahl: element.dataset.transaction });
-    commitNavigation();
-    return;
-  }
-  if (action === "open-vorsorge") {
-    state.view = "vorsorge";
-    resetVorsorgeFilters();
-    state.selectedVorsorgeId = element.dataset.vorsorge || "";
-    commitNavigation();
-    return;
-  }
-  if (action === "close-detail-rail") {
-    state.detailRailClosed = true;
-    commitNavigation();
-    return;
-  }
-  if (action === "close-regel-rail") {
-    state.selectedRegel = "";
-    state.regelRailWide = false;
-    commitNavigation();
-    return;
-  }
-  if (action === "toggle-regel-rail-width") {
-    state.regelRailWide = !state.regelRailWide;
-    commitNavigation();
-    return;
-  }
-  if (action === "close-vermoegen-detail-rail") {
-    state.vermoegenDetailRailClosed = true;
-    commitNavigation();
-    return;
-  }
-  if (action === "page-first" || action === "page-prev" || action === "page-next" || action === "page-last" || action === "page-jump") {
-    state.view = "transactions";
-    if (action === "page-first") state.transactionPage = 1;
-    if (action === "page-prev") state.transactionPage -= 1;
-    if (action === "page-next") state.transactionPage += 1;
-    // Die letzte Seite kennt der Server; er begrenzt die Seitenzahl.
-    if (action === "page-last") state.transactionPage = 999999;
-    if (action === "page-jump") state.transactionPage = Number(element.dataset.page);
-    commitNavigation();
-    return;
-  }
-  if (action === "paired-transfer") {
-    state.view = "transactions";
-    const transactionId = element.dataset.transaction;
-    // Konto der Gegenbuchung steht am Knopf (aus der Antwort der Transaktionen-API).
-    const kontoId = element.dataset.account;
-    if (kontoId) zuBuchungen(state, { filter: { account: kontoId }, auswahl: transactionId });
-    else state.selectedTransactionId = transactionId;
-    commitNavigation();
-    return;
-  }
-  if (action === "select-vermoegen") {
-    state.selectedVermoegenId = element.dataset.vermoegen;
-    state.vermoegenTab = TAB_FUER_KLASSE[String(element.dataset.vermoegen).split(":")[0]] ?? state.vermoegenTab;
-    state.vermoegenDetailRailClosed = false;
-    commitNavigation();
-    return;
-  }
-  if (action === "select-vorsorge") {
-    // Aus einem anderen Tab (z. B. Offene Punkte): Personenfilter nicht mitnehmen.
-    const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === element.dataset.vorsorge);
-    if (!vs || tabFuerVorsorge(vs) !== state.vorsorgeTab) resetVorsorgeFilters();
-    state.view = "vorsorge";
-    state.selectedVorsorgeId = element.dataset.vorsorge || "";
-    commitNavigation();
-    return;
-  }
-  if (action === "vorsorge-tab") {
-    state.view = "vorsorge";
-    state.vorsorgeTab = element.dataset.tab || "uebersicht";
-    state.selectedVorsorgeId = "";
-    resetVorsorgeFilters();
-    commitNavigation();
-    return;
-  }
-  if (action === "klapp-kachel") {
-    toggleKlappKachel(element.dataset.kachel, element.dataset.standard !== "false");
-    render();
-    return;
-  }
-  if (action === "vorsorge-person") {
-    state.vorsorgeFilters.person = element.dataset.person || "";
-    render();
-    return;
-  }
-  if (action === "open-szenario") {
-    // Liste, Vergleich oder Querlink -> Detail; eigener History-Eintrag, damit Zurueck zur Liste fuehrt.
-    state.view = "szenarien";
-    oeffneSzenario(element.dataset.szenario || "");
-    commitNavigation();
-    return;
-  }
-  if (action === "back-to-szenarien") {
-    oeffneSzenario("");
-    commitNavigation();
-    return;
-  }
-  if (action === "toggle-szenario-auswahl") {
-    const id = element.dataset.szenario;
-    if (state.szenarioAuswahl.has(id)) state.szenarioAuswahl.delete(id);
-    else if (state.szenarioAuswahl.size < MAX_VERGLEICH) state.szenarioAuswahl.add(id);
-    render();
-    return;
-  }
-  if (action === "szenarien-vergleichen") {
-    const bekannt = new Set((data.szenarien ?? []).map((s) => s.szenario_id));
-    oeffneSzenario("");
-    state.szenarioVergleichIds = (data.szenarien ?? []).map((s) => s.szenario_id).filter((id) => state.szenarioAuswahl.has(id) && bekannt.has(id));
-    commitNavigation();
-    return;
-  }
-  if (action === "set-szenario-modus") {
-    state.szenarioDiagrammModus = element.dataset.wert === "differenz" ? "differenz" : "absolut";
-    render();
-    return;
-  }
-  if (action === "set-szenario-aufloesung") {
-    state.szenarioAufloesung = element.dataset.wert === "monat" ? "monat" : "jahr";
-    render();
-    return;
-  }
-  if (action === "set-szenario-netto-ansicht") {
-    state.szenarioNettoTabelle = element.dataset.wert === "tabelle";
-    render();
-    return;
-  }
-  if (action === "toggle-szenario-phase") {
-    const i = Number(element.dataset.phase);
-    if (state.szenarioPhaseOffen.has(i)) state.szenarioPhaseOffen.delete(i);
-    else state.szenarioPhaseOffen.add(i);
-    render();
-    return;
-  }
-  if (action === "toggle-szenario-beschreibung") {
-    state.szenarioBeschreibungOffen = !state.szenarioBeschreibungOffen;
-    render();
-    return;
-  }
-  if (action === "toggle-szenario-netto") {
-    state.szenarioNettoOffen = !state.szenarioNettoOffen;
-    render();
-    return;
-  }
-  if (action === "toggle-szenario-grundlage") {
-    state.szenarioGrundlageOffen = !state.szenarioGrundlageOffen;
-    render();
-    return;
-  }
-  if (action === "toggle-szenario-basis") {
-    state.szenarioBasisExpanded = !state.szenarioBasisExpanded;
-    render();
-    return;
-  }
-  if (action === "vorsorge-transactions") {
-    zuBuchungen(state, { filter: { vorsorge: element.dataset.vorsorge || "" } });
-    commitNavigation();
-    return;
-  }
-  if (action === "open-regelzahlung") {
-    // Querlink aus der Szenario-Rechengrundlage auf die konkrete Regelzahlung.
-    state.view = "termine";
-    state.termineTab = "regelzahlungen";
-    state.selectedRegelzahlungId = element.dataset.regelzahlung || "";
-    commitNavigation();
-    // Die angesteuerte Zeile steht oft weit unten in der Liste.
-    document.getElementById?.(`regelzahlung-${state.selectedRegelzahlungId}`)?.scrollIntoView?.({ block: "center" });
-    return;
-  }
-  // Plan & Ist: aus den Kacheln der Uebersicht (data-periode "12m") oder der
-  // Verlaufstabelle in einen Zeitraum springen; Granularitaet, Darstellung und
-  // aufgeklappte Kategorien wechseln innerhalb der Seite.
-  if (action === "plan-ist" || action === "plan-ist-periode") {
-    state.view = "planIst";
-    state.planIst.periode = element.dataset.periode ?? "";
-    state.planIstOffen.clear();
-    commitNavigation();
-    return;
-  }
-  if (action === "plan-ist-gran") {
-    state.planIst.granularitaet = element.dataset.gran || "jahr";
-    if (state.planIst.periode !== "12m") state.planIst.periode = "";
-    commitNavigation({ ersetzen: true });
-    return;
-  }
-  if (action === "plan-ist-darstellung") {
-    state.planIst.darstellung = element.dataset.darstellung === "summe" ? "summe" : "monat";
-    render();
-    return;
-  }
-  if (action === "plan-ist-zeile") {
-    const key = element.dataset.zeile ?? "";
-    if (state.planIstOffen.has(key)) state.planIstOffen.delete(key);
-    else state.planIstOffen.add(key);
-    render();
-    return;
-  }
-  if (action === "termine-tab") {
-    state.view = "termine";
-    state.termineTab = element.dataset.tab || "regelzahlungen";
-    state.selectedRegelzahlungId = "";
-    commitNavigation();
-    return;
-  }
-  if (action === "show-vermoegen-wertstaende") {
-    // Die Gesamtliste der Wertstaende steht als Tabelle auf der Uebersicht; gefiltert auf das Objekt.
-    state.view = "vermoegen";
-    state.vermoegenTab = "uebersicht";
-    state.selectedVermoegenId = "";
-    resetWertstaendeFilters();
-    setWertstaendeFilter("search", element.dataset.entity || "");
-    // Der Sprung zeigt die Tabelle: die sonst zugeklappte Kachel aufmachen.
-    oeffneKlappKachel("vermoegen.wertstaende");
-    commitNavigation();
-    document.getElementById?.("vermoegen-wertstaende")?.scrollIntoView?.({ block: "start" });
-    return;
-  }
-  if (action === "clear-wertstaende-filter") {
-    setWertstaendeFilter(element.dataset.filterName, "");
-    render();
-    return;
-  }
-  if (action === "reset-wertstaende-filters") {
-    resetWertstaendeFilters();
-    render();
-    return;
-  }
-  if (action === "vermoegen-tab") {
-    state.view = "vermoegen";
-    state.vermoegenTab = element.dataset.tab || "uebersicht";
-    state.selectedVermoegenId = "";
-    state.vermoegenDetailRailClosed = false;
-    commitNavigation();
-    return;
-  }
-  if (action === "select-vermoegen-objekt") {
-    oeffneVermoegenObjekt(element.dataset.vermoegen);
-    return;
-  }
-  if (action === "select-vermoegen-konto") {
-    oeffneVermoegenObjekt(`konto:${element.dataset.account}`);
-    return;
-  }
-  if (action === "immobilie-drill") {
-    state.immobilieDrill = state.immobilieDrill === element.dataset.drill ? "" : element.dataset.drill;
-    render();
-    return;
-  }
-  if (action === "immobilie-rate") {
-    state.immobilieOhneRate = element.dataset.rate === "ohne";
-    render();
-    return;
-  }
-  if (action === "open-vermoegen-entity") {
-    oeffneVermoegenObjekt(`${element.dataset.vklasse}:${element.dataset.vid}`);
-    return;
-  }
-  if (action === "show-checks-for" || action === "open-entity") {
-    const scope = element.dataset.scope;
-    const entity = element.dataset.entity;
-    if (scope === "konto") {
-      zuBuchungen(state, { filter: { account: entity } });
-    } else if (scope === "transaktion") {
-      zuBuchungen(state, { auswahl: entity });
-    } else {
-      zeigeChecks();
-    }
-    commitNavigation();
-  }
-}
-
-
-// Szenario oeffnen ("" = Liste): Vergleich und Detail-Schalter zuruecksetzen,
-// damit jedes Detail aufgeraeumt startet.
-function oeffneSzenario(id) {
-  state.selectedSzenarioId = id;
-  state.szenarioVergleichIds = [];
-  state.szenarioVergleichMit = "";
-  state.szenarioPhaseOffen = new Set();
-  state.szenarioBeschreibungOffen = false;
-  state.szenarioNettoOffen = false;
-  state.szenarioGrundlageOffen = false;
-  state.szenarioBasisExpanded = false;
-}
-
-// Checks sind ein Bereich der Administration, keine eigene Seite.
-function zeigeChecks() {
-  state.view = "masterdata";
-  state.masterSection = "checks";
-  state.selectedKonto = "";
-  state.selectedRegel = "";
-}
-
-function snapshotState() {
-  return {
-    view: state.view,
-    transactionFilters: { ...state.transactionFilters },
-    selectedTransactionId: state.selectedTransactionId,
-    transactionPage: state.transactionPage,
-    masterSection: state.masterSection,
-    selectedKonto: state.selectedKonto,
-    selectedRegel: state.selectedRegel,
-    selectedVermoegenId: state.selectedVermoegenId,
-    vermoegenTab: state.vermoegenTab,
-    selectedVorsorgeId: state.selectedVorsorgeId,
-    vorsorgeTab: state.vorsorgeTab,
-    termineTab: state.termineTab,
-    selectedRegelzahlungId: state.selectedRegelzahlungId,
-    selectedSzenarioId: state.selectedSzenarioId,
-    szenarioVergleichMit: state.szenarioVergleichMit,
-    szenarioVergleichIds: [...state.szenarioVergleichIds],
-    selectedBeleg: state.selectedBeleg,
-    planIstPeriode: state.planIst.periode,
-  };
-}
-
-function restoreState(snapshot) {
-  if (!snapshot) return;
-  state.view = snapshot.view || "overview";
-  // History-Eintraege aus der Zeit vor der Seite Termine.
-  if (state.view === "regelzahlungen") state.view = "termine";
-  // History-Eintraege aus der Zeit, als Checks und Export eigene Seiten waren.
-  if (state.view === "checks" || state.view === "export") {
-    snapshot = { ...snapshot, masterSection: state.view };
-    state.view = "masterdata";
-  }
-  state.transactionFilters = { ...state.transactionFilters, ...(snapshot.transactionFilters || {}) };
-  state.selectedTransactionId = snapshot.selectedTransactionId || "";
-  state.transactionPage = snapshot.transactionPage || 1;
-  state.masterSection = snapshot.masterSection || "konten";
-  state.selectedKonto = snapshot.selectedKonto || "";
-  state.selectedRegel = snapshot.selectedRegel || "";
-  state.selectedVermoegenId = snapshot.selectedVermoegenId || "";
-  state.vermoegenTab = snapshot.vermoegenTab || "uebersicht";
-  state.selectedVorsorgeId = snapshot.selectedVorsorgeId || "";
-  state.vorsorgeTab = snapshot.vorsorgeTab || "uebersicht";
-  state.termineTab = snapshot.termineTab || "regelzahlungen";
-  state.selectedRegelzahlungId = snapshot.selectedRegelzahlungId || "";
-  state.selectedSzenarioId = snapshot.selectedSzenarioId || "";
-  state.szenarioVergleichMit = snapshot.szenarioVergleichMit || "";
-  state.szenarioVergleichIds = snapshot.szenarioVergleichIds || [];
-  state.selectedBeleg = snapshot.selectedBeleg || "";
-  state.planIst.periode = snapshot.planIstPeriode || "";
-}
-
-// Verlauf nach dem Navigationsvertrag (navigation.mjs): ein anderer Pfad
-// (Seite, Reiter, Detail) ist ein neuer Eintrag, eine reine Filteraenderung
-// (Query) oder Seite/Sortierung ersetzt den aktuellen. ersetzen erzwingt das
-// Ersetzen fuer Auswahlfelder, die wie Filter wirken.
-function commitNavigation({ ersetzen = false } = {}) {
-  state.uiError = null;
-  const route = routeFromState(state);
-  if (!ersetzen && neuerVerlaufseintrag(location.hash, route)) {
-    history.pushState(snapshotState(), "", route);
-  } else {
-    history.replaceState(snapshotState(), "", route);
-  }
-  render();
-}
-
-// Hash-Route auf den Zustand anwenden (Deep-Link von außen oder beim Laden).
-// Für adressierte Detailansichten Filter zurücksetzen, damit der verlinkte
-// Datensatz sichtbar ist, und bei Transaktionen auf die richtige Seite springen.
-function applyRoute(route) {
-  if (!route || !route.view) return;
-  state.view = route.view;
-  state.moreMenuOpen = false;
-  if (route.masterSection) state.masterSection = route.masterSection;
-  if (route.selectedKonto) state.selectedKonto = route.selectedKonto;
-  if (route.selectedRegel) state.selectedRegel = route.selectedRegel;
-
-  // Buchungsliste: die Route traegt den vollstaendigen Filterzustand (ohne
-  // Freitextsuche). Ob es eine ausgewaehlte Buchung im Filter gibt, weiss der
-  // Server; sonst faellt die Auswahl mit der Antwort weg.
-  if (route.transactionFilters) zuBuchungen(state, { filter: route.transactionFilters, auswahl: route.selectedTransactionId || "" });
-  if (route.view === "belege") state.selectedBeleg = route.selectedBeleg || "";
-
-  if (route.view === "vermoegen") {
-    state.vermoegenTab = route.vermoegenTab || "uebersicht";
-    state.selectedVermoegenId = route.selectedVermoegenId || "";
-    if (state.selectedVermoegenId.startsWith("konto:")) state.selectedKonto = state.selectedVermoegenId.slice("konto:".length);
-    state.vermoegenDetailRailClosed = false;
-  }
-  if (route.view === "vorsorge") {
-    const known = route.selectedVorsorgeId
-      ? (data.vorsorge ?? []).some((vs) => vs.vorsorge_id === route.selectedVorsorgeId)
-      : false;
-    if (known) {
-      resetVorsorgeFilters();
-      state.selectedVorsorgeId = route.selectedVorsorgeId;
-    } else {
-      state.selectedVorsorgeId = "";
-      state.vorsorgeTab = route.vorsorgeTab || "uebersicht";
-    }
-  }
-  if (route.view === "planIst") {
-    state.planIst.periode = route.planIstPeriode || "";
-    // Granularitaet passend zum Zeitraum, damit die Auswahl ihn zeigt.
-    const p = state.planIst.periode;
-    if (/^\d{4}$/.test(p)) state.planIst.granularitaet = "jahr";
-    else if (/-Q\d$/.test(p)) state.planIst.granularitaet = "quartal";
-    else if (/^\d{4}-\d{2}$/.test(p)) state.planIst.granularitaet = "monat";
-  }
-  if (route.view === "termine") {
-    state.termineTab = route.termineTab || "regelzahlungen";
-    state.selectedRegelzahlungId = route.selectedRegelzahlungId || "";
-  }
-  if (route.view === "szenarien") {
-    oeffneSzenario(route.selectedSzenarioId || "");
-    state.szenarioVergleichMit = route.szenarioVergleichMit || "";
-    state.szenarioVergleichIds = route.szenarioVergleichIds || [];
-  }
+  await AKTIONEN[action]?.(element, action);
 }
 
 // Stand-Wechsel (stand-wechsel.mjs): nach einem Import oder einer Korrektur
@@ -1483,14 +521,14 @@ document.addEventListener?.("visibilitychange", () => {
 
 window.addEventListener("popstate", (event) => {
   restoreState(event.state);
-    render();
+  render();
 });
 
 // Direkt eingefügte/extern verlinkte Hash-Route (kein pushState von uns).
 window.addEventListener("hashchange", () => {
   if (location.hash === routeFromState(state)) return; // selbst gesetzte Route ignorieren
   applyRoute(parseRoute(location.hash));
-    history.replaceState(snapshotState(), "", routeFromState(state));
+  history.replaceState(snapshotState(), "", routeFromState(state));
   render();
 });
 
@@ -1507,7 +545,7 @@ render();
 
 // Versionsstand nachladen; blockiert den Start nicht und scheitert still.
 ladeVersion().then((version) => {
-  appVersion = version;
+  rahmen.appVersion = version;
   render();
 });
 
@@ -1525,7 +563,7 @@ function sperreSitzung(grund) {
   app.innerHTML = `<p class="sitzung-hinweis" role="status">${iconSvg("lock")}<span>${escapeHtml(hinweis)}</span></p>`;
   const sr = document.querySelector("#sr-status");
   if (sr) sr.textContent = "";
-  const ziel = zielNachSperre(grund, sitzungKonfig);
+  const ziel = zielNachSperre(grund, rahmen.sitzungKonfig);
   if (ziel.art === "abmelden") window.location.replace(ziel.url);
   else window.location.reload();
 }
@@ -1533,19 +571,19 @@ function sperreSitzung(grund) {
 // Nur im echten Browser: Tests mit DOM-Attrappe (ohne visibilityState)
 // laden main.js ohne Timer, die den Testprozess am Leben hielten.
 if ("visibilityState" in document) void ladeSitzungKonfig().then((konfig) => {
-  sitzungKonfig = konfig;
-  sitzungswaechter = erstelleSitzungswaechter({ konfig, beiSperre: sperreSitzung });
-  const aktivitaet = () => sitzungswaechter.aktivitaet();
+  rahmen.sitzungKonfig = konfig;
+  rahmen.sitzungswaechter = erstelleSitzungswaechter({ konfig, beiSperre: sperreSitzung });
+  const aktivitaet = () => rahmen.sitzungswaechter.aktivitaet();
   for (const typ of AKTIVITAETS_EREIGNISSE) {
     window.addEventListener(typ, aktivitaet, { capture: true, passive: true });
   }
   const wiederSichtbar = () => {
-    if (document.visibilityState === "visible") void sitzungswaechter.wiederSichtbar();
+    if (document.visibilityState === "visible") void rahmen.sitzungswaechter.wiederSichtbar();
   };
   document.addEventListener("visibilitychange", wiederSichtbar);
   window.addEventListener("focus", wiederSichtbar);
   // Die Uhr wird oft gelesen (billig), der Proxy einmal pro Minute gefragt.
-  sitzungsTimer.push(window.setInterval(() => sitzungswaechter.pruefeInaktivitaet(), Math.min(5_000, konfig.sperreMs / 4)));
-  sitzungsTimer.push(window.setInterval(() => void sitzungswaechter.pruefeAnmeldung(), PRUEF_INTERVALL_MS));
+  sitzungsTimer.push(window.setInterval(() => rahmen.sitzungswaechter.pruefeInaktivitaet(), Math.min(5_000, konfig.sperreMs / 4)));
+  sitzungsTimer.push(window.setInterval(() => void rahmen.sitzungswaechter.pruefeAnmeldung(), PRUEF_INTERVALL_MS));
   if (konfig.abmeldenUrl) render();
 });

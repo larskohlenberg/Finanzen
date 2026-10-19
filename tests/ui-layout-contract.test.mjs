@@ -106,9 +106,9 @@ test("account masterdata table renders account reference column", () => {
 });
 
 test("account masterdata uses a selectable detail rail with a separate transaction action", () => {
-  assert.match(main, /action === "select-master-account"/);
+  assert.match(main, /"select-master-account": /);
   assert.match(main, /state\.selectedKonto = element\.dataset\.account/);
-  assert.match(main, /action === "close-account-rail"/);
+  assert.match(main, /"close-account-rail": /);
   assert.match(main, /state\.selectedKonto = ""/);
   assert.match(main, /data-action="account-transactions"/);
   assert.match(i18n, /showTransactions:\s*"Transaktionen anzeigen"/);
@@ -150,7 +150,7 @@ test("next action copies an agent prompt instead of duplicating open-category na
   assert.match(main, /data-action="copy-next-agent-prompt"/);
   assert.match(main, /copyNextAgentPrompt\(element\.dataset\.nextActionType\)/);
   assert.match(main, /nextActionCopiedTimer/);
-  assert.match(main, /clearTimeout\(nextActionCopiedTimer\)/);
+  assert.match(main, /clearTimeout\(rahmen\.nextActionCopiedTimer\)/);
   assert.match(main, /nextActionCopiedTimer = window\.setTimeout/);
   assert.doesNotMatch(main, /action === "filter-open-category" \|\| action === "next-action"/);
   assert.match(main, /renderPromptFallback\(\)/);

@@ -29,6 +29,7 @@ import { runImport } from "./import.mjs";
 import { normalizeCsv } from "./normalize.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { validateImportProfil } from "./import-format.mjs";
 import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
 
 const IGNORIEREN = new Set([".DS_Store", ".gitkeep"]);
@@ -41,7 +42,11 @@ function endungVon(datei) {
   return datei.toLowerCase().split(".").pop();
 }
 
-export function planInbox({ dateien, unterordner = [], profile }) {
+// ungueltigeProfile: Profile, die die Pruefung nicht bestanden haben
+// ({ datei, profil_id, dateimuster, fehler }). Sie normalisieren nichts, aber
+// eine CSV, die nur sie treffen, wird ein Fehlerauftrag (Datei nach error/)
+// statt still als "kein Profil" liegen zu bleiben.
+export function planInbox({ dateien, unterordner = [], profile, ungueltigeProfile = [] }) {
   const auftraege = [];
   const offen = [];
 
@@ -52,10 +57,17 @@ export function planInbox({ dateien, unterordner = [], profile }) {
     // Profil traegt NFC. Beide Seiten auf dieselbe Normalform ziehen, sonst
     // findet ein Muster mit Umlaut seine Datei nie.
     const name = datei.normalize("NFC");
-    const passend = profile.filter((p) => new RegExp(p.dateimuster.normalize("NFC")).test(name));
+    const trifft = (p) => new RegExp(p.dateimuster.normalize("NFC")).test(name);
+    const passend = profile.filter(trifft);
+    const passendUngueltig = endung === "csv" ? ungueltigeProfile.filter((p) => typeof p.dateimuster === "string" && trifft(p)) : [];
 
-    if (passend.length > 1) {
-      offen.push({ datei, grund: `Profil mehrdeutig: ${passend.map((p) => p.profil_id).join(", ")} — dateimuster schaerfen` });
+    if (passend.length + passendUngueltig.length > 1) {
+      offen.push({ datei, grund: `Profil mehrdeutig: ${[...passend, ...passendUngueltig].map((p) => p.profil_id).join(", ")} — dateimuster schaerfen` });
+      continue;
+    }
+    if (passendUngueltig.length === 1) {
+      const p = passendUngueltig[0];
+      auftraege.push({ datei, art: "profil-ungueltig", profil_id: p.profil_id, profildatei: p.datei, fehler: p.fehler });
       continue;
     }
     if (endung === "pdf") {
@@ -159,15 +171,41 @@ async function readJsonl(url) {
   return text.split(/\r?\n/).filter((line) => line.trim().length > 0).map((line) => JSON.parse(line));
 }
 
-async function ladeProfile(inboxRoot) {
-  const dir = new URL("../import-profile/", inboxRoot);
+// Jedes Profil wird vor der Nutzung geprueft. Ein kaputtes Profil bricht den
+// Lauf nicht ab: es landet mit seinen Fehlern in `ungueltig`. Sein dateimuster
+// bleibt nur erhalten, wenn es sich uebersetzen laesst — sonst kann es keine
+// Datei treffen und erscheint nur im Bericht.
+export async function ladeProfile(dir) {
   let namen = [];
   try {
-    namen = (await readdir(dir)).filter((n) => n.endsWith(".json"));
+    namen = (await readdir(dir)).filter((n) => n.endsWith(".json")).sort();
   } catch {
-    return [];
+    return { profile: [], ungueltig: [] };
   }
-  return Promise.all(namen.map((n) => readJson(new URL(n, dir))));
+  const profile = [];
+  const ungueltig = [];
+  for (const datei of namen) {
+    let profil;
+    try {
+      profil = JSON.parse(await readFile(new URL(encodeURIComponent(datei), dir), "utf8"));
+    } catch (error) {
+      ungueltig.push({ datei, profil_id: datei.replace(/\.json$/, ""), dateimuster: null, fehler: [`kein gueltiges JSON (${error.message})`] });
+      continue;
+    }
+    const fehler = validateImportProfil(profil);
+    if (fehler.length === 0) {
+      profile.push(profil);
+      continue;
+    }
+    const musterOk = typeof profil?.dateimuster === "string" && !fehler.some((f) => f.startsWith("dateimuster:"));
+    ungueltig.push({
+      datei,
+      profil_id: typeof profil?.profil_id === "string" ? profil.profil_id : datei.replace(/\.json$/, ""),
+      dateimuster: musterOk ? profil.dateimuster : null,
+      fehler,
+    });
+  }
+  return { profile, ungueltig };
 }
 
 // Nur eine Ebene tief auflisten, dann je Fund-Ordner rekursiv zaehlen. Die
@@ -202,15 +240,24 @@ async function main() {
   const masterRoot = dataRootFromArg(argv.find((a) => !a.startsWith("--")), new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
   const inboxRoot = new URL("../data/inbox/", import.meta.url);
 
-  const profile = await ladeProfile(inboxRoot);
+  const { profile, ungueltig: ungueltigeProfile } = await ladeProfile(new URL("../import-profile/", inboxRoot));
   const eintraege = await readdir(inboxRoot, { withFileTypes: true });
   const plan = planInbox({
     dateien: eintraege.filter((e) => e.isFile()).map((e) => e.name),
     unterordner: await sammleUnterordner(inboxRoot),
     profile,
+    ungueltigeProfile,
   });
 
-  const bericht = { modus: schreiben ? "geschrieben" : "vorschau", profile: profile.length, dateien: plan.auftraege.length, laeufe: [], offen: plan.offen, unterordner: plan.unterordner };
+  const bericht = {
+    modus: schreiben ? "geschrieben" : "vorschau",
+    profile: profile.length,
+    ...(ungueltigeProfile.length ? { profilfehler: ungueltigeProfile.map(({ datei, profil_id, fehler }) => ({ datei, profil_id, fehler })) } : {}),
+    dateien: plan.auftraege.length,
+    laeufe: [],
+    offen: plan.offen,
+    unterordner: plan.unterordner,
+  };
   // CSV-Quellen und ihr Ziel; verschoben wird erst nach Schreiben und Validieren.
   const archiv = [];
 
@@ -247,6 +294,14 @@ async function main() {
         }
       }
       bericht.laeufe.push(lauf);
+      continue;
+    }
+
+    if (auftrag.art === "profil-ungueltig") {
+      const meldung = `Profil ${auftrag.profil_id} (${auftrag.profildatei}) ungueltig — nichts gelesen, Profil in data/import-profile/ korrigieren und Datei aus error/ zurueckholen:\n${auftrag.fehler.map((f) => `- ${f}`).join("\n")}`;
+      const lauf = { datei: auftrag.datei, art: "csv", profil: auftrag.profil_id, abgebrochen: meldung };
+      bericht.laeufe.push(lauf);
+      archiv.push({ quelle, datei: auftrag.datei, ordner: "error", notiz: `${meldung}\n`, lauf });
       continue;
     }
 
@@ -287,6 +342,9 @@ async function main() {
 
   const ausgeben = () => {
     console.log(JSON.stringify(bericht, null, 2));
+    for (const p of ungueltigeProfile) {
+      console.warn(`Importprofil ${p.datei} ungueltig, wird nicht benutzt: ${p.fehler.join("; ")}`);
+    }
     for (const o of plan.unterordner) {
       console.warn(`Unterordner "${o.ordner}" enthaelt ${o.dateien} verarbeitbare Datei(en), wird nicht verarbeitet — zum Import in den Inbox-Root legen.`);
     }

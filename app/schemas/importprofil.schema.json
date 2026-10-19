@@ -47,6 +47,7 @@
     "herkunft": {
       "type": "object",
       "additionalProperties": false,
+      "oneOf": [{ "required": ["spalte"] }, { "required": ["konstante"] }],
       "properties": {
         "spalte": { "type": "string" },
         "muster": { "type": "string", "description": "Regex auf den Spaltenwert. Kein Treffer heisst leer — nie raten." },

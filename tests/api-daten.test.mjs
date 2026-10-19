@@ -7,8 +7,10 @@ import { apiAbwarten } from "./hilfe-bestand.mjs";
 
 const abrufe = [];
 let fehlschlag = false;
+const verzoegerung = new Map();
 globalThis.fetch = async (pfad, optionen) => {
   abrufe.push({ pfad, optionen });
+  if (verzoegerung.has(pfad)) await new Promise((resolve) => setTimeout(resolve, verzoegerung.get(pfad)));
   if (fehlschlag) return { ok: false, status: 500, json: async () => ({ grund: "bestand-unlesbar" }) };
   return { ok: true, status: 200, json: async () => ({ pfad }) };
 };
@@ -60,4 +62,36 @@ test("Verwerfen: laufende Antworten des alten Stands werden nicht mehr uebernomm
   await apiAbwarten();
   leereApiCaches();
   assert.equal(cache.hole("/neu").antwort, null);
+});
+
+test("zwei fehlschlagende Pfade einer Ansicht: kein Endlos-Abruf (Fehler je Pfad)", async () => {
+  const cache = erstelleApiCache();
+  fehlschlag = true;
+  abrufe.length = 0;
+  verzoegerung.set("/liste", 5).set("/detail", 15);
+  // Wie die Regelansicht: jeder render fragt beide Pfade.
+  beiApiAntwort(() => { cache.hole("/liste"); cache.hole("/detail"); });
+  cache.hole("/liste");
+  cache.hole("/detail");
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.equal(abrufe.length, 2);
+  fehlschlag = false;
+  verzoegerung.clear();
+  beiApiAntwort(() => { gezeichnet += 1; });
+});
+
+test("ein Abruf des alten Stands traegt den neuen Abruf nicht aus", async () => {
+  const cache = erstelleApiCache();
+  abrufe.length = 0;
+  // Alter Abruf endet nach 10 ms, der neue erst nach 60 ms.
+  verzoegerung.set("/p", 10);
+  cache.hole("/p");
+  verwerfeApiCaches();
+  verzoegerung.set("/p", 60);
+  cache.hole("/p");
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  cache.hole("/p");
+  assert.equal(abrufe.length, 2, "kein dritter Abruf, solange der neue laeuft");
+  verzoegerung.clear();
+  await new Promise((resolve) => setTimeout(resolve, 60));
 });

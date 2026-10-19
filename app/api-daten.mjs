@@ -32,12 +32,11 @@ async function holeJson(pfad) {
 export function erstelleApiCache({ maxEintraege = 30 } = {}) {
   const eintraege = new Map();
   const laufend = new Map();
+  // Fehler je Pfad: kein erneuter Abruf bei jedem render (sonst eine
+  // Endlosschleife aus Fehler und Neuzeichnen, auch wenn eine Ansicht zwei
+  // Pfade fragt); erneut erst nach verwerfe().
+  const fehlerJePfad = new Map();
   let letzte = null;
-  // Fehler zum Pfad: kein erneuter Abruf bei jedem render (sonst eine
-  // Endlosschleife aus Fehler und Neuzeichnen); erneut erst nach verwerfe()
-  // oder fuer einen anderen Pfad.
-  let fehler = null;
-  let fehlerPfad = null;
   let generation = 0;
 
   function merke(pfad, antwort) {
@@ -52,12 +51,10 @@ export function erstelleApiCache({ maxEintraege = 30 } = {}) {
         letzte = eintraege.get(pfad);
         return { antwort: letzte, laedt: false, fehler: null, veraltet: false };
       }
-      if (fehlerPfad === pfad) return { antwort: letzte, laedt: false, fehler, veraltet: Boolean(letzte) };
+      if (fehlerJePfad.has(pfad)) return { antwort: letzte, laedt: false, fehler: fehlerJePfad.get(pfad), veraltet: Boolean(letzte) };
       if (!laufend.has(pfad)) {
         const meineGeneration = generation;
-        fehler = null;
-        fehlerPfad = null;
-        laufend.set(pfad, holeJson(pfad)
+        const abruf = holeJson(pfad)
           .then((antwort) => {
             if (meineGeneration !== generation) return;
             merke(pfad, antwort);
@@ -65,13 +62,17 @@ export function erstelleApiCache({ maxEintraege = 30 } = {}) {
           })
           .catch((grund) => {
             if (meineGeneration !== generation) return;
-            fehler = grund;
-            fehlerPfad = pfad;
+            fehlerJePfad.set(pfad, grund);
             neuZeichnen();
           })
-          .finally(() => laufend.delete(pfad)));
+          // Nur den eigenen Eintrag austragen: nach verwerfe() kann dort schon
+          // der Abruf des neuen Stands stehen.
+          .finally(() => {
+            if (laufend.get(pfad) === abruf) laufend.delete(pfad);
+          });
+        laufend.set(pfad, abruf);
       }
-      return { antwort: letzte, laedt: !fehler, fehler, veraltet: Boolean(letzte) };
+      return { antwort: letzte, laedt: true, fehler: null, veraltet: Boolean(letzte) };
     },
     // Dieselbe Antwort unter einem zweiten Pfad, z. B. dem normalisierten
     // (Seite begrenzt, Sprung erledigt), damit der naechste render sie findet.
@@ -80,8 +81,7 @@ export function erstelleApiCache({ maxEintraege = 30 } = {}) {
       generation += 1;
       eintraege.clear();
       laufend.clear();
-      fehler = null;
-      fehlerPfad = null;
+      fehlerJePfad.clear();
     },
     // Fuer den Sitzungsschutz: auch die zuletzt gezeigte Antwort vergessen.
     leere() {

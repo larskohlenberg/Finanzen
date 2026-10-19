@@ -25,6 +25,20 @@ ab ("Spalte X nicht in der Datei"), statt Werte still falsch zuzuordnen.
 - **`bank_referenz` nur mappen, wenn die Bank sie stabil und je Buchung eindeutig
   vergibt.** Im Zweifel weglassen: dann greift der Freitext-Hash (ADR 0007).
 
+## Wie Betraege gelesen werden
+
+- **Strikt nach `dezimal`.** Erlaubt sind Vorzeichen, Ziffern ohne Gruppierung
+  oder durchgehend in Dreiergruppen, bis zu zwei Nachkommastellen und ein
+  Waehrungszeichen davor oder dahinter. Bei `dezimal: ","` ist `12.34` deshalb
+  ein Zeilenfehler, nicht 1.234,00.
+- **Soll/Haben.** Leer und `0,00` zaehlen als nicht gefuellt. Genau eine Seite
+  ungleich null bestimmt den Betrag (Soll negativ, Haben positiv). Beide
+  ungleich null oder ein unlesbarer Wert auf einer Seite ist ein Zeilenfehler,
+  beide leer ebenso; eine ausdrueckliche `0,00` ohne Gegenseite bleibt `0.00`.
+- **Mehrzeilige Felder.** Ein zitiertes Feld darf Zeilenumbrueche enthalten; sie
+  werden zu Leerzeichen. Ein nicht geschlossenes Anfuehrungszeichen bricht den
+  Lauf fuer die Datei ab.
+
 ## Bestehende Profile
 
 | Profil | Konto | Quelle |

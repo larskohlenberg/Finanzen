@@ -116,3 +116,94 @@ test("eine im Profil erwartete Spalte, die die Datei nicht hat, bricht sichtbar 
   const text = ["Nr.;Buchungsdatum;Umsatzart;Wertstellung;Soll (EUR);Haben (EUR)", `1;"01.06.2026";"X";"01.06.2026";"10,00";""`].join("\n");
   assert.throws(() => normalizeCsv({ text, profil, rohquelle: "Belege/x.csv" }), /Umsatzinformation/);
 });
+
+// --- Strikte Betragsgrammatik und Soll/Haben-Regel --------------------------
+
+test("Soll 0,00 verdraengt keinen Haben-Betrag, Haben 0,00 keinen Soll-Betrag", () => {
+  const out = normalizeCsv({
+    text: csv(`1;"01.06.2026";"X";"A BIC: X";"01.06.2026";"0,00";"50,00"`, `2;"02.06.2026";"X";"B BIC: X";"02.06.2026";"30,00";"0,00"`),
+    profil,
+    rohquelle: "Belege/x.csv",
+  });
+  assert.deepEqual(out.fehler, []);
+  assert.deepEqual(out.eintraege.map((e) => e.betrag), ["50.00", "-30.00"]);
+});
+
+test("ausdrueckliche 0,00 ohne Gegenseite ergibt 0.00, nie -0.00", () => {
+  const out = normalizeCsv({ text: csv(`1;"01.06.2026";"X";"A BIC: X";"01.06.2026";"0,00";""`), profil, rohquelle: "Belege/x.csv" });
+  assert.deepEqual(out.fehler, []);
+  assert.equal(out.eintraege[0].betrag, "0.00");
+});
+
+test("Soll und Haben beide ungleich null ist ein Zeilenfehler", () => {
+  const out = normalizeCsv({ text: csv(`1;"01.06.2026";"X";"A BIC: X";"01.06.2026";"10,00";"20,00"`), profil, rohquelle: "Belege/x.csv" });
+  assert.equal(out.eintraege.length, 0);
+  assert.equal(out.fehler.length, 1);
+  assert.match(out.fehler[0].grund, /Soll und Haben/);
+});
+
+test("Punkt bei Dezimalkomma ohne Dreiergruppe ist kein Tausendertrenner", () => {
+  const out = normalizeCsv({
+    text: csv(`1;"01.06.2026";"X";"A BIC: X";"01.06.2026";"12.34";""`, `2;"02.06.2026";"X";"B BIC: X";"02.06.2026";"1.2345,00";""`),
+    profil,
+    rohquelle: "Belege/x.csv",
+  });
+  assert.equal(out.eintraege.length, 0);
+  assert.equal(out.fehler.length, 2);
+  assert.match(out.fehler[0].grund, /12\.34/);
+});
+
+test("ein unlesbarer Wert in Soll wird nicht still zugunsten von Haben uebergangen", () => {
+  const out = normalizeCsv({ text: csv(`1;"01.06.2026";"X";"A BIC: X";"01.06.2026";"abc";"50,00"`), profil, rohquelle: "Belege/x.csv" });
+  assert.equal(out.eintraege.length, 0);
+  assert.equal(out.fehler.length, 1);
+  assert.match(out.fehler[0].grund, /Soll/);
+});
+
+test("Profil mit Dezimalpunkt: Komma nur als Tausendergruppe", () => {
+  const punktProfil = {
+    profil_id: "test-punkt",
+    konto_id: "KTO-003",
+    trennzeichen: ",",
+    kopfzeile: "Date",
+    datumsformat: "YYYY-MM-DD",
+    dezimal: ".",
+    felder: { buchungsdatum: { spalte: "Date" }, betrag: { spalte: "Amount" }, verwendungszweck: { spalte: "Text" } },
+  };
+  const text = ["Date,Amount,Text", `2026-06-01,"-1,234.56",A`, `2026-06-02,"12,34",B`, "2026-06-03,+7.5,C"].join("\n");
+  const out = normalizeCsv({ text, profil: punktProfil, rohquelle: "Belege/x.csv" });
+  assert.deepEqual(out.eintraege.map((e) => e.betrag), ["-1234.56", "7.50"]);
+  assert.equal(out.fehler.length, 1);
+  assert.equal(out.fehler[0].zeile, 3);
+});
+
+test("ein Profil ohne bekanntes Dezimalzeichen bricht ab statt zu raten", () => {
+  assert.throws(
+    () => normalizeCsv({ text: csv(`1;"01.06.2026";"X";"A BIC: X";"01.06.2026";"10,00";""`), profil: { ...profil, dezimal: undefined }, rohquelle: "Belege/x.csv" }),
+    /dezimal/,
+  );
+});
+
+// --- Mehrzeilige Felder -----------------------------------------------------
+
+test("ein zitiertes Feld ueber mehrere Zeilen bleibt ein Datensatz", () => {
+  const out = normalizeCsv({
+    text: csv(`1;"01.06.2026";"X";"Rechnung 12\nKunde 34 BIC: X";"01.06.2026";"10,00";""`, `2;"kein datum";"X";"B BIC: X";"02.06.2026";"20,00";""`),
+    profil,
+    rohquelle: "Belege/x.csv",
+  });
+  assert.equal(out.eintraege.length, 1);
+  assert.equal(out.eintraege[0].verwendungszweck, "Rechnung 12 Kunde 34 BIC: X");
+  assert.equal(out.eintraege[0].gegenpartei, "Rechnung 12 Kunde 34");
+  // Zeilennummer = physische Startzeile des Datensatzes: Vorspann 3, Kopf 4,
+  // Datensatz 1 belegt 5-6, Datensatz 2 beginnt in 7.
+  assert.equal(out.fehler.length, 1);
+  assert.equal(out.fehler[0].zeile, 7);
+});
+
+test("ein nicht geschlossenes Anfuehrungszeichen bricht mit Zeilenangabe ab", () => {
+  assert.throws(
+    () => normalizeCsv({ text: csv(`1;"01.06.2026";"X";"offen BIC: X;"01.06.2026";"10,00";""`, `2;"02.06.2026";"X";"B BIC: X";"02.06.2026";"20,00";""`), profil, rohquelle: "Belege/x.csv" }),
+    /Anfuehrungszeichen.*Zeile 5/,
+  );
+});

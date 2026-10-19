@@ -416,7 +416,8 @@ async function pruefeEntwurf(entwurf, pruefe) {
 // Wirft fn, lehnt pruefe(entwurfOrdner) ab (liefert eine nicht leere
 // Fehlerliste) oder passt `erwartet` nicht zur aktuellen Id, wird nichts
 // veroeffentlicht. Liefert { id, vorher, geaendert, geloescht, verworfen?,
-// fehler?, aufgeraeumt, wiederanlauf }.
+// fehler?, aufgeraeumt, warnung?, wiederanlauf }. warnung: die Generation ist
+// veroeffentlicht, nur das Aufraeumen alter Generationen scheiterte.
 //
 // Optionen: pruefe, behalten (Default BEHALTEN), erwartet (Id aus der
 // Vorschau), gesperrt (Aufrufer haelt die Sperre auf basis schon), wer,
@@ -433,12 +434,14 @@ export async function mitSchreiber(basis, fn, optionen = {}) {
 
 async function schreibeGeneration(basis, fn, { pruefe, behalten = BEHALTEN, erwartet, vonGeneration, halt = ohneHalt }, kennung) {
   if (!Number.isInteger(behalten) || behalten < 0) throw new Error(`behalten muss eine ganze Zahl >= 0 sein: ${behalten}`);
-  const wieder = await wiederanlauf(basis);
+  // Format zuerst: Code, der das Format nicht kennt, raeumt auch nichts weg.
   const vorher = await aktuelleId(basis);
+  const bisher = await liesManifest(basis, generationsOrdner(basis, vorher));
   if (erwartet !== undefined && erwartet !== vorher) throw new StandVeraltet(basis, erwartet, vorher);
+  const wieder = await wiederanlauf(basis);
   const quelleId = vonGeneration ?? vorher;
   const quelle = generationsOrdner(basis, quelleId);
-  const quellManifest = await liesManifest(basis, quelle);
+  const quellManifest = vonGeneration ? await liesManifest(basis, quelle) : bisher;
 
   const entwurf = path.join(basis, GENERATIONEN, `.neu-${process.pid}-${zufall()}`);
   await mkdir(entwurf);
@@ -466,29 +469,43 @@ async function schreibeGeneration(basis, fn, { pruefe, behalten = BEHALTEN, erwa
       await chmod(path.join(entwurf, rel), 0o444);
       await fsyncPfad(path.join(entwurf, rel));
     }
+    // Undo: die Aenderung zaehlt gegenueber dem bisher aktuellen Stand.
+    if (vonGeneration) {
+      const alle = new Set([...Object.keys(bisher.dateien), ...Object.keys(sicht.dateien)]);
+      sicht.geaendert = [...alle].filter((rel) => bisher.dateien[rel]?.sha256 !== sicht.dateien[rel]?.sha256).sort();
+      sicht.geloescht = Object.keys(bisher.dateien).filter((rel) => !sicht.dateien[rel]).sort();
+    }
+    for (const rel of await unterordner(entwurf)) await fsyncPfad(path.join(entwurf, rel));
   } catch (error) {
     await verwerfen();
     throw error;
   }
-  // Undo: die Aenderung zaehlt gegenueber dem bisher aktuellen Stand.
-  if (vonGeneration) {
-    const bisher = (await liesManifest(basis, generationsOrdner(basis, vorher))).dateien;
-    const alle = new Set([...Object.keys(bisher), ...Object.keys(sicht.dateien)]);
-    sicht.geaendert = [...alle].filter((rel) => bisher[rel]?.sha256 !== sicht.dateien[rel]?.sha256).sort();
-    sicht.geloescht = Object.keys(bisher).filter((rel) => !sicht.dateien[rel]).sort();
-  }
   const id = idText(Math.max(Number(vorher), ...(await veroeffentlichteIds(basis)).map(Number)) + 1);
-  for (const rel of await unterordner(entwurf)) await fsyncPfad(path.join(entwurf, rel));
-  await schreibeNeu(path.join(entwurf, MANIFEST), manifestText({ id, quelle: quelleId, dateien: sicht.dateien }));
-  halt("manifest");
-  await fsyncPfad(entwurf);
-  await rename(entwurf, generationsOrdner(basis, id));
-  await fsyncPfad(path.join(basis, GENERATIONEN));
-  halt("generation-umbenannt");
-  await zeigeAuf(basis, id, halt);
+  const ziel = generationsOrdner(basis, id);
+  try {
+    await schreibeNeu(path.join(entwurf, MANIFEST), manifestText({ id, quelle: quelleId, dateien: sicht.dateien }));
+    halt("manifest");
+    await fsyncPfad(entwurf);
+    await rename(entwurf, ziel);
+    await fsyncPfad(path.join(basis, GENERATIONEN));
+    halt("generation-umbenannt");
+    await zeigeAuf(basis, id, halt);
+  } catch (error) {
+    // Vor dem Zeigerwechsel ist nichts sichtbar: Entwurf bzw. Generation weg.
+    await verwerfen();
+    if ((await aktuelleId(basis).catch(() => null)) !== id) await rm(ziel, { recursive: true, force: true });
+    throw error;
+  }
   halt("zeiger-umgestellt");
-  const aufgeraeumt = await aufraeumen(basis, behalten, halt);
-  return { id, vorher, geaendert: sicht.geaendert, geloescht: sicht.geloescht, aufgeraeumt, wiederanlauf: wieder };
+  const ergebnis = { id, vorher, geaendert: sicht.geaendert, geloescht: sicht.geloescht, aufgeraeumt: [], wiederanlauf: wieder };
+  // Die neue Generation ist veroeffentlicht: ein Fehler beim Aufraeumen ist nur
+  // ein Hinweis, der naechste Schreiber versucht es erneut.
+  try {
+    ergebnis.aufgeraeumt = await aufraeumen(basis, behalten, halt);
+  } catch (error) {
+    ergebnis.warnung = `Aufraeumen alter Generationen gescheitert: ${error.message}`;
+  }
+  return ergebnis;
 }
 
 // Rueckfallmodus: Kopie als Entwurf (keine Hardlinks, die Dateien im Ordner
@@ -511,6 +528,9 @@ async function schreibeOrdner(basis, fn, { pruefe, erwartet, vonGeneration, halt
     const ergebnis = { id: ORDNER, vorher: ORDNER, geaendert: sicht.geaendert, geloescht: sicht.geloescht, aufgeraeumt: [], wiederanlauf: wieder };
     if (fehler) return { ...ergebnis, verworfen: true, fehler };
     for (const rel of sicht.neu) {
+      // Dateien im einfachen Ordner bleiben beschreibbar (Modus wie bisher).
+      const modus = (await stat(path.join(basis, rel)).catch(() => null))?.mode ?? 0o644;
+      await chmod(path.join(entwurf, rel), modus & 0o777);
       await fsyncPfad(path.join(entwurf, rel));
       await mkdir(path.dirname(path.join(basis, rel)), { recursive: true });
       await rename(path.join(entwurf, rel), path.join(basis, rel));
@@ -525,12 +545,19 @@ async function schreibeOrdner(basis, fn, { pruefe, erwartet, vonGeneration, halt
 }
 
 // Undo: neue Generation mit dem Inhalt einer frueheren (Historie bleibt linear).
-export async function rueckgaengig(basis, { schritte = 1, ...optionen } = {}) {
-  if ((await bestandsArt(basis)) === ORDNER) throw new Error(`${basis} ist ein einfacher Ordner ohne Generationen`);
-  const ids = await veroeffentlichteIds(basis);
-  const ziel = schritte >= 1 ? ids[ids.indexOf(await aktuelleId(basis)) - schritte] : undefined;
-  if (!ziel) throw new Error(`keine Generation ${schritte} Schritt(e) vor der aktuellen`);
-  return mitSchreiber(basis, async () => {}, { ...optionen, vonGeneration: ziel });
+// Das Ziel wird erst unter der Sperre bestimmt, damit kein dazwischen
+// veroeffentlichter Stand still ueberschrieben wird.
+export async function rueckgaengig(basis, { schritte = 1, gesperrt = false, wer = "rueckgaengig", wartenMs, ...optionen } = {}) {
+  const lauf = async (sperre) => {
+    if ((await bestandsArt(basis)) === ORDNER) throw new Error(`${basis} ist ein einfacher Ordner ohne Generationen`);
+    const ids = await veroeffentlichteIds(basis);
+    const ziel = schritte >= 1 ? ids[ids.indexOf(await aktuelleId(basis)) - schritte] : undefined;
+    if (!ziel) throw new Error(`keine Generation ${schritte} Schritt(e) vor der aktuellen`);
+    const kennung = sperre?.kennung ?? process.env[UMGEBUNG] ?? null;
+    return schreibeGeneration(basis, async () => {}, { ...optionen, vonGeneration: ziel }, kennung);
+  };
+  if (gesperrt) return lauf(null);
+  return mitSperre(basis, lauf, { wer, ...(wartenMs ? { wartenMs } : {}) });
 }
 
 // Prueft eine Generation gegen ihr Manifest: Formatversion, Dateiliste,

@@ -220,6 +220,11 @@ test("Formatversion: unbekanntes Format wird weder gelesen noch geschrieben", as
   await assert.rejects(oeffneLeser(basis), FormatUnbekannt);
   await assert.rejects(mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{}\n")), FormatUnbekannt);
   assert.match((await pruefeGeneration(basis, "000001"))[0], /Formatversion 2/);
+  // Kein Wiederanlauf vor der Formatpruefung: Reste des neueren Codes bleiben.
+  await mkdir(path.join(basis, "generationen", ".neu-fremd"));
+  await assert.rejects(mitSchreiber(basis, async () => {}), FormatUnbekannt);
+  assert.ok((await readdir(path.join(basis, "generationen"))).includes(".neu-fremd"));
+  await rename(path.join(basis, "generationen", ".neu-fremd"), path.join(await tempOrdner(), "weg"));
   // Leser hat seine Lease wieder abgemeldet.
   assert.deepEqual((await readdir(generationsOrdner(basis, "000001"))).filter((n) => n.startsWith(".leser-")), []);
   assert.deepEqual(await reste(basis), []);
@@ -298,6 +303,10 @@ test("Rueckfallmodus: einfacher Ordner ist eine Generation ohne Historie", async
   assert.equal(r.id, ORDNER);
   assert.deepEqual(r.geaendert, ["README.md", "farben.json"]);
   assert.equal(await readFile(path.join(basis, "farben.json"), "utf8"), "{\"ordner\":true}\n");
+  // Dateien im einfachen Ordner bleiben beschreibbar.
+  assert.notEqual((await stat(path.join(basis, "farben.json"))).mode & 0o200, 0);
+  await mitSchreiber(basis, (tx) => tx.schreibe("neu/datei.json", "{}\n"));
+  assert.equal((await stat(path.join(basis, "neu/datei.json"))).mode & 0o777, 0o644);
   assert.equal((await lstat(path.join(basis, "README.md")).catch(() => null)), null);
   assert.deepEqual(await reste(basis), []);
   await assert.rejects(rueckgaengig(basis), /einfacher Ordner/);

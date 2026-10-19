@@ -9,11 +9,15 @@ import { verweisIndex } from "../belege.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 
 const cache = erstelleApiCache({ maxEintraege: 2 });
+// Fester leerer Wert, damit der Index auch ohne Antwort nur einmal je Stand entsteht.
+const KEINE = Object.freeze({});
 let stand = null;
 
 export function verweise() {
   const pfad = `./api/v1/belegverweise${state.dataMode === "demo" ? "?quelle=demo" : ""}`;
-  const buchungen = cache.hole(pfad).antwort?.buchungen ?? {};
+  // Eine Antwort des vorigen Stands (veraltet) zaehlt nicht.
+  const { antwort, veraltet } = cache.hole(pfad);
+  const buchungen = (!veraltet && antwort?.buchungen) || KEINE;
   if (stand?.version !== datenVersion() || stand.buchungen !== buchungen) {
     stand = { version: datenVersion(), buchungen, wert: verweisIndex(data, { buchungen }) };
   }

@@ -631,6 +631,8 @@ function verarbeiteEingabe(event) {
 app.addEventListener("input", guard((event) => {
   if (eingabeBereit(event)) verarbeiteEingabe(event);
 }, setUiError, "input"));
+// Beginnt eine Komposition, darf kein anstehendes Neuzeichnen sie zerstoeren.
+app.addEventListener("compositionstart", () => sucheEntprellt.abbrechen());
 app.addEventListener("compositionend", guard((event) => verarbeiteEingabe(event), setUiError, "compositionend"));
 
 // <details> behalten den vom Nutzer gesetzten Zustand ueber das Neuzeichnen

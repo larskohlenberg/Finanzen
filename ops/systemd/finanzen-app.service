@@ -19,7 +19,8 @@ ExecStart=/usr/bin/node /opt/finanzen/app/server.mjs --host ${FINANZEN_HOST} --p
 Restart=on-failure
 RestartSec=5
 
-# Haertung: alles read-only ausser der Inbox.
+# Haertung: alles read-only ausser der Inbox. Mit externem Datenort
+# (FINANZEN_DATEN in app.env) stattdessen ReadWritePaths=<Datenort>/inbox.
 NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=/opt/finanzen/app/data/inbox

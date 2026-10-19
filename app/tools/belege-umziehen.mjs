@@ -18,13 +18,15 @@
 
 import { constants, copyFile, link, lstat, mkdir, readFile, readdir, realpath, rmdir, unlink } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
+import { physisch } from "./lib/datenort.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { belegPfadeAusText } from "../belege.mjs";
 import { ersetzeDatei } from "./lib/datei.mjs";
 
-const BELEGE_STANDARD = new URL("../Belege/", import.meta.url);
+// Belege/ des Echtbestands, mit FINANZEN_DATEN am externen Datenort.
+const belegeStandard = () => pathToFileURL(`${physisch(fileURLToPath(new URL("../", import.meta.url)), "Belege")}${path.sep}`);
 const PROTOKOLL = "agent_log.jsonl";
 
 const nfc = (wert) => String(wert).normalize("NFC");
@@ -195,7 +197,7 @@ async function raeumeLeereOrdner(belegeRoot, verschiebungen) {
 export async function main({
   datenRoot = dataRootFromArg(process.argv[2]),
   planDatei = process.argv[3],
-  belegeRoot = BELEGE_STANDARD,
+  belegeRoot = belegeStandard(),
   schreiben = process.argv.slice(2).includes("--schreiben"),
 } = {}) {
   if (!datenRoot || !planDatei) throw new Error("Aufruf: node tools/belege-umziehen.mjs <datenroot> <plan.json> [--schreiben]");

@@ -6,7 +6,7 @@
 // echte (app/tools/deploy-pruefung.mjs) auf einer Kopie der Demodaten.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -28,7 +28,8 @@ const ATTRAPPEN = {
   curl: '#!/bin/sh\nkurz=$(sed -n \'s/.*"kurz": "\\([0-9a-f]*\\)".*/\\1/p\' "$FINANZEN_VERZ/app/version.json" 2>/dev/null)\nif [ -n "$kurz" ] && grep -q "$kurz" "$W/kaputt" 2>/dev/null; then printf 000; exit 7; fi\nprintf 403\n',
 };
 
-const VALIDATOR = `import { existsSync, readFileSync } from "node:fs";
+const VALIDATOR = `import { existsSync, readFileSync, writeFileSync } from "node:fs";
+if (process.env.FINANZEN_DATEN) writeFileSync(process.env.W + "/datenort.txt", process.env.FINANZEN_DATEN);
 const datei = new URL("../fehler.txt", import.meta.url);
 const fehler = existsSync(datei) ? readFileSync(datei, "utf8").split("\\n").filter(Boolean) : [];
 if (fehler.length === 0) console.log("Master data validation passed");
@@ -129,6 +130,39 @@ test("Gutfall: geprueft, umgeschaltet, Rauchtests ok, Sperre und Pruefkopie weg"
     assert.match(r.stdout, /Rauchtests ok/);
     assert.equal(existsSync(u.sperrdatei), false);
     assert.deepEqual(u.pruefkopien(), []);
+  } finally {
+    u.weg();
+  }
+});
+
+test("externer Datenort (FINANZEN_DATEN in der Env-Datei): Bestand dort, Werkzeuge sehen ihn", { skip: ohneBash }, () => {
+  const u = umgebung();
+  try {
+    const daten = join(u.w, "var-lib-finanzen");
+    mkdirSync(daten);
+    renameSync(join(u.opt, "app", "data", "master"), join(daten, "master"));
+    appendFileSync(join(u.w, "app.env"), `FINANZEN_DATEN=${daten}\n`);
+    const c2 = u.veroeffentliche("zwei", (q) => writeFileSync(join(q, "app", "neu.txt"), "x"));
+    const r = u.lauf("main");
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    assert.equal(u.kopf(), c2);
+    assert.match(r.stdout, new RegExp(`gegen ${daten}/master`));
+    assert.match(r.stdout, /Daten-Rauchtest ok: \d+ Buchungen/);
+    assert.equal(readFileSync(join(u.w, "datenort.txt"), "utf8"), daten);
+    assert.equal(existsSync(join(daten, "master", ".schreibsperre")), false);
+  } finally {
+    u.weg();
+  }
+});
+
+test("externer Datenort muss ein absoluter Pfad sein", { skip: ohneBash }, () => {
+  const u = umgebung();
+  try {
+    appendFileSync(join(u.w, "app.env"), "FINANZEN_DATEN=relativ/daten\n");
+    const r = u.lauf("main");
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /FINANZEN_DATEN/);
+    assert.equal(u.kopf(), u.c1);
   } finally {
     u.weg();
   }

@@ -34,9 +34,10 @@ export function legeAbzugAn() {
   };
 }
 
-export function starteServer(abzug, recht = "lesen", datenroot = "data/master") {
+export function starteServer(abzug, recht = "lesen", datenroot = "data/master", umgebung = {}) {
   const kind = spawn(process.execPath, [join(abzug.app, "mcp", "server.mjs"), datenroot, `--recht=${recht}`], {
     cwd: abzug.wurzel,
+    env: { ...process.env, ...umgebung },
     stdio: ["pipe", "pipe", "pipe"],
   });
   const offen = new Map();

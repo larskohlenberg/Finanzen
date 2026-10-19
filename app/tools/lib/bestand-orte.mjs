@@ -1,12 +1,14 @@
 // app/tools/lib/bestand-orte.mjs
 // Welche Inbox, Importprofile, welcher Papierkorb und welche Belegablage
 // gehoeren zu einem Datenbestand. data/master behaelt die gewachsenen Orte
-// neben dem Bestand (data/inbox, data/import-profile, data/papierkorb, Belege/);
+// neben dem Bestand (data/inbox, data/import-profile, data/papierkorb, Belege/;
+// mit FINANZEN_DATEN am externen Datenort, siehe datenort.mjs);
 // jeder andere Bestand (z. B. data/demo) hat sie in seinem eigenen Ordner und
 // keine Belegablage. So landet nie eine Demo-Datei in der echten Inbox und
 // umgekehrt.
 import { realpathSync } from "node:fs";
 import path from "node:path";
+import { physisch } from "./datenort.mjs";
 import { bestandZumEntwurf } from "./schreiblauf.mjs";
 
 // Verglichen wird ueber den echten Pfad (Symlinks, z. B. /var -> /private/var).
@@ -18,7 +20,7 @@ function echt(pfad) {
   }
 }
 
-export function bestandOrte(appPfad, datenrootPfad) {
+export function bestandOrte(appPfad, datenrootPfad, env = process.env) {
   const app = path.resolve(appPfad);
   // Im Entwurf eines Schreiblaufs entscheidet der eigentliche Bestand, ob es
   // data/master ist (Orte daneben, ausserhalb des Entwurfs). Jeder andere
@@ -26,13 +28,14 @@ export function bestandOrte(appPfad, datenrootPfad) {
   // sonst naehme das Uebernehmen die Verschiebungen dort wieder zurueck.
   const original = bestandZumEntwurf(datenrootPfad);
   const root = path.resolve(datenrootPfad);
-  if (original === path.join(app, "data", "master") || echt(original) === echt(path.join(app, "data", "master"))) {
-    const daten = path.join(app, "data");
+  const ort = (relativ) => physisch(app, relativ, env);
+  const master = ort("data/master");
+  if (original === master || echt(original) === echt(master)) {
     return {
-      inbox: path.join(daten, "inbox"),
-      profile: path.join(daten, "import-profile"),
-      papierkorb: path.join(daten, "papierkorb"),
-      belege: path.join(app, "Belege"),
+      inbox: ort("data/inbox"),
+      profile: ort("data/import-profile"),
+      papierkorb: ort("data/papierkorb"),
+      belege: ort("Belege"),
     };
   }
   return {

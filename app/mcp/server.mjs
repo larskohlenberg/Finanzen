@@ -8,12 +8,14 @@
 //
 // Gedacht fuer den Start per SSH-Forced-Command; SSH_ORIGINAL_COMMAND wird
 // bewusst nicht ausgewertet. App-Raum und Repo-Root ergeben sich aus der Lage
-// dieses Skripts, der Datenroot muss unter <app>/data/ liegen.
+// dieses Skripts, der Datenroot muss unter <app>/data/ liegen oder, mit
+// FINANZEN_DATEN, am externen Datenort (tools/lib/datenort.mjs).
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "../tools/data-root.mjs";
+import { DatenortFehler, externerDatenort, logisch, pruefeDatenort } from "../tools/lib/datenort.mjs";
 import { verarbeiteZeile } from "./protokoll.mjs";
 import { releaseKennung } from "./version.mjs";
 
@@ -38,13 +40,22 @@ async function kontext(argv) {
   const rootArg = argv.find((a) => !a.startsWith("--"));
   if (!rootArg) abbruch("Aufruf: node app/mcp/server.mjs <datenroot> [--recht=lesen|schreiben]");
 
-  const datenroot = fileURLToPath(dataRootFromArg(rootArg, undefined, new URL("../", import.meta.url))).replace(/\/$/, "");
-  const daten = path.join(app, "data");
-  if (!datenroot.startsWith(`${daten}${path.sep}`)) abbruch("Datenroot muss unter <app>/data/ liegen (z. B. data/master)");
+  let ort;
+  let datenroot;
+  try {
+    ort = pruefeDatenort(app);
+    datenroot = fileURLToPath(dataRootFromArg(rootArg, undefined, new URL("../", import.meta.url))).replace(/\/$/, "");
+  } catch (error) {
+    if (error instanceof DatenortFehler) abbruch(error.message);
+    throw error;
+  }
+  const wurzeln = [path.join(app, "data"), externerDatenort()].filter(Boolean);
+  if (!wurzeln.some((w) => datenroot.startsWith(`${w}${path.sep}`))) abbruch("Datenroot muss unter <app>/data/ oder am Datenort FINANZEN_DATEN liegen (z. B. data/master)");
   if (!(await stat(datenroot).catch(() => null))?.isDirectory()) abbruch("Datenroot existiert nicht");
+  log(ort);
   // Release-Kennung beim Start: weicht die installierte spaeter ab, weist die
   // Sitzung fachliche Aufrufe ab (version.mjs).
-  return { app, repo, datenroot, datenrootRel: path.relative(app, datenroot).split(path.sep).join("/"), recht, release: releaseKennung(app) };
+  return { app, repo, datenroot, datenrootRel: logisch(app, datenroot), recht, release: releaseKennung(app) };
 }
 
 async function main() {

@@ -36,6 +36,10 @@ const SCHREIBEN = {
   description: "Default false = Vorschau, es wird nichts geschrieben. true schreibt (nur mit --recht=schreiben); danach laeuft der Validator, bei neuen Fehlern wird der Masterstand zurueckgesetzt.",
 };
 
+// Die Kategorisierungsregel (ADR 0029) an einer Stelle: Anleitung und
+// Werkzeugbeschreibungen nennen sie wortgleich.
+export const KATEGORIE_REGEL = "Regeln nur mit Beleg (Belegleiter E1-E4). Einzelbuchungen ohne Beleg schaetzt der Agent: plausibelste Kategorie als Einzelvorschlag (agent_vorschlag); KAT-012 nur, wenn keine Kategorie plausibel ist.";
+
 const ergebnis = (text, isError = false) => ({ text, isError });
 const json = (wert) => JSON.stringify(wert, null, 2);
 
@@ -124,7 +128,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "regel_vorschlag",
     skript: "regel-vorschlag.mjs",
-    beschreibung: "Offen-Stapel nach Gegenpartei buendeln (tools/regel-vorschlag.mjs), sortiert nach Hebel, mit [Regelkonflikt]-Markern. Schlaegt bewusst keine Kategorie vor — die Kategorie braucht einen Beleg (Belegleiter E1-E4), sonst KAT-012. Rein lesend.",
+    beschreibung: `Offen-Stapel nach Gegenpartei buendeln (tools/regel-vorschlag.mjs), sortiert nach Hebel, mit [Regelkonflikt]-Markern. Schlaegt bewusst keine Kategorie vor. ${KATEGORIE_REGEL} Rein lesend.`,
     eigenschaften: {
       min: { type: "integer", minimum: 1, description: "Mindestgroesse eines Clusters (Default 2)" },
       limit: { type: "integer", minimum: 1, maximum: 1000, description: "Anzahl Cluster im Bericht (Default 20)" },
@@ -171,7 +175,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "agent_vorschlag",
     skript: "agent-vorschlag.mjs",
-    beschreibung: "Agenten-Einzelvorschlaege setzen (tools/agent-vorschlag.mjs): Buchungen auf vorgeschlagen mit kategorie_herkunft=agent. Fuer E5/E6: die plausibelste Kategorie, ohne Beleg als Schaetzung; KAT-012 nur, wenn keine Kategorie plausibel ist. Nie Grundlage einer Regel. Vorschau ist Default.",
+    beschreibung: `Agenten-Einzelvorschlaege setzen (tools/agent-vorschlag.mjs): Buchungen auf vorgeschlagen mit kategorie_herkunft=agent. Fuer E5/E6. ${KATEGORIE_REGEL} Nie Grundlage einer Regel. Vorschau ist Default.`,
     eigenschaften: {
       ids: { type: "array", items: ID("TXN"), minItems: 1 },
       kategorie: ID("KAT"),

@@ -2,7 +2,7 @@
 // JSON-RPC 2.0 / MCP ohne SDK. verarbeiteZeile nimmt eine Zeile von stdin und
 // liefert die Antwortzeile (oder null bei Benachrichtigungen).
 import { holePrompt, leseRessource, listePrompts, listeRessourcen } from "./inhalte.mjs";
-import { rufeWerkzeug, sichtbareWerkzeuge } from "./werkzeuge.mjs";
+import { KATEGORIE_REGEL, rufeWerkzeug, sichtbareWerkzeuge } from "./werkzeuge.mjs";
 
 export const VERSIONEN = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
@@ -16,7 +16,7 @@ function anleitung(ctx) {
     "Auswertungen und Statusfragen direkt per Tool beantworten (kennzahlen, status, transaktionen_abfragen, pruefbericht), ohne Vorlektuere; fuer \u201eWie stehen wir?\u201c zuerst kennzahlen.",
     "Vor Datenarbeit (Import, Kategorisieren, Regeln, Freigabe, jedes Schreiben) die Ressource finanzen://docs/agent-context und den passenden Skill-Prompt lesen.",
     "Alle Tool-Laeufe sind ohne schreiben:true eine Vorschau. Nach jedem Schreiben laeuft der Validator, neue Fehler setzen den Masterstand zurueck.",
-    "Kategorien nur mit Beleg (Belegleiter E1-E4); ohne Beleg ist der Vorschlag KAT-012.",
+    KATEGORIE_REGEL,
   ].join(" ");
 }
 

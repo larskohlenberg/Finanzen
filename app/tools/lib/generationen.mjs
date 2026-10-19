@@ -34,9 +34,10 @@
 //   anderes Format nicht kennt, liest und schreibt es nicht.
 import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
-import { chmod, copyFile, link, lstat, mkdir, open, readdir, readFile, readlink, rename, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
+import { chmod, copyFile, link, lstat, mkdir, open, readdir, readFile, readlink, realpath, rename, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import path from "node:path";
+import { ENTWURF_MARKE } from "./datei.mjs";
 import { istVerwaist, mitSperre, UMGEBUNG } from "./schreibsperre.mjs";
 
 export const ZEIGER = "aktuell";
@@ -144,6 +145,18 @@ export async function bestandsArt(basis) {
   if (!(await stat(basis).catch(() => null))?.isDirectory()) throw new Error(`Datenbestand ${basis} fehlt`);
   if (await existiert(path.join(basis, GENERATIONEN))) throw new Error(`${basis}: Einrichten der Generationen nicht abgeschlossen (kein Zeiger ${ZEIGER}); einrichten erneut aufrufen`);
   return ORDNER;
+}
+
+// Basisordner zu einem Datenroot: der Basisordner selbst, eine Generation
+// (auch ueber einen Symlink wie data/master -> <basis>/aktuell) oder ein
+// einfacher Ordner (dann er selbst).
+export async function findeBasis(datenroot) {
+  const pfad = path.resolve(datenroot);
+  if ((await lstat(path.join(pfad, ZEIGER)).catch(() => null))?.isSymbolicLink()) return pfad;
+  const echt = await realpath(pfad).catch(() => pfad);
+  const oben = path.dirname(path.dirname(echt));
+  if (istId(path.basename(echt)) && path.basename(path.dirname(echt)) === GENERATIONEN && (await lstat(path.join(oben, ZEIGER)).catch(() => null))?.isSymbolicLink()) return oben;
+  return pfad;
 }
 
 // Id der aktuellen Generation; im Rueckfallmodus ORDNER.
@@ -319,6 +332,22 @@ async function aufraeumen(basis, behalten, halt) {
   return geloescht;
 }
 
+// Temp-Dateien abgebrochener Schreiber im einfachen Ordner (versteckt, Endung
+// .tmp, z. B. aus ersetzeDatei). Unter der Sperre schreibt niemand sonst, also
+// ist jede davon ein Rest. Sicherungen ("-backup") bleiben liegen: Sie koennen
+// nach einem gescheiterten Zurueckspielen die einzige Kopie sein.
+async function raeumeTempReste(ordner) {
+  let anzahl = 0;
+  for (const e of await readdir(ordner, { withFileTypes: true })) {
+    if (e.isDirectory() && !e.name.startsWith(".")) anzahl += await raeumeTempReste(path.join(ordner, e.name));
+    else if (e.isFile() && e.name.startsWith(".") && /\.tmp$|^\.tmp-/.test(e.name) && !e.name.includes("-backup")) {
+      await unlink(path.join(ordner, e.name)).catch(() => {});
+      anzahl += 1;
+    }
+  }
+  return anzahl;
+}
+
 // Raeumt Reste abgebrochener Schreibvorgaenge weg. Nur unter der Sperre.
 export async function wiederanlauf(basis) {
   const befund = { entwuerfe: 0, unveroeffentlicht: 0, zeigerReste: 0 };
@@ -328,6 +357,7 @@ export async function wiederanlauf(basis) {
       await rm(path.join(basis, name), { recursive: true, force: true });
       befund.entwuerfe += 1;
     }
+    befund.tempReste = await raeumeTempReste(basis);
     return befund;
   }
   const aktuell = Number(await aktuelleId(basis));
@@ -445,6 +475,10 @@ async function schreibeGeneration(basis, fn, { pruefe, behalten = BEHALTEN, erwa
 
   const entwurf = path.join(basis, GENERATIONEN, `.neu-${process.pid}-${zufall()}`);
   await mkdir(entwurf);
+  // Marke fuer ersetzeDatei: die schreibgeschuetzten Hardlinks hier duerfen
+  // per rename ersetzt werden. Der Rueckfallmodus braucht sie nicht (Kopien
+  // mit dem Modus des Originals; Schreibschutz gilt dort weiter).
+  await writeFile(path.join(entwurf, ENTWURF_MARKE), "");
   const verwerfen = () => rm(entwurf, { recursive: true, force: true });
   let sicht;
   try {

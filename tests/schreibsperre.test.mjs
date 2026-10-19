@@ -81,14 +81,14 @@ test("verwaiste Sperre (Prozess tot oder zu alt) wird uebernommen", async () => 
   }
 });
 
-test("Zuruecksetzen ersetzt Dateien einzeln: Unveraendertes bleibt dieselbe Datei", async () => {
+test("Abgewiesener Entwurf: Bestand unberuehrt, Unveraendertes bleibt dieselbe Datei, kein Rest", async () => {
   const b = bestand();
   try {
     const kontenVorher = readFileSync(join(b.root, "konten.json"), "utf8");
     const inodeKategorien = statSync(join(b.root, "kategorien.json")).ino;
-    const r = await mitRollback(b.root, async () => {
-      writeFileSync(join(b.root, "konten.json"), "{ kaputt");
-      writeFileSync(join(b.root, "neu.json"), "{}");
+    const r = await mitRollback(b.root, async (s) => {
+      writeFileSync(join(s.ordner, "konten.json"), "{ kaputt");
+      writeFileSync(join(s.ordner, "neu.json"), "{}");
       return { text: "kaputt geschrieben" };
     });
     assert.equal(r.isError, true);

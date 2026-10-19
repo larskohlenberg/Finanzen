@@ -272,7 +272,7 @@ export async function main({
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const sperre = process.argv[2] && !process.argv[2].startsWith("--")
-    ? beginneLauf(fileURLToPath(dataRootFromArg(process.argv[2])), process.argv.includes("--schreiben"))
+    ? beginneLauf(fileURLToPath(dataRootFromArg(process.argv[2])), process.argv.includes("--schreiben"), undefined, { aussenWirkung: true })
     : Promise.resolve();
   sperre.then(() => main()).then((bericht) => {
     if (bericht.fehler.length) process.exitCode = 2;

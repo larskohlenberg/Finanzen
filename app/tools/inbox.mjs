@@ -254,7 +254,7 @@ async function main() {
   const masterRoot = pflichtDatenroot(argv.find((a) => !a.startsWith("--")));
   // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
   // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
-  await beginneLauf(fileURLToPath(masterRoot), schreiben);
+  await beginneLauf(fileURLToPath(masterRoot), schreiben, argv, { aussenWirkung: true });
   // Jeder Bestand hat seine Inbox (data/master: data/inbox/), siehe bestand-orte.mjs.
   const inboxRoot = pathToFileURL(`${bestandOrte(APP, fileURLToPath(masterRoot)).inbox}${path.sep}`);
 

@@ -84,8 +84,10 @@ ohne MCP.
 | Aus `error/` zurueckholen | `inbox_zurueckholen` (`pfad` unter `data/inbox/error/`; zurueck in die Inbox-Wurzel, bricht bei gleichem Namen ab; Vorschau ist Default) |
 
 Alle Tool-Laeufe sind ohne `schreiben: true` eine Vorschau, auch die Datei-
-und Belegwerkzeuge. Ein Werkzeugfehler fuehrt zu keinem Commit: der Bestand
-wird zurueckgesetzt (Verschiebungen in Inbox und `Belege/` ausgenommen).
+und Belegwerkzeuge. Jeder Schreiblauf arbeitet in einem Entwurf des Bestands;
+uebernommen wird er erst, wenn das Werkzeug fehlerfrei endet und der Validator
+keine neuen Fehler meldet. Sonst bleibt der Bestand unveraendert
+(Verschiebungen in Inbox und `Belege/` ausgenommen).
 
 **Orte je Bestand:** `data/master` nutzt `data/inbox/`, `data/import-profile/`,
 `data/papierkorb/` und `Belege/`. Jeder andere Bestand (z. B. `data/demo`) hat
@@ -98,18 +100,20 @@ Pflichtlektuere ist beides nur vor Datenarbeit (Import, Kategorisieren, Regeln,
 Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
 
 - **Schreibsperre je Bestand:** Jeder schreibende Lauf (MCP mit `schreiben: true`,
-  CLI mit `--schreiben`) haelt `DATENROOT/.schreibsperre` ueber Lesen, Aendern,
-  Pruefen und Zuruecksetzen. Ein zweiter Schreiber wird nach kurzer Wartezeit
+  CLI mit `--schreiben`) haelt die Schreibsperre des Bestands (`.schreibsperre`
+  im Bestandsordner) ueber Lesen, Aendern, Pruefen und Uebernehmen. Ein zweiter Schreiber wird nach kurzer Wartezeit
   abgewiesen (MCP: Fehlermeldung „Bestand ... ist gesperrt“, CLI: Exitcode 3);
   dann spaeter erneut versuchen. Eine Sperre, deren Prozess auf demselben
   Rechner nicht mehr lebt (von einem anderen Rechner: aelter als 30 Minuten),
   wird uebernommen.
 - **Validator nach dem Schreiben:** Nur neue Validatorfehler machen einen Lauf
-  fehlgeschlagen (CLI: Exitcode 1, MCP: Bestand wird zurueckgesetzt). Fehler,
+  fehlgeschlagen (CLI: Exitcode 1, MCP: Fehler); der Entwurf wird nicht
+  uebernommen, der Bestand bleibt unveraendert. Fehler,
   die schon vorher im Bestand standen, erscheinen als Hinweis „alle schon vorher
   vorhanden“; sie trotzdem beheben, aber getrennt vom Lauf.
-- **Fingerabdruck der Vorschau:** Jede Vorschau nennt `Fingerabdruck: <16 Zeichen>`
-  des gelesenen Bestands (MCP im Ergebnis, CLI auf stderr). Beim Schreiben
+- **Fingerabdruck der Vorschau:** Jede Vorschau nennt `Fingerabdruck: ...` des
+  gelesenen Bestands (MCP im Ergebnis, CLI auf stderr): bei einem Bestand mit
+  Generationen die Generations-Id (`G000042`), sonst 16 Hex-Zeichen. Beim Schreiben
   mitgeben (MCP `fingerabdruck`, CLI `--fingerabdruck=...`): Hat sich der Bestand
   seit der Vorschau geaendert, wird unter der Schreibsperre abgewiesen und nichts
   geschrieben (CLI: Exitcode 4); dann die Vorschau neu ansehen. Empfohlen fuer

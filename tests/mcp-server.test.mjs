@@ -205,7 +205,7 @@ test("Rollback bei Validatorfehler, gueltiges Schreiben bleibt", async () => {
   try {
     const kaputt = await s.werkzeug("datei_schreiben", { schreiben: true, pfad: "data/master/konten.json", inhalt: "{ kaputt" });
     assert.equal(kaputt.isError, true);
-    assert.match(kaputt.text, /zurueckgesetzt/);
+    assert.match(kaputt.text, /nichts uebernommen/);
     assert.equal(readFileSync(kontenPfad, "utf8"), vorher);
 
     const alt = "\"name\": \"Gemeinschaftsgiro\"";

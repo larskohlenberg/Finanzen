@@ -64,9 +64,9 @@ test("sachwertwirkungen: Aufbau behält Objekt-Identität und Wert", () => {
 test("Guardrails stecken NICHT mehr in Szenario-Warnungen, aber in guardrailWarnungen", () => {
   const data = baseData({
     transaktionen: [
-      { transaktion_id: "T1", konto_id: "KTO-001", betrag: "-600.00", buchungsdatum: "2026-03-10", kategorie_id: "KAT-001" },
-      { transaktion_id: "T2", konto_id: "KTO-001", betrag: "-600.00", buchungsdatum: "2026-04-10", kategorie_id: "KAT-001" },
-      { transaktion_id: "T3", konto_id: "KTO-001", betrag: "-600.00", buchungsdatum: "2026-05-10", kategorie_id: "KAT-001" },
+      { transaktion_id: "T1", konto_id: "KTO-001", betrag: "-300.00", buchungsdatum: "2026-03-10", kategorie_id: "KAT-001" },
+      { transaktion_id: "T2", konto_id: "KTO-001", betrag: "-300.00", buchungsdatum: "2026-04-10", kategorie_id: "KAT-001" },
+      { transaktion_id: "T3", konto_id: "KTO-001", betrag: "-300.00", buchungsdatum: "2026-05-10", kategorie_id: "KAT-001" },
     ],
     regelzahlungen: [
       { regelzahlung_id: "RZ-001", bezeichnung: "Lebensmittel", betrag: "-100.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", kategorie_id: "KAT-001", status: "bestaetigt", qualitaet: "geschaetzt", erstellt_am: "2026-06-01" },

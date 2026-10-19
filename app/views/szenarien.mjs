@@ -9,6 +9,7 @@ import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead, heu
 import { zeitstrahlDiagramm, stapelDiagramm } from "../charts.mjs";
 import { computeSzenario, rechneSzenario, guardrailWarnungen, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte, szenarioAenderungen, ereignisAnnahmen } from "../szenarien.mjs";
 import { addInterval } from "../liquiditaet.mjs";
+import { overviewAccountGroups } from "../selektoren.mjs";
 
 export const MAX_VERGLEICH = 7;
 const PPJ = { tag: 365, woche: 52, monat: 12, jahr: 1 };
@@ -613,7 +614,7 @@ function rechengrundlage(szenario, today) {
   const kopf = klappKopf("toggle-szenario-grundlage", offen, t("szenarien.rechengrundlageTitle"));
   if (!offen) return `<section class="panel panel-pad section-spacing">${kopf}</section>`;
   const c = computeSzenario(data, szenario, today);
-  const guardrails = guardrailWarnungen(data, today);
+  const guardrails = guardrailWarnungen(data, today, { vollstaendigBis: overviewAccountGroups().konten.aeltester });
   const hinweis = guardrails.length ? `
     <p class="page-lead">
       <span class="chip neutral">${iconSvg("review")}${escapeHtml(t("szenarien.prognosebasisHinweis").replace("{n}", String(guardrails.length)))}</span>

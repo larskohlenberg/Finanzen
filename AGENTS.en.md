@@ -118,6 +118,7 @@ For Claude Code the first two are ready in `.claude/agents/` (`import-normalisie
 
 ## Working on the code
 - `npm test` must pass. Tools are a pure function plus a CLI, tested with `node --test`.
+- Merge only once CI is green (GitHub Actions: tests on Node 22 and 24, validator on demo data and fixtures, PII scan): `gh pr checks <nr> --watch`, then `gh pr merge <nr> --merge`. Run the PII scan locally before pushing too: `node app/tools/pii-scan.mjs origin/main`. Errors (real IBAN, card number) block, warnings are worth a look.
 - No build pipeline, no dependencies besides Node.js.
 - The data set is always an argument (`dataRootFromArg` from `app/tools/data-root.mjs`), never hard-coded.
 - Amounts via `toCents` from `app/tools/lib/text.mjs`.

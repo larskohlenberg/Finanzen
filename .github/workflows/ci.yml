@@ -1,0 +1,58 @@
+# Schranke vor jedem Merge: Tests, Validator auf Demodaten und Fixtures,
+# PII-Scan des Diffs. Der Branch-Schutz von main verlangt diese Checks.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    # 24 laeuft auf der VM, 22 ist die Mindestversion laut AGENTS.md.
+    name: Tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      - name: Validator Demodaten
+        run: node app/tools/validator.mjs app/data/demo
+      - name: Validator Fixtures
+        run: npm run validate:fixtures
+
+  pii-scan:
+    name: PII-Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # Titel und Text kommen ueber die Umgebung, nie direkt ins Skript.
+      # PII_SPERRLISTE ist ein optionales Repo-Secret (ein Begriff je Zeile).
+      - name: Diff, Commit- und PR-Texte pruefen
+        env:
+          BASIS: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          ZIEL: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          PR_TITEL: ${{ github.event.pull_request.title }}
+          PR_TEXT: ${{ github.event.pull_request.body }}
+          PII_SPERRLISTE: ${{ secrets.PII_SPERRLISTE }}
+        run: node app/tools/pii-scan.mjs "$BASIS" "$ZIEL"

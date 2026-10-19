@@ -20,13 +20,14 @@ export function aktuellerZeitwert(zeitwerte, entitaet, entitaetId, feld, bis = n
   return best;
 }
 
-// Konto-Wert nach Kontotyp (ADR 0013).
+// Konto-Wert nach Kontotyp (ADR 0013), zum Stichtag `today`: spaetere Anker und
+// Depotwerte zaehlen nicht.
 export function kontoWert(konto, zeitwerte, transaktionen, today) {
   if (konto.kontotyp === "bar") {
     return { wert_cents: null, basis: "bar-ignoriert", standdatum: null, qualitaet: null };
   }
   if (konto.kontotyp === "depot") {
-    const dw = aktuellerZeitwert(zeitwerte, "konto", konto.konto_id, "depotwert");
+    const dw = aktuellerZeitwert(zeitwerte, "konto", konto.konto_id, "depotwert", today);
     if (!dw) return { wert_cents: null, basis: "depotwert-fehlt", standdatum: null, qualitaet: null };
     return { wert_cents: toCents(dw.wert), basis: "depotwert", standdatum: dw.standdatum, qualitaet: dw.qualitaet };
   }
@@ -34,7 +35,7 @@ export function kontoWert(konto, zeitwerte, transaktionen, today) {
   // Importierte Buchungen stammen selbst aus Belegen (Export, Auszug, Screenshot):
   // der Stand reicht deshalb bis zur letzten eingerechneten Buchung, nicht nur
   // bis zum Ankerdatum. anker_datum haelt den Kontoauszug-Stand fest.
-  const anker = aktuellerZeitwert(zeitwerte, "konto", konto.konto_id, "kontostand");
+  const anker = aktuellerZeitwert(zeitwerte, "konto", konto.konto_id, "kontostand", today);
   if (!anker) return { wert_cents: null, basis: "anker-fehlt", standdatum: null, qualitaet: null };
   let summe = toCents(anker.wert);
   let standdatum = anker.standdatum;
@@ -48,11 +49,11 @@ export function kontoWert(konto, zeitwerte, transaktionen, today) {
   return { wert_cents: summe, basis: "anker+buchungen", standdatum, anker_datum: anker.standdatum, qualitaet: anker.qualitaet };
 }
 
-// Annuitaet ab dem juengsten Restschuld-Anker: je Ratentermin bis `bis` Zins,
+// Annuitaet ab dem juengsten Restschuld-Anker bis `bis`: je Ratentermin Zins,
 // Tilgung und Rest. Endet, sobald der Rest 0 ist. Deckt die Rate den Zins nicht,
 // waechst der Rest; die Grenze ist dann allein `bis`. Ohne Anker null.
 export function darlehensplan(darlehen, zeitwerte, bis) {
-  const anker = aktuellerZeitwert(zeitwerte, "darlehen", darlehen.darlehen_id, "restschuld");
+  const anker = aktuellerZeitwert(zeitwerte, "darlehen", darlehen.darlehen_id, "restschuld", bis);
   if (!anker) return null;
   let rest = toCents(anker.wert);
   const rateCents = toCents(darlehen.sollrate);
@@ -175,7 +176,7 @@ export function computeNettovermoegen(data, today) {
 
   for (const imm of data.immobilien ?? []) {
     if (imm.status === "verkauft") continue;
-    const mw = aktuellerZeitwert(data.zeitwerte, "immobilie", imm.immobilie_id, "marktwert");
+    const mw = aktuellerZeitwert(data.zeitwerte, "immobilie", imm.immobilie_id, "marktwert", today);
     if (!mw) { fehlend++; positionen.push({ klasse: "immobilie", id: imm.immobilie_id, name: imm.bezeichnung, wert_cents: 0, basis: "marktwert-fehlt", qualitaet: null, standdatum: null, fehlt: true }); continue; }
     const cents = anteilWertCents(toCents(mw.wert), imm.eigentumsanteile);
     aktiva += cents;
@@ -185,7 +186,7 @@ export function computeNettovermoegen(data, today) {
 
   for (const vmw of data.vermoegenswerte ?? []) {
     if (vmw.status === "veraeussert") continue;
-    const mw = aktuellerZeitwert(data.zeitwerte, "vermoegenswert", vmw.vermoegenswert_id, "marktwert");
+    const mw = aktuellerZeitwert(data.zeitwerte, "vermoegenswert", vmw.vermoegenswert_id, "marktwert", today);
     if (!mw) { fehlend++; positionen.push({ klasse: "vermoegenswert", id: vmw.vermoegenswert_id, name: vmw.bezeichnung, wert_cents: 0, basis: "marktwert-fehlt", qualitaet: null, standdatum: null, fehlt: true }); continue; }
     const cents = anteilWertCents(toCents(mw.wert), vmw.eigentumsanteile);
     aktiva += cents;
@@ -195,7 +196,7 @@ export function computeNettovermoegen(data, today) {
 
   for (const vs of data.vorsorge ?? []) {
     if (!vs.kapitalbildend) continue;
-    const rw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "rueckkaufswert");
+    const rw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "rueckkaufswert", today);
     if (!rw) { fehlend++; positionen.push({ klasse: "vorsorge", id: vs.vorsorge_id, name: vs.name, wert_cents: 0, basis: "rueckkaufswert-fehlt", qualitaet: null, standdatum: null, fehlt: true }); continue; }
     const cents = toCents(rw.wert);
     aktiva += cents;
@@ -223,11 +224,11 @@ export function computeNettovermoegen(data, today) {
 
 // Reconciliation über aufeinanderfolgende belegte Stände eines Kontos: Anker plus
 // Buchungen bis zum nächsten Anker muss den nächsten Anker ergeben. Liefert jede
-// Abweichung; leer heißt, die Kette geht auf. Genutzt von den Vermögens-Checks
+// Abweichung (nur Staende bis `bis`, falls gesetzt); leer heißt, die Kette geht auf. Genutzt von den Vermögens-Checks
 // und vom Prüfbericht (tools/pruefbericht.mjs).
-export function reconciliationDrift(konto, zeitwerte, transaktionen) {
+export function reconciliationDrift(konto, zeitwerte, transaktionen, bis = null) {
   const staende = (zeitwerte ?? [])
-    .filter((z) => z.entitaet === "konto" && z.entitaet_id === konto.konto_id && z.feld === "kontostand" && z.qualitaet === "belegt")
+    .filter((z) => z.entitaet === "konto" && z.entitaet_id === konto.konto_id && z.feld === "kontostand" && z.qualitaet === "belegt" && (!bis || z.standdatum <= bis))
     .sort((a, b) => a.standdatum.localeCompare(b.standdatum));
   const drift = [];
   for (let i = 1; i < staende.length; i++) {
@@ -253,19 +254,19 @@ export function computeVermoegenChecks(data, today) {
   // kontoWert ins Nettovermoegen, also gelten Anker-Pflicht und Reconciliation dort genauso.
   for (const konto of data.konten ?? []) {
     if (konto.status === "geschlossen" || konto.kontotyp === "bar" || konto.kontotyp === "depot") continue;
-    const anker = aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand");
+    const anker = aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "kontostand", today);
     if (!anker) {
       checks.push({ art: "anker-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, text: `Konto ${konto.name}: kein belegter Kontostand` });
       continue;
     }
-    for (const d of reconciliationDrift(konto, data.zeitwerte, data.transaktionen)) {
+    for (const d of reconciliationDrift(konto, data.zeitwerte, data.transaktionen, today)) {
       checks.push({ art: "reconciliation-drift", entitaet: "konto", entitaet_id: konto.konto_id, text: `Konto ${konto.name}: Buchungen passen nicht zum Kontoauszug ${d.bis} (erwartet ${(d.erwartet_cents / 100).toFixed(2)}, belegt ${(d.belegt_cents / 100).toFixed(2)})` });
     }
   }
 
   for (const konto of data.konten ?? []) {
     if (konto.kontotyp !== "depot" || konto.status === "geschlossen") continue;
-    const dw = aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert");
+    const dw = aktuellerZeitwert(data.zeitwerte, "konto", konto.konto_id, "depotwert", today);
     if (!dw) { checks.push({ art: "marktwert-fehlt", entitaet: "konto", entitaet_id: konto.konto_id, text: `Depot ${konto.name}: kein Depotwert` }); continue; }
     const schwelle = standSchwelleMonate(konto, data.transaktionen, today);
     if (standVeraltet(konto, dw.standdatum, data.transaktionen, today)) {
@@ -275,7 +276,7 @@ export function computeVermoegenChecks(data, today) {
 
   for (const imm of data.immobilien ?? []) {
     if (imm.status === "verkauft") continue;
-    const mw = aktuellerZeitwert(data.zeitwerte, "immobilie", imm.immobilie_id, "marktwert");
+    const mw = aktuellerZeitwert(data.zeitwerte, "immobilie", imm.immobilie_id, "marktwert", today);
     if (!mw) { checks.push({ art: "marktwert-fehlt", entitaet: "immobilie", entitaet_id: imm.immobilie_id, text: `Immobilie ${imm.bezeichnung}: kein Marktwert` }); continue; }
     if (monateZwischen(mw.standdatum, today) >= STANDDATUM_SCHWELLEN.immobilie) {
       checks.push({ art: "bewertung-veraltet", entitaet: "immobilie", entitaet_id: imm.immobilie_id, text: `Immobilie ${imm.bezeichnung}: Marktwert vom ${mw.standdatum} älter als ${STANDDATUM_SCHWELLEN.immobilie} Monate` });
@@ -284,7 +285,7 @@ export function computeVermoegenChecks(data, today) {
 
   for (const vmw of data.vermoegenswerte ?? []) {
     if (vmw.status === "veraeussert") continue;
-    const mw = aktuellerZeitwert(data.zeitwerte, "vermoegenswert", vmw.vermoegenswert_id, "marktwert");
+    const mw = aktuellerZeitwert(data.zeitwerte, "vermoegenswert", vmw.vermoegenswert_id, "marktwert", today);
     if (!mw) { checks.push({ art: "marktwert-fehlt", entitaet: "vermoegenswert", entitaet_id: vmw.vermoegenswert_id, text: `Vermögenswert ${vmw.bezeichnung}: kein Marktwert` }); continue; }
     const schwelle = STANDDATUM_SCHWELLEN[`vermoegenswert_${vmw.typ}`] ?? 12;
     if (monateZwischen(mw.standdatum, today) >= schwelle) {
@@ -294,7 +295,7 @@ export function computeVermoegenChecks(data, today) {
 
   for (const dar of data.darlehen ?? []) {
     if (dar.status === "abgeloest") continue;
-    const anker = aktuellerZeitwert(data.zeitwerte, "darlehen", dar.darlehen_id, "restschuld");
+    const anker = aktuellerZeitwert(data.zeitwerte, "darlehen", dar.darlehen_id, "restschuld", today);
     // kein continue — fehlender Anker und fehlende Regelzahlung sind unabhängige Befunde
     if (!anker) checks.push({ art: "anker-fehlt", entitaet: "darlehen", entitaet_id: dar.darlehen_id, text: `Darlehen ${dar.bezeichnung}: kein belegter Restschuldstand` });
     const hatRate = (data.regelzahlungen ?? []).some((rz) => rz.darlehen_id === dar.darlehen_id && rz.status === "bestaetigt");
@@ -318,7 +319,7 @@ export function computeVermoegenChecks(data, today) {
     const felder = ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "beitragssumme"];
     let juengstes = vs.geprueft_am;
     for (const feld of felder) {
-      const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld);
+      const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld, today);
       if (zw && zw.standdatum > juengstes) juengstes = zw.standdatum;
     }
 

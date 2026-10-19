@@ -54,7 +54,7 @@ ohne MCP.
 | --- | --- |
 | Uebersicht der Web-App | `kennzahlen` (dieselben Kennzahlen wie die Uebersicht, frisch gerechnet; optional `stichtag`; erste Wahl fuer "Wie stehen wir?"; listet auch die anstehenden Fristen aus `anstehendeFristen` und die Absicherung je versicherter Person) |
 | Seite Plan & Ist der Web-App | `plan_ist` (Plan aus den Regelzahlungen gegen das Ist der Buchungen, je Kategorie mit Regelzahlungen, Einzelposten ab 400 Euro und Terminen ohne Buchung; `zeitraum` gesamt, 12m, Jahr, Quartal oder Monat; optional `verlauf` und `darstellung`). Die Kurzfassung der letzten zwoelf Monate steht auch in `kennzahlen`. |
-| Fristen anlegen, abhaken | `datei_lesen` / `datei_ersetzen` auf `DATENROOT/fristen.json` (kein eigenes Tool; Validator laeuft danach) |
+| Fristen anlegen, abhaken | `stammdatum_setzen` mit `typ: "frist"` (Validator laeuft danach) |
 | `tools/neuer-bestand.mjs` | — (nur CLI: legt einmalig einen leeren Datenbestand mit Grundkategorien an, bevor es einen MCP-Server gibt) |
 | `tools/generationen-einrichten.mjs` | — (nur CLI, vom Nutzer auf der VM: stellt einen einfachen Bestandsordner einmalig auf Generationen um, mit Sicherung, Byte-Vergleich und Rueckweg; kein Agentenwerkzeug) |
 | `tools/verlauf.mjs` | `verlauf` (letzte Generationen mit Zeit, ausloesendem Werkzeug und Kurzfassung; `anzahl`, `json`. `--behalten=N` nur per CLI vom Nutzer) |
@@ -67,6 +67,11 @@ ohne MCP.
 | `tools/regel-probelauf.mjs` | `regel_probelauf` (Kandidaten direkt als Liste) |
 | `tools/recategorize.mjs` | `nachkategorisieren` (CLI: Datenroot Pflicht, `--schreiben` schreibt) |
 | `tools/agent-vorschlag.mjs` | `agent_vorschlag` |
+| `tools/regel-schreiben.mjs` | `regel_schreiben` (Regeln anlegen/aendern; interner Probelauf, schreibt nur ohne Block, vergibt die `regel_id`; neue aktive Regel braucht `belegstufe`) |
+| `tools/stammdatum-setzen.mjs` | `stammdatum_setzen` (`typ`, `id`, `felder`; ohne `id` neuer Datensatz mit naechster ID; `null` entfernt ein Feld) |
+| `tools/zeitwert-anhaengen.mjs` | `zeitwert_anhaengen` (abweichender Wert am selben Standdatum: Warnung, ersetzt nur mit `korrigieren: true`) |
+| `tools/protokoll-eintrag.mjs` | `protokoll_eintrag` (freie Protokollzeile mit `anlass` und `notiz`; Werkzeug-Anlaesse sind reserviert) |
+| `tools/transfer-extern.mjs` | `transfer_extern` (externer Transfer mit `gegenseite` und Begruendung, oder `entfernen`) |
 | `tools/confirm.mjs` | `bestaetigen` |
 | `tools/transaktion-immobilie.mjs` | `immobilienbezug` |
 | `tools/transfer-matcher.mjs` | `transfers` |

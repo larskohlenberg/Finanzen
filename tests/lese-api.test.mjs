@@ -171,7 +171,13 @@ test("Liquiditaet: Ist, Verlauf, Prognose und Zahlungen; Parameter geprueft", as
   for (const k of a.ist.konten) assert.deepEqual(Object.keys(k).sort(), ["basis", "konto_id", "name", "saldo_cents"]);
   const mitBis = (await hole("/api/v1/liquiditaet?quelle=demo&heute=2026-10-19&bis=2027-03-31")).json();
   assert.equal(mitBis.prognose.horizont_ende, "2027-03-31");
-  for (const q of ["granularitaet=woche", "bis=2027-02-30", "heute=gestern"]) {
+  // Ohne bis: Standardhorizont, nicht leere Prognose.
+  const ohneBis = (await hole("/api/v1/liquiditaet?quelle=demo&heute=2026-10-19")).json();
+  assert.ok(ohneBis.prognose.perioden.length > 0);
+  assert.notEqual(ohneBis.prognose.horizont_ende, "");
+  // Horizont begrenzt (30 Jahre).
+  assert.equal((await hole("/api/v1/liquiditaet?quelle=demo&heute=2026-10-19&bis=2056-10-19")).status, 200);
+  for (const q of ["granularitaet=woche", "bis=2027-02-30", "heute=gestern", "heute=2026-10-19&bis=9999-12-31", "heute=2026-10-19&bis=2056-10-20"]) {
     assert.equal((await hole(`/api/v1/liquiditaet?quelle=demo&${q}`)).status, 400, q);
   }
 });

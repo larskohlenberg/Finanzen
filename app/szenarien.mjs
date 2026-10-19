@@ -1,10 +1,11 @@
 // app/szenarien.mjs — deterministische, reine Szenario-Engine (browser- & node-fähig).
 // Keine Node-I/O. Rechnet ab Rechenstichtag `today` (nicht `stand`).
 import { occurrences, addInterval, monatVon, toCents } from "./liquiditaet.mjs";
-import { faelligkeiten, aktuellerZeitwert, computeNettovermoegen } from "./vermoegen.mjs";
+import { aktuellerZeitwert, computeNettovermoegen } from "./vermoegen.mjs";
+import { zahlungsplan } from "./darlehen.mjs";
+import { betragJeMonatCents } from "./rhythmus.mjs";
 import { bestandsMonate, planIst, zeitraumMonate } from "./plan-ist.mjs";
 
-const PPJ = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 const GUARDRAIL_SCHWELLE = 0.9;
 const MATERIALITAET_MONAT_CENTS = 5000;
 
@@ -25,6 +26,7 @@ function startbestand(data, today, positionen = null) {
   const depots = new Map(); // konto_id -> cents
   const sachwerte = new Map(); // `${klasse}:${id}` -> cents
   const darlehenIds = new Set();
+  const darlehenRest = new Map(); // darlehen_id -> { rest_cents, qualitaet } (Rest heute; fehlt: null)
   const unbekannt = [];
   const qualitaeten = [];
   for (const p of nv.positionen) {
@@ -36,10 +38,13 @@ function startbestand(data, today, positionen = null) {
       if (konto.kontotyp === "depot") depots.set(p.id, p.wert_cents);
       else if (konto.liquiditaetsrelevant) liquide += p.wert_cents;
       else gebunden += p.wert_cents;
-    } else if (p.klasse === "darlehen") darlehenIds.add(p.id);
+    } else if (p.klasse === "darlehen") {
+      darlehenIds.add(p.id);
+      darlehenRest.set(p.id, { rest_cents: p.fehlt ? null : -p.wert_cents, qualitaet: p.qualitaet ?? "offen" });
+    }
     else sachwerte.set(`${p.klasse}:${p.id}`, p.wert_cents);
   }
-  return { liquide, gebunden, depots, sachwerte, darlehenIds, unbekannt, qualitaeten };
+  return { liquide, gebunden, depots, sachwerte, darlehenIds, darlehenRest, unbekannt, qualitaeten };
 }
 
 export function modifizierteRegelzahlungen(data, szenario) {
@@ -171,46 +176,24 @@ function sachwertBezeichnung(data, ziel_typ, ziel_id) {
   return ziel_id;
 }
 
-// Chronologischer Merge von Ratenterminen und Sondertilgungen je Darlehen. Liefert effektive
-// (geklemmte) Beträge: eine Sondertilgung kann nie mehr abtragen als die aktuelle Restschuld.
-function restschuldProjektion(darlehen, zeitwerte, today, horizon, sondertilgungen) {
-  let best = null;
-  for (const zw of zeitwerte ?? []) if (zw.entitaet === "darlehen" && zw.entitaet_id === darlehen.darlehen_id && zw.feld === "restschuld" && zw.standdatum <= today) if (!best || zw.standdatum > best.standdatum) best = zw;
-  if (!best) return { reihe: [], abbezahlt_am: null, schluss: null, qualitaet: "offen", effektive: [], start_cents: 0, hatZeitwert: false };
-  let rest = toCents(best.wert);
-  const startCents = rest;
-  const rate = toCents(darlehen.sollrate);
-  const satz = Number(darlehen.zinssatz);
-  const ppj = PPJ[darlehen.rhythmus_einheit] / darlehen.rhythmus_intervall;
-  const meineST = sondertilgungen.filter((s) => s.darlehen_id === darlehen.darlehen_id);
-  const events = [
-    ...faelligkeiten(darlehen, best.standdatum, horizon).map((d) => ({ datum: d, typ: "rate" })),
-    ...meineST.map((s) => ({ datum: s.datum, typ: "st", st: s })),
-  ].sort((a, b) => a.datum.localeCompare(b.datum) || (a.typ === "rate" ? -1 : 1));
-  const reihe = [];
-  const effektive = [];
-  let abbezahlt_am = null;
-  let schluss = null; // { datum, via: "rate" | "st", zahlung_cents }
-  for (const ev of events) {
-    if (rest === 0) { if (ev.typ === "st") effektive.push({ annahme_id: ev.st.annahme_id, datum: ev.datum, effektiv_cents: 0 }); reihe.push({ datum: ev.datum, rest_cents: 0 }); continue; }
-    let zahlung = 0;
-    if (ev.typ === "rate") {
-      // Geldabfluss = min(Sollrate, Rest vor der Rate + Zins): die letzte Rate ist die Schlussrate.
-      const zins = Math.round((rest * satz) / 100 / ppj);
-      zahlung = Math.min(rate, rest + zins);
-      rest = rest + zins - zahlung;
-    } else {
-      const eff = Math.min(ev.st.nominal_cents, rest);
-      rest -= eff;
-      effektive.push({ annahme_id: ev.st.annahme_id, datum: ev.datum, effektiv_cents: eff });
-    }
-    if (rest === 0 && !abbezahlt_am) {
-      abbezahlt_am = ev.datum;
-      schluss = { datum: ev.datum, via: ev.typ, zahlung_cents: zahlung };
-    }
-    reihe.push({ datum: ev.datum, rest_cents: rest });
-  }
-  return { reihe, abbezahlt_am, schluss, qualitaet: best.qualitaet, effektive, start_cents: startCents, hatZeitwert: true };
+// Schuld und Geldabfluss eines Darlehens aus dem Zahlungsplan (darlehen.mjs) ab
+// dem Rest heute (Startbestand): Raten der (im Szenario geaenderten)
+// Regelzahlungen des Darlehens, sonst Vertragsplan, dazu Sondertilgungen
+// (geklemmt auf den Rest). Ohne bekannten Rest keine Projektion.
+function restschuldProjektion(darlehen, startRest, today, horizon, sondertilgungen, rzs) {
+  if (!startRest || startRest.rest_cents === null) return { reihe: [], raten: [], abbezahlt_am: null, schluss: null, qualitaet: "offen", effektive: [], start_cents: 0, hatZeitwert: false };
+  const plan = zahlungsplan(darlehen, { start: { datum: today, rest_cents: startRest.rest_cents }, bis: horizon, regelzahlungen: rzs,
+    sondertilgungen: sondertilgungen.filter((s) => s.darlehen_id === darlehen.darlehen_id) });
+  return {
+    reihe: plan.ereignisse.map((e) => ({ datum: e.datum, rest_cents: e.rest_cents })),
+    raten: plan.ereignisse.filter((e) => e.typ === "rate"),
+    effektive: plan.ereignisse.filter((e) => e.typ === "sondertilgung").map((e) => ({ annahme_id: e.annahme_id, datum: e.datum, effektiv_cents: e.zahlung_cents })),
+    abbezahlt_am: plan.abbezahlt_am,
+    schluss: plan.schluss,
+    qualitaet: startRest.qualitaet,
+    start_cents: startRest.rest_cents,
+    hatZeitwert: true,
+  };
 }
 
 // vorsorge-leistung-Annahmen in vorhandene Primitive aufloesen: Arm 'rente' -> unbefristete
@@ -301,24 +284,22 @@ export function rechneSzenario(data, szenario, today, { positionen = null } = {}
     warnungen.push({ code: "startbestand-unbekannt", text: `Startbestand unvollständig, ohne belegten Wert: ${start.unbekannt.map((u) => `${KLASSE_TEXT[u.klasse] ?? u.klasse} ${u.name}`).join(", ")}` });
   }
 
-  // Restschuld-Projektion je laufendem Darlehen VOR dem Cash-Sammeln: bestimmt
-  // effektive Sondertilgungs-Beträge und die Schlussrate. Wird das Darlehen durch
-  // eine Rate getilgt, ersetzt die Schlussrate das Regelzahlungsereignis an diesem
-  // Tag; bei Tilgung durch Sondertilgung ist die Rate des Tages schon gezahlt.
-  // Liegt die Tilgung am oder vor dem Rechenstichtag, ist alles verbucht.
+  // Schuld und Raten je laufendem Darlehen aus einer Quelle (Zahlungsplan):
+  // die Raten sind zugleich der Geldabfluss, die Schlussrate am Termin der
+  // Rate, danach nichts mehr. Die Regelzahlungen dieser Darlehen buchen darum
+  // unten kein eigenes Cash; sie enden mit der Tilgung (fuer Herleitung und
+  // Qualitaet). Darlehen ohne bekannten Rest behalten ihre Regelzahlungen.
   const sondertilgungen = sammleSondertilgungen(szenario, rzs, today, horizon);
   const restschuldNachDarlehen = new Map();
-  const schlussraten = []; // { datum, cents, rz }
+  const planDarlehen = new Set();
   for (const darlehen of (data.darlehen ?? []).filter((d) => start.darlehenIds.has(d.darlehen_id))) {
-    const proj = restschuldProjektion(darlehen, data.zeitwerte, today, horizon, sondertilgungen);
+    const proj = restschuldProjektion(darlehen, start.darlehenRest.get(darlehen.darlehen_id), today, horizon, sondertilgungen, rzs);
     restschuldNachDarlehen.set(darlehen.darlehen_id, proj);
-    if (!proj.abbezahlt_am) continue;
-    const { datum, via, zahlung_cents } = proj.schluss;
-    const grenze = via === "rate" ? addInterval(datum, "tag", -1) : datum;
-    const raten = rzs.filter((rz) => rz.darlehen_id === darlehen.darlehen_id && !rz._gegenbuchung);
-    const laufend = raten.find((rz) => rz.anker_datum <= datum && (!rz.aktiv_bis || rz.aktiv_bis >= datum));
-    for (const rz of raten) rz.aktiv_bis = rz.aktiv_bis && rz.aktiv_bis < grenze ? rz.aktiv_bis : grenze;
-    if (via === "rate" && laufend && datum > today && datum <= horizon) schlussraten.push({ datum, cents: -zahlung_cents, rz: laufend });
+    if (!proj.hatZeitwert) continue;
+    planDarlehen.add(darlehen.darlehen_id);
+    if (!proj.schluss) continue;
+    const grenze = proj.schluss.datum;
+    for (const rz of rzs.filter((r) => r.darlehen_id === darlehen.darlehen_id && !r._gegenbuchung)) rz.aktiv_bis = rz.aktiv_bis && rz.aktiv_bis < grenze ? rz.aktiv_bis : grenze;
   }
 
   // Depot-Gegenbuchungen: chronologisch verarbeiten, damit Klemmung (Verkauf >
@@ -383,12 +364,18 @@ export function rechneSzenario(data, szenario, today, { positionen = null } = {}
   const regelArt = (rz, cents) => (katTyp.get(rz.kategorie_id) === "neutral" ? "umbuchung" : cents >= 0 ? "ein" : "aus");
   const ereignisse = []; // { datum, cents, art }
   for (const rz of rzs) {
-    if (rz._gegenbuchung) continue;
+    if (rz._gegenbuchung || planDarlehen.has(rz.darlehen_id)) continue;
     const cents = toCents(rz.betrag);
     const art = regelArt(rz, cents);
     for (const datum of occurrences(rz, today, horizon)) ereignisse.push({ datum, cents, art });
   }
-  for (const s of schlussraten) ereignisse.push({ datum: s.datum, cents: s.cents, art: regelArt(s.rz, s.cents) });
+  const rzById = new Map(rzs.map((rz) => [rz.regelzahlung_id, rz]));
+  for (const proj of restschuldNachDarlehen.values()) {
+    for (const r of proj.raten) {
+      const rz = rzById.get(r.regelzahlung_id);
+      ereignisse.push({ datum: r.datum, cents: -r.zahlung_cents, art: rz ? regelArt(rz, -r.zahlung_cents) : "aus" });
+    }
+  }
   for (const proj of restschuldNachDarlehen.values()) {
     for (const eff of proj.effektive) ereignisse.push({ datum: eff.datum, cents: -eff.effektiv_cents, art: wiederkehrend(eff.annahme_id) ? "umbuchung" : "einmal" });
   }
@@ -624,7 +611,7 @@ export function jahresWerte(punkte) {
 // Monat eine neue derselben Kategorie, wird daraus eine Zeile "ersetzt".
 // Eintrag: { datum, art, name, alt?, neu?, delta_cents (Monatsaequivalent),
 // einmal_cents, quellen, kategorie_id }; art = neu|beendet|geaendert|auslauf|ersetzt|einmalig.
-const monatsAequivalent = (betrag, einheit, intervall) => Math.round((toCents(betrag) * PPJ[einheit ?? "monat"]) / 12 / Number(intervall || 1));
+const monatsAequivalent = (betrag, einheit, intervall) => betragJeMonatCents(toCents(betrag), einheit, intervall);
 const zahlung = (name, betrag, einheit, intervall) => ({ name, betrag, rhythmus_einheit: einheit ?? "monat", rhythmus_intervall: Number(intervall || 1) });
 
 export function szenarioAenderungen(data, szenario, today) {

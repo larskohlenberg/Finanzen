@@ -16,7 +16,7 @@ const anker = { entitaet: "darlehen", entitaet_id: "DAR-001", feld: "restschuld"
 test("darlehensplan: Annuitaet ab Anker, erste Rate 250 Zins und 750 Tilgung", () => {
   const plan = darlehensplan(darlehen, [anker], "2026-03-31");
   assert.equal(plan.anker, anker);
-  assert.deepEqual(plan.raten[0], { datum: "2026-02-28", zins_cents: 25000, tilgung_cents: 75000, rest_cents: 9925000 });
+  assert.deepEqual(plan.raten[0], { datum: "2026-02-28", zahlung_cents: 100000, zins_cents: 25000, tilgung_cents: 75000, rest_cents: 9925000, quelle: "vertrag" });
   assert.equal(plan.raten.length, 2);
 });
 

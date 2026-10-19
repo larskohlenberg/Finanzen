@@ -5,7 +5,8 @@
 
 import { toCents } from "./tools/lib/text.mjs";
 import { aktivAm, kontoStand } from "./bewertung.mjs";
-export { toCents };
+import { addInterval, naechsterTermin, termine } from "./rhythmus.mjs";
+export { toCents, addInterval };
 
 export function monatVon(isoDate) {
   return isoDate.slice(0, 7);
@@ -22,62 +23,16 @@ export function localTodayIso(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
-export function addInterval(isoDate, einheit, intervall) {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  if (einheit === "tag") {
-    return new Date(Date.UTC(y, m - 1, d + intervall)).toISOString().slice(0, 10);
-  }
-  if (einheit === "woche") {
-    return new Date(Date.UTC(y, m - 1, d + intervall * 7)).toISOString().slice(0, 10);
-  }
-  if (einheit === "monat") {
-    const totalMonths = y * 12 + (m - 1) + intervall;
-    const ny = Math.floor(totalMonths / 12);
-    const nm = totalMonths % 12;
-    const lastDay = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
-    return new Date(Date.UTC(ny, nm, Math.min(d, lastDay))).toISOString().slice(0, 10);
-  }
-  if (einheit === "jahr") {
-    const ny = y + intervall;
-    const lastDay = new Date(Date.UTC(ny, m, 0)).getUTCDate();
-    return new Date(Date.UTC(ny, m - 1, Math.min(d, lastDay))).toISOString().slice(0, 10);
-  }
-  throw new Error(`Unbekannte Rhythmus-Einheit: ${einheit}`);
-}
-
+// Termine einer Regelzahlung strikt nach `today` bis `horizonEnd`, ab ihrem
+// Anker bis aktiv_bis (rhythmus.mjs).
 export function occurrences(regelzahlung, today, horizonEnd) {
-  const ende = regelzahlung.aktiv_bis && regelzahlung.aktiv_bis < horizonEnd ? regelzahlung.aktiv_bis : horizonEnd;
-  const dates = [];
-  let step = 0;
-  let guard = 0;
-  let cur = regelzahlung.anker_datum;
-  while (cur <= ende && guard < 100000) {
-    if (cur > today) dates.push(cur);
-    step++;
-    cur = addInterval(regelzahlung.anker_datum, regelzahlung.rhythmus_einheit, regelzahlung.rhythmus_intervall * step);
-    guard++;
-  }
-  return dates;
+  return termine(regelzahlung.anker_datum, regelzahlung.rhythmus_einheit, regelzahlung.rhythmus_intervall, { nach: today, bis: horizonEnd, ende: regelzahlung.aktiv_bis });
 }
 
-// Naechster erwarteter Termin einer Regelzahlung strikt nach `today`. Gleiche
-// Expansion wie `occurrences` (Anker x Intervall, Monatsend-Klemmung via
-// addInterval), bricht am ersten Treffer ab. Null, wenn die Regelzahlung vor dem
-// naechsten Termin endet (aktiv_bis ueberschritten). Grosser Review-Nutzen:
-// man sieht sofort, ob Rhythmus und Tag stimmen.
+// Naechster erwarteter Termin einer Regelzahlung strikt nach `today`; null,
+// wenn sie vorher endet (aktiv_bis). Man sieht sofort, ob Rhythmus und Tag stimmen.
 export function naechsteFaelligkeit(regelzahlung, today) {
-  const ende = regelzahlung.aktiv_bis ?? null;
-  let step = 0;
-  let guard = 0;
-  let cur = regelzahlung.anker_datum;
-  while (guard < 100000) {
-    if (ende && cur > ende) return null;
-    if (cur > today) return cur;
-    step++;
-    cur = addInterval(regelzahlung.anker_datum, regelzahlung.rhythmus_einheit, regelzahlung.rhythmus_intervall * step);
-    guard++;
-  }
-  return null;
+  return naechsterTermin(regelzahlung.anker_datum, regelzahlung.rhythmus_einheit, regelzahlung.rhythmus_intervall, today, regelzahlung.aktiv_bis ?? null);
 }
 
 // Bestaetigte Abfluesse, die einmal im Jahr faellig werden, mit ihren Terminen von

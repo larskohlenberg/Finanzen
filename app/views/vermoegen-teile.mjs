@@ -10,6 +10,7 @@ import { dokumentRoute, dokumenteZuObjekt } from "../belege.mjs";
 import { verweise } from "./belegverweise-daten.mjs";
 import { fristenZuObjekt } from "../fristen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
+import { betragJeMonatCents } from "../rhythmus.mjs";
 import { belegDateienStand, renderDokumenteAusschnitt } from "./belege.mjs";
 
 
@@ -126,10 +127,8 @@ export function laufzeitText(von, bis) {
 }
 
 // Monatliche Belastung einer Rate (fuer Summen ueber Darlehen mit anderem Rhythmus).
-const PERIODEN_PRO_JAHR = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 export function rateJeMonatCents(darlehen) {
-  const ppj = (PERIODEN_PRO_JAHR[darlehen.rhythmus_einheit] ?? 12) / (Number(darlehen.rhythmus_intervall) || 1);
-  return Math.round((cents(darlehen.sollrate) * ppj) / 12);
+  return betragJeMonatCents(cents(darlehen.sollrate), darlehen.rhythmus_einheit, darlehen.rhythmus_intervall);
 }
 
 // Gestapelter Balken als SVG: die CSP der App verbietet style-Attribute, SVG-

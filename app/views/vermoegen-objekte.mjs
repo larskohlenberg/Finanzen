@@ -321,7 +321,7 @@ function renderImmobilieDetail(imm, today, modell) {
 export function renderDarlehenTab(today) {
   const liste = aktiveDarlehen();
   if (!liste.length) return `<section class="panel panel-pad"><p class="muted">${escapeHtml(t("vermoegen.darlehen.keine"))}</p></section>`;
-  const kennzahlenJe = new Map(liste.map((d) => [d.darlehen_id, darlehenKennzahlen(d, data.zeitwerte, today)]));
+  const kennzahlenJe = new Map(liste.map((d) => [d.darlehen_id, darlehenKennzahlen(d, data.zeitwerte, today, data.regelzahlungen)]));
   const auswahl = gewaehlt("darlehen", liste, "darlehen_id");
 
   let rest = 0;

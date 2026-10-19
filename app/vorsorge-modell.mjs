@@ -4,10 +4,13 @@
 // Ansicht. Vertraege, Regelzahlungen und Zeitwerte kennt der Browser; hier
 // steht nur, was Buchungen braucht: offene Punkte der Vertraege,
 // Rueckkaufswerte als Positionen des Nettovermoegens und je Vertrag Anzahl
-// der gebuchten Beitraege, letzte Beitragsaenderung, Vorjahresvergleich und
-// Vermoegensbezug.
+// der gebuchten Beitraege, letzte Beitragsaenderung, Vorjahresvergleich,
+// Vermoegensbezug und die Wertentwicklung (eingezahlt, Ertrag).
 import { computeNettovermoegen, computeVermoegenChecks } from "./vermoegen.mjs";
-import { beitragsAenderungen, beitragVorjahr, gebuchteBeitraegeAlle, vermoegensBezug } from "./vorsorge-rechnung.mjs";
+import { beitragsAenderungen, beitragVorjahr, gebuchteBeitraegeAlle, vermoegensBezug, wertEntwicklung } from "./vorsorge-rechnung.mjs";
+
+// Nur, was der Text zur letzten Aenderung zeigt.
+const aenderung = (a) => (a ? { datum: a.datum, diff_cents: a.diff_cents, anteil: a.anteil } : null);
 
 export function vorsorgeModell(daten, heute) {
   const vertraege = {};
@@ -15,9 +18,10 @@ export function vorsorgeModell(daten, heute) {
     const id = vs.vorsorge_id;
     vertraege[id] = {
       anzahl_buchungen: gebuchteBeitraegeAlle(daten, id).length,
-      letzte_aenderung: beitragsAenderungen(daten, id)[0] ?? null,
+      letzte_aenderung: aenderung(beitragsAenderungen(daten, id)[0]),
       vorjahr: beitragVorjahr(daten, id),
       bezug: vermoegensBezug(daten, id),
+      wert_entwicklung: wertEntwicklung(daten, id),
     };
   }
   return {

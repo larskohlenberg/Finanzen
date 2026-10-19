@@ -13,7 +13,7 @@ import { belegOrdnerAusText } from "../belege.mjs";
 import {
   VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag,
   gesetzlicherRentenbeginn, kapitalLeistungen, kapitalZumAblauf, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
-  rentenStufen, tabFuerVorsorge, vertragsFarben, wertEntwicklung,
+  rentenStufen, tabFuerVorsorge, vertragsFarben,
 } from "../vorsorge-rechnung.mjs";
 import { dynamikStand, widerspruchFuerFrist } from "../vorsorge-dynamik.mjs";
 import { fristenZuObjekt } from "../fristen.mjs";
@@ -70,12 +70,12 @@ const jaehrlichGezahlt = (vs, today) => {
 
 // Was Buchungen braucht (offene Punkte, Rueckkaufswerte als Positionen des
 // Nettovermoegens, je Vertrag Anzahl gebuchter Beitraege, letzte Aenderung,
-// Vorjahr, Vermoegensbezug), rechnet der App-Server (GET /api/v1/vorsorge,
+// Vorjahr, Vermoegensbezug, Wertentwicklung), rechnet der App-Server (GET /api/v1/vorsorge,
 // app/vorsorge-modell.mjs). renderVorsorge setzt die Antwort fuer die Dauer
 // eines Zeichnens; alles andere rechnet der Browser aus Stammdaten und Zeitwerten.
 const cache = erstelleApiCache({ maxEintraege: 4 });
 let modell = null;
-const OHNE_BUCHUNGEN = { anzahl_buchungen: 0, letzte_aenderung: null, vorjahr: null, bezug: [] };
+const OHNE_BUCHUNGEN = { anzahl_buchungen: 0, letzte_aenderung: null, vorjahr: null, bezug: [], wert_entwicklung: null };
 // Fehlt der Vertrag in der Antwort (sie ist noch die des vorigen Stands): ohne Buchungen.
 const vertrag = (vs) => modell?.vertraege[vs.vorsorge_id] ?? OHNE_BUCHUNGEN;
 
@@ -673,7 +673,7 @@ function wertEntwicklungHtml(vs, we, link) {
 // Beitraege selbst stehen in den gefilterten Transaktionen; die Kachel verlinkt
 // nur dorthin und zeigt, wenn es Wertstaende gibt, die Wertentwicklung.
 function renderBeitraege(vs) {
-  const we = wertEntwicklung(data, vs.vorsorge_id);
+  const we = vertrag(vs).wert_entwicklung;
   const titel = t(we ? "vorsorge.wertentwicklung.titel" : "vorsorge.gebuchteBeitraege");
   const anzahl = vertrag(vs).anzahl_buchungen;
   const hatRegelzahlung = (data.regelzahlungen ?? []).some((rz) => rz.vorsorge_id === vs.vorsorge_id);

@@ -248,7 +248,7 @@ test("Vorsorge: offene Punkte und Positionen nur der Vertraege, je Vertrag nur K
   assert.ok(v.checks.every((c) => c.entitaet === "vorsorge"));
   assert.ok(v.positionen.every((p) => p.klasse === "vorsorge"));
   for (const e of Object.values(v.vertraege)) {
-    assert.deepEqual(Object.keys(e).sort(), ["anzahl_buchungen", "bezug", "letzte_aenderung", "vorjahr"]);
+    assert.deepEqual(Object.keys(e).sort(), ["anzahl_buchungen", "bezug", "letzte_aenderung", "vorjahr", "wert_entwicklung"]);
     assert.ok(Number.isInteger(e.anzahl_buchungen));
   }
   assert.equal((await hole("/api/v1/vorsorge?quelle=demo&heute=9999-12-31")).status, 400);

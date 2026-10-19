@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 import { istWiderspruch, menschlichEntschieden } from "./lib/entscheidung.mjs";
 
 // Kandidat fuer die Neubewertung: offene Buchungen plus alles, was per Regel
@@ -149,6 +150,8 @@ async function main() {
     return;
   }
   const masterRoot = dataRootFromArg(rootArg, undefined, new URL("../", import.meta.url));
+  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
+  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
   const [transaktionen, regeln] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readJson(new URL("kategorisierungsregeln.json", masterRoot)),

@@ -3,12 +3,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 import { validateImportEntry } from "./import-format.mjs";
-import { gleicheMitBestandAb, vorkommenHash } from "./dedupe.mjs";
+import { computeDedupeHash, disambiguateHash } from "./dedupe.mjs";
 import { categorize } from "./categorizer.mjs";
 import { matchTransfers } from "./transfer-matcher.mjs";
 import { nextTransaktionId } from "./ids.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
+import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 
 const optionalTransactionFields = [
   "wertstellungsdatum",
@@ -27,49 +28,57 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
   const regelzahlungIds = new Set(regelzahlungen.map((rz) => rz.regelzahlung_id));
   const working = [...transaktionen];
   const existingIds = new Set(working.map((tx) => tx.transaktion_id));
+  // Dedupe prueft gegen den BESTAND (Re-Import-Schutz), nicht innerhalb desselben
+  // Auszugs — ein amtlicher Auszug enthaelt reale Buchungen, keine Importdubletten.
   const masterHashes = new Set(working.map((tx) => tx.dedupe_hash));
-  // In diesem Lauf vergebene Hashes.
+  // In diesem Lauf vergebene Hashes — zur Disambiguierung identischer Auszugszeilen.
   const runHashes = new Set();
 
-  const result = { written: [], skipped_dedupe: [], disambiguated: [], errors: [], transfers_matched: [], pruefen: [], referenz_unzuverlaessig: [] };
+  // bank_referenz taugt nur als Dedupe-Schluessel, wenn sie im Lauf dateiweit
+  // EINDEUTIG ist. Manche Banken (MusterbankA) vergeben dieselbe Referenz auf verschiedenen
+  // Buchungen — diese als Schluessel zu nutzen wuerde reale Buchungen verschmelzen.
+  const refCount = new Map();
+  for (const e of entries) {
+    const ref = String(e?.bank_referenz ?? "").trim();
+    if (ref) refCount.set(ref, (refCount.get(ref) ?? 0) + 1);
+  }
 
-  const gueltig = [];
+  const result = { written: [], skipped_dedupe: [], disambiguated: [], errors: [], transfers_matched: [] };
+
   entries.forEach((entry, index) => {
     const row = index + 1;
+
     const formatErrors = validateImportEntry(entry, kontenIds, regelzahlungIds);
     if (formatErrors.length > 0) {
       result.errors.push({ row, reason: "format", detail: formatErrors.join("; "), raw: entry });
       return;
     }
-    gueltig.push({ row, entry });
-  });
 
-  // Dubletten als Multimenge gegen den BESTAND (ADR 0034): je Konto und
-  // Inhalt so viele neue Buchungen, wie die Datei mehr hat als der Bestand.
-  // Zwei gleiche Zeilen eines Auszugs sind zwei Tatsachen, keine Dublette.
-  const abgleich = gleicheMitBestandAb(gueltig, transaktionen);
-  result.pruefen = abgleich.pruefen;
-  result.referenz_unzuverlaessig = abgleich.referenz_unzuverlaessig;
+    const ref = String(entry.bank_referenz ?? "").trim();
+    const refEindeutig = ref !== "" && refCount.get(ref) === 1;
+    // Nicht-eindeutige Referenz fuer die Hash-Bildung ignorieren -> Freitext-Hash.
+    const basisHash = computeDedupeHash(refEindeutig ? entry : { ...entry, bank_referenz: undefined });
 
-  for (const { row, entry } of gueltig) {
-    const urteil = abgleich.entscheidung.get(row);
-    if (urteil.vorhanden) {
-      result.skipped_dedupe.push({ row, dedupe_hash: urteil.vorhanden.dedupe_hash, transaktion_id: urteil.vorhanden.transaktion_id, grund: urteil.grund });
-      continue;
+    if (masterHashes.has(basisHash)) {
+      result.skipped_dedupe.push({ row, dedupe_hash: basisHash });
+      return;
     }
 
     const verdict = categorize(entry, kategorisierungsregeln);
     if (verdict.kategorie_id && !kategorienIds.has(verdict.kategorie_id)) {
       result.errors.push({ row, reason: "kategorie_unbekannt", detail: `${verdict.kategorie_id} nicht in kategorien`, raw: entry });
-      continue;
+      return;
     }
 
-    // Schluessel: das erste freie Vorkommen des Inhalts. Frei heisst: weder im
-    // Bestand (auch Alt-Hashes mit Luecken) noch in diesem Lauf vergeben.
-    let n = 1;
-    while (masterHashes.has(vorkommenHash(urteil.inhalt, n)) || runHashes.has(vorkommenHash(urteil.inhalt, n))) n++;
-    const dedupe_hash = vorkommenHash(urteil.inhalt, n);
-    if (n > 1) result.disambiguated.push({ row, basis: urteil.inhalt, dedupe_hash });
+    // Identische Quellzeile im selben Auszug: nicht verwerfen, sondern Hash
+    // disambiguieren (beide Buchungen sind Fakten, Validator verlangt eindeutige Hashes).
+    let dedupe_hash = basisHash;
+    if (runHashes.has(dedupe_hash)) {
+      let n = 2;
+      while (runHashes.has(disambiguateHash(basisHash, n))) n++;
+      dedupe_hash = disambiguateHash(basisHash, n);
+      result.disambiguated.push({ row, basis: basisHash, dedupe_hash });
+    }
 
     const transaktion_id = nextTransaktionId(existingIds);
     existingIds.add(transaktion_id);
@@ -101,14 +110,13 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
     for (const field of optionalTransactionFields) {
       if (Object.hasOwn(entry, field)) transaktion[field] = entry[field];
     }
-    // Die Referenz wird immer gespeichert: Sie ist kein Schluessel fuer sich,
-    // aber der Beleg, an dem der naechste Lauf ihre Verlaesslichkeit je Konto
-    // misst (ADR 0034).
-    if (String(entry.bank_referenz ?? "").trim()) transaktion.bank_referenz = entry.bank_referenz;
+    // Nur eine dateiweit eindeutige Referenz speichern — sonst waere sie ein
+    // irrefuehrender Dedupe-Key beim Re-Import.
+    if (refEindeutig) transaktion.bank_referenz = entry.bank_referenz;
 
     working.push(transaktion);
     result.written.push({ transaktion_id, kategorisierung_status: verdict.status });
-  }
+  });
 
   const transferOutcome = matchTransfers(working, transfers, konten);
   result.transfers_matched = transferOutcome.matched;
@@ -134,6 +142,8 @@ async function main() {
     return;
   }
   const masterRoot = pflichtDatenroot(rootArg);
+  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
+  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
   const [konten, kategorien, transaktionen, transfers, kategorisierungsregeln, regelzahlungen] = await Promise.all([
     readJson(new URL("konten.json", masterRoot)),
     readJson(new URL("kategorien.json", masterRoot)),

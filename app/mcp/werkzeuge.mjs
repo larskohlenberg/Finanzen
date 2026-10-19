@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { ersetzeVerweise } from "../tools/belege-umziehen.mjs";
+import { UMGEBUNG as SPERRE_UMGEBUNG } from "../tools/lib/schreibsperre.mjs";
 import { planeTeilung } from "../tools/lib/seiten.mjs";
 import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -52,10 +53,13 @@ const json = (wert) => JSON.stringify(wert, null, 2);
 
 // ---------------------------------------------------------------- CLI-Laeufe
 
-function starte(ctx, skript, args) {
+// sperre: die von mitRollback gehaltene Schreibsperre; die CLI erbt sie ueber
+// die Umgebung und nimmt keine eigene.
+function starte(ctx, skript, args, sperre = null) {
   return new Promise((resolve) => {
     execFile(process.execPath, [path.join(ctx.app, "tools", skript), ...args], {
       cwd: ctx.app,
+      env: sperre ? { ...process.env, [SPERRE_UMGEBUNG]: sperre.kennung } : process.env,
       timeout: LAUF_TIMEOUT,
       maxBuffer: 64 * 1024 * 1024,
     }, (error, stdout, stderr) => {
@@ -87,12 +91,12 @@ function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], sch
         return ergebnis(`${name} mit schreiben:true braucht --recht=schreiben. Dieser Zugang darf nur Vorschau-Laeufe.`, true);
       }
       if (mitBelegen) belegeWurzel(ctx);
-      const lauf = async (root, kopfzeile) => {
+      const lauf = async (root, kopfzeile, sperre = null) => {
         const cliArgs = await argv(ctx, args, root);
         const flag = schreiben && !ohneVorschau ? [schreibFlag] : [];
         let r;
         try {
-          r = await starte(ctx, skript, [...cliArgs, ...flag]);
+          r = await starte(ctx, skript, [...cliArgs, ...flag], sperre);
         } finally {
           await cliArgs.aufraeumen?.();
         }
@@ -100,7 +104,7 @@ function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], sch
         if (r.stderr.trim()) teile.push(`--- stderr ---\n${r.stderr.trimEnd()}`);
         return ergebnis(teile.join("\n"), !okCodes.includes(r.exitCode));
       };
-      if (schreiben) return mitRollback(ctx.datenroot, () => lauf(ctx.datenrootRel, "Modus: schreiben"), { rueckrollungBeiFehler });
+      if (schreiben) return mitRollback(ctx.datenroot, (sperre) => lauf(ctx.datenrootRel, "Modus: schreiben", sperre), { rueckrollungBeiFehler });
       if (!ohneVorschau) return lauf(ctx.datenrootRel, "Modus: Vorschau");
       // Die CLI kennt keine Vorschau: gegen eine Wegwerfkopie des Datenroots laufen.
       const kopie = await kopiereDatenroot(ctx.datenroot);
@@ -1241,7 +1245,8 @@ export function sichtbareWerkzeuge(ctx) {
 // Schreibende Aufrufe einer Sitzung laufen nacheinander: Clients schicken
 // Tool-Aufrufe parallel, und Lesen-Aendern-Schreiben (anhaengen, ersetzen)
 // sowie Kopie und Rueckspielen in mitRollback vertragen keine Ueberlappung.
-// Zwischen zwei Sitzungen (Prozessen) gibt es bewusst keine Sperre.
+// Zwischen zwei Sitzungen (Prozessen) schuetzt die Schreibsperre des Bestands
+// (mitRollback): die zweite Sitzung bekommt eine Abweisung.
 let schreibKette = Promise.resolve();
 function nacheinander(fn) {
   const lauf = schreibKette.then(fn);

@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
 import { kontoanker, stufeVerliehen } from "./lib/kontoanker.mjs";
@@ -149,6 +150,8 @@ async function main() {
   if (args.includes("--help")) { console.log(USAGE); return; }
   const schreiben = args.includes("--schreiben");
   const masterRoot = dataRootFromArg(args.find((a) => !a.startsWith("--")));
+  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
+  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
 
   const [transaktionen, regeln] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),

@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
+import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 import { normalizeLoose } from "./lib/text.mjs";
 
 const ENTSCHIEDEN = new Set(["bestaetigt", "abgelehnt"]);
@@ -176,6 +177,8 @@ async function main() {
     return;
   }
   const masterRoot = pflichtDatenroot(args.root);
+  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
+  if (args.schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
   const [transaktionen, regeln] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readFile(new URL("kategorisierungsregeln.json", masterRoot), "utf8").then(JSON.parse),

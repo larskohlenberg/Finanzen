@@ -8,6 +8,7 @@ import { toCents, centsToDecimal, dayDiff, normalizeLoose, normalizeWhitespace }
 import { addInterval } from "../liquiditaet.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
+import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 
 // Betragstoleranz relativ zum Betrag der Regelzahlung. Die Mandatsreferenz ist
 // ein strukturelles Signal und traegt Beitragsdynamik ueber Jahre; die
@@ -302,6 +303,8 @@ async function main() {
   const schreiben = argv.includes("--schreiben");
   const details = argv.includes("--details");
   const masterRoot = pflichtDatenroot(argv.find((a) => !a.startsWith("--")));
+  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
+  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
 
   const [transaktionen, regelzahlungen] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),

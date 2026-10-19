@@ -5,11 +5,19 @@
 // Transaktion: bricht der Prozess selbst ab, bleibt der Zwischenstand.
 // Verschiebungen in data/inbox/ und Belege/ liegen ausserhalb des Datenroots
 // und werden nicht zurueckgerollt.
-import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
+//
+// Der ganze Zyklus (Vorher-Pruefung, Sicherung, Schreiben, Pruefen,
+// Zurueckspielen) laeuft unter der prozessuebergreifenden Schreibsperre des
+// Bestands. Zurueckgespielt wird Datei fuer Datei (atomar per rename), nie
+// durch Leeren des Datenroots: Leser sehen jede Datei alt oder neu, nie fehlend.
+import { cp, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { SPERRDATEI, SperreBelegt, mitSperre } from "../tools/lib/schreibsperre.mjs";
 import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
+
+const istSperrdatei = (name) => name.startsWith(SPERRDATEI);
 
 export async function validiere(datenrootPfad) {
   try {
@@ -22,15 +30,38 @@ export async function validiere(datenrootPfad) {
 
 export async function kopiereDatenroot(datenrootPfad) {
   const ziel = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-"));
-  await cp(datenrootPfad, ziel, { recursive: true });
+  await cp(datenrootPfad, ziel, { recursive: true, filter: (quelle) => !istSperrdatei(path.basename(quelle)) });
   return ziel;
 }
 
-async function spieleZurueck(kopie, datenrootPfad) {
-  for (const name of await readdir(datenrootPfad)) {
-    await rm(path.join(datenrootPfad, name), { recursive: true, force: true });
+async function gleicherInhalt(a, b) {
+  const [x, y] = await Promise.all([stat(a), stat(b).catch(() => null)]);
+  if (!y?.isFile() || x.size !== y.size) return false;
+  const [p, q] = await Promise.all([readFile(a), readFile(b)]);
+  return p.equals(q);
+}
+
+// Ziel auf den Stand der Kopie bringen: Ueberzaehliges entfernen, Geaendertes
+// per Temp-Datei + rename ersetzen, Unveraendertes nicht anfassen.
+async function spieleZurueck(kopie, ziel) {
+  const soll = new Map((await readdir(kopie, { withFileTypes: true })).map((e) => [e.name, e]));
+  for (const e of await readdir(ziel, { withFileTypes: true })) {
+    if (istSperrdatei(e.name)) continue;
+    const k = soll.get(e.name);
+    if (!k || k.isDirectory() !== e.isDirectory()) await rm(path.join(ziel, e.name), { recursive: true, force: true });
   }
-  await cp(kopie, datenrootPfad, { recursive: true });
+  for (const [name, k] of soll) {
+    const von = path.join(kopie, name);
+    const nach = path.join(ziel, name);
+    if (k.isDirectory()) {
+      await mkdir(nach, { recursive: true });
+      await spieleZurueck(von, nach);
+    } else if (!(await gleicherInhalt(von, nach))) {
+      const temp = path.join(ziel, `.${name}.rueck-${process.pid}`);
+      await writeFile(temp, await readFile(von), { mode: (await stat(von)).mode & 0o7777 });
+      await rename(temp, nach);
+    }
+  }
 }
 
 // fn liefert ein Tool-Ergebnis { text, isError? }. Zurueck kommt dasselbe,
@@ -39,13 +70,24 @@ async function spieleZurueck(kopie, datenrootPfad) {
 // setzt nur ein neuer Validatorfehler zurueck). Ein schon vorher ungueltiger
 // Bestand setzt ebenfalls nur bei neuen Validatorfehlern zurueck.
 export async function mitRollback(datenrootPfad, fn, { rueckrollungBeiFehler = true } = {}) {
+  try {
+    return await mitSperre(datenrootPfad, (sperre) => zyklus(datenrootPfad, fn, sperre, rueckrollungBeiFehler), { wer: "MCP" });
+  } catch (error) {
+    if (error instanceof SperreBelegt) return { text: error.message, isError: true };
+    throw error;
+  }
+}
+
+// fn bekommt die Sperre (oder null, wenn sie geerbt ist); ihre kennung reicht
+// der Aufrufer an Kindprozesse weiter.
+async function zyklus(datenrootPfad, fn, sperre, rueckrollungBeiFehler) {
   const vorher = await validiere(datenrootPfad);
   const kopie = await kopiereDatenroot(datenrootPfad);
   let sicherungBehalten = false;
   try {
     let ergebnis;
     try {
-      ergebnis = await fn();
+      ergebnis = await fn(sperre);
     } catch (error) {
       ergebnis = { text: `Fehler: ${error.message}`, isError: true };
     }

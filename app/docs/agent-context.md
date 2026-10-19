@@ -96,6 +96,12 @@ MCP-Prompts bereit, dieses Dokument als Resource `finanzen://docs/agent-context`
 Pflichtlektuere ist beides nur vor Datenarbeit (Import, Kategorisieren, Regeln,
 Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
 
+- **Schreibsperre je Bestand:** Jeder schreibende Lauf (MCP mit `schreiben: true`,
+  CLI mit `--schreiben`) haelt `DATENROOT/.schreibsperre` ueber Lesen, Aendern,
+  Pruefen und Zuruecksetzen. Ein zweiter Schreiber wird nach kurzer Wartezeit
+  abgewiesen (MCP: Fehlermeldung „Bestand ... ist gesperrt“, CLI: Exitcode 3);
+  dann spaeter erneut versuchen. Eine Sperre, deren Prozess nicht mehr lebt oder
+  die aelter als 30 Minuten ist, wird uebernommen.
 - **Rechte je Schluessel:** `--recht=lesen` erlaubt nur Lese-Tools und
   Vorschau-Laeufe; `--recht=schreiben` zusaetzlich `schreiben: true`,
   `datei_schreiben`, `datei_ersetzen`, `beleg_ablegen`, `beleg_teilen`,
@@ -210,24 +216,21 @@ Fuer Regelzahlungen gilt analog:
 `transaktion_id` ist eine opake ID im Format `TXN-<uuid>`. Sie enthaelt keine
 Datums-, Konto- oder Sequenzbedeutung.
 
-Jede Transaktion hat einen eindeutigen `dedupe_hash`. Neue Buchungen bekommen
-den Hash ueber `(konto_id, buchungsdatum, betrag, gegenpartei,
-verwendungszweck)`, gleiche Buchungen das 2., 3. … Vorkommen davon. Aeltere
-Bestandszeilen koennen noch einen Hash aus `(konto_id, bank_referenz)` tragen;
-er bleibt unveraendert.
+Jede Transaktion hat einen `dedupe_hash`. Wenn die Bank eine eindeutige
+`bank_referenz` liefert, basiert der Hash auf `(konto_id, bank_referenz)`. Fehlt
+`bank_referenz` oder ist sie nicht verwendbar, basiert der Hash auf `(konto_id,
+buchungsdatum, betrag, gegenpartei, verwendungszweck)`.
 
 Freitextfelder werden fuer den Hash nur leicht normalisiert: trimmen und
 Whitespace kollabieren. Keine Kleinschreibung, kein Entfernen von Sonderzeichen.
 
-Dubletten prueft der Import gegen den Bestand als Multimenge (ADR 0034): je Konto
-und Inhalt so viele neue Buchungen, wie die Datei mehr hat als der Bestand. Zwei
-gleich aussehende Zeilen eines Auszugs sind zwei Buchungen. Eine `bank_referenz`
-zaehlt nur, wenn sie auf dem Konto verlaesslich ist (kein Wert auf zwei
-Buchungen), und nur zusammen mit Datum und Betrag; dann erkennt sie auch einen
-umformatierten Re-Export. Sie wird immer gespeichert. Was der Abgleich nicht
-sicher entscheiden kann, steht im Ergebnis unter `pruefen`
-(`teilweise_vorhanden`, `referenz_abweichend`, `moegliche_dublette`); diese
-Faelle mit dem Nutzer ansehen.
+`bank_referenz` wird nur als Schluessel genutzt, wenn sie im Importlauf dateiweit
+eindeutig ist. Andernfalls faellt der Import auf den Freitext-Hash zurueck und
+persistiert keine irrefuehrenden nicht-eindeutigen Referenzen als Schluesselmaterial.
+
+Dedupe prueft gegen den bestehenden Bestand, nicht innerhalb desselben Auszugs.
+Gleich aussehende Zeilen in einem amtlichen Auszug sind reale Buchungen und
+bekommen deterministisch disambiguierte Hashes.
 
 ## Kategorisierung und Herkunft
 

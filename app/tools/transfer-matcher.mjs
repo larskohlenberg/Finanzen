@@ -5,6 +5,7 @@ import { toCents, centsToDecimal, dayDiff, normalizeLoose } from "./lib/text.mjs
 import { nextTransferId } from "./ids.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
+import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 
 // IBANs werden nur zum Vergleich vereinheitlicht (Gross, ohne Whitespace);
 // gespeichert bleibt immer die Originalform.
@@ -163,6 +164,8 @@ async function main() {
   const argv = process.argv.slice(2);
   const schreiben = argv.includes("--schreiben");
   const masterRoot = pflichtDatenroot(argv.find((a) => !a.startsWith("--")));
+  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
+  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
 
   const [transaktionen, transfers, konten] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),

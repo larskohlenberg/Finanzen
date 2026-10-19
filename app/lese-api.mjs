@@ -17,6 +17,7 @@
 //   GET /api/v1/szenarien?quelle=&heute=
 //   GET /api/v1/checks?quelle=&heute=
 //   GET /api/v1/belegverweise?quelle=
+//   GET /api/v1/importe?quelle=
 import { istKalenderdatum } from "./mcp/kennzahlen.mjs";
 import { kopfleisteModell } from "./kopfleiste.mjs";
 import { kontenModell } from "./konten-modell.mjs";
@@ -31,6 +32,7 @@ import { planIstMonate, planIstRechnung, planIstVerlauf } from "./plan-ist-model
 import { PERIODE_MUSTER } from "./plan-ist.mjs";
 import { addInterval, defaultHorizonEnd, localTodayIso } from "./liquiditaet.mjs";
 import { uebersichtModell } from "./uebersicht-modell.mjs";
+import { importStandModell } from "./tools/lib/importstand.mjs";
 import { LEERER_FILTER, SEITENGROESSEN, SORTIERUNGEN, regelWirkungAntwort, transaktionenSeite } from "./transaktionen-abfrage.mjs";
 
 const MAX_WERT = 300;
@@ -166,6 +168,9 @@ const ANSICHTEN = {
     const tag = heute(suche);
     return jeStand(bestand, "checks", tag, () => checksModell(bestand.daten, tag));
   },
+  // Importbericht (1B.5): Auftraege aus dem Stand, wartende Inbox-Dateien mit
+  // Pruefsumme liest der Server (nur fuer diese Ansicht, Demo ohne Inbox).
+  importe: (bestand, _suche, { wartend = [] }) => importStandModell({ auftraege: bestand.daten.importauftraege ?? [], wartend }),
   // Je Beleg nur Anzahl, Konten und Zeitraum der Buchungen; haengt nur am Stand.
   belegverweise: (bestand) => ({ buchungen: bestand.merke("belegverweise", () => buchungsBelege(bestand.daten)) }),
   kopfleiste: (bestand, suche, { quelle }) => {
@@ -177,9 +182,10 @@ const ANSICHTEN = {
 export const LESE_ANSICHTEN = Object.freeze(Object.keys(ANSICHTEN));
 
 // bestand: { stand, daten, validierung, merke } aus erstelleSnapshotQuelle().bestand();
-// quelle: "live" oder "demo" (Anfrage mit ?quelle=demo).
-export function leseAnsicht(name, bestand, suche, { quelle = "live" } = {}) {
+// quelle: "live" oder "demo" (Anfrage mit ?quelle=demo); wartend: Inbox-
+// Dateien [{ datei, sha256 }] fuer die Ansicht importe.
+export function leseAnsicht(name, bestand, suche, { quelle = "live", wartend = [] } = {}) {
   const rechne = ANSICHTEN[name];
   if (!rechne) return null;
-  return { stand: bestand.stand, ...rechne(bestand, suche, { quelle }) };
+  return { stand: bestand.stand, ...rechne(bestand, suche, { quelle, wartend }) };
 }

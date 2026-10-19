@@ -282,3 +282,28 @@ test("Belegverweise: je Beleg nur Anzahl, Konten und Zeitraum der Buchungen", as
   assert.deepEqual(Object.keys(a).sort(), ["buchungen", "stand"]);
   for (const z of Object.values(a.buchungen)) assert.deepEqual(Object.keys(z).sort(), ["anzahl", "bis", "konten", "von"]);
 });
+
+test("Importe: Auftraege aus dem Stand, wartende Inbox-Dateien mit Status; Demo ohne Inbox; nicht in den Grunddaten", async () => {
+  const { createHash } = await import("node:crypto");
+  const inbox = join(wurzel, "inbox");
+  await mkdir(inbox, { recursive: true });
+  const inhalt = "Datum;Betrag\n01.07.2026;-1,00\n";
+  await writeFile(join(inbox, "erfunden-1.csv"), inhalt);
+  await writeFile(join(inbox, "erfunden-2.csv"), "Datum;Betrag\n02.07.2026;-2,00\n");
+  const auftrag = {
+    auftrag_id: "IMP-001", zeitpunkt: "2026-07-02T08:00:00.000Z", quelle: "data/inbox/erfunden-1.csv", quelle_sha256: createHash("sha256").update(inhalt).digest("hex"),
+    profil_id: "test", konto_id: "KTO-001", status: "teilweise", zeilen: { gelesen: 2, uebernommen: 1, dubletten: 0, abgewiesen: 1 }, abgewiesen: [{ zeile: 3, grund: "betrag" }],
+  };
+  await writeFile(join(wurzel, "app", "data", "master", "importauftraege.jsonl"), `${JSON.stringify(auftrag)}\n`);
+
+  const a = (await hole("/api/v1/importe")).json();
+  assert.deepEqual(Object.keys(a).sort(), ["auftraege", "stand", "summe", "wartend"]);
+  assert.deepEqual(a.auftraege.map((x) => [x.auftrag_id, x.status, x.abgewiesen.length]), [["IMP-001", "teilweise", 1]]);
+  assert.deepEqual(a.wartend.map((w) => [w.datei, w.status]).sort(), [["erfunden-1.csv", "uebernommen-archiv-ausstehend"], ["erfunden-2.csv", "hochgeladen"]]);
+  assert.deepEqual(a.summe, { auftraege: 1, teilweise: 1, abgewiesen: 0, wartend: 2 });
+
+  const demo = (await hole("/api/v1/importe?quelle=demo")).json();
+  assert.deepEqual([demo.auftraege, demo.wartend], [[], []]);
+  const grund = (await hole("/api/v1/grunddaten")).json();
+  assert.equal(grund.daten.importauftraege, undefined, "abgewiesene Rohzeilen bleiben auf dem Server");
+});

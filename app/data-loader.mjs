@@ -39,6 +39,8 @@ export const BESTAND_TEILE = Object.freeze([
   { datei: "logos.json", schluessel: "logos", ersatz: [] },
   // Fest vergebene Anzeigefarben (z. B. je Vorsorgevertrag); optional, kein Schema.
   { datei: "farben.json", schluessel: "farben", ersatz: {} },
+  // Importauftraege (Review 1B.5); nur fuer den Server (stand.mjs NUR_SERVER).
+  { datei: "importauftraege.jsonl", schluessel: "importauftraege", ersatz: [] },
 ].map(Object.freeze));
 
 export const DATEN_DATEIEN = Object.freeze(BESTAND_TEILE.map((teil) => teil.datei));

@@ -489,6 +489,18 @@ async function listeInbox(inboxDir) {
   return dateien.sort((a, b) => (a.geaendert < b.geaendert ? 1 : a.geaendert > b.geaendert ? -1 : a.name.localeCompare(b.name)));
 }
 
+// Wartende Inbox-Dateien mit SHA-256 des Inhalts (Importbericht: schon
+// uebernommen, aber noch nicht archiviert?).
+async function inboxMitSumme(inboxDir) {
+  const dateien = await listeInbox(inboxDir);
+  // Inzwischen verschobene Dateien (Inbox-Lauf) fallen weg statt zu scheitern.
+  const mitSumme = await Promise.all(dateien.map(async ({ name }) => {
+    const inhalt = await readFile(join(inboxDir, name)).catch(() => null);
+    return inhalt && { datei: name, sha256: createHash("sha256").update(inhalt).digest("hex") };
+  }));
+  return mitSumme.filter(Boolean);
+}
+
 // Textzwilling ohne Textebene erkennen: nur die ersten Bytes lesen.
 async function beginntMitOcrKopf(pfad) {
   const datei = await open(pfad, "r");
@@ -831,7 +843,8 @@ export function createAppServer({ appDir, inboxDir, belegeDir = physisch(appDir,
       return bestandUnlesbar(res, name, quelle, fehler);
     }
     try {
-      return sendeJson(res, 200, leseAnsicht(name, bestand, new URLSearchParams(req.url.split("?")[1] ?? ""), { quelle }));
+      const wartend = name === "importe" && quelle !== "demo" ? await inboxMitSumme(inboxDir) : [];
+      return sendeJson(res, 200, leseAnsicht(name, bestand, new URLSearchParams(req.url.split("?")[1] ?? ""), { quelle, wartend }));
     } catch (fehler) {
       if (fehler instanceof AnfrageFehler) return abgelehnt(res, 400, `parameter: ${fehler.message}`);
       throw fehler;

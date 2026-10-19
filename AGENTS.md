@@ -74,6 +74,7 @@ Die Datei ist von Git ausgeschlossen und gehört nur dieser Installation. Halte 
 ## Landkarte
 | Datei | Inhalt |
 |---|---|
+| `app/mcp/vertrag.mjs` | Agentenvertrag: Pflicht in Kuerze (MCP-Anleitung und Kopf von agent-context) und Werkzeuge nach Aufgaben. Aendern, dann `node app/mcp/vertrag.mjs --schreiben`. |
 | `app/docs/agent-context.md` | **Operative Wahrheit**: Status, Herkunft, Kategorisierung, Belegleiter, Validierung, Agentenprotokoll, Zuordnung CLI → MCP-Tool. Vor jeder Datenarbeit lesen; für reine Auswertungen nicht nötig. |
 | `app/docs/skills/import-durchlauf.md` | **Der Standardweg**: Rohdatei bis freigegebener Bestand in einem Lauf. |
 | `app/docs/skills/import-agent.md` | Normalisierung einer Rohdatei (Station 1 des Durchlaufs). |

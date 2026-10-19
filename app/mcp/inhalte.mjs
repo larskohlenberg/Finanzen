@@ -3,6 +3,7 @@
 // Fachdoku). Alles wird bei jedem Aufruf frisch von der Platte gelesen.
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
+import { themenAus } from "./vertrag.mjs";
 
 function beschreibungAus(text) {
   const bloecke = text.replace(/^---[\s\S]*?\n---\n/, "").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
@@ -48,6 +49,11 @@ async function ressourcen(ctx) {
     { uri: "finanzen://docs/agent-context", name: "agent-context", datei: path.join(ctx.app, "docs", "agent-context.md"), description: "Operative Wahrheit: Status, Herkunft, Kategorisierung, Validierung, Tools, Betrieb ueber MCP." },
     { uri: "finanzen://docs/context", name: "CONTEXT", datei: path.join(ctx.repo, "CONTEXT.md"), description: "Fachliches Glossar." },
   ];
+  // Themenwissen bei Bedarf: je Abschnitt von agent-context eine Ressource.
+  const kontext = await readFile(path.join(ctx.app, "docs", "agent-context.md"), "utf8").catch(() => "");
+  for (const t of themenAus(kontext)) {
+    liste.push({ uri: `finanzen://docs/agent-context/${t.slug}`, name: `agent-context/${t.slug}`, text: t.text, description: `Thema aus agent-context: ${t.titel}` });
+  }
   const adrOrdner = path.join(ctx.repo, "docs", "adr");
   for (const n of (await readdir(adrOrdner).catch(() => [])).filter((x) => x.endsWith(".md")).sort()) {
     liste.push({ uri: `finanzen://docs/adr/${n}`, name: `adr/${n}`, datei: path.join(adrOrdner, n), description: "Architekturentscheidung" });
@@ -61,7 +67,7 @@ export async function listeRessourcen(ctx) {
 
 export async function leseRessource(ctx, uri) {
   const r = (await ressourcen(ctx)).find((x) => x.uri === uri);
-  const text = r && await readFile(r.datei, "utf8").catch(() => null);
+  const text = r && (r.text ?? await readFile(r.datei, "utf8").catch(() => null));
   if (text === null || text === undefined) return null;
   return { contents: [{ uri, mimeType: "text/markdown", text }] };
 }

@@ -18,9 +18,12 @@ globalThis.fetch = async (path) => {
 };
 await import("../app/i18n.js");
 
-const { immobilieForTransaction, renderTransactionDetail } =
-  await import("../app/views/transaktionen.mjs");
+const { renderTransactionDetail } = await import("../app/views/transaktionen.mjs");
 const { data } = await import("../app/runtime.mjs");
+const { transaktionDetail } = await import("../app/transaktionen-abfrage.mjs");
+// Detail und Bezuege rechnet der Server (transaktionDetail); hier ueber den geladenen Bestand.
+const renderDetail = (tx) => renderTransactionDetail(transaktionDetail(data, tx));
+const immobilieForTransaction = (tx) => transaktionDetail(data, tx).immobilie ?? undefined;
 
 const immobilie = data.immobilien[0];
 const konto = data.konten[0];
@@ -50,7 +53,7 @@ test("immobilieForTransaction loest nur bekannte IDs auf", () => {
 });
 
 test("Detailansicht zeigt die Immobilie als Querlink", () => {
-  const html = renderTransactionDetail(txMit({ immobilie_id: immobilie.immobilie_id }));
+  const html = renderDetail(txMit({ immobilie_id: immobilie.immobilie_id }));
   assert.match(html, /data-action="open-vermoegen-entity"/);
   assert.match(html, /data-vklasse="immobilie"/);
   assert.match(html, new RegExp(`data-vid="${immobilie.immobilie_id}"`));
@@ -58,7 +61,7 @@ test("Detailansicht zeigt die Immobilie als Querlink", () => {
 });
 
 test("Detailansicht laesst die Immobilienzeile ohne Bezug weg", () => {
-  const html = renderTransactionDetail(txMit());
+  const html = renderDetail(txMit());
   assert.doesNotMatch(html, /data-vklasse="immobilie"/);
 });
 

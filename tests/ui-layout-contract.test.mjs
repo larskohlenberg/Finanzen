@@ -215,10 +215,11 @@ test("transactions view has a local search over loaded transactions", () => {
 
 test("transactions view offers a booking-date period filter", () => {
   assert.match(main, /timeMode:\s*"none"/);
-  assert.match(main, /function transactionMatchesTimeFilter\(tx\)/);
+  // Gefiltert wird im Server (transaktionen-abfrage.mjs), die Optionen kommen aus der Antwort.
+  assert.match(main, /function passtZeitraum\(tx, filter\)/);
   assert.match(main, /tx\.buchungsdatum/);
   assert.match(main, /searchFields:\s*\[[\s\S]*name:\s*"search"/);
-  assert.match(main, /timeFields:\s*transactionTimeFilterFields\(\)/);
+  assert.match(main, /timeFields:\s*transactionTimeFilterFields\(antwort\)/);
   assert.match(main, /fields:\s*\[[\s\S]*name:\s*"account"[\s\S]*name:\s*"transfer"/);
   assert.match(main, /filter-search-row/);
   assert.match(main, /filter-time-row/);
@@ -226,17 +227,17 @@ test("transactions view offers a booking-date period filter", () => {
   assert.match(css, /\.filter-search-row\s*{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
   assert.match(css, /\.filter-time-row\s*{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(140px,\s*180px\)\)/s);
   assert.match(css, /\.filter-primary-row\s*{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(140px,\s*1fr\)\)/s);
-  assert.match(main, /transactionTimeFilterFields\(\)/);
+  assert.match(main, /transactionTimeFilterFields\(antwort\)/);
   assert.match(main, /name:\s*"timeMode"/);
   assert.match(main, /name:\s*"dateFrom"/);
   assert.match(main, /name:\s*"dateTo"/);
   assert.match(main, /name:\s*"month"/);
-  assert.match(main, /options:\s*transactionMonthOptions\(\)/);
+  assert.match(main, /options:\s*transactionMonthOptions\(antwort\)/);
   assert.doesNotMatch(main, /t\("transactions\.allMonths"\)/);
   assert.doesNotMatch(i18n, /allMonths/);
-  assert.match(main, /state\.transactionFilters\.month = transactionMonthOptions\(\)\[0\]\?\.\[0\]/);
+  assert.match(main, /state\.transactionFilters\.month = transactionMonthOptions\(antwort\)\[0\]\?\.\[0\]/);
   assert.match(main, /name:\s*"quarterYear"/);
-  assert.match(main, /options:\s*transactionYearOptions\(\)/);
+  assert.match(main, /options:\s*transactionYearOptions\(antwort\)/);
   assert.match(main, /name:\s*"quarter"/);
   assert.match(main, /name:\s*"year"/);
   assert.match(main, /function applyTransactionTimeModeDefaults\(mode\)/);

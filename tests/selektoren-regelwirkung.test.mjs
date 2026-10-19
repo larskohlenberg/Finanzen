@@ -1,35 +1,25 @@
+// Regelwirkung: Treffer je Regel und Buchungen einer Regel (GET /api/v1/regelwirkung).
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { regelWirkungAntwort } from "../app/transaktionen-abfrage.mjs";
 
-globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
-globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
-globalThis.window = globalThis;
-globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
-  if (bestand) return bestand;
-  const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
-  const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
-  return {
-    ok: true,
-    json: async () => JSON.parse(body),
-    text: async () => body,
-  };
+const daten = {
+  transaktionen: [
+    { transaktion_id: "TXN-1", buchungsdatum: "2026-01-02", gegenpartei: "Musterladen", matched_regeln: ["REG-001"] },
+    { transaktion_id: "TXN-2", buchungsdatum: "2026-01-03", gegenpartei: "Musterladen", matched_regeln: ["REG-001", "REG-002"] },
+    { transaktion_id: "TXN-3", buchungsdatum: "2026-01-04", gegenpartei: "Beispielbank" },
+  ],
 };
-await import("../app/i18n.js");
 
-const { regelWirkungAus } = await import("../app/selektoren.mjs");
+test("regelWirkungAntwort zaehlt Treffer pro Regel", () => {
+  const w = regelWirkungAntwort(daten);
+  assert.deepEqual(w.anzahl, { "REG-001": 2, "REG-002": 1 });
+  assert.equal(w.regel, null);
+});
 
-test("regelWirkungAus zaehlt Treffer pro Regel und sammelt Transaktionen", () => {
-  const txs = [
-    { transaktion_id: "TXN-1", matched_regeln: ["REG-001"] },
-    { transaktion_id: "TXN-2", matched_regeln: ["REG-001", "REG-002"] },
-    { transaktion_id: "TXN-3" },
-  ];
-  const w = regelWirkungAus(txs);
-  assert.equal(w.get("REG-001").anzahl, 2);
-  assert.equal(w.get("REG-002").anzahl, 1);
-  assert.deepEqual(w.get("REG-001").transaktionen.map((t) => t.transaktion_id), ["TXN-1", "TXN-2"]);
-  assert.equal(w.has("REG-003"), false);
+test("regelWirkungAntwort liefert fuer eine Regel Anzahl, Beispiele und nur die noetigen Felder", () => {
+  const { regel } = regelWirkungAntwort(daten, { regel: "REG-001", zeilen: 1 });
+  assert.equal(regel.anzahl, 2);
+  assert.deepEqual(regel.beispiele, ["Musterladen"]);
+  assert.deepEqual(regel.zeilen, [{ transaktion_id: "TXN-1", buchungsdatum: "2026-01-02", gegenpartei: "Musterladen" }]);
 });

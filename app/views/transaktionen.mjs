@@ -1,112 +1,46 @@
 // app/views/transaktionen.mjs
 // Transaktions-Ansicht: Tabelle, Filter (inkl. Zeitfilter), Pagination, Detail-Rail.
-import { data, state, t, escapeHtml, cents, kontenById, transaktionenById, transfersById } from "../runtime.mjs";
+import { data, state, t, escapeHtml, cents, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, mitLogo, statusChip, renderPageHead, renderTableFilters, categoryName, detailRow, quelleHtml } from "../komponenten.mjs";
-import { matchesQuery, formatIban } from "../tools/lib/text.mjs";
-import { belegPfadeAusText, belegSchluessel, dokumentRoute } from "../belege.mjs";
+import { formatIban } from "../tools/lib/text.mjs";
+import { dokumentRoute } from "../belege.mjs";
+import { erstelleApiCache } from "../api-daten.mjs";
 
-function transactionSearchFields(tx) {
-  return [
-    tx.gegenpartei,
-    tx.verwendungszweck,
-    tx.bemerkung,
-    tx.empfaenger,
-    tx.empfaenger_iban,
-    tx.transaktion_id,
-    tx.betrag,
-    String(tx.betrag ?? "").replace(".", ","),
-    ...(tx.matched_regeln ?? []),
-    tx.immobilie_id,
-    // Konto und Kategorie bewusst NICHT durchsuchbar: beide haben einen eigenen
-    // Dropdown-Filter. Im Freitext erzeugten sie nur Substring-Kollisionen
-    // (z. B. "MusterbankA" matchte jede Buchung auf dem MusterbankA-Konto statt nur den Text).
-    tx.kundenreferenz,
-    tx.mandatsreferenz,
-    tx.bank_referenz,
-  ];
+// Die Liste rechnet der App-Server (GET /api/v1/transaktionen, Filter, Sortierung,
+// Seite, Sprung zu einer Buchung, Detail der Auswahl); der Browser bekommt nur
+// die angezeigte Seite. Rechenlogik: app/transaktionen-abfrage.mjs.
+const cache = erstelleApiCache();
+
+function anfragePfad({ seite = state.transactionPage, auswahl = state.selectedTransactionId, zeige = state.transactionJumpTo } = {}) {
+  const suche = new URLSearchParams();
+  if (state.dataMode === "demo") suche.set("quelle", "demo");
+  for (const [name, wert] of Object.entries(state.transactionFilters)) {
+    if (wert) suche.set(name, wert);
+  }
+  suche.set("sort", state.transactionSort.key);
+  suche.set("dir", state.transactionSort.dir);
+  suche.set("groesse", String(state.pageSize));
+  if (zeige) suche.set("zeige", zeige);
+  // "Letzte Seite" setzt eine beliebig grosse Zahl; der Server begrenzt sie (hoechstens 9 Stellen).
+  else suche.set("seite", String(Number.isFinite(seite) && seite > 0 ? Math.min(Math.floor(seite), 999999) : 1));
+  if (auswahl) suche.set("auswahl", auswahl);
+  suche.set("ohneKategorie", t("labels.noCategory"));
+  return `./api/v1/transaktionen?${suche}`;
 }
 
-export function matchesOriginFilter(tx, origin) {
-  if (!origin) return true;
-  return (tx.kategorie_herkunft || "") === origin;
-}
-
-// Quelldokument-Filter: die rohquelle der Buchung nennt genau diesen Belegpfad.
-export function matchesBelegFilter(tx, beleg) {
-  if (!beleg) return true;
-  const gesucht = belegSchluessel(beleg);
-  return belegPfadeAusText(tx.rohquelle).some((pfad) => belegSchluessel(pfad) === gesucht);
-}
-
-// Regelzahlungen eines Vorsorgevertrags; ihre Buchungen sind seine Beitraege.
-function vorsorgeRegelzahlungen(vorsorgeId) {
-  return new Set((data.regelzahlungen ?? []).filter((rz) => rz.vorsorge_id === vorsorgeId).map((rz) => rz.regelzahlung_id));
-}
-
-export function filteredTransactions() {
-  const vorsorgeRz = state.transactionFilters.vorsorge ? vorsorgeRegelzahlungen(state.transactionFilters.vorsorge) : null;
-  return sortTransactions(data.transaktionen.filter((tx) => {
-    if (vorsorgeRz && !vorsorgeRz.has(tx.regelzahlung_id)) return false;
-    if (state.transactionFilters.account && tx.konto_id !== state.transactionFilters.account) return false;
-    if (state.transactionFilters.status && tx.kategorisierung_status !== state.transactionFilters.status) return false;
-    if (state.transactionFilters.category && tx.kategorie_id !== state.transactionFilters.category) return false;
-    if (state.transactionFilters.transfer === "only" && !tx.ist_transfer) return false;
-    if (state.transactionFilters.transfer === "without" && tx.ist_transfer) return false;
-    if (!matchesOriginFilter(tx, state.transactionFilters.origin)) return false;
-    if (!matchesBelegFilter(tx, state.transactionFilters.beleg)) return false;
-    if (!transactionMatchesTimeFilter(tx)) return false;
-    if (state.transactionFilters.search && !matchesQuery(transactionSearchFields(tx), state.transactionFilters.search)) return false;
-    return true;
-  }));
-}
-
-export function transactionPageForId(transactionId) {
-  const index = filteredTransactions().findIndex((tx) => tx.transaktion_id === transactionId);
-  return index >= 0 ? Math.floor(index / state.pageSize) + 1 : 1;
-}
-
-// Transaktion -> Regelzahlung: welche erwartete Zahlung erfuellt diese Buchung.
-export function regelzahlungForTransaction(tx) {
-  if (!tx?.regelzahlung_id) return undefined;
-  return (data.regelzahlungen ?? []).find((rz) => rz.regelzahlung_id === tx.regelzahlung_id);
-}
-
-export function immobilieForTransaction(tx) {
-  if (!tx?.immobilie_id) return undefined;
-  return (data.immobilien ?? []).find(
-    (immobilie) => immobilie.immobilie_id === tx.immobilie_id,
-  );
-}
-
-// Ein Vorsorgebezug wird nur ueber die Regelzahlung abgeleitet, nie direkt an
-// der Buchung (agent-context: Transaktion -> Regelzahlung -> Vorsorge).
-export function vorsorgeForTransaction(tx) {
-  const regelzahlung = regelzahlungForTransaction(tx);
-  if (!regelzahlung?.vorsorge_id) return undefined;
-  return (data.vorsorge ?? []).find((vs) => vs.vorsorge_id === regelzahlung.vorsorge_id);
-}
-
-function sortTransactions(transaktionen) {
-  const { key, dir } = state.transactionSort;
-  const factor = dir === "asc" ? 1 : -1;
-  return transaktionen.slice().sort((a, b) => {
-    let cmp;
-    if (key === "amount") cmp = cents(a.betrag) - cents(b.betrag);
-    else if (key === "account") cmp = transactionAccountLabel(a).localeCompare(transactionAccountLabel(b));
-    else if (key === "counterparty") cmp = String(a.gegenpartei ?? "").localeCompare(String(b.gegenpartei ?? ""));
-    else if (key === "purpose") cmp = String(a.verwendungszweck ?? "").localeCompare(String(b.verwendungszweck ?? ""));
-    else if (key === "category") cmp = transactionCategoryLabel(a).localeCompare(transactionCategoryLabel(b));
-    else if (key === "status") cmp = statusRank(a.kategorisierung_status) - statusRank(b.kategorisierung_status);
-    else cmp = String(a.buchungsdatum ?? "").localeCompare(String(b.buchungsdatum ?? ""));
-    if (cmp === 0) cmp = String(a.buchungsdatum ?? "").localeCompare(String(b.buchungsdatum ?? ""));
-    if (cmp === 0) cmp = String(a.transaktion_id ?? "").localeCompare(String(b.transaktion_id ?? ""));
-    return cmp * factor;
-  });
-}
-
-function statusRank(status) {
-  return { offen: 0, vorgeschlagen: 1, bestaetigt: 2, abgelehnt: 3 }[status] ?? 4;
+// Antwort zum aktuellen Zustand (oder null, solange sie laedt). Seite,
+// Sprung und Auswahl uebernimmt der Zustand aus der Antwort: die Seite ist
+// begrenzt, der Sprung erledigt, eine Auswahl ausserhalb des Filters faellt
+// weg. Unter dem so normalisierten Pfad liegt die Antwort ebenfalls.
+export function transaktionenAntwort() {
+  const { antwort, laedt, fehler, veraltet } = cache.hole(anfragePfad());
+  if (!antwort || veraltet) return { antwort, laedt, fehler, veraltet };
+  state.transactionPage = antwort.seite;
+  state.transactionJumpTo = "";
+  if (state.selectedTransactionId && !antwort.auswahl) state.selectedTransactionId = "";
+  cache.merke(anfragePfad(), antwort);
+  return { antwort, laedt: false, fehler: null, veraltet: false };
 }
 
 function transactionAccountLabel(tx) {
@@ -126,56 +60,35 @@ function transactionSortHeader(key, labelKey, amount = false) {
   return `<th${amount ? ' class="amount"' : ""}><button class="linkish sort-th" data-transaction-sort="${key}">${escapeHtml(t(labelKey))}${escapeHtml(transactionSortIndicator(key))}</button></th>`;
 }
 
-function transactionMatchesTimeFilter(tx) {
-  const date = tx.buchungsdatum;
-  const filters = state.transactionFilters;
-  if (!date || filters.timeMode === "none") return true;
-  if (filters.timeMode === "range") {
-    if (filters.dateFrom && date < filters.dateFrom) return false;
-    if (filters.dateTo && date > filters.dateTo) return false;
-    return true;
-  }
-  if (filters.timeMode === "month") {
-    return !filters.month || date.startsWith(filters.month);
-  }
-  if (filters.timeMode === "quarter") {
-    if (!filters.quarterYear) return true;
-    const month = Number(date.slice(5, 7));
-    const quarter = Math.ceil(month / 3);
-    return date.startsWith(`${filters.quarterYear}-`) && String(quarter) === filters.quarter;
-  }
-  if (filters.timeMode === "year") {
-    return !filters.year || date.startsWith(`${filters.year}-`);
-  }
-  return true;
-}
-
 export function renderTransactions() {
-  const allRows = filteredTransactions();
-  const pageCount = Math.max(1, Math.ceil(allRows.length / state.pageSize));
-  state.transactionPage = Math.min(Math.max(1, state.transactionPage), pageCount);
-  const pageStart = (state.transactionPage - 1) * state.pageSize;
-  const rows = allRows.slice(pageStart, pageStart + state.pageSize);
-  const inFilter = state.selectedTransactionId && allRows.some((tx) => tx.transaktion_id === state.selectedTransactionId);
-  if (state.selectedTransactionId && !inFilter) state.selectedTransactionId = "";
-  const selectedInFilter = state.selectedTransactionId ? transaktionenById.get(state.selectedTransactionId) : undefined;
-  const detailRailOpen = !state.detailRailClosed && Boolean(selectedInFilter);
-  const filterBalance = allRows.reduce((sum, tx) => sum + cents(tx.betrag), 0);
-  const openCount = allRows.filter((tx) => tx.kategorisierung_status === "offen").length;
+  const { antwort, laedt, fehler, veraltet } = transaktionenAntwort();
   const accountName = state.transactionFilters.account ? kontenById.get(state.transactionFilters.account)?.name : "";
   const breadcrumb = renderBreadcrumb(accountName);
+  if (!antwort) {
+    return `
+      ${renderPageHead(t("transactions.title"), "", breadcrumb)}
+      <section class="panel panel-pad"><p class="muted" role="status">${escapeHtml(fehler ? `${t("transactions.loadFailed")} (${fehler.message})` : t("transactions.loading"))}</p></section>`;
+  }
+  const rows = antwort.zeilen;
+  const pageCount = antwort.seiten;
+  // Solange die neue Seite laedt, zeigt die Leiste die gewuenschte Seite, aber
+  // nie ausserhalb der bekannten Seiten (state.transactionPage kann nach
+  // "Letzte Seite" beliebig gross sein).
+  const seite = veraltet ? Math.min(Math.max(1, Math.floor(Number(state.transactionPage)) || 1), pageCount) : antwort.seite;
+  const auswahl = antwort.auswahl?.transaktion.transaktion_id === state.selectedTransactionId ? antwort.auswahl : null;
+  const detailRailOpen = !state.detailRailClosed && Boolean(auswahl);
 
   return `
     ${renderPageHead(t("transactions.title"), "", breadcrumb)}
     <div class="layout-with-rail ${detailRailOpen ? "" : "rail-closed"}">
       <div class="stack">
         <section class="summary-strip">
-          <div class="summary-cell"><span class="muted">${escapeHtml(t("transactions.hits"))}</span><strong>${allRows.length}</strong></div>
-          <div class="summary-cell"><span class="muted">${escapeHtml(t("transactions.filteredBalance"))}</span><strong>${escapeHtml(formatMoney(filterBalance))}</strong></div>
-          <div class="summary-cell"><span class="muted">${escapeHtml(t("chrome.categoryOpen"))}</span><strong>${openCount}</strong></div>
+          <div class="summary-cell"><span class="muted">${escapeHtml(t("transactions.hits"))}</span><strong>${antwort.treffer}</strong></div>
+          <div class="summary-cell"><span class="muted">${escapeHtml(t("transactions.filteredBalance"))}</span><strong>${escapeHtml(formatMoney(antwort.saldo_cent))}</strong></div>
+          <div class="summary-cell"><span class="muted">${escapeHtml(t("chrome.categoryOpen"))}</span><strong>${antwort.offen}</strong></div>
         </section>
-        ${renderTransactionFilters(allRows.length, data.transaktionen.length)}
-        <section class="panel">
+        ${renderTransactionFilters(antwort)}
+        <section class="panel${laedt ? " laedt" : ""}" aria-busy="${laedt ? "true" : "false"}">
           ${renderTransactionTableToolbar()}
           <div class="table-wrap">
             <table class="transaction-table">
@@ -198,7 +111,7 @@ export function renderTransactions() {
               </tbody>
             </table>
           </div>
-          ${renderPagination(allRows.length, pageCount)}
+          ${renderPagination(antwort.treffer, pageCount, seite)}
         </section>
       </div>
       ${detailRailOpen ? `
@@ -207,7 +120,7 @@ export function renderTransactions() {
             <h2 class="section-title">${escapeHtml(t("transactions.details"))}</h2>
             <button class="icon-button" data-action="close-detail-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
           </div>
-          ${renderTransactionDetail(selectedInFilter)}
+          ${renderTransactionDetail(auswahl)}
         </aside>
       ` : ""}
     </div>
@@ -227,23 +140,23 @@ function renderTransactionTableToolbar() {
   `;
 }
 
-function renderPagination(totalRows, pageCount) {
-  const from = totalRows === 0 ? 0 : (state.transactionPage - 1) * state.pageSize + 1;
-  const to = Math.min(totalRows, state.transactionPage * state.pageSize);
-  const items = paginationItems(state.transactionPage, pageCount);
+function renderPagination(totalRows, pageCount, seite) {
+  const from = totalRows === 0 ? 0 : (seite - 1) * state.pageSize + 1;
+  const to = Math.min(totalRows, seite * state.pageSize);
+  const items = paginationItems(seite, pageCount);
   return `
     <div class="pagination">
-      <span>${escapeHtml(t("transactions.page"))} ${state.transactionPage} / ${pageCount} · ${from}-${to} ${escapeHtml(t("transactions.of"))} ${totalRows}</span>
+      <span>${escapeHtml(t("transactions.page"))} ${seite} / ${pageCount} · ${from}-${to} ${escapeHtml(t("transactions.of"))} ${totalRows}</span>
       <div class="pagination-actions">
-        <button class="pager-button" data-action="page-first" ${state.transactionPage === 1 ? "disabled" : ""}>${escapeHtml(t("transactions.firstPage"))}</button>
-        <button class="pager-button" data-action="page-prev" ${state.transactionPage === 1 ? "disabled" : ""}>${escapeHtml(t("transactions.previousPage"))}</button>
+        <button class="pager-button" data-action="page-first" ${seite === 1 ? "disabled" : ""}>${escapeHtml(t("transactions.firstPage"))}</button>
+        <button class="pager-button" data-action="page-prev" ${seite === 1 ? "disabled" : ""}>${escapeHtml(t("transactions.previousPage"))}</button>
         <div class="pagination-pages" aria-label="${escapeHtml(t("transactions.pageJumps"))}">
           ${items.map((item) => item === "ellipsis"
             ? `<span class="pagination-ellipsis">…</span>`
-            : `<button class="page-number ${item === state.transactionPage ? "active" : ""}" data-action="page-jump" data-page="${item}" ${item === state.transactionPage ? "aria-current=\"page\"" : ""}>${item}</button>`).join("")}
+            : `<button class="page-number ${item === seite ? "active" : ""}" data-action="page-jump" data-page="${item}" ${item === seite ? "aria-current=\"page\"" : ""}>${item}</button>`).join("")}
         </div>
-        <button class="pager-button" data-action="page-next" ${state.transactionPage === pageCount ? "disabled" : ""}>${escapeHtml(t("transactions.nextPage"))}</button>
-        <button class="pager-button" data-action="page-last" ${state.transactionPage === pageCount ? "disabled" : ""}>${escapeHtml(t("transactions.lastPage"))}</button>
+        <button class="pager-button" data-action="page-next" ${seite === pageCount ? "disabled" : ""}>${escapeHtml(t("transactions.nextPage"))}</button>
+        <button class="pager-button" data-action="page-last" ${seite === pageCount ? "disabled" : ""}>${escapeHtml(t("transactions.lastPage"))}</button>
       </div>
     </div>
   `;
@@ -251,7 +164,9 @@ function renderPagination(totalRows, pageCount) {
 
 function paginationItems(currentPage, pageCount) {
   const pages = new Set([1, pageCount]);
-  for (let page = currentPage - 2; page <= currentPage + 2; page += 1) {
+  // Fester Schrittzaehler: bei sehr grossen Zahlen aendert page += 1 den Wert nicht mehr.
+  for (let schritt = -2; schritt <= 2; schritt += 1) {
+    const page = currentPage + schritt;
     if (page >= 1 && page <= pageCount) pages.add(page);
   }
   const sorted = [...pages].sort((a, b) => a - b);
@@ -307,7 +222,7 @@ function renderVorsorgeFilterChip() {
     </div>`;
 }
 
-function renderTransactionFilters(resultCount, totalCount) {
+function renderTransactionFilters(antwort) {
   return renderTableFilters({
     prefix: renderBelegFilterChip() + renderVorsorgeFilterChip(),
     searchFields: [
@@ -318,7 +233,7 @@ function renderTransactionFilters(resultCount, totalCount) {
         placeholder: t("transactions.searchPlaceholder"),
       },
     ],
-    timeFields: transactionTimeFilterFields(),
+    timeFields: transactionTimeFilterFields(antwort),
     fields: [
       {
         name: "account",
@@ -372,8 +287,8 @@ function renderTransactionFilters(resultCount, totalCount) {
     clearAction: "clear-transaction-filter",
     resetAction: "reset-transaction-filters",
     activeCount: transactionFilterActiveCount(),
-    resultCount,
-    totalCount,
+    resultCount: antwort.treffer,
+    totalCount: antwort.gesamt,
   });
 }
 
@@ -381,7 +296,7 @@ function hasActiveFilters(filters) {
   return Object.values(filters).some(Boolean);
 }
 
-function transactionTimeFilterFields() {
+function transactionTimeFilterFields(antwort) {
   const filters = state.transactionFilters;
   const fields = [
     {
@@ -406,7 +321,7 @@ function transactionTimeFilterFields() {
     fields.push({
       name: "month",
       label: t("transactions.month"),
-      options: transactionMonthOptions(),
+      options: transactionMonthOptions(antwort),
     });
   }
   if (filters.timeMode === "quarter") {
@@ -414,7 +329,7 @@ function transactionTimeFilterFields() {
       {
         name: "quarterYear",
         label: t("transactions.year"),
-        options: transactionYearOptions(),
+        options: transactionYearOptions(antwort),
       },
       {
         name: "quarter",
@@ -427,28 +342,22 @@ function transactionTimeFilterFields() {
     fields.push({
       name: "year",
       label: t("transactions.year"),
-      options: transactionYearOptions(),
+      options: transactionYearOptions(antwort),
     });
   }
   return fields;
 }
 
-function transactionMonthOptions() {
-  return distinctTransactionDateParts(0, 7).map((month) => [month, formatMonth(month)]);
+// Monate und Jahre mit Buchungen (aus der Antwort, unabhaengig vom Filter).
+function transactionMonthOptions(antwort) {
+  return (antwort?.monate ?? []).map((month) => [month, formatMonth(month)]);
 }
 
-function transactionYearOptions() {
+function transactionYearOptions(antwort) {
   return [
     ["", t("transactions.allYears")],
-    ...distinctTransactionDateParts(0, 4).map((year) => [year, year]),
+    ...(antwort?.jahre ?? []).map((year) => [year, year]),
   ];
-}
-
-function distinctTransactionDateParts(start, end) {
-  return [...new Set(data.transaktionen
-    .map((tx) => String(tx.buchungsdatum ?? "").slice(start, end))
-    .filter((value) => value.length === end - start))]
-    .sort((a, b) => b.localeCompare(a));
 }
 
 export function applyTransactionTimeModeDefaults(mode) {
@@ -456,16 +365,17 @@ export function applyTransactionTimeModeDefaults(mode) {
     clearTransactionTimeFilter();
     return;
   }
+  const { antwort } = cache.hole(anfragePfad());
   if (mode === "month" && !state.transactionFilters.month) {
-    state.transactionFilters.month = transactionMonthOptions()[0]?.[0] || "";
+    state.transactionFilters.month = transactionMonthOptions(antwort)[0]?.[0] || "";
   }
   if (mode === "quarter" && !state.transactionFilters.quarterYear) {
-    const latestMonth = distinctTransactionDateParts(0, 7)[0] || "";
-    state.transactionFilters.quarterYear = latestMonth.slice(0, 4) || transactionYearOptions()[1]?.[0] || "";
+    const latestMonth = antwort?.monate?.[0] || "";
+    state.transactionFilters.quarterYear = latestMonth.slice(0, 4) || transactionYearOptions(antwort)[1]?.[0] || "";
     state.transactionFilters.quarter = latestMonth ? String(Math.ceil(Number(latestMonth.slice(5, 7)) / 3)) : "1";
   }
   if (mode === "year" && !state.transactionFilters.year) {
-    state.transactionFilters.year = transactionYearOptions()[1]?.[0] || "";
+    state.transactionFilters.year = transactionYearOptions(antwort)[1]?.[0] || "";
   }
 }
 
@@ -501,22 +411,13 @@ function renderTransactionRow(tx) {
 // Transfer-Symbol in der Kategorie-Zelle; bei gepaartem Transfer ein Sprung zur Gegenbuchung.
 function renderTransferMarke(tx) {
   if (!tx.ist_transfer) return "";
-  const paired = pairedTransferTransaction(tx);
+  const paired = tx.gegenbuchung;
   if (!paired) {
     const label = escapeHtml(t("labels.transfer"));
     return `<span class="chip neutral transfer-marke" title="${label}" aria-label="${label}">${iconSvg("transfer")}</span>`;
   }
   const label = escapeHtml(t("transactions.pairedTransfer"));
-  return `<button class="chip neutral transfer-marke transfer-link" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" title="${label}" aria-label="${label}">${iconSvg("transfer")}</button>`;
-}
-
-function pairedTransferTransaction(tx) {
-  const transfer = tx.transfer_id ? transfersById.get(tx.transfer_id) : undefined;
-  if (!transfer) return undefined;
-  const pairedId = transfer.abgang_transaktion_id === tx.transaktion_id
-    ? transfer.zugang_transaktion_id
-    : transfer.abgang_transaktion_id;
-  return pairedId ? transaktionenById.get(pairedId) : undefined;
+  return `<button class="chip neutral transfer-marke transfer-link" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" data-account="${escapeHtml(paired.konto_id)}" title="${label}" aria-label="${label}">${iconSvg("transfer")}</button>`;
 }
 
 export function renderHerkunft(tx) {
@@ -533,12 +434,10 @@ export function renderHerkunft(tx) {
   return "—";
 }
 
-export function renderTransactionDetail(tx) {
+// detail: { transaktion, regelzahlung, vorsorge, immobilie } aus der Antwort.
+export function renderTransactionDetail({ transaktion: tx, regelzahlung, vorsorge, immobilie }) {
   const konto = kontenById.get(tx.konto_id);
-  const paired = pairedTransferTransaction(tx);
-  const regelzahlung = regelzahlungForTransaction(tx);
-  const vorsorge = vorsorgeForTransaction(tx);
-  const immobilie = immobilieForTransaction(tx);
+  const paired = tx.gegenbuchung;
   const bankDetails = [
     [t("transactions.bankReference"), tx.bank_referenz],
     [t("transactions.valueDate"), tx.wertstellungsdatum, "date"],
@@ -607,7 +506,7 @@ export function renderTransactionDetail(tx) {
     ${paired ? `
       <div class="detail-section">
         <div class="detail-label">${escapeHtml(t("labels.transfer"))}</div>
-        <button class="linkish" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}">${escapeHtml(t("transactions.pairedTransfer"))}</button>
+        <button class="linkish" data-action="paired-transfer" data-transaction="${escapeHtml(paired.transaktion_id)}" data-account="${escapeHtml(paired.konto_id)}">${escapeHtml(t("transactions.pairedTransfer"))}</button>
       </div>
     ` : ""}
     <div class="detail-section">

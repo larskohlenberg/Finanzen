@@ -100,23 +100,40 @@ export async function leseSnapshot(datenDir) {
   }
 }
 
-// Je Bestand der zuletzt gebaute Snapshot als fertiger JSON-Text; neu gebaut
-// wird nur bei neuem Stand, gleichzeitige Anfragen teilen sich einen Bau.
+// Je Bestand der zuletzt gelesene Stand: die geparsten Daten (fuer die
+// schmalen APIs, lese-api.mjs), der Snapshot als JSON-Text erst bei Bedarf.
+// Neu gelesen wird nur bei neuem Stand; gleichzeitige Anfragen teilen sich das
+// Lesen. Abgeleitete Werte merkt sich merke() je Stand.
 export function erstelleSnapshotQuelle(datenDir) {
   let letzter = null;
   let bau = null;
+  async function bestand() {
+    const stand = await standKennung(datenDir);
+    if (letzter?.stand === stand) return letzter;
+    bau ??= leseSnapshot(datenDir)
+      .then((snapshot) => {
+        const abgeleitet = new Map();
+        letzter = {
+          stand: snapshot.stand,
+          snapshot,
+          daten: snapshot.daten,
+          merke: (schluessel, rechne) => {
+            if (!abgeleitet.has(schluessel)) abgeleitet.set(schluessel, rechne());
+            return abgeleitet.get(schluessel);
+          },
+        };
+        return letzter;
+      })
+      .finally(() => { bau = null; });
+    return bau;
+  }
   return {
     stand: () => standKennung(datenDir),
+    bestand,
     async snapshot() {
-      const stand = await standKennung(datenDir);
-      if (letzter?.stand === stand) return letzter;
-      bau ??= leseSnapshot(datenDir)
-        .then((snapshot) => {
-          letzter = { stand: snapshot.stand, body: JSON.stringify(snapshot) };
-          return letzter;
-        })
-        .finally(() => { bau = null; });
-      return bau;
+      const eintrag = await bestand();
+      eintrag.body ??= JSON.stringify(eintrag.snapshot);
+      return { stand: eintrag.stand, body: eintrag.body };
     },
   };
 }

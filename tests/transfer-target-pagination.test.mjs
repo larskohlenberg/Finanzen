@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 const appListeners = new Map();
 const app = {
@@ -27,7 +30,7 @@ document.activeElement = document.body;
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -61,6 +64,10 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const transactionsView = await import("../app/views/transaktionen.mjs");
 const { data, state, transaktionenById } = runtime;
+appDaten = data;
+// Wie beim Stand-Wechsel: geaenderter Bestand -> Antworten der Lese-APIs verwerfen.
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+const { transaktionenSeite } = await import("../app/transaktionen-abfrage.mjs");
 
 const TARGET_ID = "TX-TARGET";
 const TARGET_ACCOUNT_ID = "KTO-001";
@@ -83,6 +90,7 @@ function buildTransactions() {
 
 function installTransactions(transactions) {
   data.transaktionen = transactions;
+  verwerfeApiCaches();
   transaktionenById.clear();
   for (const transaction of transactions) {
     transaktionenById.set(transaction.transaktion_id, transaction);
@@ -115,7 +123,7 @@ function resetTransactionState() {
 
 function clickPairedTransfer(transactionId) {
   const transferLink = {
-    dataset: { action: "paired-transfer", transaction: transactionId },
+    dataset: { action: "paired-transfer", transaction: transactionId, account: TARGET_ACCOUNT_ID },
   };
   const event = {
     target: {
@@ -149,22 +157,18 @@ installTransactions(buildTransactions());
 resetTransactionState();
 await import("../app/main.js");
 
-test("transactionPageForId berücksichtigt Sortierung, Seitengröße und fehlende IDs", () => {
-  resetTransactionState();
-  assert.equal(typeof transactionsView.transactionPageForId, "function");
-
-  state.pageSize = 5;
-  assert.equal(transactionsView.transactionPageForId(TARGET_ID), 3);
-
-  state.transactionSort = { key: "date", dir: "asc" };
-  assert.equal(transactionsView.transactionPageForId(TARGET_ID), 1);
-  assert.equal(transactionsView.transactionPageForId("TX-MISSING"), 1);
+test("Sprung zu einer Buchung: der Server rechnet ihre Seite nach Sortierung und Seitengroesse", () => {
+  const seite = (sort, zeige) => transaktionenSeite(data, { sort, groesse: 10, zeige }).seite;
+  assert.equal(seite({ key: "date", dir: "desc" }, TARGET_ID), 2);
+  assert.equal(seite({ key: "date", dir: "asc" }, TARGET_ID), 1);
+  assert.equal(seite({ key: "date", dir: "desc" }, "TX-MISSING"), 1);
 });
 
-test("Gegenbuchungsnavigation zeigt Zielzeile auf ihrer Seite und öffnet die Detail-Rail", () => {
+test("Gegenbuchungsnavigation zeigt Zielzeile auf ihrer Seite und öffnet die Detail-Rail", async () => {
   resetTransactionState();
 
   clickPairedTransfer(TARGET_ID);
+  await apiAbwarten();
 
   assert.equal(state.transactionFilters.account, TARGET_ACCOUNT_ID);
   assert.equal(state.selectedTransactionId, TARGET_ID);
@@ -175,11 +179,12 @@ test("Gegenbuchungsnavigation zeigt Zielzeile auf ihrer Seite und öffnet die De
   assert.match(app.innerHTML, /detail-panel/);
 });
 
-test("open-transaction aus einer anderen Ansicht springt auf die Seite der Zielbuchung", () => {
+test("open-transaction aus einer anderen Ansicht springt auf die Seite der Zielbuchung", async () => {
   resetTransactionState();
   state.view = "vorsorge";
   state.transactionPage = 1;
   clickAction({ action: "open-transaction", transaction: TARGET_ID });
+  await apiAbwarten();
   assert.equal(state.view, "transactions");
   assert.equal(state.selectedTransactionId, TARGET_ID);
   // 12 Buchungen, absteigend nach Datum, 10 je Seite: die aelteste steht auf Seite 2.
@@ -188,31 +193,46 @@ test("open-transaction aus einer anderen Ansicht springt auf die Seite der Zielb
   assert.match(app.innerHTML, /data-transaction="TX-TARGET"/);
 });
 
-test("open-entity fuer eine Transaktion springt ebenfalls auf ihre Seite", () => {
+test("Letzte Seite: der Server begrenzt auf die letzte vorhandene Seite", async () => {
+  resetTransactionState();
+  clickAction({ action: "page-last" });
+  await apiAbwarten();
+  assert.equal(state.transactionPage, 2);
+  assert.match(app.innerHTML, /data-transaction="TX-TARGET"/);
+  clickAction({ action: "page-first" });
+  await apiAbwarten();
+  assert.equal(state.transactionPage, 1);
+});
+
+test("open-entity fuer eine Transaktion springt ebenfalls auf ihre Seite", async () => {
   resetTransactionState();
   clickAction({ action: "open-entity", scope: "transaktion", entity: TARGET_ID });
+  await apiAbwarten();
   assert.equal(state.selectedTransactionId, TARGET_ID);
   assert.equal(state.transactionPage, 2);
 });
 
-test("Alle Beitraege eines Vorsorgevertrags: Transaktionen gefiltert auf seine Regelzahlungen", () => {
+test("Alle Beitraege eines Vorsorgevertrags: Transaktionen gefiltert auf seine Regelzahlungen", async () => {
   const saved = { regelzahlungen: data.regelzahlungen, vorsorge: data.vorsorge, transaktionen: data.transaktionen };
   try {
     const txs = buildTransactions().map((tx, i) => (i < 3 ? { ...tx, regelzahlung_id: "RZ-V1" } : tx));
     installTransactions(txs);
     data.regelzahlungen = [{ regelzahlung_id: "RZ-V1", bezeichnung: "Beitrag", betrag: "1.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "bestaetigt", vorsorge_id: "VS-V1" }];
     data.vorsorge = [{ vorsorge_id: "VS-V1", art: "rentenversicherung", name: "Musterrente", person_id: data.personen[0].person_id, status: "aktiv", kapitalbildend: true }];
+    verwerfeApiCaches();
     resetTransactionState();
     state.view = "vorsorge";
     clickAction({ action: "vorsorge-transactions", vorsorge: "VS-V1" });
     assert.equal(state.view, "transactions");
     assert.equal(state.transactionFilters.vorsorge, "VS-V1");
     assert.equal(state.transactionFilters.account, "");
-    assert.equal(transactionsView.filteredTransactions().length, 3);
+    await apiAbwarten();
+    assert.equal(transactionsView.transaktionenAntwort().antwort.treffer, 3);
     assert.equal(location.hash, "#/transaktionen/vorsorge/VS-V1");
     assert.match(app.innerHTML, /Beiträge zu:[\s\S]*Musterrente/);
     clickAction({ action: "clear-transaction-filter", filterName: "vorsorge" });
-    assert.equal(transactionsView.filteredTransactions().length, 12);
+    await apiAbwarten();
+    assert.equal(transactionsView.transaktionenAntwort().antwort.treffer, 12);
   } finally {
     data.regelzahlungen = saved.regelzahlungen;
     data.vorsorge = saved.vorsorge;
@@ -308,7 +328,7 @@ test("Immobilien-Ruecklink oeffnet die Transaktionssuche nur mit der Immobilien-
   assert.equal(state.transactionFilters.transfer, "");
 });
 
-test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zum Vorsorgevertrag zurück", () => {
+test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zum Vorsorgevertrag zurück", async () => {
   const vorsorgeId = "VS-RUNDWEG";
   const regelzahlungId = "RZ-RUNDWEG";
   const transactionId = "TX-RUNDWEG";
@@ -360,6 +380,7 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
       bemerkung: "Rundweg-Bemerkung",
     }];
     transaktionenById.set(transactionId, transaction);
+    verwerfeApiCaches();
     resetTransactionState();
     state.vorsorgeFilters = { person: "" };
     historyCalls.length = 0;
@@ -384,6 +405,7 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
       month: "2025-01",
     };
     clickAction({ action: "open-transaction", transaction: transactionId });
+    await apiAbwarten();
 
     assert.equal(state.view, "transactions");
     assert.equal(state.selectedTransactionId, transactionId);
@@ -426,6 +448,7 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     data.transaktionen = saved.transaktionen;
     data.regelzahlungen = saved.regelzahlungen;
     data.vorsorge = saved.vorsorge;
+    verwerfeApiCaches();
     state.view = saved.view;
     state.transactionFilters = saved.transactionFilters;
     state.transactionSort = saved.transactionSort;

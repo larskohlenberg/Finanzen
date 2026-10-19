@@ -3,7 +3,8 @@
 import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { renderPageHead, renderMasterAccountTable, regelKlartext, categoryName } from "../komponenten.mjs";
-import { missingReferenceChecks, regelWirkung } from "../selektoren.mjs";
+import { missingReferenceChecks } from "../selektoren.mjs";
+import { erstelleApiCache } from "../api-daten.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { kontoWert } from "../vermoegen.mjs";
 import { renderVermoegenDetail } from "./vermoegen.mjs";
@@ -142,9 +143,21 @@ function regelSortHeader(key, label) {
   return `<th><button class="linkish sort-th" data-regel-sort="${key}">${escapeHtml(label)}${escapeHtml(regelSortIndicator(key))}</button></th>`;
 }
 
+// Treffer je Regel zaehlt der Server (GET /api/v1/regelwirkung); fuer die
+// gewaehlte Regel kommen dazu die ersten Buchungen und Beispiele.
+const wirkungCache = erstelleApiCache();
+function regelWirkung(regel = "") {
+  const suche = new URLSearchParams();
+  if (state.dataMode === "demo") suche.set("quelle", "demo");
+  if (regel) suche.set("regel", regel);
+  const { antwort, veraltet } = wirkungCache.hole(`./api/v1/regelwirkung?${suche}`);
+  // Eine veraltete Antwort gehoert evtl. zu einer anderen Regel.
+  return regel && veraltet ? null : antwort;
+}
+
 function renderRegelListe() {
-  const wirkung = regelWirkung();
-  const treffer = (r) => wirkung.get(r.regel_id)?.anzahl ?? 0;
+  const anzahl = regelWirkung()?.anzahl;
+  const treffer = (r) => (anzahl ? anzahl[r.regel_id] ?? 0 : null);
   const s = regelSortState();
   const factor = s.dir === "asc" ? 1 : -1;
   const sorted = [...data.kategorisierungsregeln].sort((a, b) => {
@@ -163,7 +176,7 @@ function renderRegelListe() {
         <td>${escapeHtml(regel.regel_id)}</td>
         <td>${escapeHtml(regelKlartext(regel, categoryName))}</td>
         <td>${escapeHtml(t(`status.${regel.status}`))}</td>
-        <td><span class="rule-hits-cell">${n}${tot}</span></td>
+        <td><span class="rule-hits-cell">${n ?? "…"}${tot}</span></td>
       </tr>`;
   }).join("");
   return `
@@ -212,9 +225,9 @@ function renderRegelSection() {
 }
 
 function renderRegelDetailBody(regel) {
-  const treffer = regelWirkung().get(regel.regel_id)?.transaktionen ?? [];
-  const beispiele = [...new Set(treffer.map((tx) => tx.gegenpartei).filter(Boolean))].slice(0, 5);
-  const txRows = treffer.slice(0, 50).map((tx) => `
+  const wirkung = regelWirkung(regel.regel_id)?.regel;
+  const beispiele = wirkung?.beispiele ?? [];
+  const txRows = (wirkung?.zeilen ?? []).map((tx) => `
     <tr class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}" tabindex="0">
       <td class="regel-tx-date">${escapeHtml(tx.buchungsdatum || "")}</td>
       <td>${escapeHtml(tx.gegenpartei || "")}</td>
@@ -233,7 +246,7 @@ function renderRegelDetailBody(regel) {
       <div class="detail-value muted">${beispiele.map((b) => escapeHtml(b)).join(" · ")}</div>
     </div>` : ""}
     <div class="detail-section">
-      <div class="detail-label">${escapeHtml(t("masterdata.ruleMatchedTx"))} (${treffer.length})</div>
+      <div class="detail-label">${escapeHtml(t("masterdata.ruleMatchedTx"))} (${wirkung ? wirkung.anzahl : "…"})</div>
       <table class="regel-tx-table"><tbody>${txRows}</tbody></table>
     </div>`;
 }

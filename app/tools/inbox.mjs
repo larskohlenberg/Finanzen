@@ -20,10 +20,21 @@
 // der Textzwilling). Bilder bleiben wie PDFs im Inbox-Root liegen, bis der
 // Agent sie ablegt; sie wandern nie nach error/.
 //
+// Importauftrag (Review 1B.5): Jeder CSV-Lauf legt in derselben Generation wie
+// seine Buchungen einen Auftrag in importauftraege.jsonl an (Quelle,
+// Pruefsumme, Profil, angenommene und abgewiesene Zeilen, Status, Archivziel).
+// Wiederaufnahme: liegt eine Quelle, deren Auftrag schon uebernommen ist, noch
+// in der Inbox (Abbruch vor dem Archivieren), wird sie nur archiviert.
+// Wiederanlauf: vor dem Archivieren legt der Lauf eine Marke in
+// <inbox>/.auftraege/ ab. Findet der naechste Lauf eine Marke, deren Auftrag
+// nicht im Bestand steht (der Entwurf wurde nicht uebernommen), holt er die
+// Quelle aus dem Archiv in die Inbox zurueck; sonst raeumt er die Marke weg.
+//
 // `standardized/` ist Durchgangsstation, kein Archiv. Der dauerhafte
 // Textzwilling entsteht neben dem Beleg unter `Belege/` — siehe
 // `belege-text.mjs`, das den Vorlauf danach wieder abraeumt.
-import { access, readFile, readdir, rename, mkdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { access, readFile, readdir, rename, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runImport } from "./import.mjs";
@@ -37,6 +48,7 @@ import { validateImportProfil } from "./import-format.mjs";
 import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
 import { bestandOrte } from "./lib/bestand-orte.mjs";
 import { ersetzeDatei } from "./lib/datei.mjs";
+import { liesJsonl, naechsteId, schreibeJsonl } from "./lib/bestand-datei.mjs";
 
 const APP = fileURLToPath(new URL("../", import.meta.url));
 // Inbox-Pfad relativ zum App-Raum fuer Bericht, rohquelle und Protokoll
@@ -140,6 +152,36 @@ export function importLaufBericht({ auftrag, profil, normalized, result }) {
   };
 }
 
+// Ein Importauftrag aus einem CSV-Lauf (siehe Kopf). archiv ist der geplante
+// Ablageort (Anzeigepfad).
+export function importAuftrag({ auftrag_id, zeitpunkt, quelle, quelle_sha256, profil, normalized, result, archiv }) {
+  const abgewiesen = [
+    ...normalized.fehler.map((f) => ({ zeile: f.zeile, grund: f.grund, ...(f.rohzeile !== undefined ? { rohzeile: f.rohzeile } : {}) })),
+    ...result.errors.map((f) => ({ zeile: normalized.zeilennummern?.[f.row - 1] ?? 0, grund: `${f.reason}: ${f.detail}` })),
+  ].sort((a, b) => a.zeile - b.zeile);
+  return {
+    auftrag_id,
+    zeitpunkt,
+    quelle,
+    quelle_sha256,
+    profil_id: profil.profil_id,
+    ...(profil.konto_id ? { konto_id: profil.konto_id } : {}),
+    status: abgewiesen.length ? "teilweise" : "uebernommen",
+    zeilen: { gelesen: normalized.eintraege.length + normalized.fehler.length, uebernommen: result.written.length, dubletten: result.skipped_dedupe.length, abgewiesen: abgewiesen.length },
+    abgewiesen,
+    archiv,
+    ...(result.pruefen?.length ? { pruefen: result.pruefen.length } : {}),
+    ...(profil.konto_id && result.referenz_unzuverlaessig?.includes(profil.konto_id) ? { referenz_unzuverlaessig: true } : {}),
+  };
+}
+
+function abgewiesenerAuftrag({ id, zeitpunkt, quelle, sha, profil_id, konto_id, grund, archiv }) {
+  return {
+    auftrag_id: id, zeitpunkt, quelle, quelle_sha256: sha, profil_id, ...(konto_id ? { konto_id } : {}),
+    status: "abgewiesen", zeilen: { gelesen: 0, uebernommen: 0, dubletten: 0, abgewiesen: 0 }, abgewiesen: [], grund, archiv,
+  };
+}
+
 // Inhalt von error/<datei>.fehler.txt fuer eine teilweise importierte Datei:
 // jede nicht uebernommene Zeile, damit sie korrigiert und erneut eingespielt
 // werden kann.
@@ -167,13 +209,92 @@ async function freierArchivName(ordner, datei) {
   }
 }
 
-async function archiviere(inboxRoot, { quelle, datei, ordner, notiz }) {
+// Archivname vor dem Schreiben festlegen (er steht im Auftrag); vergeben haelt
+// die in diesem Lauf schon geplanten Namen frei.
+async function planeArchivName(inboxRoot, ordner, datei, vergeben) {
+  const zielOrdner = new URL(`${ordner}/`, inboxRoot);
+  const punkt = datei.lastIndexOf(".");
+  const stamm = punkt > 0 ? datei.slice(0, punkt) : datei;
+  const endung = punkt > 0 ? datei.slice(punkt) : "";
+  for (let n = 1; ; n += 1) {
+    const name = n === 1 ? datei : `${stamm}-${n}${endung}`;
+    if (vergeben.has(`${ordner}/${name}`)) continue;
+    if (await freierArchivName(zielOrdner, name) !== name) continue;
+    vergeben.add(`${ordner}/${name}`);
+    return name;
+  }
+}
+
+// Der geplante Name, solange er frei ist; sonst der naechste freie.
+async function endgueltigerName(inboxRoot, { datei, ordner, name: geplant }) {
+  const zielOrdner = new URL(`${ordner}/`, inboxRoot);
+  return geplant && (await freierArchivName(zielOrdner, geplant)) === geplant ? geplant : freierArchivName(zielOrdner, datei);
+}
+
+async function archiviere(inboxRoot, eintrag) {
+  const { quelle, ordner, notiz } = eintrag;
   const zielOrdner = new URL(`${ordner}/`, inboxRoot);
   await mkdir(zielOrdner, { recursive: true });
-  const name = await freierArchivName(zielOrdner, datei);
+  const name = await endgueltigerName(inboxRoot, eintrag);
   await rename(fileURLToPath(quelle), fileURLToPath(new URL(encodeURIComponent(name), zielOrdner)));
   if (notiz) await ersetzeDatei(new URL(encodeURIComponent(`${name}.fehler.txt`), zielOrdner), notiz);
   return `${inboxName(inboxRoot)}/${ordner}/${name}`;
+}
+
+const pruefsumme = (text) => createHash("sha256").update(text).digest("hex");
+const MARKEN = ".auftraege/";
+
+// Inbox-relativer Teil eines Anzeigepfads (data/inbox/processed/x.csv ->
+// processed/x.csv); nur processed/ und error/, nie aus der Inbox heraus.
+function archivRelativ(inboxRoot, anzeige) {
+  const praefix = `${inboxName(inboxRoot)}/`;
+  if (typeof anzeige !== "string" || !anzeige.startsWith(praefix)) return null;
+  const rel = anzeige.slice(praefix.length);
+  const teile = rel.split("/");
+  if (teile.length !== 2 || !["processed", "error"].includes(teile[0]) || !teile[1] || teile[1].startsWith(".")) return null;
+  return { ordner: teile[0], name: teile[1], url: new URL(`${teile[0]}/${encodeURIComponent(teile[1])}`, inboxRoot) };
+}
+
+// Wiederanlauf ueber die Marken in <inbox>/.auftraege/ (siehe Kopf).
+async function wiederanlauf(inboxRoot, auftraege, schreiben) {
+  const ordner = new URL(MARKEN, inboxRoot);
+  const ergebnis = { zurueckgeholt: [], hinweise: [] };
+  let namen = [];
+  try {
+    namen = (await readdir(ordner)).filter((n) => n.endsWith(".json")).sort();
+  } catch {
+    return ergebnis;
+  }
+  const uebernommen = new Set(auftraege.map((a) => `${a.auftrag_id}|${a.quelle_sha256}`));
+  for (const n of namen) {
+    const url = new URL(encodeURIComponent(n), ordner);
+    let marke = null;
+    try {
+      marke = JSON.parse(await readFile(url, "utf8"));
+    } catch {
+      ergebnis.hinweise.push(`Marke ${n} unlesbar`);
+    }
+    if (marke && !uebernommen.has(`${marke.auftrag_id}|${marke.quelle_sha256}`)) {
+      // Der Lauf hat archiviert, sein Bestand wurde aber nicht uebernommen.
+      const archiv = archivRelativ(inboxRoot, marke.archiv);
+      // Unter dem Namen, unter dem die Quelle in der Inbox lag (das Profil erkennt sie daran).
+      const praefix = `${inboxName(inboxRoot)}/`;
+      const original = typeof marke.quelle === "string" && marke.quelle.startsWith(praefix) ? marke.quelle.slice(praefix.length) : "";
+      const name = original && !original.includes("/") && !original.startsWith(".") ? original : archiv?.name;
+      const ziel = archiv ? new URL(encodeURIComponent(name), inboxRoot) : null;
+      if (archiv && await existiert(archiv.url) && !(await existiert(ziel))) {
+        if (schreiben) {
+          await rename(fileURLToPath(archiv.url), fileURLToPath(ziel));
+          await rm(fileURLToPath(new URL(`${archiv.ordner}/${encodeURIComponent(`${archiv.name}.fehler.txt`)}`, inboxRoot)), { force: true });
+        }
+        ergebnis.zurueckgeholt.push(marke.archiv);
+      } else {
+        ergebnis.hinweise.push(`${marke.archiv ?? n}: Auftrag ${marke.auftrag_id} nicht im Bestand, Quelle nicht zurueckgeholt (fehlt oder Name in der Inbox belegt) — von Hand pruefen`);
+      }
+    }
+    if (schreiben) await rm(fileURLToPath(url), { force: true });
+  }
+  return ergebnis;
 }
 
 export function betroffeneTransaktionsIds(laeufe) {
@@ -261,6 +382,14 @@ async function main() {
   // Jeder Bestand hat seine Inbox (data/master: data/inbox/), siehe bestand-orte.mjs.
   const inboxRoot = pathToFileURL(`${bestandOrte(APP, fileURLToPath(masterRoot)).inbox}${path.sep}`);
 
+  const bisherigeAuftraege = await liesJsonl(new URL("importauftraege.jsonl", masterRoot));
+  const neueAuftraege = [];
+  const naechsterAuftrag = () => naechsteId([...bisherigeAuftraege, ...neueAuftraege], "auftrag_id", "IMP");
+  const zeitpunkt = new Date().toISOString();
+  const neustart = await wiederanlauf(inboxRoot, bisherigeAuftraege, schreiben);
+  const vergeben = new Set();
+  const anzeige = (ordner, name) => `${inboxName(inboxRoot)}/${ordner}/${name}`;
+
   const { profile, ungueltig: ungueltigeProfile } = await ladeProfile(new URL("../import-profile/", inboxRoot));
   const eintraege = await readdir(inboxRoot, { withFileTypes: true });
   const plan = planInbox({
@@ -278,6 +407,8 @@ async function main() {
     laeufe: [],
     offen: plan.offen,
     unterordner: plan.unterordner,
+    ...(neustart.zurueckgeholt.length ? { zurueckgeholt: neustart.zurueckgeholt } : {}),
+    ...(neustart.hinweise.length ? { wiederanlauf_hinweise: neustart.hinweise } : {}),
   };
   // CSV-Quellen und ihr Ziel; verschoben wird erst nach Schreiben und Validieren.
   const archiv = [];
@@ -322,19 +453,49 @@ async function main() {
       const meldung = `Profil ${auftrag.profil_id} (${auftrag.profildatei}) ungueltig — nichts gelesen, Profil in data/import-profile/ korrigieren und Datei aus error/ zurueckholen:\n${auftrag.fehler.map((f) => `- ${f}`).join("\n")}`;
       const lauf = { datei: auftrag.datei, art: "csv", profil: auftrag.profil_id, abgebrochen: meldung };
       bericht.laeufe.push(lauf);
-      archiv.push({ quelle, datei: auftrag.datei, ordner: "error", notiz: `${meldung}\n`, lauf });
+      const name = await planeArchivName(inboxRoot, "error", auftrag.datei, vergeben);
+      const a = abgewiesenerAuftrag({ id: naechsterAuftrag(), zeitpunkt, quelle: `${inboxName(inboxRoot)}/${auftrag.datei}`, sha: pruefsumme(await readFile(quelle)), profil_id: auftrag.profil_id, grund: meldung, archiv: anzeige("error", name) });
+      neueAuftraege.push(a);
+      lauf.auftrag_id = a.auftrag_id;
+      archiv.push({ quelle, datei: auftrag.datei, ordner: "error", name, notiz: `${meldung}\n`, lauf, auftrag: a });
       continue;
     }
 
     const profil = profile.find((p) => p.profil_id === auftrag.profil_id);
     const rohquelle = profil.beleg_ziel ? `${profil.beleg_ziel}/${auftrag.datei}` : `${inboxName(inboxRoot)}/processed/${auftrag.datei}`;
+    const text = await readFile(quelle, "utf8");
+    const quelle_sha256 = pruefsumme(text);
+    // Wiederaufnahme: schon uebernommen, nur das Archivieren fehlt.
+    let frueher = null;
+    for (const a of bisherigeAuftraege) {
+      // Nur vollstaendig uebernommene: bei teilweise ist ein neuer Lauf harmlos
+      // (die Dublettenpruefung ergaenzt nur Fehlendes) und schreibt die Fehlernotiz neu.
+      if (a.quelle_sha256 !== quelle_sha256 || a.status !== "uebernommen") continue;
+      const ziel = archivRelativ(inboxRoot, a.archiv);
+      // Nie archiviert (Abbruch davor): weder die Datei noch ihre Fehlernotiz
+      // liegt am Ziel. Liegt die Notiz in error/, hat jemand die Datei bewusst
+      // zurueckgeholt, um sie neu einzulesen.
+      const notiz = ziel ? new URL(`${ziel.ordner}/${encodeURIComponent(`${ziel.name}.fehler.txt`)}`, inboxRoot) : null;
+      if (ziel && !vergeben.has(`${ziel.ordner}/${ziel.name}`) && !(await existiert(ziel.url)) && !(await existiert(notiz))) frueher = { auftrag: a, ziel };
+    }
+    if (frueher) {
+      vergeben.add(`${frueher.ziel.ordner}/${frueher.ziel.name}`);
+      const lauf = { datei: auftrag.datei, art: "csv", wiederaufgenommen: frueher.auftrag.auftrag_id, hinweis: "schon uebernommen, nur archiviert" };
+      bericht.laeufe.push(lauf);
+      archiv.push({ quelle, datei: auftrag.datei, ordner: frueher.ziel.ordner, name: frueher.ziel.name, notiz: null, lauf });
+      continue;
+    }
     let normalized;
     try {
-      normalized = normalizeCsv({ text: await readFile(quelle, "utf8"), profil, rohquelle });
+      normalized = normalizeCsv({ text, profil, rohquelle });
     } catch (error) {
       const lauf = { datei: auftrag.datei, art: "csv", abgebrochen: error.message };
       bericht.laeufe.push(lauf);
-      archiv.push({ quelle, datei: auftrag.datei, ordner: "error", notiz: `${error.message}\n`, lauf });
+      const name = await planeArchivName(inboxRoot, "error", auftrag.datei, vergeben);
+      const a = abgewiesenerAuftrag({ id: naechsterAuftrag(), zeitpunkt, quelle: `${inboxName(inboxRoot)}/${auftrag.datei}`, sha: quelle_sha256, profil_id: profil.profil_id, konto_id: profil.konto_id, grund: error.message, archiv: anzeige("error", name) });
+      neueAuftraege.push(a);
+      lauf.auftrag_id = a.auftrag_id;
+      archiv.push({ quelle, datei: auftrag.datei, ordner: "error", name, notiz: `${error.message}\n`, lauf, auftrag: a });
       continue;
     }
 
@@ -352,12 +513,19 @@ async function main() {
     // Ein Teilimport ist nicht "verarbeitet": die nicht uebernommenen Zeilen
     // muessen sichtbar bleiben, bis jemand sie klaert.
     const unvollstaendig = normalized.fehler.length > 0 || out.result.errors.length > 0;
+    const ordner = unvollstaendig ? "error" : "processed";
+    const name = await planeArchivName(inboxRoot, ordner, auftrag.datei, vergeben);
+    const a = importAuftrag({ auftrag_id: naechsterAuftrag(), zeitpunkt, quelle: `${inboxName(inboxRoot)}/${auftrag.datei}`, quelle_sha256, profil, normalized, result: out.result, archiv: anzeige(ordner, name) });
+    neueAuftraege.push(a);
+    lauf.auftrag_id = a.auftrag_id;
     archiv.push({
       quelle,
       datei: auftrag.datei,
-      ordner: unvollstaendig ? "error" : "processed",
+      ordner,
+      name,
       notiz: unvollstaendig ? fehlerNotiz({ normalized, result: out.result }) : null,
       lauf,
+      auftrag: a,
     });
   }
 
@@ -381,7 +549,8 @@ async function main() {
   // nichts geschrieben und keine Quelle verschoben.
   const bestand = await loadMasterData(masterRoot);
   const bekannt = validateMasterData(bestand).befunde;
-  const neu = neueFehler(bekannt, validateMasterData({ ...bestand, transaktionen, transfers }).befunde);
+  const alleAuftraege = [...bisherigeAuftraege, ...neueAuftraege];
+  const neu = neueFehler(bekannt, validateMasterData({ ...bestand, transaktionen, transfers, importauftraege: alleAuftraege }).befunde);
   if (neu.length) {
     ausgeben();
     console.error("Validierung des neuen Bestands fehlgeschlagen — nichts geschrieben, keine Datei verschoben:");
@@ -392,6 +561,7 @@ async function main() {
 
   await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
   await ersetzeDatei(new URL("transfers.json", masterRoot), JSON.stringify(transfers, null, 2) + "\n");
+  if (neueAuftraege.length) await schreibeJsonl(new URL("importauftraege.jsonl", masterRoot), alleAuftraege);
 
   const protokoll = {
     zeitpunkt: new Date().toISOString(),
@@ -402,6 +572,7 @@ async function main() {
     anzahl_fehler: bericht.laeufe.reduce((s, l) => s + (l.importfehler ?? 0) + (l.lesefehler ?? 0), 0),
     notiz: `inbox.mjs: ${bericht.laeufe.length} Datei(en) verarbeitet`,
     betroffene_ids: betroffeneTransaktionsIds(bericht.laeufe),
+    ...(neueAuftraege.length ? { auftrag_ids: neueAuftraege.map((a) => a.auftrag_id) } : {}),
   };
   // Dubletten-Prueffaelle (ADR 0034) ins Protokoll, damit der Pruefbericht sie
   // zeigt, bis ein spaeterer Eintrag sie mit dubletten_geprueft abhakt.
@@ -422,7 +593,16 @@ async function main() {
     return;
   }
 
+  // Marke vor dem Verschieben: wird der Entwurf nicht uebernommen, holt der
+  // naechste Lauf die Quelle zurueck (wiederanlauf).
   for (const eintrag of archiv) {
+    // Der Name, unter dem tatsaechlich abgelegt wird (der geplante, solange frei).
+    eintrag.name = await endgueltigerName(inboxRoot, eintrag);
+    if (eintrag.auftrag) {
+      await mkdir(new URL(MARKEN, inboxRoot), { recursive: true });
+      const { auftrag_id, quelle_sha256, quelle } = eintrag.auftrag;
+      await ersetzeDatei(new URL(`${MARKEN}${auftrag_id}.json`, inboxRoot), `${JSON.stringify({ auftrag_id, quelle_sha256, quelle, archiv: anzeige(eintrag.ordner, eintrag.name) })}\n`);
+    }
     eintrag.lauf.abgelegt = await archiviere(inboxRoot, eintrag);
   }
   ausgeben();

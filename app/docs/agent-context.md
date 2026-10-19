@@ -466,6 +466,20 @@ Wichtige Tools:
   wird, zaehlt der Lauf jeden Unterordner ausser `processed/`, `standardized/` und
   `error/` rekursiv aus und meldet ihn unter `unterordner` im Bericht plus als
   Warnzeile. Zum Import gehoeren die Dateien flach in den Inbox-Root.
+  **Importauftrag:** Jeder CSV-Lauf legt in `DATENROOT/importauftraege.jsonl`
+  einen Auftrag an (`IMP-NNN`: Quelle, Pruefsumme, Profil, Konto, Status
+  `uebernommen`/`teilweise`/`abgewiesen`, Zaehler gelesen/uebernommen/dubletten/
+  abgewiesen, jede abgewiesene Zeile mit Grund, Archivziel), atomar mit den
+  Buchungen. Liegt eine schon uebernommene Quelle nach einem Abbruch noch in der
+  Inbox, archiviert der naechste Lauf sie nur (`wiederaufgenommen`); wurde sie
+  archiviert, ohne dass der Bestand uebernommen wurde, holt er sie ueber die
+  Marke in `<inbox>/.auftraege/` zurueck (`zurueckgeholt`). `status` zeigt
+  unter `importe` die letzten Auftraege und ob eine wartende Datei nur
+  hochgeladen oder schon uebernommen ist.
+- **Referenz-Verlaesslichkeit je Konto:** `bank_referenz_verlaesslich: false`
+  am Konto (per `stammdatum_setzen`) schaltet den Abgleich ueber die
+  Bank-Referenz fuer dieses Konto ab (ADR 0034), z. B. wenn die Bank Referenzen
+  je Monat neu vergibt. Ohne das Feld misst der Import die Verlaesslichkeit.
 - `tools/normalize.mjs`: CSV per Bank-Profil ins Importformat normalisieren.
 - `tools/import.mjs`: normalisierte Buchungen importieren.
 - `tools/confirm.mjs`: Kategorie-Entscheidungen auf einen gefilterten Schnitt anwenden.

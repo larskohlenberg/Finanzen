@@ -21,9 +21,9 @@
 // bleibt unangetastet.
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
+import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
 
 function istKandidat(tx) {
   if (tx.kategorisierung_status === "offen") return true;
@@ -107,14 +107,10 @@ async function main() {
     return;
   }
 
+  const vorher = await validatorFehler(masterRoot);
   await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
 
-  const validation = validateMasterData(await loadMasterData(masterRoot));
-  if (!validation.valid) {
-    console.error("Validierung nach Agentenvorschlag fehlgeschlagen:");
-    for (const error of validation.errors) console.error(`- ${error}`);
-    process.exitCode = 1;
-  }
+  await meldeNachSchreiben(masterRoot, vorher, "Validierung nach Agentenvorschlag fehlgeschlagen");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

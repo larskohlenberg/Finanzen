@@ -12,12 +12,12 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
-import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
 import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
 import { kontoanker, stufeVerliehen } from "./lib/kontoanker.mjs";
+import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
 
 const BELEGSTUFEN = new Set(["E1", "E2", "E3", "E4"]);
 
@@ -172,6 +172,7 @@ async function main() {
     return;
   }
 
+  const vorher = await validatorFehler(masterRoot);
   await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
 
   const protokoll = {
@@ -187,12 +188,7 @@ async function main() {
   const bisher = await readFile(logUrl, "utf8").catch(() => "");
   await writeFile(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);
 
-  const validation = validateMasterData(await loadMasterData(masterRoot));
-  if (!validation.valid) {
-    console.error("Validierung nach Freigabe fehlgeschlagen:");
-    for (const fehler of validation.errors.slice(0, 20)) console.error(`- ${fehler}`);
-    process.exitCode = 1;
-  }
+  await meldeNachSchreiben(masterRoot, vorher, "Validierung nach Freigabe fehlgeschlagen");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

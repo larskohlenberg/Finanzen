@@ -447,3 +447,21 @@ test("CLI: --datei uebernimmt das Bild ohne Logodienst und schreibt quelle datei
     await rm(ordner, { recursive: true, force: true });
   }
 });
+
+test("Schreiben: ein schon vorher vorhandener Validatorfehler macht den Lauf nicht ungueltig", async () => {
+  const ordner = await wegwerfBestand();
+  try {
+    const kontenPfad = join(ordner, "konten.json");
+    const konten = JSON.parse(await readFile(kontenPfad, "utf8"));
+    konten.at(-1).kontotyp = "quatsch";
+    await writeFile(kontenPfad, JSON.stringify(konten, null, 2));
+    const root = pathToFileURL(`${ordner}/`);
+    const data = await loadMasterData(root);
+    const { plan } = planeLogos({ logos: data.logos, eintraege: [{ name: "Musterladen", domain: "musterladen.example", muster: "MusterladenA" }] });
+    const ergebnisse = [{ ...plan[0], abruf: await holeLogo("musterladen.example", { holen: async () => pngAntwort(kodierePng(einfarbig(32, 32, [5, 5, 5, 255]))) }) }];
+    const r = await schreibeLogos(root, data, ergebnisse, uebernehme(data.logos, ergebnisse, "2026-10-16"), new Date("2026-10-16T10:00:00Z"));
+    assert.deepEqual(r, { ok: true, anzahl: 1, fehler: [] });
+  } finally {
+    await rm(ordner, { recursive: true, force: true });
+  }
+});

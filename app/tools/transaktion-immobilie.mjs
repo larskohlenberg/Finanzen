@@ -147,9 +147,12 @@ function parseJsonl(text, bezeichnung) {
     });
 }
 
-function validierungsfehler(prefix, result) {
-  if (result.valid) return;
-  throw new Error(`${prefix}:\n${result.errors.join("\n")}`);
+// Nur neue Fehler brechen ab; was schon vor dem Lauf im Bestand stand
+// (bekannt), ist kein Grund, nicht zu schreiben (wie mitRollback).
+function validierungsfehler(prefix, result, bekannt = new Set()) {
+  const neu = result.errors.filter((f) => !bekannt.has(f));
+  if (neu.length === 0) return;
+  throw new Error(`${prefix}:\n${neu.join("\n")}`);
 }
 
 async function leseOptional(persistenz, url) {
@@ -253,11 +256,14 @@ export async function persistiereImmobilienbezug({
   let logCommitBegonnen = false;
   let hauptfehler;
   let temporaerePfadeBehalten = new Set();
+  let bekannt = new Set();
 
   try {
+    bekannt = new Set((await persistenz.validiere(data, "vorher")).errors);
     validierungsfehler(
       "Validierung vor Schreiben fehlgeschlagen",
       await persistenz.validiere({ ...data, transaktionen }, "vor-schreiben"),
+      bekannt,
     );
 
     await persistenz.schreibeStage(
@@ -275,6 +281,7 @@ export async function persistiereImmobilienbezug({
         { ...data, transaktionen: stageTransaktionen },
         "transaktionen-stage",
       ),
+      bekannt,
     );
 
     await persistenz.schreibeStage(pfade.logStage, logText, "log-stage");
@@ -301,6 +308,7 @@ export async function persistiereImmobilienbezug({
     validierungsfehler(
       "Validierung nach Datenaustausch fehlgeschlagen",
       await persistenz.validiere(await loadMasterData(dataRoot), "nach-datenaustausch"),
+      bekannt,
     );
 
     logCommitBegonnen = true;
@@ -348,6 +356,7 @@ export async function persistiereImmobilienbezug({
   if (aufraeumFehler.length > 0) {
     throw new AggregateError(aufraeumFehler, "Temporaere Dateien konnten nicht entfernt werden");
   }
+  return { bekannteFehler: [...bekannt] };
 }
 
 function parseArgs(argv) {
@@ -435,13 +444,14 @@ async function main() {
     ].filter(Boolean).join("; "),
     betroffene_ids: [...new Set(args.ids)],
   };
-  await persistiereImmobilienbezug({
+  const { bekannteFehler } = await persistiereImmobilienbezug({
     dataRoot,
     data,
     transaktionen: out.transaktionen,
     logEntry,
   });
   console.log(JSON.stringify({ modus: "geschrieben", ...out.report }, null, 2));
+  if (bekannteFehler.length) console.error(`Validator: ${bekannteFehler.length} Fehler, alle schon vorher vorhanden.`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

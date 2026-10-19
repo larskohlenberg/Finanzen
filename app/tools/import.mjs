@@ -7,7 +7,8 @@ import { gleicheMitBestandAb, vorkommenHash } from "./dedupe.mjs";
 import { categorize } from "./categorizer.mjs";
 import { matchTransfers } from "./transfer-matcher.mjs";
 import { nextTransaktionId } from "./ids.mjs";
-import { dataRootFromArg } from "./data-root.mjs";
+import { pflichtDatenroot } from "./data-root.mjs";
+import { loadMasterData, validateMasterData } from "./validator.mjs";
 
 const optionalTransactionFields = [
   "wertstellungsdatum",
@@ -124,13 +125,15 @@ async function readJsonl(url) {
 }
 
 async function main() {
-  const inputPath = process.argv[2];
+  const argv = process.argv.slice(2);
+  const schreiben = argv.includes("--schreiben");
+  const [inputPath, rootArg] = argv.filter((a) => !a.startsWith("--"));
   if (!inputPath) {
-    console.error("Aufruf: node app/tools/import.mjs <pfad-zur-standardisierten.jsonl> [datenroot]");
+    console.error("Aufruf: node app/tools/import.mjs <pfad-zur-standardisierten.jsonl> <datenroot> [--schreiben]");
     process.exitCode = 1;
     return;
   }
-  const masterRoot = dataRootFromArg(process.argv[3], new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
+  const masterRoot = pflichtDatenroot(rootArg);
   const [konten, kategorien, transaktionen, transfers, kategorisierungsregeln, regelzahlungen] = await Promise.all([
     readJson(new URL("konten.json", masterRoot)),
     readJson(new URL("kategorien.json", masterRoot)),
@@ -142,16 +145,30 @@ async function main() {
   const entries = await readJsonl(pathToFileURL(resolve(process.cwd(), inputPath)));
 
   const out = runImport({ entries, konten, kategorien, kategorisierungsregeln, transaktionen, transfers, regelzahlungen });
+  console.log(JSON.stringify({ modus: schreiben ? "geschrieben" : "vorschau", ...out.result }, null, 2));
+  if (!schreiben) {
+    console.log("\nVorschau — nichts geschrieben. Mit --schreiben anwenden.");
+    return;
+  }
 
+  // Erst den neuen Bestand pruefen: bringt der Import neue Validatorfehler,
+  // wird nichts geschrieben.
+  const bestand = await loadMasterData(masterRoot);
+  const bekannt = new Set(validateMasterData(bestand).errors);
+  const neu = validateMasterData({ ...bestand, transaktionen: out.transaktionen, transfers: out.transfers }).errors.filter((f) => !bekannt.has(f));
+  if (neu.length) {
+    console.error("Validierung des neuen Bestands fehlgeschlagen — nichts geschrieben:");
+    for (const error of neu) console.error(`- ${error}`);
+    process.exitCode = 1;
+    return;
+  }
   await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
   await writeFile(new URL("transfers.json", masterRoot), JSON.stringify(out.transfers, null, 2) + "\n");
-
-  console.log(JSON.stringify(out.result, null, 2));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
-    console.error(error);
+    console.error(error.message);
     process.exitCode = 1;
   });
 }

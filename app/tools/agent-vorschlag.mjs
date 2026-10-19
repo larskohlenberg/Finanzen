@@ -22,7 +22,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
-import { dataRootFromArg } from "./data-root.mjs";
+import { pflichtDatenroot } from "./data-root.mjs";
 
 function istKandidat(tx) {
   if (tx.kategorisierung_status === "offen") return true;
@@ -89,7 +89,7 @@ async function main() {
     return;
   }
 
-  const masterRoot = dataRootFromArg(root, new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
+  const masterRoot = pflichtDatenroot(root);
   const transaktionen = await readJsonl(new URL("transaktionen.jsonl", masterRoot));
 
   const out = agentVorschlag({

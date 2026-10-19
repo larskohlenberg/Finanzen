@@ -58,7 +58,7 @@ ohne MCP.
 | `tools/neuer-bestand.mjs` | — (nur CLI: legt einmalig einen leeren Datenbestand mit Grundkategorien an, bevor es einen MCP-Server gibt) |
 | `tools/validator.mjs` | `status` (Validator-Ergebnis mit Fehlern; laeuft ausserdem nach jedem Schreiben) |
 | `tools/inbox.mjs` | `inbox` |
-| `tools/import.mjs` | `import` (Vorschau gegen eine Kopie des Datenroots) |
+| `tools/import.mjs` | `import` (Datenbestand Pflicht, schreibt nur mit `--schreiben`) |
 | `tools/regel-vorschlag.mjs` | `regel_vorschlag` |
 | `tools/regel-probelauf.mjs` | `regel_probelauf` (Kandidaten direkt als Liste) |
 | `tools/recategorize.mjs` | `nachkategorisieren` (CLI: Datenroot Pflicht, `--schreiben` schreibt) |

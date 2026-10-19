@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { toCents, centsToDecimal, dayDiff, normalizeLoose, normalizeWhitespace } from "./lib/text.mjs";
 import { addInterval } from "../liquiditaet.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
-import { dataRootFromArg } from "./data-root.mjs";
+import { pflichtDatenroot } from "./data-root.mjs";
 
 // Betragstoleranz relativ zum Betrag der Regelzahlung. Die Mandatsreferenz ist
 // ein strukturelles Signal und traegt Beitragsdynamik ueber Jahre; die
@@ -301,7 +301,7 @@ async function main() {
   const argv = process.argv.slice(2);
   const schreiben = argv.includes("--schreiben");
   const details = argv.includes("--details");
-  const masterRoot = dataRootFromArg(argv.find((a) => !a.startsWith("--")), new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
+  const masterRoot = pflichtDatenroot(argv.find((a) => !a.startsWith("--")));
 
   const [transaktionen, regelzahlungen] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),

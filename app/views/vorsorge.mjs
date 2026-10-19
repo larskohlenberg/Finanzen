@@ -4,10 +4,9 @@
 // (Renten, Lebensversicherungen, Versicherungen). Im Tab eine Karte je Vertrag,
 // darunter der gewaehlte Vertrag in voller Breite. Rechnen in vorsorge-rechnung.mjs.
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
-import { formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein } from "../komponenten.mjs";
+import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
-import { localTodayIso } from "../liquiditaet.mjs";
 import { donutDiagramm, wertVerlauf } from "../charts.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
@@ -104,7 +103,7 @@ function offenePunkte(today) {
 }
 
 export function renderVorsorge() {
-  const today = localTodayIso();
+  const today = heuteIso();
   const offen = offenePunkte(today);
   const tab = aktiverTab();
   const inhalt = tab === "uebersicht" ? renderUebersichtTab(today, offen) : renderGruppenTab(tab, today, offen);

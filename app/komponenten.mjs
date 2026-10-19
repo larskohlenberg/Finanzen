@@ -4,9 +4,8 @@
 import { data, state, t, escapeHtml, personenById, kategorienById } from "./runtime.mjs";
 import { iconSvg } from "./icons.js";
 import { linienDiagramm, saldoDiagramm, zeitstrahlDiagramm } from "./charts.mjs";
-import { localTodayIso } from "./liquiditaet.mjs";
 import { formatIban } from "./tools/lib/text.mjs";
-import { overviewAccountGroups, overviewAccountRow, sortedOverviewAccounts } from "./selektoren.mjs";
+import { heuteIso, overviewAccountGroups, overviewAccountRow, sortedOverviewAccounts } from "./selektoren.mjs";
 import { belegTextHtml } from "./belege.mjs";
 import { dataModes } from "./data-loader.mjs";
 import { kuerzel, kuerzelFarbe, logoVerzeichnis } from "./logos.mjs";
@@ -247,9 +246,7 @@ export function detailRow(label, valueHtml) {
     </div>`;
 }
 
-export function heuteIso() {
-  return localTodayIso();
-}
+export { heuteIso };
 
 // Achsenbeschriftung: ganze Euro, ohne Cent ("15.000 €").
 function formatMoneyAchse(amountInCents) {

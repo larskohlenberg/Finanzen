@@ -82,7 +82,7 @@ test("Lese-Tools liefern Bestand, Pruefbericht und Dateien", async () => {
     assert.equal(daten.inbox.dateien.length, 1);
     // stand: Generations-Id, im einfachen Ordner "ordner".
     assert.equal(daten.stand, "ordner");
-    assert.deepEqual(Object.keys(daten), ["datenroot", "recht", "version", "stand", "transaktionen", "kategorisierung_status", "regeln", "konten", "validator", "inbox"]);
+    assert.deepEqual(Object.keys(daten), ["datenroot", "recht", "version", "stand", "transaktionen", "kategorisierung_status", "regeln", "konten", "validator", "inbox", "importe"]);
     assert.deepEqual(Object.keys(daten.validator), ["gueltig", "fehler_anzahl", "fehler"]);
     assert.equal(daten.validator.fehler_anzahl, 0);
 

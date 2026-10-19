@@ -57,6 +57,7 @@ export async function loadMasterData(root = new URL("../data/master/", import.me
     vorsorge: await readJsonOptional(new URL("vorsorge.json", root), []),
     zeitwerte: await readJsonlOptional(new URL("zeitwerte.jsonl", root)),
     logos: await readJsonOptional(new URL("logos.json", root), []),
+    importauftraege: await readJsonlOptional(new URL("importauftraege.jsonl", root)),
   };
 }
 

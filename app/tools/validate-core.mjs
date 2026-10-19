@@ -32,6 +32,9 @@ const schemas = {
       liquiditaetsrelevant: { type: "boolean" },
       status: { type: "string", enum: ["aktiv", "geschlossen"] },
       aktiv_bis: { type: "string", format: "date" },
+      // false: die Bank-Referenz dieses Kontos ist nie Dublettenschluessel
+      // (ADR 0034); fehlt das Feld, misst der Import ihre Verlaesslichkeit.
+      bank_referenz_verlaesslich: { type: "boolean" },
     },
   },
   kategorien: {
@@ -272,6 +275,28 @@ const schemas = {
       datei: { type: "string", pattern: /^logos\/[a-z0-9.-]+\.png$/ },
       quelle: { type: "string", pattern: /^(https:\/\/|datei:[^/\\]+$)/ },
       abgerufen_am: { type: "string", format: "date" },
+    },
+  },
+  // Importauftraege (Review 1B.5): je CSV-Lauf ein Eintrag in derselben
+  // Generation wie seine Buchungen; Grundlage fuer Wiederaufnahme und den
+  // Importbericht der Oberflaeche.
+  importauftraege: {
+    optional: true,
+    required: ["auftrag_id", "zeitpunkt", "quelle", "quelle_sha256", "profil_id", "status", "zeilen"],
+    fields: {
+      auftrag_id: { type: "string", pattern: /^IMP-\d{3,}$/ },
+      zeitpunkt: { type: "string", pattern: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/ },
+      quelle: { type: "string", minLength: 1 },
+      quelle_sha256: { type: "string", pattern: /^[0-9a-f]{64}$/ },
+      profil_id: { type: "string", minLength: 1 },
+      konto_id: { type: "string", pattern: /^KTO-\d{3,}$/ },
+      status: { type: "string", enum: ["uebernommen", "teilweise", "abgewiesen"] },
+      zeilen: { type: "object" },
+      abgewiesen: { type: "array" },
+      grund: { type: "string" },
+      archiv: { type: "string", minLength: 1 },
+      pruefen: { type: "number", integer: true, min: 0 },
+      referenz_unzuverlaessig: { type: "boolean" },
     },
   },
   zeitwerte: {
@@ -800,9 +825,32 @@ function validateCrossFieldRules(data, errors) {
     }
   });
 
+  validateImportauftraege(data.importauftraege ?? [], konten, errors);
   validateFristen(data, { vorsorge, darlehen, immobilie: immobilien, konto: konten, vermoegenswert: vermoegenswerte, regelzahlung: regelzahlungen }, errors);
   validateSzenarien(data, errors);
   validateLogos(data.logos ?? [], errors);
+}
+
+const ZEILEN_ZAEHLER = ["gelesen", "uebernommen", "dubletten", "abgewiesen"];
+
+function validateImportauftraege(auftraege, konten, errors) {
+  for (const a of auftraege) {
+    const p = `importauftraege.${a.auftrag_id}`;
+    if (a.konto_id && !konten.has(a.konto_id)) melde(errors, "verweis", `${p}.konto_id`, `${a.konto_id} existiert nicht`);
+    if (istObjekt(a.zeilen)) {
+      for (const feld of Object.keys(a.zeilen)) if (!ZEILEN_ZAEHLER.includes(feld)) melde(errors, "unbekanntes-feld", `${p}.zeilen`, `unbekanntes Feld ${feld}`);
+      for (const feld of ZEILEN_ZAEHLER) {
+        if (!Number.isInteger(a.zeilen[feld]) || a.zeilen[feld] < 0) melde(errors, "zahl", `${p}.zeilen`, `${feld} muss eine Ganzzahl >= 0 sein`);
+      }
+    } else if (a.zeilen !== undefined) {
+      melde(errors, "typ", `${p}.zeilen`, "muss ein Objekt sein");
+    }
+    if (Array.isArray(a.abgewiesen)) {
+      a.abgewiesen.forEach((z, i) => {
+        if (!istObjekt(z) || !Number.isInteger(z.zeile) || typeof z.grund !== "string") melde(errors, "format", `${p}.abgewiesen[${i}]`, "braucht zeile (Ganzzahl) und grund");
+      });
+    }
+  }
 }
 
 // Eine Frist haengt an hoechstens einem Objekt; ohne Bezug ist sie ausdruecklich

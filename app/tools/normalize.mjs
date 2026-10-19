@@ -166,6 +166,8 @@ export function normalizeCsv({ text, profil, rohquelle }) {
 
   const eintraege = [];
   const fehler = [];
+  // Quellzeile je Eintrag, fuer den Importauftrag (abgewiesene Zeilen).
+  const zeilennummern = [];
 
   for (const datensatz of datensaetze.slice(kopfIndex + 1)) {
     const { felder: zeile, zeile: zeilennummer, roh: rohzeile } = datensatz;
@@ -208,7 +210,8 @@ export function normalizeCsv({ text, profil, rohquelle }) {
     }
 
     eintraege.push(eintrag);
+    zeilennummern.push(zeilennummer);
   }
 
-  return { eintraege, fehler };
+  return { eintraege, fehler, zeilennummern };
 }

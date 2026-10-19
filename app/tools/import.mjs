@@ -50,7 +50,7 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
   // Dubletten als Multimenge gegen den BESTAND (ADR 0034): je Konto und
   // Inhalt so viele neue Buchungen, wie die Datei mehr hat als der Bestand.
   // Zwei gleiche Zeilen eines Auszugs sind zwei Tatsachen, keine Dublette.
-  const abgleich = gleicheMitBestandAb(gueltig, transaktionen);
+  const abgleich = gleicheMitBestandAb(gueltig, transaktionen, konten.filter((k) => k.bank_referenz_verlaesslich === false).map((k) => k.konto_id));
   result.pruefen = abgleich.pruefen;
   result.referenz_unzuverlaessig = abgleich.referenz_unzuverlaessig;
 

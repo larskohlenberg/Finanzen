@@ -20,7 +20,8 @@
       },
       "liquiditaetsrelevant": { "type": "boolean" },
       "status": { "type": "string", "enum": ["aktiv", "geschlossen"] },
-      "aktiv_bis": { "type": "string", "format": "date" }
+      "aktiv_bis": { "type": "string", "format": "date" },
+      "bank_referenz_verlaesslich": { "type": "boolean", "description": "false: Bank-Referenz dieses Kontos ist nie Dublettenschluessel (ADR 0034); fehlt: der Import misst ihre Verlaesslichkeit" }
     }
   }
 }

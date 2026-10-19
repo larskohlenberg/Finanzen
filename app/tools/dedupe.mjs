@@ -67,7 +67,9 @@ function anhaengen(map, schluessel, wert) {
 //
 // eintraege: [{ row, entry }] (formal gueltig). Liefert je Zeile eine
 // Entscheidung, dazu Prueffaelle und die Konten mit unverlaesslicher Referenz.
-export function gleicheMitBestandAb(eintraege, transaktionen) {
+// unverlaesslicheKonten: Konten mit bank_referenz_verlaesslich=false; ihre
+// Referenz zaehlt nie, auch wenn die Messung sie fuer verlaesslich hielte.
+export function gleicheMitBestandAb(eintraege, transaktionen, unverlaesslicheKonten = []) {
   const nachHash = new Map(transaktionen.map((tx) => [tx.dedupe_hash, tx]));
 
   // --- Verlaesslichkeit der Referenz je Konto ---
@@ -85,7 +87,7 @@ export function gleicheMitBestandAb(eintraege, transaktionen) {
     if (!dateiRef.has(entry.konto_id)) dateiRef.set(entry.konto_id, new Map());
     anhaengen(dateiRef.get(entry.konto_id), ref, entry);
   }
-  const unverlaesslich = new Set();
+  const unverlaesslich = new Set(unverlaesslicheKonten);
   for (const konto of new Set([...bestandRef.keys(), ...dateiRef.keys()])) {
     const imBestand = bestandRef.get(konto) ?? new Map();
     const inDatei = dateiRef.get(konto) ?? new Map();
@@ -192,5 +194,8 @@ export function gleicheMitBestandAb(eintraege, transaktionen) {
     }
   }
 
-  return { entscheidung, pruefen, referenz_unzuverlaessig: [...unverlaesslich].sort() };
+  // Fest markierte Konten nur nennen, wenn die Datei sie betrifft (sonst stuende jedes im Bericht).
+  const dateiKonten = new Set(eintraege.map(({ entry }) => entry.konto_id));
+  const markiert = new Set(unverlaesslicheKonten);
+  return { entscheidung, pruefen, referenz_unzuverlaessig: [...unverlaesslich].filter((k) => !markiert.has(k) || dateiKonten.has(k)).sort() };
 }

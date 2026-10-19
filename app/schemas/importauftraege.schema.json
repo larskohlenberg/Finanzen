@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "importauftraege.schema.json",
+  "title": "Importauftrag (eine Zeile in importauftraege.jsonl)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "auftrag_id",
+    "zeitpunkt",
+    "quelle",
+    "quelle_sha256",
+    "profil_id",
+    "status",
+    "zeilen"
+  ],
+  "properties": {
+    "auftrag_id": {
+      "type": "string",
+      "pattern": "^IMP-\\d{3,}$"
+    },
+    "zeitpunkt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{3})?Z$",
+      "description": "Zeitpunkt des Laufs (UTC)"
+    },
+    "quelle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Pfad der Quelle in der Inbox beim Lauf"
+    },
+    "quelle_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Pruefsumme der Quelle; erkennt dieselbe Datei beim Wiederanlauf"
+    },
+    "profil_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "konto_id": {
+      "type": "string",
+      "pattern": "^KTO-\\d{3,}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "uebernommen",
+        "teilweise",
+        "abgewiesen"
+      ],
+      "description": "uebernommen: alle Zeilen gelesen; teilweise: Zeilen abgewiesen; abgewiesen: nichts gelesen (Profil- oder Lesefehler)"
+    },
+    "zeilen": {
+      "type": "object",
+      "description": "Zaehler gelesen, uebernommen, dubletten, abgewiesen"
+    },
+    "abgewiesen": {
+      "type": "array",
+      "description": "je abgewiesener Zeile { zeile, grund, rohzeile? }"
+    },
+    "grund": {
+      "type": "string",
+      "description": "Grund bei Status abgewiesen"
+    },
+    "archiv": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Ablageort der Quelle nach dem Lauf (processed/ oder error/)"
+    },
+    "pruefen": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Dubletten-Prueffaelle (ADR 0034)"
+    },
+    "referenz_unzuverlaessig": {
+      "type": "boolean"
+    }
+  }
+}

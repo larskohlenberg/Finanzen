@@ -32,6 +32,8 @@ import { rueckgaengigSchreiben, rueckgaengigVorschau } from "../tools/rueckgaeng
 import { verlaufBericht } from "../tools/verlauf.mjs";
 import { OhneVerlauf } from "../tools/lib/generationen.mjs";
 import { bestandFingerabdruck } from "../tools/lib/fingerabdruck.mjs";
+import { importStandModell } from "../tools/lib/importstand.mjs";
+import { createHash } from "node:crypto";
 import { releaseStand } from "./version.mjs";
 
 const MAX_TEXT = 2 * 1024 * 1024;
@@ -515,7 +517,9 @@ async function inboxStand(ctx) {
     if (e.name.startsWith(".")) continue;
     if (e.isFile()) {
       const s = await stat(path.join(ordner, e.name));
-      dateien.push({ name: e.name, bytes: s.size, geaendert: s.mtime.toISOString().slice(0, 16) });
+      // Pruefsumme fuer CSV: verbindet eine wartende Datei mit ihrem Importauftrag.
+      const sha256 = /\.csv$/i.test(e.name) && s.size <= MAX_SCHREIBEN ? createHash("sha256").update(await readFile(path.join(ordner, e.name))).digest("hex") : undefined;
+      dateien.push({ name: e.name, bytes: s.size, geaendert: s.mtime.toISOString().slice(0, 16), ...(sha256 ? { sha256 } : {}) });
     } else if (e.isDirectory()) {
       unterordner[e.name] = await zaehleDateien(path.join(ordner, e.name));
     }
@@ -533,8 +537,10 @@ const status = {
     /** @type {Record<string, any>} */
     const bericht = { datenroot: ctx.datenrootRel, recht: ctx.recht, ...(ctx.release ? { version: releaseStand(ctx) } : {}) };
     let validator;
+    let importauftraege = null;
     try {
       const { stand, daten } = await ladeBestand(ctx);
+      importauftraege = daten.importauftraege ?? [];
       bericht.stand = stand;
       const verteilung = {};
       for (const t of daten.transaktionen) verteilung[t.kategorisierung_status] = (verteilung[t.kategorisierung_status] ?? 0) + 1;
@@ -552,6 +558,12 @@ const status = {
     }
     bericht.validator = { gueltig: validator.gueltig, fehler_anzahl: validator.fehler.length, fehler: validator.fehler.slice(0, 50) };
     bericht.inbox = await inboxStand(ctx);
+    // Importbericht (1B.5): letzte Auftraege und Stand der wartenden Dateien.
+    if (importauftraege) {
+      const modell = importStandModell({ auftraege: importauftraege, wartend: bericht.inbox.dateien.map((d) => ({ datei: d.name, sha256: d.sha256 })), anzahl: 5 });
+      bericht.importe = { summe: modell.summe, letzte: modell.auftraege.map(({ abgewiesen, ...a }) => ({ ...a, abgewiesen_zeilen: abgewiesen.map((z) => z.zeile) })), wartend: modell.wartend };
+    }
+    for (const d of bericht.inbox.dateien) delete d.sha256;
     return ergebnis(json(bericht));
   },
 };

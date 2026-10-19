@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { mitLesestand } from "./lib/lesestand.mjs";
 import { istWiderspruch, menschlichEntschieden } from "./lib/entscheidung.mjs";
 import { centsToDecimal, normalizeLoose, toCents } from "./lib/text.mjs";
 import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
@@ -277,14 +278,16 @@ async function readJson(url) {
 }
 
 async function main() {
-  const masterRoot = dataRootFromArg(process.argv.slice(2).find((a) => !a.startsWith("--")));
-  const [transaktionen, zeitwerte, log, regeln, konten] = await Promise.all([
+  const datenroot = dataRootFromArg(process.argv.slice(2).find((a) => !a.startsWith("--")));
+  if (!datenroot) throw new Error("Datenbestand fehlt: ausdruecklich angeben, z. B. data/master oder data/demo.");
+  // Alle Dateien aus einer Generation (Lease), im einfachen Ordner direkt.
+  const [transaktionen, zeitwerte, log, regeln, konten] = await mitLesestand(datenroot, ({ url: masterRoot }) => Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readJsonl(new URL("zeitwerte.jsonl", masterRoot)),
     readJsonl(new URL("agent_log.jsonl", masterRoot)),
     readJson(new URL("kategorisierungsregeln.json", masterRoot)),
     readJson(new URL("konten.json", masterRoot)),
-  ]);
+  ]));
   console.log(renderBericht(pruefbericht({ transaktionen, regeln, konten, zeitwerte, log })));
 }
 

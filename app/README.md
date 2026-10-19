@@ -56,8 +56,9 @@ Die Werte stehen in `app/sitzung.json` (gitignored, `{"abmelden_url": "...", "sp
 
 Der Browser laedt den Bestand nicht mehr als einzelne Dateien, sondern als Snapshot vom App-Server (`app/stand.mjs`):
 
-- `GET /api/v1/stand[?quelle=demo]` liefert eine Kennung des aktuellen Datenstands. Heute ist das ein Hash ueber Inode, Groesse und Aenderungszeit der Bestandsdateien; mit Dateigenerationen wird es die Generations-ID.
+- `GET /api/v1/stand[?quelle=demo]` liefert eine Kennung des aktuellen Datenstands: im Generationsbestand (ADR 0035) `g<Generations-Id>-f<Format>`, im einfachen Ordner ein Hash ueber Inode, Groesse und Aenderungszeit der Bestandsdateien.
 - `GET /api/v1/snapshot[?quelle=demo]` liefert alle Bestandsdateien (`BESTAND_TEILE` in `app/data-loader.mjs`) samt Validator-Befund, mit `ETag` = Stand. Fragt der Browser mit `If-None-Match` und der Stand ist gleich, kommt `304`. Die Antwort bleibt `no-store`.
 - Die Bestandsdateien selbst liefert der Server nicht statisch aus; nur die Logos unter `data/<bestand>/logos/`.
+- Snapshot, Logos und `/api/export` lesen je Anfrage aus einer Lease auf eine Generation (`app/tools/lib/lesestand.mjs`), ebenso Validator-CLI, Pruefbericht und die MCP-Lesewerkzeuge. `data/master` darf dafuer ein Symlink auf `<basis>/aktuell` sein (Layout nach der Migration); ein einfacher Ordner wird direkt gelesen. Der Datenexport packt genau eine Generation samt `MANIFEST.json`.
 
 Bei jedem Klick, bei Navigation und bei Rueckkehr in den Tab fragt die App den Stand ab (hoechstens alle 1,5 Sekunden, `app/stand-wechsel.mjs`). Ist er neu, laedt sie den Snapshot und ersetzt die Daten ohne Seiten-Reload: Ansicht, Filter und Auswahl bleiben, abgeleitete Zwischenspeicher rechnen neu. Den Validator-Befund fuer Status-Chip und Fehlerbanner rechnet der Server, mit derselben Logik wie das CLI. Der Knopf „Daten neu laden“ holt den Snapshot ebenfalls ohne Reload.

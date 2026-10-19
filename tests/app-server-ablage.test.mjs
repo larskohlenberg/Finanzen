@@ -1,23 +1,23 @@
 // Upload-Abschluss: nie ueberschreiben, Teilschreibvorgaenge vollstaendig.
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { legeAbOhneUeberschreiben, schreibeVoll } from "../app/server.mjs";
 
-test("legeAbOhneUeberschreiben: freies Ziel wird belegt, vorhandenes nie ueberschrieben", async () => {
+test("legeAbOhneUeberschreiben: freies Ziel wird belegt (0640, keine Temp-Reste), vorhandenes nie ueberschrieben", async () => {
   const ordner = await mkdtemp(join(tmpdir(), "finanzen-ablage-test-"));
   try {
-    const temp = join(ordner, ".upload.part");
-    await writeFile(temp, "neu");
     await writeFile(join(ordner, "belegt.pdf"), "alt");
 
-    assert.equal(await legeAbOhneUeberschreiben(temp, join(ordner, "belegt.pdf")), false);
+    assert.equal(await legeAbOhneUeberschreiben(Buffer.from("neu"), join(ordner, "belegt.pdf")), false);
     assert.equal(await readFile(join(ordner, "belegt.pdf"), "utf8"), "alt");
 
-    assert.equal(await legeAbOhneUeberschreiben(temp, join(ordner, "frei.pdf")), true);
+    assert.equal(await legeAbOhneUeberschreiben(Buffer.from("neu"), join(ordner, "frei.pdf")), true);
     assert.equal(await readFile(join(ordner, "frei.pdf"), "utf8"), "neu");
+    assert.equal((await stat(join(ordner, "frei.pdf"))).mode & 0o777, 0o640);
+    assert.deepEqual((await readdir(ordner)).sort(), ["belegt.pdf", "frei.pdf"]);
   } finally {
     await rm(ordner, { recursive: true, force: true });
   }

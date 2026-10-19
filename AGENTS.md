@@ -86,6 +86,7 @@ Die Datei ist von Git ausgeschlossen und gehört nur dieser Installation. Halte 
 | `app/docs/skills/validierung-agent.md` | Validierung. |
 | `CONTEXT.md` | Fachliches Glossar. |
 | `docs/adr/` | Entscheidungen samt Begründung und verworfenen Alternativen. |
+| `docs/betrieb.md` | Betrieb auf einem Server: Datenort außerhalb des Checkouts, Umzug, Sicherung. |
 | `docs/archiv/` | Frühere Anforderungen, Pläne und Übergaben. Nur Geschichte, keine Anleitung. |
 
 Für reine Auswertungen („Wie stehen wir?“) brauchst du keine Vorlektüre: Werkzeug `kennzahlen`, `status`, `transaktionen_abfragen` oder `pruefbericht`.

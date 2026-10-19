@@ -86,6 +86,7 @@ The file is excluded from Git and belongs to this installation only. Keep it sho
 | `app/docs/skills/validierung-agent.md` | Validation. |
 | `CONTEXT.md` | Domain glossary. |
 | `docs/adr/` | Decisions with reasons and rejected alternatives. |
+| `docs/betrieb.md` | Running on a server: data location outside the checkout, migration, backup (German). |
 | `docs/archiv/` | Earlier requirements, plans and handovers. History only, not instructions. |
 
 For pure analysis (“How are we doing?”) you need no prior reading: tool `kennzahlen`, `status`, `transaktionen_abfragen` or `pruefbericht`.

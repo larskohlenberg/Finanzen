@@ -25,7 +25,7 @@ import { localTodayIso } from "../liquiditaet.mjs";
 import { abfragen } from "./abfrage.mjs";
 import { pruefeArgumente } from "./argumente.mjs";
 import { istKalenderdatum, kennzahlenText, planIstText } from "./kennzahlen.mjs";
-import { LESE_WURZELN, PfadFehler, bestandWurzeln, loesePfad, pruefeEndung, pruefeKeinAktiverTyp } from "./pfade.mjs";
+import { LESE_WURZELN, PfadFehler, bestandWurzeln, loesePfad, logisch, physisch, physischeWurzeln, pruefeEndung, pruefeKeinAktiverTyp } from "./pfade.mjs";
 import { erwarteterStand, mitRollback, werkzeugName } from "./schreiben.mjs";
 import { rueckgaengigSchreiben, rueckgaengigVorschau } from "../tools/rueckgaengig.mjs";
 import { verlaufBericht } from "../tools/verlauf.mjs";
@@ -403,7 +403,7 @@ async function zaehleDateien(ordner) {
 }
 
 async function inboxStand(ctx) {
-  const ordner = path.join(ctx.app, bestandWurzeln(ctx).inbox);
+  const ordner = physisch(ctx.app, bestandWurzeln(ctx).inbox);
   const dateien = [];
   const unterordner = {};
   for (const e of await readdir(ordner, { withFileTypes: true }).catch(() => [])) {
@@ -660,7 +660,7 @@ async function istGenerationsBasis(ordner) {
 // alte Generationen und eine schon besuchte Generation werden uebersprungen.
 // Generationen sind unveraenderlich, darum reicht hier der Zeiger statt einer Lease.
 async function* dateienUnter(ctx, absolut, anzeige = absolut, besucht = new Set()) {
-  const relativ = () => path.relative(ctx.app, anzeige).split(path.sep).join("/");
+  const relativ = () => logisch(ctx.app, anzeige);
   const info = await lstat(absolut).catch(() => null);
   if (!info) return;
   if (info.isSymbolicLink()) {
@@ -709,9 +709,13 @@ const dateienSuchen = {
     const nadel = args.text?.toLowerCase();
     const treffer = [];
     const besucht = new Set();
-    for (const wurzel of LESE_WURZELN) {
-      const start = path.resolve(ctx.app, wurzel);
+    // Ein Ort kann unter zwei Wurzeln liegen (externer Datenort: Belege/ auch
+    // unter data/); jede Datei zaehlt einmal.
+    const gesehen = new Set();
+    for (const start of LESE_WURZELN.flatMap((w) => physischeWurzeln(ctx.app, w))) {
       for await (const { echt: datei, relativ } of dateienUnter(ctx, start, start, besucht)) {
+        if (gesehen.has(relativ)) continue;
+        gesehen.add(relativ);
         if (regex && !regex.test(args.muster.includes("/") ? relativ : path.basename(relativ))) continue;
         if (!nadel) {
           treffer.push(relativ);
@@ -893,7 +897,7 @@ const belegAblegen = {
       const zwilling = quelle.absolut.slice(0, -endung.length || undefined) + ".txt";
       if ((await lstat(zwilling).catch(() => null))?.isFile()) {
         const zielZwilling = ziel.absolut.slice(0, -endung.length || undefined) + ".txt";
-        paare.push([{ absolut: zwilling, relativ: path.relative(ctx.app, zwilling) }, { absolut: zielZwilling, relativ: path.relative(ctx.app, zielZwilling) }]);
+        paare.push([{ absolut: zwilling, relativ: logisch(ctx.app, zwilling) }, { absolut: zielZwilling, relativ: logisch(ctx.app, zielZwilling) }]);
       }
     }
     for (const [, z] of paare) {
@@ -928,7 +932,7 @@ const TEXTVORLAUF = /\.(pdf|png|jpe?g|gif|webp|heic)$/i;
 // [quelle, ziel], ein gemeinsames Suffix bei Namenskollision.
 async function planePapierkorb(ctx, quelle) {
   const w = bestandWurzeln(ctx);
-  const inbox = path.join(ctx.app, w.inbox);
+  const inbox = physisch(ctx.app, w.inbox);
   const unter = path.relative(inbox, quelle.absolut);
   const ordner = path.dirname(unter);
   const name = path.basename(unter);
@@ -950,7 +954,7 @@ async function planePapierkorb(ctx, quelle) {
   const zielFuer = (g, n) => path.join(korb, g.ordner, `${stamm}${n > 1 ? `-${n}` : ""}${g.rest}`);
   let n = 1;
   for (;;) {
-    const belegt = await Promise.all(gruppe.map((g) => lstat(path.join(ctx.app, zielFuer(g, n))).then(() => true, () => false)));
+    const belegt = await Promise.all(gruppe.map((g) => lstat(physisch(ctx.app, zielFuer(g, n))).then(() => true, () => false)));
     if (!belegt.some(Boolean)) break;
     n += 1;
   }
@@ -972,18 +976,18 @@ async function planeBelegKorb(ctx, beleg) {
   const gruppe = [{ absolut: beleg.absolut, rest: endung }];
   if (endung.toLowerCase() !== ".txt") {
     // Auch der Zwilling muss durch den Pfadschutz (Symlink daneben).
-    const zwilling = await loesePfad(ctx.app, path.relative(ctx.app, `${stamm}.txt`), [belegeWurzel(ctx)]).catch(() => null);
+    const zwilling = await loesePfad(ctx.app, logisch(ctx.app, `${stamm}.txt`), [belegeWurzel(ctx)]).catch(() => null);
     if (zwilling && (await istDatei(zwilling.absolut))) gruppe.push({ absolut: zwilling.absolut, rest: ".txt" });
   }
   const { papierkorb } = bestandWurzeln(ctx);
-  const korbStamm = path.join(papierkorb, localTodayIso(), path.relative(ctx.app, stamm));
+  const korbStamm = path.join(papierkorb, localTodayIso(), logisch(ctx.app, stamm));
   const zielFuer = (g, n) => `${korbStamm}${n > 1 ? `-${n}` : ""}${g.rest}`;
   let n = 1;
-  while ((await Promise.all(gruppe.map((g) => lstat(path.join(ctx.app, zielFuer(g, n))).then(() => true, () => false)))).some(Boolean)) n += 1;
+  while ((await Promise.all(gruppe.map((g) => lstat(physisch(ctx.app, zielFuer(g, n))).then(() => true, () => false)))).some(Boolean)) n += 1;
   const paare = [];
   for (const g of gruppe) {
     paare.push([
-      { absolut: g.absolut, relativ: path.relative(ctx.app, g.absolut).split(path.sep).join("/") },
+      { absolut: g.absolut, relativ: logisch(ctx.app, g.absolut) },
       await loesePfad(ctx.app, zielFuer(g, n), [papierkorb]),
     ]);
   }

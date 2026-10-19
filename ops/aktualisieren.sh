@@ -17,10 +17,10 @@
 #      Neustart, Pruefung; Exitcode 1 (Ruecksprung ebenfalls gescheitert: 2)
 # Daten werden dabei nie veraendert; der Ruecksprung braucht darum keine Migration.
 #
-# Kein getrenntes Release-Verzeichnis: Die Daten liegen noch im Code-Checkout
-# (app/data, app/Belege), Unit und MCP-Zugang zeigen fest auf /opt/finanzen. Ein
-# Release-Wechsel per Verzeichnis setzt voraus, dass die Daten herausgeloest
-# sind (Review 1.4); bis dahin dient die Pruefkopie als vorab gepruefter Release.
+# Datenort: Steht FINANZEN_DATEN=<absoluter Ordner> in der Env-Datei, liegt der
+# Bestand dort (<ordner>/master, ADR 0036) und jedes Node-Werkzeug bekommt den
+# Wert mit; sonst liegt er im Checkout (app/data/master). Kein getrenntes
+# Release-Verzeichnis: die Pruefkopie dient als vorab gepruefter Release.
 #
 # Installation als root-eigene Kopie, damit der fachliche User das Skript, das
 # root ausfuehrt, nicht aendern kann. Erst in eine root-eigene Datei holen,
@@ -41,7 +41,6 @@ VERZ="${FINANZEN_VERZ:-/opt/finanzen}"
 NUTZER="${FINANZEN_NUTZER:-finanzen}"
 DIENST="${FINANZEN_DIENST:-finanzen-app}"
 ENV_DATEI="${FINANZEN_ENV_DATEI:-/etc/finanzen/app.env}"
-DATENROOT="${FINANZEN_DATENROOT:-$VERZ/app/data/master}"
 SPERRE_WARTEN="${FINANZEN_SPERRE_WARTEN:-120}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -78,6 +77,15 @@ env_wert() {
   printf '%s' "$wert"
 }
 
+# Externer Datenort (leer: Daten im Checkout).
+DATEN="$(env_wert FINANZEN_DATEN)"
+if [[ -n "$DATEN" ]] && ! [[ "$DATEN" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+  echo "FINANZEN_DATEN in $ENV_DATEI muss ein absoluter Pfad sein (nur A-Z a-z 0-9 . _ / -)." >&2
+  exit 1
+fi
+DATENROOT="${FINANZEN_DATENROOT:-${DATEN:+$DATEN/master}}"
+DATENROOT="${DATENROOT:-$VERZ/app/data/master}"
+
 # Vor jeder Aenderung pruefen. Die Werte landen unescaped im JSON: keine
 # Anfuehrungszeichen, kein Backslash, keine Leerzeichen.
 ABMELDEN_URL="$(env_wert FINANZEN_ABMELDEN_URL)"
@@ -102,7 +110,14 @@ if ! [[ "$HTTP_HOST" =~ ^[A-Za-z0-9.-]+$ && "$HTTP_PORT" =~ ^[1-9][0-9]*$ ]]; th
   exit 1
 fi
 
-als_nutzer() { sudo -u "$NUTZER" -H "$@"; }
+# sudo setzt die Umgebung zurueck: den Datenort ausdruecklich mitgeben.
+als_nutzer() {
+  if [[ -n "$DATEN" ]]; then
+    sudo -u "$NUTZER" -H env "FINANZEN_DATEN=$DATEN" "$@"
+  else
+    sudo -u "$NUTZER" -H "$@"
+  fi
+}
 g() { als_nutzer git -C "$VERZ" "$@"; }
 
 # --- Zustand fuer Aufraeumen und Ruecksprung --------------------------------

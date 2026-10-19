@@ -52,6 +52,7 @@ import { EXPORT_ARTEN, exportDateiname, exportEintraege, pruefeZipGrenzen, zipTe
 import { erstelleSnapshotQuelle } from "./stand.mjs";
 import { AnfrageFehler, LESE_ANSICHTEN, leseAnsicht } from "./lese-api.mjs";
 import { legeDateiAn } from "./tools/lib/datei.mjs";
+import { physisch, pruefeDatenort } from "./tools/lib/datenort.mjs";
 import { mitLesestand } from "./tools/lib/lesestand.mjs";
 import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt, istHeic } from "./upload-regeln.mjs";
 
@@ -195,8 +196,11 @@ function originAusUrl(wert) {
   throw new Error(`--origin: ungueltige URL "${wert}"`);
 }
 
-export function parseArgs(argv, { appDir }) {
-  const opt = { host: "127.0.0.1", port: 8000, proxyIp: null, origins: null, inbox: join(appDir, "data", "inbox"), belege: join(appDir, "Belege") };
+// Inbox, Belege und Echtbestand liegen im Checkout oder, mit FINANZEN_DATEN,
+// am externen Datenort (tools/lib/datenort.mjs).
+export function parseArgs(argv, { appDir, env = process.env }) {
+  const ort = (relativ) => physisch(appDir, relativ, env);
+  const opt = { host: "127.0.0.1", port: 8000, proxyIp: null, origins: null, inbox: ort("data/inbox"), belege: ort("Belege"), daten: ort("data/master") };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     const gleich = arg.indexOf("=");
@@ -492,7 +496,7 @@ export async function legeAbOhneUeberschreiben(inhalt, ziel) {
   }
 }
 
-export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), demoBelegeDir = join(appDir, "data", "demo-belege"), datenDirs = { live: join(appDir, "data", "master"), demo: join(appDir, "data", "demo") }, proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
+export function createAppServer({ appDir, inboxDir, belegeDir = physisch(appDir, "Belege"), demoBelegeDir = join(appDir, "data", "demo-belege"), datenDirs = { live: physisch(appDir, "data/master"), demo: join(appDir, "data", "demo") }, proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
   let appWurzel = null;
   let belegeWurzel = null;
   let inboxWurzel = null;
@@ -775,14 +779,16 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
 function main() {
   const appDir = dirname(fileURLToPath(import.meta.url));
   let opt;
+  let ort;
   try {
+    ort = pruefeDatenort(appDir);
     opt = parseArgs(process.argv.slice(2), { appDir });
   } catch (fehler) {
     console.error(fehler.message);
     console.error("Aufruf: node app/server.mjs [--host <adresse>] [--port <zahl>] [--proxy-ip <ip>] [--origin <url>[,<url>]] [--inbox <pfad>] [--belege <pfad>]");
     process.exit(2);
   }
-  const server = createAppServer({ appDir, inboxDir: opt.inbox, belegeDir: opt.belege, proxyIp: opt.proxyIp, origins: opt.origins });
+  const server = createAppServer({ appDir, inboxDir: opt.inbox, belegeDir: opt.belege, datenDirs: { live: opt.daten, demo: join(appDir, "data", "demo") }, proxyIp: opt.proxyIp, origins: opt.origins });
   server.on("error", (fehler) => {
     if (fehler.code === "EADDRINUSE") console.error(`Port ${opt.port} auf ${opt.host} ist bereits belegt — anderen Port mit --port waehlen.`);
     else if (fehler.code === "EACCES") console.error(`Keine Berechtigung fuer ${opt.host}:${opt.port}.`);
@@ -791,7 +797,7 @@ function main() {
   });
   server.listen(opt.port, opt.host, () => {
     const { port } = server.address();
-    console.log(`App-Server fuer ${appDir}`);
+    console.log(`App-Server fuer ${appDir}, ${ort}`);
     console.log(`Inbox: ${opt.inbox} (Endungen: ${ERLAUBTE_ENDUNGEN.join(", ")})`);
     console.log(opt.proxyIp ? `Betriebsmodus: nur Anfragen von ${opt.proxyIp} mit Remote-User` : "Lokaler Modus (ohne Proxy-Pruefung)");
     console.log(`Erlaubte Origins: ${erlaubteOrigins({ origins: opt.origins, port }).join(", ")}`);

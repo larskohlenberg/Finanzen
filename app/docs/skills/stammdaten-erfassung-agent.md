@@ -36,7 +36,7 @@ Den Nutzer Schritt für Schritt durch die Erfassung beliebiger Stammdaten leiten
    - Nutzer bestätigt **Wert für Wert**.
 3. **Nach jedem Block: Checks anzeigen** — fehlende Bewertung, Reconciliation-Drift, Σ der Eigentumsanteile, Darlehen ohne Raten-Regelzahlung.
 4. **Bei einem neuen Konto: Import-Profil anschliessen** (siehe unten).
-5. **Abschluss:** `agent_log.jsonl`-Eintrag schreiben und die **Nettovermögen-Aufschlüsselung** zum Gegenlesen zeigen.
+5. **Abschluss:** Die Werkzeuge `stammdatum_setzen` und `zeitwert_anhaengen` protokollieren jeden Schreiblauf selbst; eine Zusammenfassung per `protokoll_eintrag`, und die **Nettovermögen-Aufschlüsselung** zum Gegenlesen zeigen.
 
 ## Neues Konto: das Import-Profil gehört dazu
 
@@ -65,7 +65,7 @@ Skill **import-agent**.
 2. **Validator** (Struktur, Muster, Referenzen).
 3. **Reconciliation- und Datenqualitäts-Checks** (Semantik).
 4. **Review-Tabelle Wert-für-Wert vor dem Schreiben** — fängt plausibel-falsche Zahlen.
-5. **`agent_log.jsonl` + App-Aufschlüsselung** (Vermögen-Ansicht) zum Gegenlesen.
+5. **Protokoll (`protokoll_eintrag`) + App-Aufschlüsselung** (Vermögen-Ansicht) zum Gegenlesen.
 
 ## Do's
 

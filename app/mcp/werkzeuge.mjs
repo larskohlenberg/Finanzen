@@ -848,15 +848,38 @@ const dateienSuchen = {
 
 // Ziel eines Dateiwerkzeugs: nur im Bestand der Sitzung (samt Inbox,
 // Importprofilen, Papierkorb) und nur mit erlaubter Endung.
+// Kerndateien des Bestands aendern nur die Fachwerkzeuge (Review 1B.3): so
+// setzt kein Datei-Edit `bestaetigt_durch: mensch`, keine Regel umgeht den
+// Probelauf, kein Protokolleintrag faelscht einen Werkzeug-Anlass.
+export const KERNDATEIEN = Object.freeze({
+  "transaktionen.jsonl": "Buchungen nur ueber die Fachwerkzeuge: bestaetigen (menschliche Entscheidung), agent_vorschlag, nachkategorisieren, freigabe, transfers, transfer_extern, immobilienbezug, regelzahlungen_zuordnen; neue Buchungen ueber eine standardisierte JSONL in der Inbox und import",
+  "transfers.json": "Transfers ueber transfers (interne Paare) oder transfer_extern",
+  "agent_log.jsonl": "Protokollzeilen ueber protokoll_eintrag; die Werkzeuge protokollieren ihre Laeufe selbst",
+  "kategorisierungsregeln.json": "Regeln ueber regel_schreiben (mit Probelauf), danach nachkategorisieren",
+});
+
 async function schreibZiel(ctx, pfad) {
   const ziel = await loesePfad(ctx.app, pfad, bestandWurzeln(ctx).schreiben);
   pruefeEndung(ziel.relativ);
+  const bestand = await realpath(ctx.datenroot).catch(() => path.resolve(ctx.datenroot));
+  // Klein geschrieben verglichen: auf macOS (APFS) ist AGENT_LOG.jsonl dieselbe Datei.
+  const imBestand = [path.resolve(ctx.datenroot), bestand].map((w) => path.relative(w, ziel.absolut).normalize("NFC").toLowerCase());
+  let name = imBestand.find((rel) => Object.hasOwn(KERNDATEIEN, rel));
+  // Dieselbe Datei unter anderem Namen (Hardlink, Alias): ueber Geraet und Inode.
+  const info = name ? null : await stat(ziel.absolut).catch(() => null);
+  if (info) {
+    for (const kern of Object.keys(KERNDATEIEN)) {
+      const k = await stat(path.join(bestand, kern)).catch(() => null);
+      if (k && k.dev === info.dev && k.ino === info.ino) name = kern;
+    }
+  }
+  if (name) throw new PfadFehler(`${ziel.relativ} ist fuer Datei-Edits gesperrt. ${KERNDATEIEN[name]}.`);
   return ziel;
 }
 
 const dateiSchreiben = {
   name: "datei_schreiben",
-  description: "Ganze Textdatei im Bestand der Sitzung oder in dessen Inbox/Importprofilen schreiben oder anlegen (max. 10 MB), z. B. eine standardisierte JSONL unter <inbox>/standardized/ (data/master: data/inbox/), ein Importprofil (data/master: data/import-profile/) oder eine Masterdatei. Nur Endungen json, jsonl, csv, txt, md, pdf, png, jpg. Mit anhaengen:true wird der Inhalt als Zeile(n) ans Dateiende gehaengt (z. B. ein Eintrag in agent_log.jsonl). Nicht Belege/, nicht andere Bestaende. Vorschau ist Default; erst schreiben:true schreibt. Danach laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird nichts uebernommen. Kategorien nie per Datei-Edit an Transaktionen setzen — dafuer gibt es bestaetigen/agent_vorschlag.",
+  description: "Ganze Textdatei im Bestand der Sitzung oder in dessen Inbox/Importprofilen schreiben oder anlegen (max. 10 MB), z. B. eine standardisierte JSONL unter <inbox>/standardized/ (data/master: data/inbox/), ein Importprofil (data/master: data/import-profile/) oder eine Masterdatei. Nicht die Kerndateien transaktionen.jsonl, transfers.json, agent_log.jsonl, kategorisierungsregeln.json (dafuer die Fachwerkzeuge, u. a. protokoll_eintrag und regel_schreiben). Nur Endungen json, jsonl, csv, txt, md, pdf, png, jpg. Mit anhaengen:true wird der Inhalt als Zeile(n) ans Dateiende gehaengt. Nicht Belege/, nicht andere Bestaende. Vorschau ist Default; erst schreiben:true schreibt. Danach laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird nichts uebernommen. Kategorien nie per Datei-Edit an Transaktionen setzen — dafuer gibt es bestaetigen/agent_vorschlag.",
   inputSchema: {
     type: "object",
     properties: { pfad: { type: "string" }, inhalt: { type: "string" }, anhaengen: { type: "boolean" }, schreiben: SCHREIBEN },
@@ -1317,12 +1340,13 @@ const belegErgaenzen = {
 
 const belegVerwerfen = {
   name: "beleg_verwerfen",
-  description: "Abgelegten Beleg unter Belege/ samt .txt-Zwilling in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/Belege/... verschieben, z. B. eine Doublette. Nichts wird geloescht; bei Namenskollision bekommt die Datei ein Suffix (-2, -3 ...). Nennen Stamm- oder Bewegungsdaten den Beleg noch, wird abgewiesen: erst den Verweis umstellen (datei_ersetzen, belege_umziehen). grund wird als notiz in agent_log.jsonl protokolliert. Den Papierkorb leert nur der Nutzer. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
+  description: "Abgelegten Beleg unter Belege/ samt .txt-Zwilling in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/Belege/... verschieben, z. B. eine Doublette. Nichts wird geloescht; bei Namenskollision bekommt die Datei ein Suffix (-2, -3 ...). Nennen Stamm- oder Bewegungsdaten den Beleg noch, wird abgewiesen — ausser mit ersetzt_durch: dann zeigen alle Verweise danach auf diesen behaltenen Beleg (z. B. das Original einer Doublette). grund wird als notiz in agent_log.jsonl protokolliert. Den Papierkorb leert nur der Nutzer. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
   inputSchema: {
     type: "object",
     properties: {
       pfad: { type: "string", description: "z. B. Belege/Vorsorge/VS-001_Muster/2026/2026_Muster_Jahresinformation_Seite-2.pdf" },
       grund: { type: "string", maxLength: 300, description: "Kurz, z. B. \"Doublette, Seite steckt in ..._Jahresinformation.pdf\"" },
+      ersetzt_durch: { type: "string", description: "Behaltener Beleg unter Belege/, auf den die Verweise umgestellt werden" },
       schreiben: SCHREIBEN,
     },
     required: ["pfad"],
@@ -1333,18 +1357,32 @@ const belegVerwerfen = {
     const beleg = await loesePfad(ctx.app, args.pfad, [belegeWurzel(ctx)]);
     if (!(await istDatei(beleg.absolut))) return ergebnis(`${beleg.relativ} ist keine Datei`, true);
     const paare = await planeBelegKorb(ctx, beleg);
-    const verweise = await datenMitVerweis(ctx, paare.map(([q]) => q.relativ));
-    if (verweise.length) {
-      return ergebnis(`${beleg.relativ} wird noch verwiesen — nichts verschoben:\n${verweise.map((v) => `${v.name}: ${v.anzahl}`).join("\n")}`, true);
+    let ersatz = null;
+    if (args.ersetzt_durch !== undefined) {
+      ersatz = await loesePfad(ctx.app, args.ersetzt_durch, [belegeWurzel(ctx)]);
+      if (!(await istDatei(ersatz.absolut))) return ergebnis(`${ersatz.relativ} ist keine Datei`, true);
+      if (ersatz.absolut === beleg.absolut) return ergebnis("ersetzt_durch muss ein anderer Beleg sein", true);
     }
-    const bericht = paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n");
+    const verweise = await datenMitVerweis(ctx, paare.map(([q]) => q.relativ));
+    // Umgestellt wird nur der Beleg selbst; verweist etwas auf seinen Zwilling, bleibt es bei der Abweisung.
+    const umstellen = ersatz ? verweise.map((v) => ({ ...v, ...ersetzeVerweise(v.text, [[beleg.relativ, ersatz.relativ]]) })) : [];
+    const rest = ersatz ? await datenMitVerweis(ctx, paare.slice(1).map(([q]) => q.relativ)) : verweise;
+    if (rest.length) {
+      return ergebnis(`${beleg.relativ} wird noch verwiesen — nichts verschoben:\n${rest.map((v) => `${v.name}: ${v.anzahl}`).join("\n")}${ersatz ? "" : "\nMit ersetzt_durch auf einen behaltenen Beleg umstellen."}`, true);
+    }
+    const bericht = [
+      ...paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`),
+      ...umstellen.map((v) => `${v.name}: ${v.anzahl} Verweis(e) -> ${ersatz.relativ}`),
+    ].join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${bericht}`);
     return mitVerschieben(ctx, async (s) => {
+      for (const v of umstellen) await ersetzeDatei(s.pfad(path.join(ctx.datenroot, v.name)), v.text);
       await inDenPapierkorb(paare, s);
       await protokolliere(s, {
         anlass: "beleg-verwerfen",
         inputs: paare.map(([q]) => q.relativ),
         papierkorb: paare.map(([, z]) => z.relativ),
+        ...(ersatz ? { ersetzt_durch: ersatz.relativ, umgestellt: Object.fromEntries(umstellen.map((v) => [v.name, v.anzahl])) } : {}),
         notiz: args.grund?.trim() || "Beleg verworfen",
       });
       return ergebnis(`Verworfen (Papierkorb):\n${bericht}`);

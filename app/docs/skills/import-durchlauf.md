@@ -75,8 +75,9 @@ das ist **kategorisierung-review**.
    `error/` wird nicht angefasst. Ohne `schreiben: true` ist der Lauf eine Vorschau.
    Hineinkopierte Archivexporte liegen in Unterordnern und werden vom Tool
    nicht erfasst — die von Hand abgleichen, wenn welche da sind.
-8. **Protokollieren.** Die Zaehler in `DATENROOT/agent_log.jsonl` festhalten
-   (`datei_schreiben` mit `anhaengen: true, schreiben: true`).
+8. **Protokollieren.** Die Zaehler im Agentenprotokoll festhalten
+   (`protokoll_eintrag` mit `anlass`, `notiz`, `zaehler`, `schreiben: true`;
+   das Protokoll ist fuer Datei-Edits gesperrt).
 
 ## Zentrale Regeln
 

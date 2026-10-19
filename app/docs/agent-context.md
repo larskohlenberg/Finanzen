@@ -83,11 +83,11 @@ ohne MCP.
 | `tools/belege-umziehen.mjs` | `belege_umziehen` (Umzugsplan als Liste `umzuege` oder `plan_datei` unter `data/`) |
 | `tools/pruefbericht.mjs` | `pruefbericht` |
 | Datei lesen, suchen | `datei_lesen`, `dateien_suchen`, `transaktionen_abfragen` |
-| Datei schreiben, editieren | `datei_schreiben`, `datei_ersetzen` (nur im Bestand der Sitzung samt dessen Inbox und Importprofilen; Endungen json, jsonl, csv, txt, md, pdf, png, jpg; Vorschau ist Default) |
+| Datei schreiben, editieren | `datei_schreiben`, `datei_ersetzen` (nur im Bestand der Sitzung samt dessen Inbox und Importprofilen; Endungen json, jsonl, csv, txt, md, pdf, png, jpg; Vorschau ist Default). **Gesperrt** fuer die Kerndateien `transaktionen.jsonl`, `transfers.json`, `agent_log.jsonl` und `kategorisierungsregeln.json`: dafuer die Fachwerkzeuge (Buchungen: `bestaetigen`, `agent_vorschlag`, `nachkategorisieren`, `freigabe`, neue Buchungen per Import; Transfers: `transfers`, `transfer_extern`; Protokoll: `protokoll_eintrag`; Regeln: `regel_schreiben`). Stammdaten und Zeitwerte besser ueber `stammdatum_setzen` und `zeitwert_anhaengen`. `bestaetigt_durch = mensch` setzt nur `bestaetigen`. |
 | Beleg wegsortieren | `beleg_ablegen` (`data/inbox/...` nach `Belege/...`, sprechend benannt; nur Bestand `data/master`; Vorschau ist Default) |
 | Sammelscan teilen | `beleg_teilen` (`quelle` unter `data/inbox/`, `teile` als `[{ seiten: "1-4", name }]`; jede Seite genau einem Teil, Teile in die Inbox-Wurzel, Original in den Papierkorb; Vorschau ist Default) |
 | Nachgereichte Seiten einfuegen | `beleg_ergaenzen` (`quelle` PDF unter `data/inbox/` oder schon unter `Belege/`, `ziel` PDF unter `Belege/`, optional `nach_seite`, 0 = vorn, ohne = ans Ende; alte Fassung samt Zwilling und Quelle in den Papierkorb, danach `belege_text`; Vorschau ist Default) |
-| Beleg verwerfen | `beleg_verwerfen` (`pfad` unter `Belege/`, optional `grund`; Beleg samt Zwilling in den Papierkorb, z. B. eine Doublette; abgewiesen, solange Daten auf ihn verweisen; Vorschau ist Default) |
+| Beleg verwerfen | `beleg_verwerfen` (`pfad` unter `Belege/`, optional `grund`; Beleg samt Zwilling in den Papierkorb, z. B. eine Doublette; abgewiesen, solange Daten auf ihn verweisen, ausser mit `ersetzt_durch` = behaltener Beleg, dann werden die Verweise umgestellt; Vorschau ist Default) |
 | Inbox-Datei verwerfen | `inbox_verwerfen` (`pfad` unter `data/inbox/`, optional `grund`; verschiebt in den Papierkorb, z. B. ein erkanntes Duplikat; Vorschau ist Default) |
 | Aus `error/` zurueckholen | `inbox_zurueckholen` (`pfad` unter `data/inbox/error/`; zurueck in die Inbox-Wurzel, bricht bei gleichem Namen ab; Vorschau ist Default) |
 
@@ -1056,5 +1056,5 @@ alte Fassung samt Zwilling und die Inbox-Datei landen im Papierkorb; danach
 eigener Beleg abgelegt, ist sie selbst die `quelle` (Pfad unter `Belege/`): sie
 wandert samt Zwilling in den Papierkorb, und Verweise auf sie in Stamm- und
 Bewegungsdaten zeigen danach auf den ergaenzten Beleg. Eine reine Doublette
-unter `Belege/` nimmt `beleg_verwerfen` heraus; nennen die Daten sie noch, erst
-den Verweis umstellen.
+unter `Belege/` nimmt `beleg_verwerfen` heraus; nennen die Daten sie noch, mit
+`ersetzt_durch` auf den behaltenen Beleg umstellen (im selben Lauf).

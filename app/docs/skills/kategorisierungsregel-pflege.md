@@ -186,7 +186,7 @@ Darum gilt eng begrenzt:
    Bei einer beabsichtigten **Aenderung** einer Bestandsregel `--aenderung`
    (MCP: `aenderung: true`) setzen; sonst gilt die bekannte `regel_id` als Versehen.
 
-4. **Schreiben.** Neue `regel_id` als naechste freie `REG-NNN` (Bestand scannen, es gibt keinen ID-Helfer), `status = "aktiv"`, `erstellt_am` = heutiges Datum. Im Betrieb per `datei_ersetzen` in `DATENROOT/kategorisierungsregeln.json`.
+4. **Schreiben.** Per `regel_schreiben` (CLI `tools/regel-schreiben.mjs`): neue Regeln ohne `regel_id` uebergeben; ID, `status = "aktiv"` und `erstellt_am` setzt das Werkzeug. Es rechnet den Probelauf intern noch einmal und schreibt nur ohne Block. `kategorisierungsregeln.json` ist fuer Datei-Edits gesperrt.
 
    `kommentar` ist **Pflichtfeld** und muss zweierlei leisten: erklaeren, **was**
    der Merchant ist, und nennen, **woher** das bekannt ist (Belegstufe). „Monatlicher
@@ -194,7 +194,7 @@ Darum gilt eng begrenzt:
    nicht ausreichend. Bei E4: die Rechercheerkenntnis in einem Halbsatz festhalten,
    damit sie im Review nachvollziehbar ist und spaeter nicht erneut gesucht wird.
 
-   Eine Regel **aendern** = denselben Satz ueberschreiben; dabei `kommentar`
+   Eine Regel **aendern** = `regel_schreiben` mit ihrer `regel_id` und den geaenderten Feldern (`null` entfernt ein Feld; Reaktivieren oder eine andere Belegstufe nur mit `notiz`); dabei `kommentar`
    pruefen und aktualisieren, falls das Muster sich aendert. Eine Regel
    **stilllegen** = `status = "inaktiv"` (nicht loeschen, der Categorizer
    ignoriert Inaktive ohnehin).

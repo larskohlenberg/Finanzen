@@ -74,6 +74,7 @@ The file is excluded from Git and belongs to this installation only. Keep it sho
 ## Map
 | File | Content |
 |---|---|
+| `app/mcp/vertrag.mjs` | Agent contract: short mandatory rules (MCP instructions and head of agent-context) and tools grouped by task. Change it, then run `node app/mcp/vertrag.mjs --schreiben`. |
 | `app/docs/agent-context.md` | **Operational truth**: status, provenance, categorisation, evidence ladder, validation, agent log, mapping CLI → MCP tool. Read before any data work; not needed for pure analysis. |
 | `app/docs/skills/import-durchlauf.md` | **The standard path**: from raw file to approved data in one pass. |
 | `app/docs/skills/import-agent.md` | Normalising a raw file (station 1 of the pass). |

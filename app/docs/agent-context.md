@@ -1,5 +1,19 @@
 # Agent Context
 
+<!-- vertrag:pflicht:start (erzeugt aus app/mcp/vertrag.mjs) -->
+## Pflicht in Kuerze
+
+- Auswertungen und Statusfragen direkt per Tool beantworten (kennzahlen, status, transaktionen_abfragen, pruefbericht), ohne Vorlektuere; fuer „Wie stehen wir?“ zuerst kennzahlen.
+- Vor Datenarbeit (Import, Kategorisieren, Regeln, Freigabe, jedes Schreiben) die Ressource finanzen://docs/agent-context und den passenden Skill-Prompt lesen; Themen einzeln unter finanzen://docs/agent-context/<thema>.
+- Alle Tool-Laeufe sind ohne schreiben:true eine Vorschau; sie nennen einen Fingerabdruck des gelesenen Bestands. Beim Schreiben diesen als fingerabdruck mitgeben: hat sich der Bestand seither geaendert, wird abgewiesen.
+- Nach jedem Schreiben laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird nichts uebernommen. Ergebnisse tragen structuredContent (ok, modus, fingerabdruck, fehler, Befunde mit Code, Objekt und Feld).
+- Buchungen, Transfers, Regeln und Agentenprotokoll nur ueber die Fachwerkzeuge aendern (datei_schreiben/datei_ersetzen weisen sie ab); bestaetigen nur nach ausdruecklicher Entscheidung des Nutzers.
+- Regeln nur mit Beleg (Belegleiter E1-E4). Einzelbuchungen ohne Beleg schaetzt der Agent: plausibelste Kategorie als Einzelvorschlag (agent_vorschlag); KAT-012 nur, wenn keine Kategorie plausibel ist.
+- Echte Namen, Betraege, IBANs, Bank- und Haendlernamen gehoeren nie in Repo, Doku oder Commit-Texte; konkrete Werte ins Agentenprotokoll (protokoll_eintrag).
+
+Werkzeuge nach Aufgaben: **Auswerten** (status, kennzahlen, plan_ist, transaktionen_abfragen, pruefbericht, verlauf); **Lesen** (datei_lesen, dateien_suchen); **Importieren** (inbox, import, transfers, transfer_extern, regelzahlungen_zuordnen, immobilienbezug, inbox_verwerfen, inbox_zurueckholen); **Kategorisieren** (regel_vorschlag, regel_probelauf, regel_schreiben, nachkategorisieren, agent_vorschlag, freigabe, bestaetigen, lernen); **Stammdaten** (stammdatum_setzen, zeitwert_anhaengen, logos); **Belege** (beleg_ablegen, beleg_teilen, beleg_ergaenzen, beleg_verwerfen, belege_umziehen, belege_text); **Protokoll und Rueckgaengig** (protokoll_eintrag, rueckgaengig); **Dateien (Inbox, Importprofile, uebrige)** (datei_schreiben, datei_ersetzen).
+<!-- vertrag:pflicht:ende -->
+
 Gemeinsame Betriebsgrundlage fuer Agentenarbeit im deploybaren App-Raum.
 
 ## App-Raum
@@ -19,25 +33,12 @@ Masterdaten. Schreibende Aenderungen laufen ueber Agenten und Betriebstools.
 
 ## Datenmodus-Startcheck
 
-Vor jeder Agentenarbeit muss der aktive Datenmodus ausdruecklich feststehen:
-
-- `DATENMODUS: live` bedeutet `DATENROOT = data/master`.
-- `DATENMODUS: demo` bedeutet `DATENROOT = data/demo`.
-
-Der Wert kommt aus dem App-Prompt oder aus einer ausdruecklichen Nutzeranweisung.
-Fehlt `DATENMODUS` oder `DATENROOT`, gilt **Abbruch statt Raten**: keine Analyse mit
-Schreibabsicht, kein Tool mit Default-Pfad, keine Datei-Aenderung. Der Agent fragt
-dann zuerst nach, ob er auf Echtdaten (`data/master`) oder Demodaten (`data/demo`)
-arbeiten soll.
-
-Vor jedem Schreibzugriff prueft der Agent den Zielpfad sichtbar gegen `DATENROOT`.
-Ein Schreibziel ausserhalb von `DATENROOT` ist ein Fehler und wird nicht ausgefuehrt.
-Wenn eine Skill-Anweisung feste Datenpfade nennt, ist immer der aktive `DATENROOT`
-massgeblich.
-
-Im Betrieb ueber MCP (naechster Abschnitt) legt der Serveraufruf den `DATENROOT`
-fest; das Tool `status` nennt ihn. Damit ist der Datenmodus ausdruecklich
-festgestellt.
+Vor jeder Agentenarbeit stehen `DATENMODUS` und `DATENROOT` ausdruecklich fest:
+`live` = `data/master` (Echtdaten) oder `demo` = `data/demo` (Demodaten), aus dem App-Prompt, der
+Nutzeranweisung oder ueber MCP aus dem Serveraufruf (Tool `status` nennt ihn).
+Fehlt er: **Abbruch statt Raten**, nachfragen. Ein Schreibziel ausserhalb des
+Bestands ist ein Fehler; nennt ein Skill feste Pfade, gilt der aktive
+`DATENROOT`.
 
 ## Betrieb ueber MCP
 
@@ -157,10 +158,6 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
   einer Zeile mit `anlass: "inbox-verwerfen"` in `agent_log.jsonl`. Endgueltig
   leeren ist bewusst kein Tool, das macht der Nutzer selbst
   (`rm -r app/data/papierkorb/<datum>` im Checkout, auf einem Server dort).
-- **Rollback:** Vor jedem schreibenden Vorgang kopiert der Server den
-  `DATENROOT`; meldet der Validator danach neue Fehler, spielt er die Kopie
-  zurueck und meldet das. Verschiebungen und Loeschungen in `data/inbox/`,
-  `data/papierkorb/` und `Belege/` werden **nicht** zurueckgerollt.
 - **Einbindung:** Claude Code liest `.mcp.json` (gitignored, Vorlage
   `.mcp.json.beispiel` fuer den lokalen Start). Codex: in `~/.codex/config.toml`
   `[mcp_servers.finanzen]` mit `command` und `args` wie in der Vorlage. Liegen
@@ -176,6 +173,25 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
   restrict,command="<node> <checkout>/app/mcp/server.mjs data/master --recht=schreiben" ssh-ed25519 <schluessel> claude-code
   restrict,command="<node> <checkout>/app/mcp/server.mjs data/master --recht=lesen" ssh-ed25519 <schluessel> codex
   ```
+
+## Werkzeugvertrag und Uebergang
+
+- **Ergebnisse:** Jedes Tool liefert neben dem Text `structuredContent`:
+  `werkzeug`, `ok`, `modus` (`vorschau`, `schreiben`, `lesen`),
+  `fingerabdruck` (Vorschau), bei Fehlern `fehler` (`argumente`, `recht`,
+  `pfad`, `stand-veraltet`, `gesperrt`, `werkzeug`, `validator`,
+  `veraltet`). CLI-Werkzeuge geben `exitcode` und ihren JSON-Bericht als
+  `ergebnis` (Zaehler, IDs). Schreiblaeufe nennen `uebernommen`, den neuen
+  `stand` und `validator.neu` als Befunde mit `code`, `sammlung`,
+  `objekt` (ID) und `feld`; `status` dasselbe fuer den ganzen Bestand.
+- **Ordnung:** `tools/list` ist nach Aufgaben sortiert, der Titel nennt die
+  Aufgabe (Quelle: `app/mcp/vertrag.mjs`, auch fuer den Pflichtabschnitt oben).
+- **Uebergang:** Datei-Edits an Kerndateien sind abgeloest (seit 2026-10-20):
+  Regeln ueber `regel_schreiben` (rechnet den Probelauf selbst; `regel_probelauf`
+  bleibt fuer reine Was-waere-wenn-Fragen), Protokoll ueber `protokoll_eintrag`,
+  Fristen und andere Stammdaten ueber `stammdatum_setzen`, Zeitwerte ueber
+  `zeitwert_anhaengen`. `datei_schreiben`/`datei_ersetzen` bleiben fuer
+  Inbox, Importprofile und die uebrigen Bestandsdateien.
 
 ## Arbeitsprinzipien
 

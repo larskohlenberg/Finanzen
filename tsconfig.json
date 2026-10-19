@@ -23,6 +23,7 @@
     "app/tools/lib/schreibsperre.mjs",
     "app/tools/lib/schreiblauf.mjs",
     "app/tools/rueckgaengig.mjs",
-    "app/mcp/werkzeuge.mjs"
+    "app/mcp/werkzeuge.mjs",
+    "app/mcp/vertrag.mjs"
   ]
 }

@@ -33,6 +33,7 @@ import { verlaufBericht } from "../tools/verlauf.mjs";
 import { OhneVerlauf } from "../tools/lib/generationen.mjs";
 import { bestandFingerabdruck } from "../tools/lib/fingerabdruck.mjs";
 import { importStandModell } from "../tools/lib/importstand.mjs";
+import { AUFGABEN, KATEGORIE_REGEL, aufgabeVon } from "./vertrag.mjs";
 import { createHash } from "node:crypto";
 import { releaseStand } from "./version.mjs";
 
@@ -57,9 +58,28 @@ const FINGERABDRUCK = {
 
 // Die Kategorisierungsregel (ADR 0029) an einer Stelle: Anleitung und
 // Werkzeugbeschreibungen nennen sie wortgleich.
-export const KATEGORIE_REGEL = "Regeln nur mit Beleg (Belegleiter E1-E4). Einzelbuchungen ohne Beleg schaetzt der Agent: plausibelste Kategorie als Einzelvorschlag (agent_vorschlag); KAT-012 nur, wenn keine Kategorie plausibel ist.";
+export { KATEGORIE_REGEL };
 
-const ergebnis = (text, isError = false) => ({ text, isError });
+// struktur: maschinenlesbarer Teil des Ergebnisses (structuredContent), z. B.
+// { fehler, ergebnis, validator }; rufeWerkzeug ergaenzt werkzeug, ok, modus, fingerabdruck.
+const ergebnis = (text, isError = false, struktur = undefined) => ({ text, isError, ...(struktur ? { struktur } : {}) });
+
+// Befunde fuer structuredContent: Code, Ort, hoechstens 50.
+export function alsBefundListe(befunde = []) {
+  return befunde.slice(0, 50).map(({ code, sammlung, objekt, feld }) => ({ code, sammlung, objekt, feld }));
+}
+
+// Der JSON-Bericht einer CLI aus ihrer Ausgabe (erstes "{" bis letztes "}"), sonst null.
+function cliBericht(stdout) {
+  const a = stdout.indexOf("{");
+  const e = stdout.lastIndexOf("}");
+  if (a < 0 || e < a) return null;
+  try {
+    return JSON.parse(stdout.slice(a, e + 1));
+  } catch {
+    return null;
+  }
+}
 
 // Belege/ gehoert nur zu data/master; andere Bestaende haben keine Belegablage.
 function belegeWurzel(ctx) {
@@ -158,7 +178,8 @@ function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], sch
         }
         const teile = [kopfzeile, `tools/${skript} — Exitcode: ${r.exitCode}`, r.stdout.trimEnd()];
         if (r.stderr.trim()) teile.push(`--- stderr ---\n${r.stderr.trimEnd()}`);
-        return ergebnis(teile.join("\n"), !okCodes.includes(r.exitCode));
+        const fehlgeschlagen = !okCodes.includes(r.exitCode);
+        return ergebnis(teile.join("\n"), fehlgeschlagen, { exitcode: r.exitCode, ergebnis: cliBericht(r.stdout), ...(fehlgeschlagen ? { fehler: "werkzeug" } : {}) });
       };
       if (schreiben) return mitRollback(ctx.datenroot, (s) => lauf(s.ordner, "Modus: schreiben", s), { rueckrollungBeiFehler });
       return lauf(ctx.datenrootRel, "Modus: Vorschau");
@@ -551,10 +572,10 @@ const status = {
         konten: daten.konten.length,
       });
       const pruefung = validateMasterData(daten);
-      validator = { gueltig: pruefung.valid, fehler: pruefung.errors };
+      validator = { gueltig: pruefung.valid, fehler: pruefung.errors, befunde: pruefung.befunde };
     } catch (error) {
       bericht.masterdaten = `nicht lesbar: ${error.message}`;
-      validator = { gueltig: false, fehler: [`Masterdaten nicht lesbar: ${error.message}`] };
+      validator = { gueltig: false, fehler: [`Masterdaten nicht lesbar: ${error.message}`], befunde: [{ code: "nicht-lesbar", sammlung: "Bestand", objekt: null, feld: null }] };
     }
     bericht.validator = { gueltig: validator.gueltig, fehler_anzahl: validator.fehler.length, fehler: validator.fehler.slice(0, 50) };
     bericht.inbox = await inboxStand(ctx);
@@ -564,7 +585,12 @@ const status = {
       bericht.importe = { summe: modell.summe, letzte: modell.auftraege.map(({ abgewiesen, ...a }) => ({ ...a, abgewiesen_zeilen: abgewiesen.map((z) => z.zeile) })), wartend: modell.wartend };
     }
     for (const d of bericht.inbox.dateien) delete d.sha256;
-    return ergebnis(json(bericht));
+    return ergebnis(json(bericht), false, {
+      stand: bericht.stand ?? null,
+      transaktionen: bericht.transaktionen ?? null,
+      validator: { gueltig: validator.gueltig, fehler_anzahl: validator.fehler.length, befunde: alsBefundListe(validator.befunde) },
+      ...(bericht.importe ? { importe: bericht.importe.summe } : {}),
+    });
   },
 };
 
@@ -1495,10 +1521,14 @@ for (const w of WERKZEUGE) {
   if (w.inputSchema.properties?.schreiben) w.inputSchema.properties.fingerabdruck = FINGERABDRUCK;
 }
 
+// Nach Aufgaben geordnet (vertrag.mjs), mit Titel "Aufgabe: name".
 export function sichtbareWerkzeuge(ctx) {
+  const reihenfolge = AUFGABEN.flatMap((a) => a.werkzeuge);
+  const rang = (name) => (reihenfolge.includes(name) ? reihenfolge.indexOf(name) : reihenfolge.length);
   return WERKZEUGE
     .filter((w) => !w.nurSchreiben || ctx.recht === "schreiben")
-    .map(({ name, description, inputSchema, annotations }) => ({ name, description, inputSchema, ...(annotations ? { annotations } : {}) }));
+    .sort((a, b) => rang(a.name) - rang(b.name))
+    .map(({ name, description, inputSchema, annotations }) => ({ name, title: `${aufgabeVon(name)?.titel ?? "Sonstiges"}: ${name}`, description, inputSchema, ...(annotations ? { annotations } : {}) }));
 }
 
 // Schreibende Aufrufe einer Sitzung laufen nacheinander: Clients schicken
@@ -1517,14 +1547,21 @@ function nacheinander(fn) {
 export async function rufeWerkzeug(ctx, name, args = {}) {
   const werkzeug = WERKZEUGE.find((w) => w.name === name);
   if (!werkzeug) return null;
-  const alsErgebnis = (r) => (r.content ? r : { content: [{ type: "text", text: r.text }], ...(r.isError ? { isError: true } : {}) });
-  if (werkzeug.nurSchreiben && ctx.recht !== "schreiben") {
-    return alsErgebnis(ergebnis(`${name} braucht --recht=schreiben. Dieser Zugang ist nur lesend.`, true));
-  }
-  const fehler = pruefeArgumente(werkzeug.inputSchema, args);
-  if (fehler.length) return alsErgebnis(ergebnis(`Ungueltige Argumente:\n${fehler.map((f) => `- ${f}`).join("\n")}`, true));
   const schreibt = Boolean(werkzeug.nurSchreiben || (args.schreiben === true && werkzeug.inputSchema.properties?.schreiben));
   const vorschau = Boolean(werkzeug.inputSchema.properties?.schreiben) && args.schreiben !== true;
+  const modus = vorschau ? "vorschau" : (schreibt ? "schreiben" : "lesen");
+  // Text fuer Menschen, structuredContent fuer Agenten: werkzeug, ok, modus,
+  // fingerabdruck (Vorschau), fehler (Code), dazu was das Werkzeug liefert.
+  const alsErgebnis = (r, fingerabdruck) => {
+    if (r.content) return r;
+    const strukturiert = { werkzeug: name, ok: !r.isError, modus, ...(fingerabdruck ? { fingerabdruck } : {}), ...(r.isError && !r.struktur?.fehler ? { fehler: "werkzeug" } : {}), ...(r.struktur ?? {}) };
+    return { content: [{ type: "text", text: r.text }], structuredContent: strukturiert, ...(r.isError ? { isError: true } : {}) };
+  };
+  if (werkzeug.nurSchreiben && ctx.recht !== "schreiben") {
+    return alsErgebnis(ergebnis(`${name} braucht --recht=schreiben. Dieser Zugang ist nur lesend.`, true, { fehler: "recht" }));
+  }
+  const fehler = pruefeArgumente(werkzeug.inputSchema, args);
+  if (fehler.length) return alsErgebnis(ergebnis(`Ungueltige Argumente:\n${fehler.map((f) => `- ${f}`).join("\n")}`, true, { fehler: "argumente", details: fehler }));
   try {
     if (vorschau) {
       // Fingerabdruck VOR dem Lesen: aendert sich der Bestand waehrend der
@@ -1532,11 +1569,11 @@ export async function rufeWerkzeug(ctx, name, args = {}) {
       const fingerabdruck = await bestandFingerabdruck(ctx.datenroot);
       const r = await werkzeug.ausfuehren(ctx, args);
       const zeile = `Fingerabdruck: ${fingerabdruck}`;
-      return alsErgebnis(typeof r.text !== "string" || r.text.includes(zeile) ? r : { ...r, text: `${r.text}\n\n${zeile} (mit schreiben:true als fingerabdruck mitgeben, dann wird nur gegen diesen Stand geschrieben)` });
+      return alsErgebnis(typeof r.text !== "string" || r.text.includes(zeile) ? r : { ...r, text: `${r.text}\n\n${zeile} (mit schreiben:true als fingerabdruck mitgeben, dann wird nur gegen diesen Stand geschrieben)` }, fingerabdruck);
     }
     const lauf = () => werkzeugName.run(name, () => erwarteterStand.run(args.fingerabdruck, () => werkzeug.ausfuehren(ctx, args)));
     return alsErgebnis(await (schreibt ? nacheinander(lauf) : lauf()));
   } catch (error) {
-    return alsErgebnis(ergebnis(error instanceof PfadFehler ? `Pfad abgewiesen: ${error.message}` : `Fehler: ${error.message}`, true));
+    return alsErgebnis(error instanceof PfadFehler ? ergebnis(`Pfad abgewiesen: ${error.message}`, true, { fehler: "pfad" }) : ergebnis(`Fehler: ${error.message}`, true, { fehler: "werkzeug" }));
   }
 }

@@ -3,7 +3,8 @@
 // liefert die Antwortzeile (oder null bei Benachrichtigungen).
 import { holePrompt, leseRessource, listePrompts, listeRessourcen } from "./inhalte.mjs";
 import { OHNE_RELEASE, veraltetHinweis } from "./version.mjs";
-import { KATEGORIE_REGEL, rufeWerkzeug, sichtbareWerkzeuge } from "./werkzeuge.mjs";
+import { rufeWerkzeug, sichtbareWerkzeuge } from "./werkzeuge.mjs";
+import { pflichtAnleitung } from "./vertrag.mjs";
 
 export const VERSIONEN = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
@@ -11,15 +12,8 @@ class RpcFehler extends Error {
   constructor(code, message) { super(message); this.code = code; }
 }
 
-function anleitung(ctx) {
-  return [
-    `Finanzmodell, Datenroot ${ctx.datenrootRel}, Recht: ${ctx.recht}.`,
-    "Auswertungen und Statusfragen direkt per Tool beantworten (kennzahlen, status, transaktionen_abfragen, pruefbericht), ohne Vorlektuere; fuer \u201eWie stehen wir?\u201c zuerst kennzahlen.",
-    "Vor Datenarbeit (Import, Kategorisieren, Regeln, Freigabe, jedes Schreiben) die Ressource finanzen://docs/agent-context und den passenden Skill-Prompt lesen.",
-    "Alle Tool-Laeufe sind ohne schreiben:true eine Vorschau; sie nennen einen Fingerabdruck des gelesenen Bestands. Beim Schreiben diesen als fingerabdruck mitgeben: hat sich der Bestand seither geaendert, wird abgewiesen. Nach jedem Schreiben laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird nichts uebernommen.",
-    KATEGORIE_REGEL,
-  ].join(" ");
-}
+// Die kurze Pflichtanleitung kommt aus der Vertragsquelle (vertrag.mjs).
+const anleitung = pflichtAnleitung;
 
 async function methode(ctx, name, params = {}) {
   switch (name) {
@@ -39,7 +33,7 @@ async function methode(ctx, name, params = {}) {
       // Nach einem Deploy: alter Code darf neue Daten weder schreiben noch
       // deuten. Nur status bleibt (zeigt beide Release-Staende).
       const veraltet = params.name === "status" ? null : veraltetHinweis(ctx);
-      if (veraltet) return { content: [{ type: "text", text: veraltet }], isError: true };
+      if (veraltet) return { content: [{ type: "text", text: veraltet }], structuredContent: { werkzeug: params.name, ok: false, fehler: "veraltet" }, isError: true };
       const ergebnis = await rufeWerkzeug(ctx, params.name, params.arguments ?? {});
       if (!ergebnis) throw new RpcFehler(-32602, `Unbekanntes Tool: ${params.name}`);
       return ergebnis;

@@ -292,6 +292,10 @@ export async function browserModule(appDir) {
   return module;
 }
 
+function etagListePasst(kopf, etag) {
+  return etagPasst(kopf, etag.slice(1, -1));
+}
+
 // If-None-Match gegen den aktuellen Stand: Liste, schwache Tags und * erlaubt.
 export function etagPasst(kopf, stand) {
   if (typeof kopf !== "string" || !kopf.trim()) return false;
@@ -323,7 +327,43 @@ function innerhalb(wurzel, pfad) {
   return pfad === wurzel || pfad.startsWith(wurzel + sep);
 }
 
-async function liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, datenDirs, module }) {
+// --- Caching der Code-Assets (Review D.2) -----------------------------------
+// Finanzdaten, APIs, Belege, index.html, version.json und sitzung.json bleiben
+// no-store (BASIS_KOPFZEILEN). Nur die Code-Assets der App (Modulgraph,
+// styles.css) bekommen einen Inhalts-ETag: ohne Versionsparameter "no-cache"
+// (jedes Mal kurz nachfragen, 304 ohne Inhalt), mit ?v=<Release> aus
+// version.json "immutable". index.html haengt den Parameter an ihre
+// Einstiegsdateien; deren Importe laufen ueber die Revalidierung.
+const NIE_CACHEN = new Set(["index.html", "version.json", "sitzung.json"]);
+const IMMUTABLE = "private, max-age=31536000, immutable";
+
+// Release-Kennung aus version.json (schreibt das Deploy); null ohne Datei.
+async function releaseKennung(appWurzel) {
+  try {
+    const { kurz } = JSON.parse(await readFile(join(appWurzel, "version.json"), "utf8"));
+    return typeof kurz === "string" && /^[0-9a-f]{4,40}$/.test(kurz) ? kurz : null;
+  } catch {
+    return null;
+  }
+}
+
+// index.html: ./x.css, ./x.js, ./x.mjs in href/src bekommen ?v=<Release>.
+export function indexMitVersion(html, release) {
+  if (!release) return html;
+  return html.replace(/\b(href|src)="(\.\/[^"?#]+\.(?:css|js|mjs))"/g, `$1="$2?v=${release}"`);
+}
+
+const etagCache = new Map();
+async function inhaltsEtag(echt, info) {
+  const schluessel = `${info.size}:${info.mtimeMs}`;
+  const bekannt = etagCache.get(echt);
+  if (bekannt?.schluessel === schluessel) return bekannt.etag;
+  const etag = `"${createHash("sha256").update(await readFile(echt)).digest("hex").slice(0, 32)}"`;
+  etagCache.set(echt, { schluessel, etag });
+  return etag;
+}
+
+async function liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, datenDirs, module, release }) {
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.writeHead(405, { Allow: "GET, HEAD", "Content-Type": "text/plain; charset=utf-8" });
     res.end("Methode nicht erlaubt\n");
@@ -356,11 +396,23 @@ async function liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurz
     : segmente[0] === "data" && segmente[1] === "inbox" ? [inboxWurzel, segmente.slice(2)]
       : segmente[0] === "data" && segmente[1] === "demo-belege" ? [demoBelegeWurzel, segmente.slice(2)]
         : [appWurzel, segmente];
-  return sendeDatei(req, res, wurzel, teile, segmente);
+  if (wurzel !== appWurzel) return sendeDatei(req, res, wurzel, teile, segmente);
+  const relativ = segmente.join("/");
+  if (relativ === "index.html") return sendeIndex(req, res, appWurzel, release);
+  if (NIE_CACHEN.has(relativ)) return sendeDatei(req, res, wurzel, teile, segmente);
+  const version = new URLSearchParams(req.url.split("#")[0].split("?")[1] ?? "").get("v");
+  return sendeDatei(req, res, wurzel, teile, segmente, { cache: release && version === release ? IMMUTABLE : "no-cache" });
+}
+
+async function sendeIndex(req, res, appWurzel, release) {
+  const inhalt = Buffer.from(indexMitVersion(await readFile(join(appWurzel, "index.html"), "utf8"), release), "utf8");
+  res.writeHead(200, { "Content-Type": MIME[".html"], "Content-Length": inhalt.length });
+  res.end(req.method === "HEAD" ? undefined : inhalt);
 }
 
 // Eine Datei unterhalb von wurzel ausliefern; segmente ist der ganze URL-Pfad.
-async function sendeDatei(req, res, wurzel, teile, segmente) {
+// cache (nur Code-Assets): Cache-Control statt no-store, dazu ein Inhalts-ETag.
+async function sendeDatei(req, res, wurzel, teile, segmente, { cache } = {}) {
   if (!wurzel) return nichtGefunden(res);
   const ziel = join(wurzel, ...teile);
   if (!innerhalb(wurzel, ziel)) return nichtGefunden(res);
@@ -378,6 +430,18 @@ async function sendeDatei(req, res, wurzel, teile, segmente) {
   const endung = extname(echt).toLowerCase();
   // Auch nicht ueber einen Symlink mit harmlosem Namen (a.pdf -> a.html).
   if (AUSFUEHRBAR.has(endung) && (segmente[0] === "Belege" || segmente[0] === "data")) return nichtGefunden(res);
+  if (cache) {
+    const etag = await inhaltsEtag(echt, info);
+    res.setHeader("Cache-Control", cache);
+    res.setHeader("ETag", etag);
+    res.removeHeader("Pragma");
+    res.removeHeader("Expires");
+    if (etagListePasst(req.headers["if-none-match"], etag)) {
+      res.writeHead(304);
+      res.end();
+      return;
+    }
+  }
   res.writeHead(200, {
     "Content-Type": MIME[endung] ?? "application/octet-stream",
     "Content-Length": info.size,
@@ -503,6 +567,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = physisch(appDir,
   let inboxWurzel = null;
   let demoBelegeWurzel = null;
   let module = null;
+  let release;
   const snapshotQuellen = { live: erstelleSnapshotQuelle(datenDirs.live), demo: erstelleSnapshotQuelle(datenDirs.demo) };
   // Uploads nacheinander abschliessen: Namenswahl ohne Wettlauf untereinander.
   let kette = Promise.resolve();
@@ -773,6 +838,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = physisch(appDir,
     demoBelegeWurzel ??= await realpath(demoBelegeDir).catch(() => null);
     // Einmal je Serverstart: ein Deploy startet den Dienst neu.
     module ??= await browserModule(appWurzel);
+    if (release === undefined) release = await releaseKennung(appWurzel);
     const rohPfad = req.url.split("?")[0];
     const demo = quelleAus(req) === "demo";
 
@@ -799,7 +865,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = physisch(appDir,
       return nimmUpload(req, res, rohPfad.slice(API_INBOX.length + 1));
     }
     if (rohPfad === "/api" || rohPfad.startsWith("/api/")) return abgelehnt(res, 404, "nicht-gefunden");
-    return liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, datenDirs, module });
+    return liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, datenDirs, module, release });
   }
 
   const server = http.createServer((req, res) => {

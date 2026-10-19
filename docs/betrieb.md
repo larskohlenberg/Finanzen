@@ -137,3 +137,13 @@ Beim Start per SSH-Forced-Command geht stderr an den Client, nicht ins Journal. 
 Enthalten sind nur Zeit, Sitzungskennung (zufaellig je Start), Prozess, Methode, Werkzeugname, Dauer und Fehlerklasse, nie Argumente oder Inhalte. Namen, die nicht wie ein Name aussehen, erscheinen als `(ungueltig)`. Je Monat eine Datei; alte Monate loescht der Admin bei Bedarf. Kann der Server nicht schreiben (Rechte, Platte voll), laeuft er weiter und meldet das einmal auf stderr.
 
 Nachsehen auf dem Server: `sudo -u finanzen tail -n 50 <Datenort>/logs/mcp-$(date +%Y-%m).log`.
+
+## Caching (Review D.2)
+
+Der App-Server liefert Finanzdaten, Lese-APIs, Belege, Inbox, Logos, `index.html`, `version.json` und `sitzung.json` mit `no-store`. Nur Code-Assets (Modulgraph ab `index.html`, `styles.css`) duerfen in den Browser-Cache:
+
+- `index.html` haengt an ihre Einstiegsdateien `?v=<Release>` aus `app/version.json`. Passt der Parameter zum laufenden Release: `private, max-age=31536000, immutable`.
+- Alle anderen Code-Assets: `no-cache` mit Inhalts-ETag; der Browser fragt jedes Mal kurz nach und bekommt `304` ohne Inhalt, solange sich die Datei nicht geaendert hat.
+- Ohne `version.json` (lokale Entwicklung) gibt es keinen Versionsparameter, nur die Revalidierung.
+
+Komprimieren uebernimmt der Reverse-Proxy (z. B. Caddy `encode`); der App-Server komprimiert nicht.

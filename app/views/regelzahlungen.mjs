@@ -1,12 +1,12 @@
 // app/views/regelzahlungen.mjs
 // Regelzahlungs-Liste inkl. "Nächste Fälligkeit" je Eintrag (Reiter der Seite Termine).
-import { data, state, t, escapeHtml } from "../runtime.mjs";
+import { data, state, t, tf, escapeHtml } from "../runtime.mjs";
 import { formatMoney, formatDate, mitLogo, statusChip } from "../komponenten.mjs";
 import { naechsteFaelligkeit, localTodayIso, toCents } from "../liquiditaet.mjs";
 
 export function formatRhythmus(einheit, intervall) {
   const key = intervall === 1 ? "eins" : "mehr";
-  return t(`rhythmus.${einheit}.${key}`).replace("{n}", String(intervall));
+  return tf(`rhythmus.${einheit}.${key}`, { n: String(intervall) });
 }
 
 export function renderRegelzahlungen() {

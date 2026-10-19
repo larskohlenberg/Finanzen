@@ -2,10 +2,9 @@
 // Kacheln Absicherung: je Fall (Berufsunfaehigkeit, Tod) eine Kachel, darin je
 // Person die Summe und die einzelnen Leistungen mit Link auf ihren Vertrag.
 // Nur auflisten, kein Bedarf. Rechnen in absicherung.mjs.
-import { data, state, t, escapeHtml } from "../runtime.mjs";
+import { data, state, t, tf, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, mitLogo } from "../komponenten.mjs";
-import { tf } from "./vermoegen-teile.mjs";
 
 const FELD_LABEL = {
   bu_rente: "vorsorge.buRente",

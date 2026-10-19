@@ -5,6 +5,7 @@
 // Der Overlay liegt in document.body, weil render() den #app-Inhalt komplett
 // ersetzt und dort platzierte Knoten sonst weggewischt wuerden.
 import { punktBeiX } from "./charts.mjs";
+import { escapeHtml } from "./format.mjs";
 import { formatDate, formatMoney, formatMonth } from "./komponenten.mjs";
 
 let overlay = null;
@@ -270,10 +271,6 @@ export function termineListenBegrenzen(root) {
     const letzte = liste.children[TERMIN_ZEILEN - 1];
     liste.style.maxHeight = liste.children.length > TERMIN_ZEILEN ? `${letzte.offsetTop + letzte.offsetHeight}px` : "";
   }
-}
-
-function escapeHtml(text) {
-  return String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
 // Versatz in px, damit ein Element mit diesen Kanten im Fenster bleibt

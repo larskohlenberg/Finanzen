@@ -231,7 +231,7 @@ function renderSidebar() {
 function renderVersion() {
   if (appVersion === undefined) return "";
   const v = versionAnzeige(appVersion, {
-    locale: state.lang === "de" ? "de-DE" : "en-US",
+    lang: state.lang,
     lokal: t("chrome.versionLocal"),
   });
   if (v.lokal) return `<span class="sidebar-version">${escapeHtml(v.text)}</span>`;

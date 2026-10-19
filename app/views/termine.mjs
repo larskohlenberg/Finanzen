@@ -1,12 +1,11 @@
 // app/views/termine.mjs
 // Seite Termine: Regelzahlungen und Fristen als zwei Reiter. Beide beantworten,
 // was wann ansteht; das Menue bekommt dafuer nur einen Eintrag.
-import { data, state, t, escapeHtml } from "../runtime.mjs";
+import { data, state, t, tf, escapeHtml } from "../runtime.mjs";
 import { renderPageHead, heuteIso } from "../komponenten.mjs";
 import { TERMINE_TABS } from "../routing.mjs";
 import { renderRegelzahlungen } from "./regelzahlungen.mjs";
 import { fristenZaehler, renderFristen } from "./fristen.mjs";
-import { tf } from "./vermoegen-teile.mjs";
 
 function renderTabs(aktiv, today) {
   const rz = data.regelzahlungen ?? [];

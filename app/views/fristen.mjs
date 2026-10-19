@@ -1,11 +1,10 @@
 // app/views/fristen.mjs
 // Fristenliste (Reiter der Seite Termine) und die Bausteine, die auch die
 // Termine-Kachel der Uebersicht nutzt: Bezug als Link, Dringlichkeit als Chip.
-import { data, t, escapeHtml } from "../runtime.mjs";
+import { data, t, tf, escapeHtml } from "../runtime.mjs";
 import { formatDate } from "../komponenten.mjs";
 import { anstehendeFristen } from "../fristen.mjs";
 import { formatRhythmus } from "./regelzahlungen.mjs";
-import { tf } from "./vermoegen-teile.mjs";
 
 // Weit genug, dass jede erfasste Frist ihren naechsten Termin zeigt und
 // abgeleitete Termine wie ein Rentenbeginn in vielen Jahren mit drin sind.

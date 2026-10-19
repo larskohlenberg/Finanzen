@@ -2,7 +2,7 @@
 // Gemeinsame Bausteine der Vermoegensseite (Tabs in vermoegen.mjs und
 // vermoegen-objekte.mjs): Qualitaets-Chips, Wertstaende eines Objekts,
 // Kennzahl-Kacheln, Dokumentliste, Rhythmus/Laufzeit-Texte.
-import { data, t, escapeHtml, cents } from "../runtime.mjs";
+import { data, t, tf, fmt, escapeHtml, cents } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, detailRow, quelleHtml } from "../komponenten.mjs";
 import { dokumentRoute, dokumenteZuObjekt } from "../belege.mjs";
@@ -11,10 +11,6 @@ import { fristenZuObjekt } from "../fristen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { belegDateienStand, renderDokumenteAusschnitt } from "./belege.mjs";
 
-// t() mit Platzhaltern {name}.
-export function tf(key, werte = {}) {
-  return Object.entries(werte).reduce((text, [name, wert]) => text.replaceAll(`{${name}}`, String(wert)), t(key));
-}
 
 export function qualitaetChip(p) {
   if (p.fehlt || !p.qualitaet) return `<span class="chip review">${iconSvg("review")}${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`;
@@ -30,14 +26,15 @@ export function kennzahl(label, wertHtml, notizHtml = "", { titel = "" } = {}) {
     </div>`;
 }
 
-export function geld(centsWert, { negativ = false } = {}) {
+// ganz: auf Euro gerundet, fuer Kacheln (docs/ui-regeln.md); sonst exakt.
+export function geld(centsWert, { negativ = false, ganz = false } = {}) {
   if (centsWert === null || centsWert === undefined) return `<span class="muted">—</span>`;
-  return `<span class="${negativ && centsWert < 0 ? "betrag-negativ" : ""}">${escapeHtml(formatMoney(centsWert))}</span>`;
+  return `<span class="${negativ && centsWert < 0 ? "betrag-negativ" : ""}">${escapeHtml(ganz ? fmt().geldGanz(centsWert) : formatMoney(centsWert))}</span>`;
 }
 
 export function prozent(anteil, stellen = 0) {
   if (anteil === null || anteil === undefined || !Number.isFinite(anteil)) return "—";
-  return new Intl.NumberFormat("de-DE", { style: "percent", maximumFractionDigits: stellen, minimumFractionDigits: stellen }).format(anteil);
+  return fmt().prozent(anteil, stellen);
 }
 
 const FELDER_JE_KLASSE = {

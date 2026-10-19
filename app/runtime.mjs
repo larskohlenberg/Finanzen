@@ -4,6 +4,7 @@
 // importieren von hier — so teilen sie EINE Zustands-/Datenquelle (Objekte per
 // Referenz). Bewusst ohne DOM-Render-Logik (die liegt in main.js/views/).
 import { loadFinanceData, normalizeDataMode } from "./data-loader.mjs";
+import { escapeHtml, formatierer, fuelle } from "./format.mjs";
 import { defaultHorizonEnd, localTodayIso, toCents } from "./liquiditaet.mjs";
 
 export const app = document.querySelector("#app");
@@ -206,13 +207,16 @@ export function t(path) {
   return path;
 }
 
-export function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+export { escapeHtml };
+
+// t() mit benannten Platzhaltern: tf("x.y", { n: 3 }) ersetzt "{n}".
+export function tf(path, werte = {}) {
+  return fuelle(t(path), werte);
+}
+
+// Die Formatierer der aktuellen Sprache (format.mjs).
+export function fmt() {
+  return formatierer(state.lang);
 }
 
 export const cents = toCents;

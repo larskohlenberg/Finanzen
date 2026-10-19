@@ -6,7 +6,7 @@
 // App-Server (GET /api/belege); ohne ihn zeigt die Ansicht einen Hinweis.
 // Im Demo-Modus nur die Demo-Dokumente (demo-modus.mjs).
 // In der Oberflaeche heisst eine Datei "Dokument", nie "Beleg" (CONTEXT.md).
-import { state, t, escapeHtml, kontenById } from "../runtime.mjs";
+import { state, t, tf, fmt, escapeHtml, kontenById } from "../runtime.mjs";
 import { renderPageHead, formatDate } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { belegDateiUrl, belegeApiUrl } from "../demo-modus.mjs";
@@ -32,19 +32,8 @@ function verweisFuer(pfad) {
   return verweise().get(belegSchluessel(pfad));
 }
 
-const locale = () => (state.lang === "en" ? "en-GB" : "de-DE");
-
-function formatTag(iso) {
-  const datum = new Date(iso);
-  if (Number.isNaN(datum.getTime())) return "";
-  return datum.toLocaleDateString(locale(), { dateStyle: "medium" });
-}
-
-function formatZeit(iso) {
-  const datum = new Date(iso);
-  if (Number.isNaN(datum.getTime())) return "";
-  return datum.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" });
-}
+const formatTag = (iso) => fmt().zeitpunktTag(iso);
+const formatZeit = (iso) => fmt().zeitpunkt(iso);
 
 // --- Laden und Bedienung (von main.js aufgerufen) ------------------------------
 
@@ -296,7 +285,7 @@ function renderOrdnerZeile(o, ordnerAttr, aktionen = false) {
     <tr class="clickable belege-ordnerzeile" ${ordnerAttr(o.pfad)}>
       <td class="belege-name"><button type="button" class="linkish" ${ordnerAttr(o.pfad)}>${iconSvg("folder")}<span>${escapeHtml(o.name)}</span></button></td>
       <td class="muted">${escapeHtml(t("dokumente.ordnerTyp"))}</td>
-      <td class="amount muted">${escapeHtml(t("dokumente.dateienAnzahl").replace("{n}", String(o.anzahl)))}</td>
+      <td class="amount muted">${escapeHtml(tf("dokumente.dateienAnzahl", { n: String(o.anzahl) }))}</td>
       <td></td>
       <td></td>
       <td></td>
@@ -314,7 +303,7 @@ function renderAusschnittZeile(d, fremde) {
     <tr class="clickable" data-action="dokument-oeffnen" data-url="${escapeHtml(url)}" title="${escapeHtml(t("dokumente.oeffnen"))}">
       <td class="belege-name"><a class="linkish" href="${escapeHtml(url)}" target="_blank" rel="noopener" data-action="dokument-link">${iconSvg("belege")}<span>${escapeHtml(d.name)}</span></a></td>
       <td>${escapeHtml(typText(d.typ))}</td>
-      <td class="amount">${escapeHtml(formatGroesse(d.groesse, locale()))}</td>
+      <td class="amount">${escapeHtml(fmt().groesse(d.groesse))}</td>
       <td title="${escapeHtml(formatZeit(d.geaendert))}">${escapeHtml(formatTag(d.geaendert))}</td>
       <td>${textZelle(d)}</td>
       <td class="belege-verknuepft">${verknuepftLinks(d, fremde)}</td>
@@ -331,7 +320,7 @@ function verknuepftLinks(d, { andere, buchungen }) {
     return `<a class="linkish" href="${escapeHtml(v.route)}" data-action="dokument-link" title="${escapeHtml(titel)}">${escapeHtml(v.name || v.id)}</a>`;
   });
   if (buchungen) {
-    const text = buchungen === 1 ? t("dokumente.buchungKurz") : t("dokumente.buchungenKurz").replace("{n}", String(buchungen));
+    const text = buchungen === 1 ? t("dokumente.buchungKurz") : tf("dokumente.buchungenKurz", { n: String(buchungen) });
     links.push(`<a class="linkish" href="${escapeHtml(`#/transaktionen/dokument/${kodierePfad(d.pfad.slice(BELEGE_WURZEL.length + 1))}`)}" data-action="dokument-link" title="${escapeHtml(t("dokumente.inTransaktionenAnzeigen"))}">${escapeHtml(text)}</a>`);
   }
   return links.length ? links.join("") : `<span class="muted" title="${escapeHtml(t("dokumente.keineWeiterenVerknuepfungen"))}">–</span>`;
@@ -344,7 +333,7 @@ function renderZeile(d, gewaehlt, suche) {
       <td class="belege-name"><button type="button" class="linkish" data-action="select-beleg" data-beleg="${escapeHtml(d.pfad)}"${gewaehlt ? ` aria-current="true"` : ""}>${iconSvg("belege")}<span>${escapeHtml(d.name)}</span></button></td>
       ${suche ? `<td class="muted">${escapeHtml(d.ordner.slice(BELEGE_WURZEL.length + 1) || "/")}</td>` : ""}
       <td>${escapeHtml(typText(d.typ))}</td>
-      <td class="amount">${escapeHtml(formatGroesse(d.groesse, locale()))}</td>
+      <td class="amount">${escapeHtml(fmt().groesse(d.groesse))}</td>
       <td title="${escapeHtml(formatZeit(d.geaendert))}">${escapeHtml(formatTag(d.geaendert))}</td>
       <td>${textZelle(d)}</td>
       <td class="amount">${anzahl ? `<strong>${anzahl}</strong>` : `<span class="muted">0</span>`}</td>
@@ -383,7 +372,7 @@ function renderDetail(d) {
         <div class="detail-list">
           ${metaZeile(t("dokumente.ordnerSpalte"), `<button type="button" class="linkish" data-action="select-beleg" data-beleg="${escapeHtml(d.ordner)}">${escapeHtml(d.ordner)}</button>`)}
           ${metaZeile(t("dokumente.spalteTyp"), escapeHtml(typText(d.typ)))}
-          ${metaZeile(t("dokumente.spalteGroesse"), escapeHtml(formatGroesse(d.groesse, locale())))}
+          ${metaZeile(t("dokumente.spalteGroesse"), escapeHtml(fmt().groesse(d.groesse)))}
           ${metaZeile(t("dokumente.spalteGeaendert"), escapeHtml(formatZeit(d.geaendert)))}
           ${metaZeile(t("dokumente.spalteText"), textZelle(d))}
           ${zwillingLink ? metaZeile(t("dokumente.textzwilling"), zwillingLink) : ""}
@@ -402,7 +391,7 @@ function renderVerknuepfungen(d) {
   const teile = [];
   if (verweis.buchungen?.anzahl) {
     const z = verweis.buchungen;
-    const titel = z.anzahl === 1 ? t("dokumente.quelleFuerBuchung") : t("dokumente.quelleFuerBuchungen").replace("{n}", String(z.anzahl));
+    const titel = z.anzahl === 1 ? t("dokumente.quelleFuerBuchung") : tf("dokumente.quelleFuerBuchungen", { n: String(z.anzahl) });
     const konten = z.konten.map((id) => escapeHtml(kontenById.get(id)?.name || id)).join(", ");
     const zeitraum = z.von === z.bis ? escapeHtml(formatDate(z.von)) : `${escapeHtml(formatDate(z.von))} – ${escapeHtml(formatDate(z.bis))}`;
     teile.push(`

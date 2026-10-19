@@ -2,7 +2,7 @@
 // Vermoegensseite: je Klasse ein Tab (Uebersicht, Konten & Depots, Immobilien,
 // Darlehen, Sonstige Werte); die Kennzahlen stehen im Uebersichtstab. Vorsorge hat nur einen Verweis-Reiter auf die Vorsorge-Seite, die die
 // Details traegt. Immobilien und Darlehen rendert vermoegen-objekte.mjs.
-import { data, state, t, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
+import { data, state, t, tf, fmt, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie, kennzahlKachel, kachelZeile, zeitverlaufKlein } from "../komponenten.mjs";
 import { donutDiagramm } from "../charts.mjs";
@@ -11,7 +11,7 @@ import { immobilienKennzahlen } from "../vermoegen-details.mjs";
 import { VERMOEGEN_TABS, TAB_FUER_KLASSE } from "../vermoegen-routen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { renderImmobilienTab, renderDarlehenTab } from "./vermoegen-objekte.mjs";
-import { balkenSvg, dokumenteHtml, geld, qualitaetChip, rateJeMonatCents, renderPositionWertstaende, tf } from "./vermoegen-teile.mjs";
+import { balkenSvg, dokumenteHtml, geld, qualitaetChip, rateJeMonatCents, renderPositionWertstaende } from "./vermoegen-teile.mjs";
 import { renderWertstaendeTabelle } from "./vermoegen-wertstaende.mjs";
 import { kontenAntwort } from "./konten-daten.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
@@ -155,7 +155,7 @@ function ausgewaehltePosition(r, klasse) {
 // Notiz, flacher Verlauf und Aufschluesselung. Oben Nettovermoegen und
 // Restschuld, darunter Konten und die uebrigen Werte, dann die offenen Punkte
 // und die Wertstaende (zu). Die Klassensummen stehen schon in den Tabs.
-const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
+const geldOhneCent = (c) => fmt().geldGanz(c);
 const positionLink = (klasse, id, name) => `<button class="linkish" data-action="select-vermoegen" data-vermoegen="${escapeHtml(`${klasse}:${id}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
 const KONTOTYPEN = ["giro", "tagesgeld", "spar", "festgeld", "kreditkarte", "depot"];
 
@@ -185,7 +185,7 @@ function nettoKachel(r, je, verlauf) {
   const vorher = verlauf.length > 1 ? verlauf[Math.max(0, verlauf.length - 13)] : null;
   const diff = vorher ? r.netto_cents - vorher.netto_cents : 0;
   const notiz = [
-    `${escapeHtml(t("vermoegen.aktiva"))}: ${escapeHtml(formatMoney(r.aktiva_cents))} · ${escapeHtml(t("vermoegen.passiva"))}: ${escapeHtml(formatMoney(r.passiva_cents))}`,
+    `${escapeHtml(t("vermoegen.aktiva"))}: ${escapeHtml(geldOhneCent(r.aktiva_cents))} · ${escapeHtml(t("vermoegen.passiva"))}: ${escapeHtml(geldOhneCent(r.passiva_cents))}`,
     vorher ? escapeHtml(tf("vermoegen.uebersicht.veraenderung", { betrag: `${diff > 0 ? "+" : ""}${geldOhneCent(diff)}`, seit: formatMonth(vorher.monat) })) : "",
   ].filter(Boolean).join("<br>");
   const unten = `${verlauf.length > 1 ? zeitverlaufKlein({
@@ -199,7 +199,7 @@ function nettoKachel(r, je, verlauf) {
     ${balkenSvg(segmente)}
     ${balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(r.passiva_cents)}` }], { laenge: r.passiva_cents / aktiva })}
     <div class="vermoegen-legende">${legende}</div>`;
-  return kennzahlKachel({ label: t("vermoegen.netto"), wert: escapeHtml(formatMoney(r.netto_cents)), notiz, unten, info: t("vermoegen.uebersicht.nettoInfo") });
+  return kennzahlKachel({ label: t("vermoegen.netto"), wert: escapeHtml(geldOhneCent(r.netto_cents)), notiz, unten, info: t("vermoegen.uebersicht.nettoInfo") });
 }
 
 function restschuldKachel(r, today) {
@@ -227,8 +227,8 @@ function restschuldKachel(r, today) {
   const frei = new Map((z?.ereignisse ?? []).filter((e) => e.typ === "frei").map((e) => [e.darlehen.darlehen_id, e.datum.slice(0, 4)]));
   const zeilen = r.positionen.filter((p) => p.klasse === "darlehen")
     .sort((a, b) => a.wert_cents - b.wert_cents)
-    .map((p) => kachelZeile(positionLink("darlehen", p.id, p.name), p.fehlt ? "—" : formatMoney(p.wert_cents), frei.has(p.id) ? tf("vermoegen.uebersicht.freiJahr", { jahr: frei.get(p.id) }) : "", "segment-darlehen"));
-  return kennzahlKachel({ label: t("vermoegen.uebersicht.restschuld"), wert: geld(-r.passiva_cents, { negativ: true }), notiz, zeilen, unten });
+    .map((p) => kachelZeile(positionLink("darlehen", p.id, p.name), p.fehlt ? "—" : geldOhneCent(p.wert_cents), frei.has(p.id) ? tf("vermoegen.uebersicht.freiJahr", { jahr: frei.get(p.id) }) : "", "segment-darlehen"));
+  return kennzahlKachel({ label: t("vermoegen.uebersicht.restschuld"), wert: geld(-r.passiva_cents, { negativ: true, ganz: true }), notiz, zeilen, unten });
 }
 
 function kontenKachel(r, je) {
@@ -243,7 +243,7 @@ function kontenKachel(r, je) {
     .map((p) => kachelZeile(positionLink("konto", p.id, p.name), p.fehlt ? "—" : formatMoney(p.wert_cents), "", KONTOTYPEN.includes(typ(p.id)) ? `kontotyp-farbe-${typ(p.id)}` : ""));
   return kennzahlKachel({
     label: t("vermoegen.klassePlural.konto"),
-    wert: geld(je.konto.summe, { negativ: true }),
+    wert: geld(je.konto.summe, { negativ: true, ganz: true }),
     notiz: escapeHtml(tf("vermoegen.karte.konten", { konten: konten.length - depots, depots })),
     zeilen,
     grafik,
@@ -266,8 +266,8 @@ function werteKachel(r, je, today) {
   ];
   return kennzahlKachel({
     label: t("vermoegen.uebersicht.werte"),
-    wert: escapeHtml(formatMoney(summe)),
-    notiz: immobilien.length ? escapeHtml(tf("vermoegen.uebersicht.eigenkapital", { ek: formatMoney(eigenkapital) })) : "",
+    wert: escapeHtml(geldOhneCent(summe)),
+    notiz: immobilien.length ? escapeHtml(tf("vermoegen.uebersicht.eigenkapital", { ek: geldOhneCent(eigenkapital) })) : "",
     zeilen,
     grafik,
   });

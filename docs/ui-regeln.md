@@ -5,6 +5,21 @@ Neue oder umgebaute Ansichten uebernehmen diese Bausteine, statt eigene Variante
 zu bauen. Die aeltere Gesamt-Guideline liegt unter
 `docs/archiv/runde2/UI_Guideline_Runde2.md`.
 
+## Zahlen und Daten
+
+Alle Zahlen, Betraege und Daten formatiert `app/format.mjs` (in Views ueber
+`fmt()`, `formatMoney`, `formatGeldGanz`, `formatDate` und `tf` aus
+`runtime.mjs`/`komponenten.mjs`). Keine eigenen `Intl`-Formatierer und kein
+eigenes Escaping in Views; ein Test prueft das.
+
+- **Kacheln gerundet, Details exakt.** Kennzahlen in Kacheln, Zeilen der
+  Uebersicht und Achsen zeigen ganze Euro (`geldGanz`). Tabellen, Detailfelder,
+  Tooltips und Checks zeigen den Betrag mit Cent (`geld`).
+- Deutsch formatiert als `de-DE`, Englisch einheitlich als `en-GB` (Euro,
+  Tag vor Monat).
+- Texte mit Platzhaltern ueber `tf("schluessel", { name: wert })`, nicht mit
+  `.replace("{name}", ...)`.
+
 ## Klappbare Detail-Kacheln
 
 Grosse Abschnitte im Detail eines Objekts (Vertrags- und Stammdaten,

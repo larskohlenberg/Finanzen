@@ -3,7 +3,7 @@
 // nur Anzeige (ADR 0006) — Szenarien, Annahmen und Phasen entstehen ausschliesslich
 // ueber den Agenten. Jede Detailseite beantwortet dieselben Fragen: Wie lange reicht
 // die Liquiditaet? Wie kommen wir in jeder Phase aus? Wo steht das Vermoegen am Ende?
-import { data, state, t, escapeHtml, cents } from "../runtime.mjs";
+import { data, state, t, tf, fmt, escapeHtml, cents } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead, heuteIso } from "../komponenten.mjs";
 import { zeitstrahlDiagramm, stapelDiagramm } from "../charts.mjs";
@@ -56,8 +56,7 @@ function monatLabel(datumIso) {
 // Kompakte Achsenbeschriftung: 800 €, 12,5k €, 1,2 Mio. €.
 function kurzBetrag(c) {
   const euro = c / 100;
-  const lang = state.lang === "de" ? "de-DE" : "en-US";
-  const zahl = (n, d) => n.toLocaleString(lang, { maximumFractionDigits: d });
+  const zahl = (n, d) => fmt().zahl(n, d);
   const betrag = Math.abs(euro);
   const vz = euro < 0 ? "−" : "";
   if (betrag >= 1e6) return `${vz}${zahl(betrag / 1e6, 1)} ${t("szenarien.mio")} €`;
@@ -74,7 +73,7 @@ function vorzeichen(c) {
 }
 
 function reichtBisText(kipp, punkte) {
-  return kipp ? formatMonth(kipp) : t("szenarien.ueberHorizont").replace("{monat}", punkte.length ? formatMonth(punkte.at(-1).monat) : "—");
+  return kipp ? formatMonth(kipp) : tf("szenarien.ueberHorizont", { monat: punkte.length ? formatMonth(punkte.at(-1).monat) : "—" });
 }
 
 function staleNote(szenario, today) {
@@ -194,7 +193,7 @@ export function renderSzenarien() {
       <td>${escapeHtml(sz.name)}</td>
       <td>${statusChip(sz.status)}</td>
       <td class="amount">${escapeHtml(String(sz.phasen?.length || 1))}</td>
-      <td class="${kipp ? "amount-negativ" : ""}">${escapeHtml(kipp ? formatMonth(kipp) : t("szenarien.ueberHorizontKurz").replace("{monat}", ende ? kurzMonat(ende.monat) : "—"))}</td>
+      <td class="${kipp ? "amount-negativ" : ""}">${escapeHtml(kipp ? formatMonth(kipp) : tf("szenarien.ueberHorizontKurz", { monat: ende ? kurzMonat(ende.monat) : "—" }))}</td>
       <td class="amount ${tief && tief.cents < 0 ? "amount-negativ" : ""}">${tief ? `${escapeHtml(formatMoney(tief.cents))} <span class="muted">${escapeHtml(kurzMonat(tief.monat))}</span>` : "—"}</td>
       <td class="amount">${ende ? escapeHtml(formatMoney(ende.netto_cents)) : "—"}</td>
       <td>${qualitaetChip(r.qualitaet)}</td>
@@ -203,7 +202,7 @@ export function renderSzenarien() {
 
   const anzahl = [...auswahl].filter((id) => bekannt.has(id)).length;
   const vergleichLeiste = anzahl >= 2
-    ? `<button class="pager-button vergleich-button" data-action="szenarien-vergleichen">${iconSvg("chevronRight")}${escapeHtml(t("szenarien.vergleichen").replace("{n}", String(anzahl)))}</button>`
+    ? `<button class="pager-button vergleich-button" data-action="szenarien-vergleichen">${iconSvg("chevronRight")}${escapeHtml(tf("szenarien.vergleichen", { n: String(anzahl) }))}</button>`
     : `<span class="muted">${escapeHtml(t("szenarien.vergleichHinweis"))}</span>`;
 
   return `
@@ -289,7 +288,7 @@ function antwortZeile(szenario, r, v, today) {
   return `
     <div class="tile-grid">
       ${kachel(t("szenarien.reichtBis"), kipp ? formatMonth(kipp) : t("szenarien.ganzerHorizont"), [
-        kipp ? "" : escapeHtml(t("szenarien.keinEngpass").replace("{monat}", ende ? formatMonth(ende.monat) : "—")),
+        kipp ? "" : escapeHtml(tf("szenarien.keinEngpass", { monat: ende ? formatMonth(ende.monat) : "—" })),
         `${escapeHtml(v.label)}: ${escapeHtml(reichtBisText(vKipp, v.r.punkte))}`,
         ...wirkung,
       ].filter(Boolean), Boolean(kipp))}
@@ -605,7 +604,7 @@ function renderBasisRegelzahlungen(r, endeMonat, aenderungen = []) {
   const kopf = klappKopf("toggle-szenario-basis", expanded, t("szenarien.basisRzTitle"), ` <span class="muted">· ${rz.length} ${escapeHtml(t("szenarien.ausDerBasis"))}</span>`);
   if (!expanded) return kopf;
   const rows = rz.map((x) => {
-    const bis = x.aktiv_bis ? formatDate(x.aktiv_bis) : t("szenarien.unbefristetBis").replace("{monat}", endeMonat);
+    const bis = x.aktiv_bis ? formatDate(x.aktiv_bis) : tf("szenarien.unbefristetBis", { monat: endeMonat });
     return `
     <tr>
       <td><button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(x.regelzahlung_id)}">${escapeHtml(x.bezeichnung)}</button></td>
@@ -643,7 +642,7 @@ function rechengrundlage(szenario, today) {
   const guardrails = grundlage.guardrails;
   const hinweis = guardrails ? `
     <p class="page-lead">
-      <span class="chip neutral">${iconSvg("review")}${escapeHtml(t("szenarien.prognosebasisHinweis").replace("{n}", String(guardrails)))}</span>
+      <span class="chip neutral">${iconSvg("review")}${escapeHtml(tf("szenarien.prognosebasisHinweis", { n: String(guardrails) }))}</span>
       <button class="linkish" data-action="show-checks">${escapeHtml(t("szenarien.zuChecks"))}</button>
     </p>` : "";
   return `

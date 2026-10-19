@@ -1,7 +1,7 @@
 // app/komponenten.mjs
 // Geteilte, view-uebergreifende UI-Bausteine und Formatierer. Beziehen Zustand,
 // i18n und Nachschlage-Maps aus runtime.mjs; kein view-spezifisches Wissen.
-import { data, state, t, escapeHtml, personenById, kategorienById } from "./runtime.mjs";
+import { data, state, t, tf, fmt, escapeHtml, personenById, kategorienById } from "./runtime.mjs";
 import { iconSvg } from "./icons.js";
 import { linienDiagramm, saldoDiagramm, zeitstrahlDiagramm } from "./charts.mjs";
 import { formatIban } from "./tools/lib/text.mjs";
@@ -48,20 +48,22 @@ export function mitLogo(quelle, inhaltHtml, optionen = {}) {
   return marke ? `<span class="mit-logo">${marke}<span>${inhaltHtml}</span></span>` : inhaltHtml;
 }
 
+// Exakt mit Cent: Tabellen und Details. Kacheln nehmen formatGeldGanz.
 export function formatMoney(amountInCents) {
-  return new Intl.NumberFormat(state.lang === "de" ? "de-DE" : "en-US", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amountInCents / 100);
+  return fmt().geld(amountInCents);
+}
+
+// Auf ganze Euro gerundet: Kacheln, Kennzahlen, Achsen (docs/ui-regeln.md).
+export function formatGeldGanz(amountInCents) {
+  return fmt().geldGanz(amountInCents);
 }
 
 export function formatDate(dateString) {
-  return new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US").format(new Date(`${dateString}T00:00:00`));
+  return fmt().datum(dateString);
 }
 
 export function formatMonth(monthString) {
-  return new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "long", year: "numeric" })
-    .format(new Date(`${monthString}-01T00:00:00`));
+  return fmt().monat(monthString);
 }
 
 export function accountOwnerNames(konto) {
@@ -239,17 +241,14 @@ export function kachelZeile(linkHtml, betrag, zusatz = "", farbe = "") {
 // ist (mehrIstGut), sonst rot; seitwaerts grau oder (ohneSeitwaerts) gar nicht.
 // kurz: nur der Pfeil, Veraenderung und Vorjahreswert stehen im Titel.
 const PFEIL = { hoch: "↗", runter: "↘", seitwaerts: "→" };
-const sprachFormat = () => (state.lang === "en" ? "en-GB" : "de-DE");
 export function trendAenderungText(v) {
-  if (v.anteil !== null) return new Intl.NumberFormat(sprachFormat(), { style: "percent", maximumFractionDigits: 0, signDisplay: "exceptZero" }).format(v.anteil);
-  return new Intl.NumberFormat(sprachFormat(), { style: "currency", currency: "EUR", maximumFractionDigits: 0, signDisplay: "exceptZero" }).format(v.aenderung_cents / 100);
+  return v.anteil !== null ? fmt().prozentMitVorzeichen(v.anteil) : fmt().geldMitVorzeichen(v.aenderung_cents);
 }
 export function trendPfeil(v, { mehrIstGut, kurz = false, ohneSeitwaerts = false } = {}) {
   if (!v || (ohneSeitwaerts && v.richtung === "seitwaerts")) return "";
   const klasse = v.richtung === "seitwaerts" ? "abw-neutral" : (v.richtung === "hoch") === mehrIstGut ? "abw-gut" : "abw-schlecht";
   const aenderung = trendAenderungText(v);
-  const vorher = new Intl.NumberFormat(sprachFormat(), { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v.vorher_cents / 100);
-  const titel = t("trend.titel").replace("{aenderung}", aenderung).replace("{vorher}", vorher);
+  const titel = tf("trend.titel", { aenderung, vorher: fmt().geldGanz(v.vorher_cents) });
   return `<span class="trend-pfeil ${klasse}" title="${escapeHtml(titel)}" aria-label="${escapeHtml(titel)}">${PFEIL[v.richtung]}${kurz ? "" : ` ${escapeHtml(aenderung)}`}</span>`;
 }
 
@@ -269,24 +268,10 @@ export function detailRow(label, valueHtml) {
 
 export { heuteIso };
 
-// Achsenbeschriftung: ganze Euro, ohne Cent ("15.000 €").
-function formatMoneyAchse(amountInCents) {
-  return new Intl.NumberFormat(state.lang === "de" ? "de-DE" : "en-US", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(amountInCents / 100);
-}
-
 // Marke der X-Achse je Art: "1.10." (tag), "Nov" (monat), "Jan 2027" (monatJahr), "2030" (jahr).
 function formatAchsenMarke(isoDate, art) {
-  const optionen = {
-    tag: { day: "numeric", month: "numeric" },
-    monat: { month: "short" },
-    monatJahr: { month: "short", year: "numeric" },
-    jahr: { year: "numeric" },
-  }[art] ?? { month: "short" };
-  return new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", optionen).format(new Date(`${isoDate}T00:00:00`));
+  const f = fmt();
+  return ({ tag: f.tagMonat, monat: f.monatKurz, monatJahr: f.monatJahrKurz, jahr: f.jahr }[art] ?? f.monatKurz)(isoDate);
 }
 
 // Saldo-Punktserie als Liniendiagramm (Beträge in Cent). Tragen die Punkte ein
@@ -295,7 +280,7 @@ function formatAchsenMarke(isoDate, art) {
 export function saldoLinie(punkte, ariaLabel) {
   if (!punkte || punkte.length < 2) return "";
   const svg = punkte.every((p) => typeof p.datum === "string")
-    ? saldoDiagramm(punkte, { formatWert: (cents) => formatMoney(cents), formatAchse: formatMoneyAchse, formatTick: formatAchsenMarke, ariaLabel })
+    ? saldoDiagramm(punkte, { formatWert: (cents) => formatMoney(cents), formatAchse: formatGeldGanz, formatTick: formatAchsenMarke, ariaLabel })
     : linienDiagramm(punkte, { formatWert: (cents) => formatMoney(cents), ariaLabel });
   return svg ? `<div class="diagramm-wrap">${svg}</div>` : "";
 }
@@ -357,8 +342,8 @@ export function renderFilterSelect({ name, label, options, type, placeholder, fi
 
 // "8 von 9 belegt · ältester Stand 8.6.2026" — Abdeckung eines Tabellenblocks.
 export function accountGroupCoverage(gruppe) {
-  const teile = [t("overview.groupCoverage").replace("{belegt}", gruppe.belegt).replace("{gesamt}", gruppe.gesamt)];
-  if (gruppe.aeltester) teile.push(t("overview.oldestStand").replace("{datum}", formatDate(gruppe.aeltester)));
+  const teile = [tf("overview.groupCoverage", { belegt: gruppe.belegt, gesamt: gruppe.gesamt })];
+  if (gruppe.aeltester) teile.push(tf("overview.oldestStand", { datum: formatDate(gruppe.aeltester) }));
   return teile.join(" · ");
 }
 

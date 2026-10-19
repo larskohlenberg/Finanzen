@@ -15,6 +15,15 @@ export const dataModes = {
   },
 };
 
+// Alle Dateien, die der Browser aus einem Datenbestand laedt. Der App-Server
+// liefert unter data/<bestand>/ nur diese aus (statikErlaubt in server.mjs).
+export const DATEN_DATEIEN = Object.freeze([
+  "personen.json", "konten.json", "kategorien.json", "transaktionen.jsonl", "transfers.json",
+  "regelzahlungen.json", "fristen.json", "szenarien.json", "immobilien.json", "darlehen.json",
+  "vermoegenswerte.json", "vorsorge.json", "zeitwerte.jsonl", "kategorisierungsregeln.json",
+  "logos.json", "farben.json",
+]);
+
 export function normalizeDataMode(value) {
   return value === dataModes.demo.key ? dataModes.demo.key : dataModes.live.key;
 }

@@ -1,17 +1,20 @@
 // app/server.mjs
 //
-// App-Server: liefert app/ statisch aus (ohne Cache, damit ES-Module nach einer
-// Code-Aenderung nie stale geladen werden) und nimmt Rohdateien fuer die Inbox
+// App-Server: liefert die Browser-App statisch aus (ohne Cache, damit ES-Module
+// nach einer Code-Aenderung nie stale geladen werden) und nimmt Rohdateien fuer die Inbox
 // entgegen. Er schreibt ausschliesslich in das Inbox-Verzeichnis — die
 // Verarbeitung bleibt dem Import-Durchlauf (inbox.mjs + Agent) vorbehalten.
 //
 //   node app/server.mjs [--host 127.0.0.1] [--port 8000] [--proxy-ip <ip>]
 //                       [--origin <url>[,<url>]] [--inbox <pfad>] [--belege <pfad>]
 //
-// Logos liegen im Datenbestand unter data/<bestand>/logos/ und kommen ueber
-// die statische Auslieferung, dort aber nur als PNG (statikErlaubt).
+// Statisch kommt nur, was der Browser braucht (statikErlaubt): App-Shell, der
+// Modulgraph ab index.html (browserModule), die Datendateien des Loaders,
+// Logos (nur PNG) und Dokumente unter /Belege/ aus dem Belege-Verzeichnis,
+// dort ohne ausfuehrbare Typen. Server- und MCP-Quellen, Doku, Agentenprotokoll,
+// Papierkorb und Inbox bleiben 404.
 // GET /api/belege listet (nur lesend) alle Dateien unter Belege/ fuer die
-// Dokumente-Ansicht; die Dateien selbst kommen ueber die statische Auslieferung.
+// Dokumente-Ansicht.
 // GET /api/export/{dokumente|daten|komplett}[?quelle=demo] liefert ein Backup
 // als ZIP (app/export.mjs), gebaut beim Herunterladen, ohne Datei auf der Platte.
 //
@@ -28,12 +31,13 @@ import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { chmod, open, link, mkdir, mkdtemp, lstat, readdir, realpath, rm, stat } from "node:fs/promises";
+import { chmod, open, link, mkdir, mkdtemp, lstat, readdir, readFile, realpath, rm, stat } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { isIP } from "node:net";
-import { dirname, extname, join, resolve, sep } from "node:path";
+import { dirname, extname, join, posix, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EXPORT_ARTEN, exportDateiname, exportEintraege, pruefeZipGrenzen, zipTeile } from "./export.mjs";
+import { DATEN_DATEIEN } from "./data-loader.mjs";
 import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt, istHeic } from "./upload-regeln.mjs";
 
 const MAX_NAME_LAENGE = 200;
@@ -206,11 +210,59 @@ export function parseArgs(argv, { appDir }) {
   return opt;
 }
 
-// Logo-Verzeichnis eines Datenbestands (data/<bestand>/logos/): nur PNG, wie
-// es tools/logos.mjs ablegt. Was sonst dort liegt, bleibt unsichtbar.
-export function statikErlaubt(segmente, endung) {
-  if (segmente[0] === "data" && segmente[2] === "logos" && segmente.length > 3) return endung === ".png";
-  return true;
+// Was der Browser aus app/ bekommt; alles andere ist 404.
+// - App-Shell: SHELL plus die Module aus browserModule (Modulgraph ab index.html)
+// - data/<bestand>/: nur die Dateien des Loaders (DATEN_DATEIEN) und die Logos
+//   in data/<bestand>/logos/, dort nur PNG, wie es tools/logos.mjs ablegt
+// - Belege/: Dokumente, aber nichts, was der Browser ausfuehren koennte
+const SHELL = new Set(["index.html", "styles.css", "version.json", "sitzung.json"]);
+const BESTAENDE = new Set(["master", "demo"]);
+const AUSFUEHRBAR = new Set([".html", ".htm", ".xhtml", ".xht", ".shtml", ".svg", ".svgz", ".xml", ".xsl", ".xslt", ".js", ".mjs", ".cjs", ".wasm"]);
+
+export function statikErlaubt(segmente, { module = new Set() } = {}) {
+  const endung = extname(segmente.at(-1) ?? "").toLowerCase();
+  if (segmente[0] === "Belege") return segmente.length > 1 && !AUSFUEHRBAR.has(endung);
+  if (segmente[0] === "data") {
+    const [, bestand, datei, ...rest] = segmente;
+    if (!BESTAENDE.has(bestand)) return false;
+    if (rest.length === 0) return DATEN_DATEIEN.includes(datei);
+    return datei === "logos" && rest.length === 1 && endung === ".png";
+  }
+  const pfad = segmente.join("/");
+  return SHELL.has(pfad) || module.has(pfad);
+}
+
+// Relative Importe eines Moduls: statisch (import/export ... from), als
+// Seiteneffekt (import "./x") und dynamisch (import("./x")).
+const IMPORT_MUSTER = /\b(?:import|export)\s[^"'`;]*?\bfrom\s*["']([^"']+)["']|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*["']([^"']+)["']/g;
+const SKRIPT_MUSTER = /<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi;
+
+// Modulgraph der Browser-App ab den Skripten der index.html, als Pfade relativ
+// zu appDir ("views/belege.mjs"). Nur Dateien innerhalb von appDir.
+export async function browserModule(appDir) {
+  const module = new Set();
+  const offen = [];
+  const merke = (von, spezifikator) => {
+    if (!spezifikator.startsWith("./") && !spezifikator.startsWith("../")) return;
+    const pfad = posix.normalize(posix.join(posix.dirname(von), spezifikator.split(/[?#]/)[0]));
+    if (pfad.startsWith("../") || module.has(pfad)) return;
+    module.add(pfad);
+    offen.push(pfad);
+  };
+  const index = await readFile(join(appDir, "index.html"), "utf8");
+  for (const treffer of index.matchAll(SKRIPT_MUSTER)) merke("index.html", treffer[1]);
+  while (offen.length) {
+    const pfad = offen.pop();
+    let quelle;
+    try {
+      quelle = await readFile(join(appDir, ...pfad.split("/")), "utf8");
+    } catch {
+      module.delete(pfad);
+      continue;
+    }
+    for (const treffer of quelle.matchAll(IMPORT_MUSTER)) merke(pfad, treffer[1] ?? treffer[2] ?? treffer[3]);
+  }
+  return module;
 }
 
 // --- HTTP ------------------------------------------------------------------
@@ -234,7 +286,7 @@ function innerhalb(wurzel, pfad) {
   return pfad === wurzel || pfad.startsWith(wurzel + sep);
 }
 
-async function liefereStatik(req, res, appWurzel) {
+async function liefereStatik(req, res, { appWurzel, belegeWurzel, module }) {
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.writeHead(405, { Allow: "GET, HEAD", "Content-Type": "text/plain; charset=utf-8" });
     res.end("Methode nicht erlaubt\n");
@@ -254,8 +306,13 @@ async function liefereStatik(req, res, appWurzel) {
   const segmente = pfad.slice(1).split("/");
   if (segmente.some((s) => s === "" || s.startsWith("."))) return nichtGefunden(res);
 
-  const ziel = join(appWurzel, ...segmente);
-  if (!innerhalb(appWurzel, ziel)) return nichtGefunden(res);
+  if (!statikErlaubt(segmente, { module })) return nichtGefunden(res);
+
+  // Dokumente kommen aus dem Belege-Verzeichnis des Servers, alles andere aus app/.
+  const [wurzel, teile] = segmente[0] === "Belege" ? [belegeWurzel, segmente.slice(1)] : [appWurzel, segmente];
+  if (!wurzel) return nichtGefunden(res);
+  const ziel = join(wurzel, ...teile);
+  if (!innerhalb(wurzel, ziel)) return nichtGefunden(res);
   let echt;
   let info;
   try {
@@ -264,11 +321,12 @@ async function liefereStatik(req, res, appWurzel) {
   } catch {
     return nichtGefunden(res);
   }
-  // Symlinks, die aus app/ hinauszeigen, werden nicht ausgeliefert.
-  if (!innerhalb(appWurzel, echt) || !info.isFile()) return nichtGefunden(res);
+  // Symlinks, die aus ihrer Wurzel hinauszeigen, werden nicht ausgeliefert.
+  if (!innerhalb(wurzel, echt) || !info.isFile()) return nichtGefunden(res);
 
   const endung = extname(echt).toLowerCase();
-  if (!statikErlaubt(segmente, endung)) return nichtGefunden(res);
+  // Auch nicht ueber einen Symlink mit harmlosem Namen (a.pdf -> a.html).
+  if (AUSFUEHRBAR.has(endung) && (segmente[0] === "Belege" || segmente[0] === "data")) return nichtGefunden(res);
   res.writeHead(200, {
     "Content-Type": MIME[endung] ?? "application/octet-stream",
     "Content-Length": info.size,
@@ -390,6 +448,8 @@ export async function legeAbOhneUeberschreiben(temp, ziel) {
 
 export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), datenDirs = { live: join(appDir, "data", "master"), demo: join(appDir, "data", "demo") }, proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
   let appWurzel = null;
+  let belegeWurzel = null;
+  let module = null;
   // Uploads nacheinander abschliessen: Namenswahl ohne Wettlauf untereinander.
   let kette = Promise.resolve();
   const exklusiv = (fn) => {
@@ -549,6 +609,9 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       return;
     }
     appWurzel ??= await realpath(appDir);
+    belegeWurzel ??= await realpath(belegeDir).catch(() => null);
+    // Einmal je Serverstart: ein Deploy startet den Dienst neu.
+    module ??= await browserModule(appWurzel);
     const rohPfad = req.url.split("?")[0];
 
     if (rohPfad === API_INBOX) {
@@ -565,7 +628,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       return nimmUpload(req, res, rohPfad.slice(API_INBOX.length + 1));
     }
     if (rohPfad === "/api" || rohPfad.startsWith("/api/")) return abgelehnt(res, 404, "nicht-gefunden");
-    return liefereStatik(req, res, appWurzel);
+    return liefereStatik(req, res, { appWurzel, belegeWurzel, module });
   }
 
   const server = http.createServer((req, res) => {

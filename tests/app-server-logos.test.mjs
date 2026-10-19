@@ -36,11 +36,10 @@ const hole = (pfad) => new Promise((resolve, reject) => {
   http.get({ host: "127.0.0.1", port, path: pfad }, (res) => { res.resume(); res.on("end", () => resolve(res)); }).on("error", reject);
 });
 
-test("statikErlaubt: im Logo-Ordner nur PNG, sonst unveraendert", () => {
-  assert.equal(statikErlaubt(["data", "master", "logos", "a.example.png"], ".png"), true);
-  assert.equal(statikErlaubt(["data", "demo", "logos", "a.svg"], ".svg"), false);
-  assert.equal(statikErlaubt(["data", "master", "logos.json"], ".json"), true);
-  assert.equal(statikErlaubt(["icons", "a.svg"], ".svg"), true);
+test("statikErlaubt: im Logo-Ordner nur PNG", () => {
+  assert.equal(statikErlaubt(["data", "master", "logos", "a.example.png"]), true);
+  assert.equal(statikErlaubt(["data", "demo", "logos", "a.svg"]), false);
+  assert.equal(statikErlaubt(["data", "master", "logos.json"]), true);
 });
 
 test("Logo-PNG kommt als Bild mit Rasterbild-CSP", async () => {

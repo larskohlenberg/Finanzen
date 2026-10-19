@@ -205,8 +205,9 @@ test("i18n: Abmelden und Sperrhinweis in de und en", () => {
 
 test("main.js verdrahtet den Waechter und den Abmelden-Knopf", async () => {
   const main = await readFile(new URL("../app/main.js", import.meta.url), "utf8");
+  const rahmen = await readFile(new URL("../app/rahmen.mjs", import.meta.url), "utf8");
   assert.match(main, /erstelleSitzungswaechter\(/);
-  assert.match(main, /data-action="abmelden"/);
+  assert.match(rahmen, /data-action="abmelden"/);
   assert.match(main, /visibilitychange/);
 });
 

@@ -2,14 +2,14 @@
 // Kill- und Nebenlaeufigkeitstests mit echten Prozessen.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmod, cp, lstat, mkdir, mkdtemp, readdir, readFile, rename, stat, symlink, writeFile } from "node:fs/promises";
+import { chmod, cp, lstat, mkdir, mkdtemp, readdir, readFile, rename, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   aktuelleId, bestandsArt, einrichten, FORMAT, FormatUnbekannt, generationsOrdner, mitLeser, mitSchreiber,
-  oeffneLeser, ORDNER, pruefeGeneration, rueckgaengig, StandVeraltet, veroeffentlichteIds,
+  oeffneGeneration, oeffneLeser, ORDNER, pruefeGeneration, rueckgaengig, StandVeraltet, veroeffentlichteIds,
 } from "../app/tools/lib/generationen.mjs";
 import { nimmSperre, SPERRDATEI, SperreBelegt } from "../app/tools/lib/schreibsperre.mjs";
 import { loadMasterData, validateMasterData } from "../app/tools/validator.mjs";
@@ -257,19 +257,73 @@ test("Aufraeumen behaelt N Generationen und keine mit lebendem Leser; Undo", asy
   const basis = await bestand();
   const leser = await oeffneLeser(basis); // haelt 000001 fest
   for (let i = 0; i < 4; i += 1) {
-    await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", `{"n":${i}}\n`), { behalten: 1 });
+    await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", `{"n":${i}}\n`), { behalten: 1, fristMs: 0 });
   }
   assert.deepEqual(await veroeffentlichteIds(basis), ["000001", "000004", "000005"]);
   assert.equal(await leser.lies("farben.json"), await readFile(path.join(DEMO, "farben.json"), "utf8"));
   await leser.schliessen();
-  const r = await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{\"n\":9}\n"), { behalten: 1 });
+  const r = await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{\"n\":9}\n"), { behalten: 1, fristMs: 0 });
   assert.deepEqual(r.aufgeraeumt, ["000001", "000004"]);
   assert.deepEqual(await veroeffentlichteIds(basis), ["000005", "000006"]);
-  const u = await rueckgaengig(basis, { behalten: 1 });
+  const u = await rueckgaengig(basis, { behalten: 1, fristMs: 0 });
   assert.equal(u.id, "000007");
   assert.deepEqual(u.geaendert, ["farben.json"]);
   assert.equal(await mitLeser(basis, (l) => l.lies("farben.json")), "{\"n\":3}\n");
   await assert.rejects(rueckgaengig(basis, { schritte: 5 }), /keine Generation/);
+  assert.deepEqual(await alleGenerationenHeil(basis), []);
+});
+
+// Webdienst unter ProtectSystem=strict: der Generationsordner ist fuer ihn
+// read-only (EROFS); hier nachgebildet mit einem Ordner ohne Schreibrecht.
+test("Leser ohne Schreibrecht lesen ohne Lease", { skip: istRoot && "root ignoriert Dateirechte" }, async () => {
+  const basis = await bestand();
+  const ordner = generationsOrdner(basis, "000001");
+  await chmod(ordner, 0o555);
+  try {
+    const gelesen = await mitLeser(basis, async (l) => {
+      assert.equal(l.id, "000001");
+      assert.equal(l.lease, false);
+      assert.ok((await l.dateien()).includes("konten.json"));
+      return l.lies("farben.json");
+    });
+    assert.equal(gelesen, await readFile(path.join(DEMO, "farben.json"), "utf8"));
+    assert.deepEqual((await readdir(ordner)).filter((n) => n.startsWith(".")), []);
+  } finally {
+    await chmod(ordner, 0o755);
+  }
+  // Mit Schreibrecht weiter mit Lease.
+  assert.equal(await mitLeser(basis, (l) => l.lease), true);
+});
+
+test("Leser ohne Lease: Schonfrist schuetzt seine Generation, danach weist er ab", async () => {
+  const basis = await bestand();
+  const leser = await oeffneLeser(basis, { lease: false });
+  assert.equal(leser.lease, false);
+  for (let i = 0; i < 3; i += 1) {
+    const r = await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", `{"n":${i}}\n`), { behalten: 0 });
+    assert.deepEqual(r.aufgeraeumt, [], "abgeloest erst seit eben: in der Schonfrist");
+  }
+  assert.equal(await leser.lies("farben.json"), await readFile(path.join(DEMO, "farben.json"), "utf8"));
+  // 000002 wurde vor einer Stunde veroeffentlicht: 000001 ist laenger abgeloest
+  // als die Schonfrist und geht, 000002 und 000003 bleiben.
+  const vorEinerStunde = new Date(Date.now() - 60 * 60 * 1000);
+  await utimes(genPfad(basis, "000002", "MANIFEST.json"), vorEinerStunde, vorEinerStunde);
+  const r = await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{\"n\":9}\n"), { behalten: 0 });
+  assert.deepEqual(r.aufgeraeumt, ["000001"]);
+  assert.deepEqual(await veroeffentlichteIds(basis), ["000002", "000003", "000004", "000005"]);
+  // Fruehere Generation ohne Lease: nur, solange ihre Abloesung jung genug ist.
+  const frueher = await oeffneGeneration(basis, "000003", { lease: false });
+  assert.equal(await frueher.lies("farben.json"), "{\"n\":1}\n");
+  await utimes(genPfad(basis, "000003", "MANIFEST.json"), vorEinerStunde, vorEinerStunde);
+  await assert.rejects(oeffneGeneration(basis, "000002", { lease: false }), /000002/);
+  const mitLease = await oeffneGeneration(basis, "000002");
+  assert.equal(mitLease.lease, true, "mit Lease weiter lesbar");
+  await mitLease.schliessen();
+  // Frist abgelaufen: lieber laut abweisen als eine geraeumte Generation lesen.
+  const kurz = await oeffneLeser(basis, { lease: false, fristMs: 0 });
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  await assert.rejects(kurz.lies("farben.json"), /Frist/);
+  await assert.rejects(oeffneLeser(basis, { lease: false, fristMs: 24 * 60 * 60 * 1000 }), /fristMs/);
   assert.deepEqual(await alleGenerationenHeil(basis), []);
 });
 
@@ -278,10 +332,10 @@ test("Verwaiste Leases blockieren nicht, frisch angelegte halbe Leases schon", a
   const tot = await lauf(["/gibt/es/nicht", "nichts"]);
   const ordner = generationsOrdner(basis, "000001");
   await writeFile(path.join(ordner, ".leser-tot"), JSON.stringify({ pid: tot.pid, rechner: hostname(), zeit: new Date().toISOString() }));
-  await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{}\n"), { behalten: 0 });
+  await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{}\n"), { behalten: 0, fristMs: 0 });
   assert.deepEqual(await veroeffentlichteIds(basis), ["000002"]);
   await writeFile(path.join(generationsOrdner(basis, "000002"), ".leser-halb"), "");
-  await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{\"n\":1}\n"), { behalten: 0 });
+  await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{\"n\":1}\n"), { behalten: 0, fristMs: 0 });
   assert.deepEqual(await veroeffentlichteIds(basis), ["000002", "000003"]);
 });
 

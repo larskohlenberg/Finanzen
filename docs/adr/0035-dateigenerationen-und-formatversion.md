@@ -15,6 +15,7 @@ Gesucht war eine Persistenz mit vollstaendigem Commit oder Abbruch ueber mehrere
 - Ein Bestand besteht aus unveraenderlichen Generationen `generationen/000001/ …` und dem Zeiger `aktuell` (Symlink). Ein Schreiber legt unter der bestehenden Schreibsperre (im Basisordner) einen Entwurf an: unveraenderte Dateien als Hardlinks, jede Aenderung als neue Datei. Nach der Pruefung wird der Entwurf zur neuen Generation, dann wird der Zeiger atomar umgestellt. Vorher ist nichts sichtbar.
 - Veroeffentlichte Dateien sind schreibgeschuetzt (0444). Jede Veroeffentlichung vergleicht die uebernommenen Hardlinks mit dem Manifest der Quelle; damit faellt auch ein In-place-Schreiben als root auf.
 - Leser binden sich per Lease an eine Generation. Das Aufraeumen behaelt die letzten N Generationen und loescht nie eine Generation mit lebendem Leser.
+- Leser ohne Schreibrecht (der Webdienst laeuft mit `ProtectSystem=strict` und darf nur die Inbox schreiben) lesen ohne Lease, aber hoechstens 10 Minuten lang. Das Aufraeumen loescht eine Generation erst 15 Minuten, nachdem sie abgeloest wurde (Zeit aus dem Manifest der Nachfolgerin). Verworfen: ein eigener beschreibbarer Lease-Ordner fuer den Webdienst, weil er die Haertung aufweicht und eine Unit-Aenderung braucht.
 - Ein einfacher Datenordner ohne Zeiger gilt als eine Generation ohne Historie (Rueckfallmodus). Demo, Testfixtures und noch nicht umgestellte Bestaende bleiben so ohne Migration lesbar und beschreibbar.
 
 ### Formatversion im Manifest (Ausnahme zu ADR 0002)

@@ -131,15 +131,16 @@ test("behalten aus EINSTELLUNGEN.json; nur im Generationsmodus", async () => {
   assert.equal((await liesEinstellungen(basis)).behalten, 10);
   await setzeBehalten(basis, 1);
   assert.equal((await liesEinstellungen(basis)).behalten, 1);
-  for (let i = 0; i < 3; i += 1) await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", `{"n":${i}}\n`));
+  // fristMs 0: ohne Schonfrist fuer Leser ohne Lease, damit sofort aufgeraeumt wird.
+  for (let i = 0; i < 3; i += 1) await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", `{"n":${i}}\n`), { fristMs: 0 });
   assert.deepEqual(await veroeffentlichteIds(basis), ["000003", "000004"]);
   // Die Option schlaegt die Einstellung.
-  await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{\"n\":9}\n"), { behalten: 5 });
+  await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{\"n\":9}\n"), { behalten: 5, fristMs: 0 });
   assert.deepEqual(await veroeffentlichteIds(basis), ["000003", "000004", "000005"]);
   await assert.rejects(setzeBehalten(basis, -1), /ganze Zahl/);
   // Unlesbare Einstellungen: geschrieben wird, aufgeraeumt nicht; reparierbar.
   await writeFile(path.join(basis, "EINSTELLUNGEN.json"), "{kaputt");
-  const w = await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{}\n"));
+  const w = await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{}\n"), { fristMs: 0 });
   assert.equal(w.id, "000006");
   assert.match(w.warnung, /kein gueltiges JSON/);
   assert.deepEqual(await veroeffentlichteIds(basis), ["000003", "000004", "000005", "000006"]);

@@ -32,6 +32,7 @@ function startbestand(data, today, positionen = null) {
     if (p.fehlt) unbekannt.push({ klasse: p.klasse, id: p.id, name: p.name, basis: p.basis });
     if (p.klasse === "konto") {
       const konto = kontoById.get(p.id);
+      if (!konto) continue;
       if (konto.kontotyp === "depot") depots.set(p.id, p.wert_cents);
       else if (konto.liquiditaetsrelevant) liquide += p.wert_cents;
       else gebunden += p.wert_cents;

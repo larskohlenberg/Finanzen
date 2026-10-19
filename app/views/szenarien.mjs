@@ -160,7 +160,10 @@ function phasenName(ph) {
 export function renderSzenarien() {
   const today = heuteIso();
   const { antwort, fehler } = szenarienAntwort(today);
-  if (!antwort) {
+  // Die Positionen muessen zum Stand der Stammdaten im Browser passen (Konten
+  // werden darin nachgeschlagen); eine Antwort eines anderen Stands gilt als
+  // noch ladend, bis Antwort und Stammdaten wieder zusammenpassen.
+  if (!antwort || antwort.stand !== data.metadata?.stand) {
     return `
     ${renderPageHead(t("szenarien.title"), t("szenarien.lead"))}
     <section class="panel panel-pad"><p class="muted" role="status">${escapeHtml(fehler ? `${t("szenarien.loadFailed")} (${fehler.message})` : t("szenarien.loading"))}</p></section>`;

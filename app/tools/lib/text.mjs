@@ -7,6 +7,19 @@ export function normalizeLoose(value) {
   return normalizeWhitespace(value).toLowerCase();
 }
 
+// Die eine Zerlegung eines Regelmusters fuer Matcher, Gate, Probelauf und
+// Validator: Pipe trennt Alternativen, jeder Zweig ist ein lose normalisierter
+// Teiltext, kein regulaerer Ausdruck. Leere Zweige bleiben in der Liste, damit
+// Validator und Probelauf sie melden koennen. Ein Matcher darf sie nie als
+// Treffer werten: includes("") ist immer wahr, "A|B|" traefe jede Buchung.
+export function musterzweige(pattern) {
+  return String(pattern ?? "").split("|").map(normalizeLoose);
+}
+
+export function hatLeerenZweig(pattern) {
+  return musterzweige(pattern).includes("");
+}
+
 // Einzige toCents-Implementierung im Projekt (CONTEXT: Cent-Integer-Philosophie).
 // Browser-Module importieren sie ueber app/liquiditaet.mjs, Tools direkt.
 export function toCents(decimalString) {

@@ -4,7 +4,7 @@
 // fuer Spezifitaet: ist die Referenzmenge duenn, kommt eine Regel durch. Die
 // Pruefung kann also nichts durchwinken, was sonst gestoppt worden waere —
 // sie faengt nur den Fall, der belegbar ueber viele Kategorien streut.
-import { normalizeLoose } from "./text.mjs";
+import { musterzweige, normalizeLoose } from "./text.mjs";
 
 // Ab drei verschiedenen Kategorien traegt ein Zweig keine Kategorieaussage mehr.
 const UNSPEZIFISCH_AB_KATEGORIEN = 3;
@@ -18,10 +18,6 @@ export function referenzmenge(transaktionen) {
     && (tx.bestaetigt_durch === "mensch" || tx.kategorie_herkunft === "manuell"));
 }
 
-function zweige(pattern) {
-  return String(pattern ?? "").split("|").map(normalizeLoose).filter((z) => z.length > 0);
-}
-
 export function streuung(zweig, referenz) {
   const kategorien = new Set();
   for (const tx of referenz) {
@@ -32,10 +28,11 @@ export function streuung(zweig, referenz) {
 }
 
 // Innerhalb eines Feldes ist die Alternation ein ODER: ein generischer Zweig
-// ist ein Leck, also muessen ALLE Zweige spezifisch sein.
+// ist ein Leck, also muessen ALLE Zweige spezifisch sein. Ein leerer Zweig ist
+// ein Tippfehler im Muster und nie spezifisch, auch bei duenner Referenzmenge.
 function feldIstSpezifisch(pattern, referenz) {
-  const zw = zweige(pattern);
-  if (zw.length === 0) return false;
+  const zw = musterzweige(pattern);
+  if (zw.includes("")) return false;
   return zw.every((z) => streuung(z, referenz) < UNSPEZIFISCH_AB_KATEGORIEN);
 }
 

@@ -1,11 +1,10 @@
 // app/tools/categorizer.mjs
-import { normalizeLoose, toCents } from "./lib/text.mjs";
+import { musterzweige, normalizeLoose, toCents } from "./lib/text.mjs";
 
+// Ein leerer Zweig trifft nie: der Validator lehnt ihn ab, aber ein Tippfehler
+// soll auch vor dem Validatorlauf nicht den ganzen Bestand umkategorisieren.
 function patternMatches(value, pattern) {
-  // Pipe ist eine schlichte Alternation aus lose normalisierten Substrings,
-  // kein regulaerer Ausdruck; Patterns ohne Pipe behalten die alte includes-Logik.
-  if (!String(pattern).includes("|")) return value.includes(normalizeLoose(pattern));
-  return String(pattern).split("|").some((teil) => value.includes(normalizeLoose(teil)));
+  return musterzweige(pattern).some((zweig) => zweig !== "" && value.includes(zweig));
 }
 
 function matchesRule(buchung, regel) {

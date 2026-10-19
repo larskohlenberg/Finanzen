@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { validateMasterData } from "./validate-core.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { mitLesestand } from "./lib/lesestand.mjs";
 
 export { validateMasterData };
 
@@ -61,7 +62,11 @@ export async function loadMasterData(root = new URL("../data/master/", import.me
 
 async function main() {
   const root = dataRootFromArg(process.argv[2], undefined, new URL("../", import.meta.url));
-  const result = validateMasterData(await loadMasterData(root));
+  // Eine Generation (Lease), im einfachen Ordner der Ordner selbst. Ohne
+  // Argument bleibt der fruehere Default von loadMasterData.
+  const result = root
+    ? await mitLesestand(root, async (leser) => validateMasterData(await loadMasterData(leser.url)))
+    : validateMasterData(await loadMasterData());
   if (result.valid) {
     console.log("Master data validation passed");
     return;

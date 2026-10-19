@@ -40,13 +40,15 @@ import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { chmod, open, link, mkdir, mkdtemp, lstat, readdir, readFile, realpath, rm, stat } from "node:fs/promises";
+import { open, mkdir, mkdtemp, lstat, readdir, readFile, realpath, rm, stat } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import { dirname, extname, join, posix, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EXPORT_ARTEN, exportDateiname, exportEintraege, pruefeZipGrenzen, zipTeile } from "./export.mjs";
 import { erstelleSnapshotQuelle } from "./stand.mjs";
+import { legeDateiAn } from "./tools/lib/datei.mjs";
+import { mitLesestand } from "./tools/lib/lesestand.mjs";
 import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt, istHeic } from "./upload-regeln.mjs";
 
 const MAX_NAME_LAENGE = 200;
@@ -311,7 +313,7 @@ function innerhalb(wurzel, pfad) {
   return pfad === wurzel || pfad.startsWith(wurzel + sep);
 }
 
-async function liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, module }) {
+async function liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, datenDirs, module }) {
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.writeHead(405, { Allow: "GET, HEAD", "Content-Type": "text/plain; charset=utf-8" });
     res.end("Methode nicht erlaubt\n");
@@ -333,11 +335,22 @@ async function liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurz
 
   if (!statikErlaubt(segmente, { module })) return nichtGefunden(res);
 
+  // Logos eines Bestands: aus einer Lease auf dessen aktuelle Generation (im
+  // einfachen Ordner direkt aus dem Ordner), bis die Datei ausgeliefert ist.
+  if (segmente[0] === "data" && BESTAENDE.has(segmente[1])) {
+    const datenDir = datenDirs[segmente[1] === "demo" ? "demo" : "live"];
+    return mitLesestand(datenDir, async (leser) => sendeDatei(req, res, await realpath(leser.ordner), segmente.slice(2), segmente));
+  }
   // Dokumente und Uploads kommen aus den Verzeichnissen des Servers, alles andere aus app/.
   const [wurzel, teile] = segmente[0] === "Belege" ? [belegeWurzel, segmente.slice(1)]
     : segmente[0] === "data" && segmente[1] === "inbox" ? [inboxWurzel, segmente.slice(2)]
       : segmente[0] === "data" && segmente[1] === "demo-belege" ? [demoBelegeWurzel, segmente.slice(2)]
         : [appWurzel, segmente];
+  return sendeDatei(req, res, wurzel, teile, segmente);
+}
+
+// Eine Datei unterhalb von wurzel ausliefern; segmente ist der ganze URL-Pfad.
+async function sendeDatei(req, res, wurzel, teile, segmente) {
   if (!wurzel) return nichtGefunden(res);
   const ziel = join(wurzel, ...teile);
   if (!innerhalb(wurzel, ziel)) return nichtGefunden(res);
@@ -364,7 +377,7 @@ async function liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurz
     res.end();
     return;
   }
-  createReadStream(echt).on("error", () => res.destroy()).pipe(res);
+  await pipeline(createReadStream(echt), res).catch(() => res.destroy());
 }
 
 async function listeInbox(inboxDir) {
@@ -461,12 +474,12 @@ export async function schreibeVoll(datei, puffer) {
   }
 }
 
-// Legt temp unter ziel ab, ohne je zu ueberschreiben: link() scheitert atomar
-// mit EEXIST, wenn ziel schon existiert (auch wenn es gerade erst ein anderer
-// Prozess angelegt hat). temp bleibt liegen; der Aufrufer raeumt es weg.
-export async function legeAbOhneUeberschreiben(temp, ziel) {
+// Legt inhalt unter ziel ab, ohne je zu ueberschreiben (legeDateiAn: neue
+// Datei, fsync, link, Ordner-fsync): false, wenn ziel schon existiert, auch
+// wenn es gerade erst ein anderer Prozess angelegt hat.
+export async function legeAbOhneUeberschreiben(inhalt, ziel) {
   try {
-    await link(temp, ziel);
+    await legeDateiAn(ziel, inhalt, { modus: 0o640 });
     return true;
   } catch (fehler) {
     if (fehler.code === "EEXIST") return false;
@@ -558,18 +571,18 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
         const info = jpeg ? await lstat(jpeg) : null;
         if (!info?.isFile() || info.size === 0) throw new Umwandlung(422, "heic-unlesbar", new Error("keine JPEG-Ausgabe"));
         if (info.size > maxBytes) throw new Umwandlung(413, "zu-gross", new Error(`JPEG ${info.size} Bytes`));
-        // Gleiche Rechte wie ein direkter Upload, unabhaengig von der umask des Konverters.
-        await chmod(jpeg, 0o640);
         ablage = jpeg;
         groesse = info.size;
         inhaltHash = await sha256Datei(jpeg);
       }
 
+      // Abgelegt wird eine neue Datei mit 0640, unabhaengig von der umask (auch des HEIC-Konverters).
+      const inhalt = await readFile(ablage);
       const ergebnis = await exklusiv(async () => {
         for (let versuch = 1; versuch < 1000; versuch += 1) {
           const kandidat = kandidatenName(zielName, versuch);
           const ziel = join(inboxDir, kandidat);
-          if (await legeAbOhneUeberschreiben(ablage, ziel)) {
+          if (await legeAbOhneUeberschreiben(inhalt, ziel)) {
             return { code: 201, status: "hochgeladen", name: kandidat };
           }
           const vorhanden = await lstat(ziel).catch(() => null);
@@ -607,7 +620,12 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
     if (!EXPORT_ARTEN.includes(art)) return abgelehnt(res, 404, "nicht-gefunden");
     const quelle = quelleAus(req);
-    const eintraege = await exportEintraege(art, { datenDir: datenDirs[quelle], belegeDir: quelle === "demo" ? demoBelegeDir : belegeDir });
+    // Eine Generation: die Lease haelt sie, bis die ZIP ganz gesendet ist.
+    return mitLesestand(datenDirs[quelle], (leser) => sendeExport(res, art, quelle, leser.ordner));
+  }
+
+  async function sendeExport(res, art, quelle, datenDir) {
+    const eintraege = await exportEintraege(art, { datenDir, belegeDir: quelle === "demo" ? demoBelegeDir : belegeDir });
     let groesse;
     try {
       groesse = pruefeZipGrenzen(eintraege);
@@ -630,26 +648,36 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     }
   }
 
+  function bestandUnlesbar(res, art, quelle, fehler) {
+    log(`${new Date().toISOString()} ${art} quelle=${quelle} ergebnis=fehler:${fehler.message}`);
+    return sendeJson(res, 500, { status: "abgelehnt", grund: "bestand-unlesbar", meldung: fehler.message });
+  }
+
   async function liefereStand(req, res, quelle) {
     if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
-    return sendeJson(res, 200, { stand: await snapshotQuellen[quelle].stand() });
+    let stand;
+    try {
+      stand = await snapshotQuellen[quelle].stand();
+    } catch (fehler) {
+      return bestandUnlesbar(res, "stand", quelle, fehler);
+    }
+    return sendeJson(res, 200, { stand });
   }
 
   async function liefereSnapshot(req, res, quelle) {
     if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
     const snapshotQuelle = snapshotQuellen[quelle];
-    const stand = await snapshotQuelle.stand();
-    if (etagPasst(req.headers["if-none-match"], stand)) {
-      res.writeHead(304, { ETag: `"${stand}"` });
-      res.end();
-      return;
-    }
     let snapshot;
     try {
+      const stand = await snapshotQuelle.stand();
+      if (etagPasst(req.headers["if-none-match"], stand)) {
+        res.writeHead(304, { ETag: `"${stand}"` });
+        res.end();
+        return;
+      }
       snapshot = await snapshotQuelle.snapshot();
     } catch (fehler) {
-      log(`${new Date().toISOString()} snapshot quelle=${quelle} ergebnis=fehler:${fehler.message}`);
-      return sendeJson(res, 500, { status: "abgelehnt", grund: "bestand-unlesbar", meldung: fehler.message });
+      return bestandUnlesbar(res, "snapshot", quelle, fehler);
     }
     res.writeHead(200, {
       "Content-Type": "application/json; charset=utf-8",
@@ -697,7 +725,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       return nimmUpload(req, res, rohPfad.slice(API_INBOX.length + 1));
     }
     if (rohPfad === "/api" || rohPfad.startsWith("/api/")) return abgelehnt(res, 404, "nicht-gefunden");
-    return liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, module });
+    return liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, datenDirs, module });
   }
 
   const server = http.createServer((req, res) => {

@@ -95,8 +95,8 @@ export const aktionen = {
     verwerfeApiCaches();
     ablauf.pruefeStand({ erzwingen: true });
     ablauf.render();
-    if (state.view === "upload") void ladeInbox(render);
-    if (belegDateienStand().zustand !== "unbekannt") void ladeBelege(render);
+    if (state.view === "upload") void ladeInbox(ablauf.render);
+    if (belegDateienStand().zustand !== "unbekannt") void ladeBelege(ablauf.render);
   },
   "toggle-more-menu": () => {
     state.moreMenuOpen = !state.moreMenuOpen;

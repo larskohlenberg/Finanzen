@@ -521,14 +521,14 @@ document.addEventListener?.("visibilitychange", () => {
 
 window.addEventListener("popstate", (event) => {
   restoreState(event.state);
-    render();
+  render();
 });
 
 // Direkt eingefügte/extern verlinkte Hash-Route (kein pushState von uns).
 window.addEventListener("hashchange", () => {
   if (location.hash === routeFromState(state)) return; // selbst gesetzte Route ignorieren
   applyRoute(parseRoute(location.hash));
-    history.replaceState(snapshotState(), "", routeFromState(state));
+  history.replaceState(snapshotState(), "", routeFromState(state));
   render();
 });
 

@@ -11,10 +11,10 @@ export const aktionen = {
     document.getElementById("upload-input")?.click();
   },
   "upload-refresh": () => {
-    void ladeInbox(render);
+    void ladeInbox(ablauf.render);
   },
   "belege-refresh": () => {
-    void ladeBelege(render);
+    void ladeBelege(ablauf.render);
   },
   "select-beleg": (element) => {
     state.view = "belege";

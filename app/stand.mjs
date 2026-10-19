@@ -105,7 +105,8 @@ export async function leseSnapshot(datenDir) {
 // Was der Browser vom Bestand bekommt: alles ausser Buchungen und Transfers
 // (die rechnen die Lese-APIs, lese-api.mjs), dazu je Regelzahlung die Id des
 // Logos, das sie von ihren gebuchten Gegenparteien erbt (logos.mjs).
-export const NUR_SERVER = Object.freeze(["transaktionen", "transfers"]);
+// Importauftraege tragen abgewiesene Rohzeilen: nur ueber GET /api/v1/importe.
+export const NUR_SERVER = Object.freeze(["transaktionen", "transfers", "importauftraege"]);
 
 export function grunddatenAus(snapshot) {
   const daten = Object.fromEntries(Object.entries(snapshot.daten).filter(([schluessel]) => !NUR_SERVER.includes(schluessel)));

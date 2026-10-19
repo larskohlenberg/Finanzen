@@ -6,8 +6,8 @@ import { renderPageHead, renderMasterAccountTable, regelKlartext, categoryName }
 import { missingReferenceChecks } from "../selektoren.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
-import { kontoWert } from "../vermoegen.mjs";
 import { renderVermoegenDetail } from "./vermoegen.mjs";
+import { kontenAntwort } from "./konten-daten.mjs";
 import { renderChecks, offeneChecksAnzahl } from "./checks.mjs";
 import { renderExport } from "./export.mjs";
 
@@ -76,8 +76,8 @@ function renderMasterSection() {
   return "";
 }
 
-function kontoPosition(konto, today) {
-  const wert = kontoWert(konto, data.zeitwerte, data.transaktionen, today);
+// wert: kontoWert des Kontos aus GET /api/v1/konten.
+function kontoPosition(konto, wert) {
   return {
     klasse: "konto",
     id: konto.konto_id,
@@ -96,12 +96,18 @@ function renderKontoSection() {
     : null;
   const railOpen = Boolean(konto);
   const today = localTodayIso();
+  // Reihenfolge der Tabelle und Wert im Detail rechnet der App-Server.
+  const { antwort: konten, fehler } = kontenAntwort(today);
+  if (!konten) {
+    return `
+    <section class="panel panel-pad section-spacing"><p class="muted" role="status">${escapeHtml(fehler ? `${t("masterdata.kontenLoadFailed")} (${fehler.message})` : t("masterdata.kontenLoading"))}</p></section>`;
+  }
   return `
     <div class="layout-with-rail ${railOpen ? "" : "rail-closed"} section-spacing">
       <div class="stack">
         <section class="panel panel-pad">
           <h2 class="section-title">${escapeHtml(t("masterdata.accounts"))}</h2>
-          ${renderMasterAccountTable()}
+          ${renderMasterAccountTable(konten)}
         </section>
       </div>
       ${railOpen ? `
@@ -110,7 +116,7 @@ function renderKontoSection() {
             <h2 class="section-title">${escapeHtml(t("vermoegen.detailTitle"))}</h2>
             <button class="icon-button" data-action="close-account-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
           </div>
-          ${renderVermoegenDetail(kontoPosition(konto, today), today)}
+          ${renderVermoegenDetail(kontoPosition(konto, konten.konten[konto.konto_id]?.wert ?? { wert_cents: null }), today, konten)}
           <div class="detail-section">
             <button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(t("masterdata.showTransactions"))}</button>
           </div>

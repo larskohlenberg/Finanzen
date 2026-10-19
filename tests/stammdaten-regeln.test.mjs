@@ -26,9 +26,18 @@ const runtime = await import("../app/runtime.mjs");
 const stammdatenView = await import("../app/views/stammdaten.mjs");
 const { data, state, kontenById } = runtime;
 appDaten = data;
-const { renderMasterdata } = stammdatenView;
+const { renderMasterdata: renderSofort } = stammdatenView;
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Werte der Konten kommen vom Server (GET /api/v1/konten): Bestand geaendert
+// -> Antworten verwerfen, zeichnen, auf die Antwort warten, erneut zeichnen.
+async function renderMasterdata() {
+  verwerfeApiCaches();
+  renderSofort();
+  await apiAbwarten();
+  return renderSofort();
+}
 
-test("Konten-Stammdaten zeigen die Konto-ID", () => {
+test("Konten-Stammdaten zeigen die Konto-ID", async () => {
   const personId = data.personen[0]?.person_id ?? "PER-001";
   data.konten = [
     {
@@ -45,7 +54,7 @@ test("Konten-Stammdaten zeigen die Konto-ID", () => {
   state.view = "masterdata";
   state.masterSection = "konten";
 
-  const html = renderMasterdata();
+  const html = await renderMasterdata();
 
   assert.match(html, /<th>ID<\/th>/);
   assert.match(html, /<td class="id-zelle">KTO-SICHTBAR<\/td>/);
@@ -53,7 +62,7 @@ test("Konten-Stammdaten zeigen die Konto-ID", () => {
   assert.match(html, /data-action="select-master-account" data-account="KTO-SICHTBAR"/);
 });
 
-test("Konten-Stammdaten öffnen Details mit Ankern und eigener Transaktionsaktion", () => {
+test("Konten-Stammdaten öffnen Details mit Ankern und eigener Transaktionsaktion", async () => {
   const kontoId = "KTO-DETAIL";
   const personId = data.personen[0]?.person_id ?? "PER-001";
   const konto = {
@@ -93,7 +102,7 @@ test("Konten-Stammdaten öffnen Details mit Ankern und eigener Transaktionsaktio
     state.masterSection = "konten";
     state.selectedKonto = kontoId;
 
-    const html = renderMasterdata();
+    const html = await renderMasterdata();
 
     assert.match(html, /layout-with-rail/);
     assert.match(html, /detail-panel/);
@@ -129,7 +138,7 @@ test("Kategorien-Stammdaten zeigen die Kategorie-ID", () => {
   state.view = "masterdata";
   state.masterSection = "kategorien";
 
-  const html = renderMasterdata();
+  const html = renderSofort();
 
   assert.match(html, /<th>ID<\/th>/);
   assert.match(html, /<td>KAT-SICHTBAR<\/td>/);
@@ -159,9 +168,9 @@ test("Regelliste zeigt REG-001 und Trefferanzahl 1", async () => {
   state.masterSection = "regeln";
   state.selectedRegel = "";
 
-  renderMasterdata();
+  renderSofort();
   await apiAbwarten();
-  const html = renderMasterdata();
+  const html = renderSofort();
   assert.match(html, /REG-001/, "REG-001 must appear in the rule list");
   assert.match(html, /<span class="rule-hits-cell">1<\/span>/, "Hit count 1 from the API must appear");
 });
@@ -190,9 +199,9 @@ test("Regeldetail zeigt Klartext und Beispiel-Gegenpartei", async () => {
   state.masterSection = "regeln";
   state.selectedRegel = "REG-001";
 
-  renderMasterdata();
+  renderSofort();
   await apiAbwarten();
-  const html = renderMasterdata();
+  const html = renderSofort();
   assert.match(html, /Bucht auf/, "Klartext condition must contain 'Bucht auf'");
   assert.match(html, /MusterladenB Markt/, "Example counterparty must appear in detail view");
 });

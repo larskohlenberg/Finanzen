@@ -11,8 +11,12 @@
 //   GET /api/v1/kopfleiste?quelle=&heute=
 //   GET /api/v1/liquiditaet?quelle=&heute=&bis=&granularitaet=
 //   GET /api/v1/plan-ist?quelle=&heute=&periode=&granularitaet=
+//   GET /api/v1/konten?quelle=&heute=
+//   GET /api/v1/vermoegen?quelle=&heute=
 import { istKalenderdatum } from "./mcp/kennzahlen.mjs";
 import { kopfleisteModell } from "./kopfleiste.mjs";
+import { kontenModell } from "./konten-modell.mjs";
+import { vermoegenModell } from "./vermoegen-modell.mjs";
 import { GRANULARITAETEN, liquiditaetModell } from "./liquiditaet-modell.mjs";
 import { planIstMonate, planIstRechnung, planIstVerlauf } from "./plan-ist-modell.mjs";
 import { PERIODE_MUSTER } from "./plan-ist.mjs";
@@ -46,9 +50,17 @@ function datum(suche, name, standard) {
   return wert;
 }
 
-// Stichtag der Oberflaeche (Tests setzen ihn fest), sonst heute.
+// Stichtag der Oberflaeche (Tests setzen ihn fest), sonst heute. Begrenzt auf
+// MAX_STICHTAG_JAHRE zurueck und ein Jahr voraus: Verlaeufe laufen monatsweise
+// bis zum Stichtag, ein Stichtag im Jahr 9999 blockierte den Server.
+export const MAX_STICHTAG_JAHRE = 10;
 function heute(suche) {
-  return datum(suche, "heute", localTodayIso());
+  const jetzt = localTodayIso();
+  const tag = datum(suche, "heute", jetzt);
+  if (tag > addInterval(jetzt, "jahr", 1) || tag < addInterval(jetzt, "jahr", -MAX_STICHTAG_JAHRE)) {
+    throw new AnfrageFehler(`heute: hoechstens ein Jahr voraus und ${MAX_STICHTAG_JAHRE} Jahre zurueck`);
+  }
+  return tag;
 }
 
 // Je Stand gemerkt wird nur der heutige Tag; andere Stichtage (Tests, ein
@@ -122,6 +134,14 @@ const ANSICHTEN = {
     const rechne = () => planIstRechnung(bestand.daten, alle, periode);
     const r = periode === "" || periode === "12m" ? jeStand(bestand, `plan-ist-rechnung:${periode}`, tag, rechne) : rechne();
     return { heute: tag, alle, r, verlauf };
+  },
+  konten: (bestand, suche) => {
+    const tag = heute(suche);
+    return jeStand(bestand, "konten", tag, () => kontenModell(bestand.daten, tag));
+  },
+  vermoegen: (bestand, suche) => {
+    const tag = heute(suche);
+    return jeStand(bestand, "vermoegen", tag, () => vermoegenModell(bestand.daten, tag));
   },
   kopfleiste: (bestand, suche, { quelle }) => {
     const tag = heute(suche);

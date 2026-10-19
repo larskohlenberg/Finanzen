@@ -219,6 +219,8 @@ window.FINANCE_I18N = {
       originUnknown: "Regel (Quelle unbekannt)",
     },
     masterdata: {
+      kontenLoading: "Konten werden geladen …",
+      kontenLoadFailed: "Konten konnten nicht geladen werden",
       title: "Administration",
       lead: "Stammdaten, Checks und Export — alles, was den Datenbestand pflegt.",
       people: "Personen",
@@ -593,6 +595,8 @@ window.FINANCE_I18N = {
       sparteLabel: "Sparte",
     },
     vermoegen: {
+      loading: "Vermögen wird geladen …",
+      loadFailed: "Vermögen konnte nicht geladen werden",
       title: "Vermögen",
       lead: "Nettovermögen des Haushalts: Aktiva minus Passiva auf Basis aktueller Zeitwerte.",
       tabs: { uebersicht: "Übersicht", konten: "Konten & Depots", immobilien: "Immobilien", darlehen: "Darlehen", sonstige: "Sonstige Werte" },
@@ -1369,6 +1373,8 @@ window.FINANCE_I18N = {
       originUnknown: "Rule (origin unknown)",
     },
     masterdata: {
+      kontenLoading: "Loading accounts …",
+      kontenLoadFailed: "Accounts could not be loaded",
       title: "Administration",
       lead: "Master data, checks and export — everything that maintains the data.",
       people: "People",
@@ -1743,6 +1749,8 @@ window.FINANCE_I18N = {
       sparteLabel: "Line",
     },
     vermoegen: {
+      loading: "Loading assets …",
+      loadFailed: "Assets could not be loaded",
       title: "Wealth",
       lead: "Household net wealth: assets minus liabilities based on current valuations.",
       tabVorsorgeHinweis: "Opens the pension page",

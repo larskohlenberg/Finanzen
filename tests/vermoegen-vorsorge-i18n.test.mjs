@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -20,9 +23,20 @@ globalThis.fetch = async (path) => {
 await import("../app/i18n.js");
 
 const { data, state } = await import("../app/runtime.mjs");
+appDaten = data;
 const { renderVermoegen } = await import("../app/views/vermoegen.mjs");
 
-test("Vorsorge erscheint lokalisiert als Verweis-Zeile, nicht als Tab", () => {
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Nettovermoegen und Konten kommen vom Server (GET /api/v1/vermoegen,
+// /api/v1/konten): zeichnen, auf die Antworten warten, erneut zeichnen.
+async function vermoegenGezeichnet() {
+  verwerfeApiCaches();
+  renderVermoegen();
+  await apiAbwarten();
+  return renderVermoegen();
+}
+
+test("Vorsorge erscheint lokalisiert als Verweis-Zeile, nicht als Tab", async () => {
   const originalData = {
     konten: data.konten,
     immobilien: data.immobilien,
@@ -67,7 +81,7 @@ test("Vorsorge erscheint lokalisiert als Verweis-Zeile, nicht als Tab", () => {
 
     for (const [lang, label] of [["de", "Vorsorge \\(Rückkaufswerte\\)"], ["en", "Pensions \\(surrender values\\)"]]) {
       state.lang = lang;
-      const html = renderVermoegen();
+      const html = await vermoegenGezeichnet();
       assert.match(html, new RegExp(`<button class="linkish" data-view="vorsorge">${label}</button>`));
       assert.doesNotMatch(html, /data-tab="vorsorge"/);
       assert.doesNotMatch(html, /vermoegen\.klasse/);
@@ -78,7 +92,7 @@ test("Vorsorge erscheint lokalisiert als Verweis-Zeile, nicht als Tab", () => {
   }
 });
 
-test("Immobilien-Tab bietet den lokalisierten Ruecklink zu den Buchungen", () => {
+test("Immobilien-Tab bietet den lokalisierten Ruecklink zu den Buchungen", async () => {
   const originalData = {
     konten: data.konten,
     immobilien: data.immobilien,
@@ -125,7 +139,7 @@ test("Immobilien-Tab bietet den lokalisierten Ruecklink zu den Buchungen", () =>
 
     for (const [lang, label] of [["de", "Alle \\d+ Buchungen anzeigen"], ["en", "Show all \\d+ bookings"]]) {
       state.lang = lang;
-      const html = renderVermoegen();
+      const html = await vermoegenGezeichnet();
       assert.match(html, /data-action="immobilie-transactions" data-immobilie="IMM-001"/);
       assert.match(html, new RegExp(label));
     }

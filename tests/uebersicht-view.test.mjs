@@ -38,6 +38,15 @@ async function gerenderteUebersicht() {
 }
 const { renderMasterdata } = await import("../app/views/stammdaten.mjs");
 const { renderAccountPanels } = await import("../app/komponenten.mjs");
+const { kontenAntwort } = await import("../app/views/konten-daten.mjs");
+const { heuteIso } = await import("../app/selektoren.mjs");
+// Werte der Konten kommen vom Server (GET /api/v1/konten).
+async function kontenPanels() {
+  verwerfeApiCaches();
+  kontenAntwort(heuteIso());
+  await apiAbwarten();
+  return renderAccountPanels(kontenAntwort(heuteIso()).antwort);
+}
 
 test("Termin-Kachel listet jährliche Zahlungen der nächsten zwölf Monate mit Zeitleiste", async () => {
   const { localTodayIso } = await import("../app/liquiditaet.mjs");
@@ -129,7 +138,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   state.view = "overview";
   state.lang = "de";
 
-  const html = renderAccountPanels();
+  const html = await kontenPanels();
   const zeile = (id) => html.match(new RegExp(`<tr[^>]*id="konto-${id}"[\\s\\S]*?</tr>`))[0];
 
   assert.match(zeile("KTO-901"), /4\.321,09/);
@@ -370,11 +379,11 @@ test("Testuhr: Depotstand gilt genau drei Monate nach dem Stand als veraltet (da
   data.zeitwerte = [{ entitaet: "konto", entitaet_id: "KTO-951", feld: "depotwert", standdatum: "2026-09-15", wert: "1000.00", qualitaet: "belegt" }];
   state.view = "overview";
   state.lang = "de";
-  const zeile = (heute) => {
+  const zeile = async (heute) => {
     state.heute = heute;
-    return renderAccountPanels().match(/<tr[^>]*id="konto-KTO-951"[\s\S]*?<\/tr>/)[0];
+    return (await kontenPanels()).match(/<tr[^>]*id="konto-KTO-951"[\s\S]*?<\/tr>/)[0];
   };
-  assert.doesNotMatch(zeile("2026-12-14"), /veraltet/);
-  assert.match(zeile("2026-12-15"), /belegt · 15\.9\.2026 · veraltet/);
-  assert.match(zeile("2026-12-16"), /veraltet/);
+  assert.doesNotMatch(await zeile("2026-12-14"), /veraltet/);
+  assert.match(await zeile("2026-12-15"), /belegt · 15\.9\.2026 · veraltet/);
+  assert.match(await zeile("2026-12-16"), /veraltet/);
 });

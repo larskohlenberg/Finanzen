@@ -59,6 +59,16 @@ function resetVermoegenState() {
   state.vermoegenTab = "uebersicht";
 }
 
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Nettovermoegen und Konten kommen vom Server (GET /api/v1/vermoegen,
+// /api/v1/konten): zeichnen, auf die Antworten warten, erneut zeichnen.
+async function vermoegenGezeichnet() {
+  verwerfeApiCaches();
+  renderVermoegen();
+  await apiAbwarten();
+  return renderVermoegen();
+}
+
 test("transactions initial render has no selected row and no visible detail rail", async () => {
   resetTransactionState();
   renderTransactions();
@@ -123,9 +133,9 @@ test("Transaktions-Rail zeigt die abgeleitete Vorsorge anklickbar", async () => 
   }
 });
 
-test("vermoegen initial render has no selected row and no visible detail rail", () => {
+test("vermoegen initial render has no selected row and no visible detail rail", async () => {
   resetVermoegenState();
-  const html = renderVermoegen();
+  const html = await vermoegenGezeichnet();
 
   assert.equal(state.selectedVermoegenId, "");
   assert.doesNotMatch(html, /clickable selected/);
@@ -133,7 +143,7 @@ test("vermoegen initial render has no selected row and no visible detail rail", 
   assert.doesNotMatch(html, /layout-with-rail/);
 });
 
-test("vermoegen loan detail renders term metadata", () => {
+test("vermoegen loan detail renders term metadata", async () => {
   const originalDarlehen = data.darlehen;
   const originalZeitwerte = data.zeitwerte;
   const originalLang = state.lang;
@@ -166,7 +176,7 @@ test("vermoegen loan detail renders term metadata", () => {
     resetVermoegenState();
     state.selectedVermoegenId = "darlehen:DAR-DETAIL-TEST";
 
-    const html = renderVermoegen();
+    const html = await vermoegenGezeichnet();
 
     assert.match(html, /Aufgenommen am/);
     assert.match(html, /15\.3\.2022/);

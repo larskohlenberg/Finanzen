@@ -179,7 +179,9 @@ function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], sch
         const teile = [kopfzeile, `tools/${skript} — Exitcode: ${r.exitCode}`, r.stdout.trimEnd()];
         if (r.stderr.trim()) teile.push(`--- stderr ---\n${r.stderr.trimEnd()}`);
         const fehlgeschlagen = !okCodes.includes(r.exitCode);
-        return ergebnis(teile.join("\n"), fehlgeschlagen, { exitcode: r.exitCode, ergebnis: cliBericht(r.stdout), ...(fehlgeschlagen ? { fehler: "werkzeug" } : {}) });
+        // Die CLIs melden neue Validatorfehler nach dem Schreiben mit "neue(r) Validatorfehler" (lib/validator-befund.mjs).
+        const amValidator = /neue\(r\) Validatorfehler/.test(r.stderr);
+        return ergebnis(teile.join("\n"), fehlgeschlagen, { exitcode: r.exitCode, ergebnis: cliBericht(r.stdout), ...(fehlgeschlagen ? { fehler: amValidator ? "validator" : "werkzeug" } : {}) });
       };
       if (schreiben) return mitRollback(ctx.datenroot, (s) => lauf(s.ordner, "Modus: schreiben", s), { rueckrollungBeiFehler });
       return lauf(ctx.datenrootRel, "Modus: Vorschau");

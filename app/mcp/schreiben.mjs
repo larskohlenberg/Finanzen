@@ -90,7 +90,11 @@ export async function mitRollback(datenrootPfad, fn, { rueckrollungBeiFehler = t
       if (ergebnis.isError === true && rueckrollungBeiFehler) {
         // Scheiterte das Werkzeug an seinem eigenen Validatorlauf, den Befund mitgeben.
         const imEntwurf = neueBefunde(vorher, await validatorBefunde(tx.ordner));
-        const befund = imEntwurf.length ? { fehler: "validator", validator: { neu: imEntwurf.slice(0, 50).map(ort) } } : { fehler: ergebnis.struktur?.fehler ?? "werkzeug" };
+        // Nur wenn das Werkzeug selbst am Validator scheiterte, sind das "neue" Fehler;
+        // sonst ist der Entwurf halbfertig und die Befunde nur ein Hinweis.
+        const amValidator = ergebnis.struktur?.fehler === "validator";
+        const liste = imEntwurf.slice(0, 50).map(ort);
+        const befund = { fehler: ergebnis.struktur?.fehler ?? "werkzeug", ...(imEntwurf.length ? { validator: amValidator ? { neu: liste } : { im_entwurf: liste } } : {}) };
         throw new Abbruch({ ...ergebnis, text: `${ergebnis.text}\n\nWerkzeugfehler — kein Commit, der Bestand ist unveraendert.`, struktur: { ...(ergebnis.struktur ?? {}), ...befund, uebernommen: false } });
       }
     }, {

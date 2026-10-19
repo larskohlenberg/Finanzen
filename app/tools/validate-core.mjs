@@ -311,20 +311,49 @@ const erlaubteVorsorgeStatusJeArt = new Map([
   [vorsorgeArt.schutzversicherung, vorsorgeStatusVertrag],
 ]);
 
+// Liefert immer einen Bericht, auch bei kaputter Struktur: erst Struktur pruefen,
+// dann die Querbezuege nur ueber die strukturell lesbaren Teile (strukturSicher).
 export function validateMasterData(data) {
   const errors = [];
+  if (!istObjekt(data)) {
+    errors.push("Bestand: muss ein Objekt sein");
+    data = {};
+  }
 
   for (const [collectionName, schema] of Object.entries(schemas)) {
     if (schema.optional && data[collectionName] === undefined) continue;
     validateCollection(collectionName, data[collectionName], schema, errors);
   }
 
-  validateCrossFieldRules(data, errors);
+  // Letztes Netz: ein uebersehener Sonderfall in den Querpruefungen wird zum
+  // Fehlereintrag statt zum Absturz von CLI oder App-Start.
+  try {
+    validateCrossFieldRules(strukturSicher(data), errors);
+  } catch (error) {
+    errors.push(`Querpruefung abgebrochen: ${error?.message ?? error}`);
+  }
 
   return {
     valid: errors.length === 0,
     errors,
   };
+}
+
+function istObjekt(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+// Kopie des Bestands, in der jede Collection eine Liste aus Objekten ist: was
+// keine Liste ist, wird leer, was kein Objekt ist, faellt heraus. Die
+// Strukturfehler dazu meldet validateCollection; Querpruefungen und die App
+// (runtime.mjs) arbeiten nur auf dieser Kopie und stuerzen so nicht ab.
+export function strukturSicher(data) {
+  const quelle = istObjekt(data) ? data : {};
+  const sicher = { ...quelle };
+  for (const name of Object.keys(schemas)) {
+    sicher[name] = Array.isArray(quelle[name]) ? quelle[name].filter(istObjekt) : [];
+  }
+  return sicher;
 }
 
 function validateCollection(collectionName, collection, schema, errors) {
@@ -335,7 +364,7 @@ function validateCollection(collectionName, collection, schema, errors) {
 
   collection.forEach((item, index) => {
     const path = `${collectionName}[${index}]`;
-    if (!item || typeof item !== "object" || Array.isArray(item)) {
+    if (!istObjekt(item)) {
       errors.push(`${path}: muss ein Objekt sein`);
       return;
     }
@@ -359,7 +388,7 @@ function validateCollection(collectionName, collection, schema, errors) {
   if (idField) {
     const seen = new Map();
     collection.forEach((item, index) => {
-      if (!item || typeof item !== "object" || Array.isArray(item)) return;
+      if (!istObjekt(item)) return;
       const id = item[idField];
       if (typeof id !== "string") return;
       const path = `${collectionName}[${index}].${idField}`;
@@ -451,8 +480,9 @@ function validateCrossFieldRules(data, errors) {
   const regelzahlungen = byId(data.regelzahlungen, "regelzahlung_id");
   const immobilien = byId(data.immobilien, "immobilie_id");
 
-  data.konten?.forEach((konto) => {
-    konto.inhaber_person_ids?.forEach((personId) => {
+  data.konten.forEach((konto) => {
+    if (!Array.isArray(konto.inhaber_person_ids)) return;
+    konto.inhaber_person_ids.forEach((personId) => {
       if (!personen.has(personId)) {
         errors.push(`konten.${konto.konto_id}.inhaber_person_ids: person_id ${personId} existiert nicht`);
       }
@@ -522,7 +552,7 @@ function validateCrossFieldRules(data, errors) {
 
   const regelIds = new Set((data.kategorisierungsregeln ?? []).map((r) => r.regel_id));
   data.transaktionen?.forEach((tx) => {
-    if (!Object.hasOwn(tx, "matched_regeln")) return;
+    if (!Array.isArray(tx.matched_regeln)) return;
     if (tx.kategorie_herkunft === "manuell") {
       errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: nicht erlaubt bei manueller Herkunft`);
     }
@@ -587,11 +617,11 @@ function validateCrossFieldRules(data, errors) {
     vorsorge: ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "beitragssumme"],
   };
   data.zeitwerte?.forEach((zw, i) => {
-    const map = zeitwertEntitaeten[zw.entitaet];
+    const map = Object.hasOwn(zeitwertEntitaeten, zw.entitaet) ? zeitwertEntitaeten[zw.entitaet] : undefined;
     if (map && !map.has(zw.entitaet_id)) {
       errors.push(`zeitwerte[${i}].entitaet_id: ${zw.entitaet_id} existiert nicht (${zw.entitaet})`);
     }
-    const felder = erlaubteFelder[zw.entitaet];
+    const felder = Object.hasOwn(erlaubteFelder, zw.entitaet) ? erlaubteFelder[zw.entitaet] : undefined;
     if (felder && !felder.includes(zw.feld)) {
       errors.push(`zeitwerte[${i}].feld: ${zw.feld} ist fuer ${zw.entitaet} nicht zulaessig (erlaubt: ${felder.join("|")})`);
     }
@@ -775,7 +805,11 @@ function validateSzenarien(data, errors) {
 
     const gesehen = new Set();
     const verkauft = new Set(); // ziel_typ:ziel_id, gegen Doppelverkauf
-    for (const a of sz.annahmen ?? []) {
+    for (const a of Array.isArray(sz.annahmen) ? sz.annahmen : []) {
+      if (!istObjekt(a)) {
+        errors.push(`${p}.annahmen: Eintrag muss ein Objekt sein`);
+        continue;
+      }
       const ap = `${p}.${a.annahme_id ?? "?"}`;
       if (!a.annahme_id) errors.push(`${ap}: annahme_id fehlt`);
       else if (gesehen.has(a.annahme_id)) errors.push(`${ap}: annahme_id doppelt`);
@@ -837,22 +871,25 @@ function validateSzenarien(data, errors) {
         errors.push(`${ap}: einmalzahlung ohne Betrag und ohne gegenbuchung ist wirkungslos`);
       }
 
-      if (a.gegenbuchung) {
+      if (a.gegenbuchung && !istObjekt(a.gegenbuchung)) {
+        errors.push(`${ap}: gegenbuchung muss ein Objekt sein`);
+      } else if (a.gegenbuchung) {
         const g = a.gegenbuchung;
         const hatZiel = !!g.ziel_id, hatNeu = !!g.neue_position;
         if (hatZiel === hatNeu) errors.push(`${ap}: gegenbuchung braucht genau eines von ziel_id / neue_position`);
-        if (!idMengen[g.ziel_typ]) errors.push(`${ap}: gegenbuchung.ziel_typ ungueltig`);
+        const zielIds = Object.hasOwn(idMengen, g.ziel_typ) ? idMengen[g.ziel_typ] : undefined;
+        if (!zielIds) errors.push(`${ap}: gegenbuchung.ziel_typ ungueltig`);
         if (a.art === "regelzahlung-neu") {
           if (!["darlehen", "depot"].includes(g.ziel_typ)) errors.push(`${ap}: wiederkehrende gegenbuchung nur fuer darlehen|depot`);
           if (hatNeu) errors.push(`${ap}: wiederkehrende gegenbuchung braucht bestehende ziel_id`);
         }
-        if (hatZiel && idMengen[g.ziel_typ] && !idMengen[g.ziel_typ].has(g.ziel_id)) {
+        if (hatZiel && zielIds && !zielIds.has(g.ziel_id)) {
           errors.push(`${ap}: gegenbuchung.ziel_id ${g.ziel_id} existiert nicht in ${g.ziel_typ}`);
         }
         if (g.ziel_typ === "depot" && hatZiel && !depotIds.has(g.ziel_id)) {
           errors.push(`${ap}: depot-gegenbuchung verlangt ein Konto mit kontotyp=Depot`);
         }
-        if (hatNeu && (!g.neue_position.bezeichnung || !istGueltigerBetrag(g.neue_position.wert))) {
+        if (hatNeu && (!istObjekt(g.neue_position) || !g.neue_position.bezeichnung || !istGueltigerBetrag(g.neue_position.wert))) {
           errors.push(`${ap}: neue_position braucht bezeichnung und gueltigen wert`);
         }
         // Doppelverkauf/-abbau bestehender Sachwert-/Vorsorge-Positionen

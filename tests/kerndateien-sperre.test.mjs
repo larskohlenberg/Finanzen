@@ -98,3 +98,19 @@ test("beleg_verwerfen mit ersetzt_durch stellt Verweise um und verschiebt die Do
     writeFileSync(fristen, fristenVorher);
   }
 });
+
+test("beleg_verwerfen: ersetzt_durch mit Anfuehrungszeichen im Namen wird abgewiesen", async () => {
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  const ordner = join(abzug.app, "Belege", "Konten", "Haerte");
+  mkdirSync(ordner, { recursive: true });
+  writeFileSync(join(ordner, "a.pdf"), "%PDF-1.4 a");
+  writeFileSync(join(ordner, "b\",\"x.pdf"), "%PDF-1.4 a");
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const r = await s.werkzeug("beleg_verwerfen", { pfad: "Belege/Konten/Haerte/a.pdf", ersetzt_durch: "Belege/Konten/Haerte/b\",\"x.pdf" });
+    assert.equal(r.isError, true, r.text);
+    assert.match(r.text, /nicht erlaubt/);
+  } finally {
+    await s.beenden();
+  }
+});

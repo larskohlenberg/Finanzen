@@ -1,10 +1,12 @@
 // app/views/liquiditaet.mjs
 // Liquiditaets-Ansicht im Aufbau der Bereichsseiten: oben zwei Kacheln (heute
-// mit den letzten zwoelf Monaten, Prognose bis zum Horizont), darunter die
+// mit den letzten zwoelf Monaten, Prognose bis zum Horizont), darunter
+// Einnahmen und Ausgaben im Trend (gleitendes 12-Monats-Mittel) und die
 // Tabellen als zugeklappte Kacheln.
 import { state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzahlKachel, kachelZeile, zeitverlaufKlein, klappKachel } from "../komponenten.mjs";
+import { formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzahlKachel, kachelZeile, zeitverlaufKlein, klappKachel, trendPfeil } from "../komponenten.mjs";
+import { miniKurve } from "../charts.mjs";
 import { toCents } from "../liquiditaet.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 
@@ -76,6 +78,12 @@ export function renderLiquiditaet() {
       ${istKachel(ist, modell.verlauf)}
       ${prognoseKachel(prognose, modell.zahlungen)}
     </div>
+    ${modell.trend.monate.length ? `
+    <div class="kachel-paare section-spacing">
+      ${trendKachel("einnahmen", modell.trend)}
+      ${trendKachel("ausgaben", modell.trend)}
+    </div>
+    ${klappKachel({ id: "liquiditaet.kategorienTrend", titel: t("liquiditaet.kategorienTrend"), inhalt: kategorienTrendTabelle(modell.trend), offen: false, klasse: "section-spacing" })}` : `<p class="muted section-spacing">${escapeHtml(t("liquiditaet.trendLeer"))}</p>`}
     ${klappKachel({ id: "liquiditaet.bewegungen", titel: `${t("liquiditaet.ist")} · ${t("liquiditaet.monthlyTable")}`, inhalt: renderSaldoVerlauf(ist.monatsverlauf, "liquiditaet.emptyIst"), offen: false, klasse: "section-spacing" })}
     ${klappKachel({ id: "liquiditaet.prognose", titel: `${t("liquiditaet.prognose")} · ${t("liquiditaet.forecastTable")}`, kopfExtra: granKnoepfe(), inhalt: renderLiquiditaetPrognoseDetail(prognose), offen: false, klasse: "section-spacing" })}
     <p class="page-lead section-note">${escapeHtml(t("liquiditaet.incompleteNote"))}</p>
@@ -130,6 +138,84 @@ function istKachel(ist, verlauf) {
     .map((k) => kachelZeile(`<button class="linkish" data-action="account-transactions" data-account="${escapeHtml(k.konto_id)}" title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>`, k.saldo_cents === null ? "—" : formatMoney(k.saldo_cents)));
   const legende = unten ? `<div class="vermoegen-legende liquiditaet-legende"><span><i class="legende-linie liquiditaet-linie"></i>${escapeHtml(t("liquiditaet.balance"))}</span><span><i class="legende-linie liquiditaet-trend-linie"></i>${escapeHtml(t("liquiditaet.trend"))}</span></div>` : "";
   return kennzahlKachel({ label: t("liquiditaet.ist"), wert: escapeHtml(formatMoney(ist.saldo_cents)), notiz, zeilen, unten: unten + legende });
+}
+
+// Einnahmen bzw. Ausgaben im Trend: Wert ist das Mittel der letzten zwoelf
+// Monate (wie die Kachel der Uebersicht), der Pfeil vergleicht mit den zwoelf
+// davor. Im Verlauf blass die Monatswerte, kraeftig das gleitende Mittel;
+// darunter die fuenf groessten Kategorien mit ihrem Pfeil.
+const TREND_TOP = 5;
+const kategorieLink = (k, trend) => `<button class="linkish" data-action="kategorie-transactions" data-kategorie="${escapeHtml(k.kategorie_id)}" data-von="${escapeHtml(trend.von)}" data-bis="${escapeHtml(trend.bis)}" title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>`;
+
+function trendKachel(seite, trend) {
+  const mehrIstGut = seite === "einnahmen";
+  const v = trend.vergleich?.[seite];
+  const reihe = trend[seite];
+  const notiz = v
+    ? `${trendPfeil(v.summe, { mehrIstGut })} <span class="muted">${escapeHtml(tf("liquiditaet.trendVorjahr", { betrag: geldOhneCent(v.summe.vorher_cents) }))}</span>`
+    : `<span class="muted">${escapeHtml(t("liquiditaet.trendOhneVorjahr"))}</span>`;
+  const unten = zeitverlaufKlein({
+    spalten: monatsAchse(trend.monate),
+    serien: [
+      { klasse: "trend-monat-linie", label: t("liquiditaet.trendMonat"), werte: reihe.monat_cents },
+      { klasse: `trend-mittel-linie trend-${seite}`, label: t("liquiditaet.trendMittel"), werte: reihe.mittel_cents },
+    ],
+    formatWert: (c) => formatMoney(c),
+    formatAchse: geldOhneCent,
+    labelSchritt: 1,
+    ariaLabel: `${t(`liquiditaet.trendSeite.${seite}`)}: ${t("liquiditaet.trendVerlauf")}`,
+  });
+  const legende = unten ? `<div class="vermoegen-legende liquiditaet-legende"><span><i class="legende-linie trend-mittel-linie trend-${seite}"></i>${escapeHtml(t("liquiditaet.trendMittel"))}</span><span><i class="legende-linie trend-monat-linie"></i>${escapeHtml(t("liquiditaet.trendMonat"))}</span></div>` : "";
+  const zeilen = trend.kategorien[seite].slice(0, TREND_TOP).map((k) => kachelZeile(
+    `${kategorieLink(k, trend)}${trendPfeil(v?.kategorien[k.kategorie_id], { mehrIstGut, kurz: true, ohneSeitwaerts: true })}`,
+    geldOhneCent(k.mittel_cents.at(-1)),
+  ));
+  return kennzahlKachel({
+    label: t(seite === "einnahmen" ? "liquiditaet.trendEinnahmen" : "liquiditaet.trendAusgaben"),
+    info: t("liquiditaet.trendInfo"),
+    wert: `${escapeHtml(geldOhneCent(reihe.mittel_cents.at(-1)))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonat"))}</span>`,
+    notiz,
+    unten: unten + legende,
+    zeilen,
+  });
+}
+
+// Alle Kategorien im Trend, je Seite nach Groesse: Mittel der letzten zwoelf
+// Monate, Mittel der zwoelf davor, Veraenderung mit Pfeil und eine Minikurve
+// des gleitenden Mittels.
+function kategorienTrendTabelle(trend) {
+  const zeilen = (seite) => {
+    const mehrIstGut = seite === "einnahmen";
+    const vergleich = trend.vergleich?.[seite]?.kategorien ?? {};
+    return trend.kategorien[seite].map((k) => {
+      const v = vergleich[k.kategorie_id];
+      return `
+        <tr>
+          <td>${kategorieLink(k, trend)}</td>
+          <td class="amount">${escapeHtml(geldOhneCent(k.mittel_cents.at(-1)))}</td>
+          <td class="amount">${v ? escapeHtml(geldOhneCent(v.vorher_cents)) : "—"}</td>
+          <td class="amount">${v ? trendPfeil(v, { mehrIstGut }) : "—"}</td>
+          <td class="trend-kurve-zelle">${miniKurve(k.mittel_cents, { klasse: `trend-${seite}`, ariaLabel: `${k.name}: ${t("liquiditaet.trendVerlauf")}` })}</td>
+        </tr>`;
+    }).join("");
+  };
+  const kopf = (seite) => `<tr class="row-period"><th colspan="5" scope="colgroup">${escapeHtml(t(`liquiditaet.trendSeite.${seite}`))}</th></tr>`;
+  const sp = (key) => escapeHtml(t(`liquiditaet.trendSpalte.${key}`));
+  return `
+    <div class="table-wrap">
+      <table class="trend-tabelle">
+        <thead>
+          <tr>
+            <th>${sp("kategorie")}</th>
+            <th class="amount">${sp("mittel")}</th>
+            <th class="amount">${sp("vorher")}</th>
+            <th class="amount">${sp("aenderung")}</th>
+            <th>${sp("verlauf")}</th>
+          </tr>
+        </thead>
+        <tbody>${kopf("einnahmen")}${zeilen("einnahmen")}${kopf("ausgaben")}${zeilen("ausgaben")}</tbody>
+      </table>
+    </div>`;
 }
 
 // Prognose: Stand am Horizont, Verlauf je Monatsende bis dahin, darunter die

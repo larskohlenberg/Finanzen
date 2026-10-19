@@ -3102,6 +3102,20 @@ a.linkish {
 .liquiditaet-legende { margin-top: 2px; }
 .liquiditaet-legende .legende-linie { width: 16px; height: 0; border-radius: 0; background: none; border-top: 2px solid var(--accent); vertical-align: middle; }
 .liquiditaet-legende .legende-linie.liquiditaet-trend-linie { border-top: 2px dashed #d0743c; }
+/* Einnahmen und Ausgaben im Trend: kraeftig das gleitende 12-Monats-Mittel,
+   duenn und blass die Monatswerte; Pfeile des Jahresvergleichs. */
+.zeitstrahl-linie.trend-mittel-linie { stroke: var(--accent); stroke-width: 2.2; fill: none; }
+.zeitstrahl-punkt.trend-mittel-linie { fill: var(--accent); }
+.zeitstrahl-linie.trend-monat-linie { stroke: var(--muted); stroke-width: 1; opacity: 0.55; fill: none; }
+.zeitstrahl-punkt.trend-monat-linie { display: none; }
+.diagramm-hover-swatch.trend-monat-linie { border-top-color: var(--muted); }
+.liquiditaet-legende .legende-linie.trend-monat-linie { border-top: 1px solid var(--muted); }
+.trend-pfeil { white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi-trend { font-size: 14px; vertical-align: middle; }
+.flach-legende .trend-pfeil, .vorsorge-kopf-liste .trend-pfeil { flex: 0 0 auto; font-size: 12px; }
+.trend-tabelle .trend-kurve-zelle { width: 88px; }
+.mini-kurve { display: block; }
+.mini-kurve polyline { stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .zeitstrahl-linie.liquiditaet-prognose-linie { stroke: var(--accent); stroke-dasharray: 5 3; fill: none; }
 .zeitstrahl-punkt.liquiditaet-prognose-linie { fill: var(--accent); }
 .kontotyp-farbe-giro { --farbe: #2a78d6; }

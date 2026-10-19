@@ -824,3 +824,17 @@ export function stapelDiagramm({ spalten, teile, netto, formatWert = String, for
   const plot = { left: links, right: BREITE - rechts, top: oben, bottom: hoehe - unten };
   return `<svg class="balken-diagramm" viewBox="0 0 ${BREITE} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(hover, plot)}>${svg.join("")}</svg>`;
 }
+
+// Minikurve fuer Tabellenzeilen: nur die Linie, ohne Achsen. Die Hoehe spannt
+// mindestens 20 Prozent des groessten Betrags auf, damit kleine Schwankungen
+// nicht wie grosse Ausschlaege aussehen. Weniger als zwei Werte: nichts.
+export function miniKurve(werte, { klasse = "", ariaLabel = "", breite = 80, hoehe = 20 } = {}) {
+  const zahlen = (werte ?? []).filter((w) => Number.isFinite(w));
+  if (zahlen.length < 2 || zahlen.length !== werte.length) return "";
+  const min = Math.min(...zahlen);
+  const max = Math.max(...zahlen);
+  const spanne = Math.max(max - min, Math.abs(max) * 0.2, Math.abs(min) * 0.2, 1);
+  const unten = (min + max) / 2 - spanne / 2;
+  const punkte = zahlen.map((w, i) => `${(1 + (i * (breite - 2)) / (zahlen.length - 1)).toFixed(1)},${(hoehe - 1 - ((w - unten) / spanne) * (hoehe - 2)).toFixed(1)}`);
+  return `<svg class="mini-kurve ${esc(klasse)}" viewBox="0 0 ${breite} ${hoehe}" width="${breite}" height="${hoehe}" role="img" aria-label="${esc(ariaLabel)}"><polyline points="${punkte.join(" ")}" fill="none" /></svg>`;
+}

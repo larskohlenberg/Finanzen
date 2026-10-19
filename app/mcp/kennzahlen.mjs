@@ -10,7 +10,7 @@ import { bestandsMonate, perioden, planIst, zeitraumMonate } from "../plan-ist.m
 import { anstehendeFristen } from "../fristen.mjs";
 import { buildNextAgentAction } from "../next-action.mjs";
 import { centsToDecimal } from "../tools/lib/text.mjs";
-import { checkItems, checkVorschau, kontenGruppen, kontoZeile, monatsMittel, saldoGeladenerKonten, sortierteKonten } from "../uebersicht-rechnung.mjs";
+import { checkItems, checkVorschau, kontenGruppen, kontoZeile, mittelVergleich, monatsMittel, saldoGeladenerKonten, sortierteKonten, vorjahresMittel } from "../uebersicht-rechnung.mjs";
 import { computeNettovermoegen } from "../vermoegen.mjs";
 
 const eur = (cents) => `${centsToDecimal(cents)} EUR`;
@@ -67,6 +67,25 @@ function monatsZeilen(data, stichtag) {
     `- Ausgaben: Ist ${eur(mittel.ausgaben.mittel_cents)}, Plan ${eur(m(r.ausgaben.plan_cents))}, Abweichung ${abw(mittel.ausgaben.mittel_cents, m(r.ausgaben.plan_cents))}; davon Einzelposten ab 400 Euro ohne Regelzahlung ${eur(m(r.ausgaben.einzel_cents))}`,
     `- Sparquote: Ist ${quote(mittel.sparen.quote)} (${eur(mittel.sparen.ueberschuss_cents)} Ueberschuss), Plan ${quote(r.sparen.plan.quote)} (${eur(m(r.sparen.plan.ueberschuss_cents))})`,
     ...mittel.sparen.ziele.map((z) => `  * ${z.ziel}: Ist ${eur(z.mittel_cents)}${z.ziel === "liquide" ? "" : `, Plan ${eur(m(r.sparen.plan[`${z.ziel}_cents`]))}`}`),
+    ...trendZeilen(mittelVergleich(mittel, vorjahresMittel(data, mittel)), mittel),
+  ];
+}
+
+// Pfeile der Kacheln: letzte zwoelf Monate gegen die zwoelf davor; Kategorien
+// nur, wenn sie sich spuerbar veraendert haben (ab 5 Prozent und 20 Euro).
+function trendZeilen(v, mittel) {
+  if (!v) return ["Trend: fuer den Vergleich fehlen noch zwoelf volle Vormonate"];
+  const pz = (x) => (x.anteil === null ? "neu" : `${x.anteil >= 0 ? "+" : ""}${Math.round(x.anteil * 1000) / 10} %`);
+  const zeile = (name, x) => `${name}: ${x.richtung}, ${eur(x.vorher_cents)} -> ${eur(x.aktuell_cents)} (${pz(x)})`;
+  const name = (seite, id) => `${id} ${mittel[seite].kategorien.find((k) => k.kategorie_id === id)?.name ?? ""}`.trim();
+  const kategorien = (seite) => Object.entries(v[seite].kategorien).filter(([, x]) => x.richtung !== "seitwaerts").map(([id, x]) => `  * ${zeile(name(seite, id), x)}`);
+  return [
+    "Trend (Ø letzte 12 Monate gegen die 12 davor; seitwaerts unter 5 % oder 20 Euro):",
+    `- ${zeile("Einnahmen", v.einnahmen.summe)}`,
+    ...kategorien("einnahmen"),
+    `- ${zeile("Ausgaben", v.ausgaben.summe)}`,
+    ...kategorien("ausgaben"),
+    `- Sparquote: ${quote(v.sparquote.vorher_quote)} -> ${quote(v.sparquote.quote)} (${v.sparquote.aenderung_pp === null ? "-" : `${v.sparquote.aenderung_pp >= 0 ? "+" : ""}${v.sparquote.aenderung_pp} Prozentpunkte`})`,
   ];
 }
 

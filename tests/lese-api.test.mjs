@@ -132,7 +132,7 @@ test("Uebersicht: Kennzahlen der Kacheln ohne Rohlisten, Stichtag geprueft", asy
   assert.equal(res.status, 200);
   const a = res.json();
   assert.equal(a.heute, "2026-10-19");
-  assert.deepEqual(Object.keys(a).sort(), ["absicherung", "fristen", "heute", "konten", "mittel", "plan", "stand", "vermoegen", "vorsorge", "zahlungen"]);
+  assert.deepEqual(Object.keys(a).sort(), ["absicherung", "fristen", "heute", "konten", "mittel", "plan", "stand", "trend", "vermoegen", "vorsorge", "zahlungen"]);
   // Datenschutz: keine Buchungslisten, Konten nur mit Id, Name und Wert.
   assert.equal(JSON.stringify(a).includes('"transaktion_id"'), false);
   for (const z of a.konten.zeilen) assert.deepEqual(Object.keys(z).sort(), ["konto_id", "name", "wert_cents"]);
@@ -144,6 +144,9 @@ test("Uebersicht: Kennzahlen der Kacheln ohne Rohlisten, Stichtag geprueft", asy
   // Nur die Felder, die die Kacheln lesen: keine Einzelbuchungen der Sondereffekte, keine Monatsreihen.
   assert.deepEqual(Object.keys(a.mittel).sort(), ["anzahl_monate", "ausgaben", "bis", "einnahmen", "monate", "sparen", "von"]);
   assert.deepEqual(Object.keys(a.mittel.einnahmen).sort(), ["kategorien", "mittel_cents"]);
+  // Pfeile der Kacheln: Jahresvergleich der Summen und je Kategorie (Demo hat drei Jahre).
+  assert.deepEqual(Object.keys(a.trend).sort(), ["ausgaben", "einnahmen", "sparquote"]);
+  assert.ok(["hoch", "runter", "seitwaerts"].includes(a.trend.ausgaben.summe.richtung));
   // Demo und Echt: die zusaetzliche Echt-Buchung veraendert nur den Echtbestand.
   const echt = (await hole("/api/v1/uebersicht?heute=2026-10-19")).json();
   assert.notEqual(echt.stand, a.stand);
@@ -164,8 +167,12 @@ test("Kopfleiste: Zaehler und Aktionen; Prompt nennt den Bestand der Anfrage", a
 
 test("Liquiditaet: Ist, Verlauf, Prognose und Zahlungen; Parameter geprueft", async () => {
   const a = (await hole("/api/v1/liquiditaet?quelle=demo&heute=2026-10-19&granularitaet=quartal")).json();
-  assert.deepEqual(Object.keys(a).sort(), ["heute", "ist", "prognose", "stand", "verlauf", "zahlungen"]);
+  assert.deepEqual(Object.keys(a).sort(), ["heute", "ist", "prognose", "stand", "trend", "verlauf", "zahlungen"]);
   assert.equal(a.verlauf.length, 24);
+  // Trend von Einnahmen und Ausgaben: eine Reihe je Monat, keine Buchungen.
+  assert.equal(a.trend.einnahmen.mittel_cents.length, a.trend.monate.length);
+  for (const k of a.trend.kategorien.ausgaben) assert.deepEqual(Object.keys(k).sort(), ["kategorie_id", "mittel_cents", "name"]);
+  assert.equal(JSON.stringify(a.trend).includes('"transaktion_id"'), false);
   assert.ok(a.prognose.perioden.every((p) => /-Q\d$/.test(p.periode)));
   for (const z of a.zahlungen) assert.deepEqual(Object.keys(z.regelzahlung).sort(), ["betrag", "bezeichnung", "regelzahlung_id"]);
   // Keine Buchungslisten: Ist je Konto nur Id, Name, Saldo und Basis.

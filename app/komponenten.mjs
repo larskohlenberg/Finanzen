@@ -232,6 +232,25 @@ export function kachelZeile(linkHtml, betrag, zusatz = "", farbe = "") {
   return `<li>${farbe ? farbPunkt(farbe) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${escapeHtml(betrag)}</span></li>`;
 }
 
+// Pfeil des Jahresvergleichs (trendVergleich aus uebersicht-rechnung.mjs):
+// letzte zwoelf Monate gegen die zwoelf davor. Gruen, wenn die Richtung guenstig
+// ist (mehrIstGut), sonst rot; seitwaerts grau oder (ohneSeitwaerts) gar nicht.
+// kurz: nur der Pfeil, Veraenderung und Vorjahreswert stehen im Titel.
+const PFEIL = { hoch: "↗", runter: "↘", seitwaerts: "→" };
+const sprachFormat = () => (state.lang === "en" ? "en-GB" : "de-DE");
+export function trendAenderungText(v) {
+  if (v.anteil !== null) return new Intl.NumberFormat(sprachFormat(), { style: "percent", maximumFractionDigits: 0, signDisplay: "exceptZero" }).format(v.anteil);
+  return new Intl.NumberFormat(sprachFormat(), { style: "currency", currency: "EUR", maximumFractionDigits: 0, signDisplay: "exceptZero" }).format(v.aenderung_cents / 100);
+}
+export function trendPfeil(v, { mehrIstGut, kurz = false, ohneSeitwaerts = false } = {}) {
+  if (!v || (ohneSeitwaerts && v.richtung === "seitwaerts")) return "";
+  const klasse = v.richtung === "seitwaerts" ? "abw-neutral" : (v.richtung === "hoch") === mehrIstGut ? "abw-gut" : "abw-schlecht";
+  const aenderung = trendAenderungText(v);
+  const vorher = new Intl.NumberFormat(sprachFormat(), { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v.vorher_cents / 100);
+  const titel = t("trend.titel").replace("{aenderung}", aenderung).replace("{vorher}", vorher);
+  return `<span class="trend-pfeil ${klasse}" title="${escapeHtml(titel)}" aria-label="${escapeHtml(titel)}">${PFEIL[v.richtung]}${kurz ? "" : ` ${escapeHtml(aenderung)}`}</span>`;
+}
+
 // Flacher Zeitverlauf fuer eine halbe Kachelbreite (Optionen wie zeitstrahlDiagramm).
 export function zeitverlaufKlein(optionen) {
   const svg = zeitstrahlDiagramm({ breite: 560, plotHoehe: 90, ...optionen });

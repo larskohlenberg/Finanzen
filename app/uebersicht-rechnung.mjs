@@ -292,3 +292,86 @@ export function monatsMittel(data, today, { vollstaendigBis = "" } = {}) {
     sondereffekte: [...sondereffekte.values()],
   };
 }
+
+// Trend der monatlichen Einnahmen und Ausgaben: gleitendes 12-Monats-Mittel.
+// Je voll abgeschlossenem Monat M das Mittel der zwoelf Monate bis M, gerechnet
+// mit monatsMittel (gleiche Regeln wie die Kacheln; der letzte Punkt ist ihr
+// Wert). Jede Jahreszahlung steckt so in jedem Fenster genau einmal, die Kurve
+// bleibt ruhig. Der Pfeil vergleicht die letzten zwoelf Monate mit den zwoelf
+// davor; seitwaerts, solange sich weniger als 5 Prozent oder weniger als 20 Euro
+// je Monat aendern.
+export const TREND_SCHWELLE_ANTEIL = 0.05;
+export const TREND_SCHWELLE_CENTS = 2000;
+
+const monatPlus = (ym, n) => new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + n, 1)).toISOString().slice(0, 7);
+
+export function trendVergleich(aktuellCents, vorherCents) {
+  const aenderung = aktuellCents - vorherCents;
+  const anteil = vorherCents > 0 ? aenderung / vorherCents : null;
+  const klein = Math.abs(aenderung) < TREND_SCHWELLE_CENTS || (anteil !== null && Math.abs(anteil) < TREND_SCHWELLE_ANTEIL);
+  return { aktuell_cents: aktuellCents, vorher_cents: vorherCents, aenderung_cents: aenderung, anteil, richtung: klein ? "seitwaerts" : aenderung > 0 ? "hoch" : "runter" };
+}
+
+// Das Fenster, das zwoelf Monate vor dem von `jetzt` endet (die zwoelf Monate davor).
+export function vorjahresMittel(data, jetzt) {
+  if (!jetzt.anzahl_monate) return null;
+  return monatsMittel(data, `${monatPlus(jetzt.monate.at(-1), -11)}-01`);
+}
+
+// Letzte zwoelf Monate gegen die zwoelf davor: Summen, je Kategorie (nach
+// kategorie_id, je Seite) und die Sparquote in Prozentpunkten. Null, solange
+// eines der beiden Fenster keine vollen zwoelf Monate hat.
+export function mittelVergleich(jetzt, vorher) {
+  if (!jetzt || !vorher || jetzt.anzahl_monate < 12 || vorher.anzahl_monate < 12) return null;
+  const seite = (s) => {
+    const alt = new Map(vorher[s].kategorien.map((k) => [k.kategorie_id, k.mittel_cents]));
+    return {
+      summe: trendVergleich(jetzt[s].mittel_cents, vorher[s].mittel_cents),
+      kategorien: Object.fromEntries(jetzt[s].kategorien.map((k) => [k.kategorie_id, trendVergleich(k.mittel_cents, alt.get(k.kategorie_id) ?? 0)])),
+    };
+  };
+  const q = jetzt.sparen.quote;
+  const qAlt = vorher.sparen.quote;
+  return {
+    einnahmen: seite("einnahmen"),
+    ausgaben: seite("ausgaben"),
+    sparquote: { quote: q, vorher_quote: qAlt, aenderung_pp: q === null || qAlt === null ? null : Math.round((q - qAlt) * 1000) / 10 },
+  };
+}
+
+// Verlauf fuer die Liquiditaetsseite: bis zu `punkte` Monate mit vollem Fenster,
+// je Seite das Mittel und der Monatswert, je Kategorie die Mittel-Reihe, dazu
+// die Sparquote und der Vergleich mit den zwoelf Monaten davor.
+export function monatsTrend(data, today, { vollstaendigBis = "", punkte = 24 } = {}) {
+  const jetzt = monatsMittel(data, today, { vollstaendigBis });
+  const fenster = [];
+  if (jetzt.anzahl_monate) {
+    const ende = jetzt.monate.at(-1);
+    for (let k = punkte - 1; k >= 0; k--) {
+      const m = monatPlus(ende, -k);
+      const r = k === 0 ? jetzt : monatsMittel(data, `${monatPlus(m, 1)}-01`);
+      // Monate ohne Buchung und Fenster mit kurzer Historie fallen weg.
+      if (r.monate.at(-1) === m && r.anzahl_monate === 12) fenster.push({ monat: m, r });
+    }
+  }
+  const vorher = fenster.find((f) => f.monat === monatPlus(jetzt.monate.at(-1) ?? "0000-01", -12))?.r ?? (jetzt.anzahl_monate ? vorjahresMittel(data, jetzt) : null);
+  const reihe = (s) => ({
+    mittel_cents: fenster.map((f) => f.r[s].mittel_cents),
+    monat_cents: fenster.map((f) => f.r[s].je_monat.at(-1)),
+  });
+  const kategorien = (s) => jetzt[s].kategorien.map((k) => ({
+    kategorie_id: k.kategorie_id,
+    name: k.name,
+    mittel_cents: fenster.map((f) => f.r[s].kategorien.find((x) => x.kategorie_id === k.kategorie_id)?.mittel_cents ?? 0),
+  }));
+  return {
+    monate: fenster.map((f) => f.monat),
+    von: jetzt.von,
+    bis: jetzt.bis,
+    einnahmen: reihe("einnahmen"),
+    ausgaben: reihe("ausgaben"),
+    sparquote: fenster.map((f) => f.r.sparen.quote),
+    kategorien: { einnahmen: kategorien("einnahmen"), ausgaben: kategorien("ausgaben") },
+    vergleich: mittelVergleich(jetzt, vorher),
+  };
+}

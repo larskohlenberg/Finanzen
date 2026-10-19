@@ -5,7 +5,7 @@
 // eine Ansicht zeigt, mit denselben reinen Rechenmodulen wie bisher der
 // Browser. Jede Antwort nennt den Stand, aus dem sie gerechnet ist.
 //
-//   GET /api/v1/transaktionen?quelle=&<Filter>&sort=&dir=&seite=&groesse=&auswahl=&zeige=&ohneKategorie=
+//   GET /api/v1/transaktionen?quelle=&<Filter>&sort=&dir=&seite=&groesse=&auswahl=&zeige=&ohneKategorie=&gruppe=
 //   GET /api/v1/regelwirkung?quelle=&regel=
 //   GET /api/v1/uebersicht?quelle=&heute=
 //   GET /api/v1/kopfleiste?quelle=&heute=
@@ -33,7 +33,7 @@ import { PERIODE_MUSTER } from "./plan-ist.mjs";
 import { addInterval, defaultHorizonEnd, localTodayIso } from "./liquiditaet.mjs";
 import { uebersichtModell } from "./uebersicht-modell.mjs";
 import { importStandModell } from "./tools/lib/importstand.mjs";
-import { LEERER_FILTER, SEITENGROESSEN, SORTIERUNGEN, regelWirkungAntwort, transaktionenSeite } from "./transaktionen-abfrage.mjs";
+import { BETRAG_MUSTER, GRUPPEN, LEERER_FILTER, RICHTUNGEN, SEITENGROESSEN, SORTIERUNGEN, regelWirkungAntwort, transaktionenSeite } from "./transaktionen-abfrage.mjs";
 
 const MAX_WERT = 300;
 export const MAX_HORIZONT_JAHRE = 30;
@@ -90,6 +90,12 @@ function wieImBrowser(bestand, quelle) {
 export function transaktionenParameter(suche) {
   const filter = {};
   for (const name of Object.keys(LEERER_FILTER)) filter[name] = text(suche, name) || LEERER_FILTER[name];
+  for (const name of ["betragVon", "betragBis"]) {
+    if (filter[name] && !BETRAG_MUSTER.test(filter[name])) throw new AnfrageFehler(`${name}: Betrag ohne Vorzeichen, z. B. 500 oder 12.50`);
+  }
+  if (filter.richtung && !RICHTUNGEN.includes(filter.richtung)) throw new AnfrageFehler(`richtung: ${RICHTUNGEN.join(" oder ")}`);
+  const gruppe = text(suche, "gruppe");
+  if (gruppe && !GRUPPEN.includes(gruppe)) throw new AnfrageFehler(`gruppe: ${GRUPPEN.join(", ")}`);
   const key = text(suche, "sort") || "date";
   if (!SORTIERUNGEN.includes(key)) throw new AnfrageFehler("sort: unbekannt");
   const dir = text(suche, "dir") || "desc";
@@ -104,6 +110,7 @@ export function transaktionenParameter(suche) {
     auswahl: text(suche, "auswahl"),
     zeige: text(suche, "zeige"),
     ohneKategorie: text(suche, "ohneKategorie"),
+    gruppe,
   };
 }
 

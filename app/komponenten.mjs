@@ -335,6 +335,8 @@ export function renderFilterSelect({ name, label, options, type, placeholder, fi
   let control = "";
   if (type === "search") {
     control = `<input type="search" id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}" value="${escapeHtml(filters[name])}" placeholder="${escapeHtml(placeholder ?? "")}" autocomplete="off">`;
+  } else if (type === "betrag") {
+    control = `<input type="text" inputmode="decimal" id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}" value="${escapeHtml(filters[name])}" placeholder="0,00" autocomplete="off" pattern="\\d+([.,]\\d{1,2})?">`;
   } else if (type === "date") {
     control = `<input type="date" id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}" value="${escapeHtml(filters[name])}">`;
   } else {

@@ -24,6 +24,13 @@ export const LEERE_FILTER = Object.freeze({
   quarterYear: "",
   quarter: "1",
   year: "",
+  // Betrag ohne Vorzeichen in Euro, Richtung einnahme|ausgabe, Regelzahlung (RZ-ID).
+  betragVon: "",
+  betragBis: "",
+  richtung: "",
+  regelzahlung: "",
+  // Summen je kategorie|monat|gegenpartei ueber der Liste; Darstellung, kein Filter.
+  gruppe: "",
 });
 
 export const ZEIT_MODI = ["none", "range", "month", "quarter", "year"];
@@ -46,13 +53,22 @@ const URL_NAMEN = [
   ["category", "kategorie"],
   ["transfer", "transfer"],
   ["origin", "herkunft"],
+  ["richtung", "richtung"],
+  ["betragVon", "betrag_von"],
+  ["betragBis", "betrag_bis"],
+  ["regelzahlung", "regelzahlung"],
+  ["gruppe", "gruppe"],
 ];
 // Feste Wertebereiche; andere Werte aus einer von Hand geaenderten URL fallen weg.
 const ERLAUBT = {
   status: ["", "offen", "vorgeschlagen", "bestaetigt", "abgelehnt"],
   transfer: ["", "only", "without"],
   origin: ["", "regel", "agent", "manuell"],
+  richtung: ["", "einnahme", "ausgabe"],
+  gruppe: ["", "kategorie", "monat", "gegenpartei"],
 };
+// Eurobetrag ohne Vorzeichen (wie BETRAG_MUSTER in transaktionen-abfrage.mjs).
+export const BETRAG_MUSTER = /^\d{1,9}([.,]\d{1,2})?$/;
 const PFAD_NAMEN = [["beleg", "dokument"], ["vorsorge", "vorsorge"]];
 const ZEIT_FELDER = {
   range: [["dateFrom", "von"], ["dateTo", "bis"]],
@@ -95,7 +111,8 @@ export function filterAusQuery(query) {
   const filter = { ...LEERE_FILTER };
   for (const [name, param] of [...PFAD_NAMEN, ...URL_NAMEN]) {
     const wert = suche.get(param) ?? "";
-    filter[name] = !ERLAUBT[name] || ERLAUBT[name].includes(wert) ? wert : "";
+    const gueltig = ERLAUBT[name] ? ERLAUBT[name].includes(wert) : name.startsWith("betrag") ? !wert || BETRAG_MUSTER.test(wert) : true;
+    filter[name] = gueltig ? wert : "";
   }
   const modus = suche.get("zeit");
   if (ZEIT_FELDER[modus]) {
@@ -112,9 +129,10 @@ export function filterAusQuery(query) {
 // Loeschknopf; der Zeitfilter zaehlt einmal (Name "zeit").
 export function aktiveFilter(filter) {
   const liste = [];
-  for (const name of ["beleg", "vorsorge", "account", "status", "category", "transfer", "origin"]) {
+  for (const name of ["beleg", "vorsorge", "regelzahlung", "account", "status", "category", "transfer", "origin", "richtung"]) {
     if (filter[name]) liste.push({ name, wert: filter[name] });
   }
+  if (filter.betragVon || filter.betragBis) liste.push({ name: "betrag", wert: `${filter.betragVon}-${filter.betragBis}` });
   if (zeitfilterAktiv(filter)) liste.push({ name: "zeit", wert: filter.timeMode });
   return liste;
 }

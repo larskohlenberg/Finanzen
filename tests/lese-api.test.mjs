@@ -67,7 +67,7 @@ test("Transaktionen: eine Seite mit Kennzahlen des Filters, nur Buchungsdaten, n
   assert.equal(a.seiten, Math.ceil(demoTransaktionen.length / 20));
   assert.ok(a.monate.length > 0 && a.jahre.length > 0);
   // Datenschutz: nur Buchungen der Seite, keine anderen Sammlungen des Bestands.
-  assert.deepEqual(Object.keys(a).sort(), ["auswahl", "gesamt", "groesse", "jahre", "monate", "offen", "saldo_cent", "seite", "seiten", "stand", "treffer", "zeilen"].sort());
+  assert.deepEqual(Object.keys(a).sort(), ["auswahl", "gesamt", "groesse", "gruppen", "jahre", "monate", "offen", "saldo_cent", "seite", "seiten", "stand", "treffer", "zeilen"].sort());
   for (const tx of a.zeilen) assert.ok("gegenbuchung" in tx);
 });
 

@@ -5,6 +5,17 @@ import { state } from "../runtime.mjs";
 import { commitNavigation } from "../verlauf.mjs";
 
 export const aktionen = {
+  // Zeile der Gruppensummen: Liste auf diese Gruppe einschraenken, Summen aus.
+  "gruppe-filtern": (element) => {
+    const { gruppe, schluessel } = element.dataset;
+    const f = { ...state.transactionFilters, gruppe: "" };
+    if (gruppe === "kategorie") f.category = schluessel;
+    if (gruppe === "monat") Object.assign(f, ohneZeitfilter(f), { timeMode: "month", month: schluessel });
+    if (gruppe === "gegenpartei") f.search = schluessel;
+    state.transactionFilters = f;
+    state.transactionPage = 1;
+    commitNavigation();
+  },
   "filter-open-category": () => {
     zuBuchungen(state, { filter: { status: "offen" } });
     commitNavigation();
@@ -12,6 +23,7 @@ export const aktionen = {
   "clear-transaction-filter": (element) => {
     const name = element.dataset.filterName;
     if (name === "zeit") state.transactionFilters = ohneZeitfilter(state.transactionFilters);
+    else if (name === "betrag") Object.assign(state.transactionFilters, { betragVon: "", betragBis: "" });
     else if (Object.hasOwn(state.transactionFilters, name)) state.transactionFilters[name] = LEERE_FILTER[name];
     else return;
     state.transactionPage = 1;

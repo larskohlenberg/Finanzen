@@ -22,6 +22,8 @@ import { validatorFehler } from "../tools/lib/schreiblauf.mjs";
 // Fingerabdruck aus der Vorschau, gegen den ein Schreibaufruf laufen soll
 // (rufeWerkzeug setzt ihn je Aufruf). mitRollback prueft ihn unter der Sperre.
 export const erwarteterStand = new AsyncLocalStorage();
+// Name des laufenden Tools, fuer Sperre und Verlauf ("MCP freigabe").
+export const werkzeugName = new AsyncLocalStorage();
 
 export async function validiere(datenrootPfad) {
   const fehler = await validatorFehler(datenrootPfad);
@@ -85,7 +87,7 @@ export async function mitRollback(datenrootPfad, fn, { rueckrollungBeiFehler = t
         throw new Abbruch({ ...ergebnis, text: `${ergebnis.text}\n\nWerkzeugfehler — kein Commit, der Bestand ist unveraendert.` });
       }
     }, {
-      wer: "MCP",
+      wer: werkzeugName.getStore() ? `MCP ${werkzeugName.getStore()}` : "MCP",
       pruefe: async (ordner) => {
         nachher = await validatorFehler(ordner);
         const bekannt = new Set(vorher);

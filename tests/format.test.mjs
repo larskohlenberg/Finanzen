@@ -53,6 +53,9 @@ test("format: Datum und Monat ohne Zeitzonenverschiebung", () => {
   assert.equal(formatierer("en").monat("2026-03"), "March 2026");
   assert.equal(de.datum(""), "");
   assert.equal(de.datum(null), "");
+  assert.equal(de.datum("2026-10-19T10:00:00Z"), "", "Zeitstempel sind kein Kalenderdatum");
+  assert.equal(de.groesse(undefined), "");
+  assert.equal(de.groesse(5_000_000), "4,8 MB");
 });
 
 test("format: fuelle ersetzt benannte Platzhalter, auch mehrfach", () => {

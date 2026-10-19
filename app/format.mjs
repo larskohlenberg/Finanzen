@@ -41,7 +41,11 @@ function baue(locale, lang) {
     const datum = wert instanceof Date ? wert : new Date(wert);
     return Number.isNaN(datum.getTime()) ? "" : format.format(datum);
   };
-  const kalender = (format) => (iso) => (iso ? format.format(alsDatum(iso)) : "");
+  // Nur "YYYY-MM" bzw. "YYYY-MM-DD"; alles andere (leer, Zeitstempel) ergibt "".
+  const kalender = (format) => (iso) => {
+    if (!/^\d{4}-\d{2}(-\d{2})?$/.test(String(iso ?? ""))) return "";
+    return format.format(alsDatum(iso));
+  };
   const leer = (wert) => wert === null || wert === undefined || Number.isNaN(wert);
   return {
     lang,
@@ -72,7 +76,7 @@ function baue(locale, lang) {
     zeitpunkt: (wert) => zeitpunktMit(formate.zeitpunkt, wert),
     zeitpunktTag: (wert) => zeitpunktMit(formate.zeitpunktTag, wert),
     // Dateigroesse lesbar ("512 B", "2 KB", "4,8 MB").
-    groesse: (bytes) => (bytes < 1024 ? `${bytes} B`
+    groesse: (bytes) => (!Number.isFinite(bytes) ? "" : bytes < 1024 ? `${bytes} B`
       : bytes < 1024 * 1024 ? `${zahlFormat({ maximumFractionDigits: 0 }).format(bytes / 1024)} KB`
         : `${zahlFormat({ maximumFractionDigits: 1 }).format(bytes / (1024 * 1024))} MB`),
   };

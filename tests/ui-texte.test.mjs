@@ -75,3 +75,9 @@ test("Checks-Seite zeigt Vermoegens-Checks ohne Rohzahlen und ISO-Daten", () => 
   assert.doesNotMatch(html, /erwartet -?\d+\.\d{2}\b/);
   assert.doesNotMatch(html, /Kontoauszug \d{4}-\d{2}-\d{2}/);
 });
+
+test("Vermoegen: kein toter Hinweis mit veraltetem Meilenstein", () => {
+  for (const lang of ["de", "en"]) {
+    assert.equal(t(lang, "vermoegen.incompleteNote"), undefined, lang);
+  }
+});

@@ -31,6 +31,8 @@ export const LEERE_FILTER = Object.freeze({
   regelzahlung: "",
   // Genau diese Gegenpartei (aus den Gruppensummen).
   gegenpartei: "",
+  // Klasse der Buchung (klassifikation.mjs), z. B. laufend fuer Einnahmen/Ausgaben.
+  klasse: "",
   // Summen je kategorie|monat|gegenpartei ueber der Liste; Darstellung, kein Filter.
   gruppe: "",
 });
@@ -60,6 +62,7 @@ const URL_NAMEN = [
   ["betragBis", "betrag_bis"],
   ["regelzahlung", "regelzahlung"],
   ["gegenpartei", "gegenpartei"],
+  ["klasse", "klasse"],
   ["gruppe", "gruppe"],
 ];
 // Feste Wertebereiche; andere Werte aus einer von Hand geaenderten URL fallen weg.
@@ -68,7 +71,8 @@ const ERLAUBT = {
   transfer: ["", "only", "without"],
   origin: ["", "regel", "agent", "manuell"],
   richtung: ["", "einnahme", "ausgabe"],
-  gruppe: ["", "kategorie", "monat", "gegenpartei"],
+  gruppe: ["", "kategorie", "monat", "gegenpartei", "regelzahlung"],
+  klasse: ["", "laufend", "neutral", "transfer", "startzustand", "investition", "sondereffekt"],
 };
 // Eurobetrag ohne Vorzeichen (wie BETRAG_MUSTER in transaktionen-abfrage.mjs).
 export const BETRAG_MUSTER = /^\d{1,9}([.,]\d{1,2})?$/;
@@ -132,7 +136,7 @@ export function filterAusQuery(query) {
 // Loeschknopf; der Zeitfilter zaehlt einmal (Name "zeit").
 export function aktiveFilter(filter) {
   const liste = [];
-  for (const name of ["beleg", "vorsorge", "regelzahlung", "account", "status", "category", "gegenpartei", "transfer", "origin", "richtung"]) {
+  for (const name of ["beleg", "vorsorge", "regelzahlung", "account", "status", "category", "gegenpartei", "klasse", "transfer", "origin", "richtung"]) {
     if (filter[name]) liste.push({ name, wert: filter[name] });
   }
   if (filter.betragVon || filter.betragBis) liste.push({ name: "betrag", wert: `${filter.betragVon}-${filter.betragBis}` });

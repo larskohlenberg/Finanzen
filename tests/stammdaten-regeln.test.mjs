@@ -62,7 +62,8 @@ test("Konten-Stammdaten zeigen die Konto-ID", async () => {
   assert.match(html, /data-action="select-master-account" data-account="KTO-SICHTBAR"/);
 });
 
-test("Konten-Stammdaten öffnen Details mit Ankern und eigener Transaktionsaktion", async () => {
+// Das Konto-Detail liegt an einem Ort: Vermoegen -> Konten (die Administration listet nur).
+test("Konto-Detail unter Vermoegen zeigt Anker, Wertstaende und den Weg in die Buchungen", async () => {
   const kontoId = "KTO-DETAIL";
   const personId = data.personen[0]?.person_id ?? "PER-001";
   const konto = {
@@ -98,28 +99,30 @@ test("Konten-Stammdaten öffnen Details mit Ankern und eigener Transaktionsaktio
     ];
     kontenById.set(kontoId, konto);
     state.lang = "de";
-    state.view = "masterdata";
-    state.masterSection = "konten";
+    state.view = "vermoegen";
+    state.vermoegenTab = "konten";
+    state.selectedVermoegenId = `konto:${kontoId}`;
     state.selectedKonto = kontoId;
+    const { renderVermoegen } = await import("../app/views/vermoegen.mjs");
+    verwerfeApiCaches();
+    renderVermoegen();
+    await apiAbwarten();
+    const html = renderVermoegen();
 
-    const html = await renderMasterdata();
-
-    assert.match(html, /layout-with-rail/);
-    assert.match(html, /detail-panel/);
-    assert.match(html, /data-action="close-account-rail"/);
     assert.match(html, /Belegter Anker/);
     assert.match(html, /Buchungen seit Anker/);
     assert.match(html, /Aktueller Saldo/);
     assert.equal((html.match(/class="wertstand-item"/g) ?? []).length, 2);
     assert.equal((html.match(/data-action="account-transactions"/g) ?? []).length, 1);
-    assert.match(html, /data-action="account-transactions" data-account="KTO-DETAIL"/);
-    assert.match(html, /Transaktionen anzeigen/);
+    assert.match(html, /href="#\/transaktionen\?konto=KTO-DETAIL" data-action="account-transactions" data-account="KTO-DETAIL"/);
   } finally {
     data.konten = original.konten;
     data.transaktionen = original.transaktionen;
     data.zeitwerte = original.zeitwerte;
     state.lang = original.lang;
     state.selectedKonto = original.selectedKonto;
+    state.view = "masterdata";
+    state.selectedVermoegenId = "";
     if (originalMapEntry) kontenById.set(kontoId, originalMapEntry);
     else kontenById.delete(kontoId);
   }
@@ -140,8 +143,9 @@ test("Kategorien-Stammdaten zeigen die Kategorie-ID", () => {
 
   const html = renderSofort();
 
-  assert.match(html, /<th>ID<\/th>/);
-  assert.match(html, /<td>KAT-SICHTBAR<\/td>/);
+  // Die ID steht nachrangig unter dem Namen; der Name fuehrt in die Buchungen der letzten zwoelf Monate.
+  assert.match(html, />Testkategorie<\/a><div class="id-zeile muted">KAT-SICHTBAR<\/div>/);
+  assert.match(html, /href="#\/transaktionen\?kategorie=KAT-SICHTBAR&amp;zeit=range&amp;von=\d{4}-\d{2}-\d{2}&amp;bis=\d{4}-\d{2}-\d{2}"/);
 });
 
 test("Regelliste zeigt REG-001 und Trefferanzahl 1", async () => {

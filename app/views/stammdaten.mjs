@@ -1,11 +1,12 @@
 // app/views/stammdaten.mjs
 // Administration: Stammdaten (Personen, Konten, Kategorien, Regeln), Checks und Export.
-import { data, state, t, escapeHtml } from "../runtime.mjs";
+import { data, state, t, tf, escapeHtml } from "../runtime.mjs";
+import { LEERE_FILTER, filterAlsQuery } from "../navigation.mjs";
+import { addInterval } from "../liquiditaet.mjs";
 import { iconSvg } from "../icons.js";
-import { renderPageHead, renderMasterAccountTable, regelKlartext, categoryName } from "../komponenten.mjs";
+import { renderPageHead, renderMasterAccountTable, regelKlartext, categoryName, formatMoney, formatDate } from "../komponenten.mjs";
 import { heuteIso, missingReferenceChecks } from "../selektoren.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
-import { renderVermoegenDetail } from "./vermoegen.mjs";
 import { kontenAntwort } from "./konten-daten.mjs";
 import { renderChecks, offeneChecksAnzahl } from "./checks.mjs";
 import { renderExport } from "./export.mjs";
@@ -66,61 +67,72 @@ function renderMasterSection() {
   if (state.masterSection === "personen") {
     return renderSimpleTable([t("masterdata.people"), t("labels.status")], data.personen.map((person) => [person.name, t(`status.${person.status}`)]));
   }
-  if (state.masterSection === "kategorien") {
-    return renderSimpleTable(
-      [t("labels.id"), t("labels.category"), t("labels.type"), t("labels.status")],
-      data.kategorien.map((category) => [category.kategorie_id, category.name, category.typ, t(`status.${category.status}`)]),
-    );
-  }
+  if (state.masterSection === "kategorien") return renderKategorien();
   return "";
 }
 
-// wert: kontoWert des Kontos aus GET /api/v1/konten.
-function kontoPosition(konto, wert) {
-  return {
-    klasse: "konto",
-    id: konto.konto_id,
-    name: konto.name,
-    wert_cents: wert.wert_cents ?? 0,
-    basis: wert.basis,
-    qualitaet: wert.qualitaet,
-    standdatum: wert.standdatum,
-    fehlt: wert.wert_cents === null,
-  };
-}
-
 function renderKontoSection() {
-  const konto = state.selectedKonto
-    ? data.konten.find((item) => item.konto_id === state.selectedKonto)
-    : null;
-  const railOpen = Boolean(konto);
-  const today = heuteIso();
-  // Reihenfolge der Tabelle und Wert im Detail rechnet der App-Server.
-  const { antwort: konten, fehler } = kontenAntwort(today);
+  // Reihenfolge der Tabelle rechnet der App-Server; das Detail eines Kontos
+  // liegt unter Vermoegen -> Konten (eine Zeile fuehrt dorthin).
+  const { antwort: konten, fehler } = kontenAntwort(heuteIso());
   if (!konten) {
     return `
     <section class="panel panel-pad section-spacing"><p class="muted" role="status">${escapeHtml(fehler ? `${t("masterdata.kontenLoadFailed")} (${fehler.message})` : t("masterdata.kontenLoading"))}</p></section>`;
   }
   return `
-    <div class="layout-with-rail ${railOpen ? "" : "rail-closed"} section-spacing">
-      <div class="stack">
-        <section class="panel panel-pad">
-          <h2 class="section-title">${escapeHtml(t("masterdata.accounts"))}</h2>
-          ${renderMasterAccountTable(konten)}
-        </section>
+    <section class="panel panel-pad section-spacing">
+      <h2 class="section-title">${escapeHtml(t("masterdata.accounts"))}</h2>
+      ${renderMasterAccountTable(konten)}
+    </section>`;
+}
+
+// Kategorien mit Anzahl und Summe ihrer Buchungen der letzten zwoelf Monate
+// (Gruppen der Buchungsliste, vom Server). Name und Zahlen fuehren in genau
+// diese Buchungen mit demselben Zeitraum.
+const kategorienCache = erstelleApiCache({ maxEintraege: 2 });
+// Die letzten zwoelf abgeschlossenen Monate (wie Trend und Plan & Ist "12m").
+function zwoelfMonate(heute) {
+  const monatsAnfang = `${heute.slice(0, 7)}-01`;
+  return { von: addInterval(monatsAnfang, "monat", -12), bis: addInterval(monatsAnfang, "tag", -1) };
+}
+function renderKategorien() {
+  const { von, bis } = zwoelfMonate(heuteIso());
+  const suche = new URLSearchParams({ gruppe: "kategorie", timeMode: "range", dateFrom: von, dateTo: bis, groesse: "10" });
+  if (state.dataMode === "demo") suche.set("quelle", "demo");
+  const { antwort } = kategorienCache.hole(`./api/v1/transaktionen?${suche}`);
+  const je = new Map((antwort?.gruppen ?? []).map((g) => [g.schluessel, g]));
+  const ziel = (id) => {
+    const filter = { category: id, timeMode: "range", dateFrom: von, dateTo: bis };
+    return `href="${escapeHtml(`#/transaktionen${filterAlsQuery({ ...LEERE_FILTER, ...filter })}`)}" data-action="kategorie-transactions" data-kategorie="${escapeHtml(id)}" data-von="${escapeHtml(von)}" data-bis="${escapeHtml(bis)}" data-transfer="all"`;
+  };
+  const zeilen = data.kategorien.map((k) => {
+    const g = je.get(k.kategorie_id);
+    const zahl = (wert) => (antwort ? wert : `<span class="muted">…</span>`);
+    return `
+      <tr>
+        <td><a class="linkish" ${ziel(k.kategorie_id)}>${escapeHtml(k.name)}</a><div class="id-zeile muted">${escapeHtml(k.kategorie_id)}</div></td>
+        <td>${escapeHtml(k.typ ?? "")}</td>
+        <td>${escapeHtml(t(`status.${k.status}`))}</td>
+        <td class="amount">${zahl(g ? g.anzahl : 0)}</td>
+        <td class="amount">${zahl(g ? escapeHtml(formatMoney(g.summe_cent)) : `<span class="muted">—</span>`)}</td>
+      </tr>`;
+  }).join("");
+  return `
+    <section class="panel panel-pad section-spacing">
+      <p class="muted">${escapeHtml(tf("masterdata.kategorienZeitraum", { von: formatDate(von), bis: formatDate(bis) }))}</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>${escapeHtml(t("labels.category"))}</th>
+            <th>${escapeHtml(t("labels.type"))}</th>
+            <th>${escapeHtml(t("labels.status"))}</th>
+            <th class="amount">${escapeHtml(t("masterdata.kategorienAnzahl12"))}</th>
+            <th class="amount">${escapeHtml(t("masterdata.kategorienSumme12"))}</th>
+          </tr></thead>
+          <tbody>${zeilen}</tbody>
+        </table>
       </div>
-      ${railOpen ? `
-        <aside class="panel panel-pad detail-panel">
-          <div class="detail-head">
-            <h2 class="section-title">${escapeHtml(t("vermoegen.detailTitle"))}</h2>
-            <button class="icon-button" data-action="close-account-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
-          </div>
-          ${renderVermoegenDetail(kontoPosition(konto, konten.konten[konto.konto_id]?.wert ?? { wert_cents: null, basis: "" }), today, konten)}
-          <div class="detail-section">
-            <button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(t("masterdata.showTransactions"))}</button>
-          </div>
-        </aside>` : ""}
-    </div>`;
+    </section>`;
 }
 
 function renderSimpleTable(headers, rows) {

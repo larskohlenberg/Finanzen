@@ -10,6 +10,7 @@ import { formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzah
 import { miniKurve } from "../charts.mjs";
 import { toCents } from "../liquiditaet.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
+import { LEERE_FILTER, filterAlsQuery } from "../navigation.mjs";
 
 // Salden, Verlaeufe und Prognose rechnet der App-Server (GET /api/v1/liquiditaet,
 // Modell in app/liquiditaet-modell.mjs); hier wird nur gezeichnet.
@@ -154,8 +155,15 @@ function trendKachel(seite, trend) {
   const notiz = v
     ? `${trendPfeil(v.summe, { mehrIstGut })} <span class="muted">${escapeHtml(tf("liquiditaet.trendVorjahr", { betrag: geldOhneCent(v.summe.vorher_cents) }))}</span>`
     : `<span class="muted">${escapeHtml(t("liquiditaet.trendOhneVorjahr"))}</span>`;
+  // Jeder Monat fuehrt in seine laufenden Buchungen, nach Kategorie summiert
+  // (so rechnet auch der Trend: Saldo je Kategorie und Monat).
+  const spalten = monatsAchse(trend.monate).map((s, i) => ({
+    ...s,
+    href: `#/transaktionen${filterAlsQuery({ ...LEERE_FILTER, timeMode: "month", month: trend.monate[i], klasse: "laufend", gruppe: "kategorie" })}`,
+    linkLabel: tf("transactions.spalteBuchungen", { monat: formatMonth(trend.monate[i]) }),
+  }));
   const unten = zeitverlaufKlein({
-    spalten: monatsAchse(trend.monate),
+    spalten,
     serien: [
       { klasse: "trend-monat-linie", label: t("liquiditaet.trendMonat"), werte: reihe.monat_cents },
       { klasse: `trend-mittel-linie trend-${seite}`, label: t("liquiditaet.trendMittel"), werte: reihe.mittel_cents },
@@ -277,7 +285,7 @@ function laufendMarkup(istLaufend) {
 function renderLiquiditaetPostenRows(posten) {
   return posten.map((p) => `
     <tr class="row-posten">
-      <td class="posten-cell">${escapeHtml(formatDate(p.datum))} · ${escapeHtml(p.bezeichnung)}</td>
+      <td class="posten-cell">${escapeHtml(formatDate(p.datum))} · ${p.regelzahlung_id ? `<a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", p.regelzahlung_id))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(p.regelzahlung_id)}">${escapeHtml(p.bezeichnung)}</a>` : escapeHtml(p.bezeichnung)}</td>
       <td class="amount">${escapeHtml(formatMoney(p.bewegung_cents))}</td>
       <td class="amount">${escapeHtml(formatMoney(p.saldo_cents))}</td>
     </tr>

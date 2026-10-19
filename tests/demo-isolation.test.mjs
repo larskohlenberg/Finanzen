@@ -124,7 +124,7 @@ test("hashNachModuswechsel: Auswahl faellt weg, die Seite bleibt", () => {
   assert.equal(hashNachModuswechsel("#/szenarien/vergleich/SZN-001,SZN-002"), "#/szenarien");
   assert.equal(hashNachModuswechsel("#/termine/fristen"), "#/termine/fristen");
   assert.equal(hashNachModuswechsel("#/administration/checks"), "#/administration/checks");
-  assert.equal(hashNachModuswechsel("#/konten/KTO-001"), "#/administration");
+  assert.equal(hashNachModuswechsel("#/konten/KTO-001"), "#/vermoegen/konten", "altes Konto-Detail liegt unter Vermoegen");
   assert.equal(hashNachModuswechsel("#/uebersicht"), "#/uebersicht");
   assert.equal(hashNachModuswechsel(""), "");
 });

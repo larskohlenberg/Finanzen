@@ -2,25 +2,13 @@
 // Aktionen (data-action) – Administration: Konten, Regeln, Checks.
 import { zuBuchungen } from "../navigation.mjs";
 import { state } from "../runtime.mjs";
-import { zeigeChecks, commitNavigation } from "../verlauf.mjs";
+import { zeigeChecks, commitNavigation, oeffneVermoegenObjekt } from "../verlauf.mjs";
 
 export const aktionen = {
-  "open-account-master": (element) => {
-    state.view = "masterdata";
-    state.masterSection = "konten";
-    state.selectedKonto = element.dataset.account || "";
-    commitNavigation();
-  },
-  "select-master-account": (element) => {
-    state.view = "masterdata";
-    state.masterSection = "konten";
-    state.selectedKonto = element.dataset.account || "";
-    commitNavigation();
-  },
-  "close-account-rail": () => {
-    state.selectedKonto = "";
-    commitNavigation();
-  },
+  // Ein Konto hat genau ein Detail: Vermoegen -> Konten (Wert, Wertstaende,
+  // Dokumente, Buchungen). Die Administration listet die Konten nur.
+  "open-account-master": (element) => oeffneVermoegenObjekt(`konto:${element.dataset.account || ""}`),
+  "select-master-account": (element) => oeffneVermoegenObjekt(`konto:${element.dataset.account || ""}`),
   "close-regel-rail": () => {
     state.selectedRegel = "";
     state.regelRailWide = false;

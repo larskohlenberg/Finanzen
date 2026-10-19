@@ -145,7 +145,7 @@ function renderGruppen(antwort) {
         <li class="gruppen-kopf" aria-hidden="true"><span>${escapeHtml(t(`transactions.gruppe.${gruppe}`))}</span><span class="amount">${escapeHtml(t("transactions.gruppeAnzahl"))}</span><span class="amount">${escapeHtml(t("transactions.gruppeSumme"))}</span></li>
         ${antwort.gruppen.map((g) => `
           <li>
-            ${gruppe === "gegenpartei" && !g.schluessel ? `<span class="muted">—</span>` : `<button class="linkish" data-action="gruppe-filtern" data-gruppe="${escapeHtml(gruppe)}" data-schluessel="${escapeHtml(g.schluessel)}" title="${escapeHtml(t("transactions.gruppeFiltern"))}">${escapeHtml(name(g))}</button>`}
+            ${["gegenpartei", "regelzahlung"].includes(gruppe) && !g.schluessel ? `<span class="muted">—</span>` : `<button class="linkish" data-action="gruppe-filtern" data-gruppe="${escapeHtml(gruppe)}" data-schluessel="${escapeHtml(g.schluessel)}" title="${escapeHtml(t("transactions.gruppeFiltern"))}">${escapeHtml(name(g))}</button>`}
             <span class="amount muted">${g.anzahl}</span>
             <span class="amount">${escapeHtml(formatMoney(g.summe_cent))}</span>
           </li>`).join("")}
@@ -159,7 +159,7 @@ function renderTransactionTableToolbar() {
       <label class="table-page-size">
         <span>${escapeHtml(t("transactions.gruppieren"))}</span>
         <select data-filter="gruppe" aria-label="${escapeHtml(t("transactions.gruppieren"))}">
-          ${["", "kategorie", "monat", "gegenpartei"].map((g) => `<option value="${g}" ${state.transactionFilters.gruppe === g ? "selected" : ""}>${escapeHtml(t(`transactions.gruppe.${g}`))}</option>`).join("")}
+          ${["", "kategorie", "monat", "gegenpartei", "regelzahlung"].map((g) => `<option value="${g}" ${state.transactionFilters.gruppe === g ? "selected" : ""}>${escapeHtml(t(`transactions.gruppe.${g}`))}</option>`).join("")}
         </select>
       </label>
       <label class="table-page-size">
@@ -257,6 +257,7 @@ function filterChip(name) {
   if (name === "transfer") return chip({ label: t("transactions.filterTransfer"), wertHtml: text(t(f.transfer === "only" ? "transactions.onlyTransfers" : "transactions.withoutTransfers")) });
   if (name === "origin") return chip({ label: t("transactions.filterOrigin"), wertHtml: text(t({ regel: "transactions.originRule", agent: "transactions.originAgent", manuell: "transactions.originManual" }[f.origin] ?? f.origin)) });
   if (name === "zeit") return chip({ label: t("transactions.filterTime"), wertHtml: text(zeitfilterText(f)) });
+  if (name === "klasse") return chip({ label: t("transactions.filterKlasse"), wertHtml: text(t(`transactions.klasse.${f.klasse}`)) });
   if (name === "richtung") return chip({ label: t("transactions.filterRichtung"), wertHtml: text(t(`transactions.${f.richtung}`)) });
   if (name === "betrag") return chip({ label: t("transactions.filterBetrag"), wertHtml: text(betragText(f)) });
   if (name === "regelzahlung") {

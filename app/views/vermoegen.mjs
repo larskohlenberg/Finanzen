@@ -318,8 +318,7 @@ function renderKontenTab(r, today, konten) {
     ${renderVermoegenDetail(p, today, konten)}
     ${linie ? detailRow(t("vermoegen.konto.saldoVerlauf"), linie) : ""}
     <div class="detail-section">
-      <button class="linkish" data-action="account-transactions" data-account="${escapeHtml(p.id)}">${escapeHtml(t("vermoegen.konto.buchungen"))}</button>
-      · <a class="linkish" href="${escapeHtml(zielRoute("select-master-account", p.id))}" data-action="select-master-account" data-account="${escapeHtml(p.id)}">${escapeHtml(t("vermoegen.konto.stammdaten"))}</a>
+      <a class="linkish" href="${escapeHtml(`#/transaktionen?konto=${encodeURIComponent(p.id)}`)}" data-action="account-transactions" data-account="${escapeHtml(p.id)}">${escapeHtml(t("vermoegen.konto.buchungen"))}</a>
     </div>`;
   return mitRail(inhalt, rail, t("vermoegen.detailTitle"));
 }

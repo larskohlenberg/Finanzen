@@ -3563,3 +3563,13 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .gruppen-liste li .linkish { text-align: left; overflow-wrap: anywhere; }
 .gruppen-kopf { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 .herkunft-marke { font-size: 12px; margin-left: 4px; }
+
+/* Regelzahlungen: interne ID nachrangig unter dem Namen, Auswahl ueber der Tabelle */
+.id-zeile { font-size: 11px; }
+.rz-auswahl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 12px; }
+
+/* Diagrammspalte als Link (Monat -> Buchungen): unsichtbare Flaeche, sichtbar bei Fokus und Hover */
+.spalte-flaeche { fill: transparent; cursor: pointer; }
+.spalte-link:hover .spalte-flaeche { fill: var(--accent-soft); fill-opacity: 0.35; }
+.spalte-link:focus-visible { outline: none; }
+.spalte-link:focus-visible .spalte-flaeche { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }

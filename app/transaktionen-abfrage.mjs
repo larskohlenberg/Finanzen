@@ -5,6 +5,7 @@
 // Laufzeitzustand: Filter, Sortierung und Seite kommen als Argumente.
 import { matchesQuery, toCents } from "./tools/lib/text.mjs";
 import { belegPfadeAusText, belegSchluessel } from "./belege.mjs";
+import { buchungsKlasse, kategorienIndex } from "./klassifikation.mjs";
 
 export const SEITENGROESSEN = Object.freeze([10, 20, 50, 100]);
 export const SORTIERUNGEN = Object.freeze(["date", "account", "counterparty", "purpose", "amount", "category", "status"]);
@@ -17,13 +18,15 @@ export const LEERER_FILTER = Object.freeze({
   betragVon: "", betragBis: "", richtung: "", regelzahlung: "",
   // Genau diese Gegenpartei (Gruppenzeile), anders als die Freitextsuche.
   gegenpartei: "",
+  // Klasse der zentralen Klassifikation (klassifikation.mjs), z. B. laufend.
+  klasse: "",
 });
 
 // Kategorie-Filter fuer Buchungen ohne Kategorie.
 export const OHNE_KATEGORIE = "ohne";
 
 export const RICHTUNGEN = Object.freeze(["einnahme", "ausgabe"]);
-export const GRUPPEN = Object.freeze(["kategorie", "monat", "gegenpartei"]);
+export const GRUPPEN = Object.freeze(["kategorie", "monat", "gegenpartei", "regelzahlung"]);
 // Eurobetrag ohne Vorzeichen mit hoechstens zwei Nachkommastellen, Punkt oder Komma.
 export const BETRAG_MUSTER = /^\d{1,9}([.,]\d{1,2})?$/;
 const betragCent = (wert) => toCents(String(wert).replace(",", "."));
@@ -85,7 +88,9 @@ export function filtereTransaktionen(daten, filter) {
   const vorsorgeRz = f.vorsorge
     ? new Set((daten.regelzahlungen ?? []).filter((rz) => rz.vorsorge_id === f.vorsorge).map((rz) => rz.regelzahlung_id))
     : null;
+  const typ = f.klasse ? kategorienIndex(daten) : null;
   return (daten.transaktionen ?? []).filter((tx) => {
+    if (typ && buchungsKlasse(tx, typ) !== f.klasse) return false;
     if (vorsorgeRz && !vorsorgeRz.has(tx.regelzahlung_id)) return false;
     if (f.account && tx.konto_id !== f.account) return false;
     if (f.status && tx.kategorisierung_status !== f.status) return false;
@@ -150,25 +155,30 @@ function datumsteile(transaktionen, ende) {
 // seite wird auf den gueltigen Bereich begrenzt; mit zeige (Buchungs-Id)
 // springt sie auf die Seite dieser Buchung. auswahl (Id) liefert die Buchung
 // samt Bezuegen fuer das Detail, aber nur, wenn sie im Filter liegt.
-// Summen je Gruppe ueber alle Treffer des Filters (nicht nur die Seite):
-// Kategorie und Gegenpartei nach Betrag ohne Vorzeichen absteigend, Monate
-// neueste zuerst.
+// Summen je Gruppe ueber alle Treffer des Filters (nicht nur die Seite), mit
+// dem Datum der letzten Buchung: Kategorie, Gegenpartei und Regelzahlung nach
+// Betrag ohne Vorzeichen absteigend, Monate neueste zuerst.
 export function gruppenSummen(daten, treffer, gruppe, ohneKategorie = "") {
   if (!GRUPPEN.includes(gruppe)) return null;
   const kategorien = new Map((daten.kategorien ?? []).map((k) => [k.kategorie_id, k.name]));
+  const regelzahlungen = new Map((daten.regelzahlungen ?? []).map((rz) => [rz.regelzahlung_id, rz.bezeichnung]));
   const je = new Map();
   for (const tx of treffer) {
     const schluessel = gruppe === "kategorie" ? tx.kategorie_id || ""
       : gruppe === "monat" ? String(tx.buchungsdatum ?? "").slice(0, 7)
-        : String(tx.gegenpartei ?? "").trim();
-    const eintrag = je.get(schluessel) ?? { schluessel, name: "", anzahl: 0, summe_cent: 0 };
+        : gruppe === "regelzahlung" ? tx.regelzahlung_id || ""
+          : String(tx.gegenpartei ?? "").trim();
+    const eintrag = je.get(schluessel) ?? { schluessel, name: "", anzahl: 0, summe_cent: 0, letzte: "" };
     eintrag.anzahl += 1;
     eintrag.summe_cent += toCents(tx.betrag);
+    if (String(tx.buchungsdatum ?? "") > eintrag.letzte) eintrag.letzte = tx.buchungsdatum;
     je.set(schluessel, eintrag);
   }
   const liste = [...je.values()].map((g) => ({
     ...g,
-    name: gruppe === "kategorie" ? (g.schluessel ? kategorien.get(g.schluessel) || g.schluessel : ohneKategorie) : g.schluessel,
+    name: gruppe === "kategorie" ? (g.schluessel ? kategorien.get(g.schluessel) || g.schluessel : ohneKategorie)
+      : gruppe === "regelzahlung" ? (g.schluessel ? regelzahlungen.get(g.schluessel) || g.schluessel : "")
+        : g.schluessel,
   }));
   return gruppe === "monat"
     ? liste.sort((a, b) => b.schluessel.localeCompare(a.schluessel))

@@ -33,6 +33,7 @@ import { PERIODE_MUSTER } from "./plan-ist.mjs";
 import { addInterval, defaultHorizonEnd, localTodayIso } from "./liquiditaet.mjs";
 import { uebersichtModell } from "./uebersicht-modell.mjs";
 import { importStandModell } from "./tools/lib/importstand.mjs";
+import { KLASSEN } from "./klassifikation.mjs";
 import { BETRAG_MUSTER, GRUPPEN, LEERER_FILTER, RICHTUNGEN, SEITENGROESSEN, SORTIERUNGEN, regelWirkungAntwort, transaktionenSeite } from "./transaktionen-abfrage.mjs";
 
 const MAX_WERT = 300;
@@ -93,6 +94,7 @@ export function transaktionenParameter(suche) {
   for (const name of ["betragVon", "betragBis"]) {
     if (filter[name] && !BETRAG_MUSTER.test(filter[name])) throw new AnfrageFehler(`${name}: Betrag ohne Vorzeichen, z. B. 500 oder 12.50`);
   }
+  if (filter.klasse && !KLASSEN.includes(filter.klasse)) throw new AnfrageFehler(`klasse: ${KLASSEN.join(", ")}`);
   if (filter.richtung && !RICHTUNGEN.includes(filter.richtung)) throw new AnfrageFehler(`richtung: ${RICHTUNGEN.join(" oder ")}`);
   const gruppe = text(suche, "gruppe");
   if (gruppe && !GRUPPEN.includes(gruppe)) throw new AnfrageFehler(`gruppe: ${GRUPPEN.join(", ")}`);

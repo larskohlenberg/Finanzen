@@ -111,11 +111,13 @@ async function raeumeVerwaiste(datei, halter) {
 }
 
 // Nimmt die Sperre; liefert { kennung, freigeben }. Wirft SperreBelegt, wenn
-// sie nach kurzer Wartezeit noch gehalten wird.
-export async function nimmSperre(datenroot, { wer = path.basename(process.argv[1] ?? "node"), wartenMs = WARTEN_MS } = {}) {
+// sie nach kurzer Wartezeit noch gehalten wird. pid: wessen Lebenszeit die
+// Sperre gilt (Default dieser Prozess; das Deploy-Skript traegt seine eigene
+// ein, damit die Sperre ueber den kurzen Hilfsprozess hinaus gilt).
+export async function nimmSperre(datenroot, { wer = path.basename(process.argv[1] ?? "node"), wartenMs = WARTEN_MS, pid = process.pid } = {}) {
   const datei = sperrPfad(datenroot);
   const kennung = randomBytes(12).toString("hex");
-  const inhalt = `${JSON.stringify({ pid: process.pid, rechner: hostname(), zeit: new Date().toISOString(), wer, kennung })}\n`;
+  const inhalt = `${JSON.stringify({ pid, rechner: hostname(), zeit: new Date().toISOString(), wer, kennung })}\n`;
   const bis = Date.now() + wartenMs;
   for (;;) {
     if (await versuche(datei, inhalt)) break;
@@ -144,6 +146,15 @@ export async function nimmSperre(datenroot, { wer = path.basename(process.argv[1
       }
     },
   };
+}
+
+// Gibt eine Sperre anhand ihrer Kennung frei (fuer einen anderen Prozess als
+// den, der sie genommen hat). Eine fremde Sperre bleibt liegen.
+export async function gibSperreFrei(datenroot, kennung) {
+  const datei = sperrPfad(datenroot);
+  if (!kennung || (await leseHalter(datei))?.kennung !== kennung) return false;
+  await unlink(datei).catch(() => {});
+  return true;
 }
 
 // Haelt der Elternprozess die Sperre (MCP -> CLI), ist sie schon da.

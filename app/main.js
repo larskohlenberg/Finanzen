@@ -146,10 +146,18 @@ function announceStatus() {
   if (region.textContent !== msg) region.textContent = msg;
 }
 
+let zeigerGedrueckt = false;
+let zeichnenAufgeschoben = false;
+
 function render() {
   // Nach der Sitzungssperre ist der Bestand verworfen; nachlaufende
   // Ladevorgaenge (Version, Inbox, Dokumente) duerfen nichts mehr zeichnen.
   if (sitzungGesperrt) return;
+  // Waehrend eine Maustaste gedrueckt ist, nicht unter dem Zeiger austauschen.
+  if (zeigerGedrueckt) {
+    zeichnenAufgeschoben = true;
+    return;
+  }
   applyTheme();
   const focusSnap = captureFocus();
   const scrollSnap = captureScroll();
@@ -631,6 +639,28 @@ function verarbeiteEingabe(event) {
 app.addEventListener("input", guard((event) => {
   if (eingabeBereit(event)) verarbeiteEingabe(event);
 }, setUiError, "input"));
+// Ein Klick braucht Druecken und Loslassen auf demselben Element. Zeichnet
+// dazwischen etwas neu (eine eintreffende API-Antwort, die entprellte Suche),
+// ersetzt es das Element unter dem Zeiger und der Klick geht verloren. Darum
+// wartet jedes Neuzeichnen, solange gedrueckt ist, und kommt nach dem Klick.
+// Nur die primaere, linke Taste: ein Rechtsklick oeffnet ein Kontextmenue, das
+// das Loslassen verschluckt. Jede Bewegung ohne gedrueckte Taste gibt frei,
+// falls ein pointerup doch ausblieb (z. B. nach einem Scrollbalken).
+app.addEventListener("pointerdown", (event) => {
+  if (event.isPrimary !== false && (event.button ?? 0) === 0) zeigerGedrueckt = true;
+}, true);
+for (const typ of ["pointerup", "pointercancel", "blur", "contextmenu", "pointermove"]) {
+  window.addEventListener(typ, (event) => {
+    // blur nur des Fensters (Capture sieht auch das Blur jedes Feldes).
+    if (typ === "blur" && event.target !== window) return;
+    if (typ === "pointermove" && (!zeigerGedrueckt || event.buttons !== 0)) return;
+    zeigerGedrueckt = false;
+    if (!zeichnenAufgeschoben) return;
+    zeichnenAufgeschoben = false;
+    // Nach dem Klick-Ereignis, das noch in dieser Runde folgt.
+    setTimeout(render, 0);
+  }, true);
+}
 // Beginnt eine Komposition, darf kein anstehendes Neuzeichnen sie zerstoeren.
 app.addEventListener("compositionstart", () => sucheEntprellt.abbrechen());
 app.addEventListener("compositionend", guard((event) => verarbeiteEingabe(event), setUiError, "compositionend"));

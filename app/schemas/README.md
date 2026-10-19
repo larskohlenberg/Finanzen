@@ -16,11 +16,16 @@ Die Schemas sind Referenz fuer Import, Stammdatenpflege, Validierung und spaeter
 
 ## Fuehrend ist der Validator, nicht diese Dateien
 
-Die maschinell ausgefuehrten Regeln leben in `tools/validator.mjs` (plus
-`tools/import-format.mjs` fuer das Importformat) — die JSON-Schema-Dateien hier
-werden von keinem Tool geladen. Sie sind lesbare Referenzdoku fuer Agenten und
-Menschen. Wer ein Feld ergaenzt, pflegt **beide** Stellen: zuerst den Validator
-(mit Test), dann die Schema-Datei hier nachziehen.
+Die eine Vertragsquelle ist `DATENVERTRAG` in `tools/validate-core.mjs`
+(Pflichtfelder und Feldregeln je Sammlung; Querbezuege und die Zustandstabelle
+der Kategorisierung stehen im selben Modul). Die JSON-Schema-Dateien hier werden
+von keinem Tool geladen; sie sind lesbare Referenzdoku. `tests/datenvertrag.test.mjs`
+haelt sie Feld fuer Feld deckungsgleich (Feldnamen, Pflichtfelder, Typ, Muster,
+Aufzaehlungen, Formate; Uebersetzung in `tools/lib/vertrag.mjs`). Beschreibungen
+und Unterstrukturen (z. B. Eigentumsanteile) darf die Doku zusaetzlich fuehren.
+Wer ein Feld ergaenzt: zuerst `DATENVERTRAG` (mit Test), dann die Schema-Datei;
+der Test sagt, was fehlt. Ausnahme: `importformat` und `importprofil` folgen
+`tools/import-format.mjs` und sind nicht im Abgleich.
 
 ## Dateien
 

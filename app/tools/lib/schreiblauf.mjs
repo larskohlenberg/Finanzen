@@ -1,3 +1,4 @@
+// @ts-check
 // app/tools/lib/schreiblauf.mjs
 // Schreiblauf einer CLI ueber einen Entwurf (ADR 0035): Der Elternprozess
 // nimmt die Schreibsperre, legt per mitSchreiber einen Entwurf an und startet
@@ -108,6 +109,11 @@ function starteKind(argv, env) {
 // die CLI verschiebt Dateien ausserhalb des Bestands (Inbox, Belege/); dann
 // wird auch nach einem Werkzeugfehler veroeffentlicht, solange der Validator
 // keine neuen Fehler meldet (die Verschiebung laesst sich nicht zuruecknehmen).
+/**
+ * @param {string} datenroot
+ * @param {string[]} argv
+ * @param {{ erwartet?: string|null, fingerabdruck?: (root: string) => Promise<string>, okCodes?: number[], aussenWirkung?: boolean }} [optionen]
+ */
 export async function schreibeImEntwurf(datenroot, argv, { erwartet, fingerabdruck, okCodes = [0], aussenWirkung = false } = {}) {
   const basis = await findeBasis(datenroot);
   let kindCode = 0;

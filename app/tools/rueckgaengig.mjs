@@ -30,6 +30,7 @@ const beschreibe = async (leser) => {
 };
 
 // Vorschau: Ziel und Diff aktuell -> Ziel. Liefert { text, ziel, aktuell, aenderungen }.
+/** @param {string} datenroot @param {{ schritte?: number, ziel?: string }} [auswahl] */
 export async function rueckgaengigVorschau(datenroot, { schritte = 1, ziel } = {}) {
   const basis = await findeBasis(datenroot);
   const zielId = await rueckgaengigZiel(basis, { schritte, ziel });
@@ -60,6 +61,7 @@ export async function rueckgaengigVorschau(datenroot, { schritte = 1, ziel } = {
 // ohne ihn nahme "schritte" zurueck, was gerade aktuell ist, nicht das, was die
 // Vorschau gezeigt hat. Liefert { text, exitCode } (0 ok, 1 Fehler/verworfen,
 // 3 gesperrt, 4 veraltet).
+/** @param {string} datenroot @param {{ schritte?: number, ziel?: string, erwartet?: string, wer?: string }} [auswahl] */
 export async function rueckgaengigSchreiben(datenroot, { schritte = 1, ziel, erwartet, wer = "rueckgaengig" } = {}) {
   if (!erwartet) return { text: "rueckgaengig schreibt nur mit dem Fingerabdruck der Vorschau (CLI --fingerabdruck=G..., MCP fingerabdruck). Erst die Vorschau ansehen.", exitCode: 1 };
   const basis = await findeBasis(datenroot);

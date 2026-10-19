@@ -119,6 +119,7 @@ Für Claude Code liegen die ersten beiden fertig in `.claude/agents/` (`import-n
 
 ## Am Code arbeiten
 - `npm test` muss grün sein. Werkzeuge sind eine reine Funktion plus CLI, getestet mit `node --test`.
+- `npm run typen` prüft die JSDoc-Typen der Kerngrenzen (Dateien mit `// @ts-check`, Liste in `tsconfig.json`); TypeScript wird dafür nur als Dev-Werkzeug nach `.typpruefung/` geladen.
 - Gemergt wird erst, wenn die CI grün ist (GitHub Actions: Tests auf Node 22 und 24, Validator auf Demodaten und Fixtures, PII-Scan): `gh pr checks <nr> --watch`, dann `gh pr merge <nr> --merge`. Den PII-Scan vor dem Push auch lokal laufen lassen: `node app/tools/pii-scan.mjs origin/main`. Fehler (echte IBAN, Kartennummer) blockieren, Warnungen ansehen.
 - Keine Build-Pipeline, keine Abhängigkeiten außer Node.js.
 - Der Datenbestand ist immer ein Argument (`dataRootFromArg` aus `app/tools/data-root.mjs`), nie fest im Code.

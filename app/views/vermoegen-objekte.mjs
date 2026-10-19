@@ -127,21 +127,25 @@ function immobilieDokumente(id, darlehenIds) {
 function investitionenPanel(id) {
   const inv = immobilienInvestitionen(data, id);
   if (!inv.buchungen.length) return "";
+  // Bemerkungsspalte nur, wenn mindestens eine Buchung eine Bemerkung traegt.
+  const mitBemerkung = inv.buchungen.some((tx) => tx.bemerkung);
+  const span = mitBemerkung ? 3 : 2;
   const zeilen = inv.buchungen.map((tx) => `
         <tr class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}" tabindex="0">
           <td>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
           <td>${escapeHtml(tx.gegenpartei || tx.verwendungszweck || "")}</td>
+          ${mitBemerkung ? `<td>${escapeHtml(tx.bemerkung || "")}</td>` : ""}
           <td class="amount">${geld(cents(tx.betrag), { negativ: true })}</td>
         </tr>`).join("");
   return klappKachel({ id: "immobilie.investitionen", titel: t("vermoegen.immobilie.investitionen"), inhalt: `
       <p class="muted diagramm-lead">${escapeHtml(t("vermoegen.immobilie.investitionenLead"))}</p>
       <div class="table-wrap">
         <table class="monats-tabelle">
-          <thead><tr><th>${escapeHtml(t("vermoegen.immobilie.datum"))}</th><th>${escapeHtml(t("vermoegen.immobilie.gegenpartei"))}</th><th class="amount">${escapeHtml(t("vermoegen.immobilie.betrag"))}</th></tr></thead>
+          <thead><tr><th>${escapeHtml(t("vermoegen.immobilie.datum"))}</th><th>${escapeHtml(t("vermoegen.immobilie.gegenpartei"))}</th>${mitBemerkung ? `<th>${escapeHtml(t("vermoegen.immobilie.bemerkung"))}</th>` : ""}<th class="amount">${escapeHtml(t("vermoegen.immobilie.betrag"))}</th></tr></thead>
           <tbody>${zeilen}
-            ${inv.zuschuesse_cents ? `<tr class="table-sum"><td colspan="2">${escapeHtml(t("vermoegen.immobilie.investAusgaben"))}</td><td class="amount">${geld(-inv.ausgaben_cents, { negativ: true })}</td></tr>
-            <tr class="table-sum"><td colspan="2">${escapeHtml(t("vermoegen.immobilie.investZuschuesse"))}</td><td class="amount">${geld(inv.zuschuesse_cents, { negativ: true })}</td></tr>` : ""}
-            <tr class="table-sum"><td colspan="2"><strong>${escapeHtml(t("vermoegen.immobilie.investNetto"))}</strong></td><td class="amount"><strong>${geld(-inv.investiert_cents, { negativ: true })}</strong></td></tr>
+            ${inv.zuschuesse_cents ? `<tr class="table-sum"><td colspan="${span}">${escapeHtml(t("vermoegen.immobilie.investAusgaben"))}</td><td class="amount">${geld(-inv.ausgaben_cents, { negativ: true })}</td></tr>
+            <tr class="table-sum"><td colspan="${span}">${escapeHtml(t("vermoegen.immobilie.investZuschuesse"))}</td><td class="amount">${geld(inv.zuschuesse_cents, { negativ: true })}</td></tr>` : ""}
+            <tr class="table-sum"><td colspan="${span}"><strong>${escapeHtml(t("vermoegen.immobilie.investNetto"))}</strong></td><td class="amount"><strong>${geld(-inv.investiert_cents, { negativ: true })}</strong></td></tr>
           </tbody>
         </table>
       </div>` });

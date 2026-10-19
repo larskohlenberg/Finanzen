@@ -4,7 +4,7 @@
 // importieren von hier — so teilen sie EINE Zustands-/Datenquelle (Objekte per
 // Referenz). Bewusst ohne DOM-Render-Logik (die liegt in main.js/views/).
 import { loadFinanceData, normalizeDataMode } from "./data-loader.mjs";
-import { validateMasterData } from "./tools/validate-core.mjs";
+import { validateMasterData, strukturSicher } from "./tools/validate-core.mjs";
 import { defaultHorizonEnd, localTodayIso, toCents } from "./liquiditaet.mjs";
 
 export const app = document.querySelector("#app");
@@ -26,7 +26,8 @@ async function bootstrap() {
     const dataMode = normalizeDataMode(localStorage.getItem(DATA_MODE_STORAGE_KEY));
     const loadedData = await loadFinanceData({ dataMode });
     const loadedDictionaries = window.FINANCE_I18N;
-    if (!loadedData || !Array.isArray(loadedData.personen) || !Array.isArray(loadedData.konten) || !loadedDictionaries) {
+    // Kaputte Collections sind kein Ladefehler: sie meldet unten der Validator im Banner.
+    if (!loadedData || typeof loadedData !== "object" || !loadedDictionaries) {
       throw new Error("FINANCE_I18N oder geladene Masterdaten fehlen/unvollstaendig.");
     }
     return { data: loadedData, dictionaries: loadedDictionaries };
@@ -39,13 +40,14 @@ async function bootstrap() {
 const bootstrapped = await bootstrap();
 export const data = bootstrapped.data;
 export const dictionaries = bootstrapped.dictionaries;
-data.regelzahlungen = data.regelzahlungen ?? [];
-data.szenarien = data.szenarien ?? [];
 
 // "Das Tool prueft" gilt auch in der UI: dieselbe Validator-Logik wie das CLI
 // laeuft einmal beim Laden ueber den geladenen Bestand (Reload = voller Page-
 // Reload, also reicht einmal). Ergebnis treibt Status-Chip und Fehlerbanner.
+// Danach arbeiten die Ansichten nur auf strukturell lesbaren Listen: was keine
+// Liste oder kein Objekt ist, faellt heraus und steht als Fehler im Banner.
 data.validation = validateMasterData(data);
+Object.assign(data, strukturSicher(data));
 data.metadata = { ...data.metadata, validation: data.validation.valid ? "passed" : "failed" };
 
 export const storageKeys = {

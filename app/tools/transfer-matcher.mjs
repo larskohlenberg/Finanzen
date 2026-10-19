@@ -48,13 +48,15 @@ function ibanImTextGekoppelt(a, b, kontoVonIban) {
 }
 
 // Liefert das ausloesende Signal oder null. Bei mehreren Signalen gewinnt das
-// strukturell staerkste; Freitext-Gleichheit traegt nur im engen Fenster.
+// strukturell staerkste; Freitext-Gleichheit traegt nur im engen Fenster und
+// nur mit Text: zwei leere Verwendungszwecke sind kein gemeinsames Merkmal.
 function signalFuer(a, b, tage, kontoVonIban) {
   if (tage <= FENSTER_STRUKTUR) {
     if (ibanGekoppelt(a, b, kontoVonIban)) return "iban";
     if (ibanImTextGekoppelt(a, b, kontoVonIban)) return "iban-text";
   }
-  if (tage <= FENSTER_ZWECK && normalizeLoose(a.verwendungszweck) === normalizeLoose(b.verwendungszweck)) return "zweck";
+  const zweck = normalizeLoose(a.verwendungszweck);
+  if (tage <= FENSTER_ZWECK && zweck !== "" && zweck === normalizeLoose(b.verwendungszweck)) return "zweck";
   return null;
 }
 

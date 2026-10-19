@@ -449,7 +449,7 @@ Konten **und** *einem* der folgenden Signale innerhalb seines Datumsfensters:
 
 | Signal | Bedingung | Fenster |
 | --- | --- | --- |
-| `zweck` | `verwendungszweck` nach Normalisierung identisch | ≤ 3 Tage |
+| `zweck` | `verwendungszweck` nach Normalisierung identisch und nicht leer | ≤ 3 Tage |
 | `iban` | `empfaenger_iban` der einen Seite ist die `kontoreferenz` des Gegenkontos | ≤ 5 Tage |
 | `iban-text` | der `verwendungszweck` der einen Seite nennt eine IBAN, und die ist die `kontoreferenz` des Gegenkontos | ≤ 5 Tage |
 

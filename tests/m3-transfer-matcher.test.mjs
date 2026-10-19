@@ -278,3 +278,42 @@ test("ohne Mehrdeutigkeit ist das Feld mehrdeutig leer", () => {
   ];
   assert.deepEqual(matchTransfers(transaktionen, []).mehrdeutig, []);
 });
+
+// --- Leerer Verwendungszweck ist kein Signal (Review 0A.3) ------------------
+// Zwei leere Texte sind nicht "gleich" im Sinne eines Uebertrags: ohne dieses
+// Gate wuerden −50/+50 ohne Text auf zwei Konten zum internen Transfer, und
+// Ausgabe wie Einnahme fielen aus den Auswertungen.
+
+test("zwei leere Verwendungszwecke loesen keinen Transfer aus", () => {
+  const transaktionen = [
+    tx("TXN-20260901-000001", "KTO-001", "2026-09-01", "-50.00", ""),
+    tx("TXN-20260901-000002", "KTO-004", "2026-09-01", "50.00", ""),
+    tx("TXN-20260902-000003", "KTO-001", "2026-09-02", "-60.00", "   "),
+    tx("TXN-20260902-000004", "KTO-004", "2026-09-02", "60.00", undefined),
+  ];
+  const out = matchTransfers(transaktionen, []);
+  assert.equal(out.matched.length, 0);
+  assert.equal(out.transfers.length, 0);
+  assert.ok(transaktionen.every((t) => t.ist_transfer === false && t.transfer_id === undefined));
+});
+
+test("leere Verwendungszwecke erzeugen auch keine Mehrdeutigkeit", () => {
+  const transaktionen = [
+    tx("TXN-20260901-000001", "KTO-001", "2026-09-01", "-200.00", ""),
+    tx("TXN-20260902-000002", "KTO-004", "2026-09-02", "200.00", ""),
+    tx("TXN-20260902-000003", "KTO-005", "2026-09-02", "200.00", ""),
+  ];
+  const out = matchTransfers(transaktionen, []);
+  assert.equal(out.matched.length, 0);
+  assert.deepEqual(out.mehrdeutig, []);
+});
+
+test("leerer Verwendungszweck verhindert die IBAN-Kopplung nicht", () => {
+  const transaktionen = [
+    { ...tx("TXN-20260901-000001", "KTO-001", "2026-09-01", "-75.00", ""), empfaenger_iban: "DE22220000000000000022" },
+    tx("TXN-20260902-000002", "KTO-002", "2026-09-02", "75.00", ""),
+  ];
+  const out = matchTransfers(transaktionen, [], konten);
+  assert.equal(out.matched.length, 1);
+  assert.equal(out.matched[0].signal, "iban");
+});

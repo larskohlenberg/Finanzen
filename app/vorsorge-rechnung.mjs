@@ -40,9 +40,13 @@ export function beitragJeJahrCents(rz) {
   return Math.round(-toCents(rz.betrag) * periodenProJahr(rz));
 }
 
-// Beitrags-Regelzahlungen eines Vertrags, die heute noch laufen.
+// Beitrags-Regelzahlungen eines Vertrags, die am Stichtag laufen: bestaetigt,
+// begonnen (anker_datum <= today) und nicht beendet. Angekuendigte Folgezahlungen
+// zaehlen erst ab ihrem Beginn, vorgeschlagene und abgelehnte nie.
+const bestaetigterBeitrag = (rz, vorsorgeId, today) => rz.vorsorge_id === vorsorgeId && rz.status === "bestaetigt" && (!rz.aktiv_bis || rz.aktiv_bis >= today);
+
 export function laufendeBeitraege(data, vorsorgeId, today) {
-  return (data.regelzahlungen ?? []).filter((rz) => rz.vorsorge_id === vorsorgeId && (!rz.aktiv_bis || rz.aktiv_bis >= today));
+  return (data.regelzahlungen ?? []).filter((rz) => bestaetigterBeitrag(rz, vorsorgeId, today) && rz.anker_datum <= today);
 }
 
 export function beitragJeMonatVertrag(data, vorsorgeId, today) {
@@ -54,10 +58,11 @@ export function beitragJeJahrVertrag(data, vorsorgeId, today) {
   return laufendeBeitraege(data, vorsorgeId, today).reduce((summe, rz) => summe + beitragJeJahrCents(rz), 0);
 }
 
-// Naechster Beitragstermin ueber alle laufenden Regelzahlungen des Vertrags.
+// Naechster Beitragstermin ueber alle bestaetigten, nicht beendeten Regelzahlungen
+// des Vertrags, auch eine angekuendigte Folgezahlung.
 export function naechsterBeitrag(data, vorsorgeId, today) {
   let best = null;
-  for (const rz of laufendeBeitraege(data, vorsorgeId, today)) {
+  for (const rz of (data.regelzahlungen ?? []).filter((r) => bestaetigterBeitrag(r, vorsorgeId, today))) {
     const datum = naechsteFaelligkeit(rz, today);
     if (datum && (!best || datum < best.datum)) best = { datum, regelzahlung: rz };
   }
@@ -140,17 +145,40 @@ export function beitragVorjahr(data, vorsorgeId) {
   };
 }
 
-// Erwartete Leistungen laufender Vertraege: Renten (monatlich) und Kapital.
-export function erwarteteLeistungen(data) {
+// Erwartete Leistungen laufender Vertraege: Renten (monatlich) und Kapital, mit
+// Wertstand bis zum Stichtag `today` (ohne: der juengste).
+export function erwarteteLeistungen(data, today = null) {
   const leistungen = [];
   for (const vs of data.vorsorge ?? []) {
     if (istBeendet(vs)) continue;
-    const rente = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "erwartete_rente");
+    const rente = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "erwartete_rente", today);
     if (rente) leistungen.push({ vorsorge: vs, typ: "rente", wert_cents: toCents(rente.wert), beginn: vs.leistung_beginn || null, zeitwert: rente });
-    const kapital = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "erwartete_kapitalleistung");
+    const kapital = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "erwartete_kapitalleistung", today);
     if (kapital) leistungen.push({ vorsorge: vs, typ: "kapital", wert_cents: toCents(kapital.wert), beginn: vs.leistung_beginn || null, zeitwert: kapital });
   }
   return leistungen.sort((a, b) => String(a.beginn ?? "9999").localeCompare(String(b.beginn ?? "9999")) || a.vorsorge.vorsorge_id.localeCompare(b.vorsorge.vorsorge_id));
+}
+
+// Kapitalleistungen in drei getrennten Gruppen, eine Rechnung fuer Uebersicht und
+// Vorsorgeseite: terminiert (mit Leistungsbeginn, "faellig"), bedingt (ohne Termin
+// an einem nicht kapitalbildenden Vertrag, zahlt nur bei Eintritt, etwa eine
+// Todesfallsumme) und undatiert (kapitalbildend, Termin fehlt). Faellig ist nur
+// die erste Gruppe; die anderen bleiben im Modell, werden aber nie "faellig" genannt.
+export function kapitalLeistungen(data, today = null) {
+  const kapital = erwarteteLeistungen(data, today).filter((l) => l.typ === "kapital");
+  const terminiert = kapital.filter((l) => l.beginn);
+  const bedingt = kapital.filter((l) => !l.beginn && !l.vorsorge.kapitalbildend);
+  const undatiert = kapital.filter((l) => !l.beginn && l.vorsorge.kapitalbildend);
+  const summe = (liste) => liste.reduce((a, l) => a + l.wert_cents, 0);
+  return {
+    terminiert,
+    bedingt,
+    undatiert,
+    terminiert_cents: summe(terminiert),
+    bedingt_cents: summe(bedingt),
+    undatiert_cents: summe(undatiert),
+    jahre: [...new Set(terminiert.map((l) => l.beginn.slice(0, 4)))].sort(),
+  };
 }
 
 // Monatsrente in Stufen: je Rentenbeginn die Summe aller bis dahin laufenden

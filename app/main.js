@@ -214,7 +214,7 @@ function renderSidebar() {
       <div class="sidebar-fuss">
         <div class="sidebar-meta">
           <span>${escapeHtml(t("chrome.workState"))}</span>
-          <strong>${escapeHtml(t("chrome.releaseState"))}</strong>
+          <strong>${escapeHtml(t(state.dataMode === "demo" ? "chrome.releaseStateDemo" : "chrome.releaseStateLive"))}</strong>
           ${renderVersion()}
         </div>
         ${renderAbmelden()}

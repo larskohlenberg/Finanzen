@@ -24,7 +24,7 @@ export function renderMasterdata() {
       <button class="tile ${state.masterSection === "konten" ? "active" : ""}" data-master-section="konten">
         <strong>${escapeHtml(t("masterdata.accounts"))}</strong>
         <div class="count">${data.konten.length}</div>
-        <span class="chip review">${iconSvg("review")}${missingRefs} ${escapeHtml(t("masterdata.missingRefs"))}</span>
+        <span class="chip ${missingRefs ? "review" : "success"}">${iconSvg(missingRefs ? "review" : "success")}${missingRefs} ${escapeHtml(t("masterdata.missingRefs"))}</span>
       </button>
       <button class="tile ${state.masterSection === "kategorien" ? "active" : ""}" data-master-section="kategorien">
         <strong>${escapeHtml(t("masterdata.categories"))}</strong>

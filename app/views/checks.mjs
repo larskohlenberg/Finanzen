@@ -3,7 +3,7 @@
 // (#/administration/checks), keine eigene Seite mehr.
 import { data, t, escapeHtml, cents, transaktionenById, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, categoryName } from "../komponenten.mjs";
+import { formatMoney, formatDate, categoryName } from "../komponenten.mjs";
 import { currentVermoegenChecks } from "../selektoren.mjs";
 import { guardrailWarnungen } from "../szenarien.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -30,6 +30,15 @@ function guardrailItem(g) {
       <span class="chip review">${iconSvg("review")}${escapeHtml(titel)}</span>
       <span>${escapeHtml(detail)}</span>
     </div>`;
+}
+
+// Die Rechenmodule schreiben Check-Texte mit Rohwerten ("erwartet 34792.40",
+// "2026-03-31"). Fuer die Anzeige werden Betraege mit zwei Nachkommastellen und
+// ISO-Daten lokal formatiert; IDs (VS-003) und Termine ohne Jahr (12-01) bleiben.
+export function lesbarerCheckText(text) {
+  return String(text ?? "")
+    .replace(/(?<![\w.-])\d{4}-\d{2}-\d{2}(?![\w.-])/g, (iso) => formatDate(iso))
+    .replace(/(?<![\w.,-])(-?\d+)\.(\d{2})(?![\w.]|,\d)/g, (_, ganz, rest) => formatMoney(Number(ganz) * 100 + Math.sign(Number(`${ganz}1`)) * Number(rest)));
 }
 
 function transferChecks() {
@@ -107,7 +116,7 @@ export function renderChecks() {
             <div class="rail-item">
               <span class="chip review">${iconSvg("review")}${escapeHtml(t(`vermoegen.checkArt.${check.art}`))}</span>
               <button class="linkish" data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(check.entitaet)}" data-vid="${escapeHtml(check.entitaet_id)}">${escapeHtml(check.entitaet_id)}</button>
-              <span class="muted">${escapeHtml(check.text)}</span>
+              <span class="muted">${escapeHtml(lesbarerCheckText(check.text))}</span>
             </div>
           `).join("")}
         </div>

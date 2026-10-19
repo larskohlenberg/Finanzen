@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { toCents, centsToDecimal, dayDiff, normalizeLoose } from "./lib/text.mjs";
 import { nextTransferId } from "./ids.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
-import { dataRootFromArg } from "./data-root.mjs";
+import { pflichtDatenroot } from "./data-root.mjs";
 
 // IBANs werden nur zum Vergleich vereinheitlicht (Gross, ohne Whitespace);
 // gespeichert bleibt immer die Originalform.
@@ -162,7 +162,7 @@ async function readJsonl(url) {
 async function main() {
   const argv = process.argv.slice(2);
   const schreiben = argv.includes("--schreiben");
-  const masterRoot = dataRootFromArg(argv.find((a) => !a.startsWith("--")), new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
+  const masterRoot = pflichtDatenroot(argv.find((a) => !a.startsWith("--")));
 
   const [transaktionen, transfers, konten] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),

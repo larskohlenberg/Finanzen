@@ -14,7 +14,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
-import { dataRootFromArg } from "./data-root.mjs";
+import { pflichtDatenroot } from "./data-root.mjs";
 import { normalizeLoose } from "./lib/text.mjs";
 
 const ENTSCHIEDEN = new Set(["bestaetigt", "abgelehnt"]);
@@ -175,7 +175,7 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  const masterRoot = dataRootFromArg(args.root, new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
+  const masterRoot = pflichtDatenroot(args.root);
   const [transaktionen, regeln] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readFile(new URL("kategorisierungsregeln.json", masterRoot), "utf8").then(JSON.parse),

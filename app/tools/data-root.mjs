@@ -10,3 +10,13 @@ export function dataRootFromArg(arg, fallbackRoot, appRoot = new URL("../", impo
   const basis = value.startsWith("data/") ? fileURLToPath(appRoot) : process.cwd();
   return pathToFileURL(`${path.resolve(basis, value)}${path.sep}`);
 }
+
+// Fuer CLIs: der Datenbestand ist Pflicht (AGENTS.md, Regel 4). Kein stiller
+// Default auf data/master — ein vergessenes Argument darf nie den Echtbestand
+// treffen.
+export function pflichtDatenroot(arg, appRoot = new URL("../", import.meta.url)) {
+  if (!arg) {
+    throw new Error("Datenbestand fehlt: ausdruecklich angeben, z. B. data/master (Echtdaten) oder data/demo (Beispieldaten).");
+  }
+  return dataRootFromArg(arg, undefined, appRoot);
+}

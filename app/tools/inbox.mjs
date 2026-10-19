@@ -29,7 +29,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { runImport } from "./import.mjs";
 import { normalizeCsv } from "./normalize.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
-import { dataRootFromArg } from "./data-root.mjs";
+import { pflichtDatenroot } from "./data-root.mjs";
 import { validateImportProfil } from "./import-format.mjs";
 import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
 import { bestandOrte } from "./lib/bestand-orte.mjs";
@@ -249,7 +249,7 @@ export async function erzeugeTextvorlauf(pfad, erkennung = {}) {
 async function main() {
   const argv = process.argv.slice(2);
   const schreiben = argv.includes("--schreiben");
-  const masterRoot = dataRootFromArg(argv.find((a) => !a.startsWith("--")), new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
+  const masterRoot = pflichtDatenroot(argv.find((a) => !a.startsWith("--")));
   // Jeder Bestand hat seine Inbox (data/master: data/inbox/), siehe bestand-orte.mjs.
   const inboxRoot = pathToFileURL(`${bestandOrte(APP, fileURLToPath(masterRoot)).inbox}${path.sep}`);
 

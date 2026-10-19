@@ -36,7 +36,7 @@ import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { hatLeerenZweig, toCents } from "./lib/text.mjs";
-import { dataRootFromArg } from "./data-root.mjs";
+import { pflichtDatenroot } from "./data-root.mjs";
 import { istWiderspruch, menschlichEntschieden } from "./lib/entscheidung.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 
@@ -295,6 +295,7 @@ async function main() {
   const argv = process.argv.slice(2);
   const positional = argv.filter((a) => !a.startsWith("--"));
   const [root, kandidatenPfad] = positional;
+  const masterRoot = pflichtDatenroot(root);
 
   if (!kandidatenPfad) {
     console.error(USAGE);
@@ -302,7 +303,6 @@ async function main() {
     return;
   }
 
-  const masterRoot = dataRootFromArg(root, new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
   const [transaktionen, bestandsRegeln, kategorien, kandidaten] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readFile(new URL("kategorisierungsregeln.json", masterRoot), "utf8").then(JSON.parse),

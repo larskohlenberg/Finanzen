@@ -67,7 +67,7 @@ function starte(ctx, skript, args) {
 }
 
 // schreibFlag: Flag der CLI fuer den Schreiblauf. ohneVorschau: die CLI
-// schreibt immer (import.mjs, recategorize.mjs) — dann laeuft die Vorschau gegen
+// schreibt immer (derzeit keine) — dann laeuft die Vorschau gegen
 // eine Wegwerfkopie des Datenroots, und beim Schreiben wird kein Flag gereicht.
 // rueckrollungBeiFehler: false fuer Laeufe, die Dateien ausserhalb des
 // Bestands verschieben (Inbox-Archiv, Belege); dort wuerde ein Zuruecksetzen nur
@@ -137,11 +137,10 @@ const CLI_WERKZEUGE = [
   cli({
     name: "import",
     skript: "import.mjs",
-    beschreibung: "Eine standardisierte JSONL-Datei (Importformat, liegt in der Inbox des Bestands, meist standardized/) importieren (tools/import.mjs): Dedupe gegen den Bestand, Kategorisierung per Regeln, Transfer-Match. Vorschau ist Default (laeuft gegen eine Kopie des Datenroots).",
+    beschreibung: "Eine standardisierte JSONL-Datei (Importformat, liegt in der Inbox des Bestands, meist standardized/) importieren (tools/import.mjs): Dedupe gegen den Bestand, Kategorisierung per Regeln, Transfer-Match. Bringt der Import neue Validatorfehler, wird nichts geschrieben. Vorschau ist Default.",
     eigenschaften: { datei: { type: "string", description: "Pfad relativ zum App-Raum, z. B. data/inbox/standardized/lauf.jsonl" } },
     pflicht: ["datei"],
-    schreibFlag: true,
-    ohneVorschau: true,
+    schreibFlag: "--schreiben",
     argv: async (ctx, a, root) => [(await loesePfad(ctx.app, a.datei, [bestandWurzeln(ctx).inbox])).absolut, root],
   }),
   cli({

@@ -14,7 +14,7 @@
 // unschaerferen Mustern — nicht wert (YAGNI).
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { dataRootFromArg } from "./data-root.mjs";
+import { pflichtDatenroot } from "./data-root.mjs";
 import { normalizeLoose, toCents, centsToDecimal } from "./lib/text.mjs";
 
 const MAX_BEISPIELE = 3;
@@ -96,7 +96,7 @@ async function main() {
   const minArg = argv.find((a) => a.startsWith("--min="));
   const root = argv.find((a) => !a.startsWith("--"));
 
-  const masterRoot = dataRootFromArg(root, new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
+  const masterRoot = pflichtDatenroot(root);
   const transaktionen = await readJsonl(new URL("transaktionen.jsonl", masterRoot));
   const out = regelVorschlaege({ transaktionen, mindestTreffer: minArg ? Number(minArg.split("=")[1]) : 2 });
 

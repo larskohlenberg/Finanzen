@@ -5,9 +5,12 @@
 // statische Auslieferung) zeigt die Ansicht einen Hinweis statt Fehler.
 // Im Demo-Modus gibt es weder Upload noch Inbox-Liste: die Inbox gehoert dem
 // echten Bestand (demo-modus.mjs).
-import { state, t, fmt, escapeHtml } from "../runtime.mjs";
+import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { beiDatenwechsel } from "../lebenszyklus.mjs";
-import { renderPageHead } from "../komponenten.mjs";
+import { renderPageHead, klappKachel } from "../komponenten.mjs";
+import { erstelleApiCache } from "../api-daten.mjs";
+import { detailsAttr } from "../lebenszyklus.mjs";
+import { auftragSchritte, dateiname, inboxMitStatus } from "../importe-anzeige.mjs";
 import { iconSvg } from "../icons.js";
 import { ERLAUBTE_ENDUNGEN, inboxDateiUrl, vorpruefeDatei } from "../upload-regeln.mjs";
 import { uploadMoeglich } from "../demo-modus.mjs";
@@ -49,8 +52,17 @@ function renderEintrag(e) {
     </li>`;
 }
 
+// Importbericht (GET /api/v1/importe): Auftraege und Stand der wartenden Dateien.
+const importeCache = erstelleApiCache({ maxEintraege: 2 });
+function importeAntwort() {
+  return importeCache.hole(`./api/v1/importe${state.dataMode === "demo" ? "?quelle=demo" : ""}`);
+}
+
+const STAND_CHIP = { hochgeladen: "neutral", "uebernommen-archiv-ausstehend": "review" };
+
 function renderInbox() {
-  const { zustand, dateien } = upload.inbox;
+  const { zustand } = upload.inbox;
+  const dateien = inboxMitStatus(upload.inbox.dateien, importeAntwort().antwort);
   if (zustand === "nicht-verfuegbar") {
     return `<p class="upload-hinweis-api" role="note">${iconSvg("review")}${escapeHtml(t("uploadPage.apiUnavailable"))}</p>`;
   }
@@ -63,6 +75,7 @@ function renderInbox() {
           <a class="upload-name upload-oeffnen" href="${escapeHtml(inboxDateiUrl(d.name))}" target="_blank" rel="noopener" title="${escapeHtml(t("uploadPage.oeffnen"))}">${escapeHtml(d.name)}</a>
           <span class="upload-groesse muted">${escapeHtml(formatGroesse(d.groesse))}</span>
           <span class="upload-status muted">
+            <span class="chip ${STAND_CHIP[d.stand] ?? "neutral"}">${escapeHtml(t(`uploadPage.stand.${d.stand}`))}</span>
             ${escapeHtml(formatZeit(d.geaendert))}
             <a class="upload-herunterladen" href="${escapeHtml(inboxDateiUrl(d.name))}" download="${escapeHtml(d.name)}" aria-label="${escapeHtml(`${t("uploadPage.herunterladen")}: ${d.name}`)}" title="${escapeHtml(t("uploadPage.herunterladen"))}">${iconSvg("download")}</a>
           </span>
@@ -98,10 +111,40 @@ export function renderUpload() {
           <h2 class="section-title" id="upload-inbox-title">${escapeHtml(t("uploadPage.inboxTitle"))}</h2>
           <button type="button" class="chip neutral linkish" data-action="upload-refresh">${iconSvg("regelzahlungen")}${escapeHtml(t("uploadPage.refresh"))}</button>
         </div>
+        <p class="muted">${escapeHtml(t("uploadPage.standHinweis"))}</p>
         ${renderInbox()}
       </section>
+      ${klappKachel({ id: "upload.importe", titel: t("uploadPage.importeTitel"), inhalt: renderImporte() })}
     </div>
   `;
+}
+
+const SCHRITT_KLASSE = { uebernommen: "success", teilweise: "review", abgewiesen: "danger" };
+
+// Je Auftrag: Datei, Zeitpunkt, Schritte bis "abgeschlossen", Zeilenzahlen,
+// abgewiesene Zeilen aufklappbar, Archivort.
+function renderImporte() {
+  const { antwort, fehler } = importeAntwort();
+  if (!antwort) return `<p class="muted" role="status">${escapeHtml(t(fehler ? "uploadPage.apiUnavailable" : "uploadPage.importeLaden"))}</p>`;
+  if (!antwort.auftraege.length) return `<p class="muted">${escapeHtml(t("uploadPage.importeLeer"))}</p>`;
+  return `<ul class="import-liste">${antwort.auftraege.map((a) => {
+    const z = a.zeilen ?? {};
+    const schritte = auftragSchritte(a).map((s) => `<li class="${s.erledigt ? "erledigt" : "offen"} ${SCHRITT_KLASSE[s.schritt] ?? ""}">${escapeHtml(t(`uploadPage.schritt.${s.schritt}`))}${s.zahl !== undefined ? ` <span class="muted">(${s.zahl})</span>` : ""}</li>`).join("");
+    const abgewiesen = a.abgewiesen?.length ? `
+      <details class="import-abgewiesen"${detailsAttr(`import.${a.auftrag_id}`)}>
+        <summary>${escapeHtml(tf("uploadPage.abgewieseneZeilen", { n: a.abgewiesen.length }))}</summary>
+        <ul>${a.abgewiesen.map((r) => `<li><strong>${escapeHtml(tf("uploadPage.zeile", { n: r.zeile }))}</strong> · ${escapeHtml(r.grund)}${r.rohzeile ? `<div class="muted import-rohzeile">${escapeHtml(r.rohzeile)}</div>` : ""}</li>`).join("")}</ul>
+      </details>` : "";
+    return `
+      <li class="import-eintrag">
+        <div class="import-kopf"><strong>${escapeHtml(dateiname(a.quelle))}</strong> <span class="muted">${escapeHtml(formatZeit(a.zeitpunkt))} · ${escapeHtml(a.auftrag_id)}</span></div>
+        <ol class="import-schritte">${schritte}</ol>
+        <div class="muted">${escapeHtml(tf("uploadPage.zeilen", { gelesen: z.gelesen ?? 0, uebernommen: z.uebernommen ?? 0, dubletten: z.dubletten ?? 0, abgewiesen: z.abgewiesen ?? 0 }))}${a.pruefen ? ` · ${escapeHtml(tf("uploadPage.pruefen", { n: a.pruefen }))}` : ""}</div>
+        ${a.grund ? `<div>${escapeHtml(tf("uploadPage.grundAbgewiesen", { grund: a.grund }))}</div>` : ""}
+        ${abgewiesen}
+        ${a.archiv ? `<div class="muted">${escapeHtml(tf("uploadPage.archiv", { pfad: a.archiv }))}</div>` : ""}
+      </li>`;
+  }).join("")}</ul>`;
 }
 
 // Inbox-Liste vom Server holen. Kein Zwischen-Render beim Start: die Ansicht
@@ -110,6 +153,12 @@ export function renderUpload() {
 // Antworten gehoeren zur alten Generation.
 let inboxGeneration = 0;
 beiDatenwechsel((grund) => {
+  // Neuer Stand (z. B. nach einem Import-Durchlauf): Inbox beim naechsten
+  // Zeichnen neu listen, damit sie zum neuen Importbericht passt.
+  if (grund === "stand") {
+    if (upload.inbox.zustand !== "unbekannt") upload.inbox = { ...upload.inbox, zustand: "unbekannt" };
+    return;
+  }
   if (grund !== "sperre") return;
   inboxGeneration += 1;
   upload.eintraege = [];
@@ -119,6 +168,8 @@ beiDatenwechsel((grund) => {
 export async function ladeInbox(aktualisiere) {
   if (!uploadMoeglich(state.dataMode)) return;
   upload.inbox.zustand = "laedt";
+  // Mit der Inbox-Liste auch den Importbericht neu holen.
+  importeCache.verwerfe();
   const meine = ++inboxGeneration;
   try {
     const antwort = await fetch("./api/inbox", { cache: "no-store" });

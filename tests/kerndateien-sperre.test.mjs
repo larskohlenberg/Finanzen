@@ -114,3 +114,18 @@ test("beleg_verwerfen: ersetzt_durch mit Anfuehrungszeichen im Namen wird abgewi
     await s.beenden();
   }
 });
+
+test("beleg_verwerfen: ersetzt_durch darf nicht ueber einen Symlink auf den verworfenen Beleg zeigen", async () => {
+  const { mkdirSync, writeFileSync, symlinkSync } = await import("node:fs");
+  const ordner = join(abzug.app, "Belege", "Konten", "Alias");
+  mkdirSync(ordner, { recursive: true });
+  writeFileSync(join(ordner, "weg.pdf"), "%PDF-1.4 a");
+  symlinkSync(join(ordner, "weg.pdf"), join(ordner, "alias.pdf"));
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const r = await s.werkzeug("beleg_verwerfen", { pfad: "Belege/Konten/Alias/weg.pdf", ersetzt_durch: "Belege/Konten/Alias/alias.pdf" });
+    assert.equal(r.isError, true, r.text);
+  } finally {
+    await s.beenden();
+  }
+});

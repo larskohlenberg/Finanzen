@@ -1364,7 +1364,10 @@ const belegVerwerfen = {
       // Der Pfad wird als Text in JSON-Dateien eingesetzt: nur Zeichen, die in
       // einem JSON-String nichts bedeuten (kein Anfuehrungszeichen, kein Backslash, keine Steuerzeichen).
       if (!/^[\p{L}\p{N}\p{M} ._,()&+\-/]+$/u.test(ersatz.relativ)) return ergebnis(`ersetzt_durch: ${ersatz.relativ} enthaelt Zeichen, die als Verweis nicht erlaubt sind`, true);
-      if (paare.some(([q]) => q.absolut === ersatz.absolut)) return ergebnis("ersetzt_durch muss ein anderer Beleg sein (nicht der verworfene oder sein Zwilling)", true);
+      // Ueber Geraet und Inode: Schreibweise, Unicode-Form und Symlinks spielen keine Rolle.
+      const e = await stat(ersatz.absolut);
+      const gleich = async (p) => { const q = await stat(p).catch(() => null); return Boolean(q && q.dev === e.dev && q.ino === e.ino); };
+      if ((await Promise.all(paare.map(([q]) => gleich(q.absolut)))).some(Boolean)) return ergebnis("ersetzt_durch muss ein anderer Beleg sein (nicht der verworfene oder sein Zwilling)", true);
     }
     const verweise = await datenMitVerweis(ctx, paare.map(([q]) => q.relativ));
     // Umgestellt wird nur der Beleg selbst; verweist etwas auf seinen Zwilling, bleibt es bei der Abweisung.

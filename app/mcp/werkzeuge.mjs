@@ -9,12 +9,14 @@
 // Jeder schreibende Vorgang laeuft durch mitRollback (Validator + Rueckspielen).
 import { execFile } from "node:child_process";
 import { constants as fsKonstanten } from "node:fs";
-import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat } from "node:fs/promises";
+import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { ersetzeVerweise } from "../tools/belege-umziehen.mjs";
 import { ersetzeDatei } from "../tools/lib/datei.mjs";
+import { GENERATIONEN, ZEIGER } from "../tools/lib/generationen.mjs";
+import { mitLesestand } from "../tools/lib/lesestand.mjs";
 import { UMGEBUNG as SPERRE_UMGEBUNG } from "../tools/lib/schreibsperre.mjs";
 import { planeTeilung } from "../tools/lib/seiten.mjs";
 import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
@@ -59,6 +61,10 @@ function belegeWurzel(ctx) {
   return belege;
 }
 const json = (wert) => JSON.stringify(wert, null, 2);
+
+// Lesewerkzeuge sehen genau eine Generation des Bestands (Lease, ADR 0035);
+// im einfachen Ordner lesen sie ihn direkt. stand ist die Generations-Id oder "ordner".
+const ladeBestand = (ctx) => mitLesestand(ctx.datenroot, async (leser) => ({ stand: leser.id, daten: await loadMasterData(leser.url) }));
 
 // ---------------------------------------------------------------- CLI-Laeufe
 
@@ -413,7 +419,7 @@ async function inboxStand(ctx) {
 
 const status = {
   name: "status",
-  description: "Ueberblick: Datenroot, Zugriffsrecht, Anzahl Transaktionen/Regeln/Konten, Verteilung kategorisierung_status, Validator-Ergebnis (mit Fehlern) und Inbox (wartende Dateien im Root, Dateizahl je Unterordner error/standardized/processed). Rein lesend — guter erster Aufruf.",
+  description: "Ueberblick: Datenroot, Zugriffsrecht, Stand (Generations-Id, im einfachen Ordner \"ordner\"), Anzahl Transaktionen/Regeln/Konten, Verteilung kategorisierung_status, Validator-Ergebnis (mit Fehlern) und Inbox (wartende Dateien im Root, Dateizahl je Unterordner error/standardized/processed). Rein lesend — guter erster Aufruf.",
   inputSchema: { type: "object", properties: {}, additionalProperties: false },
   annotations: { readOnlyHint: true },
   async ausfuehren(ctx) {
@@ -421,7 +427,8 @@ const status = {
     const bericht = { datenroot: ctx.datenrootRel, recht: ctx.recht, ...(ctx.release ? { version: releaseStand(ctx) } : {}) };
     let validator;
     try {
-      const daten = await loadMasterData(pathToFileURL(`${ctx.datenroot}${path.sep}`));
+      const { stand, daten } = await ladeBestand(ctx);
+      bericht.stand = stand;
       const verteilung = {};
       for (const t of daten.transaktionen) verteilung[t.kategorisierung_status] = (verteilung[t.kategorisierung_status] ?? 0) + 1;
       Object.assign(bericht, {
@@ -454,7 +461,7 @@ const kennzahlen = {
   async ausfuehren(ctx, args) {
     const stichtag = args.stichtag ?? localTodayIso();
     if (!istKalenderdatum(stichtag)) return ergebnis(`Ungueltiger Stichtag: ${stichtag} (YYYY-MM-DD, gueltiges Kalenderdatum)`, true);
-    const daten = await loadMasterData(pathToFileURL(`${ctx.datenroot}${path.sep}`));
+    const { daten } = await ladeBestand(ctx);
     // Wie runtime.mjs im Browser: Validator-Ergebnis, keine vorab geladenen Checks.
     Object.assign(daten, { validation: validateMasterData(daten), checks: [], importfehler: [] });
     return ergebnis(kennzahlenText(daten, stichtag));
@@ -478,7 +485,7 @@ const planIstWerkzeug = {
   async ausfuehren(ctx, args) {
     const stichtag = args.stichtag ?? localTodayIso();
     if (!istKalenderdatum(stichtag)) return ergebnis(`Ungueltiger Stichtag: ${stichtag} (YYYY-MM-DD, gueltiges Kalenderdatum)`, true);
-    const daten = await loadMasterData(pathToFileURL(`${ctx.datenroot}${path.sep}`));
+    const { daten } = await ladeBestand(ctx);
     return ergebnis(planIstText(daten, stichtag, { zeitraum: args.zeitraum ?? "gesamt", darstellung: args.darstellung, verlauf: args.verlauf }));
   },
 };
@@ -507,7 +514,7 @@ const transaktionenAbfragen = {
   },
   annotations: { readOnlyHint: true },
   async ausfuehren(ctx, args) {
-    const daten = await loadMasterData(pathToFileURL(`${ctx.datenroot}${path.sep}`));
+    const { daten } = await ladeBestand(ctx);
     const namen = {
       kategorien: Object.fromEntries(daten.kategorien.map((k) => [k.kategorie_id, k.name])),
       konten: Object.fromEntries(daten.konten.map((k) => [k.konto_id, k.name])),
@@ -638,14 +645,46 @@ function globZuRegex(muster) {
   return new RegExp(`^${re}$`, "i");
 }
 
-async function* dateienUnter(ctx, absolut) {
+// Ein Ordner ist die Basis eines Generationsbestands, wenn er den Zeiger und
+// den Generationsordner enthaelt (ADR 0035).
+async function istGenerationsBasis(ordner) {
+  const zeiger = await lstat(path.join(ordner, ZEIGER)).catch(() => null);
+  return Boolean(zeiger?.isSymbolicLink()) && Boolean((await stat(path.join(ordner, GENERATIONEN)).catch(() => null))?.isDirectory());
+}
+
+// Liefert { echt, relativ }: echt ist die gelesene Datei, relativ der Pfad, den
+// das Werkzeug zeigt. Ein Generationsbestand wird nur mit seiner aktuellen
+// Generation durchsucht, unter dem Namen des Datenroots (data/master ist nach
+// der Migration ein Symlink auf <basis>/aktuell, die Basis liegt daneben);
+// alte Generationen und eine schon besuchte Generation werden uebersprungen.
+// Generationen sind unveraenderlich, darum reicht hier der Zeiger statt einer Lease.
+async function* dateienUnter(ctx, absolut, anzeige = absolut, besucht = new Set()) {
+  const relativ = () => path.relative(ctx.app, anzeige).split(path.sep).join("/");
   const info = await lstat(absolut).catch(() => null);
-  if (!info || info.isSymbolicLink()) return;
-  if (info.isFile()) { yield absolut; return; }
+  if (!info) return;
+  if (info.isSymbolicLink()) {
+    // Nur ein Datenroot, der auf die Generation eines Bestands direkt daneben
+    // zeigt, wird verfolgt; jeder andere Symlink bleibt aussen vor.
+    const ziel = await realpath(absolut).catch(() => null);
+    const basis = ziel && path.dirname(path.dirname(ziel));
+    if (!ziel || path.dirname(basis) !== (await realpath(path.dirname(absolut))) || !(await istGenerationsBasis(basis))) return;
+    if (besucht.has(ziel)) return;
+    besucht.add(ziel);
+    yield* dateienUnter(ctx, ziel, anzeige, besucht);
+    return;
+  }
+  if (info.isFile()) { yield { echt: absolut, relativ: relativ() }; return; }
   if (!info.isDirectory()) return;
+  if (await istGenerationsBasis(absolut)) {
+    const aktuell = await realpath(path.join(absolut, ZEIGER));
+    if (besucht.has(aktuell)) return;
+    besucht.add(aktuell);
+    yield* dateienUnter(ctx, aktuell, anzeige, besucht);
+    return;
+  }
   for (const e of (await readdir(absolut, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
     if (e.name.startsWith(".")) continue;
-    yield* dateienUnter(ctx, path.join(absolut, e.name));
+    yield* dateienUnter(ctx, path.join(absolut, e.name), path.join(anzeige, e.name), besucht);
   }
 }
 
@@ -668,9 +707,10 @@ const dateienSuchen = {
     const regex = args.muster ? globZuRegex(args.muster) : null;
     const nadel = args.text?.toLowerCase();
     const treffer = [];
+    const besucht = new Set();
     for (const wurzel of LESE_WURZELN) {
-      for await (const datei of dateienUnter(ctx, path.resolve(ctx.app, wurzel))) {
-        const relativ = path.relative(ctx.app, datei).split(path.sep).join("/");
+      const start = path.resolve(ctx.app, wurzel);
+      for await (const { echt: datei, relativ } of dateienUnter(ctx, start, start, besucht)) {
         if (regex && !regex.test(args.muster.includes("/") ? relativ : path.basename(relativ))) continue;
         if (!nadel) {
           treffer.push(relativ);

@@ -6,21 +6,32 @@
 // laedt den Snapshot nur, wenn sich die Kennung geaendert hat (server.mjs:
 // GET /api/v1/stand, GET /api/v1/snapshot mit ETag).
 //
-// Quelle der Kennung ist heute ein Hash ueber Inode, Groesse und mtime der
-// Bestandsdateien. Mit Dateigenerationen (E1, Schritt 4) wird sie die
-// Generations-ID; dafuer tauscht man nur standKennung aus.
+// Quelle der Kennung: im Generationsbestand (ADR 0035) die Generations-Id, der
+// Snapshot kommt dann aus einer Lease auf genau diese Generation. Im
+// Rueckfallmodus (einfacher Ordner) ein Hash ueber Inode, Groesse und mtime
+// der Bestandsdateien; gelesen wird so lange, bis der Stand vorher und
+// nachher gleich ist.
 import { readFile, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { BESTAND_TEILE, parseJsonl } from "./data-loader.mjs";
 import { strukturSicher, validateMasterData } from "./tools/validate-core.mjs";
+import { ORDNER, lesestandId, mitLesestand } from "./tools/lib/lesestand.mjs";
 
 // Erhoehen, wenn sich die Form des Snapshots aendert: dann gilt kein alter
 // Stand mehr, und Browser mit altem Stand laden neu.
 export const SNAPSHOT_FORMAT = 1;
 const VERSUCHE = 5;
 
+// Generationsbestand: "g<Id>-f<Format>"; einfacher Ordner: 24 Hex-Zeichen.
+const generationsStand = (id) => `g${id}-f${SNAPSHOT_FORMAT}`;
+
 export async function standKennung(datenDir) {
+  const id = await lesestandId(datenDir);
+  return id === ORDNER ? ordnerKennung(datenDir) : generationsStand(id);
+}
+
+async function ordnerKennung(datenDir) {
   const hash = createHash("sha256").update(`format:${SNAPSHOT_FORMAT}\n`);
   for (const { datei } of BESTAND_TEILE) {
     const info = await stat(join(datenDir, datei), { bigint: true }).catch((fehler) => {
@@ -71,13 +82,19 @@ async function leseTexte(datenDir) {
   return texte;
 }
 
-// Liest den Bestand so, dass Kennung und Inhalt zusammenpassen: aendert sich
-// der Stand waehrend des Lesens, wird neu gelesen.
+// Liest den Bestand so, dass Kennung und Inhalt zusammenpassen: aus einer
+// Lease auf eine Generation, im einfachen Ordner mit Neulesen, wenn sich der
+// Stand waehrend des Lesens aendert.
 export async function leseSnapshot(datenDir) {
+  const ausLease = await mitLesestand(datenDir, async (leser) => {
+    if (leser.id === ORDNER) return null;
+    return { format: SNAPSHOT_FORMAT, stand: generationsStand(leser.id), ...snapshotAusTexten(await leseTexte(leser.ordner)) };
+  });
+  if (ausLease) return ausLease;
   for (let versuch = 1; ; versuch += 1) {
-    const vorher = await standKennung(datenDir);
+    const vorher = await ordnerKennung(datenDir);
     const texte = await leseTexte(datenDir);
-    const nachher = await standKennung(datenDir);
+    const nachher = await ordnerKennung(datenDir);
     if (vorher === nachher) return { format: SNAPSHOT_FORMAT, stand: vorher, ...snapshotAusTexten(texte) };
     if (versuch >= VERSUCHE) throw new Error("Bestand aendert sich laufend, kein stabiler Stand");
   }

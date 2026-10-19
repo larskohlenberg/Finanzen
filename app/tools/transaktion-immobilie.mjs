@@ -11,12 +11,16 @@ export function aktualisiereImmobilienbezug({
   immobilieId,
   entfernen = false,
   ersetzen = false,
+  bemerkung,
 }) {
   if (!Array.isArray(ids) || ids.length === 0) {
     throw new Error("ids ist Pflicht");
   }
-  if (Boolean(immobilieId) === Boolean(entfernen)) {
+  if (immobilieId && entfernen) {
     throw new Error("genau eine Aktion angeben: --immobilie oder --entfernen");
+  }
+  if (!immobilieId && !entfernen && bemerkung === undefined) {
+    throw new Error("keine Aktion angegeben: --immobilie, --entfernen oder --bemerkung");
   }
   if (entfernen && ersetzen) {
     throw new Error("--ersetzen ist nur zusammen mit --immobilie erlaubt");
@@ -28,7 +32,7 @@ export function aktualisiereImmobilienbezug({
   const gesucht = [...new Set(ids)];
   const byId = new Map(transaktionen.map((entry) => [entry.transaktion_id, entry]));
   const nichtGefunden = gesucht.filter((id) => !byId.has(id));
-  const konflikte = entfernen || ersetzen
+  const konflikte = !immobilieId || ersetzen
     ? []
     : gesucht.filter((id) => {
         const current = byId.get(id)?.immobilie_id;
@@ -42,6 +46,12 @@ export function aktualisiereImmobilienbezug({
     konflikte,
     nicht_gefunden: nichtGefunden,
   };
+  // Bemerkung: freier Kurztext zur Buchung; leerer Text entfernt sie.
+  const neueBemerkung = bemerkung === undefined ? undefined : String(bemerkung).trim();
+  if (neueBemerkung !== undefined) {
+    report.bemerkungen_gesetzt = 0;
+    report.bemerkungen_entfernt = 0;
+  }
 
   if (nichtGefunden.length || konflikte.length) {
     return { transaktionen, report, blockiert: true };
@@ -50,22 +60,28 @@ export function aktualisiereImmobilienbezug({
   const ziel = new Set(gesucht);
   const next = transaktionen.map((entry) => {
     if (!ziel.has(entry.transaktion_id)) return entry;
-    if (entfernen) {
-      if (!Object.hasOwn(entry, "immobilie_id")) {
-        report.unveraendert += 1;
-        return entry;
-      }
-      const copy = { ...entry };
+    let copy = entry;
+    const aendere = () => { if (copy === entry) copy = { ...entry }; };
+    if (entfernen && Object.hasOwn(entry, "immobilie_id")) {
+      aendere();
       delete copy.immobilie_id;
       report.entfernt += 1;
-      return copy;
+    } else if (immobilieId && entry.immobilie_id !== immobilieId) {
+      aendere();
+      copy.immobilie_id = immobilieId;
+      report.gesetzt += 1;
     }
-    if (entry.immobilie_id === immobilieId) {
-      report.unveraendert += 1;
-      return entry;
+    if (neueBemerkung === "" && Object.hasOwn(entry, "bemerkung")) {
+      aendere();
+      delete copy.bemerkung;
+      report.bemerkungen_entfernt += 1;
+    } else if (neueBemerkung && entry.bemerkung !== neueBemerkung) {
+      aendere();
+      copy.bemerkung = neueBemerkung;
+      report.bemerkungen_gesetzt += 1;
     }
-    report.gesetzt += 1;
-    return { ...entry, immobilie_id: immobilieId };
+    if (copy === entry) report.unveraendert += 1;
+    return copy;
   });
 
   return { transaktionen: next, report, blockiert: false };
@@ -339,6 +355,7 @@ function parseArgs(argv) {
     immobilieId: undefined,
     entfernen: false,
     ersetzen: false,
+    bemerkung: undefined,
     schreiben: false,
     root: undefined,
   };
@@ -352,6 +369,8 @@ function parseArgs(argv) {
     } else if (arg.startsWith("--ids=")) {
       args.ids = arg.slice("--ids=".length).split(",")
         .map((value) => value.trim()).filter(Boolean);
+    } else if (arg.startsWith("--bemerkung=")) {
+      args.bemerkung = arg.slice("--bemerkung=".length);
     } else if (arg.startsWith("--immobilie=")) {
       args.immobilieId = arg.slice("--immobilie=".length);
     } else if (arg.startsWith("--")) {
@@ -380,6 +399,7 @@ async function main() {
     immobilieId: args.immobilieId,
     entfernen: args.entfernen,
     ersetzen: args.ersetzen,
+    bemerkung: args.bemerkung,
   });
 
   if (out.blockiert) {
@@ -401,9 +421,15 @@ async function main() {
     anzahl_fehler: 0,
     immobilienbezuege_gesetzt: out.report.gesetzt,
     immobilienbezuege_entfernt: out.report.entfernt,
-    notiz: args.entfernen
-      ? "Immobilienbezug von Transaktionen entfernt"
-      : `Immobilienbezug ${args.immobilieId} an Transaktionen gesetzt`,
+    ...(args.bemerkung !== undefined ? {
+      bemerkungen_gesetzt: out.report.bemerkungen_gesetzt,
+      bemerkungen_entfernt: out.report.bemerkungen_entfernt,
+    } : {}),
+    notiz: [
+      args.entfernen ? "Immobilienbezug von Transaktionen entfernt" : "",
+      args.immobilieId ? `Immobilienbezug ${args.immobilieId} an Transaktionen gesetzt` : "",
+      args.bemerkung !== undefined ? "Bemerkung an Transaktionen gepflegt" : "",
+    ].filter(Boolean).join("; "),
     betroffene_ids: [...new Set(args.ids)],
   };
   await persistiereImmobilienbezug({

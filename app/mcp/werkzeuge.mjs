@@ -213,17 +213,18 @@ const CLI_WERKZEUGE = [
   cli({
     name: "immobilienbezug",
     skript: "transaktion-immobilie.mjs",
-    beschreibung: "Immobilienbezug fuer explizite Transaktions-IDs setzen, ersetzen oder entfernen (tools/transaktion-immobilie.mjs). Nur aus eindeutigem Beleg oder Nutzerentscheidung. Exitcode 2 = blockiert. Vorschau ist Default.",
+    beschreibung: "Immobilienbezug fuer explizite Transaktions-IDs setzen, ersetzen oder entfernen (tools/transaktion-immobilie.mjs). Nur aus eindeutigem Beleg oder Nutzerentscheidung. bemerkung setzt zusaetzlich oder allein einen kurzen Freitext an den Buchungen (leerer Text entfernt ihn). Exitcode 2 = blockiert. Vorschau ist Default.",
     eigenschaften: {
       ids: { type: "array", items: ID("TXN"), minItems: 1 },
       immobilie: ID("IMM"),
       entfernen: { type: "boolean" },
       ersetzen: { type: "boolean" },
+      bemerkung: { type: "string", maxLength: 300 },
     },
     pflicht: ["ids"],
     schreibFlag: "--schreiben",
     okCodes: [0, 2],
-    argv: async (ctx, a, root) => [`--ids=${a.ids.join(",")}`, ...(a.immobilie ? [`--immobilie=${a.immobilie}`] : []), ...(a.entfernen ? ["--entfernen"] : []), ...(a.ersetzen ? ["--ersetzen"] : []), root],
+    argv: async (ctx, a, root) => [`--ids=${a.ids.join(",")}`, ...(a.immobilie ? [`--immobilie=${a.immobilie}`] : []), ...(a.entfernen ? ["--entfernen"] : []), ...(a.ersetzen ? ["--ersetzen"] : []), ...(a.bemerkung !== undefined ? [`--bemerkung=${a.bemerkung}`] : []), root],
   }),
   cli({
     name: "transfers",
@@ -444,7 +445,7 @@ const planIstWerkzeug = {
 
 const transaktionenAbfragen = {
   name: "transaktionen_abfragen",
-  description: "Transaktionen filtern und optional gruppieren. Alle Filter sind UND-verknuepft; text sucht case-insensitiv als Teilstring in Gegenpartei und Verwendungszweck. Ohne gruppieren_nach: Zeilen (limit Default 100, max 1000) plus Anzahl und Gesamtsumme. Mit gruppieren_nach: Summen je Gruppe; Zeilen nur mit mit_zeilen:true. Summen sind Decimal-Strings, cent-genau gerechnet. Hinweis: Startzustandsbuchungen (transaktionstyp Startzustand) stehen unter der neutralen Kategorie Startzustand; in reinen Summen ueber alle Buchungen sind sie enthalten.",
+  description: "Transaktionen filtern und optional gruppieren. Alle Filter sind UND-verknuepft; text sucht case-insensitiv als Teilstring in Gegenpartei, Verwendungszweck und Bemerkung; immobilie filtert auf den Immobilienbezug. Ohne gruppieren_nach: Zeilen (limit Default 100, max 1000) plus Anzahl und Gesamtsumme. Mit gruppieren_nach: Summen je Gruppe; Zeilen nur mit mit_zeilen:true. Summen sind Decimal-Strings, cent-genau gerechnet. Hinweis: Startzustandsbuchungen (transaktionstyp Startzustand) stehen unter der neutralen Kategorie Startzustand; in reinen Summen ueber alle Buchungen sind sie enthalten.",
   inputSchema: {
     type: "object",
     properties: {
@@ -452,6 +453,7 @@ const transaktionenAbfragen = {
       bis: { ...DATUM, description: "Buchungsdatum bis (inklusive)" },
       konto: ID("KTO"),
       kategorie: ID("KAT"),
+      immobilie: ID("IMM"),
       status: { type: "string", enum: ["offen", "vorgeschlagen", "bestaetigt", "abgelehnt"] },
       text: { type: "string", maxLength: 200 },
       betrag_min: BETRAG,

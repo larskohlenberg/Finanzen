@@ -437,7 +437,10 @@ Wichtige Tools:
   menschlichen Treffer bleiben ohne Stufe und geben nichts automatisch frei.
 - `tools/transaktion-immobilie.mjs`: einen belegten oder vom Nutzer
   entschiedenen Immobilienbezug fuer explizite Transaktions-IDs setzen,
-  entfernen oder bewusst ersetzen.
+  entfernen oder bewusst ersetzen. `--bemerkung=<Text>` (MCP `bemerkung`)
+  setzt zusaetzlich oder allein eine kurze Bemerkung an die Buchungen, etwa
+  wofuer eine Investitionsausgabe war; leerer Text entfernt sie. Bemerkungen
+  kommen vom Nutzer oder aus einem Beleg, sie aendern keine Kategorie.
 - `tools/transfer-matcher.mjs`: interne Transfers paaren — als Lauf ueber den
   **Bestand** (`npm run transfers`), nicht nur waehrend eines Imports. Nach einem
   neu angelegten Konto nachziehen, sonst bleiben dessen Gegenbuchungen ungepaart.

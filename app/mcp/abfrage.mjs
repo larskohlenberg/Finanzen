@@ -15,13 +15,14 @@ export function passt(t, f) {
   if (f.bis && t.buchungsdatum > f.bis) return false;
   if (f.konto && t.konto_id !== f.konto) return false;
   if (f.kategorie && t.kategorie_id !== f.kategorie) return false;
+  if (f.immobilie && t.immobilie_id !== f.immobilie) return false;
   if (f.status && t.kategorisierung_status !== f.status) return false;
   if (f.ist_transfer !== undefined && Boolean(t.ist_transfer) !== f.ist_transfer) return false;
   if (f.betrag_min !== undefined && toCents(t.betrag) < toCents(f.betrag_min)) return false;
   if (f.betrag_max !== undefined && toCents(t.betrag) > toCents(f.betrag_max)) return false;
   if (f.text) {
     const nadel = normalizeLoose(f.text);
-    const heu = `${normalizeLoose(t.gegenpartei)} ${normalizeLoose(t.verwendungszweck)}`;
+    const heu = `${normalizeLoose(t.gegenpartei)} ${normalizeLoose(t.verwendungszweck)} ${normalizeLoose(t.bemerkung)}`;
     if (!heu.includes(nadel)) return false;
   }
   return true;

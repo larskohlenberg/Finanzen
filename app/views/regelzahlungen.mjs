@@ -2,7 +2,8 @@
 // Regelzahlungs-Liste inkl. "Nächste Fälligkeit" je Eintrag (Reiter der Seite Termine).
 import { data, state, t, tf, escapeHtml } from "../runtime.mjs";
 import { formatMoney, formatDate, mitLogo, statusChip } from "../komponenten.mjs";
-import { naechsteFaelligkeit, localTodayIso, toCents } from "../liquiditaet.mjs";
+import { naechsteFaelligkeit, toCents } from "../liquiditaet.mjs";
+import { heuteIso } from "../selektoren.mjs";
 
 export function formatRhythmus(einheit, intervall) {
   const key = intervall === 1 ? "eins" : "mehr";
@@ -10,7 +11,7 @@ export function formatRhythmus(einheit, intervall) {
 }
 
 export function renderRegelzahlungen() {
-  const today = localTodayIso();
+  const today = heuteIso();
   const kontoName = (id) => data.konten.find((k) => k.konto_id === id)?.name ?? id;
   const rows = data.regelzahlungen.map((rz) => {
     // Abgelehnte Regelzahlungen haben keine erwartete Zukunft; sonst der naechste Termin.

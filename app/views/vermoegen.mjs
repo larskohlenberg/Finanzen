@@ -10,7 +10,7 @@ import { donutDiagramm } from "../charts.mjs";
 import { aktuellerZeitwert, anteilWertCents, restschuldJahre } from "../vermoegen.mjs";
 import { immobilienKennzahlen } from "../vermoegen-details.mjs";
 import { VERMOEGEN_TABS, TAB_FUER_KLASSE } from "../vermoegen-routen.mjs";
-import { localTodayIso } from "../liquiditaet.mjs";
+import { heuteIso } from "../selektoren.mjs";
 import { renderImmobilienTab, renderDarlehenTab } from "./vermoegen-objekte.mjs";
 import { balkenSvg, dokumenteHtml, geld, qualitaetChip, rateJeMonatCents, renderPositionWertstaende } from "./vermoegen-teile.mjs";
 import { renderWertstaendeTabelle } from "./vermoegen-wertstaende.mjs";
@@ -66,7 +66,7 @@ function aktiverTab() {
 }
 
 export function renderVermoegen() {
-  const today = localTodayIso();
+  const today = heuteIso();
   const vm = vermoegenAntwort(today);
   const km = kontenAntwort(today);
   if (!vm.antwort || !km.antwort) {

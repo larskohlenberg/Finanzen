@@ -17,7 +17,11 @@ export const RESERVIERTE_ANLAESSE = Object.freeze([
   "regel-schreiben", "stammdatum", "zeitwert", "transfer-extern", "lernen",
 ]);
 
-export function protokollEintrag({ anlass, notiz, ids, zaehler, dubletten_geprueft, zeitpunkt = new Date().toISOString() }) {
+// normalisierung: Abstimmung beim Import (reconciliation_differenz,
+// reconciliation_erledigt, quelle), die der Pruefbericht auswertet.
+const NORMALISIERUNG_FELDER = new Set(["quelle", "reconciliation_differenz", "reconciliation_erledigt"]);
+
+export function protokollEintrag({ anlass, notiz, ids, zaehler, normalisierung, dubletten_geprueft, zeitpunkt = new Date().toISOString() }) {
   if (typeof anlass !== "string" || !/^[a-z][a-z0-9-]*$/.test(anlass)) throw new Error("anlass: kurzes Wort in Kleinbuchstaben, z. B. stammdaten");
   if (RESERVIERTE_ANLAESSE.includes(anlass)) throw new Error(`anlass ${anlass} ist reserviert (schreibt das Werkzeug selbst)`);
   if (typeof notiz !== "string" || !notiz.trim()) throw new Error("notiz ist Pflicht");
@@ -31,6 +35,12 @@ export function protokollEintrag({ anlass, notiz, ids, zaehler, dubletten_geprue
       throw new Error("zaehler muss ein Objekt mit ganzen Zahlen sein");
     }
     eintrag.zaehler = zaehler;
+  }
+  if (normalisierung !== undefined) {
+    if (!normalisierung || typeof normalisierung !== "object" || Array.isArray(normalisierung)) throw new Error("normalisierung muss ein Objekt sein");
+    const fremd = Object.keys(normalisierung).filter((k) => !NORMALISIERUNG_FELDER.has(k));
+    if (fremd.length) throw new Error(`normalisierung: unbekannte Felder ${fremd.join(", ")} (erlaubt: ${[...NORMALISIERUNG_FELDER].join(", ")})`);
+    eintrag.normalisierung = normalisierung;
   }
   if (dubletten_geprueft === true) eintrag.dubletten_geprueft = true;
   return eintrag;
@@ -53,6 +63,7 @@ async function main() {
     notiz: argWert(argv, "notiz"),
     ids: argJson(argv, "ids"),
     zaehler: argJson(argv, "zaehler"),
+    normalisierung: argJson(argv, "normalisierung"),
     dubletten_geprueft: argv.includes("--dubletten-geprueft"),
   });
   console.log(JSON.stringify({ modus: schreiben ? "geschrieben" : "vorschau", eintrag }, null, 2));

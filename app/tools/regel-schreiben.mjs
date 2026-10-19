@@ -21,7 +21,7 @@ import { meldeNachSchreiben, validatorBefunde } from "./lib/validator-befund.mjs
 import { argJson, argWert, liesJsonl, liesJsonListe, naechsteId, protokolliere, schreibeJsonListe } from "./lib/bestand-datei.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 
-export function regelSchreiben({ transaktionen, bestandsRegeln, kategorieIds, regeln, heute }) {
+export function regelSchreiben({ transaktionen, bestandsRegeln, kategorieIds, regeln, heute, notiz }) {
   const fehler = [];
   const bekannt = new Map(bestandsRegeln.map((r) => [r.regel_id, r]));
   const kandidaten = [];
@@ -44,6 +44,16 @@ export function regelSchreiben({ transaktionen, bestandsRegeln, kategorieIds, re
       for (const [feld, wert] of Object.entries(eingabe)) {
         if (wert === null) delete regel[feld];
         else regel[feld] = wert;
+      }
+      // Dieselbe Schranke wie bei der Anlage: eine aktive Regel braucht einen Beleg.
+      if (regel.status === "aktiv" && !regel.belegstufe) fehler.push(`${regel.regel_id}: aktive Regel braucht belegstufe (E1-E4) — Regeln nur mit Beleg`);
+      // Reaktivieren (z. B. einer von lernen stillgelegten Regel) und eine
+      // andere Belegstufe sind Entscheidungen mit Grund: nur mit notiz, die
+      // im Protokoll landet.
+      const reaktiviert = alt.status !== "aktiv" && regel.status === "aktiv";
+      const stufeGeaendert = (alt.belegstufe ?? null) !== (regel.belegstufe ?? null);
+      if ((reaktiviert || stufeGeaendert) && !(typeof notiz === "string" && notiz.trim())) {
+        fehler.push(`${regel.regel_id}: ${reaktiviert ? "Reaktivierung" : "Aenderung der belegstufe"} braucht eine notiz mit Grund (Beleg, Nutzerentscheidung)`);
       }
       kandidaten.push(regel);
       geaendert.push(regel.regel_id);
@@ -111,8 +121,9 @@ async function main() {
     kategorieIds: (await liesJsonListe(new URL("kategorien.json", root))).map((k) => k.kategorie_id),
     regeln,
     heute: localTodayIso(),
+    notiz: argWert(argv, "notiz"),
   });
-  console.log(JSON.stringify({ modus: schreiben && !out.blockiert ? "geschrieben" : "vorschau", ...kurzbericht(out) }, null, 2));
+  console.log(JSON.stringify({ modus: schreiben && !out.blockiert ? "schreiben" : "vorschau", ...kurzbericht(out) }, null, 2));
   if (out.blockiert) {
     console.error("Blockiert — nichts geschrieben.");
     process.exitCode = 2;

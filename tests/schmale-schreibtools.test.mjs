@@ -200,3 +200,22 @@ test("Demodaten: zeitwerte und Regeln passen zu den Werkzeugen", () => {
   assert.doesNotThrow(() => zeitwertAnhaengen({ zeitwerte: liesJsonl("zeitwerte.jsonl"), eintraege: [] }));
   assert.equal(regelSchreiben({ transaktionen: liesJsonl("transaktionen.jsonl"), bestandsRegeln: lies("kategorisierungsregeln.json"), kategorieIds: lies("kategorien.json").map((k) => k.kategorie_id), heute: "2026-10-20", regeln: [] }).blockiert, false);
 });
+
+test("regel_schreiben: Aenderung darf keine aktive Regel ohne Belegstufe hinterlassen; Reaktivierung nur mit notiz", () => {
+  const inaktiv = { regel_id: "REG-001", gegenpartei_pattern: "Testladen", kategorie_id: "KAT-004", status: "inaktiv", erstellt_am: "2026-01-01", kommentar: "x" };
+  const ohneStufe = regelSchreiben({ transaktionen: [], bestandsRegeln: [inaktiv], kategorieIds: ["KAT-004"], heute: "2026-10-20", regeln: [{ regel_id: "REG-001", status: "aktiv" }], notiz: "Nutzer will sie wieder" });
+  assert.equal(ohneStufe.blockiert, true);
+  const ohneNotiz = regelSchreiben({ transaktionen: [], bestandsRegeln: [{ ...inaktiv, belegstufe: "E3" }], kategorieIds: ["KAT-004"], heute: "2026-10-20", regeln: [{ regel_id: "REG-001", status: "aktiv" }] });
+  assert.equal(ohneNotiz.blockiert, true);
+  assert.ok(ohneNotiz.fehler.some((f) => f.includes("notiz")));
+  const mitNotiz = regelSchreiben({ transaktionen: [], bestandsRegeln: [{ ...inaktiv, belegstufe: "E3" }], kategorieIds: ["KAT-004"], heute: "2026-10-20", regeln: [{ regel_id: "REG-001", status: "aktiv" }], notiz: "Nutzer hat die Stilllegung aufgehoben" });
+  assert.equal(mitNotiz.blockiert, false, JSON.stringify(mitNotiz.fehler));
+  const stufeWeg = regelSchreiben({ transaktionen: [], bestandsRegeln: [{ ...inaktiv, status: "aktiv", belegstufe: "E3" }], kategorieIds: ["KAT-004"], heute: "2026-10-20", regeln: [{ regel_id: "REG-001", belegstufe: null }], notiz: "x" });
+  assert.equal(stufeWeg.blockiert, true);
+});
+
+test("protokoll_eintrag: Abstimmung (normalisierung) fuer den Pruefbericht", () => {
+  const e = protokollEintrag({ anlass: "abstimmung", notiz: "Luecke geschlossen", normalisierung: { reconciliation_erledigt: { konto_id: "KTO-001", bezug: "2026-01", grund: "Auszug nachgereicht" } } });
+  assert.equal(e.normalisierung.reconciliation_erledigt.konto_id, "KTO-001");
+  assert.throws(() => protokollEintrag({ anlass: "abstimmung", notiz: "x", normalisierung: { beliebig: 1 } }), /unbekannte/);
+});

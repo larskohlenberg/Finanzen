@@ -67,10 +67,10 @@ ohne MCP.
 | `tools/regel-probelauf.mjs` | `regel_probelauf` (Kandidaten direkt als Liste) |
 | `tools/recategorize.mjs` | `nachkategorisieren` (CLI: Datenroot Pflicht, `--schreiben` schreibt) |
 | `tools/agent-vorschlag.mjs` | `agent_vorschlag` |
-| `tools/regel-schreiben.mjs` | `regel_schreiben` (Regeln anlegen/aendern; interner Probelauf, schreibt nur ohne Block, vergibt die `regel_id`; neue aktive Regel braucht `belegstufe`) |
+| `tools/regel-schreiben.mjs` | `regel_schreiben` (Regeln anlegen/aendern; interner Probelauf, schreibt nur ohne Block, vergibt die `regel_id`; jede aktive Regel braucht `belegstufe`; Reaktivieren oder Stufe aendern nur mit `notiz`) |
 | `tools/stammdatum-setzen.mjs` | `stammdatum_setzen` (`typ`, `id`, `felder`; ohne `id` neuer Datensatz mit naechster ID; `null` entfernt ein Feld) |
 | `tools/zeitwert-anhaengen.mjs` | `zeitwert_anhaengen` (abweichender Wert am selben Standdatum: Warnung, ersetzt nur mit `korrigieren: true`) |
-| `tools/protokoll-eintrag.mjs` | `protokoll_eintrag` (freie Protokollzeile mit `anlass` und `notiz`; Werkzeug-Anlaesse sind reserviert) |
+| `tools/protokoll-eintrag.mjs` | `protokoll_eintrag` (freie Protokollzeile mit `anlass` und `notiz`, optional `ids`, `zaehler`, `normalisierung` fuer die Abstimmung, `dubletten_geprueft`; Werkzeug-Anlaesse sind reserviert) |
 | `tools/transfer-extern.mjs` | `transfer_extern` (externer Transfer mit `gegenseite` und Begruendung, oder `entfernen`) |
 | `tools/confirm.mjs` | `bestaetigen` |
 | `tools/transaktion-immobilie.mjs` | `immobilienbezug` |

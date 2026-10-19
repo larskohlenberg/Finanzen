@@ -15,12 +15,17 @@
 //   Vor dem ersten Anker und der ersten Buchung gab es das Konto noch nicht.
 // - Marktwerte (Depotwert, Marktwert, Rueckkaufswert) werden nie aus spaeteren
 //   Werten zurueckgerechnet: ohne Wert bis d ist die Position unbekannt (Wert 0,
-//   unbekannt: true). Ausnahme mit eigener Methode: eine Immobilie vor ihrem
-//   ersten Marktwert gilt mit den Anschaffungskosten ("anschaffungskosten",
-//   geschaetzt).
-// - Darlehen: Annuitaet ab dem juengsten Restschuld-Anker bis d; davor ab
-//   Anfangsbetrag und Anfangsdatum ("anfangsbetrag+tilgung", geschaetzt); sonst
+//   unbekannt: true). Ausnahme mit eigener Methode: eine Immobilie ohne
+//   Marktwert bis d gilt mit den Anschaffungskosten ("anschaffungskosten",
+//   geschaetzt), auch wenn es gar keinen Marktwert gibt; der Check
+//   marktwert-fehlt bleibt trotzdem stehen.
+// - Darlehen: Annuitaet ab dem juengsten Restschuld-Anker bis d; ohne Anker bis
+//   d ab Anfangsbetrag und Anfangsdatum ("anfangsbetrag+tilgung", geschaetzt),
+//   auch wenn es gar keinen Anker gibt (der Check anker-fehlt bleibt); sonst
 //   unbekannt.
+// - Konten zaehlen erst ab ihrer ersten Buchung bzw. ihrem ersten Anker (davor
+//   "noch-nicht", nicht unbekannt): ein spaeter importiertes Konto springt im
+//   Verlauf erst mit seinem Beginn hinein.
 // - Lebenszyklus: Objekte mit Endstatus (Konto geschlossen, Immobilie verkauft,
 //   Vermoegenswert veraeussert, Darlehen abgeloest, Vorsorge gekuendigt oder
 //   beendet) zaehlen bis einschliesslich aktiv_bis, ohne aktiv_bis gar nicht.

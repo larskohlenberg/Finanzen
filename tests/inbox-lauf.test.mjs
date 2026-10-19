@@ -171,3 +171,47 @@ test("eine Datei, die das Profil nicht lesen kann, landet mit Fehlernotiz in err
     abzug.aufraeumen();
   }
 });
+
+test("Dubletten-Prueffaelle landen im Protokoll des Laufs (fuer den Pruefbericht)", () => {
+  const abzug = abzugMitProfil();
+  try {
+    const zeile = "02.09.2026;-7,50;Testladen Zwei;Einkauf Lauf Zwei";
+    writeFileSync(join(abzug.inbox, "lauf-a.csv"), csv(zeile));
+    assert.equal(inboxLauf(abzug).status, 0);
+    writeFileSync(join(abzug.inbox, "lauf-b.csv"), csv(zeile, zeile));
+    const r = inboxLauf(abzug);
+    assert.equal(r.status, 0, r.stderr);
+    const log = readFileSync(join(abzug.master, "agent_log.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    const letzter = log.at(-1);
+    assert.equal(letzter.anlass, "inbox-lauf");
+    assert.equal(letzter.dubletten_pruefen.length, 1);
+    assert.equal(letzter.dubletten_pruefen[0].art, "teilweise_vorhanden");
+    assert.equal(letzter.dubletten_pruefen[0].quelle, "data/inbox/lauf-b.csv");
+    assert.equal(log.at(-2).dubletten_pruefen, undefined, "Lauf ohne Prueffaelle traegt das Feld nicht");
+  } finally {
+    abzug.aufraeumen();
+  }
+});
+
+test("import.mjs protokolliert Dubletten-Prueffaelle beim Schreiben (fuer den Pruefbericht)", () => {
+  const abzug = legeAbzugAn();
+  try {
+    const eintrag = JSON.stringify({ konto_id: "KTO-001", buchungsdatum: "2026-09-05", betrag: "-4.20", gegenpartei: "Testbaecker", verwendungszweck: "Broetchen", rohquelle: "data/inbox/imp.jsonl" });
+    const lauf = (datei) => spawnSync(process.execPath, [join(realpathSync(abzug.app), "tools", "import.mjs"), datei, abzug.master, "--schreiben"], { cwd: abzug.wurzel, encoding: "utf8" });
+    const logZeilen = () => readFileSync(join(abzug.master, "agent_log.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    const vorher = logZeilen().length;
+    writeFileSync(join(abzug.wurzel, "a.jsonl"), `${eintrag}\n`);
+    assert.equal(lauf("a.jsonl").status, 0);
+    assert.equal(logZeilen().length, vorher, "Lauf ohne Prueffaelle schreibt keinen Protokolleintrag");
+    writeFileSync(join(abzug.wurzel, "b.jsonl"), `${eintrag}\n${eintrag}\n`);
+    const r = lauf("b.jsonl");
+    assert.equal(r.status, 0, r.stderr);
+    const log = logZeilen();
+    assert.equal(log.length, vorher + 1);
+    assert.equal(log.at(-1).anlass, "import");
+    assert.equal(log.at(-1).dubletten_pruefen[0].art, "teilweise_vorhanden");
+    assert.equal(log.at(-1).dubletten_pruefen[0].quelle, "b.jsonl");
+  } finally {
+    abzug.aufraeumen();
+  }
+});

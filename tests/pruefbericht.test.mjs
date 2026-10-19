@@ -241,3 +241,24 @@ test("Anlass mit mehreren Konten bleibt ohne eindeutige Zuordnung sichtbar", () 
   const out = pruefbericht({ ...leer, log: [alt, erledigt("KTO-006")] });
   assert.equal(out.reconciliation.length, 1);
 });
+
+test("Dubletten-Prueffaelle aus dem Protokoll stehen im Bericht, bis ein spaeterer Eintrag sie als geprueft abhakt", () => {
+  const fall = { art: "teilweise_vorhanden", konto_id: "KTO-001", zeilen: [2, 3], in_datei: 2, im_bestand: 1, geschrieben: 1, hinweis: "nach Anzahl" };
+  const log = [
+    { zeitpunkt: "2026-09-01T10:00:00Z", anlass: "inbox-lauf", dubletten_pruefen: [{ ...fall, quelle: "data/inbox/alt.csv" }] },
+    { zeitpunkt: "2026-09-02T10:00:00Z", anlass: "dubletten-pruefung", dubletten_geprueft: true },
+    { zeitpunkt: "2026-09-03T10:00:00Z", anlass: "inbox-lauf", dubletten_pruefen: [{ ...fall, quelle: "data/inbox/neu.csv" }] },
+    { zeitpunkt: "2026-09-04T10:00:00Z", anlass: "freigabe" },
+  ];
+  const out = pruefbericht({ ...leer, log });
+  assert.deepEqual(out.dubletten_pruefen.map((f) => f.quelle), ["data/inbox/neu.csv"]);
+  assert.equal(out.dubletten_pruefen[0].zeitpunkt, "2026-09-03T10:00:00Z");
+  const text = renderBericht(out);
+  assert.match(text, /DUBLETTEN-PRUEFFAELLE AUS IMPORTEN \(1\)/);
+  assert.match(text, /teilweise_vorhanden\s+KTO-001\s+data\/inbox\/neu\.csv/);
+  assert.doesNotMatch(text, /alt\.csv/);
+
+  const geprueft = pruefbericht({ ...leer, log: [...log, { anlass: "dubletten-pruefung", dubletten_geprueft: true }] });
+  assert.deepEqual(geprueft.dubletten_pruefen, []);
+  assert.match(renderBericht(geprueft), /DUBLETTEN-PRUEFFAELLE AUS IMPORTEN \(0\)/);
+});

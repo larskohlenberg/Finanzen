@@ -239,7 +239,10 @@ Buchungen), und nur zusammen mit Datum und Betrag; dann erkennt sie auch einen
 umformatierten Re-Export. Sie wird immer gespeichert. Was der Abgleich nicht
 sicher entscheiden kann, steht im Ergebnis unter `pruefen`
 (`teilweise_vorhanden`, `referenz_abweichend`, `moegliche_dublette`); diese
-Faelle mit dem Nutzer ansehen.
+Faelle mit dem Nutzer ansehen. Inbox-Lauf und `import.mjs --schreiben` legen sie
+zusaetzlich als `dubletten_pruefen` (mit `quelle`) im `agent_log.jsonl` ab; der
+Pruefbericht zeigt sie, bis ein spaeterer Logeintrag `dubletten_geprueft: true`
+traegt. Den schreibst du, nachdem die Faelle mit dem Nutzer geklaert sind.
 
 ## Kategorisierung und Herkunft
 

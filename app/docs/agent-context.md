@@ -56,6 +56,7 @@ ohne MCP.
 | Seite Plan & Ist der Web-App | `plan_ist` (Plan aus den Regelzahlungen gegen das Ist der Buchungen, je Kategorie mit Regelzahlungen, Einzelposten ab 400 Euro und Terminen ohne Buchung; `zeitraum` gesamt, 12m, Jahr, Quartal oder Monat; optional `verlauf` und `darstellung`). Die Kurzfassung der letzten zwoelf Monate steht auch in `kennzahlen`. |
 | Fristen anlegen, abhaken | `datei_lesen` / `datei_ersetzen` auf `DATENROOT/fristen.json` (kein eigenes Tool; Validator laeuft danach) |
 | `tools/neuer-bestand.mjs` | — (nur CLI: legt einmalig einen leeren Datenbestand mit Grundkategorien an, bevor es einen MCP-Server gibt) |
+| `tools/generationen-einrichten.mjs` | — (nur CLI, vom Nutzer auf der VM: stellt einen einfachen Bestandsordner einmalig auf Generationen um, mit Sicherung, Byte-Vergleich und Rueckweg; kein Agentenwerkzeug) |
 | `tools/deploy-pruefung.mjs` | — (nur fuer das Deploy-Skript `ops/aktualisieren.sh`: Schreibsperre ueber den Release-Wechsel, Kennzahlen-Rauchtest; kein Agentenwerkzeug) |
 | `tools/validator.mjs` | `status` (Validator-Ergebnis mit Fehlern; laeuft ausserdem nach jedem Schreiben) |
 | `tools/inbox.mjs` | `inbox` |

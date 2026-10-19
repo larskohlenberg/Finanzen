@@ -16,6 +16,8 @@ import { fileURLToPath } from "node:url";
 import { kennzahlenText } from "../mcp/kennzahlen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
+import { findeBasis } from "./lib/generationen.mjs";
+import { mitLesestand } from "./lib/lesestand.mjs";
 import { gibSperreFrei, nimmSperre, SperreBelegt } from "./lib/schreibsperre.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 
@@ -30,7 +32,8 @@ function ganzzahl(wert, name) {
 }
 
 export async function rauchtest(root, stichtag = localTodayIso()) {
-  const daten = await loadMasterData(root);
+  // Aus einer Lease: bei Generationen genau die aktuelle Generation.
+  const daten = await mitLesestand(root, (leser) => loadMasterData(leser.url));
   const validation = validateMasterData(daten);
   Object.assign(daten, { validation, checks: [], importfehler: [] });
   const text = kennzahlenText(daten, stichtag);
@@ -45,7 +48,9 @@ export async function rauchtest(root, stichtag = localTodayIso()) {
 async function main(argv) {
   const [befehl, rootArg, ...rest] = argv;
   const root = pflichtDatenroot(rootArg);
-  const pfad = fileURLToPath(root);
+  // Die Sperre gilt dem Bestand: bei Generationen liegt sie im Basisordner
+  // (data/master ist dann ein Symlink auf <basis>/aktuell), wie bei jedem Schreiber.
+  const pfad = await findeBasis(fileURLToPath(root));
   if (befehl === "sperre") {
     const pid = ganzzahl(option(rest, "pid"), "pid");
     const wartenMs = ganzzahl(option(rest, "warten") ?? "120", "warten") * 1000;

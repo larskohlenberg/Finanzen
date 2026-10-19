@@ -144,6 +144,9 @@ export async function bestandsArt(basis) {
   if (zeiger?.isSymbolicLink()) return "generationen";
   if (!(await stat(basis).catch(() => null))?.isDirectory()) throw new Error(`Datenbestand ${basis} fehlt`);
   if (await existiert(path.join(basis, GENERATIONEN))) throw new Error(`${basis}: Einrichten der Generationen nicht abgeschlossen (kein Zeiger ${ZEIGER}); einrichten erneut aufrufen`);
+  // Eine veroeffentlichte Generation ist nie selbst ein Bestand (z. B. wenn ein
+  // Schreiber den Pfad aufgeloest hat, bevor data/master umgestellt wurde).
+  if (await existiert(path.join(basis, MANIFEST))) throw new Error(`${basis} ist eine Generation, nicht der Bestand; ueber den Basisordner schreiben`);
   return ORDNER;
 }
 
@@ -463,6 +466,9 @@ export async function mitSchreiber(basis, fn, optionen = {}) {
   const { gesperrt = false, wer = "generationen", wartenMs } = optionen;
   const lauf = async (sperre) => {
     const kennung = sperre?.kennung ?? process.env[UMGEBUNG] ?? null;
+    // Unter der Sperre neu aufloesen: wurde der Bestand inzwischen umgestellt
+    // (Ordner -> Generationen), gilt diese Sperre nicht mehr.
+    if ((await findeBasis(basis)) !== path.resolve(basis)) throw new Error(`${basis} wurde umgestellt; Schreibvorgang erneut starten`);
     return (await bestandsArt(basis)) === ORDNER ? schreibeOrdner(basis, fn, optionen, kennung) : schreibeGeneration(basis, fn, optionen, kennung);
   };
   if (gesperrt) return lauf(null);

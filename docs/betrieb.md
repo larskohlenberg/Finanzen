@@ -142,8 +142,7 @@ Nachsehen auf dem Server: `sudo -u finanzen tail -n 50 <Datenort>/logs/mcp-$(dat
 
 Der App-Server liefert Finanzdaten, Lese-APIs, Belege, Inbox, Logos, `index.html`, `version.json` und `sitzung.json` mit `no-store`. Nur Code-Assets (Modulgraph ab `index.html`, `styles.css`) duerfen in den Browser-Cache:
 
-- `index.html` haengt an ihre Einstiegsdateien `?v=<Release>` aus `app/version.json`. Passt der Parameter zum laufenden Release: `private, max-age=31536000, immutable`.
+- `index.html` haengt an ihre Einstiegsdateien `?v=<Inhaltshash>`. Passt der Parameter zum aktuellen Inhalt der Datei: `private, max-age=31536000, immutable`. Weil der Hash am Inhalt haengt, nicht am Commit, kann auch ein Deploy-Ruecksprung keinen falschen Stand festschreiben.
 - Alle anderen Code-Assets: `no-cache` mit Inhalts-ETag; der Browser fragt jedes Mal kurz nach und bekommt `304` ohne Inhalt, solange sich die Datei nicht geaendert hat.
-- Ohne `version.json` (lokale Entwicklung) gibt es keinen Versionsparameter, nur die Revalidierung.
 
-Komprimieren uebernimmt der Reverse-Proxy (z. B. Caddy `encode`); der App-Server komprimiert nicht.
+Komprimieren uebernimmt der Reverse-Proxy (z. B. Caddy `encode`); der App-Server komprimiert nicht. Haengt der Proxy beim Komprimieren etwas an den ETag, liefert die Revalidierung statt `304` jedes Mal `200`: kein Fehler, nur weniger Ersparnis (pruefen: `curl -sI -H 'Accept-Encoding: gzip' <url>/views/<modul>.mjs`, dann mit `If-None-Match`).

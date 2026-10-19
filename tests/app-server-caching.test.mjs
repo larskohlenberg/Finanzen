@@ -1,5 +1,5 @@
 // Caching (Review D.2): Nur Code-Assets der App duerfen in den Browser-Cache,
-// mit Inhalts-ETag; mit passendem Versionsparameter ?v=<Release> sogar
+// mit Inhalts-ETag; mit passendem Versionsparameter ?v=<Inhaltshash> sogar
 // immutable. Finanzdaten, APIs, Belege, index.html und version.json bleiben
 // no-store. Temp-Verzeichnis, erfundene Dateien.
 import assert from "node:assert/strict";
@@ -53,18 +53,23 @@ const hole = (pfad, kopf = {}, p = port) => new Promise((resolve, reject) => {
   }).on("error", reject);
 });
 
-test("index.html verweist mit Versionsparameter und bleibt no-store", async () => {
+const versionIn = (html, datei) => html.match(new RegExp(`"\\./${datei.replace(".", "\\.")}\\?v=([0-9a-f]{16})"`))?.[1];
+
+test("index.html verweist mit Inhaltshash und bleibt no-store", async () => {
   const r = await hole("/");
   assert.equal(r.status, 200);
   assert.match(r.headers["cache-control"], /no-store/);
-  assert.match(r.body, /href="\.\/styles\.css\?v=bbbbbbb"/);
-  assert.match(r.body, /src="\.\/i18n\.js\?v=bbbbbbb"/);
-  assert.match(r.body, /src="\.\/main\.js\?v=bbbbbbb"/);
+  for (const datei of ["styles.css", "i18n.js", "main.js"]) {
+    const v = versionIn(r.body, datei);
+    assert.ok(v, `${datei} in ${r.body}`);
+    assert.equal(`"${v}"`, (await hole(`/${datei}`)).headers.etag, datei);
+  }
   assert.equal(Number(r.headers["content-length"]), Buffer.byteLength(r.body));
 });
 
 test("Code-Asset mit passender Version: immutable mit ETag", async () => {
-  const r = await hole("/main.js?v=bbbbbbb");
+  const v = versionIn((await hole("/")).body, "main.js");
+  const r = await hole(`/main.js?v=${v}`);
   assert.equal(r.status, 200);
   assert.match(r.headers["cache-control"], /immutable/);
   assert.match(r.headers["cache-control"], /private/);
@@ -98,17 +103,20 @@ test("Daten, Belege, version.json und APIs bleiben no-store ohne ETag", async ()
     assert.match(r.headers["cache-control"], /no-store/, pfad);
     assert.equal(r.headers.etag, undefined, pfad);
   }
-  const ohne = await hole("/Belege/Konten/auszug.pdf?v=bbbbbbb");
+  const ohne = await hole("/version.json?v=bbbbbbb");
   assert.match(ohne.headers["cache-control"], /no-store/);
 });
 
-test("ohne version.json: kein Versionsparameter, Assets nur mit Revalidierung", async () => {
-  const { w, s, p } = await starte({ ...DATEIEN, "version.json": undefined });
+test("Ruecksprung-sicher: alter Versionsparameter auf neuem Inhalt ist nicht immutable", async () => {
+  const { w, s, p } = await starte(DATEIEN);
   try {
-    const index = await hole("/", {}, p);
-    assert.match(index.body, /src="\.\/main\.js"/);
-    const r = await hole("/main.js?v=irgendwas", {}, p);
+    const alt = versionIn((await hole("/", {}, p)).body, "main.js");
+    await writeFile(join(w, "app", "main.js"), 'import { a } from "./views/a.mjs"; // neu');
+    const r = await hole(`/main.js?v=${alt}`, {}, p);
     assert.equal(r.headers["cache-control"], "no-cache");
+    const neu = versionIn((await hole("/", {}, p)).body, "main.js");
+    assert.notEqual(neu, alt);
+    assert.match((await hole(`/main.js?v=${neu}`, {}, p)).headers["cache-control"], /immutable/);
   } finally {
     await new Promise((resolve) => s.close(resolve));
     await rm(w, { recursive: true, force: true });

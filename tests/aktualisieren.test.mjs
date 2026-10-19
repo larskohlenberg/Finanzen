@@ -44,8 +44,8 @@ try { process.stdout.write(execFileSync(process.execPath, [${JSON.stringify(echt
 catch (e) { process.exit(e.status ?? 1); }
 `;
 
-function git(cwd, ...args) {
-  const r = spawnSync("git", args, { cwd, encoding: "utf8" });
+function git(cwd, env, ...args) {
+  const r = spawnSync("git", args, { cwd, env, encoding: "utf8" });
   if (r.status !== 0) throw new Error(`git ${args.join(" ")}: ${r.stderr}`);
   return r.stdout.trim();
 }
@@ -103,7 +103,8 @@ function umgebung() {
   const opt = env.FINANZEN_VERZ;
   return {
     w, opt, c1, veroeffentliche, lauf,
-    kopf: () => git(opt, "rev-parse", "HEAD"),
+    git: (...a) => git(opt, env, ...a),
+    kopf: () => git(opt, env, "rev-parse", "HEAD"),
     neustarts: () => (existsSync(join(w, "systemctl.log")) ? readFileSync(join(w, "systemctl.log"), "utf8").split("\n").filter((z) => z.startsWith("restart")).length : 0),
     version: () => JSON.parse(readFileSync(join(opt, "app", "version.json"), "utf8")),
     sperrdatei: join(opt, "app", "data", "master", ".schreibsperre"),
@@ -188,7 +189,7 @@ test("HTTP-Rauchtest scheitert: Ruecksprung auf den alten Commit und Neustart", 
     assert.match(r.stderr, /Ruecksprung ok: wieder auf .* Das Update ist NICHT eingespielt/);
     assert.equal(u.kopf(), u.c1);
     assert.equal(u.version().commit, u.c1);
-    assert.equal(git(u.opt, "rev-parse", "--abbrev-ref", "HEAD"), "main");
+    assert.equal(u.git("rev-parse", "--abbrev-ref", "HEAD"), "main");
     assert.equal(u.neustarts(), 2);
     assert.equal(existsSync(u.sperrdatei), false);
     // Spaeterer, reparierter Stand spult wieder vor.
@@ -258,7 +259,7 @@ test("lokaler Branch nicht vorspulbar oder lokale Aenderung: Abbruch vor allem a
     let r = u.lauf("main");
     assert.equal(r.status, 1);
     assert.match(r.stderr, /lokale Aenderungen/);
-    git(u.opt, "commit", "-q", "-am", "lokal");
+    u.git("commit", "-q", "-am", "lokal");
     r = u.lauf("main");
     assert.equal(r.status, 1);
     assert.match(r.stderr, /nicht per Fast-Forward/);

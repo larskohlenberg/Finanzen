@@ -4,9 +4,10 @@
 // ein Grundgeruest aus Kategorien. Regeln, Konten und Personen entstehen erst
 // mit dem Nutzer — ein neuer Bestand erbt nichts aus einem anderen.
 // Ueberschreibt nie: liegt schon eine Masterdatei im Ziel, bricht das Tool ab.
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
+import { legeDateiAn } from "./lib/datei.mjs";
 
 const USAGE = `Aufruf: node app/tools/neuer-bestand.mjs <datenroot> [--schreiben]
 Ohne --schreiben nur Vorschau. Produktiv ist der Datenroot data/master.`;
@@ -75,7 +76,7 @@ async function main() {
   }
   await mkdir(root, { recursive: true });
   for (const [name, inhalt] of Object.entries(plan.dateien)) {
-    await writeFile(new URL(name, root), inhalt, { flag: "wx" });
+    await legeDateiAn(new URL(name, root), inhalt);
   }
   console.log("\nAngelegt. Jetzt den Validator laufen lassen.");
 }

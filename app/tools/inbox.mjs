@@ -23,7 +23,7 @@
 // `standardized/` ist Durchgangsstation, kein Archiv. Der dauerhafte
 // Textzwilling entsteht neben dem Beleg unter `Belege/` — siehe
 // `belege-text.mjs`, das den Vorlauf danach wieder abraeumt.
-import { access, readFile, writeFile, readdir, rename, mkdir } from "node:fs/promises";
+import { access, readFile, readdir, rename, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runImport } from "./import.mjs";
@@ -34,6 +34,7 @@ import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { validateImportProfil } from "./import-format.mjs";
 import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
 import { bestandOrte } from "./lib/bestand-orte.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 const APP = fileURLToPath(new URL("../", import.meta.url));
 // Inbox-Pfad relativ zum App-Raum fuer Bericht, rohquelle und Protokoll
@@ -168,7 +169,7 @@ async function archiviere(inboxRoot, { quelle, datei, ordner, notiz }) {
   await mkdir(zielOrdner, { recursive: true });
   const name = await freierArchivName(zielOrdner, datei);
   await rename(fileURLToPath(quelle), fileURLToPath(new URL(encodeURIComponent(name), zielOrdner)));
-  if (notiz) await writeFile(new URL(encodeURIComponent(`${name}.fehler.txt`), zielOrdner), notiz);
+  if (notiz) await ersetzeDatei(new URL(encodeURIComponent(`${name}.fehler.txt`), zielOrdner), notiz);
   return `${inboxName(inboxRoot)}/${ordner}/${name}`;
 }
 
@@ -307,7 +308,7 @@ async function main() {
         if (vorlauf.inhalt === null) lauf.ziel = null;
         else {
           await mkdir(new URL("standardized/", inboxRoot), { recursive: true });
-          await writeFile(new URL(`standardized/${encodeURIComponent(zielName)}`, inboxRoot), vorlauf.inhalt);
+          await ersetzeDatei(new URL(`standardized/${encodeURIComponent(zielName)}`, inboxRoot), vorlauf.inhalt);
         }
       }
       bericht.laeufe.push(lauf);
@@ -386,8 +387,8 @@ async function main() {
     return;
   }
 
-  await writeFile(new URL("transaktionen.jsonl", masterRoot), transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
-  await writeFile(new URL("transfers.json", masterRoot), JSON.stringify(transfers, null, 2) + "\n");
+  await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
+  await ersetzeDatei(new URL("transfers.json", masterRoot), JSON.stringify(transfers, null, 2) + "\n");
 
   const protokoll = {
     zeitpunkt: new Date().toISOString(),
@@ -405,7 +406,7 @@ async function main() {
   if (dublettenPruefen.length) protokoll.dubletten_pruefen = dublettenPruefen;
   const logUrl = new URL("agent_log.jsonl", masterRoot);
   const bisher = await readFile(logUrl, "utf8").catch(() => "");
-  await writeFile(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);
+  await ersetzeDatei(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);
 
   // Archiviert wird erst, wenn der geschriebene Bestand keine neuen Fehler hat.
   const validation = validateMasterData(await loadMasterData(masterRoot));

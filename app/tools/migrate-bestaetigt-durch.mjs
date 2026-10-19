@@ -4,9 +4,10 @@
 // bestaetigt_durch = "mensch". Konservativ, weil sie damit vor Regellaeufen
 // geschuetzt bleiben — genau wie vor Einfuehrung des Feldes. Als "auto"
 // wuerde der naechste recategorize-Lauf sie alle neu bewerten.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 export function migriere(transaktionen) {
   let geaendert = 0;
@@ -33,7 +34,7 @@ async function main() {
     console.log("Vorschau — nichts geschrieben. Mit --schreiben anwenden.");
     return;
   }
-  await writeFile(url, out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
+  await ersetzeDatei(url, out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
   console.log("Geschrieben.");
 }
 

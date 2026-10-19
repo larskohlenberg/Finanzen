@@ -240,7 +240,7 @@ window.FINANCE_I18N = {
     masterdata: {
       kategorienAnzahl12: "Buchungen (12 Monate)",
       kategorienSumme12: "Summe (12 Monate)",
-      kategorienZeitraum: "Letzte zwölf Monate: {von} bis {bis}. Ein Klick zeigt die Buchungen.",
+      kategorienZeitraum: "Letzte zwölf abgeschlossene Monate: {von} bis {bis}. Ein Klick zeigt die Buchungen.",
       kontenLoading: "Konten werden geladen …",
       kontenLoadFailed: "Konten konnten nicht geladen werden",
       title: "Administration",
@@ -1438,7 +1438,7 @@ window.FINANCE_I18N = {
     masterdata: {
       kategorienAnzahl12: "Bookings (12 months)",
       kategorienSumme12: "Sum (12 months)",
-      kategorienZeitraum: "Last twelve months: {von} to {bis}. Click to see the bookings.",
+      kategorienZeitraum: "Last twelve complete months: {von} to {bis}. Click to see the bookings.",
       kontenLoading: "Loading accounts …",
       kontenLoadFailed: "Accounts could not be loaded",
       title: "Administration",

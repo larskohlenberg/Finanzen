@@ -11,9 +11,8 @@ test("ueberfaellig: erwartete Buchung (letzte + Rhythmus) plus Toleranz ist vorb
   assert.equal(regelzahlungStand(rz("A"), { letzte: "2026-04-01", anzahl: 4, summe_cent: -4000 }, heute).ueberfaellig, true);
   // letzte 2026-04-15 -> erwartet 15.5., + 10 Tage = 25.5. > 20.5.
   assert.equal(regelzahlungStand(rz("A"), { letzte: "2026-04-15", anzahl: 4 }, heute).ueberfaellig, false);
-  // ohne Buchung zaehlt der Anker
-  assert.equal(regelzahlungStand(rz("A"), null, heute).ueberfaellig, true);
-  assert.equal(regelzahlungStand(rz("A", { anker_datum: "2026-06-01" }), null, heute).ueberfaellig, false, "beginnt erst");
+  // ohne zugeordnete Buchung keine Aussage (Konto nicht importiert, Zuordnung offen)
+  assert.equal(regelzahlungStand(rz("A"), null, heute).ueberfaellig, false);
 });
 
 test("nicht ueberfaellig: abgelehnt, vorgeschlagen oder beendet", () => {
@@ -30,6 +29,7 @@ test("Zeilen: filtern nach aktiv/ueberfaellig/beendet, sortieren nach Feldern", 
   const gruppen = [{ schluessel: "A", letzte: "2026-05-10", anzahl: 5 }, { schluessel: "B", letzte: "2026-03-01", anzahl: 3 }];
   const ids = (z) => z.map((x) => x.rz.regelzahlung_id);
   assert.deepEqual(ids(regelzahlungZeilen(liste, gruppen, heute, { zeigen: "ueberfaellig" })), ["B"]);
+  assert.deepEqual(ids(regelzahlungZeilen(liste, null, heute, { zeigen: "ueberfaellig" })), [], "vor dem Laden nichts ueberfaellig");
   assert.deepEqual(ids(regelzahlungZeilen(liste, gruppen, heute, { zeigen: "beendet" })), ["C"]);
   assert.deepEqual(ids(regelzahlungZeilen(liste, gruppen, heute, { zeigen: "aktiv", immer: "C" })), ["C", "B", "A"], "angesteuerte bleibt sichtbar");
   assert.deepEqual(ids(regelzahlungZeilen(liste, gruppen, heute, { zeigen: "aktiv" })), ["B", "A"], "Standard: nach Bezeichnung");

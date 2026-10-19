@@ -4,10 +4,13 @@
 // je Regelzahlung (Anzahl, letzte) liefert der Server als Gruppen der
 // Buchungsliste (gruppe=regelzahlung).
 //
-// Ueberfaellig (fachlich): eine bestaetigte, noch laufende Regelzahlung, deren
-// naechste erwartete Buchung (letzte Buchung plus ein Rhythmus, ohne Buchung
-// der Anker) laenger als UEBERFAELLIG_TOLERANZ_TAGE zurueckliegt. Die Toleranz
-// faengt Wochenenden, Feiertage und spaete Lastschriften ab.
+// Ueberfaellig (fachlich): eine bestaetigte, noch laufende Regelzahlung mit
+// mindestens einer zugeordneten Buchung, deren naechste erwartete Buchung
+// (letzte Buchung plus ein Rhythmus) laenger als UEBERFAELLIG_TOLERANZ_TAGE
+// zurueckliegt. Die Toleranz faengt Wochenenden, Feiertage und spaete
+// Lastschriften ab. Ohne zugeordnete Buchung (Konto nicht importiert, Zuordnung
+// nicht gelaufen) ist keine Aussage moeglich; solange die Buchungen nicht
+// geladen sind (gruppen null) auch nicht.
 import { addInterval, naechsteFaelligkeit, toCents } from "./liquiditaet.mjs";
 
 export const UEBERFAELLIG_TOLERANZ_TAGE = 10;
@@ -17,7 +20,7 @@ export const SORTIERUNG = Object.freeze(["bezeichnung", "betrag", "naechste", "l
 export function regelzahlungStand(rz, gruppe, heute) {
   const letzte = gruppe?.letzte || "";
   const beendet = rz.status === "abgelehnt" || Boolean(rz.aktiv_bis && rz.aktiv_bis < heute);
-  const erwartet = letzte ? addInterval(letzte, rz.rhythmus_einheit, rz.rhythmus_intervall) : rz.anker_datum;
+  const erwartet = letzte ? addInterval(letzte, rz.rhythmus_einheit, rz.rhythmus_intervall) : "";
   const ueberfaellig = !beendet && rz.status === "bestaetigt" && Boolean(erwartet)
     && addInterval(erwartet, "tag", UEBERFAELLIG_TOLERANZ_TAGE) < heute;
   return {
@@ -38,8 +41,10 @@ const vergleiche = (a, b) => String(a).localeCompare(String(b), "de");
 // diese Regelzahlung bleibt in jeder Auswahl (angesteuert, z. B. per Link).
 // Leere Daten (keine Buchung, kein Termin) stehen bei jeder Richtung hinten.
 export function regelzahlungZeilen(regelzahlungen, gruppen, heute, { zeigen = "alle", sort = { key: "bezeichnung", dir: "asc" }, immer = "" } = {}) {
+  // gruppen null: Buchungen noch nicht geladen -> keine Aussage zu "ueberfaellig".
   const je = new Map((gruppen ?? []).map((g) => [g.schluessel, g]));
   const zeilen = (regelzahlungen ?? []).map((rz) => regelzahlungStand(rz, je.get(rz.regelzahlung_id), heute))
+    .map((z) => (gruppen === null ? { ...z, ueberfaellig: false } : z))
     .filter((z) => z.rz.regelzahlung_id === immer ? true
       : zeigen === "aktiv" ? !z.beendet
       : zeigen === "ueberfaellig" ? z.ueberfaellig

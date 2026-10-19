@@ -68,9 +68,8 @@ test("Regelzahlungen zeigen die ID und markieren die angesteuerte Zeile", () => 
   state.selectedRegelzahlungId = "RZ-002";
   const html = renderRegelzahlungen();
   // Die interne ID steht nachrangig unter dem Namen.
-  // Seit Juli keine Buchung: beide sind ueberfaellig.
-  assert.match(html, /id="regelzahlung-RZ-001" class="ueberfaellig">[\s\S]*?Erste<div class="id-zeile muted">RZ-001<\/div>[\s\S]*?chip danger/);
-  assert.match(html, /id="regelzahlung-RZ-002" class="angesteuert ueberfaellig" aria-current="true">[\s\S]*?Zweite<div class="id-zeile muted">RZ-002<\/div>/);
+  assert.match(html, /id="regelzahlung-RZ-001" class="">[\s\S]*?Erste<div class="id-zeile muted">RZ-001<\/div>/);
+  assert.match(html, /id="regelzahlung-RZ-002" class="angesteuert" aria-current="true">[\s\S]*?Zweite<div class="id-zeile muted">RZ-002<\/div>/);
   assert.match(html, /aria-sort="ascending"><button class="linkish sort-th" data-action="rz-sort" data-sort="bezeichnung">/);
   state.selectedRegelzahlungId = "";
 });

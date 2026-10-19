@@ -45,7 +45,7 @@ export function renderRegelzahlungen() {
   const today = heuteIso();
   const kontoName = (id) => data.konten.find((k) => k.konto_id === id)?.name ?? id;
   const { antwort } = buchungenJeRegelzahlung();
-  const zeilen = regelzahlungZeilen(data.regelzahlungen, antwort?.gruppen ?? [], today, { zeigen: state.regelzahlungZeigen, sort: state.regelzahlungSort, immer: state.selectedRegelzahlungId });
+  const zeilen = regelzahlungZeilen(data.regelzahlungen, antwort ? antwort.gruppen ?? [] : null, today, { zeigen: state.regelzahlungZeigen, sort: state.regelzahlungSort, immer: state.selectedRegelzahlungId });
   const rows = zeilen.map((z) => {
     const rz = z.rz;
     const angesteuert = rz.regelzahlung_id === state.selectedRegelzahlungId;

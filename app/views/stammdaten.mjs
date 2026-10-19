@@ -90,8 +90,10 @@ function renderKontoSection() {
 // (Gruppen der Buchungsliste, vom Server). Name und Zahlen fuehren in genau
 // diese Buchungen mit demselben Zeitraum.
 const kategorienCache = erstelleApiCache({ maxEintraege: 2 });
+// Die letzten zwoelf abgeschlossenen Monate (wie Trend und Plan & Ist "12m").
 function zwoelfMonate(heute) {
-  return { von: addInterval(addInterval(heute, "monat", -12), "tag", 1), bis: heute };
+  const monatsAnfang = `${heute.slice(0, 7)}-01`;
+  return { von: addInterval(monatsAnfang, "monat", -12), bis: addInterval(monatsAnfang, "tag", -1) };
 }
 function renderKategorien() {
   const { von, bis } = zwoelfMonate(heuteIso());

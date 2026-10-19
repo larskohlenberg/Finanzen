@@ -128,7 +128,7 @@ function seitenDetail() {
   if (state.view === "vorsorge") return state.selectedVorsorgeId;
   if (state.view === "szenarien") return state.selectedSzenarioId;
   if (state.view === "termine") return state.termineTab === "fristen" ? "" : state.selectedRegelzahlungId;
-  if (state.view === "masterdata") return state.masterSection === "konten" ? state.selectedKonto : state.masterSection === "regeln" ? state.selectedRegel : "";
+  if (state.view === "masterdata") return state.masterSection === "regeln" ? state.selectedRegel : "";
   if (state.view === "belege") return String(state.selectedBeleg ?? "").split("/").pop();
   return "";
 }

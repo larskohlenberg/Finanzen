@@ -152,12 +152,17 @@ ueber der Liste.
 
 - Monatsspalten der Verlaufsdiagramme sind Links (auch per Tastatur): ein Monat
   der Einnahmen-/Ausgabenkurve oeffnet seine laufenden Buchungen, nach Kategorie
-  summiert (`klasse=laufend`, `gruppe=kategorie`), so wie der Trend rechnet.
-- Kategorien (Administration) zeigen Anzahl und Summe der letzten zwoelf Monate;
+  summiert (`klasse=laufend`, `gruppe=kategorie`). Bekannte Grenze: der Trend
+  ordnet eine Kategorie nach ihrem Saldo ueber zwoelf Monate einer Seite zu und
+  teilt Brutto-Kategorien nach Vorzeichen; die Liste zeigt je Kategorie den
+  Monatssaldo beider Seiten zusammen.
+- Kategorien (Administration) zeigen Anzahl und Summe der letzten zwoelf
+  abgeschlossenen Monate;
   der Name oeffnet genau diese Buchungen.
 - Regelzahlungen (Termine) zeigen letzte Buchung und naechste Faelligkeit und
-  sind sortier- und filterbar. **Ueberfaellig**: bestaetigt, noch laufend, und die
-  naechste erwartete Buchung (letzte plus ein Rhythmus, ohne Buchung der Anker)
-  liegt mehr als zehn Tage zurueck (`app/termine-modell.mjs`).
+  sind sortier- und filterbar. **Ueberfaellig**: bestaetigt, noch laufend, mit
+  mindestens einer zugeordneten Buchung, und die naechste erwartete Buchung
+  (letzte plus ein Rhythmus) liegt mehr als zehn Tage zurueck
+  (`app/termine-modell.mjs`). Ohne zugeordnete Buchung keine Aussage.
 - Ein Konto hat genau ein Detail: Vermoegen -> Konten. Die Administration listet
   die Konten nur; alte Links `#/konten/<ID>` fuehren dorthin.

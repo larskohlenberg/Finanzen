@@ -137,9 +137,16 @@ test("behalten aus EINSTELLUNGEN.json; nur im Generationsmodus", async () => {
   await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{\"n\":9}\n"), { behalten: 5 });
   assert.deepEqual(await veroeffentlichteIds(basis), ["000003", "000004", "000005"]);
   await assert.rejects(setzeBehalten(basis, -1), /ganze Zahl/);
+  // Unlesbare Einstellungen: geschrieben wird, aufgeraeumt nicht; reparierbar.
   await writeFile(path.join(basis, "EINSTELLUNGEN.json"), "{kaputt");
-  await assert.rejects(mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{}\n")), /kein gueltiges JSON/);
-  assert.equal(await aktuelleId(basis), "000005");
+  const w = await mitSchreiber(basis, (tx) => tx.schreibe("farben.json", "{}\n"));
+  assert.equal(w.id, "000006");
+  assert.match(w.warnung, /kein gueltiges JSON/);
+  assert.deepEqual(await veroeffentlichteIds(basis), ["000003", "000004", "000005", "000006"]);
+  await writeFile(path.join(basis, "EINSTELLUNGEN.json"), "null");
+  await assert.rejects(liesEinstellungen(basis), /kein JSON-Objekt/);
+  await setzeBehalten(basis, 2);
+  assert.equal((await liesEinstellungen(basis)).behalten, 2);
 
   const ordner = path.join(await mkdtemp(path.join(tmpdir(), "verlauf-ordner-")), "m");
   await cp(DEMO, ordner, { recursive: true });
@@ -163,6 +170,10 @@ test("CLIs: Vorschau mit Diff und IDs, Schreiben mit Fingerabdruck, veraltet = E
   assert.match(v.stdout, new RegExp(`geaendert: ${TXN}`));
   assert.match(v.stdout, /Fingerabdruck: G000002/);
   assert.equal(await aktuelleId(basis), "000002", "Vorschau schreibt nichts");
+  const ohne = await cli("rueckgaengig.mjs", [datenroot, "--schreiben"]);
+  assert.equal(ohne.code, 1);
+  assert.match(ohne.stderr, /nur mit dem Fingerabdruck/);
+  assert.equal((await cli("rueckgaengig.mjs", [datenroot, "--schritte=1", "--ziel=G000001"])).code, 1);
 
   const s = await cli("rueckgaengig.mjs", [datenroot, "--schreiben", "--fingerabdruck=G000002"]);
   assert.equal(s.code, 0, s.stderr);
@@ -222,6 +233,7 @@ test("MCP: verlauf und rueckgaengig mit Fingerabdruck; einfacher Ordner meldet s
 
       const beides = await s.werkzeug("rueckgaengig", { schritte: 1, ziel: "G000001" });
       assert.ok(beides.isError);
+      assert.match((await s.werkzeug("rueckgaengig", { schreiben: true })).text, /nur mit dem Fingerabdruck/);
       const alt = await s.werkzeug("rueckgaengig", { schreiben: true, fingerabdruck: "G000001" });
       assert.ok(alt.isError);
       assert.match(alt.text, /seit der Vorschau geaendert/);

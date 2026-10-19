@@ -1301,7 +1301,7 @@ const verlauf = {
 
 const rueckgaengigWerkzeug = {
   name: "rueckgaengig",
-  description: "Letzten Schreibvorgang rueckgaengig machen: stellt die vorherige Generation (oder `schritte` zurueck, oder `ziel` wie \"G000041\" aus verlauf) als NEUE Generation wieder her; nichts wird geloescht, ein Undo laesst sich selbst rueckgaengig machen. Vorschau ist Default und zeigt den Diff gegenueber dem aktuellen Stand: Dateien, Zahl der Datensaetze neu/geaendert/entfernt, bei Buchungen und anderen Datensaetzen mit Id die IDs. Erst schreiben:true (mit dem Fingerabdruck der Vorschau) stellt wieder her; der Validator prueft, neue Fehler verhindern die Uebernahme. Inbox und Belege/ liegen ausserhalb des Bestands und bleiben, wie sie sind. Nur bei einem Bestand mit Generationen.",
+  description: "Letzten Schreibvorgang rueckgaengig machen: stellt die vorherige Generation (oder `schritte` zurueck, oder `ziel` wie \"G000041\" aus verlauf) als NEUE Generation wieder her; nichts wird geloescht, ein Undo laesst sich selbst rueckgaengig machen. Vorschau ist Default und zeigt den Diff gegenueber dem aktuellen Stand: Dateien, Zahl der Datensaetze neu/geaendert/entfernt, bei Buchungen und anderen Datensaetzen mit Id die IDs. Erst schreiben:true mit dem Fingerabdruck der Vorschau (Pflicht) stellt wieder her; der Validator prueft, neue Fehler verhindern die Uebernahme. Inbox und Belege/ liegen ausserhalb des Bestands und bleiben, wie sie sind. Nur bei einem Bestand mit Generationen.",
   inputSchema: {
     type: "object",
     properties: {

@@ -5,14 +5,20 @@
 // welche). Nur lesend; alle Generationen werden ueber eine Lease gelesen, damit
 // das Aufraeumen sie waehrenddessen nicht entfernt.
 import path from "node:path";
-import { aktuelleId, bestandsArt, liesEinstellungen, oeffneGeneration, OhneVerlauf, ORDNER, veroeffentlichteIds } from "./generationen.mjs";
+import { aktuelleId, bestandsArt, GenerationWeg, liesEinstellungen, oeffneGeneration, OhneVerlauf, ORDNER, veroeffentlichteIds } from "./generationen.mjs";
 
 export { OhneVerlauf };
 
 // Bis zu so vielen IDs je Art nennt der Text; das Ergebnis enthaelt alle.
 const IDS_IM_TEXT = 10;
 
-const idFeld = (satz) => (satz && typeof satz === "object" && !Array.isArray(satz) ? Object.keys(satz).find((k) => k.endsWith("_id") && typeof satz[k] === "string") : undefined);
+// Die eigene Id steht in allen Dateien als erstes Feld (transaktion_id, konto_id
+// in konten.json ...); spaetere *_id-Felder sind Verweise.
+const idFeld = (satz) => {
+  if (!satz || typeof satz !== "object" || Array.isArray(satz)) return undefined;
+  const erstes = Object.keys(satz)[0];
+  return erstes?.endsWith("_id") && typeof satz[erstes] === "string" ? erstes : undefined;
+};
 
 // Datensaetze einer Datei: Array-JSON oder JSON-Zeilen. Andere Formen (Objekt,
 // Text, PDF, kaputtes JSON) haben keine Datensaetze -> null.
@@ -81,13 +87,17 @@ export async function vergleicheLeser(von, nach) {
   return dateien;
 }
 
-// Oeffnet die Generationen ids (fehlende, gerade weggeraeumte fehlen in der Map).
+// Oeffnet die Generationen ids; gerade weggeraeumte fehlen in der Map, andere
+// Fehler (Format, Lesefehler) gehen weiter.
 async function mitGenerationen(basis, ids, fn) {
   const leser = new Map();
   try {
     for (const id of ids) {
-      const l = await oeffneGeneration(basis, id).catch(() => null);
-      if (l) leser.set(id, l);
+      try {
+        leser.set(id, await oeffneGeneration(basis, id));
+      } catch (error) {
+        if (!(error instanceof GenerationWeg)) throw error;
+      }
     }
     return await fn(leser);
   } finally {

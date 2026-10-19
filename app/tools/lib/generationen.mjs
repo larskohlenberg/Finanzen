@@ -71,6 +71,13 @@ export class OhneVerlauf extends Error {
   }
 }
 
+export class GenerationWeg extends Error {
+  constructor(id) {
+    super(`Generation ${id} gibt es nicht (mehr)`);
+    this.name = "GenerationWeg";
+  }
+}
+
 export class StandVeraltet extends Error {
   constructor(basis, erwartet, aktuell) {
     super(`Bestand ${path.basename(basis)} hat sich seit der Vorschau geaendert (Stand ${erwartet}, jetzt ${aktuell}). Nichts geschrieben; Vorschau neu erstellen.`);
@@ -229,6 +236,7 @@ export async function liesEinstellungen(basis) {
   } catch (error) {
     throw new Error(`${EINSTELLUNGEN} in ${basis} ist kein gueltiges JSON: ${error.message}`);
   }
+  if (!werte || typeof werte !== "object" || Array.isArray(werte)) throw new Error(`${EINSTELLUNGEN} in ${basis} ist kein JSON-Objekt`);
   return { behalten: pruefeBehalten(werte.behalten ?? BEHALTEN) };
 }
 
@@ -238,7 +246,8 @@ export async function setzeBehalten(basis, behalten, { wer = "einstellungen", wa
   pruefeBehalten(behalten);
   return mitSperre(basis, async () => {
     if ((await bestandsArt(basis)) === ORDNER) throw new OhneVerlauf(basis);
-    const werte = { ...(await liesEinstellungen(basis)), behalten };
+    // Eine unlesbare Datei wird ersetzt: so laesst sie sich ueber das Werkzeug reparieren.
+    const werte = { ...(await liesEinstellungen(basis).catch(() => ({}))), behalten };
     const temp = path.join(basis, `.tmp-${EINSTELLUNGEN}-${zufall()}`);
     const handle = await open(temp, "wx", 0o644);
     try {
@@ -353,7 +362,7 @@ export async function oeffneGeneration(basis, id) {
   if ((await bestandsArt(basis)) === ORDNER) throw new OhneVerlauf(basis);
   if (!istId(String(id))) throw new Error(`keine Generations-Id: ${id}`);
   const leser = await meldeAn(basis, id);
-  if (!leser) throw new Error(`Generation ${id} gibt es nicht (mehr)`);
+  if (!leser) throw new GenerationWeg(id);
   return leser;
 }
 
@@ -556,7 +565,17 @@ async function schreibeGeneration(basis, fn, { pruefe, behalten: behaltenOption,
   // Format zuerst: Code, der das Format nicht kennt, raeumt auch nichts weg.
   const vorher = await aktuelleId(basis);
   const bisher = await liesManifest(basis, generationsOrdner(basis, vorher));
-  const behalten = behaltenOption ?? (await liesEinstellungen(basis)).behalten;
+  // Unlesbare Einstellungen blockieren kein Schreiben, aber das Aufraeumen
+  // (sonst raeumte der Default womoeglich mehr weg als eingestellt).
+  let behalten = behaltenOption;
+  let einstellungsFehler = null;
+  if (behalten === undefined) {
+    try {
+      behalten = (await liesEinstellungen(basis)).behalten;
+    } catch (error) {
+      einstellungsFehler = error;
+    }
+  }
   if (erwartet !== undefined && erwartet !== vorher) throw new StandVeraltet(basis, erwartet, vorher);
   const wieder = await wiederanlauf(basis);
   const quelleId = vonGeneration ?? vorher;
@@ -626,6 +645,7 @@ async function schreibeGeneration(basis, fn, { pruefe, behalten: behaltenOption,
   // Die neue Generation ist veroeffentlicht: ein Fehler beim Aufraeumen ist nur
   // ein Hinweis, der naechste Schreiber versucht es erneut.
   try {
+    if (einstellungsFehler) throw einstellungsFehler;
     ergebnis.aufgeraeumt = await aufraeumen(basis, behalten, halt);
   } catch (error) {
     ergebnis.warnung = `Aufraeumen alter Generationen gescheitert: ${error.message}`;

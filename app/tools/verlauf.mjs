@@ -34,10 +34,11 @@ function zahlArg(argv, name) {
 async function behaltenSetzen(datenroot, behalten, schreiben) {
   const basis = await findeBasis(datenroot);
   if ((await bestandsArt(basis)) === ORDNER) throw new OhneVerlauf(basis);
-  const bisher = (await liesEinstellungen(basis)).behalten;
+  const bisher = await liesEinstellungen(basis).then((e) => e.behalten, () => "unlesbar");
   const aufbewahrt = (await veroeffentlichteIds(basis)).length;
   if (!schreiben) {
     console.log(`Vorschau (nichts geschrieben): behalten ${bisher} -> ${behalten} fruehere Generationen (aufbewahrt sind ${aufbewahrt} insgesamt). Mit --schreiben setzen.`);
+    if (behalten === 0) console.log("Achtung: Mit 0 raeumt der naechste Schreibvorgang alle frueheren Generationen weg; danach gibt es nichts mehr rueckgaengig zu machen.");
     return;
   }
   try {

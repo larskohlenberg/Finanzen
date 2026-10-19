@@ -18,7 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { bestandFingerabdruck } from "./lib/fingerabdruck.mjs";
-import { aktuelleId, findeBasis, generationsOrdner, OhneVerlauf, oeffneGeneration, rueckgaengig, rueckgaengigZiel, StandVeraltet } from "./lib/generationen.mjs";
+import { aktuelleId, findeBasis, generationsOrdner, OhneVerlauf, oeffneGeneration, oeffneLeser, rueckgaengig, rueckgaengigZiel, StandVeraltet } from "./lib/generationen.mjs";
 import { SperreBelegt } from "./lib/schreibsperre.mjs";
 import { validatorFehler, VERALTET_EXITCODE, GESPERRT_EXITCODE } from "./lib/schreiblauf.mjs";
 import { aenderungsText, vergleicheLeser } from "./lib/verlauf.mjs";
@@ -33,7 +33,7 @@ const beschreibe = async (leser) => {
 export async function rueckgaengigVorschau(datenroot, { schritte = 1, ziel } = {}) {
   const basis = await findeBasis(datenroot);
   const zielId = await rueckgaengigZiel(basis, { schritte, ziel });
-  const aktuell = await oeffneGeneration(basis, await aktuelleId(basis));
+  const aktuell = await oeffneLeser(basis);
   try {
     const wieder = await oeffneGeneration(basis, zielId);
     try {
@@ -56,9 +56,12 @@ export async function rueckgaengigVorschau(datenroot, { schritte = 1, ziel } = {
   }
 }
 
-// Schreiblauf. erwartet: Fingerabdruck aus der Vorschau ("G000042").
-// Liefert { text, exitCode } (0 ok, 1 Fehler/verworfen, 3 gesperrt, 4 veraltet).
+// Schreiblauf. erwartet: Fingerabdruck aus der Vorschau ("G000042"), Pflicht:
+// ohne ihn nahme "schritte" zurueck, was gerade aktuell ist, nicht das, was die
+// Vorschau gezeigt hat. Liefert { text, exitCode } (0 ok, 1 Fehler/verworfen,
+// 3 gesperrt, 4 veraltet).
 export async function rueckgaengigSchreiben(datenroot, { schritte = 1, ziel, erwartet, wer = "rueckgaengig" } = {}) {
+  if (!erwartet) return { text: "rueckgaengig schreibt nur mit dem Fingerabdruck der Vorschau (CLI --fingerabdruck=G..., MCP fingerabdruck). Erst die Vorschau ansehen.", exitCode: 1 };
   const basis = await findeBasis(datenroot);
   let vorher = [];
   let nachher = [];
@@ -68,7 +71,7 @@ export async function rueckgaengigSchreiben(datenroot, { schritte = 1, ziel, erw
       schritte,
       ziel,
       wer,
-      ...(erwartet ? { erwartet: String(erwartet).replace(/^G/, "") } : {}),
+      erwartet: String(erwartet).replace(/^G/, ""),
       // Unter der Sperre ist der bisher aktuelle Stand noch aktuell.
       pruefe: async (ordner) => {
         vorher = await validatorFehler(generationsOrdner(basis, await aktuelleId(basis)));
@@ -112,6 +115,7 @@ async function main(argv) {
   const datenroot = path.resolve(fileURLToPath(pflichtDatenroot(argv.find((a) => !a.startsWith("--")))));
   const schritte = zahlArg(argv, "schritte") ?? 1;
   const ziel = argv.find((a) => a.startsWith("--ziel="))?.slice("--ziel=".length);
+  if (ziel !== undefined && zahlArg(argv, "schritte") !== undefined) throw new Error("Entweder --schritte oder --ziel angeben, nicht beides.");
   const erwartet = argv.find((a) => a.startsWith("--fingerabdruck="))?.slice("--fingerabdruck=".length);
   try {
     if (!argv.includes("--schreiben")) {

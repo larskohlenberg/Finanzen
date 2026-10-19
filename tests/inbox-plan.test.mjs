@@ -45,6 +45,19 @@ test("CSV-Laufbericht nennt alle Lese- und Importfehler, nicht nur die ersten dr
   assert.deepEqual(bericht.importfehler_details, importfehler.map(({ row, reason, detail }) => ({ row, reason, detail })));
 });
 
+test("CSV-Laufbericht reicht Dubletten-Prueffaelle und unverlaessliche Referenzen durch", () => {
+  const fall = { art: "teilweise_vorhanden", konto_id: "KTO-001", zeilen: [1, 2], in_datei: 2, im_bestand: 1, geschrieben: 1 };
+  const bericht = importLaufBericht({
+    auftrag: { datei: "test.csv", art: "csv" },
+    profil: { profil_id: "test-profil" },
+    normalized: { eintraege: [{}, {}], fehler: [] },
+    result: { written: [], skipped_dedupe: [], errors: [], transfers_matched: [], pruefen: [fall], referenz_unzuverlaessig: ["KTO-001"] },
+  });
+  assert.equal(bericht.pruefen, 1);
+  assert.deepEqual(bericht.pruefen_details, [fall]);
+  assert.deepEqual(bericht.referenz_unzuverlaessig, ["KTO-001"]);
+});
+
 test("Inbox-Protokoll aggregiert betroffene IDs stabil ueber alle CSV-Laeufe", () => {
   const ids = betroffeneTransaktionsIds([
     { art: "pdf-text" },

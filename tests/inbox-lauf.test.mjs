@@ -7,7 +7,6 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import { computeDedupeHash, disambiguateHash } from "../app/tools/dedupe.mjs";
 import { legeAbzugAn, starteServer } from "./mcp-hilfe.mjs";
 
 const PROFIL = {
@@ -66,32 +65,26 @@ test("Schreibfehler am Bestand: die Quelle bleibt in der Inbox statt in processe
 });
 
 test("Rueckrollung nach Validierungsfehler (MCP): Bestand unveraendert, Quelle bleibt in der Inbox", async () => {
-  // Ausloeser ist eine Hash-Kollision: der Bestand traegt schon den
-  // disambiguierten Hash der zweiten von zwei identischen Zeilen (etwa weil
-  // eine von zwei gleichen Buchungen von Hand entfernt wurde). Behebt der
-  // Import diese Kollision einmal selbst (Review 0A.13), braucht dieser Test
-  // einen anderen Ausloeser fuer einen Validierungsfehler.
+  // Ausloeser: eine Regel mit kaputter ID (im Bestand schon ein bekannter
+  // Fehler) trifft die neue Buchung und traegt sich in deren matched_regeln
+  // ein — das ist ein neuer Validatorfehler. Frueher war es eine
+  // Hash-Kollision; die gibt es seit dem Abgleich als Multimenge nicht mehr
+  // (Review 0A.13, ADR 0034).
   const abzug = abzugMitProfil();
   try {
-    const eintrag = { konto_id: "KTO-005", buchungsdatum: "2026-09-02", betrag: "-4.20", gegenpartei: "Testkiosk", verwendungszweck: "Zwei gleiche Zeilen" };
-    const vorhanden = {
-      transaktion_id: "TXN-00000000-0000-4000-8000-000000009901",
-      dedupe_hash: disambiguateHash(computeDedupeHash(eintrag), 2),
-      rohquelle: "data/inbox/processed/frueher.csv",
-      ...eintrag,
-      kategorisierung_status: "offen",
-      ist_transfer: false,
-    };
+    const regelnDatei = join(abzug.master, "kategorisierungsregeln.json");
+    const regeln = JSON.parse(readFileSync(regelnDatei, "utf8"));
+    regeln.push({ regel_id: "REG-X1", gegenpartei_pattern: "Testkiosk", kategorie_id: "KAT-004", status: "aktiv", erstellt_am: "2026-09-01", kommentar: "kaputte ID" });
+    writeFileSync(regelnDatei, `${JSON.stringify(regeln, null, 2)}\n`);
     const tx = join(abzug.master, "transaktionen.jsonl");
-    writeFileSync(tx, `${readFileSync(tx, "utf8").trimEnd()}\n${JSON.stringify(vorhanden)}\n`);
     const vorher = readFileSync(tx, "utf8");
-    writeFileSync(join(abzug.inbox, "lauf-2.csv"), csv("02.09.2026;-4,20;Testkiosk;Zwei gleiche Zeilen", "02.09.2026;-4,20;Testkiosk;Zwei gleiche Zeilen"));
+    writeFileSync(join(abzug.inbox, "lauf-2.csv"), csv("02.09.2026;-4,20;Testkiosk;Kaputte Regel"));
 
     const s = starteServer(abzug, "schreiben");
     try {
       const r = await s.werkzeug("inbox", { schreiben: true });
       assert.ok(r.isError, r.text);
-      assert.match(r.text, /dedupe_hash: doppelt/);
+      assert.match(r.text, /matched_regeln/);
     } finally {
       await s.beenden();
     }

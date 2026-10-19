@@ -11,7 +11,7 @@ import { donutDiagramm, wertVerlauf } from "../charts.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
   VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsAenderungen, beitragVorjahr, gebuchteBeitraegeAlle,
-  gesetzlicherRentenbeginn, kapitalLeistungen, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
+  gesetzlicherRentenbeginn, kapitalLeistungen, kapitalZumAblauf, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
   rentenStufen, tabFuerVorsorge, vermoegensBezug, vertragsFarben, wertEntwicklung,
 } from "../vorsorge-rechnung.mjs";
 import { dynamikStand, widerspruchFuerFrist } from "../vorsorge-dynamik.mjs";
@@ -150,7 +150,9 @@ function renderUebersichtTab(today, offen) {
 
   // Faellig ist nur Terminiertes; bedingte (z. B. Todesfallsumme) und undatierte
   // Leistungen stehen darunter, ohne Jahr und ohne in die Summe einzugehen.
-  const kapitalZeile = (l, zusatz) => zeile(vertragLink(l.vorsorge.vorsorge_id, l.vorsorge.name), formatMoney(l.wert_cents), zusatz, farbKlasse(farben, l.vorsorge.vorsorge_id));
+  // Ohne belegte Ablaufleistung zaehlt der heutige Rueckkaufswert (ersatz), markiert als "Stand heute".
+  const kapitalZeile = (l, zusatz) => zeile(vertragLink(l.vorsorge.vorsorge_id, l.vorsorge.name), formatMoney(l.wert_cents), [zusatz, l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), farbKlasse(farben, l.vorsorge.vorsorge_id));
+  const standHeute = kapital.terminiert.filter((l) => l.ersatz).reduce((a, l) => a + l.wert_cents, 0);
   const kapitalZeilen = [
     ...kapital.terminiert.map((l) => kapitalZeile(l, l.beginn.slice(0, 4))),
     ...kapital.bedingt.map((l) => kapitalZeile(l, t("vorsorge.kopf.bedingt"))),
@@ -159,6 +161,7 @@ function renderUebersichtTab(today, offen) {
   const nichtFaellig = kapital.bedingt_cents + kapital.undatiert_cents;
   const kapitalNotiz = [
     kapital.jahre.length ? tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") }) : "",
+    standHeute ? tf("vorsorge.kopf.kapitalStandHeute", { betrag: formatMoney(standHeute) }) : "",
     nichtFaellig ? tf("vorsorge.kopf.nichtFaellig", { betrag: formatMoney(nichtFaellig) }) : "",
   ].filter(Boolean).join(" · ");
   const mitWert = vorsorgePositionen.filter((p) => !p.fehlt).sort((a, b) => b.wert_cents - a.wert_cents);
@@ -455,7 +458,8 @@ function kennzahlenVorsorge(vs, today) {
   const rkw = zeitwert(vs, "rueckkaufswert");
   const vertragswert = zeitwert(vs, "vertragswert");
   const rente = zeitwert(vs, "erwartete_rente");
-  const kapital = zeitwert(vs, "erwartete_kapitalleistung");
+  const kapitalAblauf = kapitalZumAblauf(data, vs);
+  const kapital = kapitalAblauf?.zeitwert;
 
   let wert;
   if (rkw) {
@@ -474,7 +478,7 @@ function kennzahlenVorsorge(vs, today) {
   const leistung = rente
     ? kennzahl(t("vorsorge.erwarteteRente"), `${geld(cents(rente.wert))} ${einheit(t("vorsorge.jeMonat"))}`, zeitwertNotiz(rente) + (istRiester(vs) ? `<br>${escapeHtml(riesterHinweis(vs))}` : ""))
     : kapital
-      ? kennzahl(t("vorsorge.kapitalBeiAblauf"), geld(cents(kapital.wert)), zeitwertNotiz(kapital))
+      ? kennzahl(t("vorsorge.kapitalBeiAblauf"), geld(cents(kapital.wert)), kapitalAblauf.ersatz ? `${escapeHtml(t("vorsorge.kapitalStandHeute"))} · ${escapeHtml(formatDate(kapital.standdatum))}` : zeitwertNotiz(kapital))
       : kennzahl(t("vorsorge.erwarteteLeistung"), `<span class="muted">—</span>`, escapeHtml(t("vorsorge.keineLeistung")));
 
   let beginnNotiz = "";

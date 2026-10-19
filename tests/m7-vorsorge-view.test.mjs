@@ -624,3 +624,30 @@ test("Beitraege: abgelehnte und erst kuenftig beginnende Regelzahlungen zaehlen 
     assert.match(html, /230,00[\s\S]*\/ Monat/, "weiterhin nur Riester + LV Martin");
   }, { regelzahlungen: [...fixture().regelzahlungen, ...extra] });
 });
+
+test("Lebensversicherung ohne Ablaufleistung erscheint mit dem heutigen Rueckkaufswert als nicht garantiert", () => {
+  const f = fixture();
+  const zeitwerte = [...f.zeitwerte, zw("VS-004", "rueckkaufswert", "8000.00", "2025-12-31")];
+  const kapitalKachel = (html) => {
+    const kopf = html.slice(html.indexOf("kachel-paare"));
+    return kopf.slice(kopf.indexOf("Kapitalleistungen"), kopf.indexOf("</section>", kopf.indexOf("Kapitalleistungen")));
+  };
+  // Ohne Ablauf: steht ohne Termin darunter, nicht in der Summe.
+  mitFixture(() => {
+    const kachel = kapitalKachel(renderVorsorge());
+    assert.match(kachel, /25\.000,00[\s\S]*dazu 8\.000,00\s€ bedingt oder ohne Termin, nicht eingerechnet/);
+    assert.match(kachel, /LV Martin<\/button><span class="muted">ohne Termin · Stand heute<\/span><span class="amount">8\.000,00/);
+  }, { zeitwerte });
+  // Mit Ablauf: zaehlt mit, die Notiz nennt den nicht garantierten Anteil.
+  const vorsorge = f.vorsorge.map((vs) => (vs.vorsorge_id === "VS-004" ? { ...vs, leistung_beginn: "2050-11-01" } : vs));
+  mitFixture(() => {
+    const kachel = kapitalKachel(renderVorsorge());
+    assert.match(kachel, /33\.000,00[\s\S]*fällig 2035, 2050 · davon 8\.000,00\s€ Stand heute, nicht garantiert/);
+    assert.match(kachel, /LV Martin<\/button><span class="muted">2050 · Stand heute<\/span><span class="amount">8\.000,00/);
+    state.vorsorgeTab = "lebensversicherungen";
+    state.selectedVorsorgeId = "VS-004";
+    const detail = renderVorsorge();
+    assert.match(detail, /Kapital bei Ablauf[\s\S]*8\.000,00[\s\S]*Rückkaufswert von heute, nicht garantiert/);
+    assert.doesNotMatch(detail, /100 % der garantierten Ablaufleistung/, "kein Fortschrittsbalken gegen sich selbst");
+  }, { zeitwerte, vorsorge });
+});

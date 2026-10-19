@@ -49,7 +49,10 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
   keinen `rueckkaufswert`.
 - **Kapitalprognose / Ablaufleistung:** `erwartete_kapitalleistung` als Zeitwert
   erfassen, wenn der Beleg eine einmalige Leistung oder ein Kapitalwahlrecht
-  ausweist.
+  ausweist. Garantiert eine fondsgebundene Lebensversicherung keine
+  Ablaufleistung, nichts eintragen, auch nicht den Rueckkaufswert: Die App
+  zeigt dann den jeweils neuesten `rueckkaufswert` als Kapital "Stand heute,
+  nicht garantiert". Dafuer braucht der Vertrag `leistung_beginn` (Ablauf).
 - **Absicherung (BU und Tod):** vier Werte zeigen, was bei Berufsunfaehigkeit
   oder Tod der versicherten Person (`person_id` am Vertrag) fliesst. Sie zaehlen
   nie ins Vermoegen und nie als Altersrente, sondern erscheinen nur in der

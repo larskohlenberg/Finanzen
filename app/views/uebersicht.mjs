@@ -326,7 +326,9 @@ function renderVorsorgeKachel(today) {
   // Faellig ist nur, was ein Datum hat; bedingte (z. B. Todesfallsumme) und
   // undatierte Leistungen nennt die Notiz, ohne sie einzurechnen. Gleiche Rechnung
   // wie die Vorsorgeseite. Einmalzahlungen = erwartete Kapitalleistung je Vertrag
-  // (Ablaufleistung laut Vertrag/Standmitteilung), deshalb hoeher als der Rueckkaufswert.
+  // (Ablaufleistung laut Vertrag/Standmitteilung), deshalb hoeher als der Rueckkaufswert;
+  // fondsgebundene Lebensversicherungen ohne Garantie zaehlen mit dem Rueckkaufswert
+  // von heute und sind als "Stand heute" markiert.
   const gruppen = kapitalLeistungen(data, today);
   const kapital = gruppen.terminiert;
   const kapitalJahre = gruppen.jahre;
@@ -337,7 +339,7 @@ function renderVorsorgeKachel(today) {
   const kapitalZeilen = kapital.map((l) => zeile(
     `<button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(l.vorsorge.vorsorge_id)}">${escapeHtml(l.vorsorge.name)}</button>`,
     escapeHtml(geldOhneCent(l.wert_cents)),
-    { zusatz: formatDate(l.beginn), punkt: farbKlasse(l.vorsorge.vorsorge_id) },
+    { zusatz: [formatDate(l.beginn), l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), punkt: farbKlasse(l.vorsorge.vorsorge_id) },
   ));
   const einmal = kapital.length ? `
       <div class="uebersicht-zweitwert">

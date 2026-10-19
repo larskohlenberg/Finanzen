@@ -5,7 +5,7 @@
   "required": ["konto_id", "buchungsdatum", "betrag", "gegenpartei", "verwendungszweck", "rohquelle"],
   "additionalProperties": false,
   "properties": {
-    "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
+    "konto_id": { "type": "string", "pattern": "^KTO-\\d{3,}$" },
     "buchungsdatum": { "type": "string", "format": "date" },
     "betrag": { "type": "string", "pattern": "^(?!-0\\.00$)-?(0|[1-9]\\d*)\\.\\d{2}$" },
     "gegenpartei": { "type": "string" },
@@ -18,7 +18,7 @@
     "empfaenger_iban": { "type": "string" },
     "mandatsreferenz": { "type": "string" },
     "glaeubiger_id": { "type": "string" },
-    "regelzahlung_id": { "type": "string", "pattern": "^RZ-\\d{3}$" },
+    "regelzahlung_id": { "type": "string", "pattern": "^RZ-\\d{3,}$" },
     "rohquelle": { "type": "string", "minLength": 1 }
   }
 }

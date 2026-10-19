@@ -347,7 +347,7 @@ export async function schreibeLogos(root, data, ergebnisse, logos, jetzt) {
   })}\n`);
 
   // Nur neue Fehler zaehlen (wie mitRollback); alte stehen schon im Bestand.
-  const neu = neueFehler(validateMasterData(data).errors, validateMasterData(await loadMasterData(root)).errors);
+  const neu = neueFehler(validateMasterData(data).befunde, validateMasterData(await loadMasterData(root)).befunde);
   return { ok: neu.length === 0, anzahl: ok.length, fehler: neu.slice(0, 20) };
 }
 

@@ -17,7 +17,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { findeBasis, mitSchreiber } from "../tools/lib/generationen.mjs";
 import { SperreBelegt } from "../tools/lib/schreibsperre.mjs";
 import { bestandFingerabdruck, veraltetMeldung } from "../tools/lib/fingerabdruck.mjs";
-import { validatorFehler } from "../tools/lib/schreiblauf.mjs";
+import { neueMeldungen, validatorBefunde, validatorFehler } from "../tools/lib/schreiblauf.mjs";
 
 // Fingerabdruck aus der Vorschau, gegen den ein Schreibaufruf laufen soll
 // (rufeWerkzeug setzt ihn je Aufruf). mitRollback prueft ihn unter der Sperre.
@@ -77,7 +77,7 @@ export async function mitRollback(datenrootPfad, fn, { rueckrollungBeiFehler = t
         const aktuell = await bestandFingerabdruck(datenrootPfad);
         if (aktuell !== erwartet) throw new Abbruch({ text: veraltetMeldung(datenrootPfad, erwartet, aktuell), isError: true });
       }
-      vorher = await validatorFehler(tx.ordner);
+      vorher = await validatorBefunde(tx.ordner);
       try {
         ergebnis = await fn({ ordner: tx.ordner, sperre: tx.sperre ? { kennung: tx.sperre } : null, pfad: entwurfsAbbildung(datenrootPfad, tx.ordner) });
       } catch (error) {
@@ -89,9 +89,8 @@ export async function mitRollback(datenrootPfad, fn, { rueckrollungBeiFehler = t
     }, {
       wer: werkzeugName.getStore() ? `MCP ${werkzeugName.getStore()}` : "MCP",
       pruefe: async (ordner) => {
-        nachher = await validatorFehler(ordner);
-        const bekannt = new Set(vorher);
-        return nachher.filter((f) => !bekannt.has(f));
+        nachher = await validatorBefunde(ordner);
+        return neueMeldungen(vorher, nachher);
       },
     });
   } catch (error) {

@@ -29,6 +29,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { runImport } from "./import.mjs";
 import { normalizeCsv } from "./normalize.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
+import { neueFehler } from "./lib/validator-befund.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { alsBestandsPfad } from "./lib/schreiblauf.mjs";
@@ -379,8 +380,8 @@ async function main() {
   // Erst den neuen Bestand pruefen: bringt der Lauf neue Validatorfehler, wird
   // nichts geschrieben und keine Quelle verschoben.
   const bestand = await loadMasterData(masterRoot);
-  const bekannt = new Set(validateMasterData(bestand).errors);
-  const neu = validateMasterData({ ...bestand, transaktionen, transfers }).errors.filter((f) => !bekannt.has(f));
+  const bekannt = validateMasterData(bestand).befunde;
+  const neu = neueFehler(bekannt, validateMasterData({ ...bestand, transaktionen, transfers }).befunde);
   if (neu.length) {
     ausgeben();
     console.error("Validierung des neuen Bestands fehlgeschlagen — nichts geschrieben, keine Datei verschoben:");
@@ -412,7 +413,7 @@ async function main() {
 
   // Archiviert wird erst, wenn der geschriebene Bestand keine neuen Fehler hat.
   const validation = validateMasterData(await loadMasterData(masterRoot));
-  const neuNachher = validation.errors.filter((f) => !bekannt.has(f));
+  const neuNachher = neueFehler(bekannt, validation.befunde);
   if (neuNachher.length) {
     ausgeben();
     console.error("Validierung nach dem Schreiben fehlgeschlagen — keine Datei verschoben:");

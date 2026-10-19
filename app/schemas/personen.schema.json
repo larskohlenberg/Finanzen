@@ -8,7 +8,7 @@
     "additionalProperties": false,
     "required": ["person_id", "name", "status"],
     "properties": {
-      "person_id": { "type": "string", "pattern": "^PER-\\d{3}$" },
+      "person_id": { "type": "string", "pattern": "^PER-\\d{3,}$" },
       "name": { "type": "string", "minLength": 1 },
       "status": { "type": "string", "enum": ["aktiv", "inaktiv"] },
       "aktiv_bis": { "type": "string", "format": "date" }

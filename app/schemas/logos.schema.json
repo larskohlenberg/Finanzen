@@ -7,7 +7,7 @@
     "required": ["logo_id", "name", "gegenpartei_pattern", "domain", "datei", "quelle", "abgerufen_am"],
     "additionalProperties": false,
     "properties": {
-      "logo_id": { "type": "string", "pattern": "^LOGO-\\d{3}$" },
+      "logo_id": { "type": "string", "pattern": "^LOGO-\\d{3,}$" },
       "name": { "type": "string", "minLength": 1 },
       "gegenpartei_pattern": { "type": "string", "minLength": 1, "description": "Teiltext wie bei den Kategorisierungsregeln, | trennt Alternativen" },
       "domain": { "type": "string", "description": "eindeutig je Eintrag, ohne www." },

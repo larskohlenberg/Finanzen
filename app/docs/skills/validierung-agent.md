@@ -33,8 +33,9 @@ Nicht nutzen fuer:
 
 1. **Validator ausfuehren.** Starte `node tools/validator.mjs DATENROOT` aus
    dem App-Raum (MCP: `status` liefert alle Validatorfehler) und uebernimm die Fehler nicht aus der UI ungeprueft.
-2. **Fehler gruppieren.** Ordne Fehler nach Datei, Schemafeld und Ursache
-   (Format, Pflichtfeld, Referenz, Cross-Field-Regel).
+2. **Fehler gruppieren.** Jeder Befund hat einen stabilen Code (`pflichtfeld`,
+   `format`, `verweis`, `doppelt`, `kategorisierung-zustand`, ...), die
+   Sammlung, das Objekt (ID) und das Feld; gruppiere danach.
 3. **Betroffene Daten read-only pruefen.** Lies nur die genannten Dateien und die
    relevanten Schemas. Keine Nebenbaustellen suchen.
 4. **Kleinste valide Korrektur vorschlagen.** Erklaere Ursache und konkrete
@@ -52,12 +53,11 @@ Nicht nutzen fuer:
 
 Der Validator prueft neben Schema-Konformitaet auch:
 
-- **`matched_regeln`-Invariante:** `matched_regeln` darf nur bei
-  `kategorie_herkunft = regel` oder bei `kategorisierung_status = offen` mit
-  Regelkonflikt vorhanden sein. Bei `kategorie_herkunft = manuell`,
-  `kategorie_herkunft = agent` und `kategorisierung_status = abgelehnt` ist das
-  Feld verboten. Der Validator meldet es als Fehler, wenn `matched_regeln` dort
-  trotzdem gesetzt ist.
+- **Zustandstabelle der Kategorisierung:** Status, Herkunft,
+  `bestaetigt_durch`, `matched_regeln` und `kategorie_id` duerfen nur in den
+  Kombinationen der Tabelle in `docs/agent-context.md` („Zustandstabelle")
+  vorkommen (Code `kategorisierung-zustand`). Die Korrektur laeuft ueber die
+  Fachwerkzeuge (`bestaetigen`, `nachkategorisieren`), nicht durch Feldedits.
 - **Referenzpruefung fuer `matched_regeln`:** Jede ID in `matched_regeln` muss
   in `DATENROOT/kategorisierungsregeln.json` als bekannte Regel existieren.
   Unbekannte IDs sind ein Validierungsfehler.

@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { toCents, centsToDecimal, dayDiff, normalizeLoose, normalizeWhitespace } from "./lib/text.mjs";
 import { addInterval } from "../liquiditaet.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
-import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
+import { meldeNachSchreiben, validatorBefunde } from "./lib/validator-befund.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { ersetzeDatei } from "./lib/datei.mjs";
 
@@ -330,7 +330,7 @@ async function main() {
     return;
   }
 
-  const vorher = await validatorFehler(masterRoot);
+  const vorher = await validatorBefunde(masterRoot);
   await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
   await meldeNachSchreiben(masterRoot, vorher, "Validierung nach Regelzahlungs-Zuordnung fehlgeschlagen");
 }

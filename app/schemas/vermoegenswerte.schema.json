@@ -7,7 +7,7 @@
     "required": ["vermoegenswert_id", "typ", "bezeichnung", "eigentumsanteile", "status"],
     "additionalProperties": false,
     "properties": {
-      "vermoegenswert_id": { "type": "string", "pattern": "^VMW-\\d{3}$" },
+      "vermoegenswert_id": { "type": "string", "pattern": "^VMW-\\d{3,}$" },
       "typ": { "type": "string", "enum": ["edelmetall", "beteiligung", "sonstiges"] },
       "bezeichnung": { "type": "string", "minLength": 1 },
       "eigentumsanteile": {
@@ -18,7 +18,7 @@
           "required": ["person_id", "zaehler", "nenner"],
           "additionalProperties": false,
           "properties": {
-            "person_id": { "type": "string", "pattern": "^PER-\\d{3}$" },
+            "person_id": { "type": "string", "pattern": "^PER-\\d{3,}$" },
             "zaehler": { "type": "integer", "minimum": 1 },
             "nenner": { "type": "integer", "minimum": 1 }
           }

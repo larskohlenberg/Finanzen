@@ -20,7 +20,7 @@ import { pflichtDatenroot } from "./data-root.mjs";
 import { bestandFingerabdruck } from "./lib/fingerabdruck.mjs";
 import { aktuelleId, findeBasis, generationsOrdner, OhneVerlauf, oeffneGeneration, oeffneLeser, rueckgaengig, rueckgaengigZiel, StandVeraltet } from "./lib/generationen.mjs";
 import { SperreBelegt } from "./lib/schreibsperre.mjs";
-import { validatorFehler, VERALTET_EXITCODE, GESPERRT_EXITCODE } from "./lib/schreiblauf.mjs";
+import { neueMeldungen, validatorBefunde, VERALTET_EXITCODE, GESPERRT_EXITCODE } from "./lib/schreiblauf.mjs";
 import { aenderungsText, vergleicheLeser } from "./lib/verlauf.mjs";
 
 const zeitText = (iso) => (iso ? `${iso.replace("T", " ").slice(0, 19)} UTC` : "Zeit unbekannt");
@@ -74,10 +74,9 @@ export async function rueckgaengigSchreiben(datenroot, { schritte = 1, ziel, erw
       erwartet: String(erwartet).replace(/^G/, ""),
       // Unter der Sperre ist der bisher aktuelle Stand noch aktuell.
       pruefe: async (ordner) => {
-        vorher = await validatorFehler(generationsOrdner(basis, await aktuelleId(basis)));
-        nachher = await validatorFehler(ordner);
-        const bekannt = new Set(vorher);
-        return nachher.filter((f) => !bekannt.has(f));
+        vorher = await validatorBefunde(generationsOrdner(basis, await aktuelleId(basis)));
+        nachher = await validatorBefunde(ordner);
+        return neueMeldungen(vorher, nachher);
       },
     });
   } catch (error) {

@@ -12,6 +12,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadMasterData, validateMasterData } from "../validator.mjs";
+import { neueBefunde } from "../validate-core.mjs";
 import { dataRootFromArg } from "../data-root.mjs";
 import { findeBasis, mitSchreiber, StandVeraltet } from "./generationen.mjs";
 import { SperreBelegt, UMGEBUNG as SPERRE_UMGEBUNG } from "./schreibsperre.mjs";
@@ -46,12 +47,23 @@ export function alsBestandsPfad(pfad) {
   return path.join(path.resolve(bestand), rel);
 }
 
-export async function validatorFehler(ordner) {
+// Befunde mit stabilem Code/Objekt/Feld (validate-core); verglichen wird
+// vorher/nachher ueber neueMeldungen, nie ueber den Text.
+export async function validatorBefunde(ordner) {
   try {
-    return validateMasterData(await loadMasterData(pathToFileURL(`${ordner}${path.sep}`))).errors;
+    return validateMasterData(await loadMasterData(pathToFileURL(`${ordner}${path.sep}`))).befunde;
   } catch (error) {
-    return [`Masterdaten nicht lesbar: ${error.message}`];
+    return [{ code: "nicht-lesbar", stufe: "fehler", sammlung: "Bestand", objekt: null, feld: null, meldung: `Masterdaten nicht lesbar: ${error.message}` }];
   }
+}
+
+export async function validatorFehler(ordner) {
+  return (await validatorBefunde(ordner)).map((b) => b.meldung);
+}
+
+// Meldungen der Befunde, die vorher nicht da waren.
+export function neueMeldungen(vorher, nachher) {
+  return neueBefunde(vorher, nachher).map((b) => (typeof b === "string" ? b : b.meldung));
 }
 
 // Ersetzt im argv der CLI das Argument, das den Datenroot nennt (als eigenes
@@ -106,15 +118,14 @@ export async function schreibeImEntwurf(datenroot, argv, { erwartet, fingerabdru
         const aktuell = await fingerabdruck(datenroot);
         if (aktuell !== erwartet) throw new StandVeraltet(datenroot, erwartet, aktuell);
       }
-      vorher = await validatorFehler(tx.ordner);
+      vorher = await validatorBefunde(tx.ordner);
       const env = { ...process.env, [ENTWURF_UMGEBUNG]: tx.ordner, [BESTAND_UMGEBUNG]: path.resolve(datenroot), ...(tx.sperre ? { [SPERRE_UMGEBUNG]: tx.sperre } : {}) };
       kindCode = await starteKind(argvImEntwurf(argv, datenroot, tx.ordner), env);
       if (!okCodes.includes(kindCode) && !aussenWirkung) throw new Werkzeugfehler(kindCode);
     }, {
       wer: path.basename(process.argv[1] ?? "node"),
       pruefe: async (ordner) => {
-        const bekannt = new Set(vorher);
-        return (await validatorFehler(ordner)).filter((f) => !bekannt.has(f));
+        return neueMeldungen(vorher, await validatorBefunde(ordner));
       },
     });
     if (r.verworfen) {

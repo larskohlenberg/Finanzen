@@ -62,7 +62,7 @@ function strukturFehler(kandidaten, bestandsRegeln, kategorieIds, aenderung) {
     for (const feld of Object.keys(r)) {
       if (!ERLAUBTE_FELDER.has(feld)) fehler.push(`${id}: unbekanntes Feld ${feld}`);
     }
-    if (!/^REG-\d{3}$/.test(r.regel_id ?? "")) fehler.push(`${id}: regel_id muss dem Muster REG-NNN folgen`);
+    if (!/^REG-\d{3,}$/.test(r.regel_id ?? "")) fehler.push(`${id}: regel_id muss dem Muster REG-NNN folgen`);
     if (gesehen.has(r.regel_id)) fehler.push(`${id}: regel_id doppelt im Kandidatensatz`);
     gesehen.add(r.regel_id);
     // Ohne --aenderung ist eine schon vergebene ID ein Versehen (ID-Zaehler

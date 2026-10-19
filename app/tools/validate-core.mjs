@@ -14,7 +14,7 @@ const schemas = {
   personen: {
     required: ["person_id", "name", "status"],
     fields: {
-      person_id: { type: "string", pattern: /^PER-\d{3}$/ },
+      person_id: { type: "string", pattern: /^PER-\d{3,}$/ },
       name: { type: "string", minLength: 1 },
       status: { type: "string", enum: ["aktiv", "inaktiv"] },
       aktiv_bis: { type: "string", format: "date" },
@@ -23,11 +23,11 @@ const schemas = {
   konten: {
     required: ["konto_id", "name", "kontotyp", "inhaber_person_ids", "liquiditaetsrelevant", "status"],
     fields: {
-      konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
+      konto_id: { type: "string", pattern: /^KTO-\d{3,}$/ },
       name: { type: "string", minLength: 1 },
       kontotyp: { type: "string", enum: ["giro", "spar", "tagesgeld", "festgeld", "depot", "kreditkarte", "bar"] },
       kontoreferenz: { type: "string", minLength: 1 },
-      inhaber_person_ids: { type: "array", minItems: 1, itemPattern: /^PER-\d{3}$/, uniqueItems: true },
+      inhaber_person_ids: { type: "array", minItems: 1, itemPattern: /^PER-\d{3,}$/, uniqueItems: true },
       liquiditaetsrelevant: { type: "boolean" },
       status: { type: "string", enum: ["aktiv", "geschlossen"] },
       aktiv_bis: { type: "string", format: "date" },
@@ -36,7 +36,7 @@ const schemas = {
   kategorien: {
     required: ["kategorie_id", "name", "typ", "lebenshaltung_relevant", "status"],
     fields: {
-      kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
+      kategorie_id: { type: "string", pattern: /^KAT-\d{3,}$/ },
       name: { type: "string", minLength: 1 },
       typ: { type: "string", enum: ["einnahme", "ausgabe", "neutral"] },
       lebenshaltung_relevant: { type: "boolean" },
@@ -66,17 +66,17 @@ const schemas = {
       transaktion_id: { type: "string", pattern: TXN_ID },
       dedupe_hash: { type: "string", minLength: 1 },
       rohquelle: { type: "string", minLength: 1 },
-      konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
+      konto_id: { type: "string", pattern: /^KTO-\d{3,}$/ },
       buchungsdatum: { type: "string", format: "date" },
       betrag: { type: "string", money: true },
       gegenpartei: { type: "string" },
       verwendungszweck: { type: "string" },
       kategorisierung_status: { type: "string", enum: ["offen", "vorgeschlagen", "bestaetigt", "abgelehnt"] },
       ist_transfer: { type: "boolean" },
-      kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
+      kategorie_id: { type: "string", pattern: /^KAT-\d{3,}$/ },
       kategorie_herkunft: { type: "string", enum: ["regel", "agent", "manuell"] },
       bestaetigt_durch: { type: "string", enum: ["auto", "mensch"] },
-      matched_regeln: { type: "array", itemPattern: /^REG-\d{3}$/ },
+      matched_regeln: { type: "array", itemPattern: /^REG-\d{3,}$/ },
       bank_referenz: { type: "string" },
       wertstellungsdatum: { type: "string", format: "date" },
       transaktionstyp: { type: "string" },
@@ -85,8 +85,8 @@ const schemas = {
       empfaenger_iban: { type: "string" },
       mandatsreferenz: { type: "string" },
       glaeubiger_id: { type: "string" },
-      regelzahlung_id: { type: "string", pattern: /^RZ-\d{3}$/ },
-      immobilie_id: { type: "string", pattern: /^IMM-\d{3}$/ },
+      regelzahlung_id: { type: "string", pattern: /^RZ-\d{3,}$/ },
+      immobilie_id: { type: "string", pattern: /^IMM-\d{3,}$/ },
       transfer_id: { type: "string", pattern: TRF_ID },
       bemerkung: { type: "string" },
     },
@@ -107,7 +107,7 @@ const schemas = {
     optional: true,
     required: ["regelzahlung_id", "bezeichnung", "betrag", "rhythmus_einheit", "rhythmus_intervall", "anker_datum", "status", "erstellt_am", "qualitaet"],
     fields: {
-      regelzahlung_id: { type: "string", pattern: /^RZ-\d{3}$/ },
+      regelzahlung_id: { type: "string", pattern: /^RZ-\d{3,}$/ },
       bezeichnung: { type: "string", minLength: 1 },
       betrag: { type: "string", money: true },
       rhythmus_einheit: { type: "string", enum: ["tag", "woche", "monat", "jahr"] },
@@ -115,10 +115,10 @@ const schemas = {
       anker_datum: { type: "string", format: "date" },
       aktiv_bis: { type: "string", format: "date" },
       status: { type: "string", enum: ["vorgeschlagen", "bestaetigt", "abgelehnt"] },
-      kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
-      darlehen_id: { type: "string", pattern: /^DAR-\d{3}$/ },
-      vorsorge_id: { type: "string", pattern: /^VS-\d{3}$/ },
-      konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
+      kategorie_id: { type: "string", pattern: /^KAT-\d{3,}$/ },
+      darlehen_id: { type: "string", pattern: /^DAR-\d{3,}$/ },
+      vorsorge_id: { type: "string", pattern: /^VS-\d{3,}$/ },
+      konto_id: { type: "string", pattern: /^KTO-\d{3,}$/ },
       erstellt_am: { type: "string", format: "date" },
       qualitaet: { type: "string", enum: ["belegt", "geschaetzt"] },
       quelle_hinweis: { type: "string" },
@@ -130,18 +130,18 @@ const schemas = {
     optional: true,
     required: ["frist_id", "bezeichnung", "art", "datum"],
     fields: {
-      frist_id: { type: "string", pattern: /^FR-\d{3}$/ },
+      frist_id: { type: "string", pattern: /^FR-\d{3,}$/ },
       bezeichnung: { type: "string", minLength: 1 },
       art: { type: "string", enum: ["widerspruch", "kuendigung", "entscheidung", "wiedervorlage", "sonstiges"] },
       datum: { type: "string", format: "date" },
       rhythmus_einheit: { type: "string", enum: ["tag", "woche", "monat", "jahr"] },
       rhythmus_intervall: { type: "number", integer: true, min: 1 },
-      vorsorge_id: { type: "string", pattern: /^VS-\d{3}$/ },
-      darlehen_id: { type: "string", pattern: /^DAR-\d{3}$/ },
-      immobilie_id: { type: "string", pattern: /^IMM-\d{3}$/ },
-      konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
-      vermoegenswert_id: { type: "string", pattern: /^VMW-\d{3}$/ },
-      regelzahlung_id: { type: "string", pattern: /^RZ-\d{3}$/ },
+      vorsorge_id: { type: "string", pattern: /^VS-\d{3,}$/ },
+      darlehen_id: { type: "string", pattern: /^DAR-\d{3,}$/ },
+      immobilie_id: { type: "string", pattern: /^IMM-\d{3,}$/ },
+      konto_id: { type: "string", pattern: /^KTO-\d{3,}$/ },
+      vermoegenswert_id: { type: "string", pattern: /^VMW-\d{3,}$/ },
+      regelzahlung_id: { type: "string", pattern: /^RZ-\d{3,}$/ },
       erledigt_bis: { type: "string", format: "date" },
       bemerkung: { type: "string" },
     },
@@ -150,7 +150,7 @@ const schemas = {
     optional: true,
     required: ["szenario_id", "name", "status", "stand", "reichweite_bis", "erstellt_am", "annahmen"],
     fields: {
-      szenario_id: { type: "string", pattern: /^SZN-\d{3}$/ },
+      szenario_id: { type: "string", pattern: /^SZN-\d{3,}$/ },
       name: { type: "string", minLength: 1 },
       beschreibung: { type: "string" },
       status: { type: "string", enum: ["entwurf", "bestaetigt", "verworfen"] },
@@ -165,7 +165,7 @@ const schemas = {
     optional: true,
     required: ["immobilie_id", "bezeichnung", "eigentumsanteile", "status"],
     fields: {
-      immobilie_id: { type: "string", pattern: /^IMM-\d{3}$/ },
+      immobilie_id: { type: "string", pattern: /^IMM-\d{3,}$/ },
       bezeichnung: { type: "string", minLength: 1 },
       eigentumsanteile: { type: "array", minItems: 1 },
       status: { type: "string", enum: ["aktiv", "verkauft"] },
@@ -185,7 +185,7 @@ const schemas = {
     optional: true,
     required: ["darlehen_id", "bezeichnung", "status", "anfangsbetrag", "anfangsdatum", "zinssatz", "sollrate", "rhythmus_einheit", "rhythmus_intervall"],
     fields: {
-      darlehen_id: { type: "string", pattern: /^DAR-\d{3}$/ },
+      darlehen_id: { type: "string", pattern: /^DAR-\d{3,}$/ },
       bezeichnung: { type: "string", minLength: 1 },
       status: { type: "string", enum: ["aktiv", "abgeloest"] },
       anfangsbetrag: { type: "string", money: true, nonNegative: true },
@@ -196,8 +196,8 @@ const schemas = {
       rhythmus_intervall: { type: "number", integer: true, min: 1 },
       laufzeit_bis: { type: "string", format: "date" },
       restschuld_laufzeitende: { type: "string", money: true, nonNegative: true },
-      immobilie_id: { type: "string", pattern: /^IMM-\d{3}$/ },
-      konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
+      immobilie_id: { type: "string", pattern: /^IMM-\d{3,}$/ },
+      konto_id: { type: "string", pattern: /^KTO-\d{3,}$/ },
       zinsbindung_bis: { type: "string", format: "date" },
       aktiv_bis: { type: "string", format: "date" },
       quelle_hinweis: { type: "string" },
@@ -209,7 +209,7 @@ const schemas = {
     optional: true,
     required: ["vermoegenswert_id", "typ", "bezeichnung", "eigentumsanteile", "status"],
     fields: {
-      vermoegenswert_id: { type: "string", pattern: /^VMW-\d{3}$/ },
+      vermoegenswert_id: { type: "string", pattern: /^VMW-\d{3,}$/ },
       typ: { type: "string", enum: ["edelmetall", "beteiligung", "sonstiges"] },
       bezeichnung: { type: "string", minLength: 1 },
       eigentumsanteile: { type: "array", minItems: 1 },
@@ -224,18 +224,18 @@ const schemas = {
     optional: true,
     required: ["vorsorge_id", "art", "name", "person_id", "status", "kapitalbildend"],
     fields: {
-      vorsorge_id: { type: "string", pattern: /^VS-\d{3}$/ },
+      vorsorge_id: { type: "string", pattern: /^VS-\d{3,}$/ },
       art: { type: "string", enum: ["lebensversicherung", "rentenversicherung", "gesetzliche-rente", "betriebsrente", "riester", "ruerup", "schutzversicherung", "sonstig"] },
       name: { type: "string", minLength: 1 },
       versicherungsnummer: { type: "string", minLength: 1 },
-      person_id: { type: "string", pattern: /^PER-\d{3}$/ },
+      person_id: { type: "string", pattern: /^PER-\d{3,}$/ },
       status: { type: "string", enum: ["aktiv", "gekuendigt", "ruhend", "geplant", "laufend", "beendet"] },
       kapitalbildend: { type: "boolean" },
       kapitalwahl: { type: "string", enum: ["offen", "monatsrente", "kapital"] },
       sparte: { type: "string", enum: ["kfz", "haftpflicht", "rechtsschutz", "hausrat", "wohngebaeude", "photovoltaik", "berufsunfaehigkeit", "pflege", "krankenzusatz", "unfall", "risikoleben", "reise", "sonstige"] },
       geprueft_am: { type: "string", format: "date" },
       leistung_beginn: { type: "string", format: "date" },
-      ersetzt_vorsorge_id: { type: "string", pattern: /^VS-\d{3}$/ },
+      ersetzt_vorsorge_id: { type: "string", pattern: /^VS-\d{3,}$/ },
       aktiv_bis: { type: "string", format: "date" },
       quelle_hinweis: { type: "string" },
       quelle_standdatum: { type: "string", format: "date" },
@@ -248,12 +248,12 @@ const schemas = {
     optional: true,
     required: ["regel_id", "kategorie_id", "status", "erstellt_am", "kommentar"],
     fields: {
-      regel_id: { type: "string", pattern: /^REG-\d{3}$/ },
+      regel_id: { type: "string", pattern: /^REG-\d{3,}$/ },
       gegenpartei_pattern: { type: "string", minLength: 1 },
       verwendungszweck_pattern: { type: "string", minLength: 1 },
-      konto_id: { type: "string", pattern: /^KTO-\d{3}$/ },
+      konto_id: { type: "string", pattern: /^KTO-\d{3,}$/ },
       vorzeichen: { type: "string", enum: ["einnahme", "ausgabe"] },
-      kategorie_id: { type: "string", pattern: /^KAT-\d{3}$/ },
+      kategorie_id: { type: "string", pattern: /^KAT-\d{3,}$/ },
       status: { type: "string", enum: ["aktiv", "inaktiv"] },
       erstellt_am: { type: "string", format: "date" },
       kommentar: { type: "string", minLength: 1 },
@@ -264,7 +264,7 @@ const schemas = {
     optional: true,
     required: ["logo_id", "name", "gegenpartei_pattern", "domain", "datei", "quelle", "abgerufen_am"],
     fields: {
-      logo_id: { type: "string", pattern: /^LOGO-\d{3}$/ },
+      logo_id: { type: "string", pattern: /^LOGO-\d{3,}$/ },
       name: { type: "string", minLength: 1 },
       gegenpartei_pattern: { type: "string", minLength: 1 },
       domain: { type: "string", pattern: /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/ },
@@ -313,10 +313,16 @@ const erlaubteVorsorgeStatusJeArt = new Map([
 
 // Liefert immer einen Bericht, auch bei kaputter Struktur: erst Struktur pruefen,
 // dann die Querbezuege nur ueber die strukturell lesbaren Teile (strukturSicher).
+//
+// Ergebnis: `errors` (Meldungstexte, wie bisher) und `befunde` in derselben
+// Reihenfolge, je { code, stufe, sammlung, objekt, feld, meldung }. `code` ist
+// stabil je Pruefung, `objekt` die ID des Datensatzes (nie der Zeilenindex,
+// wo eine ID lesbar ist): Rueckrollung und Schreiblaeufe vergleichen vorher und
+// nachher ueber neueBefunde, nicht ueber den Text.
 export function validateMasterData(data) {
   const errors = [];
   if (!istObjekt(data)) {
-    errors.push("Bestand: muss ein Objekt sein");
+    melde(errors, "typ", "Bestand", "muss ein Objekt sein");
     data = {};
   }
 
@@ -330,13 +336,67 @@ export function validateMasterData(data) {
   try {
     validateCrossFieldRules(strukturSicher(data), errors);
   } catch (error) {
-    errors.push(`Querpruefung abgebrochen: ${error?.message ?? error}`);
+    melde(errors, "konsistenz", `Querpruefung abgebrochen`, `${error?.message ?? error}`);
   }
 
   return {
     valid: errors.length === 0,
-    errors,
+    errors: errors.map((b) => b.meldung),
+    befunde: errors,
   };
+}
+
+// Haengt einen Befund an. `pfad` ist der lesbare Ort wie bisher
+// ("transaktionen.TXN-….kategorie_id", "konten[3].name"); Sammlung, Objekt und
+// Feld werden daraus gelesen, `objekt` laesst sich ueberschreiben (Zeilenindex
+// durch ID ersetzen, Zeitwerte ohne eigene ID).
+function melde(befunde, code, pfad, text, objekt) {
+  const ort = zerlegePfad(pfad);
+  befunde.push({
+    code,
+    stufe: "fehler",
+    sammlung: ort.sammlung,
+    objekt: objekt ?? ort.objekt,
+    feld: ort.feld,
+    text,
+    meldung: `${pfad}: ${text}`,
+  });
+}
+
+function zerlegePfad(pfad) {
+  const m = /^([a-z_]+)(?:\[(\d+)\]|\.([^.]+))?(?:\.(.+))?$/i.exec(pfad);
+  if (!m) return { sammlung: pfad, objekt: null, feld: null };
+  return { sammlung: m[1], objekt: m[2] !== undefined ? `#${m[2]}` : (m[3] ?? null), feld: m[4] ?? null };
+}
+
+// Zum Ort gehoert auch die Art der Pruefung: der Meldungstext ohne die
+// eingesetzten Werte (IDs, Zahlen, Zeilenindex). Sonst fielen verschiedene
+// Pruefungen am selben Objekt ohne eigenes Feld (Szenario-Annahmen,
+// Transfers) zusammen, und ein neuer Fehler versteckte sich hinter einem alten.
+function pruefungsArt(text) {
+  return String(text ?? "").replace(/\b[A-Z]{2,4}-[0-9a-f-]+\b/g, "<id>").replace(/\d+/g, "#");
+}
+
+function befundSchluessel(b) {
+  return typeof b === "string" ? b : `${b.code}|${b.sammlung}|${b.objekt ?? ""}|${b.feld ?? ""}|${pruefungsArt(b.text)}`;
+}
+
+// Befunde in `nachher`, die `vorher` nicht hatte, als Multimenge ueber
+// (Code, Sammlung, Objekt, Feld, Art der Pruefung): ein Datensatz, der nur weiterrueckt, bleibt
+// derselbe Befund; ein zweiter gleichartiger Fehler am selben Ort ist neu.
+// Nimmt auch reine Meldungstexte (dann zaehlt der Text).
+export function neueBefunde(vorher, nachher) {
+  const bekannt = new Map();
+  for (const b of vorher) bekannt.set(befundSchluessel(b), (bekannt.get(befundSchluessel(b)) ?? 0) + 1);
+  return nachher.filter((b) => {
+    const k = befundSchluessel(b);
+    const n = bekannt.get(k) ?? 0;
+    if (n > 0) {
+      bekannt.set(k, n - 1);
+      return false;
+    }
+    return true;
+  });
 }
 
 function istObjekt(value) {
@@ -358,33 +418,35 @@ export function strukturSicher(data) {
 
 function validateCollection(collectionName, collection, schema, errors) {
   if (!Array.isArray(collection)) {
-    errors.push(`${collectionName}: muss eine Liste sein`);
+    melde(errors, "typ", `${collectionName}`, `muss eine Liste sein`);
     return;
   }
 
+  const idField = primaryIdField(schema);
   collection.forEach((item, index) => {
     const path = `${collectionName}[${index}]`;
     if (!istObjekt(item)) {
-      errors.push(`${path}: muss ein Objekt sein`);
+      melde(errors, "typ", `${path}`, `muss ein Objekt sein`);
       return;
     }
+    // Objekt im Befund: die ID, wenn lesbar, sonst Zeitwert-Schluessel oder Index.
+    const objekt = objektKennung(collectionName, item, idField) ?? `#${index}`;
 
     for (const field of schema.required) {
       if (!Object.hasOwn(item, field)) {
-        errors.push(`${path}.${field}: Pflichtfeld fehlt`);
+        melde(errors, "pflichtfeld", `${path}.${field}`, `Pflichtfeld fehlt`, objekt);
       }
     }
 
     for (const field of Object.keys(item)) {
       if (!Object.hasOwn(schema.fields, field)) {
-        errors.push(`${path}.${field}: unbekanntes Feld`);
+        melde(errors, "unbekanntes-feld", `${path}.${field}`, `unbekanntes Feld`, objekt);
         continue;
       }
-      validateField(`${path}.${field}`, item[field], schema.fields[field], errors);
+      validateField(`${path}.${field}`, item[field], schema.fields[field], errors, objekt);
     }
   });
 
-  const idField = primaryIdField(schema);
   if (idField) {
     const seen = new Map();
     collection.forEach((item, index) => {
@@ -393,7 +455,7 @@ function validateCollection(collectionName, collection, schema, errors) {
       if (typeof id !== "string") return;
       const path = `${collectionName}[${index}].${idField}`;
       if (seen.has(id)) {
-        errors.push(`${path}: ${id} doppelt mit ${seen.get(id)}`);
+        melde(errors, "doppelt", `${path}`, `${id} doppelt mit ${seen.get(id)}`, id);
       } else {
         seen.set(id, `${collectionName}[${index}]`);
       }
@@ -401,31 +463,41 @@ function validateCollection(collectionName, collection, schema, errors) {
   }
 }
 
+function objektKennung(collectionName, item, idField) {
+  if (collectionName === "zeitwerte") return zeitwertKennung(item);
+  return idField && typeof item[idField] === "string" ? item[idField] : null;
+}
+
+// Zeitwerte haben keine eigene ID; fachlich eindeutig ist (Entitaet, ID, Feld, Datum).
+function zeitwertKennung(zw) {
+  return [zw.entitaet, zw.entitaet_id, zw.feld, zw.standdatum].map((t) => (typeof t === "string" ? t : "?")).join(":");
+}
+
 function primaryIdField(schema) {
   return schema.required.find((field) => field.endsWith("_id") && schema.fields[field]?.pattern);
 }
 
-function validateField(path, value, rule, errors) {
+function validateField(path, value, rule, errors, objekt) {
   if (rule.type === "array") {
     if (!Array.isArray(value)) {
-      errors.push(`${path}: muss eine Liste sein`);
+      melde(errors, "typ", `${path}`, `muss eine Liste sein`, objekt);
       return;
     }
     if (rule.minItems && value.length < rule.minItems) {
-      errors.push(`${path}: braucht mindestens ${rule.minItems} Eintrag`);
+      melde(errors, "zahl", `${path}`, `braucht mindestens ${rule.minItems} Eintrag`, objekt);
     }
     if (rule.uniqueItems && new Set(value).size !== value.length) {
-      errors.push(`${path}: Eintraege muessen eindeutig sein`);
+      melde(errors, "doppelt", `${path}`, `Eintraege muessen eindeutig sein`, objekt);
     }
     if (rule.itemEnum) {
       value.forEach((entry, index) => {
-        if (!rule.itemEnum.includes(entry)) errors.push(`${path}[${index}]: Wert nicht erlaubt`);
+        if (!rule.itemEnum.includes(entry)) melde(errors, "wert-nicht-erlaubt", `${path}[${index}]`, `Wert nicht erlaubt`, objekt);
       });
     }
     if (rule.itemPattern) {
       value.forEach((entry, index) => {
         if (typeof entry !== "string" || !rule.itemPattern.test(entry)) {
-          errors.push(`${path}[${index}]: Format ungueltig`);
+          melde(errors, "format", `${path}[${index}]`, `Format ungueltig`, objekt);
         }
       });
     }
@@ -433,32 +505,32 @@ function validateField(path, value, rule, errors) {
   }
 
   if (typeof value !== rule.type) {
-    errors.push(`${path}: muss ${rule.type} sein`);
+    melde(errors, "typ", `${path}`, `muss ${rule.type} sein`, objekt);
     return;
   }
   if (rule.integer && !Number.isInteger(value)) {
-    errors.push(`${path}: muss eine Ganzzahl sein`);
+    melde(errors, "zahl", `${path}`, `muss eine Ganzzahl sein`, objekt);
   }
   if (rule.min !== undefined && value < rule.min) {
-    errors.push(`${path}: muss mindestens ${rule.min} sein`);
+    melde(errors, "zahl", `${path}`, `muss mindestens ${rule.min} sein`, objekt);
   }
   if (rule.minLength && value.length < rule.minLength) {
-    errors.push(`${path}: darf nicht leer sein`);
+    melde(errors, "leer", `${path}`, `darf nicht leer sein`, objekt);
   }
   if (rule.enum && !rule.enum.includes(value)) {
-    errors.push(`${path}: Wert nicht erlaubt`);
+    melde(errors, "wert-nicht-erlaubt", `${path}`, `Wert nicht erlaubt`, objekt);
   }
   if (rule.pattern && !rule.pattern.test(value)) {
-    errors.push(`${path}: Format ungueltig`);
+    melde(errors, "format", `${path}`, `Format ungueltig`, objekt);
   }
   if (rule.money && !istGueltigerBetrag(value)) {
-    errors.push(`${path}: kein gueltiger Betrag (zwei Nachkommastellen, keine fuehrenden Nullen, kein -0.00)`);
+    melde(errors, "betrag", `${path}`, `kein gueltiger Betrag (zwei Nachkommastellen, keine fuehrenden Nullen, kein -0.00)`, objekt);
   }
   if (rule.nonNegative && istGueltigerBetrag(value) && value.startsWith("-")) {
-    errors.push(`${path}: darf nicht negativ sein`);
+    melde(errors, "betrag-negativ", `${path}`, `darf nicht negativ sein`, objekt);
   }
   if (rule.format === "date" && !isIsoDate(value)) {
-    errors.push(`${path}: muss ISO-Datum YYYY-MM-DD sein`);
+    melde(errors, "datum", `${path}`, `muss ISO-Datum YYYY-MM-DD sein`, objekt);
   }
 }
 
@@ -468,7 +540,79 @@ function validateVorsorgeStatusJeArt(vs, errors) {
   const erlaubteStatus = erlaubteVorsorgeStatusJeArt.get(vs.art);
   if (!erlaubteStatus || erlaubteStatus.includes(vs.status)) return;
 
-  errors.push(`vorsorge.${vs.vorsorge_id}.status: status ${vs.status} passt nicht zu art ${vs.art}; erlaubt: ${erlaubteStatus.join("|")}`);
+  melde(errors, "konsistenz", `vorsorge.${vs.vorsorge_id}.status`, `status ${vs.status} passt nicht zu art ${vs.art}; erlaubt: ${erlaubteStatus.join("|")}`);
+}
+
+// Zustandstabelle der Kategorisierung: die einzigen legalen Kombinationen aus
+// Status, Herkunft, bestaetigt_durch, Regelbezug (matched_regeln) und Kategorie.
+// `herkunft: null` heisst: Feld fehlt; `bestaetigt_durch`/`matched_regeln`
+// zaehlen die erlaubten Auspraegungen auf (null bzw. false = Feld fehlt).
+//
+// Herkunftsvertrag: `kategorie_herkunft` und `matched_regeln` halten die
+// Entscheidung fest, wie sie damals fiel, nicht die heutige Regelwirkung. Die
+// Kategorie einer bestaetigten Regel-Buchung muss deshalb nicht der Kategorie
+// gleichen, die ihre Regeln heute liefern (Widersprueche zeigt der
+// Pruefbericht). Nach einer Regelaenderung darf der Regelbezug einer
+// Bestaetigung fehlen (recategorize: "Quelle nicht mehr ermittelbar"); ein
+// offener Regelvorschlag braucht ihn immer. Wer was setzt: import/recategorize
+// (offen, vorgeschlagen+regel), agent_vorschlag (vorgeschlagen+agent),
+// freigabe (bestaetigt+auto), bestaetigen (bestaetigt+mensch, manuell, abgelehnt).
+export const KATEGORISIERUNG_ZUSTAENDE = Object.freeze([
+  { status: "offen", herkunft: null, kategorie: false, bestaetigt_durch: [null], matched_regeln: [false, true] },
+  { status: "vorgeschlagen", herkunft: "regel", kategorie: true, bestaetigt_durch: [null], matched_regeln: [true] },
+  { status: "vorgeschlagen", herkunft: "agent", kategorie: true, bestaetigt_durch: [null], matched_regeln: [false] },
+  { status: "bestaetigt", herkunft: "regel", kategorie: true, bestaetigt_durch: ["auto", "mensch"], matched_regeln: [true, false] },
+  { status: "bestaetigt", herkunft: "agent", kategorie: true, bestaetigt_durch: ["auto", "mensch"], matched_regeln: [false] },
+  { status: "bestaetigt", herkunft: "manuell", kategorie: true, bestaetigt_durch: ["mensch"], matched_regeln: [false] },
+  { status: "abgelehnt", herkunft: null, kategorie: false, bestaetigt_durch: [null], matched_regeln: [false] },
+]);
+
+const HERKUNFT_TEXT = { manuell: "manueller Herkunft", agent: "Agenten-Herkunft", regel: "Regel-Herkunft" };
+
+function pruefeKategorisierungZustand(tx, errors) {
+  const zeilen = KATEGORISIERUNG_ZUSTAENDE.filter((z) => z.status === tx.kategorisierung_status);
+  if (zeilen.length === 0) return; // unbekannter Status: meldet die Feldpruefung
+  const ort = (feld) => `transaktionen.${tx.transaktion_id}.${feld}`;
+  const status = tx.kategorisierung_status;
+  const herkunft = tx.kategorie_herkunft ?? null;
+  const zeile = zeilen.find((z) => z.herkunft === herkunft);
+  if (!zeile) {
+    const erlaubt = zeilen.map((z) => z.herkunft ?? "keine");
+    melde(errors, "kategorisierung-zustand", ort("kategorie_herkunft"), herkunft === null
+      ? `Pflicht bei ${status} (erlaubt: ${erlaubt.join("|")})`
+      : `${herkunft} nicht erlaubt bei ${status} (erlaubt: ${erlaubt.join("|")})`);
+  }
+  // Ohne passende Zeile gilt, was irgendeine Zeile dieses Status erlaubt.
+  const moeglich = zeile ? [zeile] : zeilen;
+
+  const hatKategorie = Boolean(tx.kategorie_id);
+  if (zeilen[0].kategorie && !hatKategorie) {
+    melde(errors, "kategorisierung-zustand", ort("kategorie_id"), `Pflicht bei ${status}; ${status} braucht kategorie_id`);
+  } else if (!zeilen[0].kategorie && hatKategorie) {
+    melde(errors, "kategorisierung-zustand", ort("kategorie_id"), `${status} darf keine kategorie_id tragen`);
+  }
+
+  // Eine Bestaetigung ohne Urheber laesst nicht mehr unterscheiden, ob je ein
+  // Mensch hingeschaut hat — davon haengt ab, ob recategorize sie anfassen darf.
+  const durch = tx.bestaetigt_durch ?? null;
+  if (!moeglich.some((z) => z.bestaetigt_durch.includes(durch))) {
+    const text = durch === null ? `Pflicht bei ${status}`
+      : status !== "bestaetigt" ? "nur erlaubt bei bestaetigt"
+        : `${durch} nicht erlaubt bei ${HERKUNFT_TEXT[herkunft] ?? status} (erlaubt: ${zeile.bestaetigt_durch.join("|")})`;
+    melde(errors, "kategorisierung-zustand", ort("bestaetigt_durch"), text);
+  }
+
+  if (Array.isArray(tx.matched_regeln) && tx.matched_regeln.length === 0) {
+    melde(errors, "kategorisierung-zustand", ort("matched_regeln"), "leere Liste nicht erlaubt (Feld weglassen)");
+    return;
+  }
+  const regelbezug = Array.isArray(tx.matched_regeln);
+  if (!moeglich.some((z) => z.matched_regeln.includes(regelbezug))) {
+    const text = regelbezug
+      ? `nicht erlaubt bei ${zeile && herkunft ? HERKUNFT_TEXT[herkunft] : status}`
+      : `Pflicht bei ${status} mit ${HERKUNFT_TEXT[herkunft] ?? "dieser Herkunft"}`;
+    melde(errors, "kategorisierung-zustand", ort("matched_regeln"), text);
+  }
 }
 
 function validateCrossFieldRules(data, errors) {
@@ -484,7 +628,7 @@ function validateCrossFieldRules(data, errors) {
     if (!Array.isArray(konto.inhaber_person_ids)) return;
     konto.inhaber_person_ids.forEach((personId) => {
       if (!personen.has(personId)) {
-        errors.push(`konten.${konto.konto_id}.inhaber_person_ids: person_id ${personId} existiert nicht`);
+        melde(errors, "verweis", `konten.${konto.konto_id}.inhaber_person_ids`, `person_id ${personId} existiert nicht`);
       }
     });
   });
@@ -492,48 +636,33 @@ function validateCrossFieldRules(data, errors) {
   const dedupeHashes = new Map();
   data.transaktionen?.forEach((transaktion) => {
     if (!konten.has(transaktion.konto_id)) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.konto_id: ${transaktion.konto_id} existiert nicht`);
+      melde(errors, "verweis", `transaktionen.${transaktion.transaktion_id}.konto_id`, `${transaktion.konto_id} existiert nicht`);
     }
-    if (["vorgeschlagen", "bestaetigt"].includes(transaktion.kategorisierung_status) && !transaktion.kategorie_id) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.kategorie_id: Pflicht bei ${transaktion.kategorisierung_status}; ${transaktion.kategorisierung_status} braucht kategorie_id`);
-    }
-    if (transaktion.kategorisierung_status === "offen" && transaktion.kategorie_id) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.kategorie_id: offen darf keine kategorie_id tragen`);
-    }
-    // Eine Bestaetigung ohne Urheber laesst nicht mehr unterscheiden, ob je ein
-    // Mensch hingeschaut hat — davon haengt ab, ob recategorize sie anfassen darf.
-    if (transaktion.kategorisierung_status === "bestaetigt" && !transaktion.bestaetigt_durch) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.bestaetigt_durch: Pflicht bei bestaetigt`);
-    }
-    if (transaktion.kategorisierung_status !== "bestaetigt" && transaktion.bestaetigt_durch) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.bestaetigt_durch: nur erlaubt bei bestaetigt`);
-    }
+    pruefeKategorisierungZustand(transaktion, errors);
     if (transaktion.kategorie_id && !kategorien.has(transaktion.kategorie_id)) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.kategorie_id: ${transaktion.kategorie_id} existiert nicht`);
+      melde(errors, "verweis", `transaktionen.${transaktion.transaktion_id}.kategorie_id`, `${transaktion.kategorie_id} existiert nicht`);
     }
     if (transaktion.ist_transfer === true && !transaktion.transfer_id) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.transfer_id: Pflicht bei Transfer`);
+      melde(errors, "konsistenz", `transaktionen.${transaktion.transaktion_id}.transfer_id`, `Pflicht bei Transfer`);
     }
     if (transaktion.transfer_id && !transfers.has(transaktion.transfer_id)) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.transfer_id: ${transaktion.transfer_id} existiert nicht`);
+      melde(errors, "verweis", `transaktionen.${transaktion.transaktion_id}.transfer_id`, `${transaktion.transfer_id} existiert nicht`);
     } else if (transaktion.transfer_id) {
       // Beidseitig: die Buchung muss selbst eine Seite genau dieses Transfers sein,
       // sonst zaehlte eine dritte Buchung still als Transfer (und fiele aus Ausgaben).
       const transfer = transfers.get(transaktion.transfer_id);
       if (transaktion.transaktion_id !== transfer.abgang_transaktion_id && transaktion.transaktion_id !== transfer.zugang_transaktion_id) {
-        errors.push(`transaktionen.${transaktion.transaktion_id}.transfer_id: Buchung ist keine Seite von ${transaktion.transfer_id}`);
+        melde(errors, "konsistenz", `transaktionen.${transaktion.transaktion_id}.transfer_id`, `Buchung ist keine Seite von ${transaktion.transfer_id}`);
       }
     }
     if (transaktion.regelzahlung_id && !regelzahlungen.has(transaktion.regelzahlung_id)) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.regelzahlung_id: ${transaktion.regelzahlung_id} existiert nicht`);
+      melde(errors, "verweis", `transaktionen.${transaktion.transaktion_id}.regelzahlung_id`, `${transaktion.regelzahlung_id} existiert nicht`);
     }
     if (transaktion.immobilie_id && !immobilien.has(transaktion.immobilie_id)) {
-      errors.push(
-        `transaktionen.${transaktion.transaktion_id}.immobilie_id: ${transaktion.immobilie_id} existiert nicht`,
-      );
+      melde(errors, "verweis", `transaktionen.${transaktion.transaktion_id}.immobilie_id`, `${transaktion.immobilie_id} existiert nicht`);
     }
     if (dedupeHashes.has(transaktion.dedupe_hash)) {
-      errors.push(`transaktionen.${transaktion.transaktion_id}.dedupe_hash: doppelt mit ${dedupeHashes.get(transaktion.dedupe_hash)}`);
+      melde(errors, "doppelt", `transaktionen.${transaktion.transaktion_id}.dedupe_hash`, `doppelt mit ${dedupeHashes.get(transaktion.dedupe_hash)}`);
     } else {
       dedupeHashes.set(transaktion.dedupe_hash, transaktion.transaktion_id);
     }
@@ -541,18 +670,18 @@ function validateCrossFieldRules(data, errors) {
 
   data.kategorisierungsregeln?.forEach((regel) => {
     if (regel.kategorie_id && !kategorien.has(regel.kategorie_id)) {
-      errors.push(`kategorisierungsregeln.${regel.regel_id}.kategorie_id: ${regel.kategorie_id} existiert nicht`);
+      melde(errors, "verweis", `kategorisierungsregeln.${regel.regel_id}.kategorie_id`, `${regel.kategorie_id} existiert nicht`);
     }
     if (regel.konto_id && !konten.has(regel.konto_id)) {
-      errors.push(`kategorisierungsregeln.${regel.regel_id}.konto_id: ${regel.konto_id} existiert nicht`);
+      melde(errors, "verweis", `kategorisierungsregeln.${regel.regel_id}.konto_id`, `${regel.konto_id} existiert nicht`);
     }
     if (regel.status === "aktiv" && !regel.gegenpartei_pattern && !regel.verwendungszweck_pattern) {
-      errors.push(`kategorisierungsregeln.${regel.regel_id}: aktive Regel braucht gegenpartei_pattern oder verwendungszweck_pattern`);
+      melde(errors, "konsistenz", `kategorisierungsregeln.${regel.regel_id}`, `aktive Regel braucht gegenpartei_pattern oder verwendungszweck_pattern`);
     }
     // Auch bei inaktiven Regeln: eine Reaktivierung prueft niemand neu.
     for (const feld of ["gegenpartei_pattern", "verwendungszweck_pattern"]) {
       if (typeof regel[feld] === "string" && hatLeerenZweig(regel[feld])) {
-        errors.push(`kategorisierungsregeln.${regel.regel_id}.${feld}: leerer Musterzweig (ein Tippfehler wie "A|B|" traefe jede Buchung)`);
+        melde(errors, "musterzweig", `kategorisierungsregeln.${regel.regel_id}.${feld}`, `leerer Musterzweig (ein Tippfehler wie "A|B|" traefe jede Buchung)`);
       }
     }
   });
@@ -560,18 +689,9 @@ function validateCrossFieldRules(data, errors) {
   const regelIds = new Set((data.kategorisierungsregeln ?? []).map((r) => r.regel_id));
   data.transaktionen?.forEach((tx) => {
     if (!Array.isArray(tx.matched_regeln)) return;
-    if (tx.kategorie_herkunft === "manuell") {
-      errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: nicht erlaubt bei manueller Herkunft`);
-    }
-    if (tx.kategorie_herkunft === "agent") {
-      errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: nicht erlaubt bei Agenten-Herkunft`);
-    }
-    if (tx.kategorisierung_status === "abgelehnt") {
-      errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: nicht erlaubt bei abgelehnt`);
-    }
     for (const id of tx.matched_regeln) {
       if (!regelIds.has(id)) {
-        errors.push(`transaktionen.${tx.transaktion_id}.matched_regeln: ${id} existiert nicht`);
+        melde(errors, "verweis", `transaktionen.${tx.transaktion_id}.matched_regeln`, `${id} existiert nicht`);
       }
     }
   });
@@ -580,13 +700,13 @@ function validateCrossFieldRules(data, errors) {
 
   data.regelzahlungen?.forEach((rz) => {
     if (rz.kategorie_id && !kategorien.has(rz.kategorie_id)) {
-      errors.push(`regelzahlungen.${rz.regelzahlung_id}.kategorie_id: ${rz.kategorie_id} existiert nicht`);
+      melde(errors, "verweis", `regelzahlungen.${rz.regelzahlung_id}.kategorie_id`, `${rz.kategorie_id} existiert nicht`);
     }
     if (rz.konto_id && !konten.has(rz.konto_id)) {
-      errors.push(`regelzahlungen.${rz.regelzahlung_id}.konto_id: ${rz.konto_id} existiert nicht`);
+      melde(errors, "verweis", `regelzahlungen.${rz.regelzahlung_id}.konto_id`, `${rz.konto_id} existiert nicht`);
     }
     if (rz.aktiv_bis && rz.anker_datum && rz.aktiv_bis < rz.anker_datum) {
-      errors.push(`regelzahlungen.${rz.regelzahlung_id}.aktiv_bis: liegt vor anker_datum`);
+      melde(errors, "konsistenz", `regelzahlungen.${rz.regelzahlung_id}.aktiv_bis`, `liegt vor anker_datum`);
     }
   });
 
@@ -599,16 +719,16 @@ function validateCrossFieldRules(data, errors) {
 
   data.darlehen?.forEach((dar) => {
     if (dar.immobilie_id && !immobilien.has(dar.immobilie_id)) {
-      errors.push(`darlehen.${dar.darlehen_id}.immobilie_id: ${dar.immobilie_id} existiert nicht`);
+      melde(errors, "verweis", `darlehen.${dar.darlehen_id}.immobilie_id`, `${dar.immobilie_id} existiert nicht`);
     }
     if (dar.konto_id && !konten.has(dar.konto_id)) {
-      errors.push(`darlehen.${dar.darlehen_id}.konto_id: ${dar.konto_id} existiert nicht`);
+      melde(errors, "verweis", `darlehen.${dar.darlehen_id}.konto_id`, `${dar.konto_id} existiert nicht`);
     }
     if (dar.aktiv_bis && dar.anfangsdatum && dar.aktiv_bis < dar.anfangsdatum) {
-      errors.push(`darlehen.${dar.darlehen_id}.aktiv_bis: liegt vor anfangsdatum`);
+      melde(errors, "konsistenz", `darlehen.${dar.darlehen_id}.aktiv_bis`, `liegt vor anfangsdatum`);
     }
     if (dar.laufzeit_bis && dar.anfangsdatum && dar.laufzeit_bis < dar.anfangsdatum) {
-      errors.push(`darlehen.${dar.darlehen_id}.laufzeit_bis: liegt vor anfangsdatum`);
+      melde(errors, "konsistenz", `darlehen.${dar.darlehen_id}.laufzeit_bis`, `liegt vor anfangsdatum`);
     }
   });
 
@@ -631,26 +751,26 @@ function validateCrossFieldRules(data, errors) {
     const frueher = zeitwertStaende.get(schluessel);
     if (!frueher) zeitwertStaende.set(schluessel, { index: i, wert: zw.wert });
     else if (frueher.wert !== zw.wert) {
-      errors.push(`zeitwerte[${i}]: ${zw.entitaet} ${zw.entitaet_id} ${zw.feld} ${zw.standdatum} hat schon einen anderen Wert (zeitwerte[${frueher.index}])`);
+      melde(errors, "zeitwert-doppelt", `zeitwerte[${i}]`, `${zw.entitaet} ${zw.entitaet_id} ${zw.feld} ${zw.standdatum} hat schon einen anderen Wert (zeitwerte[${frueher.index}])`, zeitwertKennung(zw));
     }
   });
   data.zeitwerte?.forEach((zw, i) => {
     const map = Object.hasOwn(zeitwertEntitaeten, zw.entitaet) ? zeitwertEntitaeten[zw.entitaet] : undefined;
     if (map && !map.has(zw.entitaet_id)) {
-      errors.push(`zeitwerte[${i}].entitaet_id: ${zw.entitaet_id} existiert nicht (${zw.entitaet})`);
+      melde(errors, "verweis", `zeitwerte[${i}].entitaet_id`, `${zw.entitaet_id} existiert nicht (${zw.entitaet})`, zeitwertKennung(zw));
     }
     const felder = Object.hasOwn(erlaubteFelder, zw.entitaet) ? erlaubteFelder[zw.entitaet] : undefined;
     if (felder && !felder.includes(zw.feld)) {
-      errors.push(`zeitwerte[${i}].feld: ${zw.feld} ist fuer ${zw.entitaet} nicht zulaessig (erlaubt: ${felder.join("|")})`);
+      melde(errors, "konsistenz", `zeitwerte[${i}].feld`, `${zw.feld} ist fuer ${zw.entitaet} nicht zulaessig (erlaubt: ${felder.join("|")})`, zeitwertKennung(zw));
     }
   });
 
   data.regelzahlungen?.forEach((rz) => {
     if (rz.darlehen_id && !darlehen.has(rz.darlehen_id)) {
-      errors.push(`regelzahlungen.${rz.regelzahlung_id}.darlehen_id: ${rz.darlehen_id} existiert nicht`);
+      melde(errors, "verweis", `regelzahlungen.${rz.regelzahlung_id}.darlehen_id`, `${rz.darlehen_id} existiert nicht`);
     }
     if (rz.vorsorge_id && !vorsorge.has(rz.vorsorge_id)) {
-      errors.push(`regelzahlungen.${rz.regelzahlung_id}.vorsorge_id: ${rz.vorsorge_id} existiert nicht`);
+      melde(errors, "verweis", `regelzahlungen.${rz.regelzahlung_id}.vorsorge_id`, `${rz.vorsorge_id} existiert nicht`);
     }
   });
 
@@ -658,23 +778,23 @@ function validateCrossFieldRules(data, errors) {
   const nieKapitalbildend = new Set(["gesetzliche-rente", "schutzversicherung"]);
   data.vorsorge?.forEach((vs) => {
     if (!personen.has(vs.person_id)) {
-      errors.push(`vorsorge.${vs.vorsorge_id}.person_id: ${vs.person_id} existiert nicht`);
+      melde(errors, "verweis", `vorsorge.${vs.vorsorge_id}.person_id`, `${vs.person_id} existiert nicht`);
     }
     if (vs.kapitalbildend === true && nieKapitalbildend.has(vs.art)) {
-      errors.push(`vorsorge.${vs.vorsorge_id}.kapitalbildend: ${vs.art} hat keinen Rueckkaufswert und kann nicht kapitalbildend sein`);
+      melde(errors, "konsistenz", `vorsorge.${vs.vorsorge_id}.kapitalbildend`, `${vs.art} hat keinen Rueckkaufswert und kann nicht kapitalbildend sein`);
     }
     // Riester ist zweckgebunden: hoechstens 30 Prozent Einmalzahlung zu Rentenbeginn, der
     // Rueckkaufswert nur bei Kuendigung mit Rueckforderung der Foerderung. Kein Aktivum.
     if (vs.kapitalbildend === true && vs.art === "riester") {
-      errors.push(`vorsorge.${vs.vorsorge_id}.kapitalbildend: riester ist zweckgebunden (hoechstens 30 Prozent Einmalzahlung zu Rentenbeginn) und kann nicht kapitalbildend sein; der Rueckkaufswert bleibt als gebundenes Kapital erfasst`);
+      melde(errors, "konsistenz", `vorsorge.${vs.vorsorge_id}.kapitalbildend`, `riester ist zweckgebunden (hoechstens 30 Prozent Einmalzahlung zu Rentenbeginn) und kann nicht kapitalbildend sein; der Rueckkaufswert bleibt als gebundenes Kapital erfasst`);
     }
     validateVorsorgeStatusJeArt(vs, errors);
     if (vs.dynamik !== undefined) pruefeDynamik(`vorsorge.${vs.vorsorge_id}.dynamik`, vs.dynamik, errors);
     if (vs.ersetzt_vorsorge_id) {
       if (vs.ersetzt_vorsorge_id === vs.vorsorge_id) {
-        errors.push(`vorsorge.${vs.vorsorge_id}.ersetzt_vorsorge_id: darf nicht auf sich selbst zeigen`);
+        melde(errors, "konsistenz", `vorsorge.${vs.vorsorge_id}.ersetzt_vorsorge_id`, `darf nicht auf sich selbst zeigen`);
       } else if (!vorsorge.has(vs.ersetzt_vorsorge_id)) {
-        errors.push(`vorsorge.${vs.vorsorge_id}.ersetzt_vorsorge_id: ${vs.ersetzt_vorsorge_id} existiert nicht`);
+        melde(errors, "verweis", `vorsorge.${vs.vorsorge_id}.ersetzt_vorsorge_id`, `${vs.ersetzt_vorsorge_id} existiert nicht`);
       }
     }
   });
@@ -693,14 +813,14 @@ function validateFristen(data, objekte, errors) {
     const prefix = `fristen.${frist.frist_id}`;
     const bezuege = FRIST_BEZUEGE.filter((typ) => Object.hasOwn(frist, `${typ}_id`));
     if (bezuege.length > 1) {
-      errors.push(`${prefix}: hoechstens ein Bezug erlaubt (gesetzt: ${bezuege.map((typ) => `${typ}_id`).join(", ")})`);
+      melde(errors, "frist-bezug", prefix, `hoechstens ein Bezug erlaubt (gesetzt: ${bezuege.map((typ) => `${typ}_id`).join(", ")})`);
     }
     for (const typ of bezuege) {
       const id = frist[`${typ}_id`];
-      if (!objekte[typ].has(id)) errors.push(`${prefix}.${typ}_id: ${id} existiert nicht`);
+      if (!objekte[typ].has(id)) melde(errors, "verweis", `${prefix}.${typ}_id`, `${id} existiert nicht`);
     }
     if (Object.hasOwn(frist, "rhythmus_einheit") !== Object.hasOwn(frist, "rhythmus_intervall")) {
-      errors.push(`${prefix}: rhythmus_einheit und rhythmus_intervall nur zusammen`);
+      melde(errors, "konsistenz", `${prefix}`, `rhythmus_einheit und rhythmus_intervall nur zusammen`);
     }
   });
 }
@@ -712,60 +832,60 @@ function validateTransfer(transfer, transaktionen, errors) {
 
   if (transfer.typ === "intern") {
     if (!transfer.abgang_transaktion_id || !transfer.zugang_transaktion_id) {
-      errors.push(`${prefix}: interner Transfer braucht abgang_transaktion_id und zugang_transaktion_id`);
+      melde(errors, "konsistenz", `${prefix}`, `interner Transfer braucht abgang_transaktion_id und zugang_transaktion_id`);
       return;
     }
     if (transfer.abgang_transaktion_id === transfer.zugang_transaktion_id) {
-      errors.push(`${prefix}: abgang_transaktion_id und zugang_transaktion_id muessen unterschiedliche Transaktionen sein`);
+      melde(errors, "konsistenz", `${prefix}`, `abgang_transaktion_id und zugang_transaktion_id muessen unterschiedliche Transaktionen sein`);
     }
     if (!abgang || !zugang) {
-      if (!abgang) errors.push(`${prefix}.abgang_transaktion_id: referenzierte Transaktion ${transfer.abgang_transaktion_id} existiert nicht`);
-      if (!zugang) errors.push(`${prefix}.zugang_transaktion_id: referenzierte Transaktion ${transfer.zugang_transaktion_id} existiert nicht`);
+      if (!abgang) melde(errors, "verweis", `${prefix}.abgang_transaktion_id`, `referenzierte Transaktion ${transfer.abgang_transaktion_id} existiert nicht`);
+      if (!zugang) melde(errors, "verweis", `${prefix}.zugang_transaktion_id`, `referenzierte Transaktion ${transfer.zugang_transaktion_id} existiert nicht`);
       return;
     }
     validateTransferReference(prefix, "abgang_transaktion_id", transfer, abgang, errors);
     validateTransferReference(prefix, "zugang_transaktion_id", transfer, zugang, errors);
     if (abgang.konto_id === zugang.konto_id) {
-      errors.push(`${prefix}: interner Transfer braucht unterschiedliche Konten`);
+      melde(errors, "konsistenz", `${prefix}`, `interner Transfer braucht unterschiedliche Konten`);
     }
     if (toCents(abgang.betrag) + toCents(zugang.betrag) !== 0) {
-      errors.push(`${prefix}: Betraege sind nicht gegenlaeufig und betragsgleich`);
+      melde(errors, "konsistenz", `${prefix}`, `Betraege sind nicht gegenlaeufig und betragsgleich`);
     }
     if (Math.abs(toCents(abgang.betrag)) !== toCents(transfer.betrag)) {
-      errors.push(`${prefix}.betrag: passt nicht zu den Transaktionen`);
+      melde(errors, "konsistenz", `${prefix}.betrag`, `passt nicht zu den Transaktionen`);
     }
   }
 
   if (transfer.typ === "extern") {
     const referenceCount = Number(Boolean(transfer.abgang_transaktion_id)) + Number(Boolean(transfer.zugang_transaktion_id));
     if (referenceCount !== 1) {
-      errors.push(`${prefix}: externer Transfer braucht genau eine Transaktion`);
+      melde(errors, "konsistenz", `${prefix}`, `externer Transfer braucht genau eine Transaktion`);
     }
     if (referenceCount === 1) {
       const referenceField = transfer.abgang_transaktion_id ? "abgang_transaktion_id" : "zugang_transaktion_id";
       const referenceId = transfer[referenceField];
       const reference = transaktionen.get(referenceId);
       if (!reference) {
-        errors.push(`${prefix}.${referenceField}: referenzierte Transaktion ${referenceId} existiert nicht`);
+        melde(errors, "verweis", `${prefix}.${referenceField}`, `referenzierte Transaktion ${referenceId} existiert nicht`);
       } else {
         validateTransferReference(prefix, referenceField, transfer, reference, errors);
       }
     }
     if (!transfer.gegenseite_typ) {
-      errors.push(`${prefix}.gegenseite_typ: Pflicht bei externem Transfer`);
+      melde(errors, "konsistenz", `${prefix}.gegenseite_typ`, `Pflicht bei externem Transfer`);
     }
     if (!transfer.begruendung) {
-      errors.push(`${prefix}.begruendung: Pflicht bei externem Transfer`);
+      melde(errors, "konsistenz", `${prefix}.begruendung`, `Pflicht bei externem Transfer`);
     }
   }
 }
 
 function validateTransferReference(prefix, field, transfer, transaktion, errors) {
   if (transaktion.ist_transfer !== true) {
-    errors.push(`${prefix}.${field}: ${transaktion.transaktion_id} ist nicht als ist_transfer markiert`);
+    melde(errors, "konsistenz", `${prefix}.${field}`, `${transaktion.transaktion_id} ist nicht als ist_transfer markiert`);
   }
   if (transaktion.transfer_id !== transfer.transfer_id) {
-    errors.push(`${prefix}.${field}: ${transaktion.transaktion_id} transfer_id-Rueckverweis fehlt/zeigt nicht auf ${transfer.transfer_id}`);
+    melde(errors, "konsistenz", `${prefix}.${field}`, `${transaktion.transaktion_id} transfer_id-Rueckverweis fehlt/zeigt nicht auf ${transfer.transfer_id}`);
   }
 }
 
@@ -776,12 +896,12 @@ function validatePhasen(sz, p, errors) {
   let vorher = null;
   sz.phasen.forEach((ph, i) => {
     const pp = `${p}.phasen[${i}]`;
-    if (!ph || typeof ph !== "object") { errors.push(`${pp}: muss ein Objekt sein`); return; }
-    for (const feld of Object.keys(ph)) if (feld !== "name" && feld !== "ab") errors.push(`${pp}.${feld}: unbekanntes Feld`);
-    if (typeof ph.name !== "string" || !ph.name.trim()) errors.push(`${pp}.name: fehlt`);
-    if (typeof ph.ab !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(ph.ab)) { errors.push(`${pp}.ab: kein Datum`); return; }
-    if (ph.ab > sz.reichweite_bis) errors.push(`${pp}.ab: liegt nach reichweite_bis`);
-    if (vorher !== null && ph.ab <= vorher) errors.push(`${pp}.ab: Phasen muessen aufsteigend und ohne doppelte Startdaten sein`);
+    if (!ph || typeof ph !== "object") { melde(errors, "typ", `${pp}`, `muss ein Objekt sein`); return; }
+    for (const feld of Object.keys(ph)) if (feld !== "name" && feld !== "ab") melde(errors, "unbekanntes-feld", `${pp}.${feld}`, `unbekanntes Feld`);
+    if (typeof ph.name !== "string" || !ph.name.trim()) melde(errors, "konsistenz", `${pp}.name`, `fehlt`);
+    if (typeof ph.ab !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(ph.ab)) { melde(errors, "konsistenz", `${pp}.ab`, `kein Datum`); return; }
+    if (ph.ab > sz.reichweite_bis) melde(errors, "konsistenz", `${pp}.ab`, `liegt nach reichweite_bis`);
+    if (vorher !== null && ph.ab <= vorher) melde(errors, "doppelt", `${pp}.ab`, `Phasen muessen aufsteigend und ohne doppelte Startdaten sein`);
     vorher = ph.ab;
   });
 }
@@ -795,12 +915,12 @@ function validateLogos(logos, errors) {
     if (!logo || typeof logo !== "object") return;
     const ort = `logos[${index}]`;
     if (typeof logo.domain === "string") {
-      if (domains.has(logo.domain)) errors.push(`${ort}.domain: ${logo.domain} doppelt mit ${domains.get(logo.domain)}`);
+      if (domains.has(logo.domain)) melde(errors, "doppelt", `${ort}.domain`, `${logo.domain} doppelt mit ${domains.get(logo.domain)}`);
       else domains.set(logo.domain, ort);
-      if (typeof logo.datei === "string" && logo.datei !== `logos/${logo.domain}.png`) errors.push(`${ort}.datei: muss logos/${logo.domain}.png sein`);
+      if (typeof logo.datei === "string" && logo.datei !== `logos/${logo.domain}.png`) melde(errors, "konsistenz", `${ort}.datei`, `muss logos/${logo.domain}.png sein`);
     }
     if (typeof logo.gegenpartei_pattern === "string" && hatLeerenZweig(logo.gegenpartei_pattern)) {
-      errors.push(`${ort}.gegenpartei_pattern: leerer Musterteil`);
+      melde(errors, "musterzweig", `${ort}.gegenpartei_pattern`, `leerer Musterteil`);
     }
   });
 }
@@ -818,102 +938,102 @@ function validateSzenarien(data, errors) {
 
   for (const sz of data.szenarien ?? []) {
     const p = `szenarien.${sz.szenario_id}`;
-    if (sz.reichweite_bis < sz.stand) errors.push(`${p}: reichweite_bis liegt vor stand`);
+    if (sz.reichweite_bis < sz.stand) melde(errors, "konsistenz", `${p}`, `reichweite_bis liegt vor stand`);
     validatePhasen(sz, p, errors);
 
     const gesehen = new Set();
     const verkauft = new Set(); // ziel_typ:ziel_id, gegen Doppelverkauf
     for (const a of Array.isArray(sz.annahmen) ? sz.annahmen : []) {
       if (!istObjekt(a)) {
-        errors.push(`${p}.annahmen: Eintrag muss ein Objekt sein`);
+        melde(errors, "konsistenz", `${p}.annahmen`, `Eintrag muss ein Objekt sein`);
         continue;
       }
       const ap = `${p}.${a.annahme_id ?? "?"}`;
-      if (!a.annahme_id) errors.push(`${ap}: annahme_id fehlt`);
-      else if (gesehen.has(a.annahme_id)) errors.push(`${ap}: annahme_id doppelt`);
+      if (!a.annahme_id) melde(errors, "konsistenz", `${ap}`, `annahme_id fehlt`);
+      else if (gesehen.has(a.annahme_id)) melde(errors, "doppelt", `${ap}`, `annahme_id doppelt`);
       gesehen.add(a.annahme_id);
 
       if (!["einmalzahlung", "regelzahlung-neu", "regelzahlung-aenderung", "vorsorge-leistung", "ereignis"].includes(a.art)) {
-        errors.push(`${ap}: art unbekannt`);
+        melde(errors, "konsistenz", `${ap}`, `art unbekannt`);
         continue;
       }
-      if (!["belegt", "geschaetzt", "offen"].includes(a.qualitaet)) errors.push(`${ap}: qualitaet ungueltig`);
+      if (!["belegt", "geschaetzt", "offen"].includes(a.qualitaet)) melde(errors, "konsistenz", `${ap}`, `qualitaet ungueltig`);
 
       if (a.art === "regelzahlung-aenderung") {
-        if (!rzIds.has(a.regelzahlung_id)) errors.push(`${ap}: regelzahlung_id ${a.regelzahlung_id} existiert nicht`);
-        if (!isIsoDate(a.ab)) errors.push(`${ap}: ab fehlt/ungueltig`);
-        if (!["beenden", "betrag-aendern"].includes(a.aktion)) errors.push(`${ap}: aktion ungueltig`);
-        if (a.aktion === "betrag-aendern" && !istGueltigerBetrag(a.betrag)) errors.push(`${ap}: betrag-aendern braucht gueltigen betrag`);
-        if (a.gegenbuchung) errors.push(`${ap}: regelzahlung-aenderung darf keine gegenbuchung haben`);
+        if (!rzIds.has(a.regelzahlung_id)) melde(errors, "verweis", `${ap}`, `regelzahlung_id ${a.regelzahlung_id} existiert nicht`);
+        if (!isIsoDate(a.ab)) melde(errors, "konsistenz", `${ap}`, `ab fehlt/ungueltig`);
+        if (!["beenden", "betrag-aendern"].includes(a.aktion)) melde(errors, "konsistenz", `${ap}`, `aktion ungueltig`);
+        if (a.aktion === "betrag-aendern" && !istGueltigerBetrag(a.betrag)) melde(errors, "konsistenz", `${ap}`, `betrag-aendern braucht gueltigen betrag`);
+        if (a.gegenbuchung) melde(errors, "konsistenz", `${ap}`, `regelzahlung-aenderung darf keine gegenbuchung haben`);
         continue;
       }
 
       if (a.art === "vorsorge-leistung") {
-        if (!vorsorgeIds.has(a.vorsorge_id)) errors.push(`${ap}: vorsorge_id ${a.vorsorge_id} existiert nicht`);
-        if (!["rente", "kapital"].includes(a.arm)) errors.push(`${ap}: arm ungueltig (rente|kapital)`);
-        if (!isIsoDate(a.ab)) errors.push(`${ap}: ab fehlt/ungueltig`);
-        if (a.gegenbuchung) errors.push(`${ap}: vorsorge-leistung darf keine gegenbuchung haben (wird zur Rechenzeit erzeugt)`);
+        if (!vorsorgeIds.has(a.vorsorge_id)) melde(errors, "verweis", `${ap}`, `vorsorge_id ${a.vorsorge_id} existiert nicht`);
+        if (!["rente", "kapital"].includes(a.arm)) melde(errors, "konsistenz", `${ap}`, `arm ungueltig (rente|kapital)`);
+        if (!isIsoDate(a.ab)) melde(errors, "konsistenz", `${ap}`, `ab fehlt/ungueltig`);
+        if (a.gegenbuchung) melde(errors, "konsistenz", `${ap}`, `vorsorge-leistung darf keine gegenbuchung haben (wird zur Rechenzeit erzeugt)`);
         continue;
       }
 
       if (a.art === "ereignis") {
-        if (!["bu", "arbeitslosigkeit"].includes(a.fall)) errors.push(`${ap}: fall ungueltig (bu|arbeitslosigkeit)`);
-        if (!personIds.has(a.person_id)) errors.push(`${ap}: person_id ${a.person_id} existiert nicht`);
-        if (!isIsoDate(a.ab)) errors.push(`${ap}: ab fehlt/ungueltig`);
-        if (a.bis !== undefined && (!isIsoDate(a.bis) || (isIsoDate(a.ab) && a.bis < a.ab))) errors.push(`${ap}: bis ungueltig oder vor ab`);
-        if (a.gegenbuchung) errors.push(`${ap}: ereignis darf keine gegenbuchung haben (wird zur Rechenzeit erzeugt)`);
+        if (!["bu", "arbeitslosigkeit"].includes(a.fall)) melde(errors, "konsistenz", `${ap}`, `fall ungueltig (bu|arbeitslosigkeit)`);
+        if (!personIds.has(a.person_id)) melde(errors, "verweis", `${ap}`, `person_id ${a.person_id} existiert nicht`);
+        if (!isIsoDate(a.ab)) melde(errors, "konsistenz", `${ap}`, `ab fehlt/ungueltig`);
+        if (a.bis !== undefined && (!isIsoDate(a.bis) || (isIsoDate(a.ab) && a.bis < a.ab))) melde(errors, "konsistenz", `${ap}`, `bis ungueltig oder vor ab`);
+        if (a.gegenbuchung) melde(errors, "konsistenz", `${ap}`, `ereignis darf keine gegenbuchung haben (wird zur Rechenzeit erzeugt)`);
         continue;
       }
 
       // Art-spezifische Pflichtfelder
       if (a.art === "einmalzahlung") {
-        if (!isIsoDate(a.datum)) errors.push(`${ap}: datum fehlt/ungueltig`);
-        if (typeof a.betrag !== "string" || !istGueltigerBetrag(a.betrag)) errors.push(`${ap}: betrag fehlt/ungueltig`);
+        if (!isIsoDate(a.datum)) melde(errors, "konsistenz", `${ap}`, `datum fehlt/ungueltig`);
+        if (typeof a.betrag !== "string" || !istGueltigerBetrag(a.betrag)) melde(errors, "konsistenz", `${ap}`, `betrag fehlt/ungueltig`);
       } else if (a.art === "regelzahlung-neu") {
-        if (!isIsoDate(a.ab)) errors.push(`${ap}: ab fehlt/ungueltig`);
+        if (!isIsoDate(a.ab)) melde(errors, "konsistenz", `${ap}`, `ab fehlt/ungueltig`);
         if (a.bis !== undefined) {
           if (!isIsoDate(a.bis)) {
-            errors.push(`${ap}: bis fehlt/ungueltig`);
+            melde(errors, "konsistenz", `${ap}`, `bis fehlt/ungueltig`);
           } else if (isIsoDate(a.ab) && a.bis < a.ab) {
-            errors.push(`${ap}: bis liegt vor ab`);
+            melde(errors, "konsistenz", `${ap}`, `bis liegt vor ab`);
           }
         }
-        if (typeof a.betrag !== "string" || !istGueltigerBetrag(a.betrag)) errors.push(`${ap}: betrag fehlt/ungueltig`);
-        if (!["tag", "woche", "monat", "jahr"].includes(a.rhythmus_einheit)) errors.push(`${ap}: rhythmus_einheit ungueltig`);
-        if (!Number.isInteger(a.rhythmus_intervall) || a.rhythmus_intervall < 1) errors.push(`${ap}: rhythmus_intervall ungueltig`);
+        if (typeof a.betrag !== "string" || !istGueltigerBetrag(a.betrag)) melde(errors, "konsistenz", `${ap}`, `betrag fehlt/ungueltig`);
+        if (!["tag", "woche", "monat", "jahr"].includes(a.rhythmus_einheit)) melde(errors, "konsistenz", `${ap}`, `rhythmus_einheit ungueltig`);
+        if (!Number.isInteger(a.rhythmus_intervall) || a.rhythmus_intervall < 1) melde(errors, "konsistenz", `${ap}`, `rhythmus_intervall ungueltig`);
       }
 
       // einmalzahlung | regelzahlung-neu: Cash-Bein + optionale gegenbuchung
       const hatBetrag = typeof a.betrag === "string" && istGueltigerBetrag(a.betrag) && a.betrag !== "0.00";
       if (a.art === "einmalzahlung" && !hatBetrag && !a.gegenbuchung) {
-        errors.push(`${ap}: einmalzahlung ohne Betrag und ohne gegenbuchung ist wirkungslos`);
+        melde(errors, "konsistenz", `${ap}`, `einmalzahlung ohne Betrag und ohne gegenbuchung ist wirkungslos`);
       }
 
       if (a.gegenbuchung && !istObjekt(a.gegenbuchung)) {
-        errors.push(`${ap}: gegenbuchung muss ein Objekt sein`);
+        melde(errors, "konsistenz", `${ap}`, `gegenbuchung muss ein Objekt sein`);
       } else if (a.gegenbuchung) {
         const g = a.gegenbuchung;
         const hatZiel = !!g.ziel_id, hatNeu = !!g.neue_position;
-        if (hatZiel === hatNeu) errors.push(`${ap}: gegenbuchung braucht genau eines von ziel_id / neue_position`);
+        if (hatZiel === hatNeu) melde(errors, "konsistenz", `${ap}`, `gegenbuchung braucht genau eines von ziel_id / neue_position`);
         const zielIds = Object.hasOwn(idMengen, g.ziel_typ) ? idMengen[g.ziel_typ] : undefined;
-        if (!zielIds) errors.push(`${ap}: gegenbuchung.ziel_typ ungueltig`);
+        if (!zielIds) melde(errors, "konsistenz", `${ap}`, `gegenbuchung.ziel_typ ungueltig`);
         if (a.art === "regelzahlung-neu") {
-          if (!["darlehen", "depot"].includes(g.ziel_typ)) errors.push(`${ap}: wiederkehrende gegenbuchung nur fuer darlehen|depot`);
-          if (hatNeu) errors.push(`${ap}: wiederkehrende gegenbuchung braucht bestehende ziel_id`);
+          if (!["darlehen", "depot"].includes(g.ziel_typ)) melde(errors, "konsistenz", `${ap}`, `wiederkehrende gegenbuchung nur fuer darlehen|depot`);
+          if (hatNeu) melde(errors, "konsistenz", `${ap}`, `wiederkehrende gegenbuchung braucht bestehende ziel_id`);
         }
         if (hatZiel && zielIds && !zielIds.has(g.ziel_id)) {
-          errors.push(`${ap}: gegenbuchung.ziel_id ${g.ziel_id} existiert nicht in ${g.ziel_typ}`);
+          melde(errors, "verweis", `${ap}`, `gegenbuchung.ziel_id ${g.ziel_id} existiert nicht in ${g.ziel_typ}`);
         }
         if (g.ziel_typ === "depot" && hatZiel && !depotIds.has(g.ziel_id)) {
-          errors.push(`${ap}: depot-gegenbuchung verlangt ein Konto mit kontotyp=Depot`);
+          melde(errors, "konsistenz", `${ap}`, `depot-gegenbuchung verlangt ein Konto mit kontotyp=Depot`);
         }
         if (hatNeu && (!istObjekt(g.neue_position) || !g.neue_position.bezeichnung || !istGueltigerBetrag(g.neue_position.wert))) {
-          errors.push(`${ap}: neue_position braucht bezeichnung und gueltigen wert`);
+          melde(errors, "konsistenz", `${ap}`, `neue_position braucht bezeichnung und gueltigen wert`);
         }
         // Doppelverkauf/-abbau bestehender Sachwert-/Vorsorge-Positionen
         if (hatZiel && (g.ziel_typ === "immobilie" || g.ziel_typ === "vermoegenswert" || g.ziel_typ === "vorsorge")) {
           const key = `${g.ziel_typ}:${g.ziel_id}`;
-          if (verkauft.has(key)) errors.push(`${ap}: Position ${g.ziel_id} wird im Szenario mehrfach abgebaut`);
+          if (verkauft.has(key)) melde(errors, "konsistenz", `${ap}`, `Position ${g.ziel_id} wird im Szenario mehrfach abgebaut`);
           verkauft.add(key);
         }
       }
@@ -931,26 +1051,26 @@ const DYNAMIK_FELDER = new Set(["termin", "erlischt_nach", "verlauf"]);
 const DYNAMIK_EINTRAG_FELDER = new Set(["termin", "entscheidung", "bemerkung"]);
 const DYNAMIK_ENTSCHEIDUNGEN = ["angenommen", "abgelehnt", "offen"];
 function pruefeDynamik(prefix, d, errors) {
-  if (!d || typeof d !== "object" || Array.isArray(d)) { errors.push(`${prefix}: muss ein Objekt sein`); return; }
-  for (const feld of Object.keys(d)) if (!DYNAMIK_FELDER.has(feld)) errors.push(`${prefix}.${feld}: unbekanntes Feld`);
+  if (!d || typeof d !== "object" || Array.isArray(d)) { melde(errors, "typ", `${prefix}`, `muss ein Objekt sein`); return; }
+  for (const feld of Object.keys(d)) if (!DYNAMIK_FELDER.has(feld)) melde(errors, "unbekanntes-feld", `${prefix}.${feld}`, `unbekanntes Feld`);
   if (typeof d.termin !== "string" || !/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d.termin)) {
-    errors.push(`${prefix}.termin: Erhoehungstermin als MM-TT angeben`);
+    melde(errors, "konsistenz", `${prefix}.termin`, `Erhoehungstermin als MM-TT angeben`);
   }
   if (d.erlischt_nach !== undefined && (!Number.isInteger(d.erlischt_nach) || d.erlischt_nach < 1)) {
-    errors.push(`${prefix}.erlischt_nach: muss Ganzzahl >= 1 sein`);
+    melde(errors, "zahl", `${prefix}.erlischt_nach`, `muss Ganzzahl >= 1 sein`);
   }
   if (d.verlauf === undefined) return;
-  if (!Array.isArray(d.verlauf)) { errors.push(`${prefix}.verlauf: muss eine Liste sein`); return; }
+  if (!Array.isArray(d.verlauf)) { melde(errors, "typ", `${prefix}.verlauf`, `muss eine Liste sein`); return; }
   const jahre = new Set();
   d.verlauf.forEach((e, i) => {
     const p = `${prefix}.verlauf[${i}]`;
-    if (!e || typeof e !== "object" || Array.isArray(e)) { errors.push(`${p}: muss ein Objekt sein`); return; }
-    for (const feld of Object.keys(e)) if (!DYNAMIK_EINTRAG_FELDER.has(feld)) errors.push(`${p}.${feld}: unbekanntes Feld`);
-    if (typeof e.termin !== "string" || !isIsoDate(e.termin)) errors.push(`${p}.termin: muss ISO-Datum YYYY-MM-DD sein`);
-    else if (jahre.has(e.termin.slice(0, 4))) errors.push(`${p}.termin: ${e.termin.slice(0, 4)} ist schon erfasst, je Jahr eine Entscheidung`);
+    if (!e || typeof e !== "object" || Array.isArray(e)) { melde(errors, "typ", `${p}`, `muss ein Objekt sein`); return; }
+    for (const feld of Object.keys(e)) if (!DYNAMIK_EINTRAG_FELDER.has(feld)) melde(errors, "unbekanntes-feld", `${p}.${feld}`, `unbekanntes Feld`);
+    if (typeof e.termin !== "string" || !isIsoDate(e.termin)) melde(errors, "datum", `${p}.termin`, `muss ISO-Datum YYYY-MM-DD sein`);
+    else if (jahre.has(e.termin.slice(0, 4))) melde(errors, "konsistenz", `${p}.termin`, `${e.termin.slice(0, 4)} ist schon erfasst, je Jahr eine Entscheidung`);
     else jahre.add(e.termin.slice(0, 4));
-    if (!DYNAMIK_ENTSCHEIDUNGEN.includes(e.entscheidung)) errors.push(`${p}.entscheidung: erlaubt sind ${DYNAMIK_ENTSCHEIDUNGEN.join("|")}`);
-    if (e.bemerkung !== undefined && typeof e.bemerkung !== "string") errors.push(`${p}.bemerkung: muss string sein`);
+    if (!DYNAMIK_ENTSCHEIDUNGEN.includes(e.entscheidung)) melde(errors, "konsistenz", `${p}.entscheidung`, `erlaubt sind ${DYNAMIK_ENTSCHEIDUNGEN.join("|")}`);
+    if (e.bemerkung !== undefined && typeof e.bemerkung !== "string") melde(errors, "typ", `${p}.bemerkung`, `muss string sein`);
   });
 }
 
@@ -961,20 +1081,20 @@ function pruefeAnteile(prefix, anteile, personenMap, errors) {
   let num = 0, den = 1;
   anteile.forEach((a, i) => {
     const p = `${prefix}.eigentumsanteile[${i}]`;
-    if (!a || typeof a !== "object") { errors.push(`${p}: muss ein Objekt sein`); return; }
+    if (!a || typeof a !== "object") { melde(errors, "typ", `${p}`, `muss ein Objekt sein`); return; }
     const extern = a.extern === true;
     if (!extern && !personenMap.has(a.person_id)) {
-      errors.push(`${p}.person_id: ${a.person_id} existiert nicht`);
+      melde(errors, "verweis", `${p}.person_id`, `${a.person_id} existiert nicht`);
     }
-    if (!Number.isInteger(a.zaehler) || a.zaehler < 1) errors.push(`${p}.zaehler: muss Ganzzahl >= 1 sein`);
-    if (!Number.isInteger(a.nenner) || a.nenner < 1) errors.push(`${p}.nenner: muss Ganzzahl >= 1 sein`);
+    if (!Number.isInteger(a.zaehler) || a.zaehler < 1) melde(errors, "zahl", `${p}.zaehler`, `muss Ganzzahl >= 1 sein`);
+    if (!Number.isInteger(a.nenner) || a.nenner < 1) melde(errors, "zahl", `${p}.nenner`, `muss Ganzzahl >= 1 sein`);
     if (Number.isInteger(a.zaehler) && Number.isInteger(a.nenner) && a.nenner >= 1) {
       num = num * a.nenner + a.zaehler * den;
       den = den * a.nenner;
     }
   });
   if (num !== den) {
-    errors.push(`${prefix}.eigentumsanteile: Summe der Anteile muss genau 1 sein`);
+    melde(errors, "konsistenz", `${prefix}.eigentumsanteile`, `Summe der Anteile muss genau 1 sein`);
   }
 }
 

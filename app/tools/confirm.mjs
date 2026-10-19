@@ -16,7 +16,7 @@ import { categorize } from "./categorizer.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { normalizeLoose } from "./lib/text.mjs";
-import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
+import { meldeNachSchreiben, validatorBefunde } from "./lib/validator-befund.mjs";
 import { ersetzeDatei } from "./lib/datei.mjs";
 
 const ENTSCHIEDEN = new Set(["bestaetigt", "abgelehnt"]);
@@ -194,7 +194,7 @@ async function main() {
     console.log("\nVorschau — nichts geschrieben. Mit --schreiben anwenden.");
     return;
   }
-  const vorher = await validatorFehler(masterRoot);
+  const vorher = await validatorBefunde(masterRoot);
   await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
 
   // Lernsignal protokollieren (ADR 0026). Nur wenn tatsaechlich eine

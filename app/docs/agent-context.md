@@ -367,18 +367,32 @@ einer menschlichen Bestaetigung ist es der Regelbezug zum Zeitpunkt der
 Entscheidung und bleibt so stehen; was das Regelwerk heute sagt, rechnen Gate,
 Probelauf und Pruefbericht jeweils frisch.
 
-**Invariante:**
+**Zustandstabelle** (`KATEGORISIERUNG_ZUSTAENDE` in `tools/validate-core.mjs`;
+jede andere Kombination ist ein Validatorfehler mit Code
+`kategorisierung-zustand`):
 
-- `matched_regeln` ist **immer vorhanden** bei `kategorie_herkunft = regel`
-  (eindeutiger Treffer) und bei `kategorisierung_status = offen` mit
-  mindestens einem Treffer (Regelkonflikt: mehrere Regeln haben gepasst, aber
-  keine eindeutige Kategorie ergab sich).
-- Ein Konflikt ist **ableitbar** aus `status = offen` + nicht leerem
-  `matched_regeln`.
-- `matched_regeln` ist **niemals vorhanden** bei `kategorie_herkunft = manuell`,
-  `kategorie_herkunft = agent` oder `kategorisierung_status = abgelehnt`.
+| Status | Herkunft | `bestaetigt_durch` | `matched_regeln` | `kategorie_id` | setzt |
+| --- | --- | --- | --- | --- | --- |
+| `offen` | — | — | optional (Regelkonflikt) | — | Import, Nach-Kategorisierung |
+| `vorgeschlagen` | `regel` | — | Pflicht | Pflicht | Import, Nach-Kategorisierung |
+| `vorgeschlagen` | `agent` | — | — | Pflicht | `agent_vorschlag` |
+| `bestaetigt` | `regel` | `auto` oder `mensch` | optional | Pflicht | Freigabe, `bestaetigen` |
+| `bestaetigt` | `agent` | `auto` oder `mensch` | — | Pflicht | Freigabe, `bestaetigen` |
+| `bestaetigt` | `manuell` | `mensch` | — | Pflicht | `bestaetigen` |
+| `abgelehnt` | — | — | — | — | `bestaetigen` |
+
+- `matched_regeln` ist nie eine leere Liste; ohne Treffer fehlt das Feld.
+- Ein Konflikt ist **ableitbar** aus `status = offen` + `matched_regeln`.
 - Die IDs in `matched_regeln` muessen in `DATENROOT/kategorisierungsregeln.json`
   existieren; der Validator prueft dies.
+
+**Herkunftsvertrag:** Herkunft und `matched_regeln` halten die Entscheidung
+fest, wie sie damals fiel, nicht die heutige Regelwirkung. Eine bestaetigte
+Regel-Buchung muss deshalb nicht die Kategorie tragen, die ihre Regeln heute
+liefern; Widersprueche zeigt der Pruefbericht, der Validator erzwingt keine
+Gleichheit. Bei einer Bestaetigung darf der Regelbezug fehlen, wenn die
+Nach-Kategorisierung ihn nicht mehr ermitteln konnte; ein offener
+Regelvorschlag braucht ihn immer.
 
 ### Belegstufe ist an das Konto gebunden, auf dem sie verdient wurde
 

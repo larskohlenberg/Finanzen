@@ -92,6 +92,6 @@ test("JSON-Datenverträge erlauben die Regelzahlungsreferenz", () => {
   for (const name of ["importformat", "transaktionen"]) {
     const schema = JSON.parse(readFileSync(new URL(`../app/schemas/${name}.schema.json`, import.meta.url), "utf8"));
     const properties = schema.items?.properties ?? schema.properties;
-    assert.equal(properties.regelzahlung_id.pattern, "^RZ-\\d{3}$", name);
+    assert.equal(properties.regelzahlung_id.pattern, "^RZ-\\d{3,}$", name);
   }
 });

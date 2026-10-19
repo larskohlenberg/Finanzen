@@ -59,7 +59,7 @@ Optionale `phasen` am Szenario: `[{ "name": "Arbeit", "ab": "2026-10-01" }, ...]
 ## Do's
 
 - Vor jedem Schreiben `tools/validator.mjs` aufrufen (Tool prueft, Agent schreibt).
-- `szenario_id` sequenziell nach Konvention `SZN-\d{3}` vergeben.
+- `szenario_id` sequenziell nach Konvention `SZN-\d{3,}` vergeben.
 - Jede Annahme einzeln mit Datum, Betrag und `qualitaet` versehen; `begruendung` fuer alles, was nicht aus den Feldern selbst hervorgeht.
 - Bei Aenderung eines bestaetigten Szenarios den Nutzer auf den Statuswechsel zurueck zu `entwurf` hinweisen, falls die Aenderung inhaltlich relevant ist.
 

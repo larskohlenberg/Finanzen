@@ -11,7 +11,7 @@
     "bezeichnung": { "type": "string" },
     "quelle": { "type": "string", "enum": ["csv"] },
     "dateimuster": { "type": "string", "description": "Regex auf den Dateinamen. Muss so scharf sein, dass genau ein Profil trifft — zwei Treffer sind ein Fehler, keine Reihenfolge-Entscheidung." },
-    "konto_id": { "type": "string", "pattern": "^KTO-\\d{3}$" },
+    "konto_id": { "type": "string", "pattern": "^KTO-\\d{3,}$" },
     "trennzeichen": { "type": "string", "default": ";" },
     "kopfzeile": { "type": "string", "description": "Text, an dem die Kopfzeile erkannt wird; alles davor ist Vorspann." },
     "datumsformat": { "type": "string", "enum": ["DD.MM.YYYY", "DD/MM/YYYY", "YYYY-MM-DD"] },

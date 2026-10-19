@@ -108,7 +108,7 @@ function basisMitTransaktion(herkunft) {
     transaktion_id: "TXN-4bacb864-48f3-444b-9523-0e32eb870e63", dedupe_hash: "h1", rohquelle: "data/inbox/x.csv",
     konto_id: "KTO-001", buchungsdatum: "2026-05-20", betrag: "-42.80",
     gegenpartei: "MusterladenA", verwendungszweck: "Einkauf",
-    kategorisierung_status: "vorgeschlagen", ist_transfer: false, kategorie_id: "KAT-001",
+    kategorisierung_status: "bestaetigt", bestaetigt_durch: "mensch", ist_transfer: false, kategorie_id: "KAT-001",
   };
   if (herkunft !== undefined) tx.kategorie_herkunft = herkunft;
   data.transaktionen.push(tx);
@@ -136,7 +136,7 @@ test("JSON-Transaktionsvertrag erlaubt eine Immobilienreferenz", () => {
     new URL("../app/schemas/transaktionen.schema.json", import.meta.url),
     "utf8",
   ));
-  assert.equal(schema.items.properties.immobilie_id.pattern, "^IMM-\\d{3}$");
+  assert.equal(schema.items.properties.immobilie_id.pattern, "^IMM-\\d{3,}$");
 });
 
 test("Transaktion mit existierender immobilie_id ist valide", () => {

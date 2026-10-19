@@ -5,14 +5,17 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 let apiAntwort = null;
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   if (cleanPath === "api/belege") {
@@ -25,6 +28,7 @@ globalThis.fetch = async (path) => {
 await import("../app/i18n.js");
 
 const { data, state } = await import("../app/runtime.mjs");
+appDaten = data;
 const view = await import("../app/views/belege.mjs");
 
 const PDF = "Belege/Kontoauszuege/KTO-001/auszug_2026-01.pdf";
@@ -39,6 +43,10 @@ data.transaktionen.push(
 const runtime = await import("../app/runtime.mjs");
 for (const tx of data.transaktionen.slice(-2)) runtime.transaktionenById.set(tx.transaktion_id, tx);
 data.zeitwerte.push({ entitaet: "konto", entitaet_id: kontoId, feld: "kontostand", wert: "1.00", standdatum: "2026-01-31", qualitaet: "belegt", quelle_hinweis: `Auszug ${PDF}` });
+// Buchungen je Dokument kommen vom Server (GET /api/v1/belegverweise): einmal abrufen.
+const { verweise } = await import("../app/views/belegverweise-daten.mjs");
+verweise();
+await apiAbwarten();
 
 const ISO = "2026-02-01T10:00:00.000Z";
 apiAntwort = {

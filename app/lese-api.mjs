@@ -16,6 +16,7 @@
 //   GET /api/v1/vorsorge?quelle=&heute=
 //   GET /api/v1/szenarien?quelle=&heute=
 //   GET /api/v1/checks?quelle=&heute=
+//   GET /api/v1/belegverweise?quelle=
 import { istKalenderdatum } from "./mcp/kennzahlen.mjs";
 import { kopfleisteModell } from "./kopfleiste.mjs";
 import { kontenModell } from "./konten-modell.mjs";
@@ -23,6 +24,7 @@ import { vermoegenModell } from "./vermoegen-modell.mjs";
 import { vorsorgeModell } from "./vorsorge-modell.mjs";
 import { szenarienModell } from "./szenarien-modell.mjs";
 import { checksModell } from "./checks-modell.mjs";
+import { buchungsBelege } from "./belege.mjs";
 import { GRANULARITAETEN, liquiditaetModell } from "./liquiditaet-modell.mjs";
 import { planIstMonate, planIstRechnung, planIstVerlauf } from "./plan-ist-modell.mjs";
 import { PERIODE_MUSTER } from "./plan-ist.mjs";
@@ -161,6 +163,8 @@ const ANSICHTEN = {
     const tag = heute(suche);
     return jeStand(bestand, "checks", tag, () => checksModell(bestand.daten, tag));
   },
+  // Je Beleg nur Anzahl, Konten und Zeitraum der Buchungen; haengt nur am Stand.
+  belegverweise: (bestand) => ({ buchungen: bestand.merke("belegverweise", () => buchungsBelege(bestand.daten)) }),
   kopfleiste: (bestand, suche, { quelle }) => {
     const tag = heute(suche);
     return jeStand(bestand, "kopfleiste", tag, () => kopfleisteModell(wieImBrowser(bestand, quelle), tag));

@@ -22,7 +22,8 @@ function anfragePfad({ seite = state.transactionPage, auswahl = state.selectedTr
   suche.set("dir", state.transactionSort.dir);
   suche.set("groesse", String(state.pageSize));
   if (zeige) suche.set("zeige", zeige);
-  else suche.set("seite", String(Number.isFinite(seite) && seite > 0 ? Math.min(seite, 1e9) : 1));
+  // "Letzte Seite" setzt eine beliebig grosse Zahl; der Server begrenzt sie (hoechstens 9 Stellen).
+  else suche.set("seite", String(Number.isFinite(seite) && seite > 0 ? Math.min(Math.floor(seite), 999999) : 1));
   if (auswahl) suche.set("auswahl", auswahl);
   suche.set("ohneKategorie", t("labels.noCategory"));
   return `./api/v1/transaktionen?${suche}`;
@@ -60,7 +61,7 @@ function transactionSortHeader(key, labelKey, amount = false) {
 }
 
 export function renderTransactions() {
-  const { antwort, laedt, fehler } = transaktionenAntwort();
+  const { antwort, laedt, fehler, veraltet } = transaktionenAntwort();
   const accountName = state.transactionFilters.account ? kontenById.get(state.transactionFilters.account)?.name : "";
   const breadcrumb = renderBreadcrumb(accountName);
   if (!antwort) {
@@ -70,6 +71,10 @@ export function renderTransactions() {
   }
   const rows = antwort.zeilen;
   const pageCount = antwort.seiten;
+  // Solange die neue Seite laedt, zeigt die Leiste die gewuenschte Seite, aber
+  // nie ausserhalb der bekannten Seiten (state.transactionPage kann nach
+  // "Letzte Seite" beliebig gross sein).
+  const seite = veraltet ? Math.min(Math.max(1, Math.floor(Number(state.transactionPage)) || 1), pageCount) : antwort.seite;
   const auswahl = antwort.auswahl?.transaktion.transaktion_id === state.selectedTransactionId ? antwort.auswahl : null;
   const detailRailOpen = !state.detailRailClosed && Boolean(auswahl);
 
@@ -106,7 +111,7 @@ export function renderTransactions() {
               </tbody>
             </table>
           </div>
-          ${renderPagination(antwort.treffer, pageCount)}
+          ${renderPagination(antwort.treffer, pageCount, seite)}
         </section>
       </div>
       ${detailRailOpen ? `
@@ -135,23 +140,23 @@ function renderTransactionTableToolbar() {
   `;
 }
 
-function renderPagination(totalRows, pageCount) {
-  const from = totalRows === 0 ? 0 : (state.transactionPage - 1) * state.pageSize + 1;
-  const to = Math.min(totalRows, state.transactionPage * state.pageSize);
-  const items = paginationItems(state.transactionPage, pageCount);
+function renderPagination(totalRows, pageCount, seite) {
+  const from = totalRows === 0 ? 0 : (seite - 1) * state.pageSize + 1;
+  const to = Math.min(totalRows, seite * state.pageSize);
+  const items = paginationItems(seite, pageCount);
   return `
     <div class="pagination">
-      <span>${escapeHtml(t("transactions.page"))} ${state.transactionPage} / ${pageCount} · ${from}-${to} ${escapeHtml(t("transactions.of"))} ${totalRows}</span>
+      <span>${escapeHtml(t("transactions.page"))} ${seite} / ${pageCount} · ${from}-${to} ${escapeHtml(t("transactions.of"))} ${totalRows}</span>
       <div class="pagination-actions">
-        <button class="pager-button" data-action="page-first" ${state.transactionPage === 1 ? "disabled" : ""}>${escapeHtml(t("transactions.firstPage"))}</button>
-        <button class="pager-button" data-action="page-prev" ${state.transactionPage === 1 ? "disabled" : ""}>${escapeHtml(t("transactions.previousPage"))}</button>
+        <button class="pager-button" data-action="page-first" ${seite === 1 ? "disabled" : ""}>${escapeHtml(t("transactions.firstPage"))}</button>
+        <button class="pager-button" data-action="page-prev" ${seite === 1 ? "disabled" : ""}>${escapeHtml(t("transactions.previousPage"))}</button>
         <div class="pagination-pages" aria-label="${escapeHtml(t("transactions.pageJumps"))}">
           ${items.map((item) => item === "ellipsis"
             ? `<span class="pagination-ellipsis">…</span>`
-            : `<button class="page-number ${item === state.transactionPage ? "active" : ""}" data-action="page-jump" data-page="${item}" ${item === state.transactionPage ? "aria-current=\"page\"" : ""}>${item}</button>`).join("")}
+            : `<button class="page-number ${item === seite ? "active" : ""}" data-action="page-jump" data-page="${item}" ${item === seite ? "aria-current=\"page\"" : ""}>${item}</button>`).join("")}
         </div>
-        <button class="pager-button" data-action="page-next" ${state.transactionPage === pageCount ? "disabled" : ""}>${escapeHtml(t("transactions.nextPage"))}</button>
-        <button class="pager-button" data-action="page-last" ${state.transactionPage === pageCount ? "disabled" : ""}>${escapeHtml(t("transactions.lastPage"))}</button>
+        <button class="pager-button" data-action="page-next" ${seite === pageCount ? "disabled" : ""}>${escapeHtml(t("transactions.nextPage"))}</button>
+        <button class="pager-button" data-action="page-last" ${seite === pageCount ? "disabled" : ""}>${escapeHtml(t("transactions.lastPage"))}</button>
       </div>
     </div>
   `;
@@ -159,7 +164,9 @@ function renderPagination(totalRows, pageCount) {
 
 function paginationItems(currentPage, pageCount) {
   const pages = new Set([1, pageCount]);
-  for (let page = currentPage - 2; page <= currentPage + 2; page += 1) {
+  // Fester Schrittzaehler: bei sehr grossen Zahlen aendert page += 1 den Wert nicht mehr.
+  for (let schritt = -2; schritt <= 2; schritt += 1) {
+    const page = currentPage + schritt;
     if (page >= 1 && page <= pageCount) pages.add(page);
   }
   const sorted = [...pages].sort((a, b) => a - b);

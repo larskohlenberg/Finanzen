@@ -1021,7 +1021,8 @@ async function handleAction(element) {
     if (action === "page-first") state.transactionPage = 1;
     if (action === "page-prev") state.transactionPage -= 1;
     if (action === "page-next") state.transactionPage += 1;
-    if (action === "page-last") state.transactionPage = Number.MAX_SAFE_INTEGER;
+    // Die letzte Seite kennt der Server; er begrenzt die Seitenzahl.
+    if (action === "page-last") state.transactionPage = 999999;
     if (action === "page-jump") state.transactionPage = Number(element.dataset.page);
     commitNavigation();
     return;

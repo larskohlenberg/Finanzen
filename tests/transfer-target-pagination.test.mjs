@@ -193,6 +193,17 @@ test("open-transaction aus einer anderen Ansicht springt auf die Seite der Zielb
   assert.match(app.innerHTML, /data-transaction="TX-TARGET"/);
 });
 
+test("Letzte Seite: der Server begrenzt auf die letzte vorhandene Seite", async () => {
+  resetTransactionState();
+  clickAction({ action: "page-last" });
+  await apiAbwarten();
+  assert.equal(state.transactionPage, 2);
+  assert.match(app.innerHTML, /data-transaction="TX-TARGET"/);
+  clickAction({ action: "page-first" });
+  await apiAbwarten();
+  assert.equal(state.transactionPage, 1);
+});
+
 test("open-entity fuer eine Transaktion springt ebenfalls auf ihre Seite", async () => {
   resetTransactionState();
   clickAction({ action: "open-entity", scope: "transaktion", entity: TARGET_ID });

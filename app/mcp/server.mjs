@@ -15,6 +15,7 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "../tools/data-root.mjs";
 import { verarbeiteZeile } from "./protokoll.mjs";
+import { releaseKennung } from "./version.mjs";
 
 const app = fileURLToPath(new URL("../", import.meta.url)).replace(/\/$/, "");
 const repo = path.dirname(app);
@@ -41,12 +42,14 @@ async function kontext(argv) {
   const daten = path.join(app, "data");
   if (!datenroot.startsWith(`${daten}${path.sep}`)) abbruch("Datenroot muss unter <app>/data/ liegen (z. B. data/master)");
   if (!(await stat(datenroot).catch(() => null))?.isDirectory()) abbruch("Datenroot existiert nicht");
-  return { app, repo, datenroot, datenrootRel: path.relative(app, datenroot).split(path.sep).join("/"), recht };
+  // Release-Kennung beim Start: weicht die installierte spaeter ab, weist die
+  // Sitzung fachliche Aufrufe ab (version.mjs).
+  return { app, repo, datenroot, datenrootRel: path.relative(app, datenroot).split(path.sep).join("/"), recht, release: releaseKennung(app) };
 }
 
 async function main() {
   const ctx = await kontext(process.argv.slice(2));
-  log(`gestartet, recht=${ctx.recht}`);
+  log(`gestartet, recht=${ctx.recht}, release=${ctx.release}`);
   const offen = new Set();
   const zeilen = createInterface({ input: process.stdin, crlfDelay: Infinity });
   zeilen.on("line", (zeile) => {

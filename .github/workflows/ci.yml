@@ -29,6 +29,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
+      # pdftotext wie auf der VM; die Belegtext-Tests rufen es auf.
+      - name: poppler-utils
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
       - run: npm test
       - name: Validator Demodaten
         run: node app/tools/validator.mjs app/data/demo

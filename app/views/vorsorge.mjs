@@ -6,13 +6,14 @@
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
 import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
-import { aktuellerZeitwert, computeNettovermoegen, computeVermoegenChecks } from "../vermoegen.mjs";
+import { aktuellerZeitwert } from "../vermoegen.mjs";
+import { erstelleApiCache } from "../api-daten.mjs";
 import { donutDiagramm, wertVerlauf } from "../charts.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
-  VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag, beitragsAenderungen, beitragVorjahr, gebuchteBeitraegeAlle,
+  VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag,
   gesetzlicherRentenbeginn, kapitalLeistungen, kapitalZumAblauf, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
-  rentenStufen, tabFuerVorsorge, vermoegensBezug, vertragsFarben, wertEntwicklung,
+  rentenStufen, tabFuerVorsorge, vertragsFarben,
 } from "../vorsorge-rechnung.mjs";
 import { dynamikStand, widerspruchFuerFrist } from "../vorsorge-dynamik.mjs";
 import { fristenZuObjekt } from "../fristen.mjs";
@@ -67,9 +68,27 @@ const jaehrlichGezahlt = (vs, today) => {
   return rz.length > 0 && rz.every((r) => r.rhythmus_einheit === "jahr" || (r.rhythmus_einheit === "monat" && Number(r.rhythmus_intervall) % 12 === 0));
 };
 
+// Was Buchungen braucht (offene Punkte, Rueckkaufswerte als Positionen des
+// Nettovermoegens, je Vertrag Anzahl gebuchter Beitraege, letzte Aenderung,
+// Vorjahr, Vermoegensbezug, Wertentwicklung), rechnet der App-Server (GET /api/v1/vorsorge,
+// app/vorsorge-modell.mjs). renderVorsorge setzt die Antwort fuer die Dauer
+// eines Zeichnens; alles andere rechnet der Browser aus Stammdaten und Zeitwerten.
+const cache = erstelleApiCache({ maxEintraege: 4 });
+let modell = null;
+const OHNE_BUCHUNGEN = { anzahl_buchungen: 0, letzte_aenderung: null, vorjahr: null, bezug: [], wert_entwicklung: null };
+// Fehlt der Vertrag in der Antwort (sie ist noch die des vorigen Stands): ohne Buchungen.
+const vertrag = (vs) => modell?.vertraege[vs.vorsorge_id] ?? OHNE_BUCHUNGEN;
+
+function vorsorgeAntwort(heute) {
+  const suche = new URLSearchParams();
+  if (state.dataMode === "demo") suche.set("quelle", "demo");
+  suche.set("heute", heute);
+  return cache.hole(`./api/v1/vorsorge?${suche}`);
+}
+
 // Links auf die Vermoegensgegenstaende eines Vertrags (oeffnet das Objekt auf der Vermoegensseite).
 function bezugLinks(vs) {
-  return vermoegensBezug(data, vs.vorsorge_id).map((b) => {
+  return vertrag(vs).bezug.map((b) => {
     const name = (data.immobilien ?? []).find((i) => i.immobilie_id === b.id)?.bezeichnung || b.id;
     return `<button class="linkish" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`${b.klasse}:${b.id}`)}" title="${escapeHtml(t("vorsorge.bezugOeffnen"))}">${escapeHtml(name)}</button>`;
   });
@@ -92,9 +111,9 @@ function aktiverTab() {
 }
 
 // Offene Pruefpunkte je Vertrag aus den Vermoegens-Checks.
-function offenePunkte(today) {
+function offenePunkte() {
   const je = new Map();
-  for (const c of computeVermoegenChecks(data, today)) {
+  for (const c of modell.checks) {
     if (c.entitaet !== "vorsorge") continue;
     if (!je.has(c.entitaet_id)) je.set(c.entitaet_id, []);
     je.get(c.entitaet_id).push(c);
@@ -104,7 +123,14 @@ function offenePunkte(today) {
 
 export function renderVorsorge() {
   const today = heuteIso();
-  const offen = offenePunkte(today);
+  const { antwort, fehler } = vorsorgeAntwort(today);
+  if (!antwort) {
+    return `
+    ${renderPageHead(t("vorsorge.title"), t("vorsorge.lead"))}
+    <section class="panel panel-pad"><p class="muted" role="status">${escapeHtml(fehler ? `${t("vorsorge.loadFailed")} (${fehler.message})` : t("vorsorge.loading"))}</p></section>`;
+  }
+  modell = antwort;
+  const offen = offenePunkte();
   const tab = aktiverTab();
   const inhalt = tab === "uebersicht" ? renderUebersichtTab(today, offen) : renderGruppenTab(tab, today, offen);
   return `
@@ -136,8 +162,7 @@ function renderUebersichtTab(today, offen) {
   const legende = sortiert.map((l) => `<span><i class="${farbKlasse(farben, l.vorsorge.vorsorge_id)}"></i>${escapeHtml(name(l))} ${escapeHtml(geldOhneCent(l.wert_cents))}</span>`).join("");
 
   const kapital = kapitalLeistungen(data, today);
-  const nv = computeNettovermoegen(data, today);
-  const vorsorgePositionen = nv.positionen.filter((p) => p.klasse === "vorsorge");
+  const vorsorgePositionen = modell.positionen;
   const rkw = vorsorgePositionen.reduce((a, p) => a + p.wert_cents, 0);
   const aktiv = (data.vorsorge ?? []).filter((vs) => !istBeendet(vs));
   const beitragVorsorge = aktiv.filter((vs) => tabFuerVorsorge(vs) !== "versicherungen").reduce((a, vs) => a + beitragJeMonatVertrag(data, vs.vorsorge_id, today), 0);
@@ -327,7 +352,7 @@ function renderGruppenTab(tab, today, offen) {
 function renderBeitragsRanking(liste, today) {
   const zeilen = liste
     .filter((vs) => !istBeendet(vs))
-    .map((vs) => ({ vs, jahr: beitragJeJahrVertrag(data, vs.vorsorge_id, today), vj: beitragVorjahr(data, vs.vorsorge_id) }))
+    .map((vs) => ({ vs, jahr: beitragJeJahrVertrag(data, vs.vorsorge_id, today), vj: vertrag(vs).vorjahr }))
     .filter((z) => z.jahr > 0)
     .sort((a, b) => b.jahr - a.jahr || a.vs.vorsorge_id.localeCompare(b.vs.vorsorge_id));
   if (!zeilen.length) return "";
@@ -365,7 +390,7 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
     wert = jahr ? `${escapeHtml(formatMoney(jahr))} ${einheit(t("vorsorge.jeJahr"))}` : `<span class="muted">—</span>`;
     const naechster = naechsterBeitrag(data, vs.vorsorge_id, today);
     zeilen.push([personName(vs.person_id), naechster ? tf("vorsorge.karte.faellig", { datum: formatDate(naechster.datum) }) : ""].filter(Boolean).join(" · "));
-    const vj = beitragVorjahr(data, vs.vorsorge_id);
+    const vj = vertrag(vs).vorjahr;
     if (vj?.vorjahr_cents) zeilen.push(`${tf("vorsorge.karte.vorjahr", { betrag: formatMoney(vj.vorjahr_cents) })} · ${veraenderungText(vj)}`);
     if (rkw) zeilen.push(`${rkwLabel(vs)} ${formatMoney(cents(rkw.wert))}${vs.kapitalbildend ? "" : ` · ${t("vorsorge.nichtImVermoegen")}`}`);
   } else if (tab === "renten") {
@@ -497,7 +522,7 @@ function kennzahlenVorsorge(vs, today) {
   const monat = beitragJeMonatVertrag(data, vs.vorsorge_id, today);
   const jahr = beitragJeJahrVertrag(data, vs.vorsorge_id, today);
   const jaehrlich = jaehrlichGezahlt(vs, today);
-  const letzte = beitragsAenderungen(data, vs.vorsorge_id)[0];
+  const letzte = vertrag(vs).letzte_aenderung;
   const beitragNotiz = [
     jaehrlich ? `${formatMoney(monat)} ${t("vorsorge.jeMonat")}` : `${formatMoney(jahr)} ${t("vorsorge.jeJahr")}`,
     letzte ? tf("vorsorge.zuletztAenderung", { aenderung: aenderungText(letzte), datum: formatDate(letzte.datum) }) : "",
@@ -514,7 +539,7 @@ function kennzahlenVersicherung(vs, today) {
   const monat = beitragJeMonatVertrag(data, vs.vorsorge_id, today);
   const jahr = beitragJeJahrVertrag(data, vs.vorsorge_id, today);
   const naechster = naechsterBeitrag(data, vs.vorsorge_id, today);
-  const vj = beitragVorjahr(data, vs.vorsorge_id);
+  const vj = vertrag(vs).vorjahr;
   const konto = naechster?.regelzahlung.konto_id ? (kontenById.get(naechster.regelzahlung.konto_id)?.name || naechster.regelzahlung.konto_id) : "";
   let veraenderung;
   if (vj?.vorjahr_cents) {
@@ -648,9 +673,9 @@ function wertEntwicklungHtml(vs, we, link) {
 // Beitraege selbst stehen in den gefilterten Transaktionen; die Kachel verlinkt
 // nur dorthin und zeigt, wenn es Wertstaende gibt, die Wertentwicklung.
 function renderBeitraege(vs) {
-  const we = wertEntwicklung(data, vs.vorsorge_id);
+  const we = vertrag(vs).wert_entwicklung;
   const titel = t(we ? "vorsorge.wertentwicklung.titel" : "vorsorge.gebuchteBeitraege");
-  const anzahl = gebuchteBeitraegeAlle(data, vs.vorsorge_id).length;
+  const anzahl = vertrag(vs).anzahl_buchungen;
   const hatRegelzahlung = (data.regelzahlungen ?? []).some((rz) => rz.vorsorge_id === vs.vorsorge_id);
   const link = anzahl
     ? `<p class="wert-buchungen-link"><button class="linkish" data-action="vorsorge-transactions" data-vorsorge="${escapeHtml(vs.vorsorge_id)}">${escapeHtml(tf("vorsorge.alleBuchungen", { n: anzahl }))} →</button></p>`

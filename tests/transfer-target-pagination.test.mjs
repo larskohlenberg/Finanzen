@@ -386,6 +386,8 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     historyCalls.length = 0;
 
     clickAction({ action: "open-vorsorge", vorsorge: vorsorgeId });
+    // Gebuchte Beitraege kommen vom Server (GET /api/v1/vorsorge).
+    await apiAbwarten();
 
     assert.equal(state.view, "vorsorge");
     assert.equal(state.selectedVorsorgeId, vorsorgeId);
@@ -436,6 +438,8 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     state.vorsorgeFilters = { person: "PER-X" };
     state.selectedVorsorgeId = "VS-ALT";
     clickAction({ action: "open-vorsorge", vorsorge: vorsorgeId });
+    // Gebuchte Beitraege kommen vom Server (GET /api/v1/vorsorge).
+    await apiAbwarten();
 
     assert.equal(state.view, "vorsorge");
     assert.deepEqual(state.vorsorgeFilters, { person: "" });

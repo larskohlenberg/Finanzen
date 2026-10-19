@@ -406,6 +406,8 @@ window.FINANCE_I18N = {
       keinePersonen: "Keine Person mit laufendem Vorsorgevertrag erfasst.",
     },
     vorsorge: {
+      loading: "Vorsorge wird geladen …",
+      loadFailed: "Vorsorge konnte nicht geladen werden",
       title: "Vorsorge",
       lead: "Renten, Lebens- und Schutzversicherungen: was sie heute wert sind, was sie später leisten und was sie kosten.",
       kapitalbildend: "kapitalbildend",
@@ -1560,6 +1562,8 @@ window.FINANCE_I18N = {
       keinePersonen: "No person with an active pension or insurance contract recorded.",
     },
     vorsorge: {
+      loading: "Loading provision …",
+      loadFailed: "Provision could not be loaded",
       title: "Pension plans",
       lead: "Pensions, life and protection insurance: what they are worth today, what they pay later and what they cost.",
       kapitalbildend: "capital-forming",

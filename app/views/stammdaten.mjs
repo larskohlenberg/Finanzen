@@ -116,7 +116,7 @@ function renderKontoSection() {
             <h2 class="section-title">${escapeHtml(t("vermoegen.detailTitle"))}</h2>
             <button class="icon-button" data-action="close-account-rail" aria-label="${escapeHtml(t("chrome.closeDetails"))}" title="${escapeHtml(t("chrome.closeDetails"))}">${iconSvg("close")}</button>
           </div>
-          ${renderVermoegenDetail(kontoPosition(konto, konten.konten[konto.konto_id]?.wert ?? { wert_cents: null }), today, konten)}
+          ${renderVermoegenDetail(kontoPosition(konto, konten.konten[konto.konto_id]?.wert ?? { wert_cents: null, basis: "" }), today, konten)}
           <div class="detail-section">
             <button class="linkish" data-action="account-transactions" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(t("masterdata.showTransactions"))}</button>
           </div>

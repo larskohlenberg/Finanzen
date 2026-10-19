@@ -14,11 +14,13 @@
 // driften also systematisch auseinander. Inhalte tun das nicht.
 
 import { readFile, writeFile, readdir, rm } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { erkenneText, istBild, ocrRumpf, OCR_KOPF } from "./lib/ocr.mjs";
+import { bestandOrte } from "./lib/bestand-orte.mjs";
+import { pflichtDatenroot } from "./data-root.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -162,12 +164,19 @@ export function markerText(seiten, { bild = false } = {}) {
   return `${MARKER_KOPF} — Bildscan, ${seiten} Seiten. Inhalt nur im PDF.\n`;
 }
 
-// Default-Wurzeln fuer den normalen CLI-Lauf. Tests injizieren stattdessen
-// Tempverzeichnisse ueber die main()-Parameter, damit main() nie das echte
-// Belege-Archiv anfassen kann.
-const BELEGE_STANDARD = new URL("../Belege/", import.meta.url);
-const STAGING_STANDARD = new URL("../data/inbox/standardized/", import.meta.url);
-const PROCESSED_STANDARD = new URL("../data/inbox/processed/", import.meta.url);
+// Wurzeln fuer den normalen CLI-Lauf, aus den Orten des Bestands
+// (lib/bestand-orte.mjs). Ein Bestand ohne Belegablage (z. B. data/demo) hat
+// belegeRoot null. Tests injizieren stattdessen Tempverzeichnisse ueber die
+// main()-Parameter, damit main() nie das echte Belege-Archiv anfassen kann.
+const ordnerUrl = (pfad) => pathToFileURL(`${pfad}/`);
+export function standardWurzeln(datenroot, appRoot = new URL("../", import.meta.url)) {
+  const orte = bestandOrte(fileURLToPath(appRoot), fileURLToPath(datenroot));
+  return {
+    belegeRoot: orte.belege ? ordnerUrl(orte.belege) : null,
+    stagingRoot: ordnerUrl(`${orte.inbox}/standardized`),
+    processedRoot: ordnerUrl(`${orte.inbox}/processed`),
+  };
+}
 
 const hashVon = (inhalt) => createHash("sha256").update(inhalt).digest("hex");
 const ersteZeile = (text) => text.split("\n", 1)[0];
@@ -194,6 +203,7 @@ async function dateienUnter(ordner, praefix) {
 }
 
 async function ladeBelege(belegeRoot) {
+  if (!belegeRoot) return [];
   let pfade;
   try {
     pfade = await dateienUnter(belegeRoot, "Belege/");
@@ -259,9 +269,9 @@ const keinOcr = async () => {
 };
 
 export async function main({
-  belegeRoot = BELEGE_STANDARD,
-  stagingRoot = STAGING_STANDARD,
-  processedRoot = PROCESSED_STANDARD,
+  belegeRoot,
+  stagingRoot,
+  processedRoot,
   schreiben = process.argv.slice(2).includes("--schreiben"),
   // Injizierbar fuer Tests: { extrahiere, ocrBild, ocrPdf, heute } (lib/ocr.mjs).
   erkennung = {},
@@ -374,7 +384,10 @@ export async function main({
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main().catch((error) => {
+  Promise.resolve().then(() => {
+    const datenroot = pflichtDatenroot(process.argv.slice(2).find((a) => !a.startsWith("--")));
+    return main(standardWurzeln(datenroot));
+  }).catch((error) => {
     console.error(error.message);
     process.exitCode = 1;
   });

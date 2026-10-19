@@ -274,3 +274,21 @@ test("main() erzeugt den Zwilling und raeumt Staging ausschliesslich im injizier
     await rm(wurzel, { recursive: true, force: true });
   }
 });
+
+test("Standardwurzeln kommen aus den Orten des Bestands, nicht fest aus data/master", async () => {
+  const { standardWurzeln } = await import("../app/tools/belege-text.mjs");
+  const app = await mkdtemp(join(tmpdir(), "belege-orte-"));
+  try {
+    const appUrl = pathToFileURL(`${app}/`);
+    const demo = standardWurzeln(pathToFileURL(`${app}/data/demo/`), appUrl);
+    assert.equal(fileURLToPath(demo.stagingRoot), join(app, "data/demo/inbox/standardized/"));
+    assert.equal(fileURLToPath(demo.processedRoot), join(app, "data/demo/inbox/processed/"));
+    assert.equal(demo.belegeRoot, null);
+    const master = standardWurzeln(pathToFileURL(`${app}/data/master/`), appUrl);
+    assert.equal(fileURLToPath(master.stagingRoot), join(app, "data/inbox/standardized/"));
+    assert.equal(fileURLToPath(master.processedRoot), join(app, "data/inbox/processed/"));
+    assert.equal(fileURLToPath(master.belegeRoot), join(app, "Belege/"));
+  } finally {
+    await rm(app, { recursive: true, force: true });
+  }
+});

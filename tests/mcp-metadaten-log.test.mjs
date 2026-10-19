@@ -2,7 +2,8 @@
 // schreibt der Server Metadaten zusaetzlich in <Datenort>/logs/mcp-<JJJJ-MM>.log.
 // Nur Zeit, Sitzung, Methode, Werkzeugname, Dauer, Fehlerklasse; nie Inhalte.
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, readdirSync, renameSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { legeAbzugAn, starteServer } from "./mcp-hilfe.mjs";
@@ -36,6 +37,23 @@ test("MCP schreibt Metadaten ohne Inhalte nach data/logs", async () => {
     const sitzungen = new Set(zeilen.map((z) => z.split(" ")[1]));
     assert.equal(sitzungen.size, 1);
     for (const verboten of ["konten.json", "GeheimerSuchbegriff", "<script>", "es nicht"]) assert.ok(!text.includes(verboten), verboten);
+  } finally {
+    abzug.aufraeumen();
+  }
+});
+
+test("Log legt keinen fehlenden Datenort an, relativer Datenort gibt die klare Meldung", () => {
+  const abzug = legeAbzugAn();
+  try {
+    const fehlt = join(abzug.wurzel, "nicht-eingehaengt");
+    const server = join(abzug.app, "mcp", "server.mjs");
+    const r = spawnSync(process.execPath, [server, "data/master"], { input: "", encoding: "utf8", env: { ...process.env, FINANZEN_DATEN: fehlt } });
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /existiert nicht/);
+    assert.equal(existsSync(fehlt), false);
+    const rel = spawnSync(process.execPath, [server, "data/master"], { input: "", encoding: "utf8", env: { ...process.env, FINANZEN_DATEN: "relativ" } });
+    assert.equal(rel.status, 2, rel.stderr);
+    assert.match(rel.stderr, /^\[finanzen-mcp\] FINANZEN_DATEN muss ein absoluter Pfad sein/m);
   } finally {
     abzug.aufraeumen();
   }

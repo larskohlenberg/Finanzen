@@ -11,21 +11,29 @@
 // Schreiben (Platte voll, keine Rechte), laeuft der Server weiter; gemeldet
 // wird das einmal auf stderr.
 import { randomBytes } from "node:crypto";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { physisch } from "../tools/lib/datenort.mjs";
 
 export function metadatenLog(app, { stderr = (z) => process.stderr.write(z), jetzt = () => new Date() } = {}) {
   const sitzung = randomBytes(4).toString("hex");
-  const ordner = physisch(app, "data/logs");
   let kaputt = false;
   return function log(text) {
     stderr(`[finanzen-mcp] ${text}\n`);
     if (kaputt) return;
     const zeit = jetzt();
-    const datei = path.join(ordner, `mcp-${zeit.toISOString().slice(0, 7)}.log`);
     try {
-      mkdirSync(ordner, { recursive: true, mode: 0o750 });
+      // Erst hier aufloesen: ein ungueltiger Datenort meldet sich ueber die
+      // Startpruefung, nicht als Absturz beim Laden.
+      const ordner = physisch(app, "data/logs");
+      const datei = path.join(ordner, `mcp-${zeit.toISOString().slice(0, 7)}.log`);
+      // Nur logs/ selbst anlegen, nie den Datenort (nicht eingehaengt, Tippfehler).
+      if (!statSync(path.dirname(ordner), { throwIfNoEntry: false })?.isDirectory()) throw Object.assign(new Error("Datenort fehlt"), { code: "ENOENT" });
+      try {
+        mkdirSync(ordner, { mode: 0o750 });
+      } catch (error) {
+        if (error.code !== "EEXIST") throw error;
+      }
       appendFileSync(datei, `${zeit.toISOString()} s=${sitzung} pid=${process.pid} ${text}\n`, { mode: 0o640 });
     } catch (error) {
       kaputt = true;

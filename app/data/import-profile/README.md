@@ -18,6 +18,11 @@ ab ("Spalte X nicht in der Datei"), statt Werte still falsch zuzuordnen.
 
 ## Regeln
 
+- **Gepruefter Vertrag.** Der Inbox-Lauf prueft jedes Profil vor der Nutzung gegen
+  das Schema (auch: Muster muessen gueltige regulaere Ausdruecke sein, eine
+  Herkunft ist genau `spalte` oder `konstante`). Ein ungueltiges Profil wird nicht
+  benutzt; seine CSV landet mit den Fehlern als Notiz in `error/`.
+
 - **Nie raten.** Gibt es keine verlaessliche Quelle fuer ein Feld, bleibt es leer
   (`{"konstante": ""}`). Eine falsche Gegenpartei ist schlimmer als eine fehlende.
 - **`dateimuster` scharf halten.** Treffen zwei Profile auf dieselbe Datei, bricht

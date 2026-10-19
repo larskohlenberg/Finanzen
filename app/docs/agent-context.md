@@ -521,7 +521,10 @@ Eine Bank-CSV wird ueber ein Profil in `data/import-profile/<profil_id>.json`
 Agent legt das Profil **einmal** beim ersten Import einer Bank an; danach ist der
 Import ein Tool-Aufruf. Das ist kein bankspezifischer Parser im Sinn von ADR 0005
 — es entsteht kein Code pro Bank, und ein Spaltenwechsel bricht den Lauf sichtbar
-ab ("Spalte X nicht in der Datei") statt Werte still falsch zuzuordnen.
+ab ("Spalte X nicht in der Datei") statt Werte still falsch zuzuordnen. Der
+Inbox-Lauf prueft jedes Profil vor der Nutzung (Pflichtfelder, unbekannte Felder,
+Aufzaehlungen, uebersetzbare Muster); ein ungueltiges Profil wird nicht benutzt,
+seine Dateien gehen mit Fehlernotiz nach `error/`.
 
 PDFs werden **nicht** automatisch in Buchungen zerlegt. `inbox.mjs` legt einen
 deterministischen Textvorlauf (`pdftotext -layout`) nach

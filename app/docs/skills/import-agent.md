@@ -129,7 +129,9 @@ oder mit Zeilenfehlern samt Fehlernotiz `<name>.fehler.txt` nach `error/` (die
 guten Zeilen sind dann schon importiert; nach der Korrektur ueberspringt ein
 erneuter Lauf sie als Dubletten). Gleichnamige Dateien bekommen ein Suffix
 (`-2`, `-3` ...). Bringt der Lauf neue Validatorfehler, wird nichts geschrieben und
-nichts verschoben.
+nichts verschoben. Jedes Profil wird vorher gegen sein Schema geprueft: ein
+ungueltiges Profil steht im Bericht unter `profilfehler`, wird nicht benutzt, und
+eine CSV, die nur es trifft, landet mit den Profilfehlern als Notiz in `error/`.
 
 Der Handablauf unten gilt weiterhin fuer:
 

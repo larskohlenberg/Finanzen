@@ -35,6 +35,17 @@ export function bestandZumEntwurf(datenroot) {
   return imEntwurfsLauf(datenroot) && process.env[BESTAND_UMGEBUNG] ? path.resolve(process.env[BESTAND_UMGEBUNG]) : path.resolve(datenroot);
 }
 
+// Pfad im Entwurf, wie er im eigentlichen Bestand heisst (fuer Protokoll,
+// rohquelle und Meldungen); ausserhalb eines Entwurfslaufs unveraendert.
+export function alsBestandsPfad(pfad) {
+  const entwurf = process.env[ENTWURF_UMGEBUNG];
+  const bestand = process.env[BESTAND_UMGEBUNG];
+  if (!entwurf || !bestand) return pfad;
+  const rel = path.relative(path.resolve(entwurf), path.resolve(pfad));
+  if (rel.startsWith("..") || path.isAbsolute(rel)) return pfad;
+  return path.join(path.resolve(bestand), rel);
+}
+
 export async function validatorFehler(ordner) {
   try {
     return validateMasterData(await loadMasterData(pathToFileURL(`${ordner}${path.sep}`))).errors;

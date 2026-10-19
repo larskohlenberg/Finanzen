@@ -415,7 +415,7 @@ function transaktion(entwurf, vorher, kennung, halt) {
 // Vergleicht den Entwurf mit seiner Quelle. Im Generationsmodus heisst
 // "unveraendert": gleicher Inode wie in der Quelle, und dessen Inhalt passt
 // noch zum Manifest. Im Rueckfallmodus (ohne Manifest) entscheidet der Inhalt.
-async function sichteEntwurf(entwurf, quelle, quellManifest) {
+async function sichteEntwurf(entwurf, quelle, quellManifest, ausgangsliste = null) {
   const dateien = {};
   const neu = [];
   const ersetzt = [];
@@ -436,7 +436,9 @@ async function sichteEntwurf(entwurf, quelle, quellManifest) {
     const altHash = quellManifest ? quellManifest.dateien[rel]?.sha256 : alt?.isFile() && sha256(await readFile(path.join(quelle, rel)));
     if (!alt || altHash !== dateien[rel].sha256) neu.push(rel);
   }
-  const geloescht = (await dateiListe(quelle)).filter((rel) => !dateien[rel]);
+  // Rueckfallmodus: nur loeschen, was beim Anlegen des Entwurfs schon da war;
+  // was seither daneben hinzukam (z. B. ein Upload in die Inbox), bleibt.
+  const geloescht = (ausgangsliste ?? (await dateiListe(quelle))).filter((rel) => !dateien[rel]);
   return { dateien, neu, ersetzt, geloescht, geaendert: [...neu, ...geloescht].sort() };
 }
 
@@ -556,14 +558,15 @@ async function schreibeOrdner(basis, fn, { pruefe, erwartet, vonGeneration, halt
   const entwurf = path.join(basis, `${ENTWURF_ORDNER}${process.pid}-${zufall()}`);
   await mkdir(entwurf);
   try {
-    for (const rel of await dateiListe(basis)) {
+    const ausgang = await dateiListe(basis);
+    for (const rel of ausgang) {
       await mkdir(path.dirname(path.join(entwurf, rel)), { recursive: true });
       await copyFile(path.join(basis, rel), path.join(entwurf, rel), constants.COPYFILE_FICLONE);
     }
     halt("entwurf-angelegt");
     await fn(transaktion(entwurf, ORDNER, kennung, halt));
     const fehler = await pruefeEntwurf(entwurf, pruefe);
-    const sicht = await sichteEntwurf(entwurf, basis, null);
+    const sicht = await sichteEntwurf(entwurf, basis, null, ausgang);
     const ergebnis = { id: ORDNER, vorher: ORDNER, geaendert: sicht.geaendert, geloescht: sicht.geloescht, aufgeraeumt: [], wiederanlauf: wieder };
     if (fehler) return { ...ergebnis, verworfen: true, fehler };
     for (const rel of sicht.neu) {
@@ -575,7 +578,7 @@ async function schreibeOrdner(basis, fn, { pruefe, erwartet, vonGeneration, halt
       await rename(path.join(entwurf, rel), path.join(basis, rel));
       halt("ordner-datei-ersetzt");
     }
-    for (const rel of sicht.geloescht) await unlink(path.join(basis, rel));
+    for (const rel of sicht.geloescht) await unlink(path.join(basis, rel)).catch((error) => { if (error.code !== "ENOENT") throw error; });
     for (const ordner of new Set(sicht.geaendert.map((rel) => path.dirname(rel)))) await fsyncPfad(path.join(basis, ordner));
     return ergebnis;
   } finally {

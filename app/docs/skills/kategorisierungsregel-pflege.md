@@ -199,7 +199,7 @@ Darum gilt eng begrenzt:
    **stilllegen** = `status = "inaktiv"` (nicht loeschen, der Categorizer
    ignoriert Inaktive ohnehin).
 
-5. **Nach-Kategorisierung anstossen.** MCP-Tool `nachkategorisieren` mit `schreiben: true` (lokal `node tools/recategorize.mjs DATENROOT`) aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel` + Auto-Freigaben) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator fuer `DATENROOT` und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs.
+5. **Nach-Kategorisierung anstossen.** MCP-Tool `nachkategorisieren` mit `schreiben: true` (lokal `node tools/recategorize.mjs DATENROOT --schreiben`) aufrufen. Das Tool rechnet den vollen Recompute (offen + `herkunft = regel` + Auto-Freigaben) gegen das aktuelle Regelwerk, schreibt `transaktionen.jsonl` in-place, ruft danach den Validator fuer `DATENROOT` und gibt den Zaehlerbericht aus. Du uebergibst dem Tool **kein** Regel-Delta — der volle Recompute ist die verbindliche Nach-Kategorisierung. `recategorize.mjs` schreibt dabei auch `matched_regeln` neu: bei eindeutigem Treffer mit der treffenden Regel-ID, bei Konflikt mit allen passenden IDs.
 
 6. **E5- und E6-Faelle als Einzelvorschlaege setzen.**
 

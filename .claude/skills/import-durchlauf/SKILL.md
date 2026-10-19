@@ -35,7 +35,7 @@ Lauf eine Vorschau.
    `standardized/` per Inhalts-Hash ab. Ohne Nachweis bleibt die Datei liegen
    und steht unter `offen`. `error/` bleibt unangetastet.
 8. Zaehler in `DATENROOT/agent_log.jsonl` protokollieren (`datei_schreiben`
-   mit `anhaengen: true`).
+   mit `anhaengen: true, schreiben: true`).
 
 ## Die drei Regeln, die den Unterschied machen
 

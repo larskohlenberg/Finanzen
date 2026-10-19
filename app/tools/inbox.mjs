@@ -24,12 +24,14 @@
 // Textzwilling entsteht neben dem Beleg unter `Belege/` — siehe
 // `belege-text.mjs`, das den Vorlauf danach wieder abraeumt.
 import { access, readFile, writeFile, readdir, rename, mkdir } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { runImport } from "./import.mjs";
 import { normalizeCsv } from "./normalize.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
 import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
+import { bestandOrte } from "./lib/bestand-orte.mjs";
 
 const IGNORIEREN = new Set([".DS_Store", ".gitkeep"]);
 const VERARBEITBAR = new Set(["csv", "pdf", ...BILD_ENDUNGEN]);
@@ -200,7 +202,8 @@ async function main() {
   const argv = process.argv.slice(2);
   const schreiben = argv.includes("--schreiben");
   const masterRoot = dataRootFromArg(argv.find((a) => !a.startsWith("--")), new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
-  const inboxRoot = new URL("../data/inbox/", import.meta.url);
+  // Jeder Bestand hat seine Inbox (data/master: data/inbox/), siehe bestand-orte.mjs.
+  const inboxRoot = pathToFileURL(`${bestandOrte(fileURLToPath(new URL("../", import.meta.url)), fileURLToPath(masterRoot)).inbox}${path.sep}`);
 
   const profile = await ladeProfile(inboxRoot);
   const eintraege = await readdir(inboxRoot, { withFileTypes: true });

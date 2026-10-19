@@ -3,13 +3,41 @@
 // Repo-Doku erreicht man ueber `../docs/...` und `../CONTEXT.md`. Erlaubt ist,
 // was nach dem Aufloesen — lexikalisch UND nach realpath (Symlinks) — unter
 // einer der erlaubten Wurzeln liegt. Absolute Pfade werden nie angenommen.
+// Geschrieben wird nur im Bestand der Sitzung samt dessen Inbox, Importprofilen
+// und Papierkorb (bestandWurzeln), und nur mit erlaubter Endung.
 import { realpath } from "node:fs/promises";
 import path from "node:path";
+import { bestandOrte } from "../tools/lib/bestand-orte.mjs";
 
 export const LESE_WURZELN = ["data", "Belege", "docs", "schemas", "../docs", "../CONTEXT.md"];
-export const SCHREIB_WURZELN = ["data"];
+// Keine ausfuehrbaren oder im Browser aktiven Typen (html, js, svg, ...).
+export const SCHREIB_ENDUNGEN = [".json", ".jsonl", ".csv", ".txt", ".md", ".pdf", ".png", ".jpg", ".jpeg"];
 
 export class PfadFehler extends Error {}
+
+const relativZu = (app, absolut) => path.relative(app, absolut).split(path.sep).join("/");
+
+// Orte des Bestands der Sitzung, relativ zum App-Raum; belege ist null, wenn
+// der Bestand keine Belegablage hat. schreiben = alle Schreibwurzeln.
+export function bestandWurzeln(ctx) {
+  const orte = bestandOrte(ctx.app, ctx.datenroot);
+  const r = {
+    datenroot: relativZu(ctx.app, ctx.datenroot),
+    inbox: relativZu(ctx.app, orte.inbox),
+    profile: relativZu(ctx.app, orte.profile),
+    papierkorb: relativZu(ctx.app, orte.papierkorb),
+    belege: orte.belege ? relativZu(ctx.app, orte.belege) : null,
+  };
+  r.schreiben = [...new Set([r.datenroot, r.inbox, r.profile, r.papierkorb])];
+  return r;
+}
+
+export function pruefeEndung(relativ) {
+  const endung = path.extname(relativ).toLowerCase();
+  if (!SCHREIB_ENDUNGEN.includes(endung)) {
+    throw new PfadFehler(`Endung ${endung || "(keine)"} ist nicht erlaubt; erlaubt sind ${SCHREIB_ENDUNGEN.join(", ")}`);
+  }
+}
 
 function liegtUnter(kandidat, wurzel) {
   return kandidat === wurzel || kandidat.startsWith(`${wurzel}${path.sep}`);

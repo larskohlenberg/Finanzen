@@ -61,7 +61,7 @@ ohne MCP.
 | `tools/import.mjs` | `import` (Vorschau gegen eine Kopie des Datenroots) |
 | `tools/regel-vorschlag.mjs` | `regel_vorschlag` |
 | `tools/regel-probelauf.mjs` | `regel_probelauf` (Kandidaten direkt als Liste) |
-| `tools/recategorize.mjs` | `nachkategorisieren` (Vorschau gegen eine Kopie) |
+| `tools/recategorize.mjs` | `nachkategorisieren` (CLI: Datenroot Pflicht, `--schreiben` schreibt) |
 | `tools/agent-vorschlag.mjs` | `agent_vorschlag` |
 | `tools/confirm.mjs` | `bestaetigen` |
 | `tools/transaktion-immobilie.mjs` | `immobilienbezug` |
@@ -74,15 +74,24 @@ ohne MCP.
 | `tools/belege-umziehen.mjs` | `belege_umziehen` (Umzugsplan als Liste `umzuege` oder `plan_datei` unter `data/`) |
 | `tools/pruefbericht.mjs` | `pruefbericht` |
 | Datei lesen, suchen | `datei_lesen`, `dateien_suchen`, `transaktionen_abfragen` |
-| Datei schreiben, editieren | `datei_schreiben`, `datei_ersetzen` (nur unter `data/`) |
-| Beleg wegsortieren | `beleg_ablegen` (`data/inbox/...` nach `Belege/...`, sprechend benannt) |
+| Datei schreiben, editieren | `datei_schreiben`, `datei_ersetzen` (nur im Bestand der Sitzung samt dessen Inbox und Importprofilen; Endungen json, jsonl, csv, txt, md, pdf, png, jpg; Vorschau ist Default) |
+| Beleg wegsortieren | `beleg_ablegen` (`data/inbox/...` nach `Belege/...`, sprechend benannt; nur Bestand `data/master`; Vorschau ist Default) |
 | Sammelscan teilen | `beleg_teilen` (`quelle` unter `data/inbox/`, `teile` als `[{ seiten: "1-4", name }]`; jede Seite genau einem Teil, Teile in die Inbox-Wurzel, Original in den Papierkorb; Vorschau ist Default) |
 | Nachgereichte Seiten einfuegen | `beleg_ergaenzen` (`quelle` PDF unter `data/inbox/` oder schon unter `Belege/`, `ziel` PDF unter `Belege/`, optional `nach_seite`, 0 = vorn, ohne = ans Ende; alte Fassung samt Zwilling und Quelle in den Papierkorb, danach `belege_text`; Vorschau ist Default) |
 | Beleg verwerfen | `beleg_verwerfen` (`pfad` unter `Belege/`, optional `grund`; Beleg samt Zwilling in den Papierkorb, z. B. eine Doublette; abgewiesen, solange Daten auf ihn verweisen; Vorschau ist Default) |
-| Inbox-Datei verwerfen | `inbox_verwerfen` (`pfad` unter `data/inbox/`, optional `grund`; verschiebt in den Papierkorb, z. B. ein erkanntes Duplikat) |
-| Aus `error/` zurueckholen | `inbox_zurueckholen` (`pfad` unter `data/inbox/error/`; zurueck in die Inbox-Wurzel, bricht bei gleichem Namen ab) |
+| Inbox-Datei verwerfen | `inbox_verwerfen` (`pfad` unter `data/inbox/`, optional `grund`; verschiebt in den Papierkorb, z. B. ein erkanntes Duplikat; Vorschau ist Default) |
+| Aus `error/` zurueckholen | `inbox_zurueckholen` (`pfad` unter `data/inbox/error/`; zurueck in die Inbox-Wurzel, bricht bei gleichem Namen ab; Vorschau ist Default) |
 
-Alle Tool-Laeufe sind ohne `schreiben: true` eine Vorschau. Skills stehen als
+Alle Tool-Laeufe sind ohne `schreiben: true` eine Vorschau, auch die Datei-
+und Belegwerkzeuge. Ein Werkzeugfehler fuehrt zu keinem Commit: der Bestand
+wird zurueckgesetzt (Verschiebungen in Inbox und `Belege/` ausgenommen).
+
+**Orte je Bestand:** `data/master` nutzt `data/inbox/`, `data/import-profile/`,
+`data/papierkorb/` und `Belege/`. Jeder andere Bestand (z. B. `data/demo`) hat
+`inbox/`, `import-profile/` und `papierkorb/` in seinem eigenen Ordner und
+keine Belegablage. Eine Sitzung schreibt nur in ihren Bestand und dessen Orte.
+
+Skills stehen als
 MCP-Prompts bereit, dieses Dokument als Resource `finanzen://docs/agent-context`.
 Pflichtlektuere ist beides nur vor Datenarbeit (Import, Kategorisieren, Regeln,
 Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.

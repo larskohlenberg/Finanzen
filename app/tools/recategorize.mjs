@@ -136,26 +136,44 @@ async function readJsonl(url) {
   return text.split(/\r?\n/).filter((line) => line.trim().length > 0).map((line) => JSON.parse(line));
 }
 
+// Aufruf: node app/tools/recategorize.mjs <datenroot> [--schreiben]
+// Ohne --schreiben nur der Bericht (Vorschau). Geschrieben wird nur, wenn der
+// neue Stand keine neuen Validatorfehler hat.
 async function main() {
-  const masterRoot = dataRootFromArg(process.argv[2], new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
+  const argv = process.argv.slice(2);
+  const schreiben = argv.includes("--schreiben");
+  const rootArg = argv.find((a) => !a.startsWith("--"));
+  if (!rootArg) {
+    console.error("Aufruf: node app/tools/recategorize.mjs <datenroot> [--schreiben] — der Datenroot ist Pflicht (z. B. data/master oder data/demo).");
+    process.exitCode = 2;
+    return;
+  }
+  const masterRoot = dataRootFromArg(rootArg, undefined, new URL("../", import.meta.url));
   const [transaktionen, regeln] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readJson(new URL("kategorisierungsregeln.json", masterRoot)),
   ]);
 
   const out = recategorize({ transaktionen, regeln });
+  console.log(JSON.stringify(out.report, null, 2));
+  if (!schreiben) {
+    console.log("\nVorschau — nichts geschrieben. Mit --schreiben anwenden.");
+    return;
+  }
+
+  const bestand = await loadMasterData(masterRoot);
+  const bekannt = new Set(validateMasterData(bestand).errors);
+  const neu = validateMasterData({ ...bestand, transaktionen: out.transaktionen }).errors.filter((f) => !bekannt.has(f));
+  if (neu.length) {
+    console.error("Validierung des neuen Stands fehlgeschlagen — nichts geschrieben:");
+    for (const error of neu) console.error(`- ${error}`);
+    process.exitCode = 1;
+    return;
+  }
   await writeFile(
     new URL("transaktionen.jsonl", masterRoot),
     out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n",
   );
-
-  const validation = validateMasterData(await loadMasterData(masterRoot));
-  console.log(JSON.stringify(out.report, null, 2));
-  if (!validation.valid) {
-    console.error("Validierung nach Nach-Kategorisierung fehlgeschlagen:");
-    for (const error of validation.errors) console.error(`- ${error}`);
-    process.exitCode = 1;
-  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

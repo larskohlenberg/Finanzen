@@ -136,6 +136,15 @@ export function offeneReconciliation(log) {
   });
 }
 
+// Dubletten-Prueffaelle (ADR 0034), die Inbox-Lauf und import.mjs ins Protokoll
+// schreiben. Sichtbar bis zum letzten Eintrag mit `dubletten_geprueft: true`
+// (der Agent setzt ihn, nachdem er die Faelle mit dem Nutzer angesehen hat).
+export function offeneDublettenPruefungen(log) {
+  const eintraege = log ?? [];
+  const abgehakt = eintraege.findLastIndex((e) => e.dubletten_geprueft === true);
+  return eintraege.slice(abgehakt + 1).flatMap((e) => (Array.isArray(e.dubletten_pruefen) ? e.dubletten_pruefen : []).map((fall) => ({ ...fall, zeitpunkt: e.zeitpunkt })));
+}
+
 // Was zwischen geschriebenen Ankern nicht aufgeht, rechnet der Bericht selbst
 // nach (dieselbe Funktion wie die Vermoegens-Checks) — unabhaengig davon, ob ein
 // Agent es je protokolliert hat.
@@ -185,6 +194,7 @@ export function pruefbericht({ transaktionen, regeln, konten, zeitwerte, log }) 
     // Genau deshalb muss er hier sichtbar sein, sonst verschwindet die Luecke.
     reconciliation: offeneReconciliation(log),
     salden_drift: saldenDrift(konten, zeitwerte, transaktionen),
+    dubletten_pruefen: offeneDublettenPruefungen(log),
     lernen: metriken(log ?? [], gesperrteBelegstufenAus(log ?? [])),
   };
 }
@@ -241,6 +251,15 @@ export function renderBericht(b) {
   z.push(`  zurueckgehaltene Kopfstaende — laut Protokoll, nicht erledigt (${b.reconciliation.length})`);
   if (b.reconciliation.length === 0) z.push("    keine");
   for (const r of b.reconciliation) z.push(`    ${r.quelle}: Differenz ${reconDifferenz(r.reconciliation_differenz)}`);
+
+  const dubletten = b.dubletten_pruefen ?? [];
+  z.push("", `DUBLETTEN-PRUEFFAELLE AUS IMPORTEN (${dubletten.length})`);
+  z.push("  nach Anzahl entschieden, aber nicht sicher — ansehen, danach im Protokoll dubletten_geprueft: true");
+  for (const f of dubletten) {
+    const bezug = f.transaktion_id ? `  ${f.transaktion_id}` : "";
+    z.push(`  ${f.art}  ${f.konto_id}  ${f.quelle ?? "(ohne Quelle)"} Zeile ${(f.zeilen ?? []).join(", ")}${bezug}  (${String(f.zeitpunkt ?? "").slice(0, 10)})`);
+    if (f.hinweis) z.push(`    ${f.hinweis}`);
+  }
 
   const auffaellig = b.lernen.je_regel.filter((r) => r.korrekturen > 0);
   z.push("", `REGELN MIT KORREKTUREN AN AUTO-FREIGABEN (${auffaellig.length})`);

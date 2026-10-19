@@ -398,6 +398,10 @@ async function main() {
     notiz: `inbox.mjs: ${bericht.laeufe.length} Datei(en) verarbeitet`,
     betroffene_ids: betroffeneTransaktionsIds(bericht.laeufe),
   };
+  // Dubletten-Prueffaelle (ADR 0034) ins Protokoll, damit der Pruefbericht sie
+  // zeigt, bis ein spaeterer Eintrag sie mit dubletten_geprueft abhakt.
+  const dublettenPruefen = bericht.laeufe.flatMap((l) => (l.pruefen_details ?? []).map((fall) => ({ ...fall, quelle: `${inboxName(inboxRoot)}/${l.datei}` })));
+  if (dublettenPruefen.length) protokoll.dubletten_pruefen = dublettenPruefen;
   const logUrl = new URL("agent_log.jsonl", masterRoot);
   const bisher = await readFile(logUrl, "utf8").catch(() => "");
   await writeFile(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);

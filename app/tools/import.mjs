@@ -167,6 +167,21 @@ async function main() {
   }
   await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
   await writeFile(new URL("transfers.json", masterRoot), JSON.stringify(out.transfers, null, 2) + "\n");
+  // Dubletten-Prueffaelle (ADR 0034) ins Protokoll, damit der Pruefbericht sie
+  // zeigt, bis ein spaeterer Eintrag sie mit dubletten_geprueft abhakt.
+  if (out.result.pruefen.length) {
+    const eintrag = {
+      zeitpunkt: new Date().toISOString(),
+      anlass: "import",
+      inputs: [inputPath],
+      anzahl_importiert: out.result.written.length,
+      notiz: `import.mjs: ${out.result.pruefen.length} Dubletten-Prueffall/-faelle`,
+      dubletten_pruefen: out.result.pruefen.map((fall) => ({ ...fall, quelle: inputPath })),
+    };
+    const logUrl = new URL("agent_log.jsonl", masterRoot);
+    const bisher = await readFile(logUrl, "utf8").catch(() => "");
+    await writeFile(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(eintrag)}\n`);
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

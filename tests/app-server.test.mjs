@@ -61,6 +61,7 @@ before(async () => {
   await writeFile(join(appDir, "views", "a.mjs"), "export const a = 1;");
   await mkdir(join(appDir, "data", "master"), { recursive: true });
   await writeFile(join(appDir, "data", "master", "personen.json"), "[]");
+  await writeFile(join(appDir, "version.json"), "{}");
   await writeFile(join(wurzel, "geheim.txt"), "GEHEIM");
   await symlink(join(wurzel, "geheim.txt"), join(appDir, "link.txt"));
   await symlink(wurzel, join(appDir, "linkdir"));
@@ -89,7 +90,7 @@ test("Statik: / liefert index.html mit No-Cache- und Sicherheits-Kopfzeilen", as
 test("Statik: MIME-Typen fuer Module und JSON, HEAD ohne Body", async () => {
   assert.match((await anfrage({ path: "/views/a.mjs" })).headers["content-type"], /^text\/javascript/);
   assert.match((await anfrage({ path: "/main.js?v=1" })).headers["content-type"], /^text\/javascript/);
-  assert.match((await anfrage({ path: "/data/master/personen.json" })).headers["content-type"], /^application\/json/);
+  assert.match((await anfrage({ path: "/version.json" })).headers["content-type"], /^application\/json/);
   const head = await anfrage({ method: "HEAD", path: "/main.js" });
   assert.equal(head.status, 200);
   assert.equal(head.text, "");

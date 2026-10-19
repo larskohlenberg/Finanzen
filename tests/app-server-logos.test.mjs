@@ -39,7 +39,8 @@ const hole = (pfad) => new Promise((resolve, reject) => {
 test("statikErlaubt: im Logo-Ordner nur PNG", () => {
   assert.equal(statikErlaubt(["data", "master", "logos", "a.example.png"]), true);
   assert.equal(statikErlaubt(["data", "demo", "logos", "a.svg"]), false);
-  assert.equal(statikErlaubt(["data", "master", "logos.json"]), true);
+  // Das Logo-Verzeichnis selbst kommt mit dem Snapshot, nicht statisch.
+  assert.equal(statikErlaubt(["data", "master", "logos.json"]), false);
 });
 
 test("Logo-PNG kommt als Bild mit Rasterbild-CSP", async () => {
@@ -60,5 +61,5 @@ test("Im Logo-Ordner: SVG, Text, Ordner und Pfad-Ausbruch sind 404", async () =>
   ]) {
     assert.equal((await hole(pfad)).statusCode, 404, pfad);
   }
-  assert.equal((await hole("/data/master/logos.json")).statusCode, 200);
+  assert.equal((await hole("/data/master/logos.json")).statusCode, 404);
 });

@@ -3,6 +3,7 @@ import { localTodayIso } from "./liquiditaet.mjs";
 export const dataModes = {
   live: {
     key: "live",
+    // Logos (logos/*.png) kommen weiter statisch aus dem Bestand.
     basePath: "./data/master",
     bundleVersion: "live-master",
     label: "Live-Masterdaten",
@@ -15,45 +16,34 @@ export const dataModes = {
   },
 };
 
-// Alle Dateien, die der Browser aus einem Datenbestand laedt. Der App-Server
-// liefert unter data/<bestand>/ nur diese aus (statikErlaubt in server.mjs).
-export const DATEN_DATEIEN = Object.freeze([
-  "personen.json", "konten.json", "kategorien.json", "transaktionen.jsonl", "transfers.json",
-  "regelzahlungen.json", "fristen.json", "szenarien.json", "immobilien.json", "darlehen.json",
-  "vermoegenswerte.json", "vorsorge.json", "zeitwerte.jsonl", "kategorisierungsregeln.json",
-  "logos.json", "farben.json",
-]);
+// Was die App aus einem Datenbestand bekommt: Datei, Schluessel im Bestand und,
+// fuer optionale Dateien, der Ersatz, wenn sie fehlen. Der App-Server liest
+// genau diese Dateien fuer den Snapshot (app/stand.mjs); fehlt eine Pflichtdatei
+// oder ist eine unlesbar, gibt es keinen Snapshot.
+export const BESTAND_TEILE = Object.freeze([
+  { datei: "personen.json", schluessel: "personen" },
+  { datei: "konten.json", schluessel: "konten" },
+  { datei: "kategorien.json", schluessel: "kategorien" },
+  { datei: "transaktionen.jsonl", schluessel: "transaktionen" },
+  { datei: "transfers.json", schluessel: "transfers" },
+  { datei: "regelzahlungen.json", schluessel: "regelzahlungen" },
+  { datei: "fristen.json", schluessel: "fristen", ersatz: [] },
+  { datei: "szenarien.json", schluessel: "szenarien" },
+  { datei: "immobilien.json", schluessel: "immobilien" },
+  { datei: "darlehen.json", schluessel: "darlehen" },
+  { datei: "vermoegenswerte.json", schluessel: "vermoegenswerte" },
+  { datei: "vorsorge.json", schluessel: "vorsorge", ersatz: [] },
+  { datei: "zeitwerte.jsonl", schluessel: "zeitwerte" },
+  { datei: "kategorisierungsregeln.json", schluessel: "kategorisierungsregeln" },
+  { datei: "logos.json", schluessel: "logos", ersatz: [] },
+  // Fest vergebene Anzeigefarben (z. B. je Vorsorgevertrag); optional, kein Schema.
+  { datei: "farben.json", schluessel: "farben", ersatz: {} },
+].map(Object.freeze));
+
+export const DATEN_DATEIEN = Object.freeze(BESTAND_TEILE.map((teil) => teil.datei));
 
 export function normalizeDataMode(value) {
   return value === dataModes.demo.key ? dataModes.demo.key : dataModes.live.key;
-}
-
-function withRefreshToken(path, refreshToken) {
-  if (!refreshToken) return path;
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}v=${encodeURIComponent(refreshToken)}`;
-}
-
-export async function loadJson(path, options = {}) {
-  const response = await fetch(withRefreshToken(path, options.refreshToken), { cache: "no-store" });
-  if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
-  return response.json();
-}
-
-async function loadJsonOptional(path, fallback, options = {}) {
-  const response = await fetch(withRefreshToken(path, options.refreshToken), { cache: "no-store" });
-  if (!response.ok) {
-    if (response.status === 404) return fallback;
-    throw new Error(`${path}: HTTP ${response.status}`);
-  }
-  return response.json();
-}
-
-export async function loadJsonl(path, options = {}) {
-  const response = await fetch(withRefreshToken(path, options.refreshToken), { cache: "no-store" });
-  if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
-  const text = await response.text();
-  return parseJsonl(text, path);
 }
 
 export function parseJsonl(text, path = "JSONL") {
@@ -70,72 +60,63 @@ export function parseJsonl(text, path = "JSONL") {
     });
 }
 
-export async function loadFinanceData(options = {}) {
-  const mode = dataModes[normalizeDataMode(options.dataMode)];
-  const path = (filename) => `${mode.basePath}/${filename}`;
-  const refreshToken = String(Date.now());
-  const [
-    personen,
-    konten,
-    kategorien,
-    transaktionen,
-    transfers,
-    regelzahlungen,
-    fristen,
-    szenarien,
-    immobilien,
-    darlehen,
-    vermoegenswerte,
-    vorsorge,
-    zeitwerte,
-    kategorisierungsregeln,
-    logos,
-    farben,
-  ] = await Promise.all([
-    loadJson(path("personen.json"), { refreshToken }),
-    loadJson(path("konten.json"), { refreshToken }),
-    loadJson(path("kategorien.json"), { refreshToken }),
-    loadJsonl(path("transaktionen.jsonl"), { refreshToken }),
-    loadJson(path("transfers.json"), { refreshToken }),
-    loadJson(path("regelzahlungen.json"), { refreshToken }),
-    loadJsonOptional(path("fristen.json"), [], { refreshToken }),
-    loadJson(path("szenarien.json"), { refreshToken }),
-    loadJson(path("immobilien.json"), { refreshToken }),
-    loadJson(path("darlehen.json"), { refreshToken }),
-    loadJson(path("vermoegenswerte.json"), { refreshToken }),
-    loadJsonOptional(path("vorsorge.json"), [], { refreshToken }),
-    loadJsonl(path("zeitwerte.jsonl"), { refreshToken }),
-    loadJson(path("kategorisierungsregeln.json"), { refreshToken }),
-    loadJsonOptional(path("logos.json"), [], { refreshToken }),
-    // Fest vergebene Anzeigefarben (z. B. je Vorsorgevertrag); optional, kein Schema.
-    loadJsonOptional(path("farben.json"), {}, { refreshToken }),
-  ]);
+// Endpunkte des App-Servers (server.mjs). Demo und Echt sind getrennte Bestaende.
+export function standUrl(dataMode) {
+  return `./api/v1/stand${normalizeDataMode(dataMode) === "demo" ? "?quelle=demo" : ""}`;
+}
 
+export function snapshotUrl(dataMode) {
+  return `./api/v1/snapshot${normalizeDataMode(dataMode) === "demo" ? "?quelle=demo" : ""}`;
+}
+
+async function fehlerAus(response, url) {
+  const grund = await response.json().then((body) => body?.meldung ?? body?.grund).catch(() => null);
+  return new Error(`${url}: HTTP ${response.status}${grund ? ` (${grund})` : ""}`);
+}
+
+// Kennung des aktuellen Datenstands auf dem Server.
+export async function ladeStand(dataMode) {
+  const url = standUrl(dataMode);
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw await fehlerAus(response, url);
+  const { stand } = await response.json();
+  if (typeof stand !== "string" || !stand) throw new Error(`${url}: keine Standkennung`);
+  return stand;
+}
+
+// Ganzer Bestand samt Validator-Befund des Servers. Mit stand fragt der Browser
+// bedingt (If-None-Match): ist der Stand unveraendert, kommt 304 und hier null.
+// Kein Browser-Cache: die Finanzdaten bleiben no-store.
+export async function ladeSnapshot({ dataMode, stand = null } = {}) {
+  const url = snapshotUrl(dataMode);
+  const response = await fetch(url, { cache: "no-store", headers: stand ? { "If-None-Match": `"${stand}"` } : {} });
+  if (response.status === 304) return null;
+  if (!response.ok) throw await fehlerAus(response, url);
+  return bundleAusSnapshot(await response.json(), dataMode);
+}
+
+export function bundleAusSnapshot(snapshot, dataMode) {
+  const mode = dataModes[normalizeDataMode(dataMode)];
+  const { stand, validierung, daten } = snapshot ?? {};
+  if (typeof stand !== "string" || !daten || typeof daten !== "object" || typeof validierung?.valid !== "boolean") {
+    throw new Error("Snapshot unvollstaendig");
+  }
   return {
     metadata: {
       bundleVersion: mode.bundleVersion,
       label: mode.label,
       dataMode: mode.key,
       generatedAt: localTodayIso(),
-      validation: "not-run-in-browser",
+      stand,
+      validation: validierung.valid ? "passed" : "failed",
     },
-    personen,
-    konten,
-    kategorien,
-    transaktionen,
-    transfers,
-    regelzahlungen,
-    fristen,
-    szenarien,
-    immobilien,
-    darlehen,
-    vermoegenswerte,
-    vorsorge,
-    zeitwerte,
-    kategorisierungsregeln,
-    logos,
-    farben,
+    ...daten,
+    validation: { valid: validierung.valid, errors: validierung.errors ?? [] },
     checks: [],
     importfehler: [],
   };
+}
+
+export async function loadFinanceData(options = {}) {
+  return ladeSnapshot({ dataMode: options.dataMode });
 }

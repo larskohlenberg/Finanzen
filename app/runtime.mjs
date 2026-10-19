@@ -4,7 +4,6 @@
 // importieren von hier — so teilen sie EINE Zustands-/Datenquelle (Objekte per
 // Referenz). Bewusst ohne DOM-Render-Logik (die liegt in main.js/views/).
 import { loadFinanceData, normalizeDataMode } from "./data-loader.mjs";
-import { validateMasterData, strukturSicher } from "./tools/validate-core.mjs";
 import { defaultHorizonEnd, localTodayIso, toCents } from "./liquiditaet.mjs";
 
 export const app = document.querySelector("#app");
@@ -41,14 +40,11 @@ const bootstrapped = await bootstrap();
 export const data = bootstrapped.data;
 export const dictionaries = bootstrapped.dictionaries;
 
-// "Das Tool prueft" gilt auch in der UI: dieselbe Validator-Logik wie das CLI
-// laeuft einmal beim Laden ueber den geladenen Bestand (Reload = voller Page-
-// Reload, also reicht einmal). Ergebnis treibt Status-Chip und Fehlerbanner.
-// Danach arbeiten die Ansichten nur auf strukturell lesbaren Listen: was keine
-// Liste oder kein Objekt ist, faellt heraus und steht als Fehler im Banner.
-data.validation = validateMasterData(data);
-Object.assign(data, strukturSicher(data));
-data.metadata = { ...data.metadata, validation: data.validation.valid ? "passed" : "failed" };
+// "Das Tool prueft" gilt auch in der UI: den Validator-Befund (data.validation)
+// liefert der Server mit dem Snapshot, dieselbe Logik wie das CLI. Er treibt
+// Status-Chip und Fehlerbanner. Die Listen sind strukturell lesbar: was keine
+// Liste oder kein Objekt ist, hat der Server herausgenommen und als Fehler
+// gemeldet.
 
 export const storageKeys = {
   lang: "finance-m2-language",
@@ -163,11 +159,44 @@ export const state = {
   selectedBeleg: "",
 };
 
-export const personenById = new Map(data.personen.map((person) => [person.person_id, person]));
-export const kontenById = new Map(data.konten.map((konto) => [konto.konto_id, konto]));
-export const kategorienById = new Map(data.kategorien.map((kategorie) => [kategorie.kategorie_id, kategorie]));
-export const transaktionenById = new Map(data.transaktionen.map((transaktion) => [transaktion.transaktion_id, transaktion]));
-export const transfersById = new Map(data.transfers.map((transfer) => [transfer.transfer_id, transfer]));
+export const personenById = new Map();
+export const kontenById = new Map();
+export const kategorienById = new Map();
+export const transaktionenById = new Map();
+export const transfersById = new Map();
+
+function fuelleNachschlagen() {
+  const tabellen = [
+    [personenById, data.personen, "person_id"],
+    [kontenById, data.konten, "konto_id"],
+    [kategorienById, data.kategorien, "kategorie_id"],
+    [transaktionenById, data.transaktionen, "transaktion_id"],
+    [transfersById, data.transfers, "transfer_id"],
+  ];
+  for (const [map, liste, schluessel] of tabellen) {
+    map.clear();
+    for (const eintrag of liste ?? []) map.set(eintrag[schluessel], eintrag);
+  }
+}
+fuelleNachschlagen();
+
+// Zaehlt die Bestandswechsel ohne Seiten-Reload (ersetzeDaten). Was aus dem
+// Bestand abgeleitet und zwischengespeichert wird, merkt sich den Zaehler und
+// rechnet neu, wenn er sich geaendert hat.
+let datenWechsel = 0;
+export function datenVersion() {
+  return datenWechsel;
+}
+
+// Neuer Stand vom Server (stand-wechsel.mjs): data wird an Ort und Stelle
+// ersetzt, damit alle Module, die data importieren, ihn sofort sehen. Zustand,
+// Filter und Auswahl (state) bleiben.
+export function ersetzeDaten(neu) {
+  for (const schluessel of Object.keys(data)) delete data[schluessel];
+  Object.assign(data, neu);
+  fuelleNachschlagen();
+  datenWechsel += 1;
+}
 
 export function t(path) {
   const parts = path.split(".");

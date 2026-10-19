@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { bestandAntwort } from "./hilfe-bestand.mjs";
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = {
@@ -9,6 +10,8 @@ globalThis.localStorage = {
 };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
+  const bestand = bestandAntwort(path);
+  if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
   return { ok: true, json: async () => JSON.parse(body), text: async () => body };

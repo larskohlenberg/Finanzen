@@ -7,11 +7,14 @@ import { readFileSync } from "node:fs";
 import test, { after, before } from "node:test";
 import { centsToDecimal } from "../app/tools/lib/text.mjs";
 import { legeAbzugAn, starteServer } from "./mcp-hilfe.mjs";
+import { bestandAntwort } from "./hilfe-bestand.mjs";
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: () => null, setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (pfad) => {
+  const bestand = bestandAntwort(pfad);
+  if (bestand) return bestand;
   const rein = String(pfad).replace(/^\.\//, "").replace(/\?.*$/, "").replace(/^data\/master\//, "data/demo/");
   const body = readFileSync(new URL(`../app/${rein}`, import.meta.url), "utf8");
   return { ok: true, status: 200, json: async () => JSON.parse(body), text: async () => body };

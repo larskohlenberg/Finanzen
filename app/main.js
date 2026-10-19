@@ -18,13 +18,15 @@ import { renderMasterdata } from "./views/stammdaten.mjs";
 import { offeneChecksAnzahl } from "./views/checks.mjs";
 import { renderUpload, dateienEinreihen, ladeInbox, inboxBeiBedarfLaden } from "./views/upload.mjs";
 import {
-  renderBelege, belegeBeiBedarfLaden, ladeBelege, setBelegeSuche, setBelegeZwillinge,
+  renderBelege, belegeBeiBedarfLaden, ladeBelege, belegDateienStand, setBelegeSuche, setBelegeZwillinge,
   toggleBelegeSort, toggleBelegeOrdner, ordnerDerAuswahl, waehleAusschnittOrdner, toggleAusschnittOrdner,
 } from "./views/belege.mjs";
 import {
   app, data, state, storageKeys, navItems, TABBAR_VIEWS, transaktionenById,
-  t, escapeHtml, cents, verwerfeDaten,
+  t, escapeHtml, cents, verwerfeDaten, ersetzeDaten,
 } from "./runtime.mjs";
+import { ladeSnapshot, ladeStand } from "./data-loader.mjs";
+import { erstelleStandWaechter } from "./stand-wechsel.mjs";
 import { formatMoney, heuteIso, toggleKlappKachel, oeffneKlappKachel } from "./komponenten.mjs";
 import { openCategoryTransactions } from "./selektoren.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
@@ -763,9 +765,10 @@ async function handleAction(element) {
     return;
   }
   if (action === "reload-data") {
-    const url = new URL(window.location.href);
-    url.searchParams.set("_reload", String(Date.now()));
-    window.location.assign(url);
+    // Ohne Seiten-Reload: Bestand bedingt neu holen, Dokumente und Inbox frisch listen.
+    pruefeStand({ erzwingen: true });
+    if (state.view === "upload") void ladeInbox(render);
+    if (belegDateienStand().zustand !== "unbekannt") void ladeBelege(render);
     return;
   }
   if (action === "upload-choose") {
@@ -1441,6 +1444,42 @@ function applyRoute(route) {
     state.szenarioVergleichIds = route.szenarioVergleichIds || [];
   }
 }
+
+// Stand-Wechsel (stand-wechsel.mjs): nach einem Import oder einer Korrektur
+// zeigt der naechste Klick den neuen Stand, ohne Seiten-Reload. Zustand,
+// Filter und Auswahl bleiben; nur data und die Nachschlage-Maps werden ersetzt.
+const standWaechter = erstelleStandWaechter({
+  stand: data.metadata?.stand,
+  holeStand: () => ladeStand(state.dataMode),
+  holeSnapshot: (stand) => ladeSnapshot({ dataMode: state.dataMode, stand }),
+  uebernehme: (neu) => {
+    if (sitzungGesperrt) return;
+    ersetzeDaten(neu);
+    render();
+    const region = document.querySelector("#sr-status");
+    if (region) region.textContent = t("chrome.dataUpdated");
+  },
+});
+
+function pruefeStand(optionen) {
+  if (sitzungGesperrt) return;
+  // Nicht erreichbar oder kaputt: der bisherige Stand bleibt sichtbar, der
+  // naechste Klick fragt erneut. Beim Knopf "Daten neu laden" erscheint der
+  // Fehler im Fehlerbanner.
+  standWaechter.pruefe(optionen).catch((fehler) => {
+    if (optionen?.erzwingen) setUiError(fehler, "daten-neu-laden");
+    else console.warn("Datenstand nicht pruefbar:", fehler?.message ?? fehler);
+  });
+}
+
+// Nach dem Klick-Handler: erst reagiert die Oberflaeche, dann kommt ggf. der neue Stand.
+app.addEventListener("click", () => pruefeStand());
+window.addEventListener("hashchange", () => pruefeStand());
+window.addEventListener("popstate", () => pruefeStand());
+window.addEventListener("focus", () => pruefeStand());
+document.addEventListener?.("visibilitychange", () => {
+  if (document.visibilityState === "visible") pruefeStand();
+});
 
 window.addEventListener("popstate", (event) => {
   restoreState(event.state);

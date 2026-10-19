@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { bestandAntwort } from "./hilfe-bestand.mjs";
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
+  const bestand = bestandAntwort(path);
+  if (bestand) return bestand;
   const body = readFileSync(new URL(`../app/${String(path).replace(/^\.\//, "").replace(/\?.*$/, "")}`, import.meta.url), "utf8");
   return { ok: true, json: async () => JSON.parse(body), text: async () => body };
 };

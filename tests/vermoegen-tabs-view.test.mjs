@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { bestandAntwort } from "./hilfe-bestand.mjs";
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: () => null, setItem: () => {} };
@@ -10,6 +11,8 @@ globalThis.window = globalThis;
 // Belegliste fuer die Dokumente-Kacheln; ohne Antwort bleibt die API aus.
 let belegeAntwort = null;
 globalThis.fetch = async (pfad) => {
+  const bestand = bestandAntwort(pfad);
+  if (bestand) return bestand;
   if (String(pfad).replace(/^\.\//, "").replace(/\?.*$/, "") === "api/belege") {
     return belegeAntwort ? { ok: true, json: async () => belegeAntwort } : { ok: false, status: 404, json: async () => ({}) };
   }

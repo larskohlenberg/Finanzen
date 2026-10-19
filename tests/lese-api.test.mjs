@@ -253,3 +253,17 @@ test("Vorsorge: offene Punkte und Positionen nur der Vertraege, je Vertrag nur K
   }
   assert.equal((await hole("/api/v1/vorsorge?quelle=demo&heute=9999-12-31")).status, 400);
 });
+
+test("Szenarien: Startbestand und Zahl der Prognose-Hinweise; mit ihnen rechnet ein Szenario gleich", async () => {
+  const a = (await hole("/api/v1/szenarien?quelle=demo&heute=2026-10-19")).json();
+  assert.deepEqual(Object.keys(a).sort(), ["guardrails", "heute", "positionen", "stand"]);
+  assert.ok(Number.isInteger(a.guardrails));
+  const { rechneSzenario } = await import("../app/szenarien.mjs");
+  const { leseSnapshot } = await import("../app/stand.mjs");
+  const { daten } = await leseSnapshot(fileURLToPath(DEMO));
+  const ohneBuchungen = { ...daten, transaktionen: [], transfers: [] };
+  for (const sz of daten.szenarien) {
+    assert.deepEqual(rechneSzenario(ohneBuchungen, sz, "2026-10-19", { positionen: a.positionen }), rechneSzenario(daten, sz, "2026-10-19"), sz.szenario_id);
+  }
+  assert.equal((await hole("/api/v1/szenarien?quelle=demo&heute=9999-12-31")).status, 400);
+});

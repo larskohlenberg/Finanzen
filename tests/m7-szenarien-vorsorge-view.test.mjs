@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -18,7 +21,17 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const szenarienView = await import("../app/views/szenarien.mjs");
 const { data, state } = runtime;
+appDaten = data;
 const { renderSzenarien } = szenarienView;
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Startbestand und Prognose-Hinweise kommen vom Server (GET /api/v1/szenarien):
+// Antworten verwerfen, zeichnen, auf die Antwort warten, erneut zeichnen.
+async function szenarienGezeichnet() {
+  verwerfeApiCaches();
+  renderSzenarien();
+  await apiAbwarten();
+  return renderSzenarien();
+}
 
 function setBasis() {
   data.personen = [{ person_id: "PER-001", name: "Lena", status: "aktiv" }];
@@ -32,7 +45,7 @@ function setBasis() {
   data.regelzahlungen = [];
 }
 
-test("Szenario-Detail rendert vorsorge-leistung (Renten-Arm) statt Platzhalter", () => {
+test("Szenario-Detail rendert vorsorge-leistung (Renten-Arm) statt Platzhalter", async () => {
   setBasis();
   data.vorsorge = [{ vorsorge_id: "VS-001", art: "gesetzliche-rente", name: "GRV Lena", person_id: "PER-001", status: "geplant", kapitalbildend: false, geprueft_am: "2026-01-15" }];
   data.zeitwerte = [
@@ -46,14 +59,14 @@ test("Szenario-Detail rendert vorsorge-leistung (Renten-Arm) statt Platzhalter",
   state.selectedSzenarioId = "SZN-004";
   state.szenarioPhaseOffen = new Set([0]); // Annahmen stehen in der aufgeklappten Phase
 
-  const html = renderSzenarien();
+  const html = (await szenarienGezeichnet());
   assert.match(html, /Vorsorgeleistung/, "Annahme-Art muss lokalisiert erscheinen");
   assert.match(html, /VS-001/, "Inhalt muss die vorsorge_id zeigen (kein — Platzhalter)");
   assert.match(html, /Rente/, "Arm-Label 'rente' muss lokalisiert erscheinen");
   assert.doesNotMatch(html, /szenarien\.art\.vorsorge-leistung/, "Roher i18n-Key darf nicht durchschlagen");
 });
 
-test("Szenario-Detail rendert vorsorge-leistung (Kapital-Arm)", () => {
+test("Szenario-Detail rendert vorsorge-leistung (Kapital-Arm)", async () => {
   setBasis();
   data.vorsorge = [{ vorsorge_id: "VS-005", art: "schutzversicherung", name: "Risiko-LV", person_id: "PER-001", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-01-15" }];
   data.zeitwerte = [
@@ -67,7 +80,7 @@ test("Szenario-Detail rendert vorsorge-leistung (Kapital-Arm)", () => {
   state.selectedSzenarioId = "SZN-005";
   state.szenarioPhaseOffen = new Set([0]); // Annahmen stehen in der aufgeklappten Phase
 
-  const html = renderSzenarien();
+  const html = (await szenarienGezeichnet());
   assert.match(html, /Vorsorgeleistung/);
   assert.match(html, /VS-005/);
   assert.match(html, /Kapitalleistung/, "Arm-Label 'kapital' muss lokalisiert erscheinen");

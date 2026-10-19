@@ -14,11 +14,13 @@
 //   GET /api/v1/konten?quelle=&heute=
 //   GET /api/v1/vermoegen?quelle=&heute=
 //   GET /api/v1/vorsorge?quelle=&heute=
+//   GET /api/v1/szenarien?quelle=&heute=
 import { istKalenderdatum } from "./mcp/kennzahlen.mjs";
 import { kopfleisteModell } from "./kopfleiste.mjs";
 import { kontenModell } from "./konten-modell.mjs";
 import { vermoegenModell } from "./vermoegen-modell.mjs";
 import { vorsorgeModell } from "./vorsorge-modell.mjs";
+import { szenarienModell } from "./szenarien-modell.mjs";
 import { GRANULARITAETEN, liquiditaetModell } from "./liquiditaet-modell.mjs";
 import { planIstMonate, planIstRechnung, planIstVerlauf } from "./plan-ist-modell.mjs";
 import { PERIODE_MUSTER } from "./plan-ist.mjs";
@@ -148,6 +150,10 @@ const ANSICHTEN = {
   vorsorge: (bestand, suche) => {
     const tag = heute(suche);
     return jeStand(bestand, "vorsorge", tag, () => vorsorgeModell(bestand.daten, tag));
+  },
+  szenarien: (bestand, suche) => {
+    const tag = heute(suche);
+    return jeStand(bestand, "szenarien", tag, () => szenarienModell(bestand.daten, tag));
   },
   kopfleiste: (bestand, suche, { quelle }) => {
     const tag = heute(suche);

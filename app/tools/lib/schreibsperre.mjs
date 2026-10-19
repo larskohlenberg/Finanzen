@@ -58,9 +58,11 @@ function lebt(pid) {
 export function istVerwaist(halter, jetzt = Date.now()) {
   if (!halter) return true;
   if (halter.kaputt) return jetzt - halter.mtime > 5000;
+  // Auf diesem Rechner entscheidet allein, ob der Prozess lebt: ein langer
+  // CLI-Lauf behaelt seine Sperre. Das Alter gilt nur fuer fremde Rechner.
+  if (halter.rechner === hostname() && Number.isInteger(halter.pid)) return !lebt(halter.pid);
   const zeit = Date.parse(halter.zeit ?? "");
-  if (!Number.isFinite(zeit) || jetzt - zeit > VERWAIST_NACH_MS) return true;
-  return halter.rechner === hostname() && Number.isInteger(halter.pid) && !lebt(halter.pid);
+  return !Number.isFinite(zeit) || jetzt - zeit > VERWAIST_NACH_MS;
 }
 
 async function versuche(datei, inhalt) {
@@ -92,9 +94,17 @@ async function raeumeVerwaiste(datei, halter) {
     return false;
   }
   try {
+    // true nur bei Fortschritt (Sperre weg oder inzwischen eine andere); kann
+    // die verwaiste Sperre nicht geloescht werden (z. B. fremder Eigentuemer),
+    // false: dann greift die Wartezeit und es kommt eine Abweisung.
     const jetzt = await leseHalter(datei);
-    if (jetzt && JSON.stringify(jetzt) === JSON.stringify(halter)) await unlink(datei).catch(() => {});
-    return true;
+    if (JSON.stringify(jetzt) !== JSON.stringify(halter)) return true;
+    try {
+      await unlink(datei);
+      return true;
+    } catch (error) {
+      return error.code === "ENOENT";
+    }
   } finally {
     await unlink(uebernahme).catch(() => {});
   }
@@ -110,7 +120,8 @@ export async function nimmSperre(datenroot, { wer = path.basename(process.argv[1
   for (;;) {
     if (await versuche(datei, inhalt)) break;
     const halter = await leseHalter(datei);
-    if (istVerwaist(halter) && (await raeumeVerwaiste(datei, halter))) continue;
+    // Raeumen scheitert (z. B. Ordner nicht beschreibbar): wie belegt behandeln.
+    if (istVerwaist(halter) && (await raeumeVerwaiste(datei, halter).catch(() => false))) continue;
     if (Date.now() >= bis) throw new SperreBelegt(datenroot, halter);
     await new Promise((r) => setTimeout(r, TAKT_MS));
   }
@@ -158,8 +169,8 @@ export async function sperreFuerProzess(datenroot) {
   try {
     const sperre = await nimmSperre(datenroot);
     process.on("exit", () => sperre.freigebenSync());
-    for (const signal of ["SIGINT", "SIGTERM"]) {
-      process.once(signal, () => { sperre.freigebenSync(); process.exit(130); });
+    for (const [signal, code] of [["SIGINT", 130], ["SIGTERM", 143], ["SIGHUP", 129]]) {
+      process.once(signal, () => { sperre.freigebenSync(); process.exit(code); });
     }
   } catch (error) {
     if (!(error instanceof SperreBelegt)) throw error;

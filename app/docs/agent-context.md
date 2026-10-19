@@ -100,8 +100,9 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
   CLI mit `--schreiben`) haelt `DATENROOT/.schreibsperre` ueber Lesen, Aendern,
   Pruefen und Zuruecksetzen. Ein zweiter Schreiber wird nach kurzer Wartezeit
   abgewiesen (MCP: Fehlermeldung „Bestand ... ist gesperrt“, CLI: Exitcode 3);
-  dann spaeter erneut versuchen. Eine Sperre, deren Prozess nicht mehr lebt oder
-  die aelter als 30 Minuten ist, wird uebernommen.
+  dann spaeter erneut versuchen. Eine Sperre, deren Prozess auf demselben
+  Rechner nicht mehr lebt (von einem anderen Rechner: aelter als 30 Minuten),
+  wird uebernommen.
 - **Rechte je Schluessel:** `--recht=lesen` erlaubt nur Lese-Tools und
   Vorschau-Laeufe; `--recht=schreiben` zusaetzlich `schreiben: true`,
   `datei_schreiben`, `datei_ersetzen`, `beleg_ablegen`, `beleg_teilen`,

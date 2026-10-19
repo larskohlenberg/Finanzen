@@ -143,6 +143,7 @@ window.FINANCE_I18N = {
     },
     transactions: {
       vorsorgeFilterChip: "Beiträge zu",
+      aktiveFilter: "Aktive Filter",
       vorsorgeFilterEntfernen: "Vorsorgefilter entfernen",
       title: "Transaktionen",
       lead: "Filterbare Review-Liste der geladenen Bewegungsdaten.",
@@ -1308,6 +1309,7 @@ window.FINANCE_I18N = {
     },
     transactions: {
       vorsorgeFilterChip: "Contributions to",
+      aktiveFilter: "Active filters",
       vorsorgeFilterEntfernen: "Remove pension filter",
       title: "Transactions",
       lead: "Filterable review list of loaded movement data.",

@@ -3,6 +3,7 @@
 // Person die Summe und die einzelnen Leistungen mit Link auf ihren Vertrag.
 // Nur auflisten, kein Bedarf. Rechnen in absicherung.mjs.
 import { data, state, t, tf, escapeHtml } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, mitLogo } from "../komponenten.mjs";
 
@@ -21,7 +22,7 @@ function postenHtml(p) {
   const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === p.vorsorge_id) ?? { name: p.name };
   return `
           <li>
-            <button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(p.vorsorge_id)}">${mitLogo({ vorsorge: vs }, escapeHtml(p.name))}</button>
+            <a class="linkish" href="${escapeHtml(zielRoute("open-vorsorge", p.vorsorge_id))}" data-action="open-vorsorge" data-vorsorge="${escapeHtml(p.vorsorge_id)}">${mitLogo({ vorsorge: vs }, escapeHtml(p.name))}</a>
             <span class="muted">${escapeHtml(`${t(FELD_LABEL[p.feld])} · ${tf("absicherung.stand", { datum: formatDate(p.standdatum) })}`)}</span>
             <span class="amount">${escapeHtml(betrag(p.wert_cents, EINMALIG.has(p.feld)))}</span>
           </li>`;

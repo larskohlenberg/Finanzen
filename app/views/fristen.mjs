@@ -2,7 +2,8 @@
 // Fristenliste (Reiter der Seite Termine) und die Bausteine, die auch die
 // Termine-Kachel der Uebersicht nutzt: Bezug als Link, Dringlichkeit als Chip.
 import { data, t, tf, escapeHtml } from "../runtime.mjs";
-import { formatDate } from "../komponenten.mjs";
+import { formatDate, zielElement, hrefAttr } from "../komponenten.mjs";
+import { zielRoute } from "../routing.mjs";
 import { anstehendeFristen } from "../fristen.mjs";
 import { formatRhythmus } from "./regelzahlungen.mjs";
 
@@ -10,7 +11,7 @@ import { formatRhythmus } from "./regelzahlungen.mjs";
 // abgeleitete Termine wie ein Rentenbeginn in vielen Jahren mit drin sind.
 const HORIZONT_MONATE = 600;
 
-const link = (ziel, text) => `<button class="linkish" ${ziel}>${escapeHtml(text)}</button>`;
+const link = (ziel, text) => zielElement(ziel, escapeHtml(text));
 
 export const tageBis = (von, bis) => Math.round((Date.parse(`${bis}T00:00:00Z`) - Date.parse(`${von}T00:00:00Z`)) / 86400000);
 
@@ -25,19 +26,19 @@ export function fristChip(f, today) {
 
 // Bezug einer Frist: Name des Objekts und Ziel des Klicks.
 const BEZUG = {
-  vorsorge: { liste: "vorsorge", name: "name", ziel: (id) => `data-action="open-vorsorge" data-vorsorge="${escapeHtml(id)}"` },
+  vorsorge: { liste: "vorsorge", name: "name", ziel: (id) => `${hrefAttr(zielRoute("open-vorsorge", id))}data-action="open-vorsorge" data-vorsorge="${escapeHtml(id)}"` },
   darlehen: { liste: "darlehen", name: "bezeichnung" },
   immobilie: { liste: "immobilien", name: "bezeichnung" },
   vermoegenswert: { liste: "vermoegenswerte", name: "bezeichnung" },
   konto: { liste: "konten", name: "name" },
-  regelzahlung: { liste: "regelzahlungen", name: "bezeichnung", ziel: (id) => `data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(id)}"` },
+  regelzahlung: { liste: "regelzahlungen", name: "bezeichnung", ziel: (id) => `${hrefAttr(zielRoute("open-regelzahlung", id))}data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(id)}"` },
 };
 
 export function bezugLink(bezug) {
   const b = bezug && BEZUG[bezug.typ];
   if (!b) return "";
   const objekt = (data[b.liste] ?? []).find((o) => o[`${bezug.typ}_id`] === bezug.id);
-  const ziel = b.ziel ? b.ziel(bezug.id) : `data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`${bezug.typ}:${bezug.id}`)}"`;
+  const ziel = b.ziel ? b.ziel(bezug.id) : `${hrefAttr(zielRoute("select-vermoegen-objekt", `${bezug.typ}:${bezug.id}`))}data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`${bezug.typ}:${bezug.id}`)}"`;
   // Name aus dem Bestand oder, aus der Uebersicht-API, am Bezug selbst.
   return link(ziel, objekt?.[b.name] ?? bezug.name ?? bezug.id);
 }

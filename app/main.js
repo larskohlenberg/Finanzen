@@ -1,6 +1,7 @@
 import { defaultHorizonEnd } from "./liquiditaet.mjs";
 import { iconSvg } from "./icons.js";
 import { routeFromState, parseRoute } from "./routing.mjs";
+import { LEERE_FILTER, zuBuchungen, ohneZeitfilter, neuerVerlaufseintrag, seitenTitel } from "./navigation.mjs";
 import { hashNachModuswechsel } from "./demo-modus.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
 import { TAB_FUER_KLASSE } from "./vermoegen-routen.mjs";
@@ -8,7 +9,7 @@ import { renderVorsorge, resetVorsorgeFilters } from "./views/vorsorge.mjs";
 import { tabFuerVorsorge } from "./vorsorge-rechnung.mjs";
 import { setWertstaendeFilter, resetWertstaendeFilters, toggleWertstaendeSort } from "./views/vermoegen-wertstaende.mjs";
 import { renderSzenarien, MAX_VERGLEICH } from "./views/szenarien.mjs";
-import { renderTransactions, transaktionenAntwort, applyTransactionTimeModeDefaults, clearTransactionTimeFilter } from "./views/transaktionen.mjs";
+import { renderTransactions, transaktionenAntwort, applyTransactionTimeModeDefaults } from "./views/transaktionen.mjs";
 import { beiApiAntwort, leereApiCaches, verwerfeApiCaches } from "./api-daten.mjs";
 import { renderLiquiditaet } from "./views/liquiditaet.mjs";
 import { renderPlanIst } from "./views/plan-ist.mjs";
@@ -167,6 +168,7 @@ function render() {
   anwendenBaumBreite(app);
   termineListenBegrenzen(app);
   restoreFocus(focusSnap);
+  document.title = seitenTitel([seitenName(), seitenDetail()], t("appTitle"));
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
   if (state.view === "belege") belegeBeiBedarfLaden(render);
@@ -174,6 +176,23 @@ function render() {
   if (state.view === "vorsorge") belegeBeiBedarfLaden(render);
   // Dokumente je Objekt auf den Tabs Immobilien und Darlehen.
   if (state.view === "vermoegen" && ["immobilien", "darlehen"].includes(state.vermoegenTab)) belegeBeiBedarfLaden(render);
+}
+
+function seitenName() {
+  const navLabel = navItems.find(([view]) => view === state.view)?.[1];
+  return navLabel ? t(navLabel) : "";
+}
+
+// Ausgewaehltes Objekt der Seite fuer den Fenstertitel (ID oder Dateiname).
+function seitenDetail() {
+  if (state.view === "transactions") return state.selectedTransactionId;
+  if (state.view === "vermoegen") return String(state.selectedVermoegenId ?? "").split(":")[1] ?? "";
+  if (state.view === "vorsorge") return state.selectedVorsorgeId;
+  if (state.view === "szenarien") return state.selectedSzenarioId;
+  if (state.view === "termine") return state.termineTab === "fristen" ? "" : state.selectedRegelzahlungId;
+  if (state.view === "masterdata") return state.masterSection === "konten" ? state.selectedKonto : state.masterSection === "regeln" ? state.selectedRegel : "";
+  if (state.view === "belege") return String(state.selectedBeleg ?? "").split("/").pop();
+  return "";
 }
 
 // Ein Objekt der Vermoegensseite oeffnen ("klasse:id"); Vorsorge hat ihre eigene Seite.
@@ -447,6 +466,11 @@ app.addEventListener("error", (event) => {
 }, true);
 
 app.addEventListener("click", guard((event) => {
+  // Echte Links: mit Zusatztaste (neuer Tab/Fenster) entscheidet der Browser.
+  // Sonst uebernimmt die Aktion des Links, der Browser folgt der href nicht.
+  const anker = event.target.closest("a[href]");
+  if (anker && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button > 0)) return;
+  if (anker?.matches("[data-action], [data-view]")) event.preventDefault();
   if (state.settingsMenuOpen && !event.target.closest(".settings-control")) {
     state.settingsMenuOpen = false;
     render();
@@ -564,6 +588,12 @@ app.addEventListener("keydown", guard((event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
   if (!el || typeof el.matches !== "function") return;
+  // Links reagieren nativ nur auf Enter; die Leertaste wie bei Knoepfen nachreichen.
+  if (el.matches("a[href][data-action], a[href][data-view]") && event.key !== "Enter") {
+    event.preventDefault();
+    el.click();
+    return;
+  }
   if (el.matches("button, a, input, select, textarea")) return;
   if (el.getAttribute("tabindex") == null) return;
   if (!el.matches(KEY_ACTIVATION_SELECTOR)) return;
@@ -608,13 +638,13 @@ app.addEventListener("change", guard((event) => {
   const control = event.target.closest("[data-control]");
   if (control?.dataset.control === "szenario-vergleich") {
     state.szenarioVergleichMit = control.value || "";
-    commitNavigation();
+    commitNavigation({ ersetzen: true });
     return;
   }
   if (control?.dataset.control === "plan-ist-periode") {
     state.planIst.periode = control.value || "";
     state.planIstOffen.clear();
-    commitNavigation();
+    commitNavigation({ ersetzen: true });
     return;
   }
   if (control?.dataset.control === "liquiditaet-bis") {
@@ -872,64 +902,28 @@ async function handleAction(element) {
     return;
   }
   if (action === "filter-open-category") {
-    state.view = "transactions";
-    state.transactionFilters.status = "offen";
-    state.transactionFilters.beleg = "";
-    state.transactionFilters.vorsorge = "";
-    state.transactionFilters.account = "";
-    state.transactionFilters.category = "";
-    state.transactionFilters.transfer = "";
-    state.transactionFilters.search = "";
-    clearTransactionTimeFilter();
-    state.transactionPage = 1;
-    state.selectedTransactionId = "";
-    state.detailRailClosed = false;
+    zuBuchungen(state, { filter: { status: "offen" } });
     commitNavigation();
     return;
   }
   if (action === "clear-transaction-filter") {
-    if (Object.hasOwn(state.transactionFilters, element.dataset.filterName)) {
-      state.transactionFilters[element.dataset.filterName] = "";
-      state.transactionPage = 1;
-      commitNavigation();
-    }
+    const name = element.dataset.filterName;
+    if (name === "zeit") state.transactionFilters = ohneZeitfilter(state.transactionFilters);
+    else if (Object.hasOwn(state.transactionFilters, name)) state.transactionFilters[name] = LEERE_FILTER[name];
+    else return;
+    state.transactionPage = 1;
+    // Auch Dokument- und Vertragsfilter (Pfadteile) sind Filter: ersetzen.
+    commitNavigation({ ersetzen: true });
     return;
   }
   if (action === "reset-transaction-filters") {
-    state.transactionFilters = {
-      account: "",
-      status: "",
-      category: "",
-      transfer: "",
-      origin: "",
-      search: "",
-      beleg: "",
-      vorsorge: "",
-      timeMode: "none",
-      dateFrom: "",
-      dateTo: "",
-      month: "",
-      quarterYear: "",
-      quarter: "1",
-      year: "",
-    };
+    state.transactionFilters = { ...LEERE_FILTER };
     state.transactionPage = 1;
     commitNavigation();
     return;
   }
   if (action === "account-transactions") {
-    state.view = "transactions";
-    state.transactionFilters.account = element.dataset.account;
-    state.transactionFilters.beleg = "";
-    state.transactionFilters.vorsorge = "";
-    state.transactionFilters.status = "";
-    state.transactionFilters.category = "";
-    state.transactionFilters.transfer = "";
-    state.transactionFilters.search = "";
-    clearTransactionTimeFilter();
-    state.transactionPage = 1;
-    state.selectedTransactionId = "";
-    state.detailRailClosed = false;
+    zuBuchungen(state, { filter: { account: element.dataset.account } });
     commitNavigation();
     return;
   }
@@ -941,54 +935,35 @@ async function handleAction(element) {
     // alle Buchungen eines Kontos im Zeitraum, Umbuchungen eingeschlossen.
     const { monat = "", von = "", bis = "", kategorie = "", transfer = "", konto = "" } = element.dataset;
     const mitZeit = Boolean(monat || von);
-    state.view = "transactions";
-    state.transactionFilters = {
-      account: konto,
-      status: "",
-      category: kategorie,
-      transfer: transfer === "only" ? "only" : transfer === "all" || konto || !mitZeit ? "" : "without",
-      origin: "",
-      search: element.dataset.immobilie || "",
-      beleg: "",
-      vorsorge: "",
-      timeMode: monat ? "month" : von ? "range" : "none",
-      dateFrom: von,
-      dateTo: bis,
-      month: monat,
-      quarterYear: "",
-      quarter: "1",
-      year: "",
-    };
-    state.transactionPage = 1;
-    state.selectedTransactionId = "";
-    state.detailRailClosed = false;
+    zuBuchungen(state, {
+      filter: {
+        account: konto,
+        category: kategorie,
+        transfer: transfer === "only" ? "only" : transfer === "all" || konto || !mitZeit ? "" : "without",
+        search: element.dataset.immobilie || "",
+        timeMode: monat ? "month" : von ? "range" : "none",
+        dateFrom: von,
+        dateTo: bis,
+        month: monat,
+      },
+    });
     commitNavigation();
     return;
   }
   if (action === "select-transaction") {
+    // Erstes Oeffnen ist ein neuer Eintrag, der Wechsel zwischen Buchungen ersetzt ihn.
+    const wechsel = Boolean(state.selectedTransactionId) && !state.detailRailClosed;
     state.selectedTransactionId = element.dataset.transaction;
     state.detailRailClosed = false;
-    commitNavigation();
+    commitNavigation({ ersetzen: wechsel });
     return;
   }
   if (action === "open-transaction") {
     // Aus einer anderen Ansicht (z. B. Regel-Detail) eine konkrete Buchung
     // oeffnen: alle Filter leeren, damit die Zielbuchung sicher im gefilterten
     // Bestand liegt und das Detail-Rail sie zeigt.
-    state.view = "transactions";
-    state.transactionFilters.account = "";
-    state.transactionFilters.status = "";
-    state.transactionFilters.category = "";
-    state.transactionFilters.transfer = "";
-    state.transactionFilters.search = "";
-    state.transactionFilters.origin = "";
-    state.transactionFilters.beleg = "";
-    state.transactionFilters.vorsorge = "";
-    clearTransactionTimeFilter();
-    state.selectedTransactionId = element.dataset.transaction;
-    // Seite der Zielbuchung (rechnet der Server), sonst steht die Rail offen, die Zeile aber auf einer spaeteren Seite.
-    state.transactionJumpTo = state.selectedTransactionId;
-    state.detailRailClosed = false;
+    // Seite der Zielbuchung rechnet der Server (transactionJumpTo).
+    zuBuchungen(state, { auswahl: element.dataset.transaction });
     commitNavigation();
     return;
   }
@@ -1034,19 +1009,10 @@ async function handleAction(element) {
   if (action === "paired-transfer") {
     state.view = "transactions";
     const transactionId = element.dataset.transaction;
-    state.selectedTransactionId = transactionId;
     // Konto der Gegenbuchung steht am Knopf (aus der Antwort der Transaktionen-API).
     const kontoId = element.dataset.account;
-    if (kontoId) {
-      state.transactionFilters.account = kontoId;
-      state.transactionFilters.beleg = "";
-    state.transactionFilters.vorsorge = "";
-      state.transactionFilters.status = "";
-      state.transactionFilters.category = "";
-      state.transactionFilters.transfer = "";
-      state.detailRailClosed = false;
-      state.transactionJumpTo = transactionId;
-    }
+    if (kontoId) zuBuchungen(state, { filter: { account: kontoId }, auswahl: transactionId });
+    else state.selectedTransactionId = transactionId;
     commitNavigation();
     return;
   }
@@ -1088,12 +1054,12 @@ async function handleAction(element) {
     // Liste, Vergleich oder Querlink -> Detail; eigener History-Eintrag, damit Zurueck zur Liste fuehrt.
     state.view = "szenarien";
     oeffneSzenario(element.dataset.szenario || "");
-    commitNavigation(true);
+    commitNavigation();
     return;
   }
   if (action === "back-to-szenarien") {
     oeffneSzenario("");
-    commitNavigation(true);
+    commitNavigation();
     return;
   }
   if (action === "toggle-szenario-auswahl") {
@@ -1107,7 +1073,7 @@ async function handleAction(element) {
     const bekannt = new Set((data.szenarien ?? []).map((s) => s.szenario_id));
     oeffneSzenario("");
     state.szenarioVergleichIds = (data.szenarien ?? []).map((s) => s.szenario_id).filter((id) => state.szenarioAuswahl.has(id) && bekannt.has(id));
-    commitNavigation(true);
+    commitNavigation();
     return;
   }
   if (action === "set-szenario-modus") {
@@ -1153,14 +1119,7 @@ async function handleAction(element) {
     return;
   }
   if (action === "vorsorge-transactions") {
-    state.view = "transactions";
-    Object.assign(state.transactionFilters, {
-      account: "", status: "", category: "", transfer: "", origin: "", search: "", beleg: "", vorsorge: element.dataset.vorsorge || "",
-      timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
-    });
-    state.selectedTransactionId = "";
-    state.detailRailClosed = false;
-    state.transactionPage = 1;
+    zuBuchungen(state, { filter: { vorsorge: element.dataset.vorsorge || "" } });
     commitNavigation();
     return;
   }
@@ -1181,13 +1140,13 @@ async function handleAction(element) {
     state.view = "planIst";
     state.planIst.periode = element.dataset.periode ?? "";
     state.planIstOffen.clear();
-    commitNavigation(true);
+    commitNavigation();
     return;
   }
   if (action === "plan-ist-gran") {
     state.planIst.granularitaet = element.dataset.gran || "jahr";
     if (state.planIst.periode !== "12m") state.planIst.periode = "";
-    commitNavigation();
+    commitNavigation({ ersetzen: true });
     return;
   }
   if (action === "plan-ist-darstellung") {
@@ -1266,18 +1225,9 @@ async function handleAction(element) {
     const scope = element.dataset.scope;
     const entity = element.dataset.entity;
     if (scope === "konto") {
-      state.view = "transactions";
-      state.transactionFilters.account = entity;
+      zuBuchungen(state, { filter: { account: entity } });
     } else if (scope === "transaktion") {
-      state.view = "transactions";
-      state.selectedTransactionId = entity;
-      state.transactionFilters.beleg = "";
-    state.transactionFilters.vorsorge = "";
-      state.transactionFilters.account = "";
-      state.transactionFilters.status = "";
-      state.transactionFilters.category = "";
-      state.transactionFilters.transfer = "";
-      state.transactionJumpTo = entity;
+      zuBuchungen(state, { auswahl: entity });
     } else {
       zeigeChecks();
     }
@@ -1359,19 +1309,18 @@ function restoreState(snapshot) {
   state.planIst.periode = snapshot.planIstPeriode || "";
 }
 
-// Neuer History-Eintrag nur bei echtem View-Wechsel. Zustandsaenderungen
-// innerhalb einer View (Filter, Seite, Auswahl) ersetzen den aktuellen Eintrag,
-// damit der Zurueck-Button nicht durch jeden Klick zugemuellt wird.
-let lastCommittedView = state.view;
-function commitNavigation(neuerEintrag = false) {
+// Verlauf nach dem Navigationsvertrag (navigation.mjs): ein anderer Pfad
+// (Seite, Reiter, Detail) ist ein neuer Eintrag, eine reine Filteraenderung
+// (Query) oder Seite/Sortierung ersetzt den aktuellen. ersetzen erzwingt das
+// Ersetzen fuer Auswahlfelder, die wie Filter wirken.
+function commitNavigation({ ersetzen = false } = {}) {
   state.uiError = null;
   const route = routeFromState(state);
-  if (state.view !== lastCommittedView || (neuerEintrag && route !== location.hash)) {
+  if (!ersetzen && neuerVerlaufseintrag(location.hash, route)) {
     history.pushState(snapshotState(), "", route);
   } else {
     history.replaceState(snapshotState(), "", route);
   }
-  lastCommittedView = state.view;
   render();
 }
 
@@ -1386,39 +1335,10 @@ function applyRoute(route) {
   if (route.selectedKonto) state.selectedKonto = route.selectedKonto;
   if (route.selectedRegel) state.selectedRegel = route.selectedRegel;
 
-  // Ob es die Buchung gibt, weiss der Server: liegt sie nicht im (geleerten)
-  // Filter, faellt die Auswahl mit der Antwort weg.
-  if (route.selectedTransactionId) {
-    Object.assign(state.transactionFilters, {
-      account: "", status: "", category: "", transfer: "", search: "", beleg: "", vorsorge: "",
-      timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
-    });
-    state.selectedTransactionId = route.selectedTransactionId;
-    state.detailRailClosed = false;
-    state.transactionJumpTo = route.selectedTransactionId;
-  }
-
-  // Transaktionen gefiltert auf ein Quelldokument: uebrige Filter leeren, damit
-  // genau die Buchungen dieses Dokuments sichtbar sind.
-  if (route.belegFilter) {
-    Object.assign(state.transactionFilters, {
-      account: "", status: "", category: "", transfer: "", origin: "", search: "", beleg: route.belegFilter, vorsorge: "",
-      timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
-    });
-    state.selectedTransactionId = "";
-    state.detailRailClosed = false;
-    state.transactionPage = 1;
-  }
-  // Transaktionen gefiltert auf die Beitragsbuchungen eines Vorsorgevertrags.
-  if (route.vorsorgeFilter) {
-    Object.assign(state.transactionFilters, {
-      account: "", status: "", category: "", transfer: "", origin: "", search: "", beleg: "", vorsorge: route.vorsorgeFilter,
-      timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
-    });
-    state.selectedTransactionId = "";
-    state.detailRailClosed = false;
-    state.transactionPage = 1;
-  }
+  // Buchungsliste: die Route traegt den vollstaendigen Filterzustand (ohne
+  // Freitextsuche). Ob es eine ausgewaehlte Buchung im Filter gibt, weiss der
+  // Server; sonst faellt die Auswahl mit der Antwort weg.
+  if (route.transactionFilters) zuBuchungen(state, { filter: route.transactionFilters, auswahl: route.selectedTransactionId || "" });
   if (route.view === "belege") state.selectedBeleg = route.selectedBeleg || "";
 
   if (route.view === "vermoegen") {
@@ -1501,16 +1421,14 @@ document.addEventListener?.("visibilitychange", () => {
 
 window.addEventListener("popstate", (event) => {
   restoreState(event.state);
-  lastCommittedView = state.view;
-  render();
+    render();
 });
 
 // Direkt eingefügte/extern verlinkte Hash-Route (kein pushState von uns).
 window.addEventListener("hashchange", () => {
   if (location.hash === routeFromState(state)) return; // selbst gesetzte Route ignorieren
   applyRoute(parseRoute(location.hash));
-  lastCommittedView = state.view;
-  history.replaceState(snapshotState(), "", routeFromState(state));
+    history.replaceState(snapshotState(), "", routeFromState(state));
   render();
 });
 
@@ -1522,7 +1440,6 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () 
 beiApiAntwort(() => render());
 
 applyRoute(parseRoute(location.hash));
-lastCommittedView = state.view;
 history.replaceState(snapshotState(), "", routeFromState(state));
 render();
 

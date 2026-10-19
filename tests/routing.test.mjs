@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { routeFromState, parseRoute } from "../app/routing.mjs";
+import { LEERE_FILTER } from "../app/navigation.mjs";
 
 test("routeFromState adressiert die ausgewählte Transaktion", () => {
   assert.equal(routeFromState({ view: "transactions", selectedTransactionId: "TXN-5347b957-b93e-4453-830d-81eae240aa51" }), "#/transaktionen/TXN-5347b957-b93e-4453-830d-81eae240aa51");
@@ -22,7 +23,7 @@ test("routeFromState bildet reine Views auf Slugs ab", () => {
 });
 
 test("parseRoute liest Transaktions- und Konto-Deeplinks", () => {
-  assert.deepEqual(parseRoute("#/transaktionen/TXN-5347b957-b93e-4453-830d-81eae240aa51"), { view: "transactions", selectedTransactionId: "TXN-5347b957-b93e-4453-830d-81eae240aa51" });
+  assert.deepEqual(parseRoute("#/transaktionen/TXN-5347b957-b93e-4453-830d-81eae240aa51"), { view: "transactions", selectedTransactionId: "TXN-5347b957-b93e-4453-830d-81eae240aa51", transactionFilters: LEERE_FILTER });
   assert.deepEqual(parseRoute("#/konten/KTO-001"), { view: "masterdata", masterSection: "konten", selectedKonto: "KTO-001" });
   assert.deepEqual(parseRoute("#/vermoegen/darlehen/DAR-001"), { view: "vermoegen", vermoegenTab: "darlehen", selectedVermoegenId: "darlehen:DAR-001" });
 });
@@ -117,7 +118,7 @@ test("Szenarien: Detail gegen ein anderes Szenario und Vergleich mehrerer", () =
 
 test("Transaktionen gefiltert auf einen Vorsorgevertrag sind adressierbar", () => {
   assert.equal(routeFromState({ view: "transactions", transactionFilters: { vorsorge: "VS-002" } }), "#/transaktionen/vorsorge/VS-002");
-  assert.deepEqual(parseRoute("#/transaktionen/vorsorge/VS-002"), { view: "transactions", vorsorgeFilter: "VS-002" });
+  assert.deepEqual(parseRoute("#/transaktionen/vorsorge/VS-002"), { view: "transactions", transactionFilters: { ...LEERE_FILTER, vorsorge: "VS-002" } });
 });
 
 test("Termine: Reiter und Regelzahlung adressierbar, alte Regelzahlungs-Links bleiben gueltig", () => {

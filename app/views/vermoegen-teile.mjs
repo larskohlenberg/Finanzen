@@ -3,6 +3,7 @@
 // vermoegen-objekte.mjs): Qualitaets-Chips, Wertstaende eines Objekts,
 // Kennzahl-Kacheln, Dokumentliste, Rhythmus/Laufzeit-Texte.
 import { data, t, tf, fmt, escapeHtml, cents } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, detailRow, quelleHtml } from "../komponenten.mjs";
 import { dokumentRoute, dokumenteZuObjekt } from "../belege.mjs";
@@ -98,7 +99,7 @@ export function sondertilgungenRow(darlehenId) {
   if (!treffer.length) return "";
   const rows = treffer.map((tr) => `
     <div class="rail-item">
-      <button class="linkish" data-action="open-szenario" data-szenario="${escapeHtml(tr.szenario_id)}">${escapeHtml(tr.name)}</button>
+      <a class="linkish" href="${escapeHtml(zielRoute("open-szenario", tr.szenario_id))}" data-action="open-szenario" data-szenario="${escapeHtml(tr.szenario_id)}">${escapeHtml(tr.name)}</a>
       ${szenarioStatusChip(tr.status)}
       ${annahmeQualitaetChip(tr.qualitaet)}
     </div>`).join("");

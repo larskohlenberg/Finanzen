@@ -7,6 +7,7 @@ import { dokumentRoute, belegPfadAusRoute, kodierePfad } from "./belege.mjs";
 import { KLASSE_FUER_TAB, TAB_FUER_KLASSE, VERMOEGEN_TABS, vermoegenRoute } from "./vermoegen-routen.mjs";
 import { VORSORGE_TABS } from "./vorsorge-rechnung.mjs";
 import { PERIODE_MUSTER } from "./plan-ist.mjs";
+import { LEERE_FILTER, filterAlsQuery, filterAusQuery } from "./navigation.mjs";
 
 const VIEW_SLUG = {
   overview: "uebersicht",
@@ -28,18 +29,7 @@ export const TERMINE_TABS = ["regelzahlungen", "fristen"];
 
 // Zustand -> Hash. Auswahl hat Vorrang, damit ein geöffnetes Detail teilbar ist.
 export function routeFromState(state) {
-  if (state.view === "transactions" && state.selectedTransactionId) {
-    return `#/transaktionen/${encodeURIComponent(state.selectedTransactionId)}`;
-  }
-  // Transaktionen gefiltert auf ein Quelldokument (Pfad ohne "Belege/").
-  const belegFilter = state.transactionFilters?.beleg;
-  if (state.view === "transactions" && belegFilter?.startsWith("Belege/")) {
-    return `#/transaktionen/dokument/${kodierePfad(belegFilter.slice("Belege/".length))}`;
-  }
-  // Transaktionen gefiltert auf die Beitragsbuchungen eines Vorsorgevertrags.
-  if (state.view === "transactions" && state.transactionFilters?.vorsorge) {
-    return `#/transaktionen/vorsorge/${encodeURIComponent(state.transactionFilters.vorsorge)}`;
-  }
+  if (state.view === "transactions") return buchungenRoute(state);
   // Dokumente: Datei oder Ordner unter Belege/.
   if (state.view === "belege") return dokumentRoute(state.selectedBeleg);
   if (state.view === "vorsorge" && state.selectedVorsorgeId) {
@@ -90,10 +80,50 @@ export function routeFromState(state) {
   return `#/${VIEW_SLUG[state.view] || state.view}`;
 }
 
+// Buchungsliste: Auswahl, Dokument oder Vorsorgevertrag als Pfad, die
+// uebrigen Filter als Query (navigation.mjs, ohne Freitextsuche).
+function buchungenRoute(state) {
+  const filter = state.transactionFilters ?? LEERE_FILTER;
+  const query = filterAlsQuery(filter);
+  if (state.selectedTransactionId) return `#/transaktionen/${encodeURIComponent(state.selectedTransactionId)}${filterAlsQuery(filter, { pfadfilter: true })}`;
+  // Gefiltert auf ein Quelldokument (Pfad ohne "Belege/").
+  if (filter.beleg?.startsWith("Belege/")) return `#/transaktionen/dokument/${kodierePfad(filter.beleg.slice("Belege/".length))}${filterAlsQuery(filter, { imPfad: "beleg" })}`;
+  // Gefiltert auf die Beitragsbuchungen eines Vorsorgevertrags.
+  if (filter.vorsorge) return `#/transaktionen/vorsorge/${encodeURIComponent(filter.vorsorge)}${filterAlsQuery(filter, { imPfad: "vorsorge" })}`;
+  return `#/transaktionen${query}`;
+}
+
+// Ziel eines Objekt-Links als Route (echte href neben data-action, damit
+// "In neuem Tab oeffnen" und "Link kopieren" gehen). aktion ist die
+// data-action des Links, wert ihr Datenattribut (bei Vermoegen "klasse:id").
+export function zielRoute(aktion, wert) {
+  const id = String(wert ?? "");
+  const enc = encodeURIComponent(id);
+  switch (aktion) {
+    case "open-regelzahlung": return `#/termine/regelzahlungen/${enc}`;
+    case "open-vorsorge":
+    case "select-vorsorge": return `#/vorsorge/${enc}`;
+    case "open-account-master":
+    case "select-master-account": return `#/konten/${enc}`;
+    case "open-szenario": return `#/szenarien/${enc}`;
+    case "open-transaction": return `#/transaktionen/${enc}`;
+    case "select-beleg": return dokumentRoute(id);
+    case "select-vermoegen":
+    case "select-vermoegen-objekt":
+    case "open-vermoegen-entity": {
+      const [klasse, objektId = ""] = id.split(":");
+      if (klasse === "vorsorge") return `#/vorsorge/${encodeURIComponent(objektId)}`;
+      return vermoegenRoute(klasse, objektId);
+    }
+    default: return "";
+  }
+}
+
 // Hash -> Zustandsfragment { view, selectedTransactionId?, selectedVermoegenId?, masterSection? }.
 // Konto ist als Vermögens-Position adressierbar (eigene Detailansicht mit Rail).
 export function parseRoute(hash) {
-  const clean = String(hash || "").replace(/^#\/?/, "").replace(/\/+$/, "");
+  const [pfad, query = ""] = String(hash || "").split("?");
+  const clean = pfad.replace(/^#\/?/, "").replace(/\/+$/, "");
   if (!clean) return { view: "overview" };
   const [head, ...rest] = clean.split("/");
   let tail;
@@ -110,14 +140,12 @@ export function parseRoute(hash) {
   if (head === "dokumente") {
     return tail ? { view: "belege", selectedBeleg: belegPfadAusRoute(tail) } : { view: "belege" };
   }
-  if (head === "transaktionen" && rest[0] === "vorsorge" && rest[1]) {
-    return { view: "transactions", vorsorgeFilter: decodeURIComponent(rest[1]) };
-  }
-  if (head === "transaktionen" && rest[0] === "dokument" && rest.length > 1) {
-    return { view: "transactions", belegFilter: belegPfadAusRoute(tail.slice("dokument/".length)) };
-  }
+  // Buchungsliste: immer mit vollstaendigem Filterzustand (definiert, ohne Reste).
   if (head === "transaktionen") {
-    return tail ? { view: "transactions", selectedTransactionId: tail } : { view: "transactions" };
+    const transactionFilters = filterAusQuery(query);
+    if (rest[0] === "vorsorge" && rest[1]) return { view: "transactions", transactionFilters: { ...transactionFilters, vorsorge: decodeURIComponent(rest[1]) } };
+    if (rest[0] === "dokument" && rest.length > 1) return { view: "transactions", transactionFilters: { ...transactionFilters, beleg: belegPfadAusRoute(tail.slice("dokument/".length)) } };
+    return tail ? { view: "transactions", selectedTransactionId: tail, transactionFilters } : { view: "transactions", transactionFilters };
   }
   if (head === "konten") {
     return tail

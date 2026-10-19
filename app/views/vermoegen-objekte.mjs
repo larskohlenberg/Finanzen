@@ -4,6 +4,7 @@
 // dann Diagramme und Tabelle, zuletzt Bemerkung, Wertstaende und Dokumente.
 // Rechnen in vermoegen-details.mjs, hier nur Darstellung.
 import { data, state, t, tf, fmt, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel, bemerkungInhalt } from "../komponenten.mjs";
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
 import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, investitionsKategorien } from "../vermoegen-details.mjs";
@@ -271,7 +272,7 @@ function renderImmobilieDetail(imm, today, modell) {
   // Darlehen als gekuerzte Namen nebeneinander, der volle Name steht im Tooltip.
   const darlehenLinks = k.darlehen_ids.map((did) => {
     const name = data.darlehen.find((x) => x.darlehen_id === did)?.bezeichnung || did;
-    return `<button class="linkish darlehen-link" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`darlehen:${did}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
+    return `<a class="linkish darlehen-link" href="${escapeHtml(zielRoute("select-vermoegen-objekt", `darlehen:${did}`))}" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`darlehen:${did}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</a>`;
   });
   // Immer dieselben acht Felder an festen Plaetzen, fehlende mit Strich:
   // so springt die Kachel beim Wechsel zwischen Objekten nicht.
@@ -417,7 +418,7 @@ function renderDarlehenDetail(d, k, today) {
   const verknuepft = [];
   if (d.immobilie_id) {
     const imm = data.immobilien?.find((i) => i.immobilie_id === d.immobilie_id);
-    verknuepft.push(`<button class="linkish" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`immobilie:${d.immobilie_id}`)}">${escapeHtml(imm?.bezeichnung || d.immobilie_id)}</button>`);
+    verknuepft.push(`<a class="linkish" href="${escapeHtml(zielRoute("select-vermoegen-objekt", `immobilie:${d.immobilie_id}`))}" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`immobilie:${d.immobilie_id}`)}">${escapeHtml(imm?.bezeichnung || d.immobilie_id)}</a>`);
   }
   if (d.konto_id) verknuepft.push(escapeHtml(kontenById.get(d.konto_id)?.name || d.konto_id));
   const regelzahlung = (data.regelzahlungen ?? []).find((rz) => rz.darlehen_id === id);

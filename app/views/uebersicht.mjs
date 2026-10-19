@@ -8,8 +8,9 @@
 // Absicherung bei Berufsunfähigkeit und im Todesfall als zwei Kacheln. Konten- und Depottabellen stehen nur noch
 // unter Vermögen, die nächste Aktion im Arbeitsstatus oben.
 import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil } from "../komponenten.mjs";
+import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, zielElement, hrefAttr } from "../komponenten.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { verteileRundung } from "../uebersicht-rechnung.mjs";
@@ -40,16 +41,17 @@ function zeile(linkHtml, betrag, { zusatz = "", punkt = "" } = {}) {
   return `<li>${punkt ? farbPunkt(punkt) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${betrag}</span></li>`;
 }
 
-const link = (ziel, text, { title = "" } = {}) => `<button class="linkish" ${ziel}${title ? ` title="${escapeHtml(title)}"` : ""}>${escapeHtml(text)}</button>`;
+const link = (ziel, text, { title = "" } = {}) => zielElement(ziel, escapeHtml(text), { title });
+// Ziele der Kacheln: Seite, Reiter oder Objekt, jeweils als echter Link.
 const ZIEL = {
-  liquiditaet: `data-view="liquiditaet"`,
-  vermoegen: `data-view="vermoegen"`,
-  vorsorge: `data-view="vorsorge"`,
-  termine: `data-view="termine"`,
-  termineTab: (tab) => `data-action="termine-tab" data-tab="${escapeHtml(tab)}"`,
-  vermoegenTab: (tab) => `data-action="vermoegen-tab" data-tab="${escapeHtml(tab)}"`,
-  vorsorgeTab: (tab) => `data-action="vorsorge-tab" data-tab="${escapeHtml(tab)}"`,
-  vermoegenObjekt: (klasse, id) => `data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(klasse)}" data-vid="${escapeHtml(id)}"`,
+  liquiditaet: `href="#/liquiditaet" data-view="liquiditaet"`,
+  vermoegen: `href="#/vermoegen" data-view="vermoegen"`,
+  vorsorge: `href="#/vorsorge" data-view="vorsorge"`,
+  termine: `href="#/termine" data-view="termine"`,
+  termineTab: (tab) => `${hrefAttr(tab === "fristen" ? "#/termine/fristen" : "#/termine")}data-action="termine-tab" data-tab="${escapeHtml(tab)}"`,
+  vermoegenTab: (tab) => `${hrefAttr(tab === "uebersicht" ? "#/vermoegen" : `#/vermoegen/${tab}`)}data-action="vermoegen-tab" data-tab="${escapeHtml(tab)}"`,
+  vorsorgeTab: (tab) => `${hrefAttr(tab === "uebersicht" ? "#/vorsorge" : `#/vorsorge/${tab}`)}data-action="vorsorge-tab" data-tab="${escapeHtml(tab)}"`,
+  vermoegenObjekt: (klasse, id) => `${hrefAttr(zielRoute("open-vermoegen-entity", `${klasse}:${id}`))}data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(klasse)}" data-vid="${escapeHtml(id)}"`,
 };
 
 // Bereichskachel: Kopf mit Titel als Link, Kennzahl, Notiz, Grafik, Zeilen.
@@ -94,7 +96,7 @@ function kategorieTeile(kategorien, mittel, top = TOP_KATEGORIEN, { vergleich = 
 }
 
 function legendenZeile(k) {
-  const name = k.ziel ? `<button class="linkish" ${k.ziel} title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>` : `<span title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</span>`;
+  const name = k.ziel ? zielElement(k.ziel, escapeHtml(k.name), { title: k.name }) : `<span title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</span>`;
   const betrag = `<span class="amount">${k.mitVorzeichen && k.mittel_cents > 0 ? "+" : ""}${escapeHtml(geldOhneCent(k.mittel_cents))}</span>`;
   if (!k.unter?.length) return `<li${k.zeilenKlasse ? ` class="${k.zeilenKlasse}"` : ""}>${k.klasse ? farbPunkt(k.klasse) : ""}${name}${k.trend ?? ""}${betrag}</li>`;
   return `<li class="flach-uebrige"><details><summary>${farbPunkt(k.klasse)}<span>${escapeHtml(k.name)}</span>${betrag}</summary><ul class="flach-unterliste">${k.unter.map(legendenZeile).join("")}</ul></details></li>`;
@@ -132,7 +134,7 @@ function flacheKachel({ id, titel, info = "", wert, trend = "", notiz, plan = ""
   return `
     <section class="panel panel-pad uebersicht-flach-kachel" aria-labelledby="kachel-${id}">
       <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">
-        <button class="linkish" ${ZIEL.liquiditaet}>${iconSvg("liquiditaet")}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}</button>${info ? infoTipp(info) : ""}
+        ${zielElement(ZIEL.liquiditaet, `${iconSvg("liquiditaet")}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}`)}${info ? infoTipp(info) : ""}
       </h2>
       <div class="kpi-value">${wert}${trend ? ` <span class="kpi-trend">${trend}</span>` : ""}</div>
       <div class="kpi-note">${notiz}</div>
@@ -295,7 +297,7 @@ function renderVermoegenKachel(modell) {
   return `
     <section class="panel panel-pad uebersicht-kachel uebersicht-kachel-breit" aria-labelledby="kachel-vermoegen">
       <h2 class="uebersicht-kachel-kopf" id="kachel-vermoegen">
-        <button class="linkish" ${ZIEL.vermoegen}>${iconSvg("vermoegen")}<span>${escapeHtml(t("nav.vermoegen"))}</span>${iconSvg("chevronRight")}</button>
+        ${zielElement(ZIEL.vermoegen, `${iconSvg("vermoegen")}<span>${escapeHtml(t("nav.vermoegen"))}</span>${iconSvg("chevronRight")}`)}
       </h2>
       <div class="kpi-value">${escapeHtml(geldOhneCent(r.netto_cents))}</div>
       <div class="kpi-note">${escapeHtml(t("vermoegen.netto"))} · ${escapeHtml(standText(stand))}</div>
@@ -352,7 +354,7 @@ function renderVorsorgeKachel(modell) {
   const kapitalSegmente = [...kapital].sort((a, b) => b.wert_cents - a.wert_cents)
     .map((l) => ({ anteil: l.wert_cents / Math.max(kapitalSumme, 1), klasse: farbKlasse(l.vorsorge_id), titel: `${l.name}: ${formatMoney(l.wert_cents)}` }));
   const kapitalZeilen = kapital.map((l) => zeile(
-    `<button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(l.vorsorge_id)}">${escapeHtml(l.name)}</button>`,
+    `<a class="linkish" href="${escapeHtml(zielRoute("open-vorsorge", l.vorsorge_id))}" data-action="open-vorsorge" data-vorsorge="${escapeHtml(l.vorsorge_id)}">${escapeHtml(l.name)}</a>`,
     escapeHtml(geldOhneCent(l.wert_cents)),
     { zusatz: [formatDate(l.beginn), l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), punkt: farbKlasse(l.vorsorge_id) },
   ));
@@ -382,9 +384,9 @@ function renderVorsorgeKachel(modell) {
 // Ein Klick fuehrt zum Vertrag (Vorsorgeobjekt), sonst zur Regelzahlung.
 function zielLink(rz) {
   const ziel = rz.vorsorge_id
-    ? `data-action="open-vorsorge" data-vorsorge="${escapeHtml(rz.vorsorge_id)}"`
-    : `data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}"`;
-  return `<button class="linkish" ${ziel}>${escapeHtml(rz.bezeichnung)}</button>`;
+    ? `${hrefAttr(zielRoute("open-vorsorge", rz.vorsorge_id))}data-action="open-vorsorge" data-vorsorge="${escapeHtml(rz.vorsorge_id)}"`
+    : `${hrefAttr(zielRoute("open-regelzahlung", rz.regelzahlung_id))}data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}"`;
+  return zielElement(ziel, escapeHtml(rz.bezeichnung));
 }
 
 const formatMonatKurz = (iso) => fmt().monatKurz(iso);
@@ -433,7 +435,7 @@ function renderTermineKachel(modell) {
   return `
     <section class="panel panel-pad uebersicht-termine" aria-labelledby="kachel-termine">
       <h2 class="uebersicht-kachel-kopf" id="kachel-termine">
-        <button class="linkish" ${ZIEL.termine}>${iconSvg("termine")}<span>${escapeHtml(t("overview.termine"))}</span>${iconSvg("chevronRight")}</button>
+        ${zielElement(ZIEL.termine, `${iconSvg("termine")}<span>${escapeHtml(t("overview.termine"))}</span>${iconSvg("chevronRight")}`)}
       </h2>
       ${leiste ? `<div class="diagramm-wrap">${leiste}</div>` : ""}
       <div class="termine-spalten">

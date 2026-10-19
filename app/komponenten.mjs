@@ -49,6 +49,19 @@ export function mitLogo(quelle, inhaltHtml, optionen = {}) {
 }
 
 // Exakt mit Cent: Tabellen und Details. Kacheln nehmen formatGeldGanz.
+// Element zu einem Ziel aus Attributen (data-action/data-view ...): mit href
+// ein echter Link, damit "In neuem Tab oeffnen" geht; sonst ein Knopf.
+export function zielElement(attrs, innerHtml, { klasse = "linkish", title = "" } = {}) {
+  const tag = /(^|\s)href="/.test(attrs) ? "a" : "button";
+  return `<${tag} class="${klasse}" ${attrs}${title ? ` title="${escapeHtml(title)}"` : ""}>${innerHtml}</${tag}>`;
+}
+
+// href-Attribut (mit Leerzeichen dahinter) oder "" ohne Route.
+export function hrefAttr(route) {
+  return route ? `href="${escapeHtml(route)}" ` : "";
+}
+
+// Exakt mit Cent: Tabellen und Details. Kacheln nehmen formatGeldGanz.
 export function formatMoney(amountInCents) {
   return fmt().geld(amountInCents);
 }

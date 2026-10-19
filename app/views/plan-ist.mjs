@@ -9,6 +9,7 @@
 // Einzelposten ab 400 Euro, Sprung in die Buchungen), Sparen und die Termine von
 // Regelzahlungen ohne zugeordnete Buchung. Gerechnet wird in app/plan-ist.mjs.
 import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { formatDate, formatMonth, heuteIso, infoTipp, kennzahlKachel, kachelZeile, klappKachel, renderPageHead, zeitverlaufKlein } from "../komponenten.mjs";
 import { perioden } from "../plan-ist.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
@@ -212,7 +213,7 @@ function kategorieTabelle(seite, { wert, mehrIstGut, ziel, einzel }) {
       </tr>`;
     if (!offen) return kopf;
     const rz = k.regelzahlungen.map((z) => `
-      <li><button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(z.regelzahlung_id)}" title="${escapeHtml(z.bezeichnung)}">${escapeHtml(z.bezeichnung)}</button>
+      <li><a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", z.regelzahlung_id))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(z.regelzahlung_id)}" title="${escapeHtml(z.bezeichnung)}">${escapeHtml(z.bezeichnung)}</a>
         <span class="muted">${escapeHtml(z.konto_id ? tf("planIst.termineGebucht", { termine: z.termine, gebucht: z.gebucht_anzahl }) : t("planIst.konsumplan"))}</span>
         <span class="amount">${escapeHtml(geld(wert(Math.abs(z.plan_cents))))}${z.konto_id ? ` / ${escapeHtml(geld(wert(Math.abs(z.gebucht_cents))))}` : ""}</span></li>`).join("");
     const posten = k.einzel_buchungen.map((b) => `
@@ -267,7 +268,7 @@ function lueckenListe(r) {
     <p class="muted plan-ist-hinweis">${escapeHtml(t("planIst.lueckenErklaerung"))}</p>
     <ul class="plan-ist-liste">
       ${r.luecken.map((l) => `
-        <li><button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(l.regelzahlung_id)}" title="${escapeHtml(l.bezeichnung)}">${escapeHtml(l.bezeichnung)}</button>
+        <li><a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", l.regelzahlung_id))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(l.regelzahlung_id)}" title="${escapeHtml(l.bezeichnung)}">${escapeHtml(l.bezeichnung)}</a>
           <span class="muted">${escapeHtml(l.konto_name)} · ${escapeHtml(tf("planIst.fehlend", { n: l.fehlend.length, von: l.termine }))}: ${escapeHtml(l.fehlend.slice(0, 6).map(formatDate).join(", "))}${l.fehlend.length > 6 ? " …" : ""}</span></li>`).join("")}
     </ul>`;
 }

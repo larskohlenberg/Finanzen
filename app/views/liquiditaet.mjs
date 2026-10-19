@@ -4,6 +4,7 @@
 // Einnahmen und Ausgaben im Trend (gleitendes 12-Monats-Mittel) und die
 // Tabellen als zugeklappte Kacheln.
 import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzahlKachel, kachelZeile, zeitverlaufKlein, klappKachel, trendPfeil } from "../komponenten.mjs";
 import { miniKurve } from "../charts.mjs";
@@ -240,7 +241,7 @@ function prognoseKachel(prognose, zahlungen) {
     ariaLabel: t("liquiditaet.verlaufPrognose"),
   }) : "";
   const zeilen = zahlungen.map(({ datum, regelzahlung: rz }) => kachelZeile(
-    `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}" title="${escapeHtml(rz.bezeichnung)}">${escapeHtml(rz.bezeichnung)}</button>`,
+    `<a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", rz.regelzahlung_id))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}" title="${escapeHtml(rz.bezeichnung)}">${escapeHtml(rz.bezeichnung)}</a>`,
     formatMoney(toCents(rz.betrag)),
     formatDate(datum),
   ));

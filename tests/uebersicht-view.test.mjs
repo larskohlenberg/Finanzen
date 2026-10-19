@@ -181,13 +181,13 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.match(bereich("liquiditaet"), /data-view="liquiditaet"[\s\S]*Liquidität/);
   assert.match(bereich("liquiditaet"), /<div class="kpi-value">1\.150\s€<\/div>[\s\S]*Verfügbares Geld · Stand 10\.6\.2026/);
   // Liquiditaet nur als Ist-Stand je Konto, ohne Prognose.
-  assert.match(bereich("liquiditaet"), /data-tab="konten">Giro belegt<\/button><span class="amount">1\.150\s€/);
-  assert.match(bereich("liquiditaet"), /Giro ohne Anker<\/button><span class="amount"><span class="muted">nicht belegt/);
+  assert.match(bereich("liquiditaet"), /data-tab="konten">Giro belegt<\/(?:a|button)><span class="amount">1\.150\s€/);
+  assert.match(bereich("liquiditaet"), /Giro ohne Anker<\/(?:a|button)><span class="amount"><span class="muted">nicht belegt/);
   assert.doesNotMatch(bereich("liquiditaet"), /diagramm-wrap|Tiefster Stand|In zwölf Monaten/);
-  assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten"[^>]*>Konten<\/button>[\s\S]*?1\.150\s€/);
-  assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten"[^>]*>Depots<\/button>[\s\S]*?4\.321\s€/);
+  assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten"[^>]*>Konten<\/(?:a|button)>[\s\S]*?1\.150\s€/);
+  assert.match(bereich("vermoegen"), /data-action="vermoegen-tab" data-tab="konten"[^>]*>Depots<\/(?:a|button)>[\s\S]*?4\.321\s€/);
   // Festgeld als eigene Zeile zwischen Konten und Depots, nicht unter Konten.
-  assert.match(bereich("vermoegen"), /data-tab="konten"[^>]*>Konten<\/button>[\s\S]*?data-tab="konten"[^>]*>Festgeld<\/button><span class="amount">20\.000\s€[\s\S]*?data-tab="konten"[^>]*>Depots<\/button>/);
+  assert.match(bereich("vermoegen"), /data-tab="konten"[^>]*>Konten<\/(?:a|button)>[\s\S]*?data-tab="konten"[^>]*>Festgeld<\/(?:a|button)><span class="amount">20\.000\s€[\s\S]*?data-tab="konten"[^>]*>Depots<\/(?:a|button)>/);
   assert.match(bereich("vermoegen"), /segment-festgeld/);
   // Konten, Festgeld und Depots in der Unterkachel "Schnell verfuegbar", zusammen 25.471,09.
   assert.match(bereich("vermoegen"), /uebersicht-kachel-breit/);
@@ -233,7 +233,7 @@ test("Termin-Kachel zeigt Fristen mit Spur, Objekt-Link und Hinweis auf bald und
 
   const kachel = (await gerenderteUebersicht()).match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
   // Der Spaltentitel fuehrt auf den Fristen-Reiter der Seite Termine.
-  const spalte = kachel.match(/<h3 class="termine-titel"><button class="linkish" data-action="termine-tab" data-tab="fristen">Fristen<\/button><\/h3>[\s\S]*?<\/ul>/)?.[0] ?? "";
+  const spalte = kachel.match(/<h3 class="termine-titel"><a class="linkish" href="#\/termine\/fristen" data-action="termine-tab" data-tab="fristen">Fristen<\/a><\/h3>[\s\S]*?<\/ul>/)?.[0] ?? "";
   assert.match(kachel, />Fristen<\/text>/);
   assert.equal((kachel.match(/class="terminleiste-marker raute/g) ?? []).length, 4);
   assert.match(spalte, /<li class="ueberfaellig" data-datum="[^"]+">[\s\S]*Alte Frist[\s\S]*chip danger">überfällig/);
@@ -285,19 +285,19 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   assert.doesNotMatch(teil("Schnell verfügbar"), /Immobilien|Darlehen/);
   // Langfristig netto: Immobilien minus Darlehen, mit Schuldenbalken.
   // Jede Immobilie eine eigene Zeile, die wertvollste zuerst, keine Sammelzeile.
-  assert.match(teil("Langfristig gebunden"), /vermoegen-teil-wert">250\.000\s€[\s\S]*segment-darlehen[\s\S]*data-vklasse="immobilie" data-vid="IMM-901"[^>]*>Testhaus<\/button><span class="amount">300\.000\s€[\s\S]*data-vklasse="immobilie" data-vid="IMM-902"[^>]*>Testwohnung<\/button><span class="amount">50\.000\s€[\s\S]*Darlehen/);
+  assert.match(teil("Langfristig gebunden"), /vermoegen-teil-wert">250\.000\s€[\s\S]*segment-darlehen[\s\S]*data-vklasse="immobilie" data-vid="IMM-901"[^>]*>Testhaus<\/(?:a|button)><span class="amount">300\.000\s€[\s\S]*data-vklasse="immobilie" data-vid="IMM-902"[^>]*>Testwohnung<\/(?:a|button)><span class="amount">50\.000\s€[\s\S]*Darlehen/);
   assert.doesNotMatch(teil("Langfristig gebunden"), />Immobilien</);
   // Lange Namen werden per CSS abgeschnitten; der volle Name steht im Tooltip.
-  assert.match(teil("Langfristig gebunden"), /<button class="linkish" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="IMM-901" title="Testhaus">Testhaus<\/button>/);
+  assert.match(teil("Langfristig gebunden"), /<a class="linkish" href="#\/vermoegen\/immobilien\/IMM-901" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="IMM-901" title="Testhaus">Testhaus<\/a>/);
 
   const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.doesNotMatch(vorsorge, /Beiträge|Offene Punkte/);
   // Einmalzahlungen gross, mit Leiste und Zeile je Vertrag, die in den Vertrag fuehrt.
-  assert.match(vorsorge, /Einmalzahlungen fällig<\/button><\/h3>\s*<div class="kpi-value">150\.000\s€/);
+  assert.match(vorsorge, /Einmalzahlungen fällig<\/(?:a|button)><\/h3>\s*<div class="kpi-value">150\.000\s€/);
   assert.match(vorsorge, /<svg class="vermoegen-balken"[\s\S]*data-titel="Testvertrag: 150\.000,00\s€" data-label="Testvertrag"/);
-  assert.match(vorsorge, /data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag<\/button><span class="muted">1\.12\.2040<\/span><span class="amount">150\.000\s€/);
+  assert.match(vorsorge, /data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag<\/(?:a|button)><span class="muted">1\.12\.2040<\/span><span class="amount">150\.000\s€/);
   assert.match(teil("Langfristig gebunden"), /data-action="vorsorge-tab" data-tab="lebensversicherungen"[^>]*>Rückkaufswerte</);
-  assert.match(vorsorge, /<h3 class="vermoegen-teil-titel uebersicht-werttitel"><button class="linkish" data-action="vorsorge-tab" data-tab="renten">Monatliche Renten<\/button><\/h3>\s*<div class="kpi-value">/);
+  assert.match(vorsorge, /<h3 class="vermoegen-teil-titel uebersicht-werttitel"><a class="linkish" href="#\/vorsorge\/renten" data-action="vorsorge-tab" data-tab="renten">Monatliche Renten<\/a><\/h3>\s*<div class="kpi-value">/);
 });
 
 test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und Links in die Buchungen", async () => {
@@ -360,7 +360,7 @@ test("Termine: Eintraege einzeilig, voller Text im Tooltip", async () => {
   state.lang = "de";
   const html = (await gerenderteUebersicht());
   const termine = html.match(/aria-labelledby="kachel-termine">[\s\S]*?<\/section>/)?.[0] ?? "";
-  assert.match(termine, /<span class="termine-text" title="Dynamik widersprechen · Testvertrag mit langem Namen"><span>Dynamik widersprechen<\/span><span class="muted"><button/);
+  assert.match(termine, /<span class="termine-text" title="Dynamik widersprechen · Testvertrag mit langem Namen"><span>Dynamik widersprechen<\/span><span class="muted"><(?:a|button)/);
 });
 
 test("Testuhr: Depotstand gilt genau drei Monate nach dem Stand als veraltet (davor, am Tag, danach)", async (t) => {

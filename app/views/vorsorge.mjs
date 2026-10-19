@@ -4,6 +4,7 @@
 // (Renten, Lebensversicherungen, Versicherungen). Im Tab eine Karte je Vertrag,
 // darunter der gewaehlte Vertrag in voller Breite. Rechnen in vorsorge-rechnung.mjs.
 import { data, state, t, tf, fmt, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert } from "../vermoegen.mjs";
@@ -90,7 +91,7 @@ function vorsorgeAntwort(heute) {
 function bezugLinks(vs) {
   return vertrag(vs).bezug.map((b) => {
     const name = (data.immobilien ?? []).find((i) => i.immobilie_id === b.id)?.bezeichnung || b.id;
-    return `<button class="linkish" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`${b.klasse}:${b.id}`)}" title="${escapeHtml(t("vorsorge.bezugOeffnen"))}">${escapeHtml(name)}</button>`;
+    return `<a class="linkish" href="${escapeHtml(zielRoute("select-vermoegen-objekt", `${b.klasse}:${b.id}`))}" data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`${b.klasse}:${b.id}`)}" title="${escapeHtml(t("vorsorge.bezugOeffnen"))}">${escapeHtml(name)}</a>`;
   });
 }
 
@@ -170,7 +171,7 @@ function renderUebersichtTab(today, offen) {
 
   const kz = (label, wert, notiz, zeilen = [], { grafik = "", unten = "" } = {}) => kennzahlKachel({ label, wert, notiz, zeilen, grafik, unten });
   const zeile = kachelZeile;
-  const vertragLink = (id, name) => `<button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(id)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
+  const vertragLink = (id, name) => `<a class="linkish" href="${escapeHtml(zielRoute("select-vorsorge", id))}" data-action="select-vorsorge" data-vorsorge="${escapeHtml(id)}" title="${escapeHtml(name)}">${escapeHtml(name)}</a>`;
   const tabLink = (tab, text) => `<button class="linkish" data-action="vorsorge-tab" data-tab="${escapeHtml(tab)}">${escapeHtml(text)}</button>`;
 
   // Faellig ist nur Terminiertes; bedingte (z. B. Todesfallsumme) und undatierte
@@ -304,7 +305,7 @@ function renderOffenePunkte(offen) {
       <ul class="vorsorge-offen-liste">${zeilen.map((z) => `
         <li>
           <span>
-            <button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(z.vs.vorsorge_id)}" title="${escapeHtml(z.detail)}">${escapeHtml(z.titel)}</button>
+            <a class="linkish" href="${escapeHtml(zielRoute("select-vorsorge", z.vs.vorsorge_id))}" data-action="select-vorsorge" data-vorsorge="${escapeHtml(z.vs.vorsorge_id)}" title="${escapeHtml(z.detail)}">${escapeHtml(z.titel)}</a>
             <span class="muted">${escapeHtml(z.text)}</span>
           </span>
           <span class="chip review">${escapeHtml(t("vorsorge.offen.chip"))}</span>
@@ -364,7 +365,7 @@ function renderBeitragsRanking(liste, today) {
       const chip = diff ? `<span class="chip ${diff > 0 ? "review" : "success"}" title="${escapeHtml(`${formatMoney(vj.vorjahr_cents)} → ${formatMoney(vj.letzte_cents)}`)}">${escapeHtml(veraenderungText(vj))}</span>` : `<span class="muted">${diff === 0 ? "±0 %" : "—"}</span>`;
       return `
       <li>
-        <button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" title="${escapeHtml(vs.name)}">${mitLogo({ vorsorge: vs }, escapeHtml(vs.name), { groesse: "vergleich" })}</button>
+        <a class="linkish" href="${escapeHtml(zielRoute("select-vorsorge", vs.vorsorge_id))}" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" title="${escapeHtml(vs.name)}">${mitLogo({ vorsorge: vs }, escapeHtml(vs.name), { groesse: "vergleich" })}</a>
         <svg class="ranking-balken" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="1" width="${(jahr / max * 100).toFixed(2)}" height="8" rx="1.5" class="ranking-wert" /></svg>
         <span class="amount">${escapeHtml(formatMoney(jahr))}</span>
         <span class="ranking-aenderung">${chip}</span>
@@ -569,9 +570,9 @@ function beitragsbefreiungHtml(vs) {
 function renderVertragsdaten(vs, tab, offen) {
   const vorgaenger = vs.ersetzt_vorsorge_id ? (data.vorsorge ?? []).find((v) => v.vorsorge_id === vs.ersetzt_vorsorge_id) : null;
   const nachfolger = (data.vorsorge ?? []).find((v) => v.ersetzt_vorsorge_id === vs.vorsorge_id);
-  const verweis = (v) => `<button class="linkish" data-action="select-vorsorge" data-vorsorge="${escapeHtml(v.vorsorge_id)}">${escapeHtml(`${v.vorsorge_id} · ${v.name}`)}</button>`;
+  const verweis = (v) => `<a class="linkish" href="${escapeHtml(zielRoute("select-vorsorge", v.vorsorge_id))}" data-action="select-vorsorge" data-vorsorge="${escapeHtml(v.vorsorge_id)}">${escapeHtml(`${v.vorsorge_id} · ${v.name}`)}</a>`;
   const beitraege = (data.regelzahlungen ?? []).filter((rz) => rz.vorsorge_id === vs.vorsorge_id);
-  const beitragZeilen = beitraege.map((rz) => `<div><button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}">${escapeHtml(`${rz.regelzahlung_id} · ${rz.bezeichnung}`)}</button> <span class="muted">${escapeHtml(`${formatMoney(cents(rz.betrag))} · ${rhythmusLabel(rz.rhythmus_einheit, rz.rhythmus_intervall)}${rz.aktiv_bis ? ` · ${t("vorsorge.aktivBis")} ${formatDate(rz.aktiv_bis)}` : ""}`)}</span></div>`).join("");
+  const beitragZeilen = beitraege.map((rz) => `<div><a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", rz.regelzahlung_id))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(rz.regelzahlung_id)}">${escapeHtml(`${rz.regelzahlung_id} · ${rz.bezeichnung}`)}</a> <span class="muted">${escapeHtml(`${formatMoney(cents(rz.betrag))} · ${rhythmusLabel(rz.rhythmus_einheit, rz.rhythmus_intervall)}${rz.aktiv_bis ? ` · ${t("vorsorge.aktivBis")} ${formatDate(rz.aktiv_bis)}` : ""}`)}</span></div>`).join("");
   const wiedervorlage = (offen.get(vs.vorsorge_id) ?? []).some((c) => c.art === "vorsorge-wiedervorlage");
   const fristen = fristenText("vorsorge", vs.vorsorge_id);
   const quelle = [vs.quelle_hinweis ? quelleHtml(vs.quelle_hinweis) : "", vs.quelle_standdatum ? escapeHtml(formatDate(vs.quelle_standdatum)) : ""].filter(Boolean).join(" · ");

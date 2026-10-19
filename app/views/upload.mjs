@@ -125,7 +125,7 @@ const SCHRITT_KLASSE = { uebernommen: "success", teilweise: "review", abgewiesen
 // abgewiesene Zeilen aufklappbar, Archivort.
 function renderImporte() {
   const { antwort, fehler } = importeAntwort();
-  if (!antwort) return `<p class="muted" role="status">${escapeHtml(fehler ? fehler.message : t("uploadPage.importeLaden"))}</p>`;
+  if (!antwort) return `<p class="muted" role="status">${escapeHtml(t(fehler ? "uploadPage.apiUnavailable" : "uploadPage.importeLaden"))}</p>`;
   if (!antwort.auftraege.length) return `<p class="muted">${escapeHtml(t("uploadPage.importeLeer"))}</p>`;
   return `<ul class="import-liste">${antwort.auftraege.map((a) => {
     const z = a.zeilen ?? {};
@@ -153,6 +153,12 @@ function renderImporte() {
 // Antworten gehoeren zur alten Generation.
 let inboxGeneration = 0;
 beiDatenwechsel((grund) => {
+  // Neuer Stand (z. B. nach einem Import-Durchlauf): Inbox beim naechsten
+  // Zeichnen neu listen, damit sie zum neuen Importbericht passt.
+  if (grund === "stand") {
+    if (upload.inbox.zustand !== "unbekannt") upload.inbox = { ...upload.inbox, zustand: "unbekannt" };
+    return;
+  }
   if (grund !== "sperre") return;
   inboxGeneration += 1;
   upload.eintraege = [];

@@ -32,7 +32,7 @@ const server = { stand: "stand-1", ersetze: {}, anfragen: [], kopfleisteFehlt: f
 globalThis.fetch = async (pfad, optionen) => {
   server.anfragen.push({ pfad: String(pfad), optionen });
   if (server.kopfleisteFehlt && String(pfad).includes("api/v1/kopfleiste")) return { ok: false, status: 503, json: async () => ({ grund: "voruebergehend" }) };
-  if (String(pfad).includes("api/v1/snapshot") && optionen?.headers?.["If-None-Match"] === `"${server.stand}"`) {
+  if (String(pfad).includes("api/v1/grunddaten") && optionen?.headers?.["If-None-Match"] === `"${server.stand}"`) {
     return { ok: false, status: 304 };
   }
   const bestand = bestandAntwort(pfad, { stand: server.stand, ersetze: server.ersetze });
@@ -55,7 +55,7 @@ globalThis.matchMedia = () => ({ matches: false, addEventListener: () => {} });
 
 await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
-const { data, state, transaktionenById, kontenById } = runtime;
+const { data, state, kontenById } = runtime;
 await import("../app/main.js");
 
 const klick = () => {
@@ -85,12 +85,12 @@ const NEUE_TX = {
   kategorie_herkunft: "manuell",
 };
 
-test("Start: Daten und Befund kommen aus dem Snapshot des Servers", () => {
+test("Start: Grunddaten und Befund kommen vom Server, ohne Buchungen", () => {
   assert.equal(data.metadata.stand, "stand-1");
   assert.equal(data.metadata.dataMode, "demo");
   assert.equal(data.validation.valid, true, data.validation.errors.join("\n"));
-  assert.ok(server.anfragen.some((a) => a.pfad === "./api/v1/snapshot?quelle=demo"));
-  assert.ok(!transaktionenById.has(NEUE_TX.transaktion_id));
+  assert.ok(server.anfragen.some((a) => a.pfad === "./api/v1/grunddaten?quelle=demo"));
+  assert.equal(data.transaktionen, undefined, "Buchungen bleiben auf dem Server");
 });
 
 test("gleicher Stand: Klick fragt nur die Kennung ab", async () => {
@@ -98,14 +98,14 @@ test("gleicher Stand: Klick fragt nur die Kennung ab", async () => {
   klick();
   await warteBis(() => server.anfragen.some((a) => a.pfad.includes("api/v1/stand")));
   await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.ok(!server.anfragen.some((a) => a.pfad.includes("api/v1/snapshot")));
+  assert.ok(!server.anfragen.some((a) => a.pfad.includes("api/v1/grunddaten")));
 });
 
 test("neuer Stand: naechster Klick laedt neu, ohne Reload, Filter und Auswahl bleiben", async () => {
   state.view = "transactions";
   state.transactionFilters.search = "Testbuchung";
   state.selectedKonto = "KTO-001";
-  const altesData = data.transaktionen;
+  const alteKonten = data.konten;
   const zeilen = readFileSync(new URL("../app/data/demo/transaktionen.jsonl", import.meta.url), "utf8");
   const konten = JSON.parse(readFileSync(new URL("../app/data/demo/konten.json", import.meta.url), "utf8"));
   server.stand = "stand-2";
@@ -118,8 +118,7 @@ test("neuer Stand: naechster Klick laedt neu, ohne Reload, Filter und Auswahl bl
   klick();
   await warteBis(() => data.metadata?.stand === "stand-2");
 
-  assert.notEqual(data.transaktionen, altesData);
-  assert.equal(transaktionenById.get(NEUE_TX.transaktion_id)?.betrag, "-12.34");
+  assert.notEqual(data.konten, alteKonten);
   assert.equal(kontenById.size, konten.length, "Nachschlage-Maps neu gefuellt (kaputter Eintrag faellt heraus)");
   // Befund vom Server: der kaputte Eintrag steht im Banner.
   assert.equal(data.validation.valid, false);
@@ -132,22 +131,22 @@ test("neuer Stand: naechster Klick laedt neu, ohne Reload, Filter und Auswahl bl
   // Hinweis plus Statusmeldung der Ansicht mit den Zahlen aus der Transaktionen-API.
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.match(srStatus.textContent, /^Neuer Datenstand geladen\. Transaktionen: 1 Treffer/);
-  const bedingt = server.anfragen.filter((a) => a.pfad.includes("api/v1/snapshot")).at(-1);
+  const bedingt = server.anfragen.filter((a) => a.pfad.includes("api/v1/grunddaten")).at(-1);
   assert.equal(bedingt.optionen.headers["If-None-Match"], '"stand-1"');
 });
 
 test("Knopf Daten neu laden: bedingt laden ohne Reload, 304 laesst alles stehen", async () => {
-  const vorher = data.transaktionen;
+  const vorher = data.konten;
   server.anfragen.length = 0;
   const knopf = { dataset: { action: "reload-data" } };
   for (const fn of appListeners.get("click") ?? []) {
     fn({ target: { closest: (sel) => (sel === "[data-action]" ? knopf : null) } });
   }
-  await warteBis(() => server.anfragen.some((a) => a.pfad.includes("api/v1/snapshot")));
+  await warteBis(() => server.anfragen.some((a) => a.pfad.includes("api/v1/grunddaten")));
   await new Promise((resolve) => setTimeout(resolve, 20));
-  const anfrage = server.anfragen.find((a) => a.pfad.includes("api/v1/snapshot"));
+  const anfrage = server.anfragen.find((a) => a.pfad.includes("api/v1/grunddaten"));
   assert.equal(anfrage.optionen.headers["If-None-Match"], '"stand-2"');
-  assert.equal(data.transaktionen, vorher);
+  assert.equal(data.konten, vorher);
   assert.deepEqual(reloads, []);
 });
 

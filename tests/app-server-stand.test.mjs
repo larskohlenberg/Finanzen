@@ -1,5 +1,5 @@
 // tests/app-server-stand.test.mjs
-// GET /api/v1/stand und /api/v1/snapshot: Kennung des Datenstands, Snapshot
+// GET /api/v1/stand und /api/v1/grunddaten: Kennung des Datenstands, Grunddaten
 // mit ETag (304 bei unveraendertem Stand), neuer Stand nach Dateiaenderung,
 // Demo und Echt getrennt. Temp-Verzeichnis, erfundene Daten.
 import assert from "node:assert/strict";
@@ -78,8 +78,8 @@ test("Stand: Kennung je Bestand, no-store, nur GET", async () => {
   assert.equal((await hole("/api/v1/stand", { method: "POST" })).status, 405);
 });
 
-test("Snapshot: Bestand mit Validator-Befund und ETag, 304 bei gleichem Stand", async () => {
-  const erst = await hole("/api/v1/snapshot");
+test("Grunddaten: Bestand ohne Buchungen und Transfers, mit Validator-Befund und ETag, 304 bei gleichem Stand", async () => {
+  const erst = await hole("/api/v1/grunddaten");
   assert.equal(erst.status, 200);
   assert.match(erst.headers["cache-control"], /no-store/);
   const snapshot = erst.json();
@@ -87,20 +87,23 @@ test("Snapshot: Bestand mit Validator-Befund und ETag, 304 bei gleichem Stand", 
   assert.equal(snapshot.format, 1);
   assert.equal(snapshot.validierung.valid, true, snapshot.validierung.errors.join("\n"));
   assert.equal(snapshot.daten.personen[0].name, "Erika Beispiel-Echt");
-  assert.ok(snapshot.daten.transaktionen.length > 0);
+  // Buchungen und Transfers bleiben auf dem Server (Lese-APIs).
+  assert.equal(snapshot.daten.transaktionen, undefined);
+  assert.equal(snapshot.daten.transfers, undefined);
+  assert.equal(typeof snapshot.daten.regelzahlung_logos, "object");
 
-  const nochmal = await hole("/api/v1/snapshot", { headers: { "If-None-Match": erst.headers.etag } });
+  const nochmal = await hole("/api/v1/grunddaten", { headers: { "If-None-Match": erst.headers.etag } });
   assert.equal(nochmal.status, 304);
   assert.equal(nochmal.text, "");
   assert.equal(nochmal.headers.etag, erst.headers.etag);
 
-  const demoSnap = await hole("/api/v1/snapshot?quelle=demo", { headers: { "If-None-Match": erst.headers.etag } });
+  const demoSnap = await hole("/api/v1/grunddaten?quelle=demo", { headers: { "If-None-Match": erst.headers.etag } });
   assert.equal(demoSnap.status, 200, "Demo hat einen eigenen Stand");
   assert.notEqual(demoSnap.json().daten.personen[0].name, "Erika Beispiel-Echt");
-  assert.equal((await hole("/api/v1/snapshot", { method: "PUT" })).status, 405);
+  assert.equal((await hole("/api/v1/grunddaten", { method: "PUT" })).status, 405);
 });
 
-test("Standwechsel: Dateiaenderung gibt neuen Stand, Snapshot mit neuen Daten und neuem Befund", async () => {
+test("Standwechsel: Dateiaenderung gibt neuen Stand, Grunddaten mit neuen Daten und neuem Befund", async () => {
   const alt = (await hole("/api/v1/stand")).json().stand;
   const pfad = join(master, "konten.json");
   const konten = JSON.parse(await readFile(pfad, "utf8"));
@@ -110,7 +113,7 @@ test("Standwechsel: Dateiaenderung gibt neuen Stand, Snapshot mit neuen Daten un
   try {
     const neu = (await hole("/api/v1/stand")).json().stand;
     assert.notEqual(neu, alt);
-    const snap = await hole("/api/v1/snapshot", { headers: { "If-None-Match": `"${alt}"` } });
+    const snap = await hole("/api/v1/grunddaten", { headers: { "If-None-Match": `"${alt}"` } });
     assert.equal(snap.status, 200);
     assert.equal(snap.headers.etag, `"${neu}"`);
     const { daten, validierung } = snap.json();
@@ -120,21 +123,21 @@ test("Standwechsel: Dateiaenderung gibt neuen Stand, Snapshot mit neuen Daten un
   } finally {
     await writeFile(pfad, JSON.stringify(konten));
   }
-  const zurueck = await hole("/api/v1/snapshot");
+  const zurueck = await hole("/api/v1/grunddaten");
   assert.equal(zurueck.json().validierung.valid, true);
 });
 
-test("Snapshot: unlesbarer Bestand gibt 500 mit Dateiname, Stand bleibt abfragbar", async () => {
+test("Grunddaten: unlesbarer Bestand gibt 500 mit Dateiname, Stand bleibt abfragbar", async () => {
   const pfad = join(demo, "transfers.json");
   const vorher = await readFile(pfad, "utf8");
   await writeFile(pfad, "[kaputt");
   try {
-    const res = await hole("/api/v1/snapshot?quelle=demo");
+    const res = await hole("/api/v1/grunddaten?quelle=demo");
     assert.equal(res.status, 500);
     assert.equal(res.json().grund, "bestand-unlesbar");
     assert.match(res.json().meldung, /^transfers\.json: /);
     assert.equal((await hole("/api/v1/stand?quelle=demo")).status, 200);
-    assert.ok(logs.some((zeile) => zeile.includes("snapshot quelle=demo ergebnis=fehler")));
+    assert.ok(logs.some((zeile) => zeile.includes("grunddaten quelle=demo ergebnis=fehler")));
   } finally {
     await writeFile(pfad, vorher);
   }
@@ -155,8 +158,8 @@ test("Snapshot-Quelle: baut je Stand einmal, gleichzeitige Anfragen teilen sich 
   let gerechnet = 0;
   assert.equal(a.merke("x", () => ++gerechnet), 1);
   assert.equal(a.merke("x", () => ++gerechnet), 1, "abgeleitete Werte einmal je Stand");
-  const snap = await quelle.snapshot();
+  const snap = await quelle.grunddaten();
   assert.equal(JSON.parse(snap.body).stand, a.stand);
-  assert.equal((await quelle.snapshot()).body, snap.body);
+  assert.equal((await quelle.grunddaten()).body, snap.body);
   assert.equal(a.stand, (await leseSnapshot(demo)).stand);
 });

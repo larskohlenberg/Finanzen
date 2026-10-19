@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort, demoBuchungen } from "./hilfe-bestand.mjs";
 
 // Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
 let appDaten = null;
@@ -29,6 +29,8 @@ await import("../app/i18n.js");
 
 const { data, state } = await import("../app/runtime.mjs");
 appDaten = data;
+// Buchungen hat nur der Server; data dient hier als sein Bestand.
+Object.assign(data, demoBuchungen());
 const view = await import("../app/views/belege.mjs");
 
 const PDF = "Belege/Kontoauszuege/KTO-001/auszug_2026-01.pdf";
@@ -40,8 +42,6 @@ data.transaktionen.push(
   { transaktion_id: "TXN-V1", konto_id: kontoId, buchungsdatum: "2026-01-03", betrag: "-1.00", rohquelle: CSV },
   { transaktion_id: "TXN-V2", konto_id: kontoId, buchungsdatum: "2026-01-28", betrag: "-2.00", rohquelle: CSV },
 );
-const runtime = await import("../app/runtime.mjs");
-for (const tx of data.transaktionen.slice(-2)) runtime.transaktionenById.set(tx.transaktion_id, tx);
 data.zeitwerte.push({ entitaet: "konto", entitaet_id: kontoId, feld: "kontostand", wert: "1.00", standdatum: "2026-01-31", qualitaet: "belegt", quelle_hinweis: `Auszug ${PDF}` });
 // Buchungen je Dokument kommen vom Server (GET /api/v1/belegverweise): einmal abrufen.
 const { verweise } = await import("../app/views/belegverweise-daten.mjs");

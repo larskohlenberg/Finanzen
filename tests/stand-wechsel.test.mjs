@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { erstelleStandWaechter } from "../app/stand-wechsel.mjs";
 
 function aufbau({ stand = "s1", serverStand = "s1" } = {}) {
-  const protokoll = { stand: 0, snapshot: [], uebernommen: [] };
+  const protokoll = { stand: 0, grunddaten: [], uebernommen: [] };
   let uhr = 0;
   const server = { stand: serverStand };
   const waechter = erstelleStandWaechter({
@@ -14,8 +14,8 @@ function aufbau({ stand = "s1", serverStand = "s1" } = {}) {
       protokoll.stand += 1;
       return server.stand;
     },
-    holeSnapshot: async (bekannt) => {
-      protokoll.snapshot.push(bekannt);
+    holeGrunddaten: async (bekannt) => {
+      protokoll.grunddaten.push(bekannt);
       return bekannt === server.stand ? null : { metadata: { stand: server.stand } };
     },
     uebernehme: (bundle) => protokoll.uebernommen.push(bundle.metadata.stand),
@@ -23,18 +23,18 @@ function aufbau({ stand = "s1", serverStand = "s1" } = {}) {
   return { waechter, protokoll, server, ticke: (ms) => { uhr += ms; } };
 }
 
-test("gleicher Stand: nur die Kennung wird gefragt, kein Snapshot", async () => {
+test("gleicher Stand: nur die Kennung wird gefragt, keine Grunddaten", async () => {
   const { waechter, protokoll } = aufbau();
   assert.equal(await waechter.pruefe(), false);
   assert.equal(protokoll.stand, 1);
-  assert.deepEqual(protokoll.snapshot, []);
+  assert.deepEqual(protokoll.grunddaten, []);
 });
 
-test("neuer Stand: Snapshot bedingt laden, uebernehmen, Stand merken", async () => {
+test("neuer Stand: Grunddaten bedingt laden, uebernehmen, Stand merken", async () => {
   const { waechter, protokoll, server, ticke } = aufbau();
   server.stand = "s2";
   assert.equal(await waechter.pruefe(), true);
-  assert.deepEqual(protokoll.snapshot, ["s1"]);
+  assert.deepEqual(protokoll.grunddaten, ["s1"]);
   assert.deepEqual(protokoll.uebernommen, ["s2"]);
   assert.equal(waechter.stand, "s2");
   ticke(5000);
@@ -59,7 +59,7 @@ test("erzwungen: ohne Kennungsabfrage und Abstand, 304 aendert nichts", async ()
   await waechter.pruefe();
   assert.equal(await waechter.pruefe({ erzwingen: true }), false);
   assert.equal(protokoll.stand, 1);
-  assert.deepEqual(protokoll.snapshot, ["s1"]);
+  assert.deepEqual(protokoll.grunddaten, ["s1"]);
   server.stand = "s3";
   assert.equal(await waechter.pruefe({ erzwingen: true }), true);
   assert.deepEqual(protokoll.uebernommen, ["s3"]);
@@ -75,7 +75,7 @@ test("Fehler beim Fragen kommen beim Aufrufer an, der naechste Versuch laeuft wi
       if (fehlschlag) throw new Error("offline");
       return "s1";
     },
-    holeSnapshot: async () => null,
+    holeGrunddaten: async () => null,
     uebernehme: () => assert.fail("nichts uebernehmen"),
   });
   await assert.rejects(waechter.pruefe(), /offline/);

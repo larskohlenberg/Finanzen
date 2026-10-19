@@ -1,9 +1,10 @@
-// Fetch-Antworten fuer Tests mit DOM-Attrappe: Stand und Snapshot des App-Servers
-// (/api/v1/stand, /api/v1/snapshot) aus dem Demo-Bestand, wie server.mjs sie
-// liefert. ersetze ueberschreibt einzelne Dateien (Text; undefined = fehlt).
+// Fetch-Antworten fuer Tests mit DOM-Attrappe: Stand und Grunddaten des
+// App-Servers (/api/v1/stand, /api/v1/grunddaten) aus dem Demo-Bestand, wie
+// server.mjs sie liefert. ersetze ueberschreibt einzelne Dateien (Text;
+// undefined = fehlt).
 import { readFileSync } from "node:fs";
 import { BESTAND_TEILE } from "../app/data-loader.mjs";
-import { snapshotAusTexten } from "../app/stand.mjs";
+import { grunddatenAus, snapshotAusTexten } from "../app/stand.mjs";
 import { leseAnsicht } from "../app/lese-api.mjs";
 
 export const TEST_STAND = "teststand";
@@ -35,13 +36,16 @@ function antwort(status, body) {
 // null, wenn pfad keine Bestandsanfrage ist; dann antwortet der Test selbst.
 // Lese-APIs (/api/v1/transaktionen ...) rechnen wie der Server; mit daten
 // ueber einen vom Test vorgegebenen Bestand (z. B. das data-Objekt der App).
+// Was nur der Server hat (Buchungen, Transfers) und daten nicht selbst setzt,
+// kommt aus dem Demo-Bestand.
 export function bestandAntwort(pfad, { ersetze = {}, stand = TEST_STAND, daten = null } = {}) {
   const text = String(pfad).replace(/^\.\//, "");
   const rein = text.replace(/\?.*$/, "");
   if (rein === "api/v1/stand") return antwort(200, { stand });
-  if (rein === "api/v1/snapshot") return antwort(200, snapshotFuerTest({ ersetze, stand }));
+  if (rein === "api/v1/grunddaten") return antwort(200, grunddatenAus(snapshotFuerTest({ ersetze, stand })));
   if (rein.startsWith("api/v1/")) {
-    const quelle = daten ?? snapshotFuerTest({ ersetze, stand }).daten;
+    const demo = snapshotFuerTest({ ersetze, stand }).daten;
+    const quelle = daten ? { transaktionen: demo.transaktionen, transfers: demo.transfers, ...daten } : demo;
     const merkliste = new Map();
     const validierung = daten?.validation ?? snapshotFuerTest({ ersetze, stand }).validierung;
     const bestand = { stand, daten: quelle, validierung, merke: (k, f) => (merkliste.has(k) ? merkliste.get(k) : merkliste.set(k, f()).get(k)) };
@@ -59,4 +63,12 @@ export function bestandAntwort(pfad, { ersetze = {}, stand = TEST_STAND, daten =
 // Wartet, bis offene Abrufe der Lese-APIs (api-daten.mjs) durch sind.
 export async function apiAbwarten() {
   for (let i = 0; i < 5; i += 1) await new Promise((resolve) => setImmediate(resolve));
+}
+
+// Buchungen und Transfers des Demo-Bestands: was nur der Server hat. Tests, die
+// das data-Objekt der App als Bestand der Lese-APIs nutzen und mit Buchungen
+// arbeiten, legen sie dort ab (frische Kopien).
+export function demoBuchungen() {
+  const { transaktionen, transfers } = snapshotFuerTest().daten;
+  return { transaktionen: structuredClone(transaktionen), transfers: structuredClone(transfers) };
 }

@@ -41,7 +41,7 @@ export const data = bootstrapped.data;
 export const dictionaries = bootstrapped.dictionaries;
 
 // "Das Tool prueft" gilt auch in der UI: den Validator-Befund (data.validation)
-// liefert der Server mit dem Snapshot, dieselbe Logik wie das CLI. Er treibt
+// liefert der Server mit den Grunddaten, dieselbe Logik wie das CLI. Er treibt
 // Status-Chip und Fehlerbanner. Die Listen sind strukturell lesbar: was keine
 // Liste oder kein Objekt ist, hat der Server herausgenommen und als Fehler
 // gemeldet.
@@ -164,16 +164,12 @@ export const state = {
 export const personenById = new Map();
 export const kontenById = new Map();
 export const kategorienById = new Map();
-export const transaktionenById = new Map();
-export const transfersById = new Map();
 
 function fuelleNachschlagen() {
   const tabellen = [
     [personenById, data.personen, "person_id"],
     [kontenById, data.konten, "konto_id"],
     [kategorienById, data.kategorien, "kategorie_id"],
-    [transaktionenById, data.transaktionen, "transaktion_id"],
-    [transfersById, data.transfers, "transfer_id"],
   ];
   for (const [map, liste, schluessel] of tabellen) {
     map.clear();
@@ -225,7 +221,7 @@ export const cents = toCents;
 // aus dem Speicher werfen, bevor die Seite neu laedt oder abmeldet.
 export function verwerfeDaten() {
   for (const schluessel of Object.keys(data)) delete data[schluessel];
-  for (const map of [personenById, kontenById, kategorienById, transaktionenById, transfersById]) map.clear();
+  for (const map of [personenById, kontenById, kategorienById]) map.clear();
   state.liquiditaetExpanded.clear();
   state.nextActionPromptFallback = "";
   state.transactionFilters.search = "";

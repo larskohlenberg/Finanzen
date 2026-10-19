@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort, demoBuchungen } from "./hilfe-bestand.mjs";
 
 // Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
 let appDaten = null;
@@ -27,6 +27,8 @@ const runtime = await import("../app/runtime.mjs");
 const checksView = await import("../app/views/checks.mjs");
 const { data, state } = runtime;
 appDaten = data;
+// Buchungen hat nur der Server; data dient hier als sein Bestand.
+Object.assign(data, demoBuchungen());
 const { renderChecks } = checksView;
 const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
 // Die Pruefungen rechnet der Server (GET /api/v1/checks): Antworten verwerfen,
@@ -39,7 +41,7 @@ async function checksGezeichnet() {
 }
 
 test("Checks-View rendert ohne ReferenceError (Transfer- und Konto-Lookups)", async () => {
-  // Realistische Daten, die die Lookups transaktionenById/kontenById ausloesen.
+  // Realistische Transfer-Daten; die Pruefung rechnet der Server.
   data.transfers = [
     {
       transfer_id: "TR-001",
@@ -91,8 +93,6 @@ test("Checks listen nur unvollstaendige Transfers, der Zaehler zaehlt sie mit", 
     { transfer_id: "TR-HALB", betrag: "20.00", abgang_transaktion_id: "TX-OK-A", zugang_transaktion_id: "TX-FEHLT" },
   ];
   data.transaktionen = [...data.transaktionen.filter((tx) => !tx.transaktion_id.startsWith("TX-OK-")), ok, okB];
-  runtime.transaktionenById.set(ok.transaktion_id, ok);
-  runtime.transaktionenById.set(okB.transaktion_id, okB);
   data.checks = [];
 
   const html = (await checksGezeichnet());

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BESTAND_TEILE, DATEN_DATEIEN, ladeSnapshot, ladeStand, loadFinanceData, parseJsonl } from "../app/data-loader.mjs";
+import { BESTAND_TEILE, DATEN_DATEIEN, ladeGrunddaten, ladeStand, loadFinanceData, parseJsonl } from "../app/data-loader.mjs";
 import { snapshotAusTexten } from "../app/stand.mjs";
 
 test("parseJsonl parses non-empty lines and ignores blanks", () => {
@@ -64,13 +64,13 @@ function mitFetch(t, antwort) {
   return aufrufe;
 }
 
-const SNAPSHOT = { format: 1, stand: "s1", validierung: { valid: false, errors: ["konten[0]: kaputt"] }, daten: { konten: [{ konto_id: "KTO-001" }], farben: {} } };
+const GRUNDDATEN = { format: 1, stand: "s1", validierung: { valid: false, errors: ["konten[0]: kaputt"] }, daten: { konten: [{ konto_id: "KTO-001" }], farben: {} } };
 const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 
-test("loadFinanceData laedt den Snapshot ohne Browser-Cache, Echt standardmaessig", async (t) => {
-  const aufrufe = mitFetch(t, () => ok(SNAPSHOT));
+test("loadFinanceData laedt die Grunddaten ohne Browser-Cache, Echt standardmaessig", async (t) => {
+  const aufrufe = mitFetch(t, () => ok(GRUNDDATEN));
   const data = await loadFinanceData();
-  assert.deepEqual(aufrufe, [{ pfad: "./api/v1/snapshot", optionen: { cache: "no-store", headers: {} } }]);
+  assert.deepEqual(aufrufe, [{ pfad: "./api/v1/grunddaten", optionen: { cache: "no-store", headers: {} } }]);
   assert.equal(data.metadata.dataMode, "live");
   assert.equal(data.metadata.bundleVersion, "live-master");
   assert.equal(data.metadata.stand, "s1");
@@ -81,22 +81,22 @@ test("loadFinanceData laedt den Snapshot ohne Browser-Cache, Echt standardmaessi
 });
 
 test("loadFinanceData kann Demodaten statt Masterdaten laden", async (t) => {
-  const aufrufe = mitFetch(t, () => ok(SNAPSHOT));
+  const aufrufe = mitFetch(t, () => ok(GRUNDDATEN));
   const data = await loadFinanceData({ dataMode: "demo" });
-  assert.equal(aufrufe[0].pfad, "./api/v1/snapshot?quelle=demo");
+  assert.equal(aufrufe[0].pfad, "./api/v1/grunddaten?quelle=demo");
   assert.equal(data.metadata.dataMode, "demo");
   assert.equal(data.metadata.label, "Demodaten");
 });
 
-test("ladeSnapshot fragt mit Stand bedingt und liefert bei 304 null", async (t) => {
+test("ladeGrunddaten fragt mit Stand bedingt und liefert bei 304 null", async (t) => {
   const aufrufe = mitFetch(t, () => ({ ok: false, status: 304 }));
-  assert.equal(await ladeSnapshot({ dataMode: "demo", stand: "s1" }), null);
+  assert.equal(await ladeGrunddaten({ dataMode: "demo", stand: "s1" }), null);
   assert.deepEqual(aufrufe[0].optionen, { cache: "no-store", headers: { "If-None-Match": '"s1"' } });
 });
 
-test("ladeSnapshot meldet Serverfehler mit Grund", async (t) => {
+test("ladeGrunddaten meldet Serverfehler mit Grund", async (t) => {
   mitFetch(t, () => ({ ok: false, status: 500, json: async () => ({ grund: "bestand-unlesbar", meldung: "konten.json: fehlt" }) }));
-  await assert.rejects(ladeSnapshot({ dataMode: "live" }), /HTTP 500 \(konten\.json: fehlt\)/);
+  await assert.rejects(ladeGrunddaten({ dataMode: "live" }), /HTTP 500 \(konten\.json: fehlt\)/);
 });
 
 test("ladeStand liest die Kennung je Bestand", async (t) => {

@@ -24,7 +24,7 @@ import {
   app, data, state, storageKeys, navItems, TABBAR_VIEWS,
   t, escapeHtml, verwerfeDaten, ersetzeDaten,
 } from "./runtime.mjs";
-import { ladeSnapshot, ladeStand } from "./data-loader.mjs";
+import { ladeGrunddaten, ladeStand } from "./data-loader.mjs";
 import { erstelleStandWaechter } from "./stand-wechsel.mjs";
 import { formatMoney, heuteIso, toggleKlappKachel, oeffneKlappKachel } from "./komponenten.mjs";
 import { kopfleisteAntwort, kopfleisteFehler } from "./views/kopfleiste-daten.mjs";
@@ -1464,7 +1464,7 @@ function applyRoute(route) {
 const standWaechter = erstelleStandWaechter({
   stand: data.metadata?.stand,
   holeStand: () => ladeStand(state.dataMode),
-  holeSnapshot: (stand) => ladeSnapshot({ dataMode: state.dataMode, stand }),
+  holeGrunddaten: (stand) => ladeGrunddaten({ dataMode: state.dataMode, stand }),
   uebernehme: (neu) => {
     if (sitzungGesperrt) return;
     ersetzeDaten(neu);

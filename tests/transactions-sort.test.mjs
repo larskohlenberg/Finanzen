@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort, demoBuchungen } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -22,6 +25,9 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const transactionsView = await import("../app/views/transaktionen.mjs");
 const { data, state, cents } = runtime;
+appDaten = data;
+// Buchungen hat nur der Server; data dient hier als sein Bestand.
+Object.assign(data, demoBuchungen());
 const { renderTransactions } = transactionsView;
 const { filtereTransaktionen, sortiereTransaktionen } = await import("../app/transaktionen-abfrage.mjs");
 // Wie der Server (GET /api/v1/transaktionen): gefiltert und sortiert ueber den Bestand.

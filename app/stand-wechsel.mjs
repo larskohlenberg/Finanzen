@@ -2,14 +2,14 @@
 //
 // Haelt die App auf dem Datenstand des Servers, ohne die Seite neu zu laden:
 // bei Klick, Navigation oder Rueckkehr in den Tab fragt pruefe() die
-// Standkennung ab (billig) und laedt nur bei neuem Stand den Snapshot. Die
+// Standkennung ab (billig) und laedt nur bei neuem Stand die Grunddaten. Die
 // Uebernahme (data ersetzen, neu zeichnen) macht der Aufrufer in uebernehme.
 //
 // Reine Logik ohne DOM und Timer, damit sie ohne Browser testbar ist.
 
 export const MINDESTABSTAND_MS = 1500;
 
-export function erstelleStandWaechter({ stand, holeStand, holeSnapshot, uebernehme, jetzt = () => Date.now(), abstandMs = MINDESTABSTAND_MS }) {
+export function erstelleStandWaechter({ stand, holeStand, holeGrunddaten, uebernehme, jetzt = () => Date.now(), abstandMs = MINDESTABSTAND_MS }) {
   let aktuell = stand ?? null;
   let laufend = null;
   let zuletzt = -Infinity;
@@ -18,7 +18,7 @@ export function erstelleStandWaechter({ stand, holeStand, holeSnapshot, ueberneh
     zuletzt = jetzt();
     // Erzwungen (Knopf "Daten neu laden"): direkt bedingt laden, 304 = unveraendert.
     if (!erzwingen && (await holeStand()) === aktuell) return false;
-    const bundle = await holeSnapshot(aktuell);
+    const bundle = await holeGrunddaten(aktuell);
     if (!bundle) return false;
     aktuell = bundle.metadata?.stand ?? null;
     uebernehme(bundle);

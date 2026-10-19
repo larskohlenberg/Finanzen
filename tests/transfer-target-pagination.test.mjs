@@ -63,7 +63,7 @@ await import("../app/i18n.js");
 
 const runtime = await import("../app/runtime.mjs");
 const transactionsView = await import("../app/views/transaktionen.mjs");
-const { data, state, transaktionenById } = runtime;
+const { data, state } = runtime;
 appDaten = data;
 // Wie beim Stand-Wechsel: geaenderter Bestand -> Antworten der Lese-APIs verwerfen.
 const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
@@ -91,10 +91,6 @@ function buildTransactions() {
 function installTransactions(transactions) {
   data.transaktionen = transactions;
   verwerfeApiCaches();
-  transaktionenById.clear();
-  for (const transaction of transactions) {
-    transaktionenById.set(transaction.transaktion_id, transaction);
-  }
 }
 
 function resetTransactionState() {
@@ -359,7 +355,6 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     detailRailClosed: state.detailRailClosed,
     vorsorgeFilters: state.vorsorgeFilters,
     selectedVorsorgeId: state.selectedVorsorgeId,
-    transactionMapEntry: transaktionenById.get(transactionId),
   };
 
   try {
@@ -379,7 +374,6 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
       kapitalbildend: true,
       bemerkung: "Rundweg-Bemerkung",
     }];
-    transaktionenById.set(transactionId, transaction);
     verwerfeApiCaches();
     resetTransactionState();
     state.vorsorgeFilters = { person: "" };
@@ -462,7 +456,5 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
     state.detailRailClosed = saved.detailRailClosed;
     state.vorsorgeFilters = saved.vorsorgeFilters;
     state.selectedVorsorgeId = saved.selectedVorsorgeId;
-    if (saved.transactionMapEntry === undefined) transaktionenById.delete(transactionId);
-    else transaktionenById.set(transactionId, saved.transactionMapEntry);
   }
 });

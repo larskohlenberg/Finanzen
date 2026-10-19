@@ -111,7 +111,7 @@ test("Statik: Bestandsdateien, Quellen, Doku, Protokoll, Papierkorb, Inbox und A
   for (const pfad of [
     "/server.mjs", "/export.mjs", "/mcp/server.mjs", "/tools/inbox.mjs", "/docs/agent-context.md", "/README.md",
     "/schemas/personen.schema.json",
-    // Der Bestand kommt nur ueber /api/v1/snapshot.
+    // Der Bestand kommt nur ueber /api/v1/grunddaten und die Lese-APIs.
     "/data/master/personen.json", "/data/master/transaktionen.jsonl", "/data/demo/konten.json",
     "/data/master/agent_log.jsonl", "/data/demo/agent_log.jsonl",
     "/data/master/boese.html", "/data/master/boese.js",

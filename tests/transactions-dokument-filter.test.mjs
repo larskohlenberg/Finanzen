@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort, demoBuchungen } from "./hilfe-bestand.mjs";
 
 // Die Lese-API rechnet ueber den Bestand der App (data), den die Tests ergaenzen.
 let appDaten = null;
@@ -23,6 +23,8 @@ await import("../app/i18n.js");
 
 const { data, state } = await import("../app/runtime.mjs");
 appDaten = data;
+// Buchungen hat nur der Server; data dient hier als sein Bestand.
+Object.assign(data, demoBuchungen());
 const { renderTransactions, renderTransactionDetail } = await import("../app/views/transaktionen.mjs");
 const { filtereTransaktionen } = await import("../app/transaktionen-abfrage.mjs");
 const filteredTransactions = () => filtereTransaktionen(data, state.transactionFilters);

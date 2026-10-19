@@ -1,7 +1,7 @@
 // app/views/checks.mjs
 // Prüfungen: Transfer-Checks + Vermögens-Checks. Bereich der Administration
 // (#/administration/checks), keine eigene Seite mehr.
-import { data, state, t, escapeHtml, cents, transaktionenById, kontenById } from "../runtime.mjs";
+import { data, state, t, escapeHtml, cents, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, categoryName } from "../komponenten.mjs";
 import { heuteIso } from "../selektoren.mjs";
@@ -150,9 +150,5 @@ export function renderCheckItems(checks) {
 function affectedLabel(check) {
   if (check.scope === "vermoegen") return check.entity_id;
   if (check.scope === "konto") return kontenById.get(check.entity_id)?.name || check.entity_id;
-  if (check.scope === "transaktion") {
-    const tx = transaktionenById.get(check.entity_id);
-    return tx ? `${tx.buchungsdatum} · ${tx.gegenpartei}` : check.entity_id;
-  }
   return check.entity_id;
 }

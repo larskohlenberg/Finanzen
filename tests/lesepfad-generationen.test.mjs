@@ -72,18 +72,18 @@ test("mitLesestand: Lease waehrend des Lesens, danach weg; Leser bleibt auf sein
   assert.deepEqual(await leases(basis, "000001"), []);
 });
 
-test("stand.mjs: Generations-Id als Stand, Snapshot aus der Lease, neuer Stand nach Schreiben", async () => {
+test("stand.mjs: Generations-Id als Stand, Grunddaten aus der Lease, neuer Stand nach Schreiben", async () => {
   const data = join(wurzel, "stand-test");
   await mkdir(data, { recursive: true });
   const basis = await generationsLayout(data);
   const root = join(data, "master");
   assert.equal(await standKennung(root), "g000001-f1");
   const quelle = erstelleSnapshotQuelle(root);
-  const erst = await quelle.snapshot();
+  const erst = await quelle.grunddaten();
   assert.equal(erst.stand, "g000001-f1");
   await schreibe(basis, "konten.json", (t) => JSON.stringify([...JSON.parse(t), null]));
   assert.equal(await standKennung(root), "g000002-f1");
-  const neu = JSON.parse((await quelle.snapshot()).body);
+  const neu = JSON.parse((await quelle.grunddaten()).body);
   assert.equal(neu.stand, "g000002-f1");
   assert.equal(neu.validierung.valid, false);
   assert.deepEqual(await leases(basis, "000002"), [], "Lease nach dem Lesen frei");
@@ -112,7 +112,7 @@ function zipNamen(puffer) {
   return namen;
 }
 
-test("App-Server: Snapshot, 304, Logos und Export aus der aktuellen Generation", async () => {
+test("App-Server: Grunddaten, 304, Logos und Export aus der aktuellen Generation", async () => {
   const app = join(wurzel, "server-test", "app");
   const data = join(app, "data");
   await mkdir(data, { recursive: true });
@@ -129,10 +129,10 @@ test("App-Server: Snapshot, 304, Logos und Export aus der aktuellen Generation",
   try {
     const stand = JSON.parse((await hole(port, "/api/v1/stand")).body).stand;
     assert.equal(stand, "g000002-f1");
-    const snap = await hole(port, "/api/v1/snapshot");
+    const snap = await hole(port, "/api/v1/grunddaten");
     assert.equal(snap.status, 200);
     assert.equal(snap.headers.etag, `"${stand}"`);
-    assert.equal((await hole(port, "/api/v1/snapshot", { "If-None-Match": `"${stand}"` })).status, 304);
+    assert.equal((await hole(port, "/api/v1/grunddaten", { "If-None-Match": `"${stand}"` })).status, 304);
 
     const logo = await hole(port, "/data/master/logos/beispiel.example.png");
     assert.equal(logo.status, 200);

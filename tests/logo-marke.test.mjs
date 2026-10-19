@@ -36,9 +36,11 @@ test("mit Logo: Bild aus dem gewaehlten Datenbestand, Kuerzel bleibt darunter", 
   assert.match(html, /^<span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">MU<img src="\.\/data\/demo\/logos\/muster\.example\.png" alt="" loading="lazy" decoding="async"><\/span>$/);
   assert.doesNotMatch(html, /style=/);
 
+  // Das von Buchungen geerbte Logo einer Regelzahlung kommt mit den Grunddaten.
   const rz = { regelzahlung_id: "RZ-TEST", bezeichnung: "Gehalt" };
-  data.transaktionen = [...data.transaktionen, { ...data.transaktionen[0], transaktion_id: "TXN-test", regelzahlung_id: "RZ-TEST" }];
+  data.regelzahlung_logos = { "RZ-TEST": data.logos[0] };
   assert.match(logoMarke({ regelzahlung: rz }), /muster\.example\.png/);
+  data.regelzahlung_logos = {};
   data.logos = [];
 });
 

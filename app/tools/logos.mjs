@@ -18,7 +18,7 @@
 // Welche Domain zu einer Gegenpartei gehoert, entscheidet der Agent (ADR 0003,
 // 0010); das Tool ruft ab, prueft und traegt ein. Logos sind Echtdaten (sie
 // verraten, bei wem man Kunde ist) und liegen nur im Datenbestand.
-import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
@@ -30,6 +30,7 @@ import { dekodiereJpeg, istJpeg } from "./lib/jpeg.mjs";
 import { logoVerzeichnis } from "../logos.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { neueFehler } from "./lib/validator-befund.mjs";
+import { ersetzeDatei, haengeAn } from "./lib/datei.mjs";
 
 // Logodienst: Googles Favicon-Dienst. Frei, ohne Schluessel, liefert meist PNG in
 // der verlangten Groesse, bei manchen Domains aber das JPEG der Website, und 404,
@@ -330,12 +331,10 @@ export async function schreibeLogos(root, data, ergebnisse, logos, jetzt) {
 
   await mkdir(new URL("logos/", root), { recursive: true });
   for (const { eintrag, abruf } of ok) {
-    const temp = new URL(`${eintrag.datei}.tmp`, root);
-    await writeFile(temp, abruf.png);
-    await rename(temp, new URL(eintrag.datei, root));
+    await ersetzeDatei(new URL(eintrag.datei, root), abruf.png);
   }
-  await writeFile(new URL("logos.json", root), `${JSON.stringify(logos, null, 2)}\n`);
-  await appendFile(new URL("agent_log.jsonl", root), `${JSON.stringify({
+  await ersetzeDatei(new URL("logos.json", root), `${JSON.stringify(logos, null, 2)}\n`);
+  await haengeAn(new URL("agent_log.jsonl", root), `${JSON.stringify({
     zeitpunkt: jetzt.toISOString(),
     anlass: "logos",
     notiz: `${ok.length} Logo(s) eingetragen`,

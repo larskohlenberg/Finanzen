@@ -6,9 +6,10 @@
 // agent_log.jsonl wird bewusst NICHT angefasst (historische Alt-IDs, informativ).
 //
 // Aufruf: node app/tools/migrate-ids-uuid.mjs [pfad-zum-master-dir]
-import { readFile, writeFile, copyFile } from "node:fs/promises";
+import { readFile, copyFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 const ALT_TXN = /^TXN-\d{8}-\d{6}$/;
 const ALT_TRF = /^TRF-\d{8}-\d{3}$/;
@@ -55,8 +56,8 @@ export async function migrate(masterDir) {
   await copyFile(txnUrl, new URL("transaktionen.jsonl.pre-uuid.bak", masterDir)).catch(() => {});
   await copyFile(trfUrl, new URL("transfers.json.pre-uuid.bak", masterDir)).catch(() => {});
 
-  await writeFile(txnUrl, transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
-  await writeFile(trfUrl, JSON.stringify(transfers, null, 2) + "\n");
+  await ersetzeDatei(txnUrl, transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
+  await ersetzeDatei(trfUrl, JSON.stringify(transfers, null, 2) + "\n");
 
   return { transaktionen: transaktionen.length, transfers: transfers.length, refUpdates };
 }

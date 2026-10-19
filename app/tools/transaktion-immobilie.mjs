@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { open, readFile, rename, unlink } from "node:fs/promises";
+import { readFile, rename, unlink } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
+import { schreibeNeuSynchron, synchronisiereOrdner } from "./lib/datei.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 
 export function aktualisiereImmobilienbezug({
@@ -92,14 +93,8 @@ export const dateiPersistenz = {
   lese(url) {
     return readFile(url, "utf8");
   },
-  async schreibeStage(url, inhalt) {
-    const handle = await open(url, "wx", 0o600);
-    try {
-      await handle.writeFile(inhalt, "utf8");
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
+  schreibeStage(url, inhalt) {
+    return schreibeNeuSynchron(url, inhalt, 0o600);
   },
   benenneUm(von, nach) {
     return rename(von, nach);
@@ -111,13 +106,8 @@ export const dateiPersistenz = {
       if (error.code !== "ENOENT") throw error;
     }
   },
-  async synchronisiereVerzeichnis(url) {
-    const handle = await open(url, "r");
-    try {
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
+  synchronisiereVerzeichnis(url) {
+    return synchronisiereOrdner(url);
   },
   validiere(data) {
     return validateMasterData(data);

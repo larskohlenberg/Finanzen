@@ -19,11 +19,12 @@
 // Fasst nur `offen` und eigene frueher gesetzte Agentenvorschlaege an. Alles,
 // worueber schon entschieden wurde — und auch ein fremder Regel-Vorschlag —
 // bleibt unangetastet.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 function istKandidat(tx) {
   if (tx.kategorisierung_status === "offen") return true;
@@ -109,7 +110,7 @@ async function main() {
   }
 
   const vorher = await validatorFehler(masterRoot);
-  await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
+  await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
 
   await meldeNachSchreiben(masterRoot, vorher, "Validierung nach Agentenvorschlag fehlgeschlagen");
 }

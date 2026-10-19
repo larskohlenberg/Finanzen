@@ -2,13 +2,14 @@
 // Ordnet gebuchte Transaktionen bestaetigten Regelzahlungen zu (regelzahlung_id).
 // Erkennen ist Agent-Urteil (ADR 0010): der Agent bestaetigt die Regelzahlung und
 // setzt ihr Konto. Dieses Tool matcht nur noch gegen eine konkrete Buchung.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { toCents, centsToDecimal, dayDiff, normalizeLoose, normalizeWhitespace } from "./lib/text.mjs";
 import { addInterval } from "../liquiditaet.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 // Betragstoleranz relativ zum Betrag der Regelzahlung. Die Mandatsreferenz ist
 // ein strukturelles Signal und traegt Beitragsdynamik ueber Jahre; die
@@ -330,7 +331,7 @@ async function main() {
   }
 
   const vorher = await validatorFehler(masterRoot);
-  await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
+  await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
   await meldeNachSchreiben(masterRoot, vorher, "Validierung nach Regelzahlungs-Zuordnung fehlgeschlagen");
 }
 

@@ -10,11 +10,12 @@
 // Zurueckspielen) laeuft unter der prozessuebergreifenden Schreibsperre des
 // Bestands. Zurueckgespielt wird Datei fuer Datei (atomar per rename), nie
 // durch Leeren des Datenroots: Leser sehen jede Datei alt oder neu, nie fehlend.
-import { cp, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { ersetzeDatei } from "../tools/lib/datei.mjs";
 import { SPERRDATEI, SperreBelegt, mitSperre } from "../tools/lib/schreibsperre.mjs";
 import { bestandFingerabdruck, veraltetMeldung } from "../tools/lib/fingerabdruck.mjs";
 import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
@@ -63,9 +64,7 @@ async function spieleZurueck(kopie, ziel) {
       await mkdir(nach, { recursive: true });
       await spieleZurueck(von, nach);
     } else if (!(await gleicherInhalt(von, nach))) {
-      const temp = path.join(ziel, `.${name}.rueck-${process.pid}`);
-      await writeFile(temp, await readFile(von), { mode: (await stat(von)).mode & 0o7777 });
-      await rename(temp, nach);
+      await ersetzeDatei(nach, await readFile(von), { modus: (await stat(von)).mode & 0o7777 });
     }
   }
 }

@@ -1,3 +1,4 @@
+// @ts-check
 // app/tools/validate-core.mjs
 // Reine, deterministische Validierungslogik — keine Node-Abhaengigkeiten.
 // Eine Quelle der Wahrheit fuer CLI (tools/validator.mjs) UND Browser (app/main.js):
@@ -1105,3 +1106,7 @@ function isIsoDate(value) {
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
+
+// Die eine Vertragsquelle fuer die Masterdaten: Pflichtfelder und Feldregeln je
+// Sammlung. app/schemas/*.schema.json folgen daraus (tests/datenvertrag.test.mjs).
+export const DATENVERTRAG = schemas;

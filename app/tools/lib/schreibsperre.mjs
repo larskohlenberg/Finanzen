@@ -1,3 +1,4 @@
+// @ts-check
 // app/tools/lib/schreibsperre.mjs
 // Prozessuebergreifende Schreibsperre je Datenbestand: eine Datei
 // <datenroot>/.schreibsperre, angelegt mit open(..., "wx") und mit PID, Rechner,
@@ -180,7 +181,9 @@ export async function sperreFuerProzess(datenroot) {
   try {
     const sperre = await nimmSperre(datenroot);
     process.on("exit", () => sperre.freigebenSync());
-    for (const [signal, code] of [["SIGINT", 130], ["SIGTERM", 143], ["SIGHUP", 129]]) {
+    /** @type {[NodeJS.Signals, number][]} */
+    const signale = [["SIGINT", 130], ["SIGTERM", 143], ["SIGHUP", 129]];
+    for (const [signal, code] of signale) {
       process.once(signal, () => { sperre.freigebenSync(); process.exit(code); });
     }
   } catch (error) {

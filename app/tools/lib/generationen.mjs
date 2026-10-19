@@ -1,3 +1,4 @@
+// @ts-check
 // app/tools/lib/generationen.mjs
 // Dateigenerationen je Datenbestand (ADR 0035): ein Schreibvorgang wird ganz
 // oder gar nicht sichtbar, Leser sehen immer einen vollstaendigen Stand.
@@ -104,6 +105,7 @@ const istId = (name) => /^\d{6,}$/.test(name);
 const nachZahl = (a, b) => Number(a) - Number(b);
 export const idText = (n) => String(n).padStart(6, "0");
 export const generationsOrdner = (basis, id) => path.join(basis, GENERATIONEN, id);
+/** @type {(punkt?: string) => void} */
 const ohneHalt = () => {};
 const sha256 = (inhalt) => createHash("sha256").update(inhalt).digest("hex");
 const zufall = () => randomBytes(4).toString("hex");
@@ -255,6 +257,11 @@ export async function liesEinstellungen(basis) {
 
 // Wie viele fruehere Generationen das Aufraeumen behaelt. Nur im
 // Generationsmodus; im einfachen Ordner waere die Datei Teil der Daten.
+/**
+ * @param {string} basis
+ * @param {number} behalten
+ * @param {{ wer?: string, wartenMs?: number }} [optionen]
+ */
 export async function setzeBehalten(basis, behalten, { wer = "einstellungen", wartenMs } = {}) {
   pruefeBehalten(behalten);
   return mitSperre(basis, async () => {
@@ -278,6 +285,11 @@ export async function setzeBehalten(basis, behalten, { wer = "einstellungen", wa
 // Legt aus einem einfachen Datenordner einen Bestand mit Generation 000001 an
 // (Migration, Tests). basis darf noch nicht eingerichtet sein; ein
 // abgebrochenes Einrichten wird verworfen und neu begonnen.
+/**
+ * @param {string} basis
+ * @param {string} quellOrdner
+ * @param {{ halt?: (punkt: string) => void, wer?: string, wartenMs?: number }} [optionen]
+ */
 export async function einrichten(basis, quellOrdner, { halt = ohneHalt, wer = "einrichten", wartenMs } = {}) {
   if (path.resolve(basis) === path.resolve(quellOrdner)) throw new Error("einrichten: Quelle und Ziel muessen verschiedene Ordner sein");
   await mkdir(basis, { recursive: true });
@@ -335,6 +347,7 @@ function leserAuf(id, ordner, schliessen = async () => {}, bis = Infinity) {
       inFrist();
       return JSON.parse(await readFile(path.join(ordner, MANIFEST), "utf8"));
     },
+    /** @param {string} rel @param {BufferEncoding|null} [kodierung] */
     lies: async (rel, kodierung = "utf8") => {
       inFrist();
       return readFile(path.join(ordner, relPfad(rel)), kodierung ?? undefined);
@@ -552,6 +565,7 @@ function transaktion(entwurf, vorher, kennung, halt) {
     ordner: entwurf,
     // Kennung der gehaltenen Sperre; Kindprozesse erben sie ueber UMGEBUNG.
     sperre: kennung,
+    /** @param {string} rel @param {BufferEncoding|null} [kodierung] */
     lies: (rel, kodierung = "utf8") => readFile(path.join(entwurf, relPfad(rel)), kodierung ?? undefined),
     // Immer eine neue Datei (neuer Inode), nie in place.
     async schreibe(rel, inhalt) {
@@ -616,6 +630,25 @@ async function pruefeEntwurf(entwurf, pruefe) {
 // abgeloester Generationen, Default ABGELOEST_FRIST_MS), erwartet (Id aus der
 // Vorschau), gesperrt (Aufrufer haelt die Sperre auf basis schon), wer,
 // wartenMs, halt (Testhaken), vonGeneration (nur fuer rueckgaengig).
+/**
+ * Optionen eines Schreiblaufs (Grenze des Speichers, ADR 0035).
+ * @typedef {object} Schreiboptionen
+ * @property {(ordner: string) => Promise<string[]>} [pruefe]  liefert NEUE Validatorfehler; nicht leer = verwerfen
+ * @property {number} [behalten]  fruehere Generationen, die bleiben
+ * @property {number} [fristMs]
+ * @property {string} [erwartet]  Generations-Id bzw. Fingerabdruck aus der Vorschau
+ * @property {string} [vonGeneration]  nur rueckgaengig
+ * @property {string} [wer]  ausloesendes Werkzeug (Manifest)
+ * @property {boolean} [gesperrt]  Aufrufer haelt die Sperre schon
+ * @property {number} [wartenMs]
+ * @property {(punkt: string) => void} [halt]  Testhaken
+ */
+
+/**
+ * @param {string} basis
+ * @param {(tx: { ordner: string, sperre: string|null, vorher: string|null, lies: Function, schreibe: Function, loesche: (rel: string) => Promise<void> }) => Promise<unknown>} fn  schreibt in den Entwurf
+ * @param {Schreiboptionen} [optionen]
+ */
 export async function mitSchreiber(basis, fn, optionen = {}) {
   const { gesperrt = false, wer = "generationen", wartenMs } = optionen;
   const lauf = async (sperre) => {
@@ -629,6 +662,7 @@ export async function mitSchreiber(basis, fn, optionen = {}) {
   return mitSperre(basis, lauf, { wer, ...(wartenMs ? { wartenMs } : {}) });
 }
 
+/** @param {string} basis @param {Function} fn @param {Schreiboptionen} optionen @param {string|null} kennung */
 async function schreibeGeneration(basis, fn, { pruefe, behalten: behaltenOption, fristMs = ABGELOEST_FRIST_MS, erwartet, vonGeneration, wer, halt = ohneHalt }, kennung) {
   if (behaltenOption !== undefined) pruefeBehalten(behaltenOption);
   if (!Number.isInteger(fristMs) || fristMs < 0) throw new Error(`fristMs muss eine ganze Zahl >= 0 sein: ${fristMs}`);
@@ -725,6 +759,7 @@ async function schreibeGeneration(basis, fn, { pruefe, behalten: behaltenOption,
 
 // Rueckfallmodus: Kopie als Entwurf (keine Hardlinks, die Dateien im Ordner
 // sind beschreibbar), pruefen, dann Datei fuer Datei per rename ersetzen.
+/** @param {string} basis @param {Function} fn @param {Schreiboptionen} optionen @param {string|null} kennung */
 async function schreibeOrdner(basis, fn, { pruefe, erwartet, vonGeneration, halt = ohneHalt }, kennung) {
   if (vonGeneration) throw new Error(`${basis} ist ein einfacher Ordner ohne Generationen`);
   if (erwartet !== undefined && erwartet !== ORDNER) throw new StandVeraltet(basis, erwartet, ORDNER);
@@ -762,6 +797,7 @@ async function schreibeOrdner(basis, fn, { pruefe, erwartet, vonGeneration, halt
 
 // Ziel eines Undo: `ziel` (Id) oder die Generation `schritte` vor der aktuellen
 // in der Liste der veroeffentlichten. Wirft, wenn es sie nicht (mehr) gibt.
+/** @param {string} basis @param {{ schritte?: number, ziel?: string }} [auswahl] */
 export async function rueckgaengigZiel(basis, { schritte = 1, ziel } = {}) {
   if ((await bestandsArt(basis)) === ORDNER) throw new OhneVerlauf(basis);
   const ids = await veroeffentlichteIds(basis);
@@ -782,6 +818,7 @@ export async function rueckgaengigZiel(basis, { schritte = 1, ziel } = {}) {
 // unter der Sperre bestimmt, damit kein dazwischen veroeffentlichter Stand
 // still ueberschrieben wird. Gleicht das Ziel dem aktuellen Stand, entsteht
 // keine neue Generation (geaendert leer).
+/** @param {string} basis @param {Schreiboptionen & { schritte?: number, ziel?: string }} [optionen] */
 export async function rueckgaengig(basis, { schritte = 1, ziel, gesperrt = false, wer = "rueckgaengig", wartenMs, ...optionen } = {}) {
   const lauf = async (sperre) => {
     const von = await rueckgaengigZiel(basis, { schritte, ziel });

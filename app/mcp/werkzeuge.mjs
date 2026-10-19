@@ -1,3 +1,4 @@
+// @ts-check
 // app/mcp/werkzeuge.mjs
 // Die MCP-Tools. Drei Sorten:
 // - Lese-Tools (status, kennzahlen, transaktionen_abfragen, datei_lesen, dateien_suchen),
@@ -88,6 +89,7 @@ function starte(ctx, skript, args, s = null) {
       timeout: LAUF_TIMEOUT,
       maxBuffer: 64 * 1024 * 1024,
     }, (error, stdout, stderr) => {
+      /** @type {number|"timeout"} */
       let exitCode = 0;
       if (error) exitCode = error.killed ? "timeout" : (typeof error.code === "number" ? error.code : 1);
       resolve({ exitCode, stdout, stderr });
@@ -100,6 +102,35 @@ function starte(ctx, skript, args, s = null) {
 // Bestands verschieben (Inbox-Archiv, Belege); dort wuerde ein Zuruecksetzen nur
 // des Bestands Verweise ins Leere zeigen lassen. Sie setzen nur bei neuen
 // Validatorfehlern zurueck. mitBelegen: der Lauf arbeitet auf Belege/.
+/**
+ * Vertrag eines CLI-Werkzeugs: eine CLI unter app/tools/ als MCP-Tool.
+ * @typedef {object} CliVertrag
+ * @property {string} name
+ * @property {string} skript
+ * @property {string} beschreibung
+ * @property {Record<string, any>} [eigenschaften]  inputSchema.properties
+ * @property {string[]} [pflicht]
+ * @property {string} [schreibFlag]
+ * @property {number[]} [okCodes]
+ * @property {boolean} [rueckrollungBeiFehler]
+ * @property {boolean} [mitBelegen]
+ * @property {(ctx: any, args: Record<string, any>, root: string) => Promise<CliArgumente>} argv
+ */
+
+/** @typedef {string[] & { aufraeumen?: () => Promise<void> }} CliArgumente */
+
+/**
+ * Ein MCP-Werkzeug, wie WERKZEUGE es fuehrt.
+ * @typedef {object} Werkzeug
+ * @property {string} name
+ * @property {string} description
+ * @property {{ type: string, properties: Record<string, any>, required?: string[], additionalProperties?: boolean }} inputSchema
+ * @property {{ readOnlyHint?: boolean, destructiveHint?: boolean }} [annotations]
+ * @property {boolean} [nurSchreiben]
+ * @property {(ctx: any, args: Record<string, any>) => Promise<any>} ausfuehren
+ */
+
+/** @param {CliVertrag} vertrag @returns {Werkzeug} */
 function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], schreibFlag, okCodes = [0], rueckrollungBeiFehler = true, mitBelegen = false, argv }) {
   const properties = { ...eigenschaften };
   if (schreibFlag) properties.schreiben = SCHREIBEN;
@@ -197,6 +228,7 @@ const CLI_WERKZEUGE = [
       } else {
         throw new PfadFehler("kandidaten oder kandidaten_datei angeben");
       }
+      /** @type {CliArgumente} */
       const out = [root, datei, ...(a.aenderung ? ["--aenderung"] : []), ...(a.json ? ["--json"] : [])];
       if (a.kandidaten) out.aufraeumen = () => rm(path.dirname(datei), { recursive: true, force: true });
       return out;
@@ -311,6 +343,7 @@ const CLI_WERKZEUGE = [
     rueckrollungBeiFehler: false,
     schreibFlag: "--schreiben",
     argv: async (ctx, a, root) => {
+      /** @type {CliArgumente} */
       const out = [root];
       if (a.top) out.push("--top", String(a.top));
       if (!a.eintraege) return out;
@@ -383,6 +416,7 @@ const CLI_WERKZEUGE = [
       } else {
         throw new PfadFehler("umzuege oder plan_datei angeben");
       }
+      /** @type {CliArgumente} */
       const out = [root, datei];
       if (a.umzuege) out.aufraeumen = () => rm(path.dirname(datei), { recursive: true, force: true });
       return out;
@@ -425,6 +459,7 @@ const status = {
   annotations: { readOnlyHint: true },
   async ausfuehren(ctx) {
     // Einmal laden, fuer Zaehler und Validator.
+    /** @type {Record<string, any>} */
     const bericht = { datenroot: ctx.datenrootRel, recht: ctx.recht, ...(ctx.release ? { version: releaseStand(ctx) } : {}) };
     let validator;
     try {
@@ -1325,6 +1360,7 @@ const rueckgaengigWerkzeug = {
   }),
 };
 
+/** @type {Werkzeug[]} */
 export const WERKZEUGE = [status, kennzahlen, planIstWerkzeug, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, belegErgaenzen, belegVerwerfen, inboxVerwerfen, inboxZurueckholen, verlauf, rueckgaengigWerkzeug];
 
 // Jedes Werkzeug mit Vorschau nimmt den Fingerabdruck der Vorschau an.

@@ -1,3 +1,4 @@
+// @ts-check
 // app/tools/lib/fingerabdruck.mjs
 // Fingerabdruck eines Datenbestands (Review 0B.2): Die Vorschau nennt den
 // Stand, den sie gelesen hat; ein Schreiblauf mit diesem Fingerabdruck prueft

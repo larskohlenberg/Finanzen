@@ -1,0 +1,28 @@
+{
+  // Dev-Pruefung ohne Build: tsc liest nur JSDoc. Geprueft werden die Dateien
+  // mit "// @ts-check" (Speicher, Datenvertrag, Schreibpfad, MCP-Werkzeuge).
+  // Aufruf: npm run typen (installiert TypeScript einmalig nach .typpruefung/).
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "target": "es2023",
+    "lib": ["es2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "typeRoots": [".typpruefung/node_modules/@types"],
+    "skipLibCheck": true,
+    "strict": false
+  },
+  "files": [
+    "app/tools/validate-core.mjs",
+    "app/tools/lib/vertrag.mjs",
+    "app/tools/lib/generationen.mjs",
+    "app/tools/lib/fingerabdruck.mjs",
+    "app/tools/lib/schreibsperre.mjs",
+    "app/tools/lib/schreiblauf.mjs",
+    "app/tools/rueckgaengig.mjs",
+    "app/mcp/werkzeuge.mjs"
+  ]
+}

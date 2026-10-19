@@ -65,3 +65,6 @@ archiv/
 app/version.json
 # Sitzungsschutz (Logout-URL, Sperrzeit), schreibt ops/aktualisieren.sh aus app.env.
 app/sitzung.json
+
+# Typpruefung (npm run typen), lokal installiertes TypeScript
+.typpruefung/

@@ -95,7 +95,7 @@ export const state = {
   // Buchungs-Id, auf deren Seite gesprungen werden soll (rechnet der Server).
   transactionJumpTo: "",
   // Zeilen je Seite der Buchungsliste; gemerkt im Browser.
-  pageSize: [10, 20, 50, 100].includes(Number(localStorage.getItem("finance-m2-page-size"))) ? Number(localStorage.getItem("finance-m2-page-size")) : 50,
+  pageSize: [10, 20, 50, 100].includes(Number(localStorage.getItem(storageKeys.pageSize))) ? Number(localStorage.getItem(storageKeys.pageSize)) : 50,
   selectedTransactionId: "",
   detailRailClosed: false,
   masterSection: "konten",

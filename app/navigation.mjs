@@ -29,6 +29,8 @@ export const LEERE_FILTER = Object.freeze({
   betragBis: "",
   richtung: "",
   regelzahlung: "",
+  // Genau diese Gegenpartei (aus den Gruppensummen).
+  gegenpartei: "",
   // Summen je kategorie|monat|gegenpartei ueber der Liste; Darstellung, kein Filter.
   gruppe: "",
 });
@@ -57,6 +59,7 @@ const URL_NAMEN = [
   ["betragVon", "betrag_von"],
   ["betragBis", "betrag_bis"],
   ["regelzahlung", "regelzahlung"],
+  ["gegenpartei", "gegenpartei"],
   ["gruppe", "gruppe"],
 ];
 // Feste Wertebereiche; andere Werte aus einer von Hand geaenderten URL fallen weg.
@@ -129,7 +132,7 @@ export function filterAusQuery(query) {
 // Loeschknopf; der Zeitfilter zaehlt einmal (Name "zeit").
 export function aktiveFilter(filter) {
   const liste = [];
-  for (const name of ["beleg", "vorsorge", "regelzahlung", "account", "status", "category", "transfer", "origin", "richtung"]) {
+  for (const name of ["beleg", "vorsorge", "regelzahlung", "account", "status", "category", "gegenpartei", "transfer", "origin", "richtung"]) {
     if (filter[name]) liste.push({ name, wert: filter[name] });
   }
   if (filter.betragVon || filter.betragBis) liste.push({ name: "betrag", wert: `${filter.betragVon}-${filter.betragBis}` });

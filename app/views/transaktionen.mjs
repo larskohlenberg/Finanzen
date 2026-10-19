@@ -7,7 +7,7 @@ import { formatMoney, formatDate, formatMonth, mitLogo, statusChip, renderPageHe
 import { formatIban } from "../tools/lib/text.mjs";
 import { dokumentRoute } from "../belege.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
-import { aktiveFilter, ohneZeitfilter } from "../navigation.mjs";
+import { aktiveFilter, ohneZeitfilter, BETRAG_MUSTER } from "../navigation.mjs";
 
 // Die Liste rechnet der App-Server (GET /api/v1/transaktionen, Filter, Sortierung,
 // Seite, Sprung zu einer Buchung, Detail der Auswahl); der Browser bekommt nur
@@ -18,6 +18,8 @@ function anfragePfad({ seite = state.transactionPage, auswahl = state.selectedTr
   const suche = new URLSearchParams();
   if (state.dataMode === "demo") suche.set("quelle", "demo");
   for (const [name, wert] of Object.entries(state.transactionFilters)) {
+    // Halb getippte Betraege ("12,") nicht schicken; das Feld zeigt sie als ungueltig.
+    if (name.startsWith("betrag") && !BETRAG_MUSTER.test(wert)) continue;
     if (wert) suche.set(name, wert);
   }
   suche.set("sort", state.transactionSort.key);
@@ -143,7 +145,7 @@ function renderGruppen(antwort) {
         <li class="gruppen-kopf" aria-hidden="true"><span>${escapeHtml(t(`transactions.gruppe.${gruppe}`))}</span><span class="amount">${escapeHtml(t("transactions.gruppeAnzahl"))}</span><span class="amount">${escapeHtml(t("transactions.gruppeSumme"))}</span></li>
         ${antwort.gruppen.map((g) => `
           <li>
-            <button class="linkish" data-action="gruppe-filtern" data-gruppe="${escapeHtml(gruppe)}" data-schluessel="${escapeHtml(g.schluessel)}" title="${escapeHtml(t("transactions.gruppeFiltern"))}">${escapeHtml(name(g))}</button>
+            ${gruppe === "gegenpartei" && !g.schluessel ? `<span class="muted">—</span>` : `<button class="linkish" data-action="gruppe-filtern" data-gruppe="${escapeHtml(gruppe)}" data-schluessel="${escapeHtml(g.schluessel)}" title="${escapeHtml(t("transactions.gruppeFiltern"))}">${escapeHtml(name(g))}</button>`}
             <span class="amount muted">${g.anzahl}</span>
             <span class="amount">${escapeHtml(formatMoney(g.summe_cent))}</span>
           </li>`).join("")}
@@ -250,7 +252,8 @@ function filterChip(name) {
   }
   if (name === "account") return chip({ label: t("transactions.filterAccount"), wertHtml: text(kontenById.get(f.account)?.name || f.account) });
   if (name === "status") return chip({ label: t("transactions.filterStatus"), wertHtml: text(t(`status.${f.status}`)) });
-  if (name === "category") return chip({ label: t("transactions.filterCategory"), wertHtml: text(categoryName(f.category)) });
+  if (name === "category") return chip({ label: t("transactions.filterCategory"), wertHtml: text(f.category === "ohne" ? t("labels.noCategory") : categoryName(f.category)) });
+  if (name === "gegenpartei") return chip({ label: t("labels.counterparty"), wertHtml: text(f.gegenpartei) });
   if (name === "transfer") return chip({ label: t("transactions.filterTransfer"), wertHtml: text(t(f.transfer === "only" ? "transactions.onlyTransfers" : "transactions.withoutTransfers")) });
   if (name === "origin") return chip({ label: t("transactions.filterOrigin"), wertHtml: text(t({ regel: "transactions.originRule", agent: "transactions.originAgent", manuell: "transactions.originManual" }[f.origin] ?? f.origin)) });
   if (name === "zeit") return chip({ label: t("transactions.filterTime"), wertHtml: text(zeitfilterText(f)) });
@@ -314,6 +317,7 @@ function renderTransactionFilters(antwort) {
         label: t("transactions.filterCategory"),
         options: [
         ["", t("transactions.allCategories")],
+        ["ohne", t("labels.noCategory")],
         ...data.kategorien.map((kategorie) => [kategorie.kategorie_id, kategorie.name]),
         ],
       },

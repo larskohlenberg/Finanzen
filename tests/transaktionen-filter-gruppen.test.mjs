@@ -61,3 +61,9 @@ test("API-Parameter: neue Filter und Gruppe werden geprueft", () => {
   assert.throws(() => transaktionenParameter(new URLSearchParams("richtung=quer")), /richtung/);
   assert.throws(() => transaktionenParameter(new URLSearchParams("gruppe=konto")), /gruppe/);
 });
+
+test("Gruppenzeilen lassen sich exakt filtern: ohne Kategorie und genaue Gegenpartei", () => {
+  assert.deepEqual(ids(filtereTransaktionen(daten, { category: "ohne" })), ["T4"]);
+  assert.deepEqual(ids(filtereTransaktionen(daten, { gegenpartei: "Vermieter" })), ["T2", "T4"]);
+  assert.deepEqual(ids(filtereTransaktionen(daten, { gegenpartei: "Verm" })), [], "kein Teiltreffer");
+});

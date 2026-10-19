@@ -15,7 +15,12 @@ export const LEERER_FILTER = Object.freeze({
   timeMode: "none", dateFrom: "", dateTo: "", month: "", quarterYear: "", quarter: "1", year: "",
   // Betrag ohne Vorzeichen in Euro ("500", "12.50"), Richtung einnahme|ausgabe, Regelzahlung (RZ-ID).
   betragVon: "", betragBis: "", richtung: "", regelzahlung: "",
+  // Genau diese Gegenpartei (Gruppenzeile), anders als die Freitextsuche.
+  gegenpartei: "",
 });
+
+// Kategorie-Filter fuer Buchungen ohne Kategorie.
+export const OHNE_KATEGORIE = "ohne";
 
 export const RICHTUNGEN = Object.freeze(["einnahme", "ausgabe"]);
 export const GRUPPEN = Object.freeze(["kategorie", "monat", "gegenpartei"]);
@@ -84,7 +89,8 @@ export function filtereTransaktionen(daten, filter) {
     if (vorsorgeRz && !vorsorgeRz.has(tx.regelzahlung_id)) return false;
     if (f.account && tx.konto_id !== f.account) return false;
     if (f.status && tx.kategorisierung_status !== f.status) return false;
-    if (f.category && tx.kategorie_id !== f.category) return false;
+    if (f.category === OHNE_KATEGORIE ? Boolean(tx.kategorie_id) : f.category && tx.kategorie_id !== f.category) return false;
+    if (f.gegenpartei && String(tx.gegenpartei ?? "").trim() !== f.gegenpartei) return false;
     if (f.transfer === "only" && !tx.ist_transfer) return false;
     if (f.transfer === "without" && tx.ist_transfer) return false;
     if (!passtHerkunft(tx, f.origin)) return false;

@@ -9,9 +9,9 @@ export const aktionen = {
   "gruppe-filtern": (element) => {
     const { gruppe, schluessel } = element.dataset;
     const f = { ...state.transactionFilters, gruppe: "" };
-    if (gruppe === "kategorie") f.category = schluessel;
+    if (gruppe === "kategorie") f.category = schluessel || "ohne";
     if (gruppe === "monat") Object.assign(f, ohneZeitfilter(f), { timeMode: "month", month: schluessel });
-    if (gruppe === "gegenpartei") f.search = schluessel;
+    if (gruppe === "gegenpartei") f.gegenpartei = schluessel;
     state.transactionFilters = f;
     state.transactionPage = 1;
     commitNavigation();
@@ -31,7 +31,8 @@ export const aktionen = {
     commitNavigation({ ersetzen: true });
   },
   "reset-transaction-filters": () => {
-    state.transactionFilters = { ...LEERE_FILTER };
+    // Die Gruppierung ist Darstellung, kein Filter: sie bleibt.
+    state.transactionFilters = { ...LEERE_FILTER, gruppe: state.transactionFilters.gruppe };
     state.transactionPage = 1;
     commitNavigation();
   },

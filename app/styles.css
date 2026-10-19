@@ -3585,3 +3585,28 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .import-schritte li.erledigt.review { border-color: var(--review); }
 .import-schritte li.erledigt.danger { border-color: var(--danger); }
 .import-rohzeile { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
+
+/* Liquiditaetsverlauf: aus einem spaeteren Anker zurueckgerechnete Monate gestrichelt */
+.zeitstrahl-linie.liquiditaet-modelliert { stroke-dasharray: 3 4; opacity: 0.8; }
+.zeitstrahl-punkt.liquiditaet-modelliert { fill: var(--surface); stroke: var(--accent); }
+.liquiditaet-legende .legende-linie.liquiditaet-modelliert { border-top-style: dotted; }
+
+/* Plan & Ist: Abweichung klein unter dem Ist-Wert; die Verlaufstabelle passt
+   ohne waagrechtes Scrollen in die Kachel (kein Mindestmass, enge Zellen). */
+.plan-ist-abw { font-size: 11px; line-height: 1.2; }
+.table-wrap .plan-ist-tabelle.karten-tabelle { min-width: 0; }
+.plan-ist-tabelle.karten-tabelle th, .plan-ist-tabelle.karten-tabelle td { padding-left: 6px; padding-right: 6px; }
+
+/* Tabellen, die schmal zu Karten werden: jede Zeile eine Karte, jede Zelle
+   eine Zeile mit ihrer Spaltenbezeichnung (data-label) links. */
+@media (max-width: 760px) {
+  .karten-tabelle, .karten-tabelle tbody, .karten-tabelle tr, .karten-tabelle td { display: block; width: 100%; min-width: 0; }
+  .karten-tabelle tr { width: auto; }
+  .karten-tabelle thead { display: none; }
+  .karten-tabelle tr { border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; margin-bottom: 8px; background: var(--surface); }
+  .karten-tabelle td { display: flex; justify-content: flex-end; align-items: baseline; gap: 8px; border: 0; padding: 3px 0; white-space: normal; text-align: right; }
+  .karten-tabelle td[data-label]::before { content: attr(data-label); color: var(--muted); text-align: left; font-weight: 400; margin-right: auto; }
+  .karten-tabelle td.karten-kopf { display: block; text-align: left; font-weight: 600; padding-bottom: 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .karten-tabelle tr.plan-ist-detail td { display: block; text-align: left; padding: 6px 0; }
+  .karten-tabelle .plan-ist-abw { display: inline; margin-left: 6px; }
+}

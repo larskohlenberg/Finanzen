@@ -169,24 +169,27 @@ function sparquoteKachel(r, wert, einheit, verlauf) {
 }
 
 // Verlauf als Tabelle, neueste Zeitraeume zuerst; die Zeile waehlt den Zeitraum.
+// Abweichung steht unter dem Ist-Wert (statt eigener Spalte), damit die
+// Tabelle ohne Abschneiden in die Kachel passt; schmal wird jede Zeile eine
+// Karte (data-label je Zelle, styles.css .karten-tabelle).
 function verlaufTabelle(verlauf) {
-  const zelle = (ist, plan, mehrIstGut) => `<td class="amount">${escapeHtml(geld(ist))}</td><td class="amount muted">${escapeHtml(geld(plan))}</td><td class="amount">${abweichungHtml(ist, plan, { mehrIstGut })}</td>`;
+  const zelle = (gruppe, ist, plan, mehrIstGut) => `<td class="amount" data-label="${escapeHtml(`${t(`planIst.${gruppe}`)} · ${t("planIst.ist")}`)}">${escapeHtml(geld(ist))}<div class="plan-ist-abw">${abweichungHtml(ist, plan, { mehrIstGut })}</div></td><td class="amount muted" data-label="${escapeHtml(`${t(`planIst.${gruppe}`)} · ${t("planIst.plan")}`)}">${escapeHtml(geld(plan))}</td>`;
   const mittel = (c, p) => (state.planIst.darstellung === "summe" ? c : Math.round(c / p.monate.length));
   return `
     <div class="table-wrap">
-      <table class="plan-ist-tabelle">
+      <table class="plan-ist-tabelle karten-tabelle">
         <thead>
-          <tr><th rowspan="2">${escapeHtml(t("planIst.zeitraum"))}</th><th colspan="3" class="amount">${escapeHtml(t("planIst.einnahmen"))}</th><th colspan="3" class="amount">${escapeHtml(t("planIst.ausgaben"))}</th><th colspan="3" class="amount">${escapeHtml(t("planIst.ueberschuss"))}</th><th colspan="2" class="amount">${escapeHtml(t("planIst.sparquote"))}</th></tr>
-          <tr>${[1, 2, 3].map(() => `<th class="amount">${escapeHtml(t("planIst.ist"))}</th><th class="amount">${escapeHtml(t("planIst.plan"))}</th><th class="amount">${escapeHtml(t("planIst.abw"))}</th>`).join("")}<th class="amount">${escapeHtml(t("planIst.ist"))}</th><th class="amount">${escapeHtml(t("planIst.plan"))}</th></tr>
+          <tr><th rowspan="2">${escapeHtml(t("planIst.zeitraum"))}</th><th colspan="2" class="amount">${escapeHtml(t("planIst.einnahmen"))}</th><th colspan="2" class="amount">${escapeHtml(t("planIst.ausgaben"))}</th><th colspan="2" class="amount">${escapeHtml(t("planIst.ueberschuss"))}</th><th colspan="2" class="amount">${escapeHtml(t("planIst.sparquote"))}</th></tr>
+          <tr>${[1, 2, 3, 4].map(() => `<th class="amount">${escapeHtml(t("planIst.ist"))}</th><th class="amount">${escapeHtml(t("planIst.plan"))}</th>`).join("")}</tr>
         </thead>
         <tbody>
           ${[...verlauf].reverse().map((p) => `
             <tr class="${p.schluessel === state.planIst.periode ? "is-selected" : ""}">
-              <td><button class="linkish" data-action="plan-ist-periode" data-periode="${escapeHtml(p.schluessel)}">${escapeHtml(periodeName(p.schluessel))}</button>${p.vollstaendig ? "" : ` <span class="muted">(${escapeHtml(t("planIst.angeschnitten"))})</span>`}</td>
-              ${zelle(mittel(p.r.einnahmen.ist_cents, p), mittel(p.r.einnahmen.plan_cents, p), true)}
-              ${zelle(mittel(p.r.ausgaben.ist_cents, p), mittel(p.r.ausgaben.plan_cents, p), false)}
-              ${zelle(mittel(p.r.sparen.ist.ueberschuss_cents, p), mittel(p.r.sparen.plan.ueberschuss_cents, p), true)}
-              <td class="amount">${escapeHtml(prozent(p.r.sparen.ist.quote))}</td><td class="amount muted">${escapeHtml(prozent(p.r.sparen.plan.quote))}</td>
+              <td class="karten-kopf"><button class="linkish" data-action="plan-ist-periode" data-periode="${escapeHtml(p.schluessel)}">${escapeHtml(periodeName(p.schluessel))}</button>${p.vollstaendig ? "" : ` <span class="muted">(${escapeHtml(t("planIst.angeschnitten"))})</span>`}</td>
+              ${zelle("einnahmen", mittel(p.r.einnahmen.ist_cents, p), mittel(p.r.einnahmen.plan_cents, p), true)}
+              ${zelle("ausgaben", mittel(p.r.ausgaben.ist_cents, p), mittel(p.r.ausgaben.plan_cents, p), false)}
+              ${zelle("ueberschuss", mittel(p.r.sparen.ist.ueberschuss_cents, p), mittel(p.r.sparen.plan.ueberschuss_cents, p), true)}
+              <td class="amount" data-label="${escapeHtml(`${t("planIst.sparquote")} · ${t("planIst.ist")}`)}">${escapeHtml(prozent(p.r.sparen.ist.quote))}</td><td class="amount muted" data-label="${escapeHtml(`${t("planIst.sparquote")} · ${t("planIst.plan")}`)}">${escapeHtml(prozent(p.r.sparen.plan.quote))}</td>
             </tr>`).join("")}
         </tbody>
       </table>
@@ -205,11 +208,11 @@ function kategorieTabelle(seite, { wert, mehrIstGut, ziel, einzel }) {
     const name = `${escapeHtml(k.name)}${k.richtung ? ` <span class="muted">(${escapeHtml(t(k.richtung === "+" ? "planIst.gutschriften" : "planIst.belastungen"))})</span>` : ""}`;
     const kopf = `
       <tr class="plan-ist-kategorie">
-        <td><button type="button" class="linkish plan-ist-auf" data-action="plan-ist-zeile" data-zeile="${escapeHtml(k.key)}" aria-expanded="${offen}">${offen ? "▾" : "▸"} ${name}</button></td>
-        <td class="amount">${escapeHtml(geld(wert(k.ist_cents)))}</td>
-        <td class="amount muted">${escapeHtml(geld(wert(k.plan_cents)))}</td>
-        <td class="amount">${abweichungHtml(wert(k.ist_cents), wert(k.plan_cents), { mehrIstGut })}</td>
-        ${einzel ? `<td class="amount muted">${k.einzel_cents ? escapeHtml(geld(wert(k.einzel_cents))) : ""}</td><td class="amount">${k.einzel_cents ? abweichungHtml(wert(k.ist_cents - k.einzel_cents), wert(k.plan_cents), { mehrIstGut }) : ""}</td>` : ""}
+        <td class="karten-kopf"><button type="button" class="linkish plan-ist-auf" data-action="plan-ist-zeile" data-zeile="${escapeHtml(k.key)}" aria-expanded="${offen}">${offen ? "▾" : "▸"} ${name}</button></td>
+        <td class="amount" data-label="${escapeHtml(t("planIst.ist"))}">${escapeHtml(geld(wert(k.ist_cents)))}</td>
+        <td class="amount muted" data-label="${escapeHtml(t("planIst.plan"))}">${escapeHtml(geld(wert(k.plan_cents)))}</td>
+        <td class="amount" data-label="${escapeHtml(t("planIst.abw"))}">${abweichungHtml(wert(k.ist_cents), wert(k.plan_cents), { mehrIstGut })}</td>
+        ${einzel ? `<td class="amount muted" data-label="${escapeHtml(t("planIst.davonEinzelKurz"))}">${k.einzel_cents ? escapeHtml(geld(wert(k.einzel_cents))) : ""}</td><td class="amount" data-label="${escapeHtml(t("planIst.abwOhneEinzel"))}">${k.einzel_cents ? abweichungHtml(wert(k.ist_cents - k.einzel_cents), wert(k.plan_cents), { mehrIstGut }) : ""}</td>` : ""}
       </tr>`;
     if (!offen) return kopf;
     const rz = k.regelzahlungen.map((z) => `
@@ -227,15 +230,15 @@ function kategorieTabelle(seite, { wert, mehrIstGut, ziel, einzel }) {
     return kopf + detail;
   }).join("");
   const summe = `
-      <tr class="plan-ist-summe"><td>${escapeHtml(t("planIst.summe"))}</td>
-        <td class="amount">${escapeHtml(geld(wert(seite.ist_cents)))}</td>
-        <td class="amount muted">${escapeHtml(geld(wert(seite.plan_cents)))}</td>
-        <td class="amount">${abweichungHtml(wert(seite.ist_cents), wert(seite.plan_cents), { mehrIstGut })}</td>
-        ${einzel ? `<td class="amount muted">${seite.einzel_cents ? escapeHtml(geld(wert(seite.einzel_cents))) : ""}</td><td class="amount">${seite.einzel_cents ? abweichungHtml(wert(seite.ist_cents - seite.einzel_cents), wert(seite.plan_cents), { mehrIstGut }) : ""}</td>` : ""}
+      <tr class="plan-ist-summe"><td class="karten-kopf">${escapeHtml(t("planIst.summe"))}</td>
+        <td class="amount" data-label="${escapeHtml(t("planIst.ist"))}">${escapeHtml(geld(wert(seite.ist_cents)))}</td>
+        <td class="amount muted" data-label="${escapeHtml(t("planIst.plan"))}">${escapeHtml(geld(wert(seite.plan_cents)))}</td>
+        <td class="amount" data-label="${escapeHtml(t("planIst.abw"))}">${abweichungHtml(wert(seite.ist_cents), wert(seite.plan_cents), { mehrIstGut })}</td>
+        ${einzel ? `<td class="amount muted" data-label="${escapeHtml(t("planIst.davonEinzelKurz"))}">${seite.einzel_cents ? escapeHtml(geld(wert(seite.einzel_cents))) : ""}</td><td class="amount" data-label="${escapeHtml(t("planIst.abwOhneEinzel"))}">${seite.einzel_cents ? abweichungHtml(wert(seite.ist_cents - seite.einzel_cents), wert(seite.plan_cents), { mehrIstGut }) : ""}</td>` : ""}
       </tr>`;
   return `
     <div class="table-wrap">
-      <table class="plan-ist-tabelle">
+      <table class="plan-ist-tabelle karten-tabelle">
         <thead><tr><th>${escapeHtml(t("planIst.kategorie"))}</th><th class="amount">${escapeHtml(t("planIst.ist"))}</th><th class="amount">${escapeHtml(t("planIst.plan"))}</th><th class="amount">${escapeHtml(t("planIst.abw"))}</th>${einzel ? `<th class="amount">${escapeHtml(t("planIst.davonEinzelKurz"))}${infoTipp(t("planIst.einzelInfo"))}</th><th class="amount">${escapeHtml(t("planIst.abwOhneEinzel"))}</th>` : ""}</tr></thead>
         <tbody>${zeilen}${summe}</tbody>
       </table>
@@ -244,11 +247,11 @@ function kategorieTabelle(seite, { wert, mehrIstGut, ziel, einzel }) {
 
 function sparTabelle(r, wert) {
   const { ist, plan } = r.sparen;
-  const zeile = (name, i, p, mehrIstGut = true) => `<tr><td>${name}</td><td class="amount">${escapeHtml(geld(wert(i)))}</td><td class="amount muted">${escapeHtml(geld(wert(p)))}</td><td class="amount">${abweichungHtml(wert(i), wert(p), { mehrIstGut })}</td></tr>`;
+  const zeile = (name, i, p, mehrIstGut = true) => `<tr><td class="karten-kopf">${name}</td><td class="amount" data-label="${escapeHtml(t("planIst.ist"))}">${escapeHtml(geld(wert(i)))}</td><td class="amount muted" data-label="${escapeHtml(t("planIst.plan"))}">${escapeHtml(geld(wert(p)))}</td><td class="amount" data-label="${escapeHtml(t("planIst.abw"))}">${abweichungHtml(wert(i), wert(p), { mehrIstGut })}</td></tr>`;
   const kategorien = r.sparen.kategorien.map((k) => zeile(`<span class="plan-ist-einrueck">${escapeHtml(k.name)}</span>`, k.ist_cents, k.plan_cents)).join("");
   return `
     <div class="table-wrap">
-      <table class="plan-ist-tabelle">
+      <table class="plan-ist-tabelle karten-tabelle">
         <thead><tr><th></th><th class="amount">${escapeHtml(t("planIst.ist"))}</th><th class="amount">${escapeHtml(t("planIst.plan"))}</th><th class="amount">${escapeHtml(t("planIst.abw"))}</th></tr></thead>
         <tbody>
           ${zeile(escapeHtml(t("planIst.ueberschuss")), ist.ueberschuss_cents, plan.ueberschuss_cents)}

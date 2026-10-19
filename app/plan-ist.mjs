@@ -70,9 +70,13 @@ export function bestandsMonate(data, today, { vollstaendigBis = "" } = {}) {
   }
   const vorher = (data.transaktionen ?? []).map((tx) => tx.buchungsdatum?.slice(0, 7)).filter((m) => m && m < grenze).sort();
   if (!vorher.length) return [];
+  // Ein Startzustand zaehlt nur, wenn sein erster voller Monat im Fenster
+  // liegt: er kuerzt das Fenster, leert es aber nie (spaetere Startzustaende
+  // gehoeren nicht zu einem vergangenen Fenster, etwa im Trend).
   const start = (data.transaktionen ?? [])
     .filter((tx) => tx.transaktionstyp === STARTZUSTAND && tx.buchungsdatum)
     .map((tx) => (tx.buchungsdatum.endsWith("-01") ? tx.buchungsdatum : addInterval(`${tx.buchungsdatum.slice(0, 7)}-01`, "monat", 1)).slice(0, 7))
+    .filter((m) => m <= vorher.at(-1))
     .reduce((a, m) => (m > a ? m : a), vorher[0]);
   const monate = [];
   for (let m = start; m <= vorher.at(-1); m = addInterval(`${m}-01`, "monat", 1).slice(0, 7)) monate.push(m);

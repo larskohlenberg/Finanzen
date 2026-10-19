@@ -483,7 +483,7 @@ export function computeSzenario(data, szenario, today, optionen = {}) {
 // Kategorien sind kein Konsum. 'cash-realismus': eine Kategorie mit geschaetzter
 // Regelzahlung (Konsumplan) liegt im Plan deutlich unter ihrem Ist;
 // 'kategorie-ungeplant': materielles laufendes Ist ohne jede Regelzahlung.
-// vollstaendigBis wie bei Plan & Ist: der aelteste Kontenstand.
+// vollstaendigBis wie bei Plan & Ist: importAbdeckung (klassifikation.mjs).
 export function guardrailWarnungen(data, today, { vollstaendigBis = "" } = {}) {
   const r = planIst(data, zeitraumMonate(bestandsMonate(data, today, { vollstaendigBis }), "12m"));
   const n = r.anzahl_monate;

@@ -121,3 +121,12 @@ test("importAbdeckung: je Konto belegt bis (letzte Buchung oder Anker); ruhige K
   d.zeitwerte.push({ entitaet: "konto", entitaet_id: "KTO-003", feld: "kontostand", wert: "10.00", standdatum: "2026-01-05", qualitaet: "belegt" });
   assert.equal(importAbdeckung(d, HEUTE).begrenzt_durch, "KTO-001");
 });
+
+test("Startzustand nach dem Fensterende leert vergangene Fenster nicht (Trend)", () => {
+  const d = daten();
+  d.transaktionen.push(tx("KTO-002", "2025-12-15", "100.00", "KAT-012", { transaktionstyp: "Startzustand" }));
+  // Mitten im letzten Monat: sein erster voller Monat (2026-01) liegt nach dem Fenster.
+  assert.equal(monatsMittel(d, HEUTE, { vollstaendigBis: "2025-12-31" }).monate.at(-1), "2025-12");
+  // Vergangenes Fenster (Stichtag Juli 2025): der Startzustand vom Dezember zaehlt nicht.
+  assert.deepEqual(monatsMittel(d, "2025-07-10").monate, ["2025-02", "2025-03", "2025-04", "2025-05", "2025-06"]);
+});

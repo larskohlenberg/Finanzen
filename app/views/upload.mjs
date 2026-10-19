@@ -3,10 +3,13 @@
 // Der App-Server (app/server.mjs) nimmt je Datei einen PUT entgegen; die
 // Verarbeitung passiert spaeter im Import-Durchlauf. Ohne App-Server (rein
 // statische Auslieferung) zeigt die Ansicht einen Hinweis statt Fehler.
+// Im Demo-Modus gibt es weder Upload noch Inbox-Liste: die Inbox gehoert dem
+// echten Bestand (demo-modus.mjs).
 import { state, t, escapeHtml } from "../runtime.mjs";
 import { renderPageHead } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { ERLAUBTE_ENDUNGEN, inboxDateiUrl, vorpruefeDatei } from "../upload-regeln.mjs";
+import { uploadMoeglich } from "../demo-modus.mjs";
 
 const ACCEPT = ERLAUBTE_ENDUNGEN.map((endung) => `.${endung}`).join(",");
 
@@ -77,6 +80,12 @@ function renderInbox() {
 }
 
 export function renderUpload() {
+  if (!uploadMoeglich(state.dataMode)) {
+    return `
+    ${renderPageHead(t("uploadPage.title"), t("uploadPage.lead"))}
+    <p class="upload-hinweis-api" role="note">${iconSvg("review")}${escapeHtml(t("uploadPage.demoGesperrt"))}</p>
+  `;
+  }
   return `
     ${renderPageHead(t("uploadPage.title"), t("uploadPage.lead"))}
     <div class="stack">
@@ -107,6 +116,7 @@ export function renderUpload() {
 // Inbox-Liste vom Server holen. Kein Zwischen-Render beim Start: die Ansicht
 // zeigt "unbekannt" und "laedt" gleich (Ladehinweis).
 export async function ladeInbox(aktualisiere) {
+  if (!uploadMoeglich(state.dataMode)) return;
   upload.inbox.zustand = "laedt";
   try {
     const antwort = await fetch("./api/inbox", { cache: "no-store" });
@@ -172,7 +182,7 @@ async function abarbeiten(aktualisiere) {
 
 export function dateienEinreihen(dateien, aktualisiere) {
   const liste = [...(dateien ?? [])];
-  if (liste.length === 0) return;
+  if (liste.length === 0 || !uploadMoeglich(state.dataMode)) return;
   for (const datei of liste) {
     const vorab = vorpruefeDatei(datei);
     upload.eintraege.push({

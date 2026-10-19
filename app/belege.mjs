@@ -79,10 +79,6 @@ export function belegPfadAusRoute(rest) {
 }
 
 // URL zum Ausliefern der Datei (App-relativ, Segmente kodiert).
-export function dateiUrl(pfad) {
-  return kodierePfad(String(pfad ?? ""));
-}
-
 export function ordnerVon(pfad) {
   const i = pfad.lastIndexOf("/");
   return i > 0 ? pfad.slice(0, i) : BELEGE_WURZEL;

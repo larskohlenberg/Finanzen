@@ -1,15 +1,12 @@
 // app/views/export.mjs
 // Export (#/administration/export): Backup zum Herunterladen. Die ZIPs baut der App-Server
-// beim Klick (GET /api/export/<art>, app/export.mjs). Im Demomodus kommen die
-// Daten aus data/demo; die Dokumente sind immer die unter Belege/.
+// beim Klick (GET /api/export/<art>, app/export.mjs). Im Demomodus kommen
+// Daten und Dokumente aus data/demo (demo-modus.mjs), nie die echten.
 import { state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
+import { exportUrl } from "../demo-modus.mjs";
 
 const ARTEN = ["komplett", "dokumente", "daten"];
-
-export function exportUrl(art, dataMode) {
-  return `./api/export/${art}${art !== "dokumente" && dataMode === "demo" ? "?quelle=demo" : ""}`;
-}
 
 function karte(art) {
   return `

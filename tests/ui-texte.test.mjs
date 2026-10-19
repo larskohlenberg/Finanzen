@@ -5,13 +5,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -20,7 +23,17 @@ globalThis.fetch = async (path) => {
 await import("../app/i18n.js");
 
 const { data, state } = await import("../app/runtime.mjs");
+appDaten = data;
 const { renderChecks, lesbarerCheckText } = await import("../app/views/checks.mjs");
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Die Pruefungen rechnet der Server (GET /api/v1/checks): Antworten verwerfen,
+// zeichnen, auf die Antwort warten, erneut zeichnen.
+async function checksGezeichnet() {
+  verwerfeApiCaches();
+  renderChecks();
+  await apiAbwarten();
+  return renderChecks();
+}
 const { renderMasterdata } = await import("../app/views/stammdaten.mjs");
 
 function t(lang, pfad) {
@@ -29,7 +42,7 @@ function t(lang, pfad) {
   return wert;
 }
 
-test("Sidebar: Stand nennt den Datenmodus, nicht pauschal Masterdaten", () => {
+test("Sidebar: Stand nennt den Datenmodus, nicht pauschal Masterdaten", async () => {
   assert.equal(t("de", "chrome.releaseStateLive"), "Web-App · Echtdaten");
   assert.equal(t("de", "chrome.releaseStateDemo"), "Web-App · Demodaten");
   assert.ok(t("en", "chrome.releaseStateLive") && t("en", "chrome.releaseStateDemo"));
@@ -38,14 +51,14 @@ test("Sidebar: Stand nennt den Datenmodus, nicht pauschal Masterdaten", () => {
   assert.match(main, /state\.dataMode === "demo" \? "chrome\.releaseStateDemo" : "chrome\.releaseStateLive"/);
 });
 
-test("Liquiditaet: Hinweis ohne veraltete Meilensteine", () => {
+test("Liquiditaet: Hinweis ohne veraltete Meilensteine", async () => {
   for (const lang of ["de", "en"]) {
     const text = t(lang, "liquiditaet.incompleteNote");
     assert.doesNotMatch(text, /\bM\d\b|folgen später|follow later/, lang);
   }
 });
 
-test("Administration: 0 fehlende Kontoreferenzen ist keine Warnung", () => {
+test("Administration: 0 fehlende Kontoreferenzen ist keine Warnung", async () => {
   const vorher = data.checks;
   try {
     data.checks = [];
@@ -58,7 +71,7 @@ test("Administration: 0 fehlende Kontoreferenzen ist keine Warnung", () => {
   }
 });
 
-test("lesbarerCheckText: Betraege und ISO-Daten lokal, IDs bleiben", () => {
+test("lesbarerCheckText: Betraege und ISO-Daten lokal, IDs bleiben", async () => {
   state.lang = "de";
   const lesbar = (text) => lesbarerCheckText(text).replace(/\u00a0/g, " ");
   assert.equal(
@@ -72,14 +85,14 @@ test("lesbarerCheckText: Betraege und ISO-Daten lokal, IDs bleiben", () => {
   state.lang = "de";
 });
 
-test("Checks-Seite zeigt Vermoegens-Checks ohne Rohzahlen und ISO-Daten", () => {
-  const html = renderChecks();
+test("Checks-Seite zeigt Vermoegens-Checks ohne Rohzahlen und ISO-Daten", async () => {
+  const html = (await checksGezeichnet());
   assert.match(html, /erwartet/, "Demodaten haben bewusst reconciliation-drift-Checks");
   assert.doesNotMatch(html, /erwartet -?\d+\.\d{2}\b/);
   assert.doesNotMatch(html, /Kontoauszug \d{4}-\d{2}-\d{2}/);
 });
 
-test("Vermoegen: kein toter Hinweis mit veraltetem Meilenstein", () => {
+test("Vermoegen: kein toter Hinweis mit veraltetem Meilenstein", async () => {
   for (const lang of ["de", "en"]) {
     assert.equal(t(lang, "vermoegen.incompleteNote"), undefined, lang);
   }

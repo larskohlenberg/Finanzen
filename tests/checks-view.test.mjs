@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -23,9 +26,19 @@ const { kopfleisteModell } = await import("../app/kopfleiste.mjs");
 const runtime = await import("../app/runtime.mjs");
 const checksView = await import("../app/views/checks.mjs");
 const { data, state } = runtime;
+appDaten = data;
 const { renderChecks } = checksView;
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Die Pruefungen rechnet der Server (GET /api/v1/checks): Antworten verwerfen,
+// zeichnen, auf die Antwort warten, erneut zeichnen.
+async function checksGezeichnet() {
+  verwerfeApiCaches();
+  renderChecks();
+  await apiAbwarten();
+  return renderChecks();
+}
 
-test("Checks-View rendert ohne ReferenceError (Transfer- und Konto-Lookups)", () => {
+test("Checks-View rendert ohne ReferenceError (Transfer- und Konto-Lookups)", async () => {
   // Realistische Daten, die die Lookups transaktionenById/kontenById ausloesen.
   data.transfers = [
     {
@@ -65,12 +78,12 @@ test("Checks-View rendert ohne ReferenceError (Transfer- und Konto-Lookups)", ()
   state.view = "checks";
 
   // Darf NICHT werfen (vorher: ReferenceError: transaktionenById is not defined).
-  const html = renderChecks();
+  const html = (await checksGezeichnet());
   assert.equal(typeof html, "string");
   assert.match(html, /TR-001/, "Transfer muss in der Liste erscheinen");
 });
 
-test("Checks listen nur unvollstaendige Transfers, der Zaehler zaehlt sie mit", () => {
+test("Checks listen nur unvollstaendige Transfers, der Zaehler zaehlt sie mit", async () => {
   const ok = { transaktion_id: "TX-OK-A", ist_transfer: true, transfer_id: "TR-OK" };
   const okB = { transaktion_id: "TX-OK-B", ist_transfer: true, transfer_id: "TR-OK" };
   data.transfers = [
@@ -82,7 +95,7 @@ test("Checks listen nur unvollstaendige Transfers, der Zaehler zaehlt sie mit", 
   runtime.transaktionenById.set(okB.transaktion_id, okB);
   data.checks = [];
 
-  const html = checksView.renderChecks();
+  const html = (await checksGezeichnet());
   assert.match(html, /TR-HALB/);
   assert.doesNotMatch(html, /TR-OK/, "vollstaendig gepaarte Transfers werden nicht aufgelistet");
   assert.doesNotMatch(html, /page-head/, "eingebettet in die Administration, ohne eigenen Seitenkopf");

@@ -267,3 +267,11 @@ test("Szenarien: Startbestand und Zahl der Prognose-Hinweise; mit ihnen rechnet 
   }
   assert.equal((await hole("/api/v1/szenarien?quelle=demo&heute=9999-12-31")).status, 400);
 });
+
+test("Checks: Transfers nur als Anzahl und unvollstaendige mit Id und Betrag; Stichtag geprueft", async () => {
+  const c = (await hole("/api/v1/checks?quelle=demo&heute=2026-10-19")).json();
+  assert.deepEqual(Object.keys(c).sort(), ["guardrails", "heute", "stand", "transfers", "vermoegen"]);
+  assert.ok(Number.isInteger(c.transfers.anzahl));
+  for (const tr of c.transfers.unvollstaendig) assert.deepEqual(Object.keys(tr).sort(), ["betrag", "transfer_id"]);
+  assert.equal((await hole("/api/v1/checks?quelle=demo&heute=9999-12-31")).status, 400);
+});

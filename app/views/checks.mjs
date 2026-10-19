@@ -1,13 +1,23 @@
 // app/views/checks.mjs
 // Prüfungen: Transfer-Checks + Vermögens-Checks. Bereich der Administration
 // (#/administration/checks), keine eigene Seite mehr.
-import { data, t, escapeHtml, cents, transaktionenById, kontenById } from "../runtime.mjs";
+import { data, state, t, escapeHtml, cents, transaktionenById, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, categoryName } from "../komponenten.mjs";
-import { currentVermoegenChecks } from "../selektoren.mjs";
-import { localTodayIso } from "../liquiditaet.mjs";
-import { prognoseRealismus as prognoseRealismusAus, transferPruefung } from "../kopfleiste.mjs";
+import { heuteIso } from "../selektoren.mjs";
 import { kopfleisteAntwort } from "./kopfleiste-daten.mjs";
+import { erstelleApiCache } from "../api-daten.mjs";
+
+// Transfer-Pruefung, Vermoegens-Checks und Prognose-Realismus rechnet der
+// App-Server (GET /api/v1/checks, app/checks-modell.mjs).
+const cache = erstelleApiCache({ maxEintraege: 4 });
+
+function checksAntwort(heute) {
+  const suche = new URLSearchParams();
+  if (state.dataMode === "demo") suche.set("quelle", "demo");
+  suche.set("heute", heute);
+  return cache.hole(`./api/v1/checks?${suche}`);
+}
 
 // Prognose-Realismus-Guardrails (Cash-Realismus, ungeplante Kategorien): hängen
 // an den Stammdaten, nicht an einem Szenario — deshalb hier zuhause, nicht auf
@@ -42,15 +52,6 @@ export function lesbarerCheckText(text) {
     .replace(/(?<![\w.,-])(-?\d+)\.(\d{2})(?![\w.]|,\d)/g, (_, ganz, rest) => formatMoney(Number(ganz) * 100 + Math.sign(Number(`${ganz}1`)) * Number(rest)));
 }
 
-// Dasselbe Fenster wie Plan & Ist: nur Monate, die auf allen Konten gebucht sind.
-function prognoseRealismus() {
-  return prognoseRealismusAus(data, localTodayIso());
-}
-
-function transferChecks() {
-  return transferPruefung(data);
-}
-
 // Zähler für die obere Leiste: was nur hier sichtbar ist. Offene Kategorien und
 // Importfehler haben dort eigene Chips und zählen deshalb nicht mit.
 // Zaehlt der Server (GET /api/v1/kopfleiste); 0, solange die Antwort laedt.
@@ -59,11 +60,15 @@ export function offeneChecksAnzahl() {
 }
 
 export function renderChecks() {
-  const transferResults = transferChecks();
+  const { antwort, fehler } = checksAntwort(heuteIso());
+  if (!antwort) {
+    return `
+    <section class="panel panel-pad section-spacing"><p class="muted" role="status">${escapeHtml(fehler ? `${t("checksPage.loadFailed")} (${fehler.message})` : t("checksPage.loading"))}</p></section>`;
+  }
   // Gepaarte Transfers sind der Normalfall; aufgelistet wird nur, was hakt.
-  const unvollstaendig = transferResults.filter((tc) => !tc.ok);
-  const m5 = currentVermoegenChecks();
-  const guardrails = prognoseRealismus();
+  const { anzahl: transferAnzahl, unvollstaendig } = antwort.transfers;
+  const m5 = antwort.vermoegen;
+  const guardrails = antwort.guardrails;
   return `
     <p class="page-lead section-spacing">${escapeHtml(t("checksPage.lead"))}</p>
     ${data.checks.length > 0 ? `
@@ -87,11 +92,11 @@ export function renderChecks() {
         </div>
       </section>
     ` : ""}
-    ${transferResults.length > 0 ? `
+    ${transferAnzahl > 0 ? `
       <section class="panel panel-pad section-spacing">
         <h2 class="section-title">${escapeHtml(t("checksPage.transfers"))}</h2>
         <p class="page-lead">${escapeHtml(t("checksPage.transfersLead"))}</p>
-        ${unvollstaendig.length === 0 ? `<p class="muted">${escapeHtml(t("checksPage.transfersAllOk").replace("{n}", String(transferResults.length)))}</p>` : `
+        ${unvollstaendig.length === 0 ? `<p class="muted">${escapeHtml(t("checksPage.transfersAllOk").replace("{n}", String(transferAnzahl)))}</p>` : `
         <div class="rail-list">
           ${unvollstaendig.map((tc) => `
             <div class="rail-item">

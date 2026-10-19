@@ -43,6 +43,7 @@ app/data/**
 app/data/demo/inbox/
 app/data/demo/import-profile/
 app/data/demo/papierkorb/
+**/.schreibsperre*
 app/Belege/**
 !app/Belege/**/
 !app/Belege/**/.gitkeep

@@ -2,9 +2,8 @@
 // Synthetischer Regressionstest aus einem Musterimport (2026-06-09):
 //  - Dedupe prueft gegen den BESTAND, nicht innerhalb desselben Auszugs
 //    (ein amtlicher Auszug enthaelt reale Buchungen, keine Importdubletten).
-//  - bank_referenz taugt nur als Dedupe-Schluessel, wenn sie auf dem Konto
-//    verlaesslich ist (MusterbankA verwendet manche Referenzen mehrfach);
-//    seit ADR 0034 je Konto statt je Datei.
+//  - bank_referenz taugt nur als Dedupe-Schluessel, wenn sie im Lauf
+//    dateiweit EINDEUTIG ist (MusterbankA verwendet manche Referenzen mehrfach).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { runImport } from "../app/tools/import.mjs";
@@ -41,11 +40,8 @@ test("wiederverwendete bank_referenz fuehrt NICHT zu falschem Merge", () => {
     konten, kategorien, kategorisierungsregeln: regeln, transaktionen: [], transfers: [],
   });
   assert.equal(out.result.written.length, 2, "beide Buchungen trotz gleicher Referenz importiert");
-  // Die Referenz wird trotzdem gespeichert (ADR 0034): Sie ist kein Schluessel
-  // fuer sich, sondern der Beleg, an dem spaetere Laeufe ihre Verlaesslichkeit
-  // auf dem Konto messen.
-  assert.ok(out.transaktionen.every((t) => t.bank_referenz === "113-1"));
-  assert.deepEqual(out.result.referenz_unzuverlaessig, ["KTO-001"]);
+  // nicht-eindeutige Referenz wird nicht als bank_referenz gespeichert (waere irrefuehrender Dedupe-Key)
+  assert.ok(out.transaktionen.every((t) => !Object.hasOwn(t, "bank_referenz")));
 });
 
 test("eindeutige bank_referenz ueberlebt Re-Export mit umformatiertem Zweck (ADR 0007)", () => {

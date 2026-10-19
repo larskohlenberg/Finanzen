@@ -23,6 +23,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
+import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 
 function istKandidat(tx) {
   if (tx.kategorisierung_status === "offen") return true;
@@ -90,6 +91,8 @@ async function main() {
   }
 
   const masterRoot = pflichtDatenroot(root);
+  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
+  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
   const transaktionen = await readJsonl(new URL("transaktionen.jsonl", masterRoot));
 
   const out = agentVorschlag({

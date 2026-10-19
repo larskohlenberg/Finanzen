@@ -30,6 +30,7 @@ import { runImport } from "./import.mjs";
 import { normalizeCsv } from "./normalize.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
+import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 import { validateImportProfil } from "./import-format.mjs";
 import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
 import { bestandOrte } from "./lib/bestand-orte.mjs";
@@ -125,11 +126,6 @@ export function importLaufBericht({ auftrag, profil, normalized, result }) {
     uebersprungen_dedupe: result.skipped_dedupe.length,
     importfehler: result.errors.length,
     transfer_treffer: result.transfers_matched.length,
-    // Dubletten-Prueffaelle (ADR 0034): geschrieben bzw. uebersprungen nach
-    // Anzahl, aber nicht sicher entscheidbar — im Pruefbericht ansehen.
-    pruefen: result.pruefen?.length ?? 0,
-    ...(result.pruefen?.length ? { pruefen_details: result.pruefen } : {}),
-    ...(result.referenz_unzuverlaessig?.length ? { referenz_unzuverlaessig: result.referenz_unzuverlaessig } : {}),
     ...(normalized.fehler.length ? { lesefehler_details: normalized.fehler } : {}),
     ...(result.errors.length ? { importfehler_details: result.errors.map(({ row, reason, detail }) => ({ row, reason, detail })) } : {}),
   };
@@ -250,6 +246,8 @@ async function main() {
   const argv = process.argv.slice(2);
   const schreiben = argv.includes("--schreiben");
   const masterRoot = pflichtDatenroot(argv.find((a) => !a.startsWith("--")));
+  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
+  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
   // Jeder Bestand hat seine Inbox (data/master: data/inbox/), siehe bestand-orte.mjs.
   const inboxRoot = pathToFileURL(`${bestandOrte(APP, fileURLToPath(masterRoot)).inbox}${path.sep}`);
 

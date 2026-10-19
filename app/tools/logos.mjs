@@ -22,6 +22,7 @@ import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
+import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { normalizeLoose } from "./lib/text.mjs";
 import { dekodierePng, istPng, kodierePng, verkleinere } from "./lib/png.mjs";
@@ -249,6 +250,8 @@ async function main() {
     return;
   }
   const root = dataRootFromArg(opt.root, null, new URL("../", import.meta.url));
+  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
+  if (opt.schreiben && root) await sperreFuerProzess(fileURLToPath(root));
   const data = await loadMasterData(root);
 
   let eintraege = null;

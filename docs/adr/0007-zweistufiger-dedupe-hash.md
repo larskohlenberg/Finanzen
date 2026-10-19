@@ -1,7 +1,5 @@
 # Zweistufiger Dedupe-Hash mit leichter Normalisierung
 
-Statushinweis 2026-10-19: Der Abgleich laeuft seit ADR 0034 als Multimenge je Konto und Inhalt; die Referenz zaehlt nur, wenn sie auf dem Konto verlaesslich ist, und nur mit Datum und Betrag. Neue Hashes entstehen nur noch aus dem Inhalt. Die Normalisierung unten gilt weiter.
-
 Statushinweis 2026-06-09: Die Entscheidung gilt weiter. Die Import-Pipeline liegt physisch unter `app/tools/`; fachlich wird sie app-relativ als `tools/` referenziert.
 
 Der `dedupe_hash` einer Transaktion wird zweistufig gebildet:

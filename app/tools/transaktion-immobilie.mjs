@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { open, readFile, rename, unlink } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
+import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 
 export function aktualisiereImmobilienbezug({
@@ -391,6 +392,8 @@ async function main() {
     new URL("../data/master/", import.meta.url),
     new URL("../", import.meta.url),
   );
+  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
+  if (args.schreiben) await sperreFuerProzess(fileURLToPath(dataRoot));
   const data = await loadMasterData(dataRoot);
   const out = aktualisiereImmobilienbezug({
     transaktionen: data.transaktionen,

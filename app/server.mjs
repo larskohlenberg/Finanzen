@@ -53,7 +53,8 @@ import { erstelleSnapshotQuelle } from "./stand.mjs";
 import { AnfrageFehler, LESE_ANSICHTEN, leseAnsicht } from "./lese-api.mjs";
 import { legeDateiAn } from "./tools/lib/datei.mjs";
 import { physisch, pruefeDatenort } from "./tools/lib/datenort.mjs";
-import { mitLesestand } from "./tools/lib/lesestand.mjs";
+import { lesestandId, mitLesestand } from "./tools/lib/lesestand.mjs";
+import { loadMasterData, validateMasterData } from "./tools/validator.mjs";
 import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt, istHeic } from "./upload-regeln.mjs";
 
 const MAX_NAME_LAENGE = 200;
@@ -496,7 +497,7 @@ export async function legeAbOhneUeberschreiben(inhalt, ziel) {
   }
 }
 
-export function createAppServer({ appDir, inboxDir, belegeDir = physisch(appDir, "Belege"), demoBelegeDir = join(appDir, "data", "demo-belege"), datenDirs = { live: physisch(appDir, "data/master"), demo: join(appDir, "data", "demo") }, proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
+export function createAppServer({ appDir, inboxDir, belegeDir = physisch(appDir, "Belege"), profileDir = physisch(appDir, "data/import-profile"), demoBelegeDir = join(appDir, "data", "demo-belege"), datenDirs = { live: physisch(appDir, "data/master"), demo: join(appDir, "data", "demo") }, proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
   let appWurzel = null;
   let belegeWurzel = null;
   let inboxWurzel = null;
@@ -633,11 +634,41 @@ export function createAppServer({ appDir, inboxDir, belegeDir = physisch(appDir,
     // eine Lesefrist; ein langsamer Download darf sie nicht ueberdauern. Darum
     // werden die Daten aus der Generation vorab gelesen, nur die Belege
     // (ausserhalb der Generationen) laufen gestreamt.
-    return mitLesestand(datenDirs[quelle], (leser) => sendeExport(res, art, quelle, leser.ordner));
+    return mitLesestand(datenDirs[quelle], (leser) => sendeExport(res, art, quelle, leser));
   }
 
-  async function sendeExport(res, art, quelle, datenDir) {
-    const eintraege = await exportEintraege(art, { datenDir, belegeDir: quelle === "demo" ? demoBelegeDir : belegeDir });
+  // Code-Stand fuer das Sicherungsmanifest (app/version.json, schreibt das Deploy).
+  async function codeStand() {
+    try {
+      const { commit, kurz } = JSON.parse(await readFile(join(appDir, "version.json"), "utf8"));
+      return { commit, kurz };
+    } catch {
+      return null;
+    }
+  }
+
+  async function sendeExport(res, art, quelle, leser) {
+    const demo = quelle === "demo";
+    const sicherung = {};
+    if (art === "komplett") {
+      // Pruefergebnis aus derselben Generation, die exportiert wird.
+      let pruefung;
+      try {
+        const ergebnis = validateMasterData(await loadMasterData(leser.url));
+        pruefung = { gueltig: ergebnis.valid, fehler_anzahl: ergebnis.errors.length };
+      } catch (fehler) {
+        pruefung = { gueltig: false, fehler_anzahl: 1, meldung: `Bestand nicht lesbar: ${fehler.message}` };
+      }
+      Object.assign(sicherung, {
+        stand: leser.id,
+        code: await codeStand(),
+        pruefung,
+        inboxDir: demo ? join(datenDirs.demo, "inbox") : inboxDir,
+        profileDir: demo ? join(datenDirs.demo, "import-profile") : profileDir,
+      });
+    }
+    const datenDir = leser.ordner;
+    const eintraege = await exportEintraege(art, { datenDir, belegeDir: demo ? demoBelegeDir : belegeDir, ...sicherung });
     let groesse;
     try {
       groesse = pruefeZipGrenzen(eintraege);
@@ -657,7 +688,14 @@ export function createAppServer({ appDir, inboxDir, belegeDir = physisch(appDir,
       "Content-Disposition": `attachment; filename="${name}"`,
     });
     try {
-      await pipeline(Readable.from(zipTeile(eintraege)), res);
+      // Belege und Inbox werden live gelesen: Entsteht waehrend der Sicherung
+      // eine neue Generation (Import, Ablage), passen sie nicht mehr sicher zum
+      // Bestand. Dann bricht die ZIP vor dem Endesatz ab.
+      const vorAbschluss = art === "komplett" ? async () => {
+        const jetzt = await lesestandId(datenDirs[quelle]);
+        if (jetzt !== leser.id) throw new Error(`Bestand hat sich waehrend der Sicherung geaendert (${leser.id} -> ${jetzt})`);
+      } : undefined;
+      await pipeline(Readable.from(zipTeile(eintraege, { vorAbschluss })), res);
       log(`${new Date().toISOString()} export art=${art} quelle=${quelle} dateien=${eintraege.length} groesse=${groesse}`);
     } catch (fehler) {
       log(`${new Date().toISOString()} export art=${art} ergebnis=abgebrochen:${fehler.message}`);

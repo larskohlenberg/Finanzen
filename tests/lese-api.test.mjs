@@ -210,3 +210,24 @@ test("Plan & Ist: Route und API pruefen Zeitraeume gleich; Teile einzeln gerechn
     heute: "2026-10-19", alle, r: planIstRechnung(daten, alle, "12m"), verlauf: planIstVerlauf(daten, alle, "quartal"),
   });
 });
+
+test("Konten und Vermoegen: nur Zahlen und Ids, keine Buchungslisten; Stichtag geprueft", async () => {
+  const k = (await hole("/api/v1/konten?quelle=demo&heute=2026-10-19")).json();
+  assert.deepEqual(Object.keys(k).sort(), ["gruppen", "heute", "konten", "reihenfolge", "stand"]);
+  for (const eintrag of Object.values(k.konten)) {
+    assert.deepEqual(Object.keys(eintrag).sort(), ["saldo_verlauf", "seit_anker_cents", "wert", "zeile"]);
+    assert.ok(eintrag.saldo_verlauf.every(Number.isInteger));
+  }
+  for (const g of Object.values(k.gruppen)) assert.ok(g.konto_ids.every((id) => k.reihenfolge.includes(id)));
+
+  const v = (await hole("/api/v1/vermoegen?quelle=demo&heute=2026-10-19")).json();
+  assert.deepEqual(Object.keys(v).sort(), ["checks", "heute", "immobilien", "netto", "stand", "verlauf", "vorsorge_bezug"]);
+  for (const p of v.verlauf) assert.deepEqual(Object.keys(p).sort(), ["monat", "netto_cents"]);
+  for (const imm of Object.values(v.immobilien)) {
+    assert.deepEqual(Object.keys(imm).sort(), ["alle_buchungen", "investitionen", "monate_mit_rate", "monate_ohne_investitionen", "monate_ohne_rate"]);
+    for (const b of imm.investitionen.buchungen) assert.deepEqual(Object.keys(b).sort(), ["bemerkung", "betrag", "buchungsdatum", "gegenpartei", "transaktion_id", "verwendungszweck"]);
+  }
+  for (const pfad of ["konten", "vermoegen"]) {
+    assert.equal((await hole(`/api/v1/${pfad}?quelle=demo&heute=2026-02-30`)).status, 400, pfad);
+  }
+});

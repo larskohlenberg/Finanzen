@@ -6,8 +6,7 @@
 import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
 import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel, bemerkungInhalt } from "../komponenten.mjs";
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
-import { darlehenKennzahlen, darlehensKategorien, immobilienInvestitionen, immobilienKennzahlen, immobilienMonate, investitionsKategorien } from "../vermoegen-details.mjs";
-import { vermoegensBezug } from "../vorsorge-rechnung.mjs";
+import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, investitionsKategorien } from "../vermoegen-details.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
   balkenSvg, dokumenteBrowserHtml, geld, kennzahl, laufzeitText, prozent, qualitaetChip, rateJeMonatCents,
@@ -89,7 +88,8 @@ function anteileText(eigentumsanteile) {
   }).join(" · ");
 }
 
-export function renderImmobilienTab(today) {
+// modell: Antwort von GET /api/v1/vermoegen (Monate, Investitionen, Bezug der Vertraege).
+export function renderImmobilienTab(today, modell) {
   const liste = aktiveImmobilien();
   if (!liste.length) return `<section class="panel panel-pad"><p class="muted">${escapeHtml(t("vermoegen.immobilie.keine"))}</p></section>`;
   const auswahl = gewaehlt("immobilie", liste, "immobilie_id");
@@ -109,23 +109,22 @@ export function renderImmobilienTab(today) {
 
   return `
     <div class="objekt-karten">${karten}</div>
-    ${renderImmobilieDetail(auswahl, today)}`;
+    ${renderImmobilieDetail(auswahl, today, modell)}`;
 }
 
 // Dokumente einer Immobilie: ihre eigenen, die der zugeordneten Darlehen und die
 // Belege der Vertraege mit Bezug auf sie (Wohngebaeude, Hausrat, ...; Bezug ueber
 // die immobilie_id ihrer gebuchten Beitraege). Beendete Vertraege bleiben drin,
 // ihre Policen und Kuendigungen gehoeren weiter zum Objekt.
-function immobilieDokumente(id, darlehenIds) {
-  const vertraege = (data.vorsorge ?? []).filter((vs) => vermoegensBezug(data, vs.vorsorge_id).some((b) => b.klasse === "immobilie" && b.id === id));
+function immobilieDokumente(id, darlehenIds, bezug) {
+  const vertraege = (data.vorsorge ?? []).filter((vs) => (bezug[vs.vorsorge_id] ?? []).some((b) => b.klasse === "immobilie" && b.id === id));
   const ordner = [...new Set(vertraege.flatMap((vs) => belegOrdnerAusText(vs.quelle_hinweis)))];
   return dokumenteBrowserHtml([id, ...darlehenIds, ...vertraege.map((vs) => vs.vorsorge_id)], ordner);
 }
 
 // Investitionen eines Hauses ueber die ganze Zeit: jede Buchung mit Link, unten
 // Ausgaben, Zuschuesse und was netto investiert ist. Ohne Investitionen keine Kachel.
-function investitionenPanel(id) {
-  const inv = immobilienInvestitionen(data, id);
+function investitionenPanel(inv) {
   if (!inv.buchungen.length) return "";
   // Bemerkungsspalte nur, wenn mindestens eine Buchung eine Bemerkung traegt.
   const mitBemerkung = inv.buchungen.some((tx) => tx.bemerkung);
@@ -151,15 +150,18 @@ function investitionenPanel(id) {
       </div>` });
 }
 
-function renderImmobilieDetail(imm, today) {
+function renderImmobilieDetail(imm, today, modell) {
   const id = imm.immobilie_id;
   const k = immobilienKennzahlen(data, id, today);
   const ohneRate = state.immobilieOhneRate;
   const rateKategorien = darlehensKategorien(data, k.darlehen_ids);
-  const m = immobilienMonate(data, id, today, { ohneKategorien: ohneRate ? rateKategorien : [], mitEigenanteil: !ohneRate });
+  const monate = modell.immobilien[id];
+  // Antwort noch vom vorigen Stand, in dem es die Immobilie nicht gab.
+  if (!monate) return `${detailTitel(imm.bezeichnung)}<p class="muted" role="status">${escapeHtml(t("vermoegen.loading"))}</p>`;
+  const m = ohneRate ? monate.monate_ohne_rate : monate.monate_mit_rate;
   // Investitionen (samt Zuschuessen) bleiben aus Wohnkosten und Mietrendite heraus.
   const investKategorien = investitionsKategorien(data);
-  const mitBuchungen = immobilienMonate(data, id, today, { ohneKategorien: [...investKategorien] });
+  const mitBuchungen = monate.monate_ohne_investitionen;
   const investSumme = m.kategorien.filter((kat) => !kat.eigenanteil && investKategorien.has(kat.kategorie_id)).reduce((a, kat) => a + kat.summe_cents, 0);
 
   const durchschnitt = m.anzahl_buchungen ? Math.round((m.summe.saldo - investSumme) / m.monate.length) : null;
@@ -250,7 +252,7 @@ function renderImmobilieDetail(imm, today) {
       </div>`
     : "";
   // Alle Buchungen der Immobilie, ohne Zeitfenster: so viele zeigt der Link unter der Tabelle.
-  const alleBuchungen = (data.transaktionen ?? []).filter((tx) => tx.immobilie_id === id).length;
+  const alleBuchungen = monate.alle_buchungen;
   const monatsPanel = klappKachel({ id: "immobilie.monate", titel: t("vermoegen.immobilie.monateTitel"), kopfExtra: umschalter, inhalt: `
       ${m.anzahl_buchungen ? `
         <p class="muted diagramm-lead">${escapeHtml(t("vermoegen.immobilie.monateLead"))}</p>
@@ -301,7 +303,7 @@ function renderImmobilieDetail(imm, today) {
   const anhang = anhangPanel("immobilie", t("vermoegen.immobilie.wertstaendeDokumente"), {
     bemerkung: bemerkungHtml(imm.bemerkung),
     wertstaende: renderPositionWertstaende({ klasse: "immobilie", id }),
-    dokumente: immobilieDokumente(id, k.darlehen_ids),
+    dokumente: immobilieDokumente(id, k.darlehen_ids, modell.vorsorge_bezug),
   });
 
   return `
@@ -310,7 +312,7 @@ function renderImmobilieDetail(imm, today) {
     <div class="objekt-detail">
       ${stammdaten}
       ${monatsPanel}
-      ${investitionenPanel(id)}
+      ${investitionenPanel(monate.investitionen)}
       ${anhang}
     </div>`;
 }

@@ -11,8 +11,12 @@
 //   GET /api/v1/kopfleiste?quelle=&heute=
 //   GET /api/v1/liquiditaet?quelle=&heute=&bis=&granularitaet=
 //   GET /api/v1/plan-ist?quelle=&heute=&periode=&granularitaet=
+//   GET /api/v1/konten?quelle=&heute=
+//   GET /api/v1/vermoegen?quelle=&heute=
 import { istKalenderdatum } from "./mcp/kennzahlen.mjs";
 import { kopfleisteModell } from "./kopfleiste.mjs";
+import { kontenModell } from "./konten-modell.mjs";
+import { vermoegenModell } from "./vermoegen-modell.mjs";
 import { GRANULARITAETEN, liquiditaetModell } from "./liquiditaet-modell.mjs";
 import { planIstMonate, planIstRechnung, planIstVerlauf } from "./plan-ist-modell.mjs";
 import { PERIODE_MUSTER } from "./plan-ist.mjs";
@@ -122,6 +126,14 @@ const ANSICHTEN = {
     const rechne = () => planIstRechnung(bestand.daten, alle, periode);
     const r = periode === "" || periode === "12m" ? jeStand(bestand, `plan-ist-rechnung:${periode}`, tag, rechne) : rechne();
     return { heute: tag, alle, r, verlauf };
+  },
+  konten: (bestand, suche) => {
+    const tag = heute(suche);
+    return jeStand(bestand, "konten", tag, () => kontenModell(bestand.daten, tag));
+  },
+  vermoegen: (bestand, suche) => {
+    const tag = heute(suche);
+    return jeStand(bestand, "vermoegen", tag, () => vermoegenModell(bestand.daten, tag));
   },
   kopfleiste: (bestand, suche, { quelle }) => {
     const tag = heute(suche);

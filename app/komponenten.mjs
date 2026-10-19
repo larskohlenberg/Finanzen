@@ -5,7 +5,7 @@ import { data, state, t, escapeHtml, personenById, kategorienById } from "./runt
 import { iconSvg } from "./icons.js";
 import { linienDiagramm, saldoDiagramm, zeitstrahlDiagramm } from "./charts.mjs";
 import { formatIban } from "./tools/lib/text.mjs";
-import { heuteIso, overviewAccountGroups, overviewAccountRow, sortedOverviewAccounts } from "./selektoren.mjs";
+import { heuteIso } from "./selektoren.mjs";
 import { belegTextHtml } from "./belege.mjs";
 import { dataModes } from "./data-loader.mjs";
 import { kuerzel, kuerzelFarbe, logoVerzeichnis } from "./logos.mjs";
@@ -341,6 +341,12 @@ export function accountGroupCoverage(gruppe) {
   return teile.join(" · ");
 }
 
+// Konten der Stammdaten zu den Ids einer API-Antwort, in deren Reihenfolge.
+function kontenZuIds(ids) {
+  const je = new Map((data.konten ?? []).map((k) => [k.konto_id, k]));
+  return ids.map((id) => je.get(id)).filter(Boolean);
+}
+
 function accountTableHead(showId) {
   return `
         <thead>
@@ -358,7 +364,7 @@ function accountTableHead(showId) {
 }
 
 // tbody eines Kontenblocks; summeKey = Summenzeile mit Abdeckung.
-function accountGroupBody(gruppe, { showId = false, rowAction = "account-transactions", summeKey = null, markNotIncluded = false } = {}) {
+function accountGroupBody(gruppe, kontenModell, { showId = false, rowAction = "account-transactions", summeKey = null, markNotIncluded = false } = {}) {
   const spalten = showId ? 8 : 7;
   const summe = summeKey
     ? `
@@ -370,7 +376,7 @@ function accountGroupBody(gruppe, { showId = false, rowAction = "account-transac
     : "";
   return `
         <tbody>
-          ${renderAccountRows(gruppe.zeilen.map((z) => z.konto), { showId, rowAction, markNotIncluded })}
+          ${renderAccountRows(kontenZuIds(gruppe.konto_ids), kontenModell, { showId, rowAction, markNotIncluded })}
           ${summe}
         </tbody>`;
 }
@@ -383,8 +389,9 @@ const ACCOUNT_GROUPS = [
 ];
 
 // Stammdaten: nur die angelegten Daten eines Kontos, ohne Werte und Belegstaende.
-export function renderMasterAccountTable() {
-  const rows = sortedOverviewAccounts()
+// kontenModell: Antwort von GET /api/v1/konten (Reihenfolge der Tabelle).
+export function renderMasterAccountTable(kontenModell) {
+  const rows = kontenZuIds(kontenModell.reihenfolge)
     .map((konto) => {
       const referenz = konto.kontoreferenz
         ? escapeHtml(formatIban(konto.kontoreferenz))
@@ -427,28 +434,30 @@ export function renderMasterAccountTable() {
 }
 
 // Uebersicht: je Block eine eigene Kachel mit eigener Tabelle.
-export function renderAccountPanels({ rowAction = "account-transactions" } = {}) {
-  const gruppen = overviewAccountGroups();
+// kontenModell: Antwort von GET /api/v1/konten (Bloecke und Werte je Konto).
+export function renderAccountPanels(kontenModell, { rowAction = "account-transactions" } = {}) {
+  const gruppen = kontenModell.gruppen;
   return ACCOUNT_GROUPS
-    .filter((g) => gruppen[g.schluessel].zeilen.length)
+    .filter((g) => gruppen[g.schluessel].konto_ids.length)
     .map((g) => `
         <section class="panel panel-pad">
           <h2 class="section-title">${escapeHtml(t(g.titelKey))}</h2>
           <div class="table-wrap">
             <table class="account-table">
               <colgroup><col class="col-logo"><col class="col-konto"><col class="col-referenz"><col class="col-inhaber"><col class="col-typ"><col class="col-wert"><col class="col-stand"></colgroup>
-              ${accountTableHead(false)}${accountGroupBody(gruppen[g.schluessel], { rowAction, summeKey: g.summeKey, markNotIncluded: g.markNotIncluded })}
+              ${accountTableHead(false)}${accountGroupBody(gruppen[g.schluessel], kontenModell, { rowAction, summeKey: g.summeKey, markNotIncluded: g.markNotIncluded })}
             </table>
           </div>
         </section>`)
     .join("");
 }
 
-export function renderAccountRows(accounts, { showId = false, rowAction = "account-transactions", markNotIncluded = false } = {}) {
+export function renderAccountRows(accounts, kontenModell, { showId = false, rowAction = "account-transactions", markNotIncluded = false } = {}) {
   return accounts
     .map((konto) => {
       const isDepot = konto.kontotyp === "depot";
-      const zeile = overviewAccountRow(konto);
+      // Fehlt das Konto in der Antwort (sie ist noch die des vorigen Stands), ohne Wert.
+      const zeile = kontenModell.konten[konto.konto_id]?.zeile ?? { wert_cents: null, basis: "" };
       const hatWert = zeile.wert_cents !== null;
       const balanceCell = hatWert
         ? escapeHtml(formatMoney(zeile.wert_cents))

@@ -6,13 +6,29 @@ import { data, state, t, escapeHtml, cents, kontenById, personenById } from "../
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie, kennzahlKachel, kachelZeile, zeitverlaufKlein } from "../komponenten.mjs";
 import { donutDiagramm } from "../charts.mjs";
-import { computeNettovermoegen, computeVermoegenChecks, aktuellerZeitwert, anteilWertCents, nettovermoegenVerlauf, restschuldJahre } from "../vermoegen.mjs";
-import { immobilienKennzahlen, kontoSaldoVerlauf } from "../vermoegen-details.mjs";
+import { aktuellerZeitwert, anteilWertCents, restschuldJahre } from "../vermoegen.mjs";
+import { immobilienKennzahlen } from "../vermoegen-details.mjs";
 import { VERMOEGEN_TABS, TAB_FUER_KLASSE } from "../vermoegen-routen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { renderImmobilienTab, renderDarlehenTab } from "./vermoegen-objekte.mjs";
 import { balkenSvg, dokumenteHtml, geld, qualitaetChip, rateJeMonatCents, renderPositionWertstaende, tf } from "./vermoegen-teile.mjs";
 import { renderWertstaendeTabelle } from "./vermoegen-wertstaende.mjs";
+import { kontenAntwort } from "./konten-daten.mjs";
+import { erstelleApiCache } from "../api-daten.mjs";
+
+// Was Buchungen braucht (Nettovermoegen, offene Punkte, Verlauf, Monate und
+// Investitionen der Immobilien), rechnet der App-Server (GET /api/v1/vermoegen,
+// app/vermoegen-modell.mjs), die Werte der Konten GET /api/v1/konten. Darlehen,
+// Kennzahlen einer Immobilie und Wertstaende rechnet weiter der Browser aus
+// Stammdaten und Zeitwerten.
+const cache = erstelleApiCache({ maxEintraege: 4 });
+
+function vermoegenAntwort(heute) {
+  const suche = new URLSearchParams();
+  if (state.dataMode === "demo") suche.set("quelle", "demo");
+  suche.set("heute", heute);
+  return cache.hole(`./api/v1/vermoegen?${suche}`);
+}
 
 const KLASSEN = ["konto", "immobilie", "darlehen", "vermoegenswert", "vorsorge"];
 
@@ -49,17 +65,27 @@ function aktiverTab() {
 
 export function renderVermoegen() {
   const today = localTodayIso();
-  const r = computeNettovermoegen(data, today);
-  const checks = computeVermoegenChecks(data, today);
+  const vm = vermoegenAntwort(today);
+  const km = kontenAntwort(today);
+  if (!vm.antwort || !km.antwort) {
+    const fehler = vm.fehler ?? km.fehler;
+    return `
+    ${renderPageHead(t("vermoegen.title"), t("vermoegen.lead"))}
+    <section class="panel panel-pad"><p class="muted" role="status">${escapeHtml(fehler ? `${t("vermoegen.loadFailed")} (${fehler.message})` : t("vermoegen.loading"))}</p></section>`;
+  }
+  const modell = vm.antwort;
+  const konten = km.antwort;
+  const r = modell.netto;
+  const checks = modell.checks;
   const je = klassenUebersicht(r, checks);
   const tab = aktiverTab();
 
   let inhalt;
-  if (tab === "konten") inhalt = renderKontenTab(r, today);
-  else if (tab === "immobilien") inhalt = renderImmobilienTab(today);
+  if (tab === "konten") inhalt = renderKontenTab(r, today, konten);
+  else if (tab === "immobilien") inhalt = renderImmobilienTab(today, modell);
   else if (tab === "darlehen") inhalt = renderDarlehenTab(today);
   else if (tab === "sonstige") inhalt = renderSonstigeTab(r, today);
-  else inhalt = renderUebersichtTab(r, je, today, checks);
+  else inhalt = renderUebersichtTab(r, je, today, checks, modell);
 
   return `
     ${renderPageHead(t("vermoegen.title"), t("vermoegen.lead"))}
@@ -133,10 +159,10 @@ const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" 
 const positionLink = (klasse, id, name) => `<button class="linkish" data-action="select-vermoegen" data-vermoegen="${escapeHtml(`${klasse}:${id}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
 const KONTOTYPEN = ["giro", "tagesgeld", "spar", "festgeld", "kreditkarte", "depot"];
 
-function renderUebersichtTab(r, je, today, checks) {
+function renderUebersichtTab(r, je, today, checks, modell) {
   return `
     <div class="kachel-paare kachel-paare-oben">
-      ${nettoKachel(r, je, today)}
+      ${nettoKachel(r, je, modell.verlauf)}
       ${restschuldKachel(r, today)}
     </div>
     <div class="kachel-paare">
@@ -147,7 +173,7 @@ function renderUebersichtTab(r, je, today, checks) {
     ${renderWertstaendeTabelle()}`;
 }
 
-function nettoKachel(r, je, today) {
+function nettoKachel(r, je, verlauf) {
   const aktiva = Math.max(r.aktiva_cents, 1);
   const segmente = ["konto", "immobilie", "vermoegenswert", "vorsorge"]
     .map((k) => ({ anteil: je[k].summe / aktiva, klasse: `segment-${k}`, titel: `${t(`vermoegen.klassePlural.${k}`)}: ${formatMoney(je[k].summe)}` }));
@@ -155,7 +181,6 @@ function nettoKachel(r, je, today) {
     .filter((k) => je[k].summe !== 0)
     .map((k) => `<span><i class="segment-${k}"></i>${escapeHtml(t(`vermoegen.klassePlural.${k}`))} ${escapeHtml(geldOhneCent(je[k].summe))}</span>`)
     .join("");
-  const verlauf = nettovermoegenVerlauf(data, today);
   // Veraenderung gegen den Stand vor zwoelf Monaten (oder den aeltesten).
   const vorher = verlauf.length > 1 ? verlauf[Math.max(0, verlauf.length - 13)] : null;
   const diff = vorher ? r.netto_cents - vorher.netto_cents : 0;
@@ -281,15 +306,14 @@ function renderOffenePunkte(checks) {
 
 // ------------------------------------------------------------- Konten & Depots
 
-function renderKontenTab(r, today) {
+function renderKontenTab(r, today, konten) {
   const p = ausgewaehltePosition(r, "konto");
-  const inhalt = `<div class="stack">${renderAccountPanels({ rowAction: "select-vermoegen-konto" })}</div>`;
+  const inhalt = `<div class="stack">${renderAccountPanels(konten, { rowAction: "select-vermoegen-konto" })}</div>`;
   if (!p) return inhalt;
-  const konto = kontenById.get(p.id);
-  const verlauf = konto ? kontoSaldoVerlauf(data, konto, today) : [];
-  const linie = saldoLinie(verlauf.map((pt) => ({ wert: pt.wert_cents })), t("vermoegen.konto.saldoVerlauf"));
+  const verlauf = konten.konten[p.id]?.saldo_verlauf ?? [];
+  const linie = saldoLinie(verlauf.map((wert) => ({ wert })), t("vermoegen.konto.saldoVerlauf"));
   const rail = `
-    ${renderVermoegenDetail(p, today)}
+    ${renderVermoegenDetail(p, today, konten)}
     ${linie ? detailRow(t("vermoegen.konto.saldoVerlauf"), linie) : ""}
     <div class="detail-section">
       <button class="linkish" data-action="account-transactions" data-account="${escapeHtml(p.id)}">${escapeHtml(t("vermoegen.konto.buchungen"))}</button>
@@ -350,8 +374,9 @@ function anteileHtml(eigentumsanteile, marktwertCents) {
   }).join("");
 }
 
-// Auch von den Stammdaten (Konto-Rail) genutzt.
-export function renderVermoegenDetail(p, today) {
+// Auch von den Stammdaten (Konto-Rail) genutzt. konten: Antwort von
+// GET /api/v1/konten (Buchungen seit dem Anker einer Kontoposition).
+export function renderVermoegenDetail(p, today, konten) {
   const head = `
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t(`vermoegen.klasse.${p.klasse}`))}</div>
@@ -364,12 +389,7 @@ export function renderVermoegenDetail(p, today) {
     const zw = aktuellerZeitwert(data.zeitwerte, "konto", p.id, istDepot ? "depotwert" : "kontostand");
     let buchungenHtml = "";
     if (!istDepot && zw) {
-      let summe = 0;
-      for (const tx of data.transaktionen ?? []) {
-        if (tx.konto_id !== p.id || tx.buchungsdatum <= zw.standdatum || tx.buchungsdatum > today) continue;
-        summe += cents(tx.betrag);
-      }
-      buchungenHtml = detailRow(t("vermoegen.buchungenSeitAnker"), escapeHtml(formatMoney(summe)));
+      buchungenHtml = detailRow(t("vermoegen.buchungenSeitAnker"), escapeHtml(formatMoney(konten.konten[p.id]?.seit_anker_cents ?? 0)));
     }
     return head
       + detailRow(t("labels.owner"), escapeHtml(accountOwnerNames(konto || {})))

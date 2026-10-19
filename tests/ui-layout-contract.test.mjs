@@ -144,8 +144,9 @@ test("work status offers an explicit data reload action", () => {
 });
 
 test("next action copies an agent prompt instead of duplicating open-category navigation", () => {
-  assert.match(main, /from "\.\/next-action\.mjs"/);
-  assert.match(main, /buildNextAgentActions\(data\)/);
+  // Die Aktionen rechnet der Server (kopfleiste.mjs ueber next-action.mjs).
+  assert.match(main, /buildNextAgentActions\(daten\)/);
+  assert.match(main, /kopfleisteAntwort\(\)\?\.aktionen/);
   assert.match(main, /data-action="copy-next-agent-prompt"/);
   assert.match(main, /copyNextAgentPrompt\(element\.dataset\.nextActionType\)/);
   assert.match(main, /nextActionCopiedTimer/);
@@ -175,7 +176,7 @@ test("disabled next-action copy buttons do not look interactive", () => {
 
 test("open-category chip remains the navigation entry for open transactions", () => {
   assert.match(main, /data-action="filter-open-category"/);
-  assert.match(main, /const openCategories = openCategoryTransactions\(\)\.length/);
+  assert.match(main, /const openCategories = kopf\?\.offene_kategorien \?\? 0/);
   assert.match(main, /openCategories > 0 \?[^\n]*chrome\.categoryOpen/);
 });
 

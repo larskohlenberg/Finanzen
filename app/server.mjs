@@ -700,7 +700,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       return bestandUnlesbar(res, name, quelle, fehler);
     }
     try {
-      return sendeJson(res, 200, leseAnsicht(name, bestand, new URLSearchParams(req.url.split("?")[1] ?? "")));
+      return sendeJson(res, 200, leseAnsicht(name, bestand, new URLSearchParams(req.url.split("?")[1] ?? ""), { quelle }));
     } catch (fehler) {
       if (fehler instanceof AnfrageFehler) return abgelehnt(res, 400, `parameter: ${fehler.message}`);
       throw fehler;

@@ -43,9 +43,11 @@ export function bestandAntwort(pfad, { ersetze = {}, stand = TEST_STAND, daten =
   if (rein.startsWith("api/v1/")) {
     const quelle = daten ?? snapshotFuerTest({ ersetze, stand }).daten;
     const merkliste = new Map();
-    const bestand = { stand, daten: quelle, merke: (k, f) => (merkliste.has(k) ? merkliste.get(k) : merkliste.set(k, f()).get(k)) };
+    const validierung = daten?.validation ?? snapshotFuerTest({ ersetze, stand }).validierung;
+    const bestand = { stand, daten: quelle, validierung, merke: (k, f) => (merkliste.has(k) ? merkliste.get(k) : merkliste.set(k, f()).get(k)) };
     try {
-      const ergebnis = leseAnsicht(rein.slice("api/v1/".length), bestand, new URLSearchParams(text.split("?")[1] ?? ""));
+      const suche = new URLSearchParams(text.split("?")[1] ?? "");
+      const ergebnis = leseAnsicht(rein.slice("api/v1/".length), bestand, suche, { quelle: suche.get("quelle") === "demo" ? "demo" : "live" });
       return ergebnis ? antwort(200, ergebnis) : antwort(404, { grund: "nicht-gefunden" });
     } catch (fehler) {
       return antwort(400, { grund: `parameter: ${fehler.message}` });

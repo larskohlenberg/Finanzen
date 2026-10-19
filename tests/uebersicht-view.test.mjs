@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -23,6 +26,16 @@ const runtime = await import("../app/runtime.mjs");
 const overviewView = await import("../app/views/uebersicht.mjs");
 const { data, state } = runtime;
 const { renderOverview } = overviewView;
+appDaten = data;
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Die Kennzahlen kommen vom Server (GET /api/v1/uebersicht): Bestand geaendert
+// -> Antworten verwerfen, zeichnen, auf die Antwort warten, erneut zeichnen.
+async function gerenderteUebersicht() {
+  verwerfeApiCaches();
+  renderOverview();
+  await apiAbwarten();
+  return renderOverview();
+}
 const { renderMasterdata } = await import("../app/views/stammdaten.mjs");
 const { renderAccountPanels } = await import("../app/komponenten.mjs");
 
@@ -54,7 +67,7 @@ test("Termin-Kachel listet jährliche Zahlungen der nächsten zwölf Monate mit 
   state.view = "overview";
   state.lang = "de";
 
-  const html = renderOverview();
+  const html = (await gerenderteUebersicht());
   const kachel = html.match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
 
   assert.doesNotMatch(html, /Checks im Blick/);
@@ -75,12 +88,12 @@ test("Termin-Kachel listet jährliche Zahlungen der nächsten zwölf Monate mit 
   assert.equal((kachel.match(/class="terminleiste-marker kreis zahlung"/g) ?? []).length, 3);
 
   data.regelzahlungen = [];
-  const leer = renderOverview().match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
+  const leer = (await gerenderteUebersicht()).match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.match(leer, /Keine jährliche Zahlung in den nächsten zwölf Monaten/);
   assert.doesNotMatch(leer, /terminleiste/);
 });
 
-test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nicht belegt'-Texte", (t) => {
+test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nicht belegt'-Texte", async (t) => {
   // Feste Uhr: der Depotstand vom 15.9.2026 darf nicht mit dem echten Datum altern.
   state.heute = "2026-10-19";
   t.after(() => { delete state.heute; });
@@ -153,7 +166,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.doesNotMatch(html, /class="group-row"/);
 
   // Die Uebersicht zeigt keine Kontentabellen mehr, sondern Bereichskacheln.
-  const uebersicht = renderOverview();
+  const uebersicht = (await gerenderteUebersicht());
   const bereich = (id) => uebersicht.match(new RegExp(`<section class="panel panel-pad uebersicht-kachel[^"]*" aria-labelledby="kachel-${id}">[\\s\\S]*?</section>`))?.[0] ?? "";
   assert.doesNotMatch(uebersicht, /account-table|hero-kpi|Nächste Aktion|copy-next-agent-prompt/);
   assert.match(bereich("liquiditaet"), /data-view="liquiditaet"[\s\S]*Liquidität/);
@@ -209,7 +222,7 @@ test("Termin-Kachel zeigt Fristen mit Spur, Objekt-Link und Hinweis auf bald und
   state.view = "overview";
   state.lang = "de";
 
-  const kachel = renderOverview().match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
+  const kachel = (await gerenderteUebersicht()).match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
   // Der Spaltentitel fuehrt auf den Fristen-Reiter der Seite Termine.
   const spalte = kachel.match(/<h3 class="termine-titel"><button class="linkish" data-action="termine-tab" data-tab="fristen">Fristen<\/button><\/h3>[\s\S]*?<\/ul>/)?.[0] ?? "";
   assert.match(kachel, />Fristen<\/text>/);
@@ -222,15 +235,15 @@ test("Termin-Kachel zeigt Fristen mit Spur, Objekt-Link und Hinweis auf bald und
   assert.ok(spalte.indexOf("Alte Frist") < spalte.indexOf("Dynamik widersprechen"), "nach Datum sortiert");
 
   // Darunter die zwei Kacheln Absicherung.
-  assert.match(renderOverview(), /uebersicht-termine[\s\S]*<div class="absicherung-kacheln">\s*<section class="panel panel-pad absicherung-kachel"/);
+  assert.match((await gerenderteUebersicht()), /uebersicht-termine[\s\S]*<div class="absicherung-kacheln">\s*<section class="panel panel-pad absicherung-kachel"/);
 
   data.fristen = [];
   data.darlehen = [];
-  const leer = renderOverview().match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
+  const leer = (await gerenderteUebersicht()).match(/<section class="panel panel-pad uebersicht-termine"[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.match(leer, /Keine Frist in den nächsten zwölf Monaten/);
 });
 
-test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt Rente und Einmalzahlungen", () => {
+test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt Rente und Einmalzahlungen", async () => {
   data.validation = { valid: true, errors: [] };
   data.importfehler = [];
   data.checks = [];
@@ -256,7 +269,7 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   state.view = "overview";
   state.lang = "de";
 
-  const html = renderOverview();
+  const html = (await gerenderteUebersicht());
   const teil = (titel) => html.match(new RegExp(`<h3 class="vermoegen-teil-titel">${titel}</h3>[\\s\\S]*?</ul>`))?.[0] ?? "";
   assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?<div class="kpi-value">251\.000,00\s€/);
   assert.match(teil("Schnell verfügbar"), /vermoegen-teil-wert">1\.000,00\s€[\s\S]*Konten/);
@@ -307,7 +320,7 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   state.view = "overview";
   state.lang = "de";
 
-  const html = renderOverview();
+  const html = (await gerenderteUebersicht());
   const kachel = (id) => html.match(new RegExp(`<section class="panel panel-pad uebersicht-flach-kachel" aria-labelledby="kachel-${id}">[\\s\\S]*?</section>`))?.[0] ?? "";
   assert.ok(html.indexOf("uebersicht-flach") < html.indexOf("uebersicht-kacheln"), "ganz oben");
   assert.match(kachel("einnahmen"), /Monatliche Einnahmen[\s\S]*<div class="kpi-value">3\.000\s€ <span class="betrag-einheit">/);
@@ -326,21 +339,21 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   assert.doesNotMatch(kachel("sparquote"), /flach-fuss/);
 
   data.transaktionen = [];
-  assert.doesNotMatch(renderOverview(), /uebersicht-flach/);
+  assert.doesNotMatch((await gerenderteUebersicht()), /uebersicht-flach/);
 });
 
-test("Termine: Eintraege einzeilig, voller Text im Tooltip", () => {
+test("Termine: Eintraege einzeilig, voller Text im Tooltip", async () => {
   data.validation = { valid: true, errors: [] };
   data.vorsorge = [{ vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag mit langem Namen", person_id: "PER-001", status: "aktiv" }];
   data.fristen = [{ frist_id: "FR-901", bezeichnung: "Dynamik widersprechen", art: "widerspruch", datum: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), vorsorge_id: "VS-901" }];
   state.view = "overview";
   state.lang = "de";
-  const html = renderOverview();
+  const html = (await gerenderteUebersicht());
   const termine = html.match(/aria-labelledby="kachel-termine">[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.match(termine, /<span class="termine-text" title="Dynamik widersprechen · Testvertrag mit langem Namen"><span>Dynamik widersprechen<\/span><span class="muted"><button/);
 });
 
-test("Testuhr: Depotstand gilt genau drei Monate nach dem Stand als veraltet (davor, am Tag, danach)", (t) => {
+test("Testuhr: Depotstand gilt genau drei Monate nach dem Stand als veraltet (davor, am Tag, danach)", async (t) => {
   t.after(() => { delete state.heute; });
   data.validation = { valid: true, errors: [] };
   data.importfehler = [];

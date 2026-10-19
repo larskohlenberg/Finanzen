@@ -1,6 +1,5 @@
 import { defaultHorizonEnd } from "./liquiditaet.mjs";
 import { iconSvg } from "./icons.js";
-import { buildNextAgentActions } from "./next-action.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { hashNachModuswechsel } from "./demo-modus.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
@@ -16,7 +15,6 @@ import { renderPlanIst } from "./views/plan-ist.mjs";
 import { renderTermine } from "./views/termine.mjs";
 import { renderOverview } from "./views/uebersicht.mjs";
 import { renderMasterdata } from "./views/stammdaten.mjs";
-import { offeneChecksAnzahl } from "./views/checks.mjs";
 import { renderUpload, dateienEinreihen, ladeInbox, inboxBeiBedarfLaden } from "./views/upload.mjs";
 import {
   renderBelege, belegeBeiBedarfLaden, ladeBelege, belegDateienStand, setBelegeSuche, setBelegeZwillinge,
@@ -29,7 +27,7 @@ import {
 import { ladeSnapshot, ladeStand } from "./data-loader.mjs";
 import { erstelleStandWaechter } from "./stand-wechsel.mjs";
 import { formatMoney, heuteIso, toggleKlappKachel, oeffneKlappKachel } from "./komponenten.mjs";
-import { openCategoryTransactions } from "./selektoren.mjs";
+import { kopfleisteAntwort } from "./views/kopfleiste-daten.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
 import { bindDiagrammHover, termineListenBegrenzen } from "./diagramm-hover.mjs";
 import { anwendenBaumBreite, bindBelegeTrenner } from "./belege-trenner.mjs";
@@ -294,7 +292,10 @@ function renderTabbar() {
 
 function renderTopbar() {
   const demoActive = state.dataMode === "demo";
-  const openCategories = openCategoryTransactions().length;
+  // Zaehler und naechste Aktion rechnet der Server (GET /api/v1/kopfleiste).
+  const kopf = kopfleisteAntwort();
+  const openCategories = kopf?.offene_kategorien ?? 0;
+  const offeneChecks = kopf?.offene_checks ?? 0;
   return `
     <header class="topbar">
       <div class="work-status" role="group" aria-label="${escapeHtml(t("chrome.workStatus"))}">
@@ -304,9 +305,9 @@ function renderTopbar() {
           : `<button class="chip danger linkish" data-action="show-validation" title="${escapeHtml(t("chrome.validationFailedHint"))}">${iconSvg("warning")}${data.validation?.errors.length ?? 0} ${escapeHtml(t("chrome.validationFailed"))}</button>`}
         <button class="chip neutral linkish icon-chip" data-action="reload-data" aria-label="${escapeHtml(t("chrome.reloadData"))}" title="${escapeHtml(t("chrome.reloadData"))}">${iconSvg("regelzahlungen")}</button>
         ${openCategories > 0 ? `<button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategories} ${escapeHtml(t("chrome.categoryOpen"))}</button>` : ""}
-        ${offeneChecksAnzahl() > 0 ? `<button class="chip review linkish" data-action="show-checks">${iconSvg("review")}${offeneChecksAnzahl()} ${escapeHtml(t("chrome.openChecks"))}</button>` : ""}
+        ${offeneChecks > 0 ? `<button class="chip review linkish" data-action="show-checks">${iconSvg("review")}${offeneChecks} ${escapeHtml(t("chrome.openChecks"))}</button>` : ""}
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
-        ${renderNextActionButton()}
+        ${renderNextActionButton(kopf?.aktionen ?? [])}
       </div>
       ${renderSettingsMenu()}
     </header>
@@ -336,8 +337,7 @@ function renderSettingsMenu() {
   `;
 }
 
-function renderNextActionButton() {
-  const nextActionActions = buildNextAgentActions(data);
+function renderNextActionButton(nextActionActions) {
   const nextAction = nextActionActions[0] ?? { type: "none", label: t("chrome.noAgentAction"), prompt: "" };
   const disabled = nextAction.type === "none" ? " disabled" : "";
   const label = state.nextActionCopied ? t("chrome.agentPromptCopied") : t("chrome.copyPromptShort");
@@ -682,7 +682,7 @@ window.addEventListener("resize", () => termineListenBegrenzen(app));
 bindBelegeTrenner(app);
 
 async function copyNextAgentPrompt(type = "") {
-  const nextActionActions = buildNextAgentActions(data);
+  const nextActionActions = kopfleisteAntwort()?.aktionen ?? [];
   const nextAction = nextActionActions.find((candidate) => candidate.type === type) ?? nextActionActions[0];
   if (!nextAction?.prompt) return;
   try {

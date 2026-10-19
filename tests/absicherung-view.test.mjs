@@ -17,6 +17,8 @@ await import("../app/i18n.js");
 
 const { data, state } = await import("../app/runtime.mjs");
 const { renderAbsicherungKacheln } = await import("../app/views/absicherung.mjs");
+// Die Personen rechnet in der Uebersicht der Server (uebersicht-modell.mjs); hier direkt.
+const { absicherung } = await import("../app/absicherung.mjs");
 const { renderVorsorge } = await import("../app/views/vorsorge.mjs");
 
 const HEUTE = "2026-10-17";
@@ -55,7 +57,7 @@ function mitFixture(fn) {
 }
 
 test("Kacheln Absicherung: Personenzeilen sind per Standard zugeklappt", () => mitFixture(() => {
-  const html = renderAbsicherungKacheln(HEUTE);
+  const html = renderAbsicherungKacheln(absicherung(data, HEUTE));
   assert.doesNotMatch(html, /absicherung-posten/);
   assert.match(html, /<h3 class="absicherung-person-titel">\s*<button type="button" class="klapp-knopf absicherung-person-kopf" data-action="klapp-kachel" data-kachel="absicherung\.bu\.PER-001" data-standard="false" aria-expanded="false"><svg[\s\S]*?<span class="absicherung-person-name">Anna Muster<\/span><strong>2\.450,00\s€ je Monat<\/strong><\/button>/);
   assert.match(html, /data-kachel="absicherung\.tod\.PER-001"/);
@@ -65,7 +67,7 @@ test("Kacheln Absicherung: Personenzeilen sind per Standard zugeklappt", () => m
 
 test("Kacheln Absicherung: je eine fuer BU und Tod, darin je Person Summe und Posten mit Link", () => mitFixture(() => {
   state.klappKacheln = { "absicherung.bu.PER-001": true, "absicherung.tod.PER-001": true };
-  const html = renderAbsicherungKacheln(HEUTE);
+  const html = renderAbsicherungKacheln(absicherung(data, HEUTE));
   assert.match(html, /aria-expanded="true"/);
   assert.equal((html.match(/<section class="panel panel-pad absicherung-kachel"/g) ?? []).length, 2);
   const [bu, tod] = html.split('id="absicherung-tod-titel"');
@@ -90,10 +92,10 @@ test("Kacheln Absicherung: je eine fuer BU und Tod, darin je Person Summe und Po
 
 test("Kachel Absicherung: ohne Personen mit Vertrag ein Hinweis, englische Texte", () => mitFixture(() => {
   data.vorsorge = [];
-  assert.equal((renderAbsicherungKacheln(HEUTE).match(/Keine Person mit laufendem Vorsorgevertrag erfasst\./g) ?? []).length, 2);
+  assert.equal((renderAbsicherungKacheln(absicherung(data, HEUTE)).match(/Keine Person mit laufendem Vorsorgevertrag erfasst\./g) ?? []).length, 2);
   state.lang = "en";
   data.vorsorge = [{ vorsorge_id: "VS-002", art: "schutzversicherung", name: "BU Anna", person_id: "PER-001", status: "aktiv", kapitalbildend: false }];
-  const html = renderAbsicherungKacheln(HEUTE);
+  const html = renderAbsicherungKacheln(absicherung(data, HEUTE));
   assert.match(html, />Protection on disability</);
   assert.match(html, />Protection on death</);
   assert.match(html, /Anna Muster<\/h3>\s*<span class="muted">not recorded/);

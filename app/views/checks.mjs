@@ -4,9 +4,10 @@
 import { data, t, escapeHtml, cents, transaktionenById, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, categoryName } from "../komponenten.mjs";
-import { currentVermoegenChecks, overviewAccountGroups } from "../selektoren.mjs";
-import { guardrailWarnungen } from "../szenarien.mjs";
+import { currentVermoegenChecks } from "../selektoren.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
+import { prognoseRealismus as prognoseRealismusAus, transferPruefung } from "../kopfleiste.mjs";
+import { kopfleisteAntwort } from "./kopfleiste-daten.mjs";
 
 // Prognose-Realismus-Guardrails (Cash-Realismus, ungeplante Kategorien): hängen
 // an den Stammdaten, nicht an einem Szenario — deshalb hier zuhause, nicht auf
@@ -43,30 +44,18 @@ export function lesbarerCheckText(text) {
 
 // Dasselbe Fenster wie Plan & Ist: nur Monate, die auf allen Konten gebucht sind.
 function prognoseRealismus() {
-  return guardrailWarnungen(data, localTodayIso(), { vollstaendigBis: overviewAccountGroups().konten.aeltester });
+  return prognoseRealismusAus(data, localTodayIso());
 }
 
 function transferChecks() {
-  return (data.transfers || []).map((transfer) => {
-    const abgang = transaktionenById.get(transfer.abgang_transaktion_id);
-    const zugang = transaktionenById.get(transfer.zugang_transaktion_id);
-    const ok =
-      !!abgang &&
-      !!zugang &&
-      abgang.ist_transfer === true &&
-      zugang.ist_transfer === true &&
-      abgang.transfer_id === transfer.transfer_id &&
-      zugang.transfer_id === transfer.transfer_id;
-    return { transfer_id: transfer.transfer_id, betrag: transfer.betrag, ok };
-  });
+  return transferPruefung(data);
 }
 
 // Zähler für die obere Leiste: was nur hier sichtbar ist. Offene Kategorien und
 // Importfehler haben dort eigene Chips und zählen deshalb nicht mit.
+// Zaehlt der Server (GET /api/v1/kopfleiste); 0, solange die Antwort laedt.
 export function offeneChecksAnzahl() {
-  const datenChecks = data.checks.filter((check) => check.severity === "review" && check.scope !== "transaktion").length;
-  const transfers = transferChecks().filter((tc) => !tc.ok).length;
-  return datenChecks + transfers + currentVermoegenChecks().length + prognoseRealismus().length;
+  return kopfleisteAntwort()?.offene_checks ?? 0;
 }
 
 export function renderChecks() {

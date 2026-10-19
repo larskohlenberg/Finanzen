@@ -7,22 +7,29 @@
 // Termine der nächsten zwölf Monate (Fristen und jährliche Zahlungen) und die
 // Absicherung bei Berufsunfähigkeit und im Todesfall als zwei Kacheln. Konten- und Depottabellen stehen nur noch
 // unter Vermögen, die nächste Aktion im Arbeitsstatus oben.
-import { data, state, t, escapeHtml } from "../runtime.mjs";
+import { state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso } from "../komponenten.mjs";
-import { currentNettovermoegen, overviewAccountGroups, overviewJahreszahlungen } from "../selektoren.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
-import { anstehendeFristen } from "../fristen.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
-import { monatsMittel, verteileRundung } from "../uebersicht-rechnung.mjs";
-import { planIst } from "../plan-ist.mjs";
+import { verteileRundung } from "../uebersicht-rechnung.mjs";
 import { abweichungHtml } from "./plan-ist.mjs";
 import { bezugLink, fristChip, fristKlasse } from "./fristen.mjs";
 import { terminLeiste } from "../charts.mjs";
-import { gesetzlicherRentenbeginn, kapitalLeistungen, rentenStufen, tabFuerVorsorge, vertragsFarben } from "../vorsorge-rechnung.mjs";
 import { balkenSvg, tf } from "./vermoegen-teile.mjs";
+import { erstelleApiCache } from "../api-daten.mjs";
+import { HORIZONT_MONATE } from "../uebersicht-modell.mjs";
 
-const HORIZONT_MONATE = 12;
+// Die Kennzahlen rechnet der App-Server (GET /api/v1/uebersicht, Modell in
+// app/uebersicht-modell.mjs); hier wird nur gezeichnet.
+const cache = erstelleApiCache({ maxEintraege: 4 });
+
+function uebersichtAntwort(heute) {
+  const suche = new URLSearchParams();
+  if (state.dataMode === "demo") suche.set("quelle", "demo");
+  suche.set("heute", heute);
+  return cache.hole(`./api/v1/uebersicht?${suche}`);
+}
 
 const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
 const standText = (datum) => (datum ? `${t("labels.stand")} ${formatDate(datum)}` : t("labels.noStand"));
@@ -135,9 +142,9 @@ function flacheKachel({ id, titel, info = "", wert, notiz, plan = "", teile: roh
     </section>`;
 }
 
-function renderEinnahmenAusgaben(today) {
+function renderEinnahmenAusgaben(modell) {
   // Nur Monate, die auf allen Konten vollstaendig gebucht sind (Stand wie in der Liquiditaet).
-  const mittel = monatsMittel(data, today, { vollstaendigBis: overviewAccountGroups().konten.aeltester });
+  const { mittel, plan } = modell;
   if (!mittel.anzahl_monate) return "";
   const zeitraum = mittel.anzahl_monate === 1 ? formatMonatLang(mittel.monate[0]) : `${formatMonatLang(mittel.monate[0])} – ${formatMonatLang(mittel.monate.at(-1))}`;
   const basisNotiz = `${escapeHtml(tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate }))} · ${escapeHtml(zeitraum)}`;
@@ -145,11 +152,10 @@ function renderEinnahmenAusgaben(today) {
   const { sparen } = mittel;
   // Planzeile: Plan aus den Regelzahlungen im selben Zeitraum, Abweichung
   // gefaerbt; der Link oeffnet Plan & Ist mit den letzten zwoelf Monaten.
-  const plan = planIst(data, mittel.monate);
   const planMittel = (c) => Math.round(c / mittel.anzahl_monate);
   const planLink = (text) => `<button class="linkish" data-action="plan-ist" data-periode="12m">${escapeHtml(text)}</button>`;
   const planZeile = (ist, planCents, mehrIstGut) => `${planLink(tf("planIst.kachelPlan", { betrag: geldOhneCent(planCents) }))} · ${abweichungHtml(ist, planCents, { mehrIstGut })}`;
-  const quotePlan = plan.sparen.plan.quote;
+  const quotePlan = plan.quote;
   const quoteDiff = sparen.quote !== null && quotePlan !== null ? Math.round((sparen.quote - quotePlan) * 100) : null;
   const quoteZeile = quotePlan === null ? "" : `${planLink(tf("planIst.kachelPlan", { betrag: formatProzent(quotePlan) }))}${quoteDiff === null ? "" : ` · <span class="${quoteDiff > 0 ? "abw-gut" : quoteDiff < 0 ? "abw-schlecht" : "abw-neutral"}">${quoteDiff > 0 ? "+" : quoteDiff < 0 ? "−" : "±"}${Math.abs(quoteDiff)} ${escapeHtml(t("planIst.prozentpunkte"))}</span>`}`;
   const zielLinkFuer = (ids) => (ids.length === 1 ? `data-action="kategorie-transactions" data-kategorie="${escapeHtml(ids[0])}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` : "");
@@ -192,8 +198,8 @@ function renderEinnahmenAusgaben(today) {
   });
   return `
     <div class="uebersicht-flach">
-      ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), notiz: basisNotiz, plan: planZeile(mittel.einnahmen.mittel_cents, planMittel(plan.einnahmen.plan_cents), true), teile: kategorieTeile(mittel.einnahmen.kategorien, mittel), summe_cents: mittel.einnahmen.mittel_cents })}
-      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), notiz: basisNotiz, plan: planZeile(mittel.ausgaben.mittel_cents, planMittel(plan.ausgaben.plan_cents), false), teile: kategorieTeile(mittel.ausgaben.kategorien, mittel, TOP_AUSGABEN), summe_cents: mittel.ausgaben.mittel_cents })}
+      ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), notiz: basisNotiz, plan: planZeile(mittel.einnahmen.mittel_cents, planMittel(plan.einnahmen_plan_cents), true), teile: kategorieTeile(mittel.einnahmen.kategorien, mittel), summe_cents: mittel.einnahmen.mittel_cents })}
+      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), notiz: basisNotiz, plan: planZeile(mittel.ausgaben.mittel_cents, planMittel(plan.ausgaben_plan_cents), false), teile: kategorieTeile(mittel.ausgaben.kategorien, mittel, TOP_AUSGABEN), summe_cents: mittel.ausgaben.mittel_cents })}
       ${flacheKachel({
         id: "sparquote",
         titel: t("overview.sparquote"),
@@ -210,10 +216,10 @@ function renderEinnahmenAusgaben(today) {
 // ------------------------------------------------------------- Liquiditaet
 
 // Nur der Ist-Stand je Konto; die Prognose steht auf der Liquiditaetsseite.
-function renderLiquiditaetKachel() {
-  const verfuegbar = overviewAccountGroups().konten;
-  const zeilen = verfuegbar.zeilen.map(({ konto, zeile: z }) => zeile(
-    link(ZIEL.vermoegenTab("konten"), konto.name),
+function renderLiquiditaetKachel(modell) {
+  const verfuegbar = modell.konten;
+  const zeilen = verfuegbar.zeilen.map((z) => zeile(
+    link(ZIEL.vermoegenTab("konten"), z.name),
     z.wert_cents === null ? `<span class="muted">${escapeHtml(t("overview.nichtBelegt"))}</span>` : escapeHtml(formatMoney(z.wert_cents)),
   ));
   return bereichsKachel({
@@ -256,9 +262,9 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null }) {
 
 // Breite Kachel: oben das Nettovermoegen, darunter schnell verfuegbar (Konten,
 // Festgeld, Depots) und langfristig gebunden (Immobilien einzeln, Sachwerte, Vorsorge minus Darlehen).
-function renderVermoegenKachel() {
-  const r = currentNettovermoegen();
-  const kontotyp = new Map(data.konten.map((k) => [k.konto_id, k.kontotyp]));
+function renderVermoegenKachel(modell) {
+  const r = modell.vermoegen;
+  const kontotyp = new Map(Object.entries(r.kontotyp));
   const istDepot = (p) => p.klasse === "konto" && kontotyp.get(p.id) === "depot";
   const istFestgeld = (p) => p.klasse === "konto" && kontotyp.get(p.id) === "festgeld";
   const schnell = (p) => p.klasse === "konto";
@@ -268,12 +274,7 @@ function renderVermoegenKachel() {
   const immobilien = r.positionen.filter((p) => p.klasse === "immobilie").sort((a, b) => b.wert_cents - a.wert_cents)
     .map((imm) => ({ titel: imm.name, filter: (p) => p.klasse === "immobilie" && p.id === imm.id, ziel: ZIEL.vermoegenObjekt("immobilie", imm.id), punkt: "segment-immobilie" }));
   // Rueckkaufswerte fuehren in den Vorsorge-Reiter, der den groessten Teil davon haelt.
-  const jeTab = new Map();
-  for (const p of r.positionen.filter((p) => p.klasse === "vorsorge")) {
-    const tab = tabFuerVorsorge((data.vorsorge ?? []).find((vs) => vs.vorsorge_id === p.id));
-    jeTab.set(tab, (jeTab.get(tab) ?? 0) + p.wert_cents);
-  }
-  const rueckkaufTab = [...jeTab].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "lebensversicherungen";
+  const rueckkaufTab = r.rueckkauf_tab;
   const stand = r.positionen.map((p) => p.standdatum).filter(Boolean).sort()[0] ?? "";
   return `
     <section class="panel panel-pad uebersicht-kachel uebersicht-kachel-breit" aria-labelledby="kachel-vermoegen">
@@ -311,17 +312,15 @@ function renderVermoegenKachel() {
 
 // Zwei gleich grosse Werte: die monatliche Rente und die faelligen Einmalzahlungen.
 // Beitraege und offene Punkte stehen auf der Vorsorgeseite.
-function renderVorsorgeKachel(today) {
-  const { renten, stufen, gesamt_cents: gesamt } = rentenStufen(data);
-  const farben = vertragsFarben(data);
-  const farbKlasse = (id) => (farben.has(id) ? `vertrag-farbe-${farben.get(id)}` : "vertrag-farbe-rest");
-  const gesetzlich = gesetzlicherRentenbeginn(data);
+function renderVorsorgeKachel(modell) {
+  const { renten, stufen, gesamt_cents: gesamt, farben, gesetzlich } = modell.vorsorge;
+  const farbKlasse = (id) => (Object.hasOwn(farben, id) ? `vertrag-farbe-${farben[id]}` : "vertrag-farbe-rest");
   const abGesetzlich = stufen.find((s) => s.datum === gesetzlich);
   const notizen = [];
   if (abGesetzlich && abGesetzlich !== stufen.at(-1)) notizen.push(tf("vorsorge.kopf.abDatum", { datum: formatDate(abGesetzlich.datum), betrag: geldOhneCent(abGesetzlich.summe_cents) }));
   if (stufen.length) notizen.push(tf("vorsorge.kopf.vollAb", { datum: formatDate(stufen.at(-1).datum) }));
   const sortiert = [...renten].sort((a, b) => b.wert_cents - a.wert_cents);
-  const segmente = sortiert.map((l) => ({ anteil: l.wert_cents / Math.max(gesamt, 1), klasse: farbKlasse(l.vorsorge.vorsorge_id), titel: `${l.vorsorge.name}: ${formatMoney(l.wert_cents)}` }));
+  const segmente = sortiert.map((l) => ({ anteil: l.wert_cents / Math.max(gesamt, 1), klasse: farbKlasse(l.vorsorge_id), titel: `${l.name}: ${formatMoney(l.wert_cents)}` }));
 
   // Faellig ist nur, was ein Datum hat; bedingte (z. B. Todesfallsumme) und
   // undatierte Leistungen nennt die Notiz, ohne sie einzurechnen. Gleiche Rechnung
@@ -329,17 +328,17 @@ function renderVorsorgeKachel(today) {
   // (Ablaufleistung laut Vertrag/Standmitteilung), deshalb hoeher als der Rueckkaufswert;
   // fondsgebundene Lebensversicherungen ohne Garantie zaehlen mit dem Rueckkaufswert
   // von heute und sind als "Stand heute" markiert.
-  const gruppen = kapitalLeistungen(data, today);
+  const gruppen = modell.vorsorge.kapital;
   const kapital = gruppen.terminiert;
   const kapitalJahre = gruppen.jahre;
   const kapitalSumme = gruppen.terminiert_cents;
-  const nichtFaellig = gruppen.bedingt_cents + gruppen.undatiert_cents;
+  const nichtFaellig = gruppen.nicht_faellig_cents;
   const kapitalSegmente = [...kapital].sort((a, b) => b.wert_cents - a.wert_cents)
-    .map((l) => ({ anteil: l.wert_cents / Math.max(kapitalSumme, 1), klasse: farbKlasse(l.vorsorge.vorsorge_id), titel: `${l.vorsorge.name}: ${formatMoney(l.wert_cents)}` }));
+    .map((l) => ({ anteil: l.wert_cents / Math.max(kapitalSumme, 1), klasse: farbKlasse(l.vorsorge_id), titel: `${l.name}: ${formatMoney(l.wert_cents)}` }));
   const kapitalZeilen = kapital.map((l) => zeile(
-    `<button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(l.vorsorge.vorsorge_id)}">${escapeHtml(l.vorsorge.name)}</button>`,
+    `<button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(l.vorsorge_id)}">${escapeHtml(l.name)}</button>`,
     escapeHtml(geldOhneCent(l.wert_cents)),
-    { zusatz: [formatDate(l.beginn), l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), punkt: farbKlasse(l.vorsorge.vorsorge_id) },
+    { zusatz: [formatDate(l.beginn), l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), punkt: farbKlasse(l.vorsorge_id) },
   ));
   const einmal = kapital.length ? `
       <div class="uebersicht-zweitwert">
@@ -363,10 +362,6 @@ function renderVorsorgeKachel(today) {
 }
 
 // ------------------------------------------------------------- Termine
-
-function kontoName(kontoId) {
-  return data.konten.find((k) => k.konto_id === kontoId)?.name ?? kontoId;
-}
 
 // Ein Klick fuehrt zum Vertrag (Vorsorgeobjekt), sonst zur Regelzahlung.
 function zielLink(rz) {
@@ -393,19 +388,20 @@ function terminSpalte(titel, ziel, zeilen, leer) {
         </div>`;
 }
 
-function renderTermineKachel(today) {
-  const fristen = anstehendeFristen(data, today, HORIZONT_MONATE);
+function renderTermineKachel(modell) {
+  const today = modell.heute;
+  const { fristen } = modell;
   const fristZeilen = fristen.map((f) => `
             <li class="${fristKlasse(f)}" data-datum="${escapeHtml(f.datum)}">
               <span class="termine-datum">${escapeHtml(formatDate(f.datum))}</span>
               ${terminText([`<span>${escapeHtml(f.bezeichnung)}</span>`, ...(f.bezug ? [bezugLink(f.bezug)] : [])])}
               <span class="amount">${fristChip(f, today)}</span>
             </li>`);
-  const zahlungen = overviewJahreszahlungen(HORIZONT_MONATE);
-  const zahlungZeilen = zahlungen.map(({ datum, regelzahlung: rz }) => `
+  const zahlungen = modell.zahlungen;
+  const zahlungZeilen = zahlungen.map(({ datum, regelzahlung: rz, konto_name: kontoName }) => `
             <li data-datum="${escapeHtml(datum)}">
               <span class="termine-datum">${escapeHtml(formatDate(datum))}</span>
-              ${terminText([zielLink(rz), escapeHtml(rz.konto_id ? t("overview.jahreszahlungenKonto").replace("{konto}", kontoName(rz.konto_id)) : t("overview.jahreszahlungenOhneKonto"))])}
+              ${terminText([zielLink(rz), escapeHtml(rz.konto_id ? t("overview.jahreszahlungenKonto").replace("{konto}", kontoName) : t("overview.jahreszahlungenOhneKonto"))])}
               <span class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</span>
             </li>`);
   const leiste = terminLeiste({
@@ -432,16 +428,21 @@ function renderTermineKachel(today) {
 }
 
 export function renderOverview() {
-  const today = heuteIso();
+  const { antwort: modell, fehler } = uebersichtAntwort(heuteIso());
+  if (!modell) {
+    return `
+    ${renderPageHead(t("overview.title"), "")}
+    <section class="panel panel-pad"><p class="muted" role="status">${escapeHtml(fehler ? `${t("overview.loadFailed")} (${fehler.message})` : t("overview.loading"))}</p></section>`;
+  }
   return `
     ${renderPageHead(t("overview.title"), "")}
-    ${renderEinnahmenAusgaben(today)}
+    ${renderEinnahmenAusgaben(modell)}
     <div class="uebersicht-kacheln">
-      ${renderLiquiditaetKachel()}
-      ${renderVermoegenKachel()}
-      ${renderVorsorgeKachel(today)}
+      ${renderLiquiditaetKachel(modell)}
+      ${renderVermoegenKachel(modell)}
+      ${renderVorsorgeKachel(modell)}
     </div>
-    ${renderTermineKachel(today)}
-    ${renderAbsicherungKacheln(today)}
+    ${renderTermineKachel(modell)}
+    ${renderAbsicherungKacheln(modell.absicherung)}
   `;
 }

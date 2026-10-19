@@ -48,8 +48,9 @@ test("every app skill points to the app agent context", () => {
 
 // Einmal-Migrationen haben zwar eine CLI, sollen aber von einem Agenten gerade
 // NICHT von sich aus aufgerufen werden — sie stehen darum bewusst nicht im
-// Betriebskontext.
-const nichtFuerAgenten = new Set(["migrate-ids-uuid.mjs"]);
+// Betriebskontext. Der PII-Scan gehoert zur Arbeit am Code, nicht an den Daten;
+// er steht in AGENTS.md.
+const nichtFuerAgenten = new Set(["migrate-ids-uuid.mjs", "pii-scan.mjs"]);
 
 test("every tool with a CLI entry point is listed in the agent context", () => {
   // Wer eine CLI hat, ist agentenbedienbar — dann muss der Agent das Tool auch

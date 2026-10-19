@@ -57,3 +57,44 @@ test("andere Bestandsdateien bleiben per Datei-Edit schreibbar", async () => {
     await s.beenden();
   }
 });
+
+test("Sperre greift auch bei anderer Schreibweise und fuer Hardlinks", async () => {
+  const { linkSync } = await import("node:fs");
+  linkSync(join(abzug.master, "agent_log.jsonl"), join(abzug.master, "protokoll-kopie.jsonl"));
+  const s = starteServer(abzug, "schreiben");
+  try {
+    for (const pfad of ["data/master/AGENT_LOG.jsonl", "data/master/Transaktionen.JSONL", "data/master/protokoll-kopie.jsonl"]) {
+      const r = await s.werkzeug("datei_schreiben", { pfad, inhalt: "{}", anhaengen: true, schreiben: true });
+      assert.equal(r.isError, true, `${pfad}: ${r.text}`);
+    }
+  } finally {
+    await s.beenden();
+  }
+});
+
+test("beleg_verwerfen mit ersetzt_durch stellt Verweise um und verschiebt die Doublette", async () => {
+  const { mkdirSync, writeFileSync, existsSync } = await import("node:fs");
+  const ordner = join(abzug.app, "Belege", "Konten", "Test");
+  mkdirSync(ordner, { recursive: true });
+  writeFileSync(join(ordner, "original.pdf"), "%PDF-1.4 a");
+  writeFileSync(join(ordner, "doppelt.pdf"), "%PDF-1.4 a");
+  // Verweis ueber eine Frist-Bemerkung, die den Beleg nennt.
+  const fristen = join(abzug.master, "fristen.json");
+  const fristenVorher = readFileSync(fristen, "utf8");
+  const liste = JSON.parse(fristenVorher);
+  liste[0] = { ...liste[0], bemerkung: "Beleg: Belege/Konten/Test/doppelt.pdf" };
+  writeFileSync(fristen, JSON.stringify(liste, null, 2) + "\n");
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const ohne = await s.werkzeug("beleg_verwerfen", { pfad: "Belege/Konten/Test/doppelt.pdf", schreiben: true });
+    assert.equal(ohne.isError, true);
+    assert.match(ohne.text, /ersetzt_durch/);
+    const mit = await s.werkzeug("beleg_verwerfen", { pfad: "Belege/Konten/Test/doppelt.pdf", ersetzt_durch: "Belege/Konten/Test/original.pdf", schreiben: true });
+    assert.ok(!mit.isError, mit.text);
+    assert.match(readFileSync(fristen, "utf8"), /Belege\/Konten\/Test\/original\.pdf/);
+    assert.equal(existsSync(join(ordner, "doppelt.pdf")), false);
+  } finally {
+    await s.beenden();
+    writeFileSync(fristen, fristenVorher);
+  }
+});

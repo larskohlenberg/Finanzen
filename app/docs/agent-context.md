@@ -87,7 +87,7 @@ ohne MCP.
 | Beleg wegsortieren | `beleg_ablegen` (`data/inbox/...` nach `Belege/...`, sprechend benannt; nur Bestand `data/master`; Vorschau ist Default) |
 | Sammelscan teilen | `beleg_teilen` (`quelle` unter `data/inbox/`, `teile` als `[{ seiten: "1-4", name }]`; jede Seite genau einem Teil, Teile in die Inbox-Wurzel, Original in den Papierkorb; Vorschau ist Default) |
 | Nachgereichte Seiten einfuegen | `beleg_ergaenzen` (`quelle` PDF unter `data/inbox/` oder schon unter `Belege/`, `ziel` PDF unter `Belege/`, optional `nach_seite`, 0 = vorn, ohne = ans Ende; alte Fassung samt Zwilling und Quelle in den Papierkorb, danach `belege_text`; Vorschau ist Default) |
-| Beleg verwerfen | `beleg_verwerfen` (`pfad` unter `Belege/`, optional `grund`; Beleg samt Zwilling in den Papierkorb, z. B. eine Doublette; abgewiesen, solange Daten auf ihn verweisen; Vorschau ist Default) |
+| Beleg verwerfen | `beleg_verwerfen` (`pfad` unter `Belege/`, optional `grund`; Beleg samt Zwilling in den Papierkorb, z. B. eine Doublette; abgewiesen, solange Daten auf ihn verweisen, ausser mit `ersetzt_durch` = behaltener Beleg, dann werden die Verweise umgestellt; Vorschau ist Default) |
 | Inbox-Datei verwerfen | `inbox_verwerfen` (`pfad` unter `data/inbox/`, optional `grund`; verschiebt in den Papierkorb, z. B. ein erkanntes Duplikat; Vorschau ist Default) |
 | Aus `error/` zurueckholen | `inbox_zurueckholen` (`pfad` unter `data/inbox/error/`; zurueck in die Inbox-Wurzel, bricht bei gleichem Namen ab; Vorschau ist Default) |
 
@@ -1056,5 +1056,5 @@ alte Fassung samt Zwilling und die Inbox-Datei landen im Papierkorb; danach
 eigener Beleg abgelegt, ist sie selbst die `quelle` (Pfad unter `Belege/`): sie
 wandert samt Zwilling in den Papierkorb, und Verweise auf sie in Stamm- und
 Bewegungsdaten zeigen danach auf den ergaenzten Beleg. Eine reine Doublette
-unter `Belege/` nimmt `beleg_verwerfen` heraus; nennen die Daten sie noch, erst
-den Verweis umstellen.
+unter `Belege/` nimmt `beleg_verwerfen` heraus; nennen die Daten sie noch, mit
+`ersetzt_durch` auf den behaltenen Beleg umstellen (im selben Lauf).

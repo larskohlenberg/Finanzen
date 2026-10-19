@@ -862,8 +862,17 @@ async function schreibZiel(ctx, pfad) {
   const ziel = await loesePfad(ctx.app, pfad, bestandWurzeln(ctx).schreiben);
   pruefeEndung(ziel.relativ);
   const bestand = await realpath(ctx.datenroot).catch(() => path.resolve(ctx.datenroot));
-  const imBestand = [path.resolve(ctx.datenroot), bestand].map((w) => path.relative(w, ziel.absolut));
-  const name = imBestand.find((rel) => Object.hasOwn(KERNDATEIEN, rel));
+  // Klein geschrieben verglichen: auf macOS (APFS) ist AGENT_LOG.jsonl dieselbe Datei.
+  const imBestand = [path.resolve(ctx.datenroot), bestand].map((w) => path.relative(w, ziel.absolut).normalize("NFC").toLowerCase());
+  let name = imBestand.find((rel) => Object.hasOwn(KERNDATEIEN, rel));
+  // Dieselbe Datei unter anderem Namen (Hardlink, Alias): ueber Geraet und Inode.
+  const info = name ? null : await stat(ziel.absolut).catch(() => null);
+  if (info) {
+    for (const kern of Object.keys(KERNDATEIEN)) {
+      const k = await stat(path.join(bestand, kern)).catch(() => null);
+      if (k && k.dev === info.dev && k.ino === info.ino) name = kern;
+    }
+  }
   if (name) throw new PfadFehler(`${ziel.relativ} ist fuer Datei-Edits gesperrt. ${KERNDATEIEN[name]}.`);
   return ziel;
 }
@@ -1331,12 +1340,13 @@ const belegErgaenzen = {
 
 const belegVerwerfen = {
   name: "beleg_verwerfen",
-  description: "Abgelegten Beleg unter Belege/ samt .txt-Zwilling in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/Belege/... verschieben, z. B. eine Doublette. Nichts wird geloescht; bei Namenskollision bekommt die Datei ein Suffix (-2, -3 ...). Nennen Stamm- oder Bewegungsdaten den Beleg noch, wird abgewiesen: erst den Verweis umstellen (datei_ersetzen, belege_umziehen). grund wird als notiz in agent_log.jsonl protokolliert. Den Papierkorb leert nur der Nutzer. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
+  description: "Abgelegten Beleg unter Belege/ samt .txt-Zwilling in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/Belege/... verschieben, z. B. eine Doublette. Nichts wird geloescht; bei Namenskollision bekommt die Datei ein Suffix (-2, -3 ...). Nennen Stamm- oder Bewegungsdaten den Beleg noch, wird abgewiesen — ausser mit ersetzt_durch: dann zeigen alle Verweise danach auf diesen behaltenen Beleg (z. B. das Original einer Doublette). grund wird als notiz in agent_log.jsonl protokolliert. Den Papierkorb leert nur der Nutzer. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
   inputSchema: {
     type: "object",
     properties: {
       pfad: { type: "string", description: "z. B. Belege/Vorsorge/VS-001_Muster/2026/2026_Muster_Jahresinformation_Seite-2.pdf" },
       grund: { type: "string", maxLength: 300, description: "Kurz, z. B. \"Doublette, Seite steckt in ..._Jahresinformation.pdf\"" },
+      ersetzt_durch: { type: "string", description: "Behaltener Beleg unter Belege/, auf den die Verweise umgestellt werden" },
       schreiben: SCHREIBEN,
     },
     required: ["pfad"],
@@ -1347,18 +1357,32 @@ const belegVerwerfen = {
     const beleg = await loesePfad(ctx.app, args.pfad, [belegeWurzel(ctx)]);
     if (!(await istDatei(beleg.absolut))) return ergebnis(`${beleg.relativ} ist keine Datei`, true);
     const paare = await planeBelegKorb(ctx, beleg);
-    const verweise = await datenMitVerweis(ctx, paare.map(([q]) => q.relativ));
-    if (verweise.length) {
-      return ergebnis(`${beleg.relativ} wird noch verwiesen — nichts verschoben:\n${verweise.map((v) => `${v.name}: ${v.anzahl}`).join("\n")}`, true);
+    let ersatz = null;
+    if (args.ersetzt_durch !== undefined) {
+      ersatz = await loesePfad(ctx.app, args.ersetzt_durch, [belegeWurzel(ctx)]);
+      if (!(await istDatei(ersatz.absolut))) return ergebnis(`${ersatz.relativ} ist keine Datei`, true);
+      if (ersatz.absolut === beleg.absolut) return ergebnis("ersetzt_durch muss ein anderer Beleg sein", true);
     }
-    const bericht = paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n");
+    const verweise = await datenMitVerweis(ctx, paare.map(([q]) => q.relativ));
+    // Umgestellt wird nur der Beleg selbst; verweist etwas auf seinen Zwilling, bleibt es bei der Abweisung.
+    const umstellen = ersatz ? verweise.map((v) => ({ ...v, ...ersetzeVerweise(v.text, [[beleg.relativ, ersatz.relativ]]) })) : [];
+    const rest = ersatz ? await datenMitVerweis(ctx, paare.slice(1).map(([q]) => q.relativ)) : verweise;
+    if (rest.length) {
+      return ergebnis(`${beleg.relativ} wird noch verwiesen — nichts verschoben:\n${rest.map((v) => `${v.name}: ${v.anzahl}`).join("\n")}${ersatz ? "" : "\nMit ersetzt_durch auf einen behaltenen Beleg umstellen."}`, true);
+    }
+    const bericht = [
+      ...paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`),
+      ...umstellen.map((v) => `${v.name}: ${v.anzahl} Verweis(e) -> ${ersatz.relativ}`),
+    ].join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${bericht}`);
     return mitVerschieben(ctx, async (s) => {
+      for (const v of umstellen) await ersetzeDatei(s.pfad(path.join(ctx.datenroot, v.name)), v.text);
       await inDenPapierkorb(paare, s);
       await protokolliere(s, {
         anlass: "beleg-verwerfen",
         inputs: paare.map(([q]) => q.relativ),
         papierkorb: paare.map(([, z]) => z.relativ),
+        ...(ersatz ? { ersetzt_durch: ersatz.relativ, umgestellt: Object.fromEntries(umstellen.map((v) => [v.name, v.anzahl])) } : {}),
         notiz: args.grund?.trim() || "Beleg verworfen",
       });
       return ergebnis(`Verworfen (Papierkorb):\n${bericht}`);

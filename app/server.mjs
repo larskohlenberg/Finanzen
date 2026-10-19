@@ -292,6 +292,10 @@ export async function browserModule(appDir) {
   return module;
 }
 
+function etagListePasst(kopf, etag) {
+  return etagPasst(kopf, etag.slice(1, -1));
+}
+
 // If-None-Match gegen den aktuellen Stand: Liste, schwache Tags und * erlaubt.
 export function etagPasst(kopf, stand) {
   if (typeof kopf !== "string" || !kopf.trim()) return false;
@@ -321,6 +325,29 @@ function quelleAus(req) {
 
 function innerhalb(wurzel, pfad) {
   return pfad === wurzel || pfad.startsWith(wurzel + sep);
+}
+
+// --- Caching der Code-Assets (Review D.2) -----------------------------------
+// Finanzdaten, APIs, Belege, index.html, version.json und sitzung.json bleiben
+// no-store (BASIS_KOPFZEILEN). Nur die Code-Assets der App (Modulgraph,
+// styles.css) bekommen einen Inhalts-ETag: ohne Versionsparameter "no-cache"
+// (jedes Mal kurz nachfragen, 304 ohne Inhalt). index.html haengt an ihre
+// Einstiegsdateien ?v=<Inhaltshash>; passt der Parameter zum aktuellen Inhalt
+// der Datei, darf sie "immutable" sein. Der Hash statt der Release-Kennung
+// haelt auch ueber einen Deploy-Ruecksprung: anderer Inhalt, anderer Name.
+// Importe der Einstiegsdateien laufen ueber die Revalidierung.
+const NIE_CACHEN = new Set(["index.html", "version.json", "sitzung.json"]);
+const IMMUTABLE = "private, max-age=31536000, immutable";
+const EINSTIEG = /\b(href|src)="\.\/([^"?#]+\.(?:css|js|mjs))"/g;
+
+const etagCache = new Map();
+async function inhaltsEtag(echt, info) {
+  const schluessel = `${info.size}:${info.mtimeMs}`;
+  const bekannt = etagCache.get(echt);
+  if (bekannt?.schluessel === schluessel) return bekannt.etag;
+  const etag = `"${createHash("sha256").update(await readFile(echt)).digest("hex").slice(0, 16)}"`;
+  etagCache.set(echt, { schluessel, etag });
+  return etag;
 }
 
 async function liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, datenDirs, module }) {
@@ -356,11 +383,52 @@ async function liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurz
     : segmente[0] === "data" && segmente[1] === "inbox" ? [inboxWurzel, segmente.slice(2)]
       : segmente[0] === "data" && segmente[1] === "demo-belege" ? [demoBelegeWurzel, segmente.slice(2)]
         : [appWurzel, segmente];
-  return sendeDatei(req, res, wurzel, teile, segmente);
+  if (wurzel !== appWurzel) return sendeDatei(req, res, wurzel, teile, segmente);
+  const relativ = segmente.join("/");
+  if (relativ === "index.html") return sendeIndex(req, res, appWurzel, module);
+  if (NIE_CACHEN.has(relativ)) return sendeDatei(req, res, wurzel, teile, segmente);
+  const version = new URLSearchParams(req.url.split("#")[0].split("?")[1] ?? "").get("v");
+  return sendeDatei(req, res, wurzel, teile, segmente, { cache: "no-cache", version });
+}
+
+// Inhaltshash einer Datei der App (ohne Anfuehrungszeichen) oder null.
+async function versionVon(appWurzel, relativ) {
+  try {
+    const echt = await realpath(join(appWurzel, ...relativ.split("/")));
+    if (!innerhalb(appWurzel, echt)) return null;
+    return (await inhaltsEtag(echt, await stat(echt))).slice(1, -1);
+  } catch {
+    return null;
+  }
+}
+
+// index.html: Einstiegsdateien der Allowlist (./x.css, ./x.js, ./x.mjs)
+// bekommen ?v=<Inhaltshash>.
+export async function indexMitVersion(html, versionVonDatei) {
+  const versionen = new Map();
+  for (const [, , datei] of html.matchAll(EINSTIEG)) {
+    if (!versionen.has(datei)) versionen.set(datei, await versionVonDatei(datei));
+  }
+  return html.replace(EINSTIEG, (ganz, attr, datei) => (versionen.get(datei) ? `${attr}="./${datei}?v=${versionen.get(datei)}"` : ganz));
+}
+
+async function sendeIndex(req, res, appWurzel, module) {
+  let html;
+  try {
+    html = await readFile(join(appWurzel, "index.html"), "utf8");
+  } catch {
+    return nichtGefunden(res);
+  }
+  const erlaubt = (datei) => (module.has(datei) || datei === "styles.css" ? versionVon(appWurzel, datei) : null);
+  const inhalt = Buffer.from(await indexMitVersion(html, erlaubt), "utf8");
+  res.writeHead(200, { "Content-Type": MIME[".html"], "Content-Length": inhalt.length });
+  res.end(req.method === "HEAD" ? undefined : inhalt);
 }
 
 // Eine Datei unterhalb von wurzel ausliefern; segmente ist der ganze URL-Pfad.
-async function sendeDatei(req, res, wurzel, teile, segmente) {
+// cache (nur Code-Assets): Cache-Control statt no-store, dazu ein Inhalts-ETag;
+// passt version zum Inhalt, immutable.
+async function sendeDatei(req, res, wurzel, teile, segmente, { cache, version } = {}) {
   if (!wurzel) return nichtGefunden(res);
   const ziel = join(wurzel, ...teile);
   if (!innerhalb(wurzel, ziel)) return nichtGefunden(res);
@@ -378,6 +446,18 @@ async function sendeDatei(req, res, wurzel, teile, segmente) {
   const endung = extname(echt).toLowerCase();
   // Auch nicht ueber einen Symlink mit harmlosem Namen (a.pdf -> a.html).
   if (AUSFUEHRBAR.has(endung) && (segmente[0] === "Belege" || segmente[0] === "data")) return nichtGefunden(res);
+  if (cache) {
+    const etag = await inhaltsEtag(echt, info);
+    res.setHeader("Cache-Control", version && `"${version}"` === etag ? IMMUTABLE : cache);
+    res.setHeader("ETag", etag);
+    res.removeHeader("Pragma");
+    res.removeHeader("Expires");
+    if (etagListePasst(req.headers["if-none-match"], etag)) {
+      res.writeHead(304);
+      res.end();
+      return;
+    }
+  }
   res.writeHead(200, {
     "Content-Type": MIME[endung] ?? "application/octet-stream",
     "Content-Length": info.size,

@@ -9,6 +9,7 @@ import { matchTransfers } from "./transfer-matcher.mjs";
 import { nextTransaktionId } from "./ids.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
+import { neueFehler } from "./lib/validator-befund.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { ersetzeDatei } from "./lib/datei.mjs";
 
@@ -159,8 +160,7 @@ async function main() {
   // Erst den neuen Bestand pruefen: bringt der Import neue Validatorfehler,
   // wird nichts geschrieben.
   const bestand = await loadMasterData(masterRoot);
-  const bekannt = new Set(validateMasterData(bestand).errors);
-  const neu = validateMasterData({ ...bestand, transaktionen: out.transaktionen, transfers: out.transfers }).errors.filter((f) => !bekannt.has(f));
+  const neu = neueFehler(validateMasterData(bestand).befunde, validateMasterData({ ...bestand, transaktionen: out.transaktionen, transfers: out.transfers }).befunde);
   if (neu.length) {
     console.error("Validierung des neuen Bestands fehlgeschlagen — nichts geschrieben:");
     for (const error of neu) console.error(`- ${error}`);

@@ -358,6 +358,7 @@ function melde(befunde, code, pfad, text, objekt) {
     sammlung: ort.sammlung,
     objekt: objekt ?? ort.objekt,
     feld: ort.feld,
+    text,
     meldung: `${pfad}: ${text}`,
   });
 }
@@ -368,12 +369,20 @@ function zerlegePfad(pfad) {
   return { sammlung: m[1], objekt: m[2] !== undefined ? `#${m[2]}` : (m[3] ?? null), feld: m[4] ?? null };
 }
 
+// Zum Ort gehoert auch die Art der Pruefung: der Meldungstext ohne die
+// eingesetzten Werte (IDs, Zahlen, Zeilenindex). Sonst fielen verschiedene
+// Pruefungen am selben Objekt ohne eigenes Feld (Szenario-Annahmen,
+// Transfers) zusammen, und ein neuer Fehler versteckte sich hinter einem alten.
+function pruefungsArt(text) {
+  return String(text ?? "").replace(/\b[A-Z]{2,4}-[0-9a-f-]+\b/g, "<id>").replace(/\d+/g, "#");
+}
+
 function befundSchluessel(b) {
-  return typeof b === "string" ? b : `${b.code}|${b.sammlung}|${b.objekt ?? ""}|${b.feld ?? ""}`;
+  return typeof b === "string" ? b : `${b.code}|${b.sammlung}|${b.objekt ?? ""}|${b.feld ?? ""}|${pruefungsArt(b.text)}`;
 }
 
 // Befunde in `nachher`, die `vorher` nicht hatte, als Multimenge ueber
-// (Code, Sammlung, Objekt, Feld): ein Datensatz, der nur weiterrueckt, bleibt
+// (Code, Sammlung, Objekt, Feld, Art der Pruefung): ein Datensatz, der nur weiterrueckt, bleibt
 // derselbe Befund; ein zweiter gleichartiger Fehler am selben Ort ist neu.
 // Nimmt auch reine Meldungstexte (dann zaehlt der Text).
 export function neueBefunde(vorher, nachher) {

@@ -12,6 +12,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
+import { neueFehler } from "./lib/validator-befund.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { istWiderspruch, menschlichEntschieden } from "./lib/entscheidung.mjs";
@@ -167,8 +168,7 @@ async function main() {
   }
 
   const bestand = await loadMasterData(masterRoot);
-  const bekannt = new Set(validateMasterData(bestand).errors);
-  const neu = validateMasterData({ ...bestand, transaktionen: out.transaktionen }).errors.filter((f) => !bekannt.has(f));
+  const neu = neueFehler(validateMasterData(bestand).befunde, validateMasterData({ ...bestand, transaktionen: out.transaktionen }).befunde);
   if (neu.length) {
     console.error("Validierung des neuen Stands fehlgeschlagen — nichts geschrieben:");
     for (const error of neu) console.error(`- ${error}`);

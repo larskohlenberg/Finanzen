@@ -5,6 +5,7 @@ import { dataRootFromArg } from "./data-root.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { schreibeNeuSynchron, synchronisiereOrdner } from "./lib/datei.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
+import { neueFehler } from "./lib/validator-befund.mjs";
 
 export function aktualisiereImmobilienbezug({
   transaktionen,
@@ -139,8 +140,8 @@ function parseJsonl(text, bezeichnung) {
 
 // Nur neue Fehler brechen ab; was schon vor dem Lauf im Bestand stand
 // (bekannt), ist kein Grund, nicht zu schreiben (wie mitRollback).
-function validierungsfehler(prefix, result, bekannt = new Set()) {
-  const neu = result.errors.filter((f) => !bekannt.has(f));
+function validierungsfehler(prefix, result, bekannt = []) {
+  const neu = neueFehler(bekannt, result.befunde ?? result.errors);
   if (neu.length === 0) return;
   throw new Error(`${prefix}:\n${neu.join("\n")}`);
 }
@@ -246,10 +247,10 @@ export async function persistiereImmobilienbezug({
   let logCommitBegonnen = false;
   let hauptfehler;
   let temporaerePfadeBehalten = new Set();
-  let bekannt = new Set();
+  let bekannt = [];
 
   try {
-    bekannt = new Set((await persistenz.validiere(data, "vorher")).errors);
+    bekannt = (await persistenz.validiere(data, "vorher")).befunde ?? [];
     validierungsfehler(
       "Validierung vor Schreiben fehlgeschlagen",
       await persistenz.validiere({ ...data, transaktionen }, "vor-schreiben"),

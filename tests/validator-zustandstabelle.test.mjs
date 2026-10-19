@@ -162,3 +162,19 @@ test("numerische ID-Klassen erlauben mehr als drei Ziffern, aber nicht weniger",
   data.transaktionen[0].konto_id = "KTO-12";
   assert.equal(validateMasterData(data).valid, false);
 });
+
+test("neueBefunde: anderer Fehler an derselben Szenario-Annahme ist neu", () => {
+  const ort = { code: "konsistenz", stufe: "fehler", sammlung: "szenarien", objekt: "SZN-001", feld: "ANN-001" };
+  const vorher = [{ ...ort, text: "ab fehlt/ungueltig", meldung: "szenarien.SZN-001.ANN-001: ab fehlt/ungueltig" }];
+  const nachher = [{ ...ort, text: "betrag fehlt/ungueltig", meldung: "szenarien.SZN-001.ANN-001: betrag fehlt/ungueltig" }];
+  assert.equal(neueBefunde(vorher, nachher).length, 1);
+});
+
+test("neueBefunde: Zeilenindex im Meldungstext macht einen Befund nicht neu", () => {
+  const zw = (wert, standdatum = "2026-01-01") => ({ entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert, standdatum, qualitaet: "belegt" });
+  const vorher = validateMasterData(basis({ zeitwerte: [zw("1.00"), zw("2.00")] })).befunde;
+  const nachher = validateMasterData(basis({ zeitwerte: [zw("5.00", "2026-02-01"), zw("1.00"), zw("2.00")] })).befunde;
+  assert.equal(vorher.length, 1, JSON.stringify(vorher));
+  assert.notEqual(vorher[0].meldung, nachher[0].meldung);
+  assert.deepEqual(neueBefunde(vorher, nachher), []);
+});

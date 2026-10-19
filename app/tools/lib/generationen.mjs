@@ -249,7 +249,8 @@ const leaseInhalt = () => `${JSON.stringify({ pid: process.pid, rechner: hostnam
 
 function leserAuf(id, ordner, schliessen = async () => {}, bis = Infinity) {
   // Nur Leser ohne Lease haben eine Frist; danach koennte das Aufraeumen ihre
-  // Generation schon wegnehmen, also lieber laut abweisen.
+  // Generation schon wegnehmen, also lieber laut abweisen. Wer direkt ueber
+  // ordner (oder url) liest, muss selbst innerhalb der Frist fertig sein.
   const inFrist = () => {
     if (Date.now() > bis) throw new Error(`Lesevorgang ohne Lease auf Generation ${id} hat seine Frist ueberschritten; neu oeffnen`);
   };

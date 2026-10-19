@@ -625,7 +625,10 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
     if (!EXPORT_ARTEN.includes(art)) return abgelehnt(res, 404, "nicht-gefunden");
     const quelle = quelleAus(req);
-    // Eine Generation: die Lease haelt sie, bis die ZIP ganz gesendet ist.
+    // Eine Generation. Ohne Schreibrecht (Webdienst) gibt es keine Lease, nur
+    // eine Lesefrist; ein langsamer Download darf sie nicht ueberdauern. Darum
+    // werden die Daten aus der Generation vorab gelesen, nur die Belege
+    // (ausserhalb der Generationen) laufen gestreamt.
     return mitLesestand(datenDirs[quelle], (leser) => sendeExport(res, art, quelle, leser.ordner));
   }
 
@@ -637,6 +640,11 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     } catch (fehler) {
       log(`${new Date().toISOString()} export art=${art} ergebnis=abgelehnt:${fehler.message}`);
       return abgelehnt(res, 413, "zu-gross");
+    }
+    for (const e of eintraege) {
+      if (!e.name.startsWith("Daten/")) continue;
+      const inhalt = await e.lies();
+      e.lies = async () => inhalt;
     }
     const name = exportDateiname(art);
     res.writeHead(200, {

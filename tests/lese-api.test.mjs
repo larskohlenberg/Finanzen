@@ -8,6 +8,7 @@ import http from "node:http";
 import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createAppServer } from "../app/server.mjs";
 import { transaktionenParameter } from "../app/lese-api.mjs";
 
@@ -195,4 +196,17 @@ test("Plan & Ist: Monate, Rechnung des Zeitraums, Verlauf nur mit Summen; Parame
   for (const q of ["periode=letzte", "periode=2026-13", "granularitaet=woche", "heute=2026-02-30"]) {
     assert.equal((await hole(`/api/v1/plan-ist?quelle=demo&${q}`)).status, 400, q);
   }
+});
+
+test("Plan & Ist: Route und API pruefen Zeitraeume gleich; Teile einzeln gerechnet", async () => {
+  const { parseRoute } = await import("../app/routing.mjs");
+  assert.equal(parseRoute("#/plan-ist/2026-13").planIstPeriode, undefined);
+  assert.equal(parseRoute("#/plan-ist/2026-12").planIstPeriode, "2026-12");
+  const { planIstModell, planIstMonate, planIstRechnung, planIstVerlauf } = await import("../app/plan-ist-modell.mjs");
+  const { leseSnapshot } = await import("../app/stand.mjs");
+  const { daten } = await leseSnapshot(fileURLToPath(DEMO));
+  const alle = planIstMonate(daten, "2026-10-19");
+  assert.deepEqual(planIstModell(daten, { heute: "2026-10-19", periode: "12m", granularitaet: "quartal" }), {
+    heute: "2026-10-19", alle, r: planIstRechnung(daten, alle, "12m"), verlauf: planIstVerlauf(daten, alle, "quartal"),
+  });
 });

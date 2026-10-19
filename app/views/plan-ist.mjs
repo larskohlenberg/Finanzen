@@ -60,7 +60,8 @@ export function renderPlanIst() {
   if (!modell) {
     return `
     ${renderPageHead(t("planIst.title"), t("planIst.lead"))}
-    <section class="panel panel-pad"><p class="muted" role="status">${escapeHtml(fehler ? `${t("planIst.loadFailed")} (${fehler.message})` : t("planIst.loading"))}</p></section>`;
+    <section class="panel panel-pad"><p class="muted" role="status">${escapeHtml(fehler ? `${t("planIst.loadFailed")} (${fehler.message})` : t("planIst.loading"))}</p>
+      ${fehler && state.planIst.periode ? `<button class="linkish" data-action="plan-ist-periode" data-periode="">${escapeHtml(t("planIst.gesamt"))}</button>` : ""}</section>`;
   }
   const { alle, r } = modell;
   const auswahl = state.planIst.periode;

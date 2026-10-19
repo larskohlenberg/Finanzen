@@ -14,7 +14,8 @@
 import { istKalenderdatum } from "./mcp/kennzahlen.mjs";
 import { kopfleisteModell } from "./kopfleiste.mjs";
 import { GRANULARITAETEN, liquiditaetModell } from "./liquiditaet-modell.mjs";
-import { planIstModell } from "./plan-ist-modell.mjs";
+import { planIstMonate, planIstRechnung, planIstVerlauf } from "./plan-ist-modell.mjs";
+import { PERIODE_MUSTER } from "./plan-ist.mjs";
 import { addInterval, defaultHorizonEnd, localTodayIso } from "./liquiditaet.mjs";
 import { uebersichtModell } from "./uebersicht-modell.mjs";
 import { LEERER_FILTER, SEITENGROESSEN, SORTIERUNGEN, regelWirkungAntwort, transaktionenSeite } from "./transaktionen-abfrage.mjs";
@@ -111,9 +112,16 @@ const ANSICHTEN = {
     if (!GRANULARITAETEN.includes(granularitaet)) throw new AnfrageFehler(`granularitaet: ${GRANULARITAETEN.join(", ")}`);
     // Zeitraum wie im MCP-Werkzeug plan_ist: "" ganzer Bestand, 12m, Jahr, Quartal, Monat.
     const periode = text(suche, "periode");
-    if (periode && !/^(12m|\d{4}|\d{4}-Q[1-4]|\d{4}-(0[1-9]|1[0-2]))$/.test(periode)) throw new AnfrageFehler("periode: 12m, JJJJ, JJJJ-Qn oder JJJJ-MM");
+    if (periode && !PERIODE_MUSTER.test(periode)) throw new AnfrageFehler("periode: 12m, JJJJ, JJJJ-Qn oder JJJJ-MM");
     const tag = heute(suche);
-    return jeStand(bestand, `plan-ist:${periode}:${granularitaet}`, tag, () => planIstModell(bestand.daten, { heute: tag, periode, granularitaet }));
+    // Gemerkt werden nur wenige Teile je Stand: Monate, Verlauf je
+    // Granularitaet (3) und die Rechnung fuer "" und 12m. Andere Zeitraeume
+    // werden je Anfrage gerechnet (eine Rechnung, wenige Millisekunden).
+    const alle = jeStand(bestand, "plan-ist-monate", tag, () => planIstMonate(bestand.daten, tag));
+    const verlauf = jeStand(bestand, `plan-ist-verlauf:${granularitaet}`, tag, () => planIstVerlauf(bestand.daten, alle, granularitaet));
+    const rechne = () => planIstRechnung(bestand.daten, alle, periode);
+    const r = periode === "" || periode === "12m" ? jeStand(bestand, `plan-ist-rechnung:${periode}`, tag, rechne) : rechne();
+    return { heute: tag, alle, r, verlauf };
   },
   kopfleiste: (bestand, suche, { quelle }) => {
     const tag = heute(suche);

@@ -27,20 +27,30 @@ const summen = (r) => ({
   },
 });
 
-export function planIstModell(daten, { heute, periode = "", granularitaet = "jahr" }) {
-  // Nur Monate, die auf allen Konten vollstaendig gebucht sind.
-  const alle = bestandsMonate(daten, heute, { vollstaendigBis: kontenGruppen(daten, heute).konten.aeltester });
+// Die drei Teile einzeln, damit der Server sie getrennt merken kann: die
+// Monate je Stichtag, den Verlauf je Granularitaet, die Rechnung je Zeitraum.
+
+// Nur Monate, die auf allen Konten vollstaendig gebucht sind.
+export function planIstMonate(daten, heute) {
+  return bestandsMonate(daten, heute, { vollstaendigBis: kontenGruppen(daten, heute).konten.aeltester });
+}
+
+export function planIstRechnung(daten, alle, periode = "") {
   const r = planIst(daten, zeitraumMonate(alle, periode));
   const kontoName = new Map((daten.konten ?? []).map((k) => [k.konto_id, k.name]));
   return {
-    heute,
-    alle,
-    r: {
-      ...r,
-      einnahmen: seite(r.einnahmen),
-      ausgaben: seite(r.ausgaben),
-      luecken: r.luecken.map((l) => ({ ...l, konto_name: kontoName.get(l.konto_id) ?? l.konto_id })),
-    },
-    verlauf: perioden(alle, granularitaet).map((p) => ({ ...p, r: summen(planIst(daten, p.monate)) })),
+    ...r,
+    einnahmen: seite(r.einnahmen),
+    ausgaben: seite(r.ausgaben),
+    luecken: r.luecken.map((l) => ({ ...l, konto_name: kontoName.get(l.konto_id) ?? l.konto_id })),
   };
+}
+
+export function planIstVerlauf(daten, alle, granularitaet = "jahr") {
+  return perioden(alle, granularitaet).map((p) => ({ ...p, r: summen(planIst(daten, p.monate)) }));
+}
+
+export function planIstModell(daten, { heute, periode = "", granularitaet = "jahr" }) {
+  const alle = planIstMonate(daten, heute);
+  return { heute, alle, r: planIstRechnung(daten, alle, periode), verlauf: planIstVerlauf(daten, alle, granularitaet) };
 }

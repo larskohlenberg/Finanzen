@@ -556,6 +556,9 @@ gefallen ist.
 Zeitveraenderliche, beleg- oder schaetzbasierte Werte leben in
 `DATENROOT/zeitwerte.jsonl`. Beispiele sind Kontostand, Depotwert, Marktwert und
 Restschuld.
+Je Entitaet, ID, Feld und Standdatum gibt es hoechstens einen Wert; ein zweiter,
+abweichender Wert fuer denselben Stand ist ein Validierungsfehler. Korrekturen
+ersetzen den alten Eintrag.
 
 Konto-Salden und Darlehen-Restschulden brauchen belegte Ankerpunkte, wenn die
 Historie nicht vollstaendig garantiert ist. Laufende Werte werden aus Anker plus

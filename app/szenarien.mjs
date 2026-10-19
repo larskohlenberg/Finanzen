@@ -2,7 +2,7 @@
 // Keine Node-I/O. Rechnet ab Rechenstichtag `today` (nicht `stand`).
 import { occurrences, addInterval, monatVon, toCents } from "./liquiditaet.mjs";
 import { aktuellerZeitwert, computeNettovermoegen } from "./vermoegen.mjs";
-import { zahlungsplan } from "./darlehen.mjs";
+import { darlehensRegelzahlungen, zahlungsplan } from "./darlehen.mjs";
 import { betragJeMonatCents } from "./rhythmus.mjs";
 import { bestandsMonate, planIst, zeitraumMonate } from "./plan-ist.mjs";
 
@@ -288,14 +288,17 @@ export function rechneSzenario(data, szenario, today, { positionen = null } = {}
   // die Raten sind zugleich der Geldabfluss, die Schlussrate am Termin der
   // Rate, danach nichts mehr. Die Regelzahlungen dieser Darlehen buchen darum
   // unten kein eigenes Cash; sie enden mit der Tilgung (fuer Herleitung und
-  // Qualitaet). Darlehen ohne bekannten Rest behalten ihre Regelzahlungen.
+  // Qualitaet). Darlehen ohne bekannten Rest behalten ihre Regelzahlungen;
+  // Darlehen ohne verknuepfte Regelzahlung buchen wie bisher kein Geld (die
+  // Rate laeuft dann womoeglich als unverknuepfte Regelzahlung; der Check
+  // darlehen-ohne-regelzahlung weist darauf hin).
   const sondertilgungen = sammleSondertilgungen(szenario, rzs, today, horizon);
   const restschuldNachDarlehen = new Map();
   const planDarlehen = new Set();
   for (const darlehen of (data.darlehen ?? []).filter((d) => start.darlehenIds.has(d.darlehen_id))) {
     const proj = restschuldProjektion(darlehen, start.darlehenRest.get(darlehen.darlehen_id), today, horizon, sondertilgungen, rzs);
     restschuldNachDarlehen.set(darlehen.darlehen_id, proj);
-    if (!proj.hatZeitwert) continue;
+    if (!proj.hatZeitwert || !darlehensRegelzahlungen(darlehen, rzs).length) { proj.raten = []; continue; }
     planDarlehen.add(darlehen.darlehen_id);
     if (!proj.schluss) continue;
     const grenze = proj.schluss.datum;

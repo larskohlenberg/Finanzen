@@ -98,3 +98,28 @@ test("Check: Regelzahlung weicht heute von der Sollrate ab", () => {
   data.regelzahlungen[0].betrag = "-1000.00";
   assert.equal(computeVermoegenChecks(data, "2026-03-01").filter((x) => x.art === "darlehen-rate-abweichung").length, 0);
 });
+
+test("Review: Ende einer Regelzahlung mitten in der Periode verliert keine Rate", () => {
+  // Regelzahlung am 15. bis 10.12.; Vertrag am 1.: im Dezember zahlt der Vertrag.
+  const plan = zahlungsplan(darlehen({ zinssatz: "0.00" }), { start: { datum: "2026-10-31", rest_cents: 1000000 }, bis: "2027-01-31", regelzahlungen: [rz("RZ-1", "-1000.00", "2026-01-15", { aktiv_bis: "2026-12-10" })] });
+  assert.deepEqual(plan.ereignisse.map((e) => [e.datum, e.quelle]), [["2026-11-15", "regelzahlung"], ["2026-12-01", "vertrag"], ["2027-01-01", "vertrag"]]);
+});
+
+test("Review: zweite verknuepfte Zahlung im anderen Rhythmus tilgt ohne Zins; Gutschriften zaehlen nicht", () => {
+  const rzs = [rz("RZ-1", "-1000.00", "2026-01-01"), rz("RZ-2", "-500.00", "2026-06-01", { rhythmus_einheit: "jahr" }), rz("RZ-3", "200.00", "2026-01-01")];
+  const plan = zahlungsplan(darlehen({ zinssatz: "1.20" }), { start: { datum: "2026-05-15", rest_cents: 1000000 }, bis: "2026-06-30", regelzahlungen: rzs });
+  assert.deepEqual(plan.ereignisse.map((e) => [e.datum, e.regelzahlung_id, e.zins_cents]), [["2026-06-01", "RZ-1", 1000], ["2026-06-01", "RZ-2", 0]]);
+});
+
+test("Review: Szenario bucht ohne verknuepfte Regelzahlung kein Vertragsgeld (keine Doppelbuchung)", () => {
+  const HEUTE = "2026-06-22";
+  const data = {
+    konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
+    transaktionen: [], immobilien: [], vermoegenswerte: [], vorsorge: [],
+    zeitwerte: [{ entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "50000.00", standdatum: HEUTE, qualitaet: "belegt" }, anker("10000.00", HEUTE)],
+    darlehen: [darlehen({ zinssatz: "0.00" })],
+    regelzahlungen: [rz("RZ-1", "-1000.00", "2026-07-01", { darlehen_id: undefined })],
+  };
+  const r = rechneSzenario(data, { szenario_id: "SZN-001", name: "T", status: "entwurf", stand: HEUTE, reichweite_bis: "2026-12-31", erstellt_am: HEUTE, annahmen: [] }, HEUTE);
+  assert.equal(r.punkte.at(-1).liquide_cents, 5000000 - 6 * 100000, "nur die unverknuepfte Regelzahlung fliesst ab");
+});

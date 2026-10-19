@@ -4,6 +4,7 @@
 // dann Diagramme und Tabelle, zuletzt Bemerkung, Wertstaende und Dokumente.
 // Rechnen in vermoegen-details.mjs, hier nur Darstellung.
 import { data, state, t, tf, fmt, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
+import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel, bemerkungInhalt } from "../komponenten.mjs";
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
@@ -24,9 +25,9 @@ function gewaehlt(klasse, liste, idFeld) {
 }
 
 // Bemerkungen sind oft lange Arbeitsnotizen: eingeklappt, damit die Stammdaten lesbar bleiben.
-function bemerkungHtml(text) {
+function bemerkungHtml(text, id) {
   if (!text) return "";
-  return `<details class="bemerkung"><summary>${escapeHtml(t("vermoegen.immobilie.bemerkung"))}</summary>${bemerkungInhalt(text)}</details>`;
+  return `<details class="bemerkung"${detailsAttr(`bemerkung.${id}`)}><summary>${escapeHtml(t("vermoegen.immobilie.bemerkung"))}</summary>${bemerkungInhalt(text)}</details>`;
 }
 
 function karte({ klasse, id, aktiv, titel, chip = "", wertHtml, zeilen = [], fortschritt = null }) {
@@ -300,7 +301,7 @@ function renderImmobilieDetail(imm, today, modell) {
       ${fristen ? detailRow(t("vermoegen.fristen"), fristen) : ""}` });
 
   const anhang = anhangPanel("immobilie", t("vermoegen.immobilie.wertstaendeDokumente"), {
-    bemerkung: bemerkungHtml(imm.bemerkung),
+    bemerkung: bemerkungHtml(imm.bemerkung, imm.immobilie_id),
     wertstaende: renderPositionWertstaende({ klasse: "immobilie", id }),
     dokumente: immobilieDokumente(id, k.darlehen_ids, modell.vorsorge_bezug),
   });
@@ -447,7 +448,7 @@ function renderDarlehenDetail(d, k, today) {
       </div>` });
 
   const anhang = anhangPanel("darlehen", t("vermoegen.darlehen.weiteres"), {
-    bemerkung: bemerkungHtml(d.bemerkung),
+    bemerkung: bemerkungHtml(d.bemerkung, d.darlehen_id),
     wertstaende: renderPositionWertstaende({ klasse: "darlehen", id }),
     extra: sondertilgungenRow(id),
     dokumente: dokumenteBrowserHtml([id]),

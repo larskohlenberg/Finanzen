@@ -6,7 +6,9 @@
 // zeigt so lange ihre letzte Antwort (oder "laedt"). Ist die Antwort da, wird
 // neu gezeichnet. Bei neuem Datenstand verwirft der Stand-Waechter alle Caches
 // (verwerfeApiCaches); geholt wird dann nur, was die aktive Ansicht braucht.
-// Finanzdaten: fetch mit no-store, nichts im Browser-Speicher.
+// Finanzdaten: fetch mit no-store, nichts im Browser-Speicher. Verwerfen
+// bricht laufende Anfragen ab; eine trotzdem spaet eintreffende Antwort
+// gehoert zu einer alten Generation und wird verworfen.
 
 let neuZeichnen = () => {};
 const caches = new Set();
@@ -20,8 +22,8 @@ export function verwerfeApiCaches() {
   for (const cache of caches) cache.verwerfe();
 }
 
-async function holeJson(pfad) {
-  const antwort = await fetch(pfad, { cache: "no-store" });
+async function holeJson(pfad, signal) {
+  const antwort = await fetch(pfad, { cache: "no-store", signal });
   const body = await antwort.json().catch(() => null);
   if (!antwort.ok) throw new Error(`${pfad.split("?")[0]}: HTTP ${antwort.status}${body?.grund ? ` (${body.grund})` : ""}`);
   return body;
@@ -38,6 +40,7 @@ export function erstelleApiCache({ maxEintraege = 30 } = {}) {
   const fehlerJePfad = new Map();
   let letzte = null;
   let generation = 0;
+  const abbrueche = new Set();
 
   function merke(pfad, antwort) {
     eintraege.delete(pfad);
@@ -54,7 +57,10 @@ export function erstelleApiCache({ maxEintraege = 30 } = {}) {
       if (fehlerJePfad.has(pfad)) return { antwort: letzte, laedt: false, fehler: fehlerJePfad.get(pfad), veraltet: Boolean(letzte) };
       if (!laufend.has(pfad)) {
         const meineGeneration = generation;
-        const abruf = holeJson(pfad)
+        // Abbrechbar: bei neuem Stand oder Sperre laeuft die Anfrage nicht weiter.
+        const abbruch = new AbortController();
+        abbrueche.add(abbruch);
+        const abruf = holeJson(pfad, abbruch.signal)
           .then((antwort) => {
             if (meineGeneration !== generation) return;
             merke(pfad, antwort);
@@ -68,6 +74,7 @@ export function erstelleApiCache({ maxEintraege = 30 } = {}) {
           // Nur den eigenen Eintrag austragen: nach verwerfe() kann dort schon
           // der Abruf des neuen Stands stehen.
           .finally(() => {
+            abbrueche.delete(abbruch);
             if (laufend.get(pfad) === abruf) laufend.delete(pfad);
           });
         laufend.set(pfad, abruf);
@@ -79,6 +86,8 @@ export function erstelleApiCache({ maxEintraege = 30 } = {}) {
     merke,
     verwerfe() {
       generation += 1;
+      for (const abbruch of abbrueche) abbruch.abort();
+      abbrueche.clear();
       eintraege.clear();
       laufend.clear();
       fehlerJePfad.clear();

@@ -24,7 +24,8 @@ test("einmal je Pfad, no-store, danach aus dem Cache; Zeichnen nach der Antwort"
   cache.hole("/a");
   await apiAbwarten();
   assert.equal(abrufe.filter((a) => a.pfad === "/a").length, 1);
-  assert.deepEqual(abrufe[0].optionen, { cache: "no-store" });
+  assert.equal(abrufe[0].optionen.cache, "no-store");
+  assert.ok(abrufe[0].optionen.signal instanceof AbortSignal, "abbrechbar");
   assert.equal(gezeichnet, 1);
   assert.deepEqual(cache.hole("/a").antwort, { pfad: "/a" });
   // Neuer Pfad: bis zur Antwort die letzte, als veraltet markiert.

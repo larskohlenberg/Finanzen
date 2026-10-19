@@ -24,6 +24,11 @@ function ensureOverlay() {
   return overlay;
 }
 
+// Overlay schliessen, z. B. bei neuem Datenstand (main.js).
+export function versteckeDiagrammHover() {
+  if (overlay) hide();
+}
+
 function hide() {
   if (overlay) overlay.hidden = true;
   for (const li of document.querySelectorAll(".termine-liste li.aktiv")) li.classList.remove("aktiv");

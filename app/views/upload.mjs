@@ -6,6 +6,7 @@
 // Im Demo-Modus gibt es weder Upload noch Inbox-Liste: die Inbox gehoert dem
 // echten Bestand (demo-modus.mjs).
 import { state, t, fmt, escapeHtml } from "../runtime.mjs";
+import { beiDatenwechsel } from "../lebenszyklus.mjs";
 import { renderPageHead } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { ERLAUBTE_ENDUNGEN, inboxDateiUrl, vorpruefeDatei } from "../upload-regeln.mjs";
@@ -105,15 +106,28 @@ export function renderUpload() {
 
 // Inbox-Liste vom Server holen. Kein Zwischen-Render beim Start: die Ansicht
 // zeigt "unbekannt" und "laedt" gleich (Ladehinweis).
+// Bei Sitzungssperre Inbox-Liste und Upload-Protokoll vergessen; spaete
+// Antworten gehoeren zur alten Generation.
+let inboxGeneration = 0;
+beiDatenwechsel((grund) => {
+  if (grund !== "sperre") return;
+  inboxGeneration += 1;
+  upload.eintraege = [];
+  upload.inbox = { zustand: "unbekannt", dateien: [] };
+});
+
 export async function ladeInbox(aktualisiere) {
   if (!uploadMoeglich(state.dataMode)) return;
   upload.inbox.zustand = "laedt";
+  const meine = ++inboxGeneration;
   try {
     const antwort = await fetch("./api/inbox", { cache: "no-store" });
     const json = antwort.ok ? await antwort.json() : null;
+    if (meine !== inboxGeneration) return;
     if (!Array.isArray(json?.dateien)) throw new Error("keine Inbox-API");
     upload.inbox = { zustand: "ok", dateien: json.dateien };
   } catch {
+    if (meine !== inboxGeneration) return;
     upload.inbox = { zustand: "nicht-verfuegbar", dateien: [] };
   }
   aktualisiere();

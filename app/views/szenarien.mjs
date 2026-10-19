@@ -4,6 +4,7 @@
 // ueber den Agenten. Jede Detailseite beantwortet dieselben Fragen: Wie lange reicht
 // die Liquiditaet? Wie kommen wir in jeder Phase aus? Wo steht das Vermoegen am Ende?
 import { data, state, t, tf, fmt, escapeHtml, cents } from "../runtime.mjs";
+import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead, heuteIso } from "../komponenten.mjs";
@@ -254,7 +255,7 @@ function warnungenHtml(warnungen) {
   if (!warnungen.length) return "";
   const codes = [...new Map(warnungen.map((w) => [w.code, w])).values()];
   return `
-    <details class="szenario-warnungen">
+    <details class="szenario-warnungen"${detailsAttr(`szenario.warnungen.${state.selectedSzenarioId || "liste"}`)}>
       <summary>${codes.map((w) => `<span class="chip ${warnGefahr(w.code) ? "danger" : "review"}">${iconSvg("review")}${escapeHtml(warnKlartext(w.code))}</span>`).join(" ")}</summary>
       <ul>${warnungen.map((w) => `<li>${escapeHtml(w.text)}</li>`).join("")}</ul>
     </details>`;

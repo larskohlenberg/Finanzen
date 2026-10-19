@@ -30,7 +30,8 @@ import { erstelleStandWaechter } from "./stand-wechsel.mjs";
 import { formatMoney, heuteIso, toggleKlappKachel, oeffneKlappKachel } from "./komponenten.mjs";
 import { kopfleisteAntwort, kopfleisteFehler } from "./views/kopfleiste-daten.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
-import { bindDiagrammHover, termineListenBegrenzen } from "./diagramm-hover.mjs";
+import { bindDiagrammHover, termineListenBegrenzen, versteckeDiagrammHover } from "./diagramm-hover.mjs";
+import { beiDatenwechsel, datenwechselMelden, erstelleEntpreller, eingabeBereit, merkeDetails } from "./lebenszyklus.mjs";
 import { anwendenBaumBreite, bindBelegeTrenner } from "./belege-trenner.mjs";
 import { versionAnzeige, ladeVersion } from "./version.mjs";
 import {
@@ -603,7 +604,11 @@ app.addEventListener("keydown", guard((event) => {
 
 // Live-Suche: Textfilter wirken pro Tastendruck; Fokus/Cursor uebersteht das
 // Re-Render via captureFocus/restoreFocus (Selektor ueber die id des Inputs).
-app.addEventListener("input", guard((event) => {
+// Die Buchungssuche fragt den Server: entprellt, damit nicht jeder Buchstabe
+// eine Anfrage ist. Waehrend einer IME-Komposition passiert nichts; das
+// abschliessende compositionend verarbeitet die fertige Eingabe.
+const sucheEntprellt = erstelleEntpreller(() => render(), 250);
+function verarbeiteEingabe(event) {
   const belegeSuche = event.target.closest("input[data-belege-suche]");
   if (belegeSuche) {
     setBelegeSuche(belegeSuche.value);
@@ -620,8 +625,31 @@ app.addEventListener("input", guard((event) => {
   if (!filter) return;
   state.transactionFilters[filter.dataset.filter] = filter.value;
   state.transactionPage = 1;
-  render();
+  if (filter.type === "search") sucheEntprellt();
+  else render();
+}
+app.addEventListener("input", guard((event) => {
+  if (eingabeBereit(event)) verarbeiteEingabe(event);
 }, setUiError, "input"));
+app.addEventListener("compositionend", guard((event) => verarbeiteEingabe(event), setUiError, "compositionend"));
+
+// <details> behalten den vom Nutzer gesetzten Zustand ueber das Neuzeichnen
+// (lebenszyklus.mjs). toggle steigt nicht auf, darum in der Capture-Phase.
+app.addEventListener("toggle", (event) => {
+  const el = event.target;
+  if (el?.matches?.("details[data-details]")) merkeDetails(el.dataset.details, el.open);
+}, true);
+
+// Neuer Datenstand oder Sperre: offene Menues, Hinweise und Overlays gehoeren
+// zum alten Stand; eine anstehende Suche wird nicht mehr abgeschickt.
+beiDatenwechsel(() => {
+  state.settingsMenuOpen = false;
+  state.nextActionMenuOpen = false;
+  state.moreMenuOpen = false;
+  state.nextActionPromptFallback = "";
+  sucheEntprellt.abbrechen();
+  versteckeDiagrammHover();
+});
 
 app.addEventListener("change", guard((event) => {
   const uploadInput = event.target.closest("[data-upload-input]");
@@ -1388,9 +1416,11 @@ const standWaechter = erstelleStandWaechter({
   uebernehme: (neu) => {
     if (sitzungGesperrt) return;
     ersetzeDaten(neu);
-    // Antworten der Lese-APIs gehoeren zum alten Stand; neu geholt wird beim
-    // Zeichnen nur, was die aktive Ansicht braucht.
+    // Antworten der Lese-APIs gehoeren zum alten Stand (laufende Anfragen
+    // werden abgebrochen); neu geholt wird beim Zeichnen nur, was die aktive
+    // Ansicht braucht. Private Zwischenspeicher und Overlays raeumen auf.
     verwerfeApiCaches();
+    datenwechselMelden("stand");
     standHinweis = t("chrome.dataUpdated");
     render();
   },
@@ -1458,6 +1488,7 @@ function sperreSitzung(grund) {
   const hinweis = t("chrome.locked");
   verwerfeDaten();
   leereApiCaches();
+  datenwechselMelden("sperre");
   app.className = "app-shell sitzung-gesperrt";
   app.innerHTML = `<p class="sitzung-hinweis" role="status">${iconSvg("lock")}<span>${escapeHtml(hinweis)}</span></p>`;
   const sr = document.querySelector("#sr-status");

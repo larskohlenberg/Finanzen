@@ -177,7 +177,7 @@ test("Detail-Kacheln in fester Reihenfolge, Vertragsdaten und Anhang per Default
     html = (await vorsorgeGezeichnet());
     assert.match(html, /data-kachel="vorsorge.vertragsdaten"[^>]*aria-expanded="true"/);
     assert.match(html, /stammdaten-raster/);
-    assert.match(html, /vorsorge-spalten vorsorge-spalten-breit"><div><details class="bemerkung" open>[\s\S]*Kapitalwahl noch offen[\s\S]*Wertstände/, "Bemerkung links, Wertstaende rechts");
+    assert.match(html, /vorsorge-spalten vorsorge-spalten-breit"><div><details class="bemerkung" data-details="bemerkung\.[^"]+" open>[\s\S]*Kapitalwahl noch offen[\s\S]*Wertstände/, "Bemerkung links, Wertstaende rechts");
     // Der Zustand gilt auch fuer den naechsten Vertrag.
     state.selectedVorsorgeId = "VS-001";
     assert.match((await vorsorgeGezeichnet()), /data-kachel="vorsorge.anhang"[^>]*aria-expanded="true"/);
@@ -255,7 +255,7 @@ test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten un
     assert.match(detail, /class="vertragsdaten-mit-logo">[\s\S]*Kapitalwahl[\s\S]*<\/div>\s*<span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">RL<\/span>\s*<\/div>/, "Logo rechts oben in den offenen Vertragsdaten");
     assert.match(detail, /Standmitteilung 2026/);
     assert.match(detail, /data-action="open-regelzahlung" data-regelzahlung="RZ-001"/);
-    assert.match(detail, /<details class="bemerkung" open><summary>Bemerkung<\/summary><p>Kapitalwahl noch offen/);
+    assert.match(detail, /<details class="bemerkung" data-details="bemerkung\.[^"]+" open><summary>Bemerkung<\/summary><p>Kapitalwahl noch offen/);
     assert.match(detail, /Wertstände[\s\S]*Gebundenes Kapital \(nicht im Vermögen\) · 31\.12\.2025/);
     assert.match(detail, /Dokumente/);
   });

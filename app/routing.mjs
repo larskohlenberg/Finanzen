@@ -6,6 +6,7 @@
 import { dokumentRoute, belegPfadAusRoute, kodierePfad } from "./belege.mjs";
 import { KLASSE_FUER_TAB, TAB_FUER_KLASSE, VERMOEGEN_TABS, vermoegenRoute } from "./vermoegen-routen.mjs";
 import { VORSORGE_TABS } from "./vorsorge-rechnung.mjs";
+import { PERIODE_MUSTER } from "./plan-ist.mjs";
 
 const VIEW_SLUG = {
   overview: "uebersicht",
@@ -104,7 +105,7 @@ export function parseRoute(hash) {
   }
 
   if (head === "plan-ist") {
-    return /^(12m|\d{4}|\d{4}-Q[1-4]|\d{4}-\d{2})$/.test(tail) ? { view: "planIst", planIstPeriode: tail } : { view: "planIst" };
+    return PERIODE_MUSTER.test(tail) ? { view: "planIst", planIstPeriode: tail } : { view: "planIst" };
   }
   if (head === "dokumente") {
     return tail ? { view: "belege", selectedBeleg: belegPfadAusRoute(tail) } : { view: "belege" };

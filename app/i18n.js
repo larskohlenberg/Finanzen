@@ -259,6 +259,8 @@ window.FINANCE_I18N = {
       transfersAllOk: "Alle {n} Transfers sind vollständig gepaart.",
     },
     planIst: {
+      loading: "Plan & Ist wird geladen …",
+      loadFailed: "Plan & Ist konnte nicht geladen werden",
       title: "Plan & Ist",
       lead: "Was laut Regelzahlungen geplant war, gegen das, was tatsächlich gebucht wurde.",
       leer: "Noch keine vollständig gebuchten Monate.",
@@ -1390,6 +1392,8 @@ window.FINANCE_I18N = {
       transfersAllOk: "All {n} transfers are fully paired.",
     },
     planIst: {
+      loading: "Loading plan & actual …",
+      loadFailed: "Plan & actual could not be loaded",
       title: "Plan vs. actual",
       lead: "What the standing payments planned, against what was actually booked.",
       leer: "No fully booked months yet.",

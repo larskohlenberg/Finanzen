@@ -8,6 +8,7 @@ import http from "node:http";
 import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createAppServer } from "../app/server.mjs";
 import { transaktionenParameter } from "../app/lese-api.mjs";
 
@@ -180,4 +181,32 @@ test("Liquiditaet: Ist, Verlauf, Prognose und Zahlungen; Parameter geprueft", as
   for (const q of ["granularitaet=woche", "bis=2027-02-30", "heute=gestern", "heute=2026-10-19&bis=9999-12-31", "heute=2026-10-19&bis=2056-10-20"]) {
     assert.equal((await hole(`/api/v1/liquiditaet?quelle=demo&${q}`)).status, 400, q);
   }
+});
+
+test("Plan & Ist: Monate, Rechnung des Zeitraums, Verlauf nur mit Summen; Parameter geprueft", async () => {
+  const a = (await hole("/api/v1/plan-ist?quelle=demo&heute=2026-10-19&periode=12m&granularitaet=quartal")).json();
+  assert.deepEqual(Object.keys(a).sort(), ["alle", "heute", "r", "stand", "verlauf"]);
+  assert.equal(a.r.anzahl_monate, 12);
+  assert.ok(a.verlauf.every((p) => /-Q\d$/.test(p.schluessel)));
+  for (const p of a.verlauf) assert.deepEqual(Object.keys(p.r).sort(), ["ausgaben", "einnahmen", "sparen"]);
+  for (const k of a.r.ausgaben.kategorien) {
+    for (const b of k.einzel_buchungen) assert.deepEqual(Object.keys(b).sort(), ["betrag_cents", "datum", "gegenpartei", "transaktion_id"]);
+  }
+  for (const l of a.r.luecken) assert.equal(typeof l.konto_name, "string");
+  for (const q of ["periode=letzte", "periode=2026-13", "granularitaet=woche", "heute=2026-02-30"]) {
+    assert.equal((await hole(`/api/v1/plan-ist?quelle=demo&${q}`)).status, 400, q);
+  }
+});
+
+test("Plan & Ist: Route und API pruefen Zeitraeume gleich; Teile einzeln gerechnet", async () => {
+  const { parseRoute } = await import("../app/routing.mjs");
+  assert.equal(parseRoute("#/plan-ist/2026-13").planIstPeriode, undefined);
+  assert.equal(parseRoute("#/plan-ist/2026-12").planIstPeriode, "2026-12");
+  const { planIstModell, planIstMonate, planIstRechnung, planIstVerlauf } = await import("../app/plan-ist-modell.mjs");
+  const { leseSnapshot } = await import("../app/stand.mjs");
+  const { daten } = await leseSnapshot(fileURLToPath(DEMO));
+  const alle = planIstMonate(daten, "2026-10-19");
+  assert.deepEqual(planIstModell(daten, { heute: "2026-10-19", periode: "12m", granularitaet: "quartal" }), {
+    heute: "2026-10-19", alle, r: planIstRechnung(daten, alle, "12m"), verlauf: planIstVerlauf(daten, alle, "quartal"),
+  });
 });

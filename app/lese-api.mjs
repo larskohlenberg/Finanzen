@@ -10,9 +10,12 @@
 //   GET /api/v1/uebersicht?quelle=&heute=
 //   GET /api/v1/kopfleiste?quelle=&heute=
 //   GET /api/v1/liquiditaet?quelle=&heute=&bis=&granularitaet=
+//   GET /api/v1/plan-ist?quelle=&heute=&periode=&granularitaet=
 import { istKalenderdatum } from "./mcp/kennzahlen.mjs";
 import { kopfleisteModell } from "./kopfleiste.mjs";
 import { GRANULARITAETEN, liquiditaetModell } from "./liquiditaet-modell.mjs";
+import { planIstMonate, planIstRechnung, planIstVerlauf } from "./plan-ist-modell.mjs";
+import { PERIODE_MUSTER } from "./plan-ist.mjs";
 import { addInterval, defaultHorizonEnd, localTodayIso } from "./liquiditaet.mjs";
 import { uebersichtModell } from "./uebersicht-modell.mjs";
 import { LEERER_FILTER, SEITENGROESSEN, SORTIERUNGEN, regelWirkungAntwort, transaktionenSeite } from "./transaktionen-abfrage.mjs";
@@ -103,6 +106,22 @@ const ANSICHTEN = {
     const bis = datum(suche, "bis", defaultHorizonEnd(tag));
     if (bis > addInterval(tag, "jahr", MAX_HORIZONT_JAHRE)) throw new AnfrageFehler(`bis: hoechstens ${MAX_HORIZONT_JAHRE} Jahre voraus`);
     return liquiditaetModell(bestand.daten, { heute: tag, bis, granularitaet });
+  },
+  "plan-ist": (bestand, suche) => {
+    const granularitaet = text(suche, "granularitaet") || "jahr";
+    if (!GRANULARITAETEN.includes(granularitaet)) throw new AnfrageFehler(`granularitaet: ${GRANULARITAETEN.join(", ")}`);
+    // Zeitraum wie im MCP-Werkzeug plan_ist: "" ganzer Bestand, 12m, Jahr, Quartal, Monat.
+    const periode = text(suche, "periode");
+    if (periode && !PERIODE_MUSTER.test(periode)) throw new AnfrageFehler("periode: 12m, JJJJ, JJJJ-Qn oder JJJJ-MM");
+    const tag = heute(suche);
+    // Gemerkt werden nur wenige Teile je Stand: Monate, Verlauf je
+    // Granularitaet (3) und die Rechnung fuer "" und 12m. Andere Zeitraeume
+    // werden je Anfrage gerechnet (eine Rechnung, wenige Millisekunden).
+    const alle = jeStand(bestand, "plan-ist-monate", tag, () => planIstMonate(bestand.daten, tag));
+    const verlauf = jeStand(bestand, `plan-ist-verlauf:${granularitaet}`, tag, () => planIstVerlauf(bestand.daten, alle, granularitaet));
+    const rechne = () => planIstRechnung(bestand.daten, alle, periode);
+    const r = periode === "" || periode === "12m" ? jeStand(bestand, `plan-ist-rechnung:${periode}`, tag, rechne) : rechne();
+    return { heute: tag, alle, r, verlauf };
   },
   kopfleiste: (bestand, suche, { quelle }) => {
     const tag = heute(suche);

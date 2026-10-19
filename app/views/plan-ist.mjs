@@ -8,10 +8,24 @@
 // Zeitraum), Einnahmen und Ausgaben je Kategorie (aufklappbar: Regelzahlungen,
 // Einzelposten ab 400 Euro, Sprung in die Buchungen), Sparen und die Termine von
 // Regelzahlungen ohne zugeordnete Buchung. Gerechnet wird in app/plan-ist.mjs.
-import { data, state, t, escapeHtml } from "../runtime.mjs";
+import { state, t, escapeHtml } from "../runtime.mjs";
 import { formatDate, formatMonth, heuteIso, infoTipp, kennzahlKachel, kachelZeile, klappKachel, renderPageHead, zeitverlaufKlein } from "../komponenten.mjs";
-import { overviewAccountGroups } from "../selektoren.mjs";
-import { bestandsMonate, perioden, planIst, zeitraumMonate } from "../plan-ist.mjs";
+import { perioden } from "../plan-ist.mjs";
+import { erstelleApiCache } from "../api-daten.mjs";
+
+// Plan und Ist rechnet der App-Server (GET /api/v1/plan-ist, Modell in
+// app/plan-ist-modell.mjs); hier wird nur gezeichnet. Die Darstellung
+// (Ø je Monat oder Summe) teilt hier die Summen.
+const cache = erstelleApiCache({ maxEintraege: 12 });
+
+function planIstAntwort(heute) {
+  const suche = new URLSearchParams();
+  if (state.dataMode === "demo") suche.set("quelle", "demo");
+  suche.set("heute", heute);
+  if (state.planIst.periode) suche.set("periode", state.planIst.periode);
+  suche.set("granularitaet", state.planIst.granularitaet);
+  return cache.hole(`./api/v1/plan-ist?${suche}`);
+}
 
 const tf = (key, werte) => Object.entries(werte).reduce((text, [k, v]) => text.replaceAll(`{${k}}`, String(v)), t(key));
 const geld = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
@@ -42,18 +56,22 @@ function zeitraumText(r) {
 }
 
 export function renderPlanIst() {
-  const today = heuteIso();
-  const alle = bestandsMonate(data, today, { vollstaendigBis: overviewAccountGroups().konten.aeltester });
+  const { antwort: modell, fehler } = planIstAntwort(heuteIso());
+  if (!modell) {
+    return `
+    ${renderPageHead(t("planIst.title"), t("planIst.lead"))}
+    <section class="panel panel-pad"><p class="muted" role="status">${escapeHtml(fehler ? `${t("planIst.loadFailed")} (${fehler.message})` : t("planIst.loading"))}</p>
+      ${fehler && state.planIst.periode ? `<button class="linkish" data-action="plan-ist-periode" data-periode="">${escapeHtml(t("planIst.gesamt"))}</button>` : ""}</section>`;
+  }
+  const { alle, r } = modell;
   const auswahl = state.planIst.periode;
-  const monate = zeitraumMonate(alle, auswahl);
-  const r = planIst(data, monate);
   const jeMonat = state.planIst.darstellung !== "summe";
   const wert = (c) => (jeMonat && r.anzahl_monate ? Math.round(c / r.anzahl_monate) : c);
   const einheit = jeMonat ? ` <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonat"))}</span>` : "";
   const kopf = renderPageHead(t("planIst.title"), t("planIst.lead"));
   if (!alle.length) return `${kopf}<p class="muted">${escapeHtml(t("planIst.leer"))}</p>`;
 
-  const verlauf = perioden(alle, state.planIst.granularitaet).map((p) => ({ ...p, r: planIst(data, p.monate) }));
+  const verlauf = modell.verlauf;
   const ziel = (von, bis) => `data-von="${escapeHtml(von)}" data-bis="${escapeHtml(bis)}"`;
   return `
     ${kopf}
@@ -246,12 +264,11 @@ function sparTabelle(r, wert) {
 
 function lueckenListe(r) {
   if (!r.luecken.length) return `<p class="muted">${escapeHtml(t("planIst.keineLuecken"))}</p>`;
-  const konto = new Map((data.konten ?? []).map((k) => [k.konto_id, k.name]));
   return `
     <p class="muted plan-ist-hinweis">${escapeHtml(t("planIst.lueckenErklaerung"))}</p>
     <ul class="plan-ist-liste">
       ${r.luecken.map((l) => `
         <li><button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(l.regelzahlung_id)}" title="${escapeHtml(l.bezeichnung)}">${escapeHtml(l.bezeichnung)}</button>
-          <span class="muted">${escapeHtml(konto.get(l.konto_id) ?? l.konto_id)} · ${escapeHtml(tf("planIst.fehlend", { n: l.fehlend.length, von: l.termine }))}: ${escapeHtml(l.fehlend.slice(0, 6).map(formatDate).join(", "))}${l.fehlend.length > 6 ? " …" : ""}</span></li>`).join("")}
+          <span class="muted">${escapeHtml(l.konto_name)} · ${escapeHtml(tf("planIst.fehlend", { n: l.fehlend.length, von: l.termine }))}: ${escapeHtml(l.fehlend.slice(0, 6).map(formatDate).join(", "))}${l.fehlend.length > 6 ? " …" : ""}</span></li>`).join("")}
     </ul>`;
 }

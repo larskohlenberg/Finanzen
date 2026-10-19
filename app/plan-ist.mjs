@@ -83,6 +83,10 @@ export function bestandsMonate(data, today, { vollstaendigBis = "" } = {}) {
 
 // Zeitraeume einer Granularitaet (monat, quartal, jahr), chronologisch; ein
 // angeschnittenes Quartal oder Jahr am Rand ist nicht vollstaendig.
+// Gueltige Zeitraeume (ohne ""): 12m, Jahr, Quartal, Monat. Route und
+// Lese-API pruefen gleich.
+export const PERIODE_MUSTER = /^(12m|\d{4}|\d{4}-Q[1-4]|\d{4}-(0[1-9]|1[0-2]))$/;
+
 export function perioden(monate, granularitaet) {
   const soll = { monat: 1, quartal: 3, jahr: 12 }[granularitaet] ?? 1;
   const map = new Map();

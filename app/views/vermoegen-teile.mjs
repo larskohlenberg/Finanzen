@@ -9,7 +9,7 @@ import { formatMoney, formatDate, detailRow, quelleHtml } from "../komponenten.m
 import { dokumentRoute, dokumenteZuObjekt } from "../belege.mjs";
 import { verweise } from "./belegverweise-daten.mjs";
 import { fristenZuObjekt } from "../fristen.mjs";
-import { localTodayIso } from "../liquiditaet.mjs";
+import { heuteIso } from "../selektoren.mjs";
 import { betragJeMonatCents } from "../rhythmus.mjs";
 import { belegDateienStand, renderDokumenteAusschnitt } from "./belege.mjs";
 
@@ -176,7 +176,7 @@ export function dokumenteHtml(ids, ordner = []) {
 // Naechste Termine eines Objekts (erfasste Fristen und abgeleitete Termine,
 // ADR 0031) als Zeilen "Datum Bezeichnung"; leer, wenn keine anstehen.
 export function fristenText(typ, id, max = 3) {
-  const termine = fristenZuObjekt(data, localTodayIso(), typ, id).slice(0, max);
+  const termine = fristenZuObjekt(data, heuteIso(), typ, id).slice(0, max);
   return termine.map((termin) => `<div>${escapeHtml(formatDate(termin.datum))} · ${escapeHtml(termin.bezeichnung)}${termin.ueberfaellig
     ? ` <span class="chip review">${escapeHtml(t("vermoegen.fristUeberfaellig"))}</span>` : ""}</div>`).join("");
 }

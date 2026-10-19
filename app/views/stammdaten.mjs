@@ -3,9 +3,8 @@
 import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { renderPageHead, renderMasterAccountTable, regelKlartext, categoryName } from "../komponenten.mjs";
-import { missingReferenceChecks } from "../selektoren.mjs";
+import { heuteIso, missingReferenceChecks } from "../selektoren.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
-import { localTodayIso } from "../liquiditaet.mjs";
 import { renderVermoegenDetail } from "./vermoegen.mjs";
 import { kontenAntwort } from "./konten-daten.mjs";
 import { renderChecks, offeneChecksAnzahl } from "./checks.mjs";
@@ -95,7 +94,7 @@ function renderKontoSection() {
     ? data.konten.find((item) => item.konto_id === state.selectedKonto)
     : null;
   const railOpen = Boolean(konto);
-  const today = localTodayIso();
+  const today = heuteIso();
   // Reihenfolge der Tabelle und Wert im Detail rechnet der App-Server.
   const { antwort: konten, fehler } = kontenAntwort(today);
   if (!konten) {

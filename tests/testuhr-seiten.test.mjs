@@ -76,13 +76,15 @@ test("Testuhr Vermoegen: offene Punkte mit veraltetem Depotwert erst ab drei Mon
 });
 
 test("Testuhr Stammdaten: Wert im Konto-Detail nur aus Staenden bis zum Stichtag", async (t) => {
-  t.after(() => { delete state.heute; delete state.selectedKonto; });
+  t.after(() => { delete state.heute; delete state.selectedKonto; state.selectedVermoegenId = ""; state.view = "masterdata"; });
   leererBestand();
   ruhigesDepot();
-  state.view = "masterdata";
-  state.masterSection = "konten";
+  // Das Konto-Detail liegt unter Vermoegen -> Konten.
+  state.view = "vermoegen";
+  state.vermoegenTab = "konten";
+  state.selectedVermoegenId = "konto:KTO-951";
   state.selectedKonto = "KTO-951";
-  const seite = async (heute) => { state.heute = heute; return (await gezeichnet(renderMasterdata)).replace(/\u00a0/g, " "); };
+  const seite = async (heute) => { state.heute = heute; return (await gezeichnet(renderVermoegen)).replace(/\u00a0/g, " "); };
   // Vor dem ersten Depotwert: kein Stand (die Wertstaende darunter listen die ganze Historie).
   assert.match(await seite("2026-09-14"), /Kein Depotwert/);
   assert.doesNotMatch(await seite("2026-09-15"), /Kein Depotwert/);

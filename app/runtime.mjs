@@ -115,6 +115,9 @@ export const state = {
   // "2026-Q2", "2026-05"), Darstellung Ø je Monat oder Summe; offene Kategorien.
   planIst: { granularitaet: "jahr", periode: "", darstellung: "monat" },
   planIstOffen: new Set(),
+  // Termine, Regelzahlungen: Auswahl (termine-modell.mjs ZEIGEN) und Sortierung.
+  regelzahlungZeigen: "aktiv",
+  regelzahlungSort: { key: "bezeichnung", dir: "asc" },
   // Vermoegensseite: aktiver Tab und ausgewaehltes Objekt ("klasse:id").
   vermoegenTab: "uebersicht",
   selectedVermoegenId: "",

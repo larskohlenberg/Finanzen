@@ -313,6 +313,7 @@ test("Immobilien-Ruecklink oeffnet die Transaktionssuche nur mit der Immobilien-
     richtung: "",
     regelzahlung: "",
     gegenpartei: "",
+    klasse: "",
     gruppe: "",
   });
   assert.equal(state.transactionPage, 1);
@@ -434,6 +435,7 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
       richtung: "",
       regelzahlung: "",
       gegenpartei: "",
+      klasse: "",
       gruppe: "",
     });
     assert.ok(app.innerHTML.includes("transaction-row selected"));

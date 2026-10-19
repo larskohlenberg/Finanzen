@@ -768,8 +768,15 @@ export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = 
       ...(s.zusatz ?? []),
     ],
   }));
+  // spalten[i].href: die Spalte ist ein Link (z. B. Buchungen des Monats), als
+  // unsichtbare Flaeche ueber die ganze Hoehe; per Tastatur erreichbar.
+  const mitLinks = spalten.some((s) => s.href);
+  spalten.forEach((s, i) => {
+    if (!s.href) return;
+    teile.push(`<a href="${esc(s.href)}" class="spalte-link" aria-label="${esc(s.linkLabel ?? s.titel ?? s.label)}"><rect x="${runde(links + spalte * i)}" y="${runde(oben)}" width="${runde(spalte)}" height="${runde(hoehe - oben - unten)}" class="spalte-flaeche" /></a>`);
+  });
   const plot = { left: links, right: breite - rechts, top: oben, bottom: hoehe - unten };
-  return `<svg class="balken-diagramm zeitstrahl-diagramm" viewBox="0 0 ${breite} ${hoehe}" role="img" aria-label="${esc(ariaLabel)}" ${hoverAttrs(hover, plot)}>${teile.join("")}</svg>`;
+  return `<svg class="balken-diagramm zeitstrahl-diagramm" viewBox="0 0 ${breite} ${hoehe}" role="${mitLinks ? "group" : "img"}" aria-label="${esc(ariaLabel)}" ${hoverAttrs(hover, plot)}>${teile.join("")}</svg>`;
 }
 
 // Gestapelte Saeulen mit Netto-Linie (Nettovermoegen-Zusammensetzung): positive

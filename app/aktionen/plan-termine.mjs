@@ -1,10 +1,26 @@
 // app/aktionen/plan-termine.mjs
 // Aktionen (data-action) – Plan & Ist und Termine.
 import { ablauf } from "../ablauf.mjs";
+import { zuBuchungen } from "../navigation.mjs";
 import { state } from "../runtime.mjs";
 import { commitNavigation } from "../verlauf.mjs";
 
 export const aktionen = {
+  "rz-zeigen": (element) => {
+    state.regelzahlungZeigen = element.dataset.zeigen || "aktiv";
+    ablauf.render();
+  },
+  "rz-sort": (element) => {
+    const key = element.dataset.sort;
+    const alt = state.regelzahlungSort;
+    state.regelzahlungSort = { key, dir: alt.key === key && alt.dir === "asc" ? "desc" : "asc" };
+    ablauf.render();
+  },
+  // Letzte Buchung einer Regelzahlung: alle ihre Buchungen.
+  "regelzahlung-buchungen": (element) => {
+    zuBuchungen(state, { filter: { regelzahlung: element.dataset.regelzahlung } });
+    commitNavigation();
+  },
   "open-regelzahlung": (element) => {
     // Querlink aus der Szenario-Rechengrundlage auf die konkrete Regelzahlung.
     state.view = "termine";

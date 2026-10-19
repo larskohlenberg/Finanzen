@@ -9,7 +9,7 @@ test("routeFromState adressiert die ausgewählte Transaktion", () => {
 });
 
 test("routeFromState adressiert den Konto-Stammsatz und Vermögens-Positionen", () => {
-  assert.equal(routeFromState({ view: "masterdata", masterSection: "konten", selectedKonto: "KTO-001" }), "#/konten/KTO-001");
+  assert.equal(routeFromState({ view: "masterdata", masterSection: "konten", selectedKonto: "KTO-001" }), "#/administration", "Konto-Detail nur unter Vermoegen");
   assert.equal(routeFromState({ view: "vermoegen", selectedVermoegenId: "konto:KTO-001" }), "#/vermoegen/konten/KTO-001");
   assert.equal(routeFromState({ view: "vermoegen", selectedVermoegenId: "darlehen:DAR-001" }), "#/vermoegen/darlehen/DAR-001");
   assert.equal(routeFromState({ view: "vermoegen", vermoegenTab: "immobilien", selectedVermoegenId: "" }), "#/vermoegen/immobilien");
@@ -24,7 +24,7 @@ test("routeFromState bildet reine Views auf Slugs ab", () => {
 
 test("parseRoute liest Transaktions- und Konto-Deeplinks", () => {
   assert.deepEqual(parseRoute("#/transaktionen/TXN-5347b957-b93e-4453-830d-81eae240aa51"), { view: "transactions", selectedTransactionId: "TXN-5347b957-b93e-4453-830d-81eae240aa51", transactionFilters: LEERE_FILTER });
-  assert.deepEqual(parseRoute("#/konten/KTO-001"), { view: "masterdata", masterSection: "konten", selectedKonto: "KTO-001" });
+  assert.deepEqual(parseRoute("#/konten/KTO-001"), { view: "vermoegen", vermoegenTab: "konten", selectedVermoegenId: "konto:KTO-001" }, "alte Links fuehren ins Konto-Detail unter Vermoegen");
   assert.deepEqual(parseRoute("#/vermoegen/darlehen/DAR-001"), { view: "vermoegen", vermoegenTab: "darlehen", selectedVermoegenId: "darlehen:DAR-001" });
 });
 

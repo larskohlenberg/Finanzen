@@ -38,10 +38,6 @@ export function routeFromState(state) {
   if (state.view === "vorsorge" && VORSORGE_TABS.includes(state.vorsorgeTab) && state.vorsorgeTab !== "uebersicht") {
     return `#/vorsorge/${state.vorsorgeTab}`;
   }
-  // Konto-Stammsatz (Stammdaten -> Konten, angesteuerter Datensatz).
-  if (state.view === "masterdata" && state.masterSection === "konten" && state.selectedKonto) {
-    return `#/konten/${encodeURIComponent(state.selectedKonto)}`;
-  }
   // Regel-Stammsatz (Stammdaten -> Regeln, angesteuerter Datensatz).
   if (state.view === "masterdata" && state.masterSection === "regeln" && state.selectedRegel) {
     return `#/regeln/${encodeURIComponent(state.selectedRegel)}`;
@@ -104,7 +100,7 @@ export function zielRoute(aktion, wert) {
     case "open-vorsorge":
     case "select-vorsorge": return `#/vorsorge/${enc}`;
     case "open-account-master":
-    case "select-master-account": return `#/konten/${enc}`;
+    case "select-master-account": return vermoegenRoute("konto", id);
     case "open-szenario": return `#/szenarien/${enc}`;
     case "open-transaction": return `#/transaktionen/${enc}`;
     case "select-beleg": return dokumentRoute(id);
@@ -147,9 +143,10 @@ export function parseRoute(hash) {
     if (rest[0] === "dokument" && rest.length > 1) return { view: "transactions", transactionFilters: { ...transactionFilters, beleg: belegPfadAusRoute(tail.slice("dokument/".length)) } };
     return tail ? { view: "transactions", selectedTransactionId: tail, transactionFilters } : { view: "transactions", transactionFilters };
   }
+  // Alte Links auf den Konto-Stammsatz: das Konto-Detail liegt unter Vermoegen.
   if (head === "konten") {
     return tail
-      ? { view: "masterdata", masterSection: "konten", selectedKonto: tail }
+      ? { view: "vermoegen", vermoegenTab: "konten", selectedVermoegenId: `konto:${tail}` }
       : { view: "masterdata", masterSection: "konten" };
   }
   if (head === "regeln") {

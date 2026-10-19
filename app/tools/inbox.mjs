@@ -125,6 +125,11 @@ export function importLaufBericht({ auftrag, profil, normalized, result }) {
     uebersprungen_dedupe: result.skipped_dedupe.length,
     importfehler: result.errors.length,
     transfer_treffer: result.transfers_matched.length,
+    // Dubletten-Prueffaelle (ADR 0034): geschrieben bzw. uebersprungen nach
+    // Anzahl, aber nicht sicher entscheidbar — im Pruefbericht ansehen.
+    pruefen: result.pruefen?.length ?? 0,
+    ...(result.pruefen?.length ? { pruefen_details: result.pruefen } : {}),
+    ...(result.referenz_unzuverlaessig?.length ? { referenz_unzuverlaessig: result.referenz_unzuverlaessig } : {}),
     ...(normalized.fehler.length ? { lesefehler_details: normalized.fehler } : {}),
     ...(result.errors.length ? { importfehler_details: result.errors.map(({ row, reason, detail }) => ({ row, reason, detail })) } : {}),
   };

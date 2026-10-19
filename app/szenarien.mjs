@@ -2,6 +2,7 @@
 // Keine Node-I/O. Rechnet ab Rechenstichtag `today` (nicht `stand`).
 import { occurrences, addInterval, monatVon, toCents } from "./liquiditaet.mjs";
 import { faelligkeiten, aktuellerZeitwert, computeNettovermoegen } from "./vermoegen.mjs";
+import { bestandsMonate, planIst, zeitraumMonate } from "./plan-ist.mjs";
 
 const PPJ = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 const GUARDRAIL_SCHWELLE = 0.9;
@@ -472,60 +473,29 @@ export function computeSzenario(data, szenario, today) {
   return { szenario: rechneSzenario(data, szenario, today), basis: rechneSzenario(data, { ...szenario, annahmen: [] }, today) };
 }
 
-// Letzte 3 volle Kalendermonate vor dem aktuellen Monat von 'today', z.B. bei
-// today="2026-06-22" → ["2026-03","2026-04","2026-05"].
-function letzteDreiVolleMonate(today) {
-  const monate = [];
-  let m = monatVon(today);
-  for (let i = 0; i < 3; i++) {
-    m = monatVon(addInterval(`${m}-01`, "monat", -1));
-    monate.unshift(m);
-  }
-  return monate;
-}
-
-// Cash-Realismus-Guardrail: vergleicht die effektiven Regelzahlungen mit Ist-
-// Transaktionen. 'cash-realismus', wenn eine geschätzte
-// Regelzahlung deutlich unter dem Ist-Durchschnitt der letzten 3 Monate liegt;
-// 'kategorie-ungeplant', wenn materielles Ist keine Regelzahlung referenziert.
-export function guardrailWarnungen(data, today, regelzahlungen = data.regelzahlungen ?? []) {
+// Prognose-Realismus: rechnet wie Plan & Ist (planIst) ueber die letzten zwoelf
+// vollen Monate, netto je Kategorie und ohne Einzelposten ab 400 Euro; der Plan
+// sind alle Regelzahlungen der Kategorie. Investitionen, Transfers und neutrale
+// Kategorien sind kein Konsum. 'cash-realismus': eine Kategorie mit geschaetzter
+// Regelzahlung (Konsumplan) liegt im Plan deutlich unter ihrem Ist;
+// 'kategorie-ungeplant': materielles laufendes Ist ohne jede Regelzahlung.
+// vollstaendigBis wie bei Plan & Ist: der aelteste Kontenstand.
+export function guardrailWarnungen(data, today, { vollstaendigBis = "" } = {}) {
+  const r = planIst(data, zeitraumMonate(bestandsMonate(data, today, { vollstaendigBis }), "12m"));
+  const n = r.anzahl_monate;
+  if (!n) return [];
+  const geschaetzt = new Set((data.regelzahlungen ?? []).filter((rz) => rz.qualitaet === "geschaetzt").map((rz) => rz.regelzahlung_id));
   const warnungen = [];
-  const monate = letzteDreiVolleMonate(today);
-  const vonMonat = `${monate[0]}-01`;
-  const bisMonat = addInterval(`${monate[monate.length - 1]}-01`, "monat", 1);
-
-  const istNachKategorie = new Map();
-  for (const tx of data.transaktionen ?? []) {
-    if (tx.ist_transfer === true) continue;
-    if (!tx.kategorie_id) continue;
-    const cents = toCents(tx.betrag);
-    if (!(cents < 0)) continue;
-    if (!(tx.buchungsdatum >= vonMonat && tx.buchungsdatum < bisMonat)) continue;
-    istNachKategorie.set(tx.kategorie_id, (istNachKategorie.get(tx.kategorie_id) ?? 0) + Math.abs(cents));
-  }
-  for (const [kat, summe] of istNachKategorie) istNachKategorie.set(kat, Math.round(summe / 3));
-
-  const horizon12 = addInterval(today, "monat", 12);
-  const planNachKategorie = new Map();
-  for (const rz of regelzahlungen ?? []) {
-    if (rz.status !== "bestaetigt" || rz.qualitaet !== "geschaetzt" || !rz.kategorie_id) continue;
-    const termine = occurrences(rz, today, horizon12);
-    if (!termine.length) continue;
-    const summe = termine.length * Math.abs(toCents(rz.betrag));
-    planNachKategorie.set(rz.kategorie_id, (planNachKategorie.get(rz.kategorie_id) ?? 0) + summe);
-  }
-  for (const [kat, summe] of planNachKategorie) planNachKategorie.set(kat, Math.round(summe / 12));
-
-  for (const [kat, plan] of planNachKategorie) {
-    const ist = istNachKategorie.get(kat) ?? 0;
-    if (plan < GUARDRAIL_SCHWELLE * ist) {
-      warnungen.push({ code: "cash-realismus", kategorie_id: kat, plan_cents: plan, ist_cents: ist, text: `Geplante Ausgaben für ${kat} (${(plan / 100).toFixed(2)}/Monat) liegen deutlich unter dem Ist-Durchschnitt (${(ist / 100).toFixed(2)}/Monat)` });
-    }
-  }
-
-  const geplanteKategorien = new Set((regelzahlungen ?? []).filter((rz) => rz.status === "bestaetigt" && rz.kategorie_id).map((rz) => rz.kategorie_id));
-  for (const [kat, ist] of istNachKategorie) {
-    if (ist > MATERIALITAET_MONAT_CENTS && !geplanteKategorien.has(kat)) {
+  for (const z of r.ausgaben.kategorien) {
+    if (!z.kategorie_id) continue;
+    const kat = z.kategorie_id;
+    const ist = Math.round((z.ist_cents - z.einzel_cents) / n);
+    const plan = Math.round(z.plan_cents / n);
+    if (z.regelzahlungen.some((e) => geschaetzt.has(e.regelzahlung_id))) {
+      if (plan < GUARDRAIL_SCHWELLE * ist) {
+        warnungen.push({ code: "cash-realismus", kategorie_id: kat, plan_cents: plan, ist_cents: ist, text: `Geplante Ausgaben für ${kat} (${(plan / 100).toFixed(2)}/Monat) liegen deutlich unter dem Ist-Durchschnitt (${(ist / 100).toFixed(2)}/Monat)` });
+      }
+    } else if (!z.regelzahlungen.length && ist > MATERIALITAET_MONAT_CENTS) {
       warnungen.push({ code: "kategorie-ungeplant", kategorie_id: kat, ist_cents: ist, text: `Kategorie ${kat} hat materielles Ist (${(ist / 100).toFixed(2)}/Monat), aber keine geplante Regelzahlung` });
     }
   }

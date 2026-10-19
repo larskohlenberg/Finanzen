@@ -4,7 +4,7 @@
 import { data, t, escapeHtml, cents, transaktionenById, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, categoryName } from "../komponenten.mjs";
-import { currentVermoegenChecks } from "../selektoren.mjs";
+import { currentVermoegenChecks, overviewAccountGroups } from "../selektoren.mjs";
 import { guardrailWarnungen } from "../szenarien.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 
@@ -41,6 +41,11 @@ export function lesbarerCheckText(text) {
     .replace(/(?<![\w.,-])(-?\d+)\.(\d{2})(?![\w.]|,\d)/g, (_, ganz, rest) => formatMoney(Number(ganz) * 100 + Math.sign(Number(`${ganz}1`)) * Number(rest)));
 }
 
+// Dasselbe Fenster wie Plan & Ist: nur Monate, die auf allen Konten gebucht sind.
+function prognoseRealismus() {
+  return guardrailWarnungen(data, localTodayIso(), { vollstaendigBis: overviewAccountGroups().konten.aeltester });
+}
+
 function transferChecks() {
   return (data.transfers || []).map((transfer) => {
     const abgang = transaktionenById.get(transfer.abgang_transaktion_id);
@@ -61,7 +66,7 @@ function transferChecks() {
 export function offeneChecksAnzahl() {
   const datenChecks = data.checks.filter((check) => check.severity === "review" && check.scope !== "transaktion").length;
   const transfers = transferChecks().filter((tc) => !tc.ok).length;
-  return datenChecks + transfers + currentVermoegenChecks().length + guardrailWarnungen(data, localTodayIso()).length;
+  return datenChecks + transfers + currentVermoegenChecks().length + prognoseRealismus().length;
 }
 
 export function renderChecks() {
@@ -69,7 +74,7 @@ export function renderChecks() {
   // Gepaarte Transfers sind der Normalfall; aufgelistet wird nur, was hakt.
   const unvollstaendig = transferResults.filter((tc) => !tc.ok);
   const m5 = currentVermoegenChecks();
-  const guardrails = guardrailWarnungen(data, localTodayIso());
+  const guardrails = prognoseRealismus();
   return `
     <p class="page-lead section-spacing">${escapeHtml(t("checksPage.lead"))}</p>
     ${data.checks.length > 0 ? `

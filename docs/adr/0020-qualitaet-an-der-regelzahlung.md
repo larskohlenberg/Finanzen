@@ -17,6 +17,12 @@ historische Kategorie-Ist; `belegt`-Fakten werden nicht plausibilisiert. Die Fel
 Planwerte zugleich **abgleich-fähig** für den Plan-Ist-Abgleich (M8) — M6 legt die Naht,
 nicht die Maschine.
 
+**Nachtrag 2026-10-19:** Der Guardrail rechnet inzwischen mit der Plan-&-Ist-Rechnung
+(zwoelf volle Monate, netto, ohne Einzelposten ab 400 Euro). Geprueft werden weiter nur
+Kategorien mit `geschaetzt`-Regelzahlung, verglichen wird aber deren gesamter Plan
+einschliesslich belegter Regelzahlungen derselben Kategorie; sonst stuende ein kleiner
+Konsumplan gegen das ganze Kategorie-Ist.
+
 ## Considered Options
 
 - **Kein Qualitätsfeld** (Status quo nach Bewertung M1–M5 §6.2): verworfen, weil der

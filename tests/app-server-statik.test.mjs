@@ -92,11 +92,10 @@ test("browserModule: Modulgraph ab den Skripten der index.html, statisch und dyn
   ]);
 });
 
-test("Statik: App-Shell, Module, Loader-Daten, Logos und Dokumente kommen", async () => {
+test("Statik: App-Shell, Module, Logos und Dokumente kommen", async () => {
   for (const pfad of [
     "/", "/index.html", "/styles.css", "/i18n.js", "/main.js", "/views/a.mjs", "/views/e.mjs", "/tools/lib/text.mjs",
     "/version.json", "/sitzung.json",
-    "/data/master/personen.json", "/data/master/transaktionen.jsonl", "/data/demo/konten.json",
     "/data/master/logos/a.example.png",
     "/Belege/Konten/auszug.pdf", "/Belege/Konten/foto.png", "/Belege/Konten/notiz.txt",
     "/data/inbox/auszug.csv",
@@ -108,10 +107,12 @@ test("Statik: App-Shell, Module, Loader-Daten, Logos und Dokumente kommen", asyn
   assert.match((await hole("/Belege/Konten/foto.png")).headers["content-security-policy"], /default-src 'none'/);
 });
 
-test("Statik: Quellen, Doku, Protokoll, Papierkorb, Inbox und Ausfuehrbares sind 404", async () => {
+test("Statik: Bestandsdateien, Quellen, Doku, Protokoll, Papierkorb, Inbox und Ausfuehrbares sind 404", async () => {
   for (const pfad of [
     "/server.mjs", "/export.mjs", "/mcp/server.mjs", "/tools/inbox.mjs", "/docs/agent-context.md", "/README.md",
     "/schemas/personen.schema.json",
+    // Der Bestand kommt nur ueber /api/v1/snapshot.
+    "/data/master/personen.json", "/data/master/transaktionen.jsonl", "/data/demo/konten.json",
     "/data/master/agent_log.jsonl", "/data/demo/agent_log.jsonl",
     "/data/master/boese.html", "/data/master/boese.js",
     "/data/master/papierkorb/2026-01-01/x.json", "/data/master/belege-text/x.txt",
@@ -161,7 +162,7 @@ test("statikErlaubt: reine Regel", () => {
   assert.equal(statikErlaubt(["server.mjs"], { module }), false);
   assert.equal(statikErlaubt(["data", "master", "logos", "a.example.png"], { module }), true);
   assert.equal(statikErlaubt(["data", "demo", "logos", "a.svg"], { module }), false);
-  assert.equal(statikErlaubt(["data", "master", "logos.json"], { module }), true);
+  assert.equal(statikErlaubt(["data", "master", "logos.json"], { module }), false);
   assert.equal(statikErlaubt(["data", "master", "agent_log.jsonl"], { module }), false);
   assert.equal(statikErlaubt(["data", "inbox", "personen.json"], { module }), false);
   assert.equal(statikErlaubt(["data", "inbox", "auszug.csv"], { module }), true);
@@ -172,10 +173,10 @@ test("statikErlaubt: reine Regel", () => {
 
 test("Echtes app/: Browser-Module kommen, Server- und Werkzeugquellen nicht", async () => {
   const module = await browserModule(ECHTES_APP);
-  for (const pflicht of ["main.js", "i18n.js", "runtime.mjs", "data-loader.mjs", "views/belege.mjs", "tools/validate-core.mjs", "tools/lib/text.mjs"]) {
+  for (const pflicht of ["main.js", "i18n.js", "runtime.mjs", "data-loader.mjs", "stand-wechsel.mjs", "views/belege.mjs", "tools/lib/text.mjs"]) {
     assert.ok(module.has(pflicht), pflicht);
   }
-  for (const verboten of ["server.mjs", "export.mjs", "mcp/server.mjs", "tools/inbox.mjs", "tools/import.mjs"]) {
+  for (const verboten of ["server.mjs", "stand.mjs", "export.mjs", "mcp/server.mjs", "tools/inbox.mjs", "tools/import.mjs"]) {
     assert.ok(!module.has(verboten), verboten);
   }
   const s = createAppServer({ appDir: ECHTES_APP, inboxDir: join(wurzel, "leer-inbox"), log: () => {} });
@@ -186,7 +187,7 @@ test("Echtes app/: Browser-Module kommen, Server- und Werkzeugquellen nicht", as
     for (const pfad of ["/server.mjs", "/mcp/server.mjs", "/docs/agent-context.md", "/data/demo/agent_log.jsonl", "/package.json"]) {
       assert.equal((await hole(pfad, p)).statusCode, 404, pfad);
     }
-    assert.equal((await hole("/data/demo/personen.json", p)).statusCode, 200);
+    assert.equal((await hole("/data/demo/personen.json", p)).statusCode, 404);
   } finally {
     await new Promise((resolve) => s.close(resolve));
   }

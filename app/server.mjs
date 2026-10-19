@@ -9,8 +9,7 @@
 //                       [--origin <url>[,<url>]] [--inbox <pfad>] [--belege <pfad>]
 //
 // Statisch kommt nur, was der Browser braucht (statikErlaubt): App-Shell, der
-// Modulgraph ab index.html (browserModule), die Datendateien des Loaders,
-// Logos (nur PNG), Dokumente unter /Belege/ aus dem Belege-Verzeichnis (ohne
+// Modulgraph ab index.html (browserModule), Logos (nur PNG), Dokumente unter /Belege/ aus dem Belege-Verzeichnis (ohne
 // ausfuehrbare Typen) und wartende Uploads unter /data/inbox/ aus dem Inbox-
 // Verzeichnis (nur dessen oberste Ebene, nur Upload-Endungen). Server- und
 // MCP-Quellen, Doku, Agentenprotokoll, Papierkorb und Inbox-Unterordner
@@ -23,6 +22,10 @@
 // dem echten Bestand vorbehalten.
 // GET /api/export/{dokumente|daten|komplett}[?quelle=demo] liefert ein Backup
 // als ZIP (app/export.mjs), gebaut beim Herunterladen, ohne Datei auf der Platte.
+// GET /api/v1/stand[?quelle=demo] nennt die Kennung des aktuellen Datenstands,
+// GET /api/v1/snapshot[?quelle=demo] den ganzen Bestand samt Validator-Befund
+// (app/stand.mjs), mit ETag = Stand: If-None-Match mit dem aktuellen Stand gibt
+// 304. Die Bestandsdateien selbst liefert der Server nicht statisch aus.
 //
 // Jede Anfrage braucht eine erlaubte Host-Kopfzeile (Schutz gegen DNS-
 // Rebinding): lokal Loopback mit Port, mit --origin der Host der Origin.
@@ -43,13 +46,15 @@ import { isIP } from "node:net";
 import { dirname, extname, join, posix, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EXPORT_ARTEN, exportDateiname, exportEintraege, pruefeZipGrenzen, zipTeile } from "./export.mjs";
-import { DATEN_DATEIEN } from "./data-loader.mjs";
+import { erstelleSnapshotQuelle } from "./stand.mjs";
 import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt, istHeic } from "./upload-regeln.mjs";
 
 const MAX_NAME_LAENGE = 200;
 const API_INBOX = "/api/inbox";
 const API_BELEGE = "/api/belege";
 const API_EXPORT = "/api/export";
+const API_STAND = "/api/v1/stand";
+const API_SNAPSHOT = "/api/v1/snapshot";
 const OCR_KOPF = "# Kein Textlayer";
 
 const MIME = {
@@ -218,8 +223,8 @@ export function parseArgs(argv, { appDir }) {
 
 // Was der Browser aus app/ bekommt; alles andere ist 404.
 // - App-Shell: SHELL plus die Module aus browserModule (Modulgraph ab index.html)
-// - data/<bestand>/: nur die Dateien des Loaders (DATEN_DATEIEN) und die Logos
-//   in data/<bestand>/logos/, dort nur PNG, wie es tools/logos.mjs ablegt
+// - data/<bestand>/: nur die Logos in data/<bestand>/logos/, dort nur PNG, wie
+//   es tools/logos.mjs ablegt. Die Bestandsdateien kommen ueber den Snapshot.
 // - Belege/ und data/demo-belege/: Dokumente, aber nichts, was der Browser
 //   ausfuehren koennte
 // - data/inbox/: nur wartende Uploads (oberste Ebene, Upload-Endungen), fuer
@@ -236,7 +241,6 @@ export function statikErlaubt(segmente, { module = new Set() } = {}) {
     if (bestand === "inbox") return rest.length === 0 && endungErlaubt(datei ?? "");
     if (bestand === "demo-belege") return datei !== undefined && !AUSFUEHRBAR.has(endung);
     if (!BESTAENDE.has(bestand)) return false;
-    if (rest.length === 0) return DATEN_DATEIEN.includes(datei);
     return datei === "logos" && rest.length === 1 && endung === ".png";
   }
   const pfad = segmente.join("/");
@@ -274,6 +278,12 @@ export async function browserModule(appDir) {
     for (const treffer of quelle.matchAll(IMPORT_MUSTER)) merke(pfad, treffer[1] ?? treffer[2] ?? treffer[3]);
   }
   return module;
+}
+
+// If-None-Match gegen den aktuellen Stand: Liste, schwache Tags und * erlaubt.
+export function etagPasst(kopf, stand) {
+  if (typeof kopf !== "string" || !kopf.trim()) return false;
+  return kopf.split(",").map((tag) => tag.trim().replace(/^W\//, "")).some((tag) => tag === "*" || tag === `"${stand}"`);
 }
 
 // --- HTTP ------------------------------------------------------------------
@@ -470,6 +480,7 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
   let inboxWurzel = null;
   let demoBelegeWurzel = null;
   let module = null;
+  const snapshotQuellen = { live: erstelleSnapshotQuelle(datenDirs.live), demo: erstelleSnapshotQuelle(datenDirs.demo) };
   // Uploads nacheinander abschliessen: Namenswahl ohne Wettlauf untereinander.
   let kette = Promise.resolve();
   const exklusiv = (fn) => {
@@ -619,6 +630,35 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     }
   }
 
+  async function liefereStand(req, res, quelle) {
+    if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
+    return sendeJson(res, 200, { stand: await snapshotQuellen[quelle].stand() });
+  }
+
+  async function liefereSnapshot(req, res, quelle) {
+    if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
+    const snapshotQuelle = snapshotQuellen[quelle];
+    const stand = await snapshotQuelle.stand();
+    if (etagPasst(req.headers["if-none-match"], stand)) {
+      res.writeHead(304, { ETag: `"${stand}"` });
+      res.end();
+      return;
+    }
+    let snapshot;
+    try {
+      snapshot = await snapshotQuelle.snapshot();
+    } catch (fehler) {
+      log(`${new Date().toISOString()} snapshot quelle=${quelle} ergebnis=fehler:${fehler.message}`);
+      return sendeJson(res, 500, { status: "abgelehnt", grund: "bestand-unlesbar", meldung: fehler.message });
+    }
+    res.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Length": Buffer.byteLength(snapshot.body),
+      ETag: `"${snapshot.stand}"`,
+    });
+    res.end(snapshot.body);
+  }
+
   async function behandle(req, res) {
     for (const [k, v] of Object.entries(BASIS_KOPFZEILEN)) res.setHeader(k, v);
     const host = String(req.headers.host ?? "").toLowerCase();
@@ -645,6 +685,8 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
       if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
       return sendeJson(res, 200, { dateien: await listeBelege(demo ? demoBelegeDir : belegeDir) });
     }
+    if (rohPfad === API_STAND) return liefereStand(req, res, demo ? "demo" : "live");
+    if (rohPfad === API_SNAPSHOT) return liefereSnapshot(req, res, demo ? "demo" : "live");
     if (rohPfad.startsWith(`${API_EXPORT}/`)) return liefereExport(req, res, rohPfad.slice(API_EXPORT.length + 1));
     if (rohPfad.startsWith(`${API_INBOX}/`)) {
       if (req.method !== "PUT") return abgelehnt(res, 405, "methode", { Allow: "PUT" });

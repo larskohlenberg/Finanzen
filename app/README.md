@@ -1,12 +1,12 @@
 # App
 
-Ziel: Eine geschuetzte Web-App, die ueber einen Webserver aus dem Verzeichnis `app/` ausgeliefert wird und ihre fuehrenden Daten zur Laufzeit aus `data/master/` laedt.
+Ziel: Eine geschuetzte Web-App, die ueber einen Webserver aus dem Verzeichnis `app/` ausgeliefert wird und ihre fuehrenden Daten zur Laufzeit aus `data/master/` laedt (ueber den App-Server, siehe „Datenstand“).
 
 ## Grundregeln
 
 - Keine Build-Pipeline.
 - Keine externen Runtime-Abhaengigkeiten.
-- Fuehrende Daten liegen unter `data/master/` im App-Raum und werden per `fetch()` geladen.
+- Fuehrende Daten liegen unter `data/master/` im App-Raum; der Browser holt sie per `fetch()` als Snapshot vom App-Server.
 - Inhalte unter `data/` und `Belege/` bleiben lokal und werden nicht versioniert; im Repository liegt nur die Ordnerstruktur.
 - Die App schreibt keine Masterdaten; Agenten und Betriebstools schreiben gegen Schemas und Validator. Einziger Schreibweg der App ist **Hochladen** in `data/inbox/` (ADR 0028).
 - Persistenz fuer Finanzdaten erfolgt nicht ueber versteckte Browser-Speicher.
@@ -20,6 +20,8 @@ app/index.html
 app/styles.css
 app/main.js
 app/data-loader.mjs
+app/stand.mjs
+app/stand-wechsel.mjs
 app/i18n.js
 app/data/master/
 app/tools/
@@ -42,7 +44,7 @@ Aktualisiert wird die VM mit `sudo finanzen-aktualisieren [branch]` (Default `ma
 
 ### Sitzungsschutz
 
-Weil die App alle Daten beim Start in den Browser laedt, schuetzt `app/sitzung.mjs` die offene Seite:
+Weil die App alle Daten in den Browser laedt, schuetzt `app/sitzung.mjs` die offene Seite:
 
 - **Inaktivitaetssperre:** Nach `sperre_minuten` (Standard 5) ohne Maus-, Tastatur-, Touch- oder Scroll-Ereignis verwirft die App den geladenen Bestand, ersetzt die Oberflaeche und meldet beim Auth-Dienst ab. Ein verborgener Tab zaehlt als inaktiv; gemessen wird per Uhrzeit-Differenz, weil Browser Timer im Hintergrund drosseln.
 - **Anmeldepruefung:** Jede Minute und bei Rueckkehr in den Tab fragt die App `version.json` ohne Weiterleitung ab. Eine Weiterleitung zur Anmeldeseite oder 401/403 heisst: Anmeldung abgelaufen, Bestand verwerfen und neu laden. 404 (lokal ohne `version.json`) und Netzwerkfehler sperren nicht.
@@ -50,4 +52,12 @@ Weil die App alle Daten beim Start in den Browser laedt, schuetzt `app/sitzung.m
 
 Die Werte stehen in `app/sitzung.json` (gitignored, `{"abmelden_url": "...", "sperre_minuten": 5}`). Auf der VM schreibt sie `finanzen-aktualisieren` aus `FINANZEN_ABMELDEN_URL` und `FINANZEN_SPERRE_MINUTEN` in `/etc/finanzen/app.env` (Vorlage `ops/systemd/app.env.beispiel`). Die Logout-URL hat die Form `https://auth.<domain>/logout?rd=<url-kodierte App-URL>`; der Auth-Dienst folgt `rd` nur innerhalb seiner geschuetzten Domain. Lokal fehlt die Datei: Die App sperrt dann nur und laedt neu, ohne Abmelden-Knopf.
 
-Das alte `review-data.js`-Bundle ist nicht mehr der fuehrende Betriebsmodus; die App liest einzelne Masterdateien direkt aus `data/master/`.
+### Datenstand
+
+Der Browser laedt den Bestand nicht mehr als einzelne Dateien, sondern als Snapshot vom App-Server (`app/stand.mjs`):
+
+- `GET /api/v1/stand[?quelle=demo]` liefert eine Kennung des aktuellen Datenstands. Heute ist das ein Hash ueber Inode, Groesse und Aenderungszeit der Bestandsdateien; mit Dateigenerationen wird es die Generations-ID.
+- `GET /api/v1/snapshot[?quelle=demo]` liefert alle Bestandsdateien (`BESTAND_TEILE` in `app/data-loader.mjs`) samt Validator-Befund, mit `ETag` = Stand. Fragt der Browser mit `If-None-Match` und der Stand ist gleich, kommt `304`. Die Antwort bleibt `no-store`.
+- Die Bestandsdateien selbst liefert der Server nicht statisch aus; nur die Logos unter `data/<bestand>/logos/`.
+
+Bei jedem Klick, bei Navigation und bei Rueckkehr in den Tab fragt die App den Stand ab (hoechstens alle 1,5 Sekunden, `app/stand-wechsel.mjs`). Ist er neu, laedt sie den Snapshot und ersetzt die Daten ohne Seiten-Reload: Ansicht, Filter und Auswahl bleiben, abgeleitete Zwischenspeicher rechnen neu. Den Validator-Befund fuer Status-Chip und Fehlerbanner rechnet der Server, mit derselben Logik wie das CLI. Der Knopf „Daten neu laden“ holt den Snapshot ebenfalls ohne Reload.

@@ -5,12 +5,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { bestandAntwort } from "./hilfe-bestand.mjs";
 
 let apiAntwort = null;
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
+  const bestand = bestandAntwort(path);
+  if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   if (cleanPath === "api/belege") {
     if (!apiAntwort) return { ok: false, status: 404, json: async () => ({}) };

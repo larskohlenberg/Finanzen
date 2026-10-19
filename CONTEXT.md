@@ -227,7 +227,7 @@ Praezisierung (M5): Konto-Saldo und Darlehen-Restschuld sind nur dann rein berec
 
 ## Validierung
 
-**Das Tool prueft, der Agent schreibt.** Validierung ist deterministischer Bibliothekscode (JSON Schema + Cross-Field-Regeln), kein Agent-Verhalten. Dieselbe Bibliothek laeuft im Browser (App) und unter Node (Cron). Agenten rufen sie **vor** jedem Schreiben auf; die App ruft sie **beim Laden** auf und zeigt Status an. Defense-in-depth.
+**Das Tool prueft, der Agent schreibt.** Validierung ist deterministischer Bibliothekscode (JSON Schema + Cross-Field-Regeln), kein Agent-Verhalten. Dieselbe Bibliothek laeuft in den Werkzeugen und im App-Server. Agenten rufen sie **vor** jedem Schreiben auf; der App-Server rechnet sie fuer jeden Datenstand und liefert den Befund mit dem Snapshot, die App zeigt ihn an. Defense-in-depth.
 
 Konsequenz: Validator-Bibliothek ist Voraussetzung fuer M1 und vor M3 unabdingbar.
 

@@ -6,7 +6,7 @@
 // App-Server (GET /api/belege); ohne ihn zeigt die Ansicht einen Hinweis.
 // Im Demo-Modus nur die Demo-Dokumente (demo-modus.mjs).
 // In der Oberflaeche heisst eine Datei "Dokument", nie "Beleg" (CONTEXT.md).
-import { data, state, t, escapeHtml, kontenById, transaktionenById } from "../runtime.mjs";
+import { data, datenVersion, state, t, escapeHtml, kontenById, transaktionenById } from "../runtime.mjs";
 import { renderPageHead, formatDate } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { belegDateiUrl, belegeApiUrl } from "../demo-modus.mjs";
@@ -27,12 +27,11 @@ const ansicht = {
   zwillingeZeigen: false,
 };
 
-// Der Bestand wird einmal pro Seitenaufruf geladen (Neu laden = Page-Reload),
-// also reicht ein einmal gebauter Verweis-Index.
+// Verweis-Index je Bestandsstand: nach einem Standwechsel neu gebaut.
 let index = null;
 function verweise() {
-  index ??= verweisIndex(data);
-  return index;
+  if (index?.version !== datenVersion()) index = { version: datenVersion(), wert: verweisIndex(data) };
+  return index.wert;
 }
 function verweisFuer(pfad) {
   return verweise().get(belegSchluessel(pfad));

@@ -189,7 +189,7 @@ test("Treffer zaehlen ueber den Gesamtbestand, nicht nur ueber den Offen-Stapel"
 test("Einengung, die bestaetigte Buchungen aus der Regel fallen laesst, blockiert", () => {
   // REG-251 am 2026-08-31: Muster ohne Kontobezug griff nach einem Import auf
   // ein Konto ueber, fuer das der Beleg nicht galt. Die Einengung nimmt der
-  // falsch getroffenen Buchung ihre Kategorie — sie faellt auf offen zurueck.
+  // falsch getroffenen Buchung ihre Regel — sie behielte ihre Kategorie ohne Beleg.
   const out = probelauf({
     transaktionen: [
       bestaetigt({ transaktion_id: "TXN-RICHTIG", konto_id: "KTO-001", gegenpartei: "Mustermieter", kategorie_id: "KAT-005", matched_regeln: ["REG-251"] }),

@@ -21,11 +21,13 @@
 // - WIDERSPRUCH: der Kandidat widerspricht einer MENSCHLICHEN Bestaetigung.
 //   Die Buchung bleibt unveraendert (kein Regellauf fasst sie an), aber eine
 //   Regel gegen eine Nutzerentscheidung braucht vorher eine Rueckfrage.
-// - TREFFERVERLUST: eine Einengung laesst BESTAETIGTE Buchungen aus der Regel
-//   fallen. Sie verlieren ihre Kategorie und landen wieder auf `offen` — der
-//   Schaden ist derselbe wie bei einer Wiedervorlage, nur von der anderen
-//   Seite: dort widerspricht die Regel, hier verschwindet sie. Ohne diese
-//   Pruefung muesste der Verlust von Hand gegengerechnet werden.
+// - TREFFERVERLUST: eine Einengung laesst AUTO-FREIGEGEBENE Buchungen aus der
+//   Regel fallen. Sie behalten ihre Kategorie, verlieren aber den Regelbezug:
+//   eine Freigabe, die nie ein Mensch gesehen hat, stuende ohne tragende Regel
+//   da, und kein spaeterer Lauf bewertet sie neu, solange keine andere Regel
+//   trifft. Dort widerspricht die Regel, hier verschwindet sie. Ohne diese
+//   Pruefung muesste der Verlust von Hand gegengerechnet werden. Menschliche
+//   Bestaetigungen behalten Kategorie und Regelbezug und zaehlen hier nicht.
 //
 // Nicht blockierend, aber berichtet: Kandidaten ohne jeden Treffer. Eine Regel
 // darf wissensbasiert fuer kuenftige Buchungen angelegt werden.
@@ -246,9 +248,9 @@ function bericht(out) {
   if (out.verlorene_bestaetigte.length) {
     zeilen.push("");
     zeilen.push(`VERLORENE BESTAETIGTE TREFFER (${out.verlorene_bestaetigte.length}) — blockiert:`);
-    zeilen.push("  Diese Buchungen sind bestaetigt und fallen durch die Einengung aus der Regel.");
-    zeilen.push("  Sie verlieren ihre Kategorie und landen wieder auf 'offen' — eine getroffene");
-    zeilen.push("  Nutzerentscheidung waere still weg. Vor dem Schreiben ausdruecklich nachfragen.");
+    zeilen.push("  Diese Buchungen sind automatisch freigegeben und fallen durch die Einengung");
+    zeilen.push("  aus der Regel. Sie behielten ihre Kategorie ohne tragende Regel, und kein");
+    zeilen.push("  spaeterer Lauf bewertete sie neu. Vor dem Schreiben ausdruecklich nachfragen.");
     for (const [id, r] of Object.entries(out.pro_regel)) {
       if (r.verliert_bestaetigt) zeilen.push(`  - Kandidat ${id} verliert ${r.verliert_bestaetigt} bestaetigte Treffer`);
     }

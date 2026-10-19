@@ -241,6 +241,8 @@ window.FINANCE_I18N = {
       railNarrow: "Schmal",
     },
     checksPage: {
+      loading: "Prüfungen werden geladen …",
+      loadFailed: "Prüfungen konnten nicht geladen werden",
       title: "Checks",
       lead: "Review-Hinweise und Validierungsstatus ohne Bearbeitungsworkflow.",
       prognoseRealismus: "Prognose-Realismus",
@@ -1399,6 +1401,8 @@ window.FINANCE_I18N = {
       railNarrow: "Narrow",
     },
     checksPage: {
+      loading: "Loading checks …",
+      loadFailed: "Checks could not be loaded",
       title: "Checks",
       lead: "Review hints and validation status without a management workflow.",
       prognoseRealismus: "Forecast realism",

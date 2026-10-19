@@ -696,7 +696,6 @@ window.FINANCE_I18N = {
       qualityFehlend: "fehlend",
       qualityOverall: "Gesamt",
       qualityOffen: "offen",
-      incompleteNote: "Bargeld zählt nicht; geplante Sondertilgungen/Zukunft folgen in M6.",
       klasse: {
         konto: "Konto",
         immobilie: "Immobilie",
@@ -1817,7 +1816,6 @@ window.FINANCE_I18N = {
       qualityFehlend: "missing",
       qualityOverall: "Overall",
       qualityOffen: "open",
-      incompleteNote: "Cash is excluded; planned special repayments/future items follow in M6.",
       klasse: {
         konto: "Account",
         immobilie: "Property",

@@ -10,6 +10,7 @@ function transactionSearchFields(tx) {
   return [
     tx.gegenpartei,
     tx.verwendungszweck,
+    tx.bemerkung,
     tx.empfaenger,
     tx.empfaenger_iban,
     tx.transaktion_id,
@@ -490,7 +491,7 @@ function renderTransactionRow(tx) {
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
       <td><button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(transactionAccountLabel(tx))}</button></td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei), { groesse: "tabelle" })}</td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}</td>
+      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}${tx.bemerkung ? `<div class="tx-bemerkung" title="${escapeHtml(t("transactions.bemerkung"))}">${escapeHtml(tx.bemerkung)}</div>` : ""}</td>
       <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${tx.kategorie_herkunft === "manuell" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originManual"))}">M</span>` : ""}${tx.kategorie_herkunft === "agent" ? `<span class="chip neutral" title="${escapeHtml(t("transactions.originAgent"))}">A</span>` : ""}${renderTransferMarke(tx)}</td>
     </tr>
@@ -568,6 +569,7 @@ export function renderTransactionDetail(tx) {
       t("transactions.immobilie"),
       `<button class="linkish" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="${escapeHtml(immobilie.immobilie_id)}">${escapeHtml(`${immobilie.immobilie_id} · ${immobilie.bezeichnung}`)}</button>`,
     ) : ""}
+    ${tx.bemerkung ? detailRow(t("transactions.bemerkung"), escapeHtml(tx.bemerkung)) : ""}
     ${regelzahlung ? detailRow(
       t("transactions.regelzahlung"),
       `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(regelzahlung.regelzahlung_id)}">${escapeHtml(`${regelzahlung.regelzahlung_id} · ${regelzahlung.bezeichnung}`)}</button>`,

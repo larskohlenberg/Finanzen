@@ -768,6 +768,13 @@ button.transfer-link:focus-visible {
   color: var(--muted);
 }
 
+.tx-bemerkung {
+  margin-top: 2px;
+  font-size: 0.85em;
+  color: var(--muted);
+  font-style: italic;
+}
+
 .detail-sub {
   display: inline-block;
   margin-top: 4px;

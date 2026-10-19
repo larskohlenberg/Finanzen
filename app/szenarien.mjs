@@ -1,33 +1,41 @@
 // app/szenarien.mjs — deterministische, reine Szenario-Engine (browser- & node-fähig).
 // Keine Node-I/O. Rechnet ab Rechenstichtag `today` (nicht `stand`).
 import { occurrences, addInterval, monatVon, toCents } from "./liquiditaet.mjs";
-import { faelligkeiten, aktuellerZeitwert, anteilWertCents } from "./vermoegen.mjs";
+import { faelligkeiten, aktuellerZeitwert, computeNettovermoegen } from "./vermoegen.mjs";
 
 const PPJ = { tag: 365, woche: 52, monat: 12, jahr: 1 };
 const GUARDRAIL_SCHWELLE = 0.9;
 const MATERIALITAET_MONAT_CENTS = 5000;
 
-const startSaldoCents = (data, today) => {
-  // aggregierter liquider Startsaldo: belegter Anker + Ist-Buchungen je liquidem Konto bis today
-  let summe = 0;
-  for (const konto of data.konten ?? []) {
-    if (konto.status === "geschlossen") continue;
-    if (!konto.liquiditaetsrelevant || konto.kontotyp === "bar" || konto.kontotyp === "depot") continue;
-    let best = null;
-    for (const zw of data.zeitwerte ?? []) {
-      if (zw.entitaet === "konto" && zw.entitaet_id === konto.konto_id && zw.feld === "kontostand" && zw.standdatum <= today) {
-        if (!best || zw.standdatum > best.standdatum) best = zw;
-      }
-    }
-    if (!best) continue;
-    let s = toCents(best.wert);
-    for (const tx of data.transaktionen ?? []) {
-      if (tx.konto_id === konto.konto_id && tx.buchungsdatum > best.standdatum && tx.buchungsdatum <= today) s += toCents(tx.betrag);
-    }
-    summe += s;
+// Startbestand zum Rechenstichtag aus denselben Positionen wie die Vermoegensrechnung
+// (computeNettovermoegen): liquide Konten, nicht liquide Konten (eingefroren),
+// offene Depots, Sachwerte und Rueckkaufswerte, laufende Darlehen. Positionen ohne
+// Wert sind "unbekannt": sie tragen 0, die Qualitaet "offen" und eine Warnung.
+const KLASSE_TEXT = { konto: "Konto", immobilie: "Immobilie", vermoegenswert: "Vermögenswert", vorsorge: "Vorsorge", darlehen: "Darlehen" };
+
+function startbestand(data, today) {
+  const nv = computeNettovermoegen(data, today);
+  const kontoById = new Map((data.konten ?? []).map((k) => [k.konto_id, k]));
+  let liquide = 0;
+  let gebunden = 0;
+  const depots = new Map(); // konto_id -> cents
+  const sachwerte = new Map(); // `${klasse}:${id}` -> cents
+  const darlehenIds = new Set();
+  const unbekannt = [];
+  const qualitaeten = [];
+  for (const p of nv.positionen) {
+    qualitaeten.push(p.fehlt ? "offen" : p.qualitaet);
+    if (p.fehlt) unbekannt.push({ klasse: p.klasse, id: p.id, name: p.name, basis: p.basis });
+    if (p.klasse === "konto") {
+      const konto = kontoById.get(p.id);
+      if (konto.kontotyp === "depot") depots.set(p.id, p.wert_cents);
+      else if (konto.liquiditaetsrelevant) liquide += p.wert_cents;
+      else gebunden += p.wert_cents;
+    } else if (p.klasse === "darlehen") darlehenIds.add(p.id);
+    else sachwerte.set(`${p.klasse}:${p.id}`, p.wert_cents);
   }
-  return summe;
-};
+  return { liquide, gebunden, depots, sachwerte, darlehenIds, unbekannt, qualitaeten };
+}
 
 export function modifizierteRegelzahlungen(data, szenario) {
   const warnungen = [];
@@ -35,18 +43,37 @@ export function modifizierteRegelzahlungen(data, szenario) {
   const neue = (szenario.annahmen ?? []).filter((a) => a.art === "regelzahlung-neu");
   let rzs = (data.regelzahlungen ?? []).filter((r) => r.status === "bestaetigt").map((r) => ({ ...r }));
 
+  // Aenderungen je urspruenglicher Regelzahlung chronologisch in Gueltigkeits-
+  // abschnitte ueberfuehren: jeder Abschnitt endet am Vortag der naechsten
+  // Aenderung, ein Beenden schliesst den letzten. So ergibt jede Eingabe-
+  // reihenfolge denselben Zahlungsplan (gleiches ab: nach annahme_id).
+  const jeRegelzahlung = new Map();
   for (const ae of aenderungen) {
-    const ziel = rzs.find((r) => r.regelzahlung_id === ae.regelzahlung_id);
-    if (!ziel) { warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung auf unbekannte Regelzahlung ${ae.regelzahlung_id}` }); continue; }
-    const vortag = addInterval(ae.ab, "tag", -1);
-    if (ae.ab < ziel.anker_datum) { warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung ${ae.annahme_id} liegt vor dem Anker der Regelzahlung` }); continue; }
-    if (ziel.aktiv_bis && ziel.aktiv_bis < ae.ab) { warnungen.push({ code: "aenderung-wirkungslos", text: `Regelzahlung ${ae.regelzahlung_id} ist vor ${ae.ab} bereits abgelaufen` }); continue; }
-    if (ae.aktion === "beenden") {
-      ziel.aktiv_bis = ziel.aktiv_bis && ziel.aktiv_bis < vortag ? ziel.aktiv_bis : vortag;
-    } else if (ae.aktion === "betrag-aendern") {
-      const klon = { ...ziel, regelzahlung_id: `${ziel.regelzahlung_id}~${ae.annahme_id}`, anker_datum: ae.ab, betrag: ae.betrag };
-      ziel.aktiv_bis = ziel.aktiv_bis && ziel.aktiv_bis < vortag ? ziel.aktiv_bis : vortag;
-      rzs.push(klon);
+    if (!jeRegelzahlung.has(ae.regelzahlung_id)) jeRegelzahlung.set(ae.regelzahlung_id, []);
+    jeRegelzahlung.get(ae.regelzahlung_id).push(ae);
+  }
+  const ids = [...jeRegelzahlung.keys()].sort();
+  for (const id of ids) {
+    const liste = jeRegelzahlung.get(id).sort((x, y) => x.ab.localeCompare(y.ab) || String(x.annahme_id).localeCompare(String(y.annahme_id)));
+    const original = rzs.find((r) => r.regelzahlung_id === id);
+    if (!original) {
+      for (const ae of liste) warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung auf unbekannte Regelzahlung ${ae.regelzahlung_id}` });
+      continue;
+    }
+    const ende = original.aktiv_bis;
+    let aktuell = original; // laufender Abschnitt
+    let beendet = false;
+    for (const ae of liste) {
+      if (ae.ab < original.anker_datum) { warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung ${ae.annahme_id} liegt vor dem Anker der Regelzahlung` }); continue; }
+      if (ende && ende < ae.ab) { warnungen.push({ code: "aenderung-wirkungslos", text: `Regelzahlung ${ae.regelzahlung_id} ist vor ${ae.ab} bereits abgelaufen` }); continue; }
+      if (beendet) { warnungen.push({ code: "aenderung-wirkungslos", text: `Änderung ${ae.annahme_id}: Regelzahlung ${ae.regelzahlung_id} ist im Szenario bereits beendet` }); continue; }
+      aktuell.aktiv_bis = addInterval(ae.ab, "tag", -1);
+      if (ae.aktion === "beenden") {
+        beendet = true;
+      } else if (ae.aktion === "betrag-aendern") {
+        aktuell = { ...original, regelzahlung_id: `${original.regelzahlung_id}~${ae.annahme_id}`, anker_datum: ae.ab, betrag: ae.betrag, aktiv_bis: ende };
+        rzs.push(aktuell);
+      }
     }
   }
   for (const n of neue) {
@@ -87,10 +114,6 @@ function sammleSondertilgungen(szenario, rzs, today, horizon) {
   return ereignisse;
 }
 
-function depotKonten(data) {
-  return (data.konten ?? []).filter((k) => k.kontotyp === "depot");
-}
-
 // Gegenbuchung(depot)-Cash-Ereignisse: Verkauf (cash_cents > 0) senkt Depotwert,
 // Kauf/Sparplan (cash_cents < 0) erhöht ihn. Aus einmalzahlung und aus
 // regelzahlung-neu-Klonen (_gegenbuchung.ziel_typ === "depot"), je occurrences-Termin.
@@ -110,33 +133,6 @@ function sammleDepotGegenbuchungen(szenario, rzs, today, horizon) {
   }
   ereignisse.sort((x, y) => x.datum.localeCompare(y.datum));
   return ereignisse;
-}
-
-// Startwerte aktiver Sachwert-Positionen (anteilsgewichteter Marktwert ≤ today, eingefroren).
-// Positionen ohne Zeitwert tragen 0 und gelten als "offen" für die Qualität.
-function sachwertStartwerte(data, today) {
-  const werte = new Map(); // `${typ}:${id}` -> cents
-  const qualitaeten = [];
-  for (const imm of data.immobilien ?? []) {
-    if (imm.status === "verkauft") continue;
-    const zw = aktuellerZeitwert(data.zeitwerte, "immobilie", imm.immobilie_id, "marktwert", today);
-    werte.set(`immobilie:${imm.immobilie_id}`, zw ? anteilWertCents(toCents(zw.wert), imm.eigentumsanteile) : 0);
-    qualitaeten.push(zw ? zw.qualitaet : "offen");
-  }
-  for (const v of data.vermoegenswerte ?? []) {
-    if (v.status === "veraeussert") continue;
-    const zw = aktuellerZeitwert(data.zeitwerte, "vermoegenswert", v.vermoegenswert_id, "marktwert", today);
-    werte.set(`vermoegenswert:${v.vermoegenswert_id}`, zw ? anteilWertCents(toCents(zw.wert), v.eigentumsanteile) : 0);
-    qualitaeten.push(zw ? zw.qualitaet : "offen");
-  }
-  for (const vs of data.vorsorge ?? []) {
-    if (!vs.kapitalbildend) continue;
-    if (vs.status === "beendet" || vs.status === "gekuendigt") continue;
-    const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "rueckkaufswert", today);
-    werte.set(`vorsorge:${vs.vorsorge_id}`, zw ? toCents(zw.wert) : 0);
-    qualitaeten.push(zw ? zw.qualitaet : "offen");
-  }
-  return { werte, qualitaeten };
 }
 
 // Gegenbuchung(immobilie|vermoegenswert): Abbau (ziel_id, bestehende Position verkauft/
@@ -175,7 +171,7 @@ function sachwertBezeichnung(data, ziel_typ, ziel_id) {
 function restschuldProjektion(darlehen, zeitwerte, today, horizon, sondertilgungen) {
   let best = null;
   for (const zw of zeitwerte ?? []) if (zw.entitaet === "darlehen" && zw.entitaet_id === darlehen.darlehen_id && zw.feld === "restschuld" && zw.standdatum <= today) if (!best || zw.standdatum > best.standdatum) best = zw;
-  if (!best) return { reihe: [], abbezahlt_am: null, qualitaet: "offen", effektive: [], start_cents: 0, hatZeitwert: false };
+  if (!best) return { reihe: [], abbezahlt_am: null, schluss: null, qualitaet: "offen", effektive: [], start_cents: 0, hatZeitwert: false };
   let rest = toCents(best.wert);
   const startCents = rest;
   const rate = toCents(darlehen.sollrate);
@@ -189,20 +185,27 @@ function restschuldProjektion(darlehen, zeitwerte, today, horizon, sondertilgung
   const reihe = [];
   const effektive = [];
   let abbezahlt_am = null;
+  let schluss = null; // { datum, via: "rate" | "st", zahlung_cents }
   for (const ev of events) {
     if (rest === 0) { if (ev.typ === "st") effektive.push({ annahme_id: ev.st.annahme_id, datum: ev.datum, effektiv_cents: 0 }); reihe.push({ datum: ev.datum, rest_cents: 0 }); continue; }
+    let zahlung = 0;
     if (ev.typ === "rate") {
+      // Geldabfluss = min(Sollrate, Rest vor der Rate + Zins): die letzte Rate ist die Schlussrate.
       const zins = Math.round((rest * satz) / 100 / ppj);
-      rest = Math.max(0, rest - (rate - zins));
+      zahlung = Math.min(rate, rest + zins);
+      rest = rest + zins - zahlung;
     } else {
       const eff = Math.min(ev.st.nominal_cents, rest);
       rest -= eff;
       effektive.push({ annahme_id: ev.st.annahme_id, datum: ev.datum, effektiv_cents: eff });
     }
-    if (rest === 0 && !abbezahlt_am) abbezahlt_am = ev.datum;
+    if (rest === 0 && !abbezahlt_am) {
+      abbezahlt_am = ev.datum;
+      schluss = { datum: ev.datum, via: ev.typ, zahlung_cents: zahlung };
+    }
     reihe.push({ datum: ev.datum, rest_cents: rest });
   }
-  return { reihe, abbezahlt_am, qualitaet: best.qualitaet, effektive, start_cents: startCents, hatZeitwert: true };
+  return { reihe, abbezahlt_am, schluss, qualitaet: best.qualitaet, effektive, start_cents: startCents, hatZeitwert: true };
 }
 
 // vorsorge-leistung-Annahmen in vorhandene Primitive aufloesen: Arm 'rente' -> unbefristete
@@ -288,30 +291,35 @@ export function rechneSzenario(data, szenario, today) {
   const { rzs, warnungen: mw } = modifizierteRegelzahlungen(data, szenario);
   warnungen.push(...mw);
 
-  // Restschuld-Projektion je Darlehen VOR dem Cash-Sammeln: bestimmt effektive
-  // Sondertilgungs-Beträge und kürzt ggf. die Sollrate-Regelzahlung bei Volltilgung.
+  const start = startbestand(data, today);
+  if (start.unbekannt.length) {
+    warnungen.push({ code: "startbestand-unbekannt", text: `Startbestand unvollständig, ohne belegten Wert: ${start.unbekannt.map((u) => `${KLASSE_TEXT[u.klasse] ?? u.klasse} ${u.name}`).join(", ")}` });
+  }
+
+  // Restschuld-Projektion je laufendem Darlehen VOR dem Cash-Sammeln: bestimmt
+  // effektive Sondertilgungs-Beträge und die Schlussrate. Wird das Darlehen durch
+  // eine Rate getilgt, ersetzt die Schlussrate das Regelzahlungsereignis an diesem
+  // Tag; bei Tilgung durch Sondertilgung ist die Rate des Tages schon gezahlt.
+  // Liegt die Tilgung am oder vor dem Rechenstichtag, ist alles verbucht.
   const sondertilgungen = sammleSondertilgungen(szenario, rzs, today, horizon);
   const restschuldNachDarlehen = new Map();
-  for (const darlehen of data.darlehen ?? []) {
+  const schlussraten = []; // { datum, cents, rz }
+  for (const darlehen of (data.darlehen ?? []).filter((d) => start.darlehenIds.has(d.darlehen_id))) {
     const proj = restschuldProjektion(darlehen, data.zeitwerte, today, horizon, sondertilgungen);
     restschuldNachDarlehen.set(darlehen.darlehen_id, proj);
-    if (proj.abbezahlt_am) {
-      const grenze = addInterval(proj.abbezahlt_am, "tag", -1);
-      for (const rz of rzs) {
-        if (rz.darlehen_id !== darlehen.darlehen_id) continue;
-        rz.aktiv_bis = rz.aktiv_bis && rz.aktiv_bis < grenze ? rz.aktiv_bis : grenze;
-      }
-    }
+    if (!proj.abbezahlt_am) continue;
+    const { datum, via, zahlung_cents } = proj.schluss;
+    const grenze = via === "rate" ? addInterval(datum, "tag", -1) : datum;
+    const raten = rzs.filter((rz) => rz.darlehen_id === darlehen.darlehen_id && !rz._gegenbuchung);
+    const laufend = raten.find((rz) => rz.anker_datum <= datum && (!rz.aktiv_bis || rz.aktiv_bis >= datum));
+    for (const rz of raten) rz.aktiv_bis = rz.aktiv_bis && rz.aktiv_bis < grenze ? rz.aktiv_bis : grenze;
+    if (via === "rate" && laufend && datum > today && datum <= horizon) schlussraten.push({ datum, cents: -zahlung_cents, rz: laufend });
   }
 
   // Depot-Gegenbuchungen: chronologisch verarbeiten, damit Klemmung (Verkauf >
   // verfügbarer Wert) den tatsächlichen Lauf-Wert respektiert.
-  const depotKontoListe = depotKonten(data);
-  const depotStart = new Map();
-  for (const k of depotKontoListe) {
-    const zw = aktuellerZeitwert(data.zeitwerte, "konto", k.konto_id, "depotwert", today);
-    depotStart.set(k.konto_id, zw ? toCents(zw.wert) : 0);
-  }
+  const depotKontoListe = (data.konten ?? []).filter((k) => start.depots.has(k.konto_id));
+  const depotStart = new Map(start.depots);
   const depotReihe = new Map();
   for (const k of depotKontoListe) depotReihe.set(k.konto_id, []);
   const depotLauf = new Map(depotStart);
@@ -337,7 +345,7 @@ export function rechneSzenario(data, szenario, today) {
   // Sachwert-Gegenbuchungen (Immobilie/Vermögenswert): Abbau (Verkauf/Verschenken) oder
   // Aufbau (Kauf/Erbschaft). Startwerte zum Stichtag eingefroren, keine realen Marktwert-
   // Updates nach diesem Punkt fließen ein.
-  const { werte: sachwertStart, qualitaeten: sachwertQualitaeten } = sachwertStartwerte(data, today);
+  const sachwertStart = start.sachwerte;
   const sachwertDeltas = []; // { datum, delta_cents }
   const sachwertCash = [];
   const sachwertwirkungen = []; // { ziel_typ, ziel_id, bezeichnung, art, datum, wert_cents }
@@ -375,6 +383,7 @@ export function rechneSzenario(data, szenario, today) {
     const art = regelArt(rz, cents);
     for (const datum of occurrences(rz, today, horizon)) ereignisse.push({ datum, cents, art });
   }
+  for (const s of schlussraten) ereignisse.push({ datum: s.datum, cents: s.cents, art: regelArt(s.rz, s.cents) });
   for (const proj of restschuldNachDarlehen.values()) {
     for (const eff of proj.effektive) ereignisse.push({ datum: eff.datum, cents: -eff.effektiv_cents, art: wiederkehrend(eff.annahme_id) ? "umbuchung" : "einmal" });
   }
@@ -392,7 +401,7 @@ export function rechneSzenario(data, szenario, today) {
 
   // Monatsraster bauen: Startsaldo + kumulierte Ereignisse je Monatsende
   const punkte = [];
-  let lauf = startSaldoCents(data, today);
+  let lauf = start.liquide;
   let ev = 0;
   let cur = monatVon(today);
   const horizonMonat = monatVon(horizon);
@@ -405,8 +414,7 @@ export function rechneSzenario(data, szenario, today) {
       ev++;
     }
     let restschuld = 0;
-    for (const darlehen of data.darlehen ?? []) {
-      const proj = restschuldNachDarlehen.get(darlehen.darlehen_id);
+    for (const proj of restschuldNachDarlehen.values()) {
       let rest = proj.start_cents;
       for (const r of proj.reihe) { if (r.datum < monatsEnde) rest = r.rest_cents; else break; }
       restschuld += rest;
@@ -420,18 +428,18 @@ export function rechneSzenario(data, szenario, today) {
     let sachwerteGesamt = 0;
     for (const v of sachwertStart.values()) sachwerteGesamt += v;
     for (const d of sachwertDeltas) { if (d.datum < monatsEnde) sachwerteGesamt += d.delta_cents; }
-    punkte.push({ monat: cur, liquide_cents: lauf, depot_cents: depotGesamt, restschuld_cents: restschuld, sachwerte_cents: sachwerteGesamt, netto_cents: lauf + depotGesamt + sachwerteGesamt - restschuld,
+    punkte.push({ monat: cur, liquide_cents: lauf, gebunden_cents: start.gebunden, depot_cents: depotGesamt, restschuld_cents: restschuld, sachwerte_cents: sachwerteGesamt,
+      netto_cents: lauf + start.gebunden + depotGesamt + sachwerteGesamt - restschuld,
       ein_cents: bewegung.ein, aus_cents: bewegung.aus, umbuchung_cents: bewegung.umbuchung, einmal_cents: bewegung.einmal });
     cur = monatVon(addInterval(`${cur}-01`, "monat", 1));
   }
 
-  // Qualität: worst-of über Annahmen, beitragende Regelzahlungen und Darlehen-Anker
-  // (nur Darlehen mit tatsächlichem Restschuld-Zeitwert zählen).
+  // Qualität: worst-of über Annahmen, beitragende Regelzahlungen und alle Positionen
+  // des Startbestands (eine Position ohne Wert zählt als "offen").
   const qualitaet = worstOf([
     ...(szenario.annahmen ?? []).map((a) => a.qualitaet),
     ...rzs.filter((rz) => occurrences(rz, today, horizon).length).map((rz) => rz.qualitaet),
-    ...[...restschuldNachDarlehen.values()].filter((p) => p.hatZeitwert).map((p) => p.qualitaet),
-    ...sachwertQualitaeten,
+    ...start.qualitaeten,
   ]);
   if (punkte.length && punkte[0].liquide_cents < 0) warnungen.push({ code: "liquiditaet-negativ", text: `Liquidität bereits im ersten Monat negativ`, datum: punkte[0].monat });
 
@@ -457,7 +465,7 @@ export function rechneSzenario(data, szenario, today) {
     return { konto_id: k.konto_id, bezeichnung: k.name, start_cents: depotStart.get(k.konto_id), ende_cents: ende };
   });
 
-  return { punkte, qualitaet, warnungen, basisRegelzahlungen, darlehen, depots, sachwertwirkungen, vorsorgewirkungen };
+  return { punkte, qualitaet, warnungen, unbekannt: start.unbekannt, basisRegelzahlungen, darlehen, depots, sachwertwirkungen, vorsorgewirkungen };
 }
 
 export function computeSzenario(data, szenario, today) {

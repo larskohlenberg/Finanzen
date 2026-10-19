@@ -823,6 +823,7 @@ window.FINANCE_I18N = {
       warnungenTitle: "Warnungen",
       warnCode: {
         "liquiditaet-negativ": { titel: "Liquidität wird negativ", herkunft: "Ergebnis dieser Szenario-Rechnung." },
+        "startbestand-unbekannt": { titel: "Startbestand unvollständig", herkunft: "Positionen ohne belegten Wert zählen mit 0; das Ergebnis ist ein bekannter Teilbestand." },
         "annahme-vergangen": { titel: "Annahme liegt vor dem Rechenstichtag", herkunft: "Eine Annahme dieses Szenarios." },
         "aenderung-wirkungslos": { titel: "Änderung greift ins Leere", herkunft: "Eine Annahme dieses Szenarios." },
         "vorsorge-unbekannt": { titel: "Unbekannte Vorsorge referenziert", herkunft: "Eine Annahme dieses Szenarios." },
@@ -1938,6 +1939,7 @@ window.FINANCE_I18N = {
       warnungenTitle: "Warnings",
       warnCode: {
         "liquiditaet-negativ": { titel: "Liquidity turns negative", herkunft: "Result of this scenario's calculation." },
+        "startbestand-unbekannt": { titel: "Starting position incomplete", herkunft: "Positions without a documented value count as 0; the result is a known subset." },
         "annahme-vergangen": { titel: "Assumption predates the calculation date", herkunft: "An assumption of this scenario." },
         "aenderung-wirkungslos": { titel: "Change has no effect", herkunft: "An assumption of this scenario." },
         "vorsorge-unbekannt": { titel: "Unknown pension referenced", herkunft: "An assumption of this scenario." },

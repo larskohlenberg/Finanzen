@@ -107,7 +107,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "inbox",
     skript: "inbox.mjs",
-    beschreibung: "Inbox-Lauf (tools/inbox.mjs) ueber die Dateien direkt in data/inbox/: Profil zuordnen, CSV normalisieren, importieren, Datei nach processed/ bzw. error/ verschieben, PDFs und Bilder als Textvorlauf nach standardized/ (ohne Textlayer per OCR; Bilder bleiben im Inbox-Root liegen). Vorschau ist Default. Verschiebungen werden bei einem Rollback nicht zurueckgenommen.",
+    beschreibung: "Inbox-Lauf (tools/inbox.mjs) ueber die Dateien direkt in data/inbox/: Profil zuordnen, CSV normalisieren, importieren, PDFs und Bilder als Textvorlauf nach standardized/ (ohne Textlayer per OCR; Bilder bleiben im Inbox-Root liegen). CSV-Dateien werden erst nach Schreiben und Validieren des Bestands verschoben: vollstaendig gelesen nach processed/, abgebrochen oder mit Zeilenfehlern samt Fehlernotiz <name>.fehler.txt nach error/ (die guten Zeilen sind dann importiert); gleichnamige Dateien bekommen ein Suffix (-2, -3 ...). Bringt der Lauf neue Validatorfehler, wird nichts geschrieben und nichts verschoben. Der Bericht nennt alle Lese- und Importfehler. Vorschau ist Default.",
     schreibFlag: "--schreiben",
     argv: async (ctx, a, root) => [root],
   }),

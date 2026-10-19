@@ -1,8 +1,15 @@
 // app/tools/inbox.mjs
 //
 // Ein Lauf ueber `data/inbox/`: Profil zuordnen, CSV deterministisch
-// normalisieren, durch die bestehende Import-Pipeline schicken, Datei nach
-// processed/ oder error/ verschieben, Lauf protokollieren.
+// normalisieren, durch die bestehende Import-Pipeline schicken, Lauf
+// protokollieren, Datei nach processed/ oder error/ verschieben.
+//
+// Reihenfolge im Schreiblauf: erst den neuen Bestand pruefen, dann schreiben
+// und erneut validieren, erst danach archivieren. Bricht der Lauf vorher ab
+// oder wird zurueckgerollt, liegt die Quelle noch im Inbox-Root; ein erneuter
+// Lauf verdoppelt dank Dublettenpruefung nichts. Nach processed/ kommt nur
+// eine vollstaendig gelesene Datei, eine mit Zeilenfehlern samt Fehlernotiz
+// nach error/. Archivziele sind kollisionsfrei (Suffix -2, -3 ...).
 //
 // Bewusste Grenze: PDFs werden NICHT automatisch in Buchungen zerlegt. Sie
 // bekommen einen deterministischen Textvorlauf (pdftotext -layout) nach
@@ -16,7 +23,7 @@
 // `standardized/` ist Durchgangsstation, kein Archiv. Der dauerhafte
 // Textzwilling entsteht neben dem Beleg unter `Belege/` — siehe
 // `belege-text.mjs`, das den Vorlauf danach wieder abraeumt.
-import { readFile, writeFile, readdir, rename, mkdir } from "node:fs/promises";
+import { access, readFile, writeFile, readdir, rename, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { runImport } from "./import.mjs";
 import { normalizeCsv } from "./normalize.mjs";
@@ -99,9 +106,45 @@ export function importLaufBericht({ auftrag, profil, normalized, result }) {
     uebersprungen_dedupe: result.skipped_dedupe.length,
     importfehler: result.errors.length,
     transfer_treffer: result.transfers_matched.length,
-    ...(normalized.fehler.length ? { erste_lesefehler: normalized.fehler.slice(0, 3) } : {}),
-    ...(result.errors.length ? { erste_importfehler: result.errors.slice(0, 3) } : {}),
+    ...(normalized.fehler.length ? { lesefehler_details: normalized.fehler } : {}),
+    ...(result.errors.length ? { importfehler_details: result.errors.map(({ row, reason, detail }) => ({ row, reason, detail })) } : {}),
   };
+}
+
+// Inhalt von error/<datei>.fehler.txt fuer eine teilweise importierte Datei:
+// jede nicht uebernommene Zeile, damit sie korrigiert und erneut eingespielt
+// werden kann.
+function fehlerNotiz({ normalized, result }) {
+  const zeilen = [`${result.written.length} Buchung(en) importiert, ${result.skipped_dedupe.length} als Dublette uebersprungen. Nicht uebernommen:`];
+  for (const f of normalized.fehler) zeilen.push(`- Zeile ${f.zeile}: ${f.grund} | ${f.rohzeile}`);
+  for (const f of result.errors) zeilen.push(`- Eintrag ${f.row} (${f.raw?.buchungsdatum ?? "?"}, ${f.raw?.betrag ?? "?"}): ${f.reason} — ${f.detail}`);
+  zeilen.push("Korrigierte Datei zurueck in die Inbox legen; schon importierte Zeilen ueberspringt die Dublettenpruefung.");
+  return `${zeilen.join("\n")}\n`;
+}
+
+const existiert = (url) => access(url).then(() => true, () => false);
+
+// Erster freier Name im Archivordner: datei, sonst stamm-2.endung, -3 ...
+// Frei heisst: weder die Datei noch ihre Fehlernotiz gibt es dort schon.
+async function freierArchivName(ordner, datei) {
+  const punkt = datei.lastIndexOf(".");
+  const stamm = punkt > 0 ? datei.slice(0, punkt) : datei;
+  const endung = punkt > 0 ? datei.slice(punkt) : "";
+  for (let n = 1; ; n += 1) {
+    const name = n === 1 ? datei : `${stamm}-${n}${endung}`;
+    const belegt = await existiert(new URL(encodeURIComponent(name), ordner))
+      || await existiert(new URL(encodeURIComponent(`${name}.fehler.txt`), ordner));
+    if (!belegt) return name;
+  }
+}
+
+async function archiviere(inboxRoot, { quelle, datei, ordner, notiz }) {
+  const zielOrdner = new URL(`${ordner}/`, inboxRoot);
+  await mkdir(zielOrdner, { recursive: true });
+  const name = await freierArchivName(zielOrdner, datei);
+  await rename(fileURLToPath(quelle), fileURLToPath(new URL(encodeURIComponent(name), zielOrdner)));
+  if (notiz) await writeFile(new URL(encodeURIComponent(`${name}.fehler.txt`), zielOrdner), notiz);
+  return `data/inbox/${ordner}/${name}`;
 }
 
 export function betroffeneTransaktionsIds(laeufe) {
@@ -168,6 +211,8 @@ async function main() {
   });
 
   const bericht = { modus: schreiben ? "geschrieben" : "vorschau", profile: profile.length, dateien: plan.auftraege.length, laeufe: [], offen: plan.offen, unterordner: plan.unterordner };
+  // CSV-Quellen und ihr Ziel; verschoben wird erst nach Schreiben und Validieren.
+  const archiv = [];
 
   let [konten, kategorien, transaktionen, transfers, regeln, regelzahlungen] = await Promise.all([
     readJson(new URL("konten.json", masterRoot)),
@@ -211,12 +256,9 @@ async function main() {
     try {
       normalized = normalizeCsv({ text: await readFile(quelle, "utf8"), profil, rohquelle });
     } catch (error) {
-      bericht.laeufe.push({ datei: auftrag.datei, art: "csv", abgebrochen: error.message });
-      if (schreiben) {
-        await mkdir(new URL("error/", inboxRoot), { recursive: true });
-        await rename(fileURLToPath(quelle), fileURLToPath(new URL(`error/${encodeURIComponent(auftrag.datei)}`, inboxRoot)));
-        await writeFile(new URL(`error/${encodeURIComponent(auftrag.datei)}.fehler.txt`, inboxRoot), `${error.message}\n`);
-      }
+      const lauf = { datei: auftrag.datei, art: "csv", abgebrochen: error.message };
+      bericht.laeufe.push(lauf);
+      archiv.push({ quelle, datei: auftrag.datei, ordner: "error", notiz: `${error.message}\n`, lauf });
       continue;
     }
 
@@ -224,28 +266,48 @@ async function main() {
     transaktionen = out.transaktionen;
     transfers = out.transfers;
 
-    bericht.laeufe.push(importLaufBericht({
+    const lauf = importLaufBericht({
       auftrag,
       profil,
       normalized,
       result: out.result,
-    }));
+    });
+    bericht.laeufe.push(lauf);
+    // Ein Teilimport ist nicht "verarbeitet": die nicht uebernommenen Zeilen
+    // muessen sichtbar bleiben, bis jemand sie klaert.
+    const unvollstaendig = normalized.fehler.length > 0 || out.result.errors.length > 0;
+    archiv.push({
+      quelle,
+      datei: auftrag.datei,
+      ordner: unvollstaendig ? "error" : "processed",
+      notiz: unvollstaendig ? fehlerNotiz({ normalized, result: out.result }) : null,
+      lauf,
+    });
+  }
 
-    if (schreiben) {
-      const zielOrdner = out.result.errors.length === normalized.eintraege.length && normalized.eintraege.length > 0 ? "error" : "processed";
-      await mkdir(new URL(`${zielOrdner}/`, inboxRoot), { recursive: true });
-      await rename(fileURLToPath(quelle), fileURLToPath(new URL(`${zielOrdner}/${encodeURIComponent(auftrag.datei)}`, inboxRoot)));
+  const ausgeben = () => {
+    console.log(JSON.stringify(bericht, null, 2));
+    for (const o of plan.unterordner) {
+      console.warn(`Unterordner "${o.ordner}" enthaelt ${o.dateien} verarbeitbare Datei(en), wird nicht verarbeitet — zum Import in den Inbox-Root legen.`);
     }
-  }
-
-  console.log(JSON.stringify(bericht, null, 2));
-
-  for (const o of plan.unterordner) {
-    console.warn(`Unterordner "${o.ordner}" enthaelt ${o.dateien} verarbeitbare Datei(en), wird nicht verarbeitet — zum Import in den Inbox-Root legen.`);
-  }
+  };
 
   if (!schreiben) {
+    ausgeben();
     console.log("\nVorschau — nichts geschrieben, nichts verschoben. Mit --schreiben anwenden.");
+    return;
+  }
+
+  // Erst den neuen Bestand pruefen: bringt der Lauf neue Validatorfehler, wird
+  // nichts geschrieben und keine Quelle verschoben.
+  const bestand = await loadMasterData(masterRoot);
+  const bekannt = new Set(validateMasterData(bestand).errors);
+  const neu = validateMasterData({ ...bestand, transaktionen, transfers }).errors.filter((f) => !bekannt.has(f));
+  if (neu.length) {
+    ausgeben();
+    console.error("Validierung des neuen Bestands fehlgeschlagen — nichts geschrieben, keine Datei verschoben:");
+    for (const error of neu) console.error(`- ${error}`);
+    process.exitCode = 1;
     return;
   }
 
@@ -266,10 +328,25 @@ async function main() {
   const bisher = await readFile(logUrl, "utf8").catch(() => "");
   await writeFile(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);
 
+  // Archiviert wird erst, wenn der geschriebene Bestand keine neuen Fehler hat.
   const validation = validateMasterData(await loadMasterData(masterRoot));
+  const neuNachher = validation.errors.filter((f) => !bekannt.has(f));
+  if (neuNachher.length) {
+    ausgeben();
+    console.error("Validierung nach dem Schreiben fehlgeschlagen — keine Datei verschoben:");
+    for (const error of neuNachher) console.error(`- ${error}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  for (const eintrag of archiv) {
+    eintrag.lauf.abgelegt = await archiviere(inboxRoot, eintrag);
+  }
+  ausgeben();
+
   if (!validation.valid) {
-    console.error("Validierung nach Inbox-Lauf fehlgeschlagen:");
-    for (const error of validation.errors.slice(0, 20)) console.error(`- ${error}`);
+    console.error(`Validierung nach Inbox-Lauf: ${validation.errors.length} Fehler, alle schon vorher vorhanden:`);
+    for (const error of validation.errors) console.error(`- ${error}`);
     process.exitCode = 1;
   }
 }

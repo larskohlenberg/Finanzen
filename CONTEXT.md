@@ -243,7 +243,7 @@ Zweck: dem **naechsten Nutzer der App** (Mensch oder Agent in neuer Session) ein
 
 ## Inbox-Konvention
 
-Cron-Agent verarbeitet Dateien aus `data/inbox/`. Nach erfolgreichem Import: Verschieben nach `data/inbox/processed/`. Bei Fehler: nach `data/inbox/error/` plus Begleitdatei mit Fehlermeldung. Dateisystem ist die Wahrheit darueber, was schon verarbeitet wurde — keine zweite "Schon-gelesen"-Liste.
+Cron-Agent verarbeitet Dateien aus `data/inbox/`. Erst nachdem der Bestand geschrieben und validiert ist: vollstaendig gelesen nach `data/inbox/processed/`, abgebrochen oder mit Zeilenfehlern nach `data/inbox/error/` plus Begleitdatei mit allen Fehlern. Dateisystem ist die Wahrheit darueber, was schon verarbeitet wurde — keine zweite "Schon-gelesen"-Liste.
 
 ## Quelle
 

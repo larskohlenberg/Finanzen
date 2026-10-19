@@ -20,7 +20,7 @@ function echt(pfad) {
 export function bestandOrte(appPfad, datenrootPfad) {
   const app = path.resolve(appPfad);
   const root = path.resolve(datenrootPfad);
-  if (echt(root) === path.join(echt(app), "data", "master")) {
+  if (root === path.join(app, "data", "master") || echt(root) === echt(path.join(app, "data", "master"))) {
     const daten = path.join(app, "data");
     return {
       inbox: path.join(daten, "inbox"),

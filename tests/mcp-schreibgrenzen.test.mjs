@@ -4,7 +4,7 @@
 // Werkzeugfehler fuehrt nie zu einem Commit.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { after, before } from "node:test";
@@ -30,6 +30,19 @@ test("bestandOrte: data/master behaelt data/inbox, jeder andere Bestand hat eige
   assert.deepEqual(bestandOrte(app, "/x/app/data/demo"), {
     inbox: "/x/app/data/demo/inbox", profile: "/x/app/data/demo/import-profile", papierkorb: "/x/app/data/demo/papierkorb", belege: null,
   });
+});
+
+test("bestandOrte: data/master als Symlink bleibt data/master", () => {
+  const wurzel = mkdtempSync(join(tmpdir(), "finanzen-orte-"));
+  try {
+    mkdirSync(join(wurzel, "app", "data"), { recursive: true });
+    mkdirSync(join(wurzel, "woanders"));
+    symlinkSync(join(wurzel, "woanders"), join(wurzel, "app", "data", "master"));
+    assert.equal(bestandOrte(join(wurzel, "app"), join(wurzel, "app", "data", "master")).inbox, join(wurzel, "app", "data", "inbox"));
+    assert.equal(bestandOrte(join(wurzel, "app"), join(wurzel, "woanders")).inbox, join(wurzel, "app", "data", "inbox"));
+  } finally {
+    rmSync(wurzel, { recursive: true, force: true });
+  }
 });
 
 test("Sitzung auf data/master schreibt nicht in einen anderen Bestand", async () => {

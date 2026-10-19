@@ -28,7 +28,7 @@ test("inbox_verwerfen: aus der Wurzel samt Zwilling und Textvorlauf in den Papie
   writeFileSync(join(inbox, "bleibt.pdf"), "%PDF-1.4 b");
   const s = starteServer(abzug, "schreiben");
   try {
-    const r = await s.werkzeug("inbox_verwerfen", { pfad: "data/inbox/duplikat.pdf", grund: "Duplikat eines bereits importierten Auszugs" });
+    const r = await s.werkzeug("inbox_verwerfen", { schreiben: true, pfad: "data/inbox/duplikat.pdf", grund: "Duplikat eines bereits importierten Auszugs" });
     assert.ok(!r.isError, r.text);
     const tag = localTodayIso();
     assert.match(r.text, new RegExp(`data/papierkorb/${tag}/duplikat\\.pdf`));
@@ -62,7 +62,7 @@ test("inbox_verwerfen: aus error/ mit Fehlernotiz, Unterstruktur bleibt; Kollisi
   writeFileSync(join(inbox, "error", "auszug.csv.fehler.txt"), "Spalte fehlt\n");
   const s = starteServer(abzug, "schreiben");
   try {
-    const erst = await s.werkzeug("inbox_verwerfen", { pfad: "data/inbox/error/auszug.csv" });
+    const erst = await s.werkzeug("inbox_verwerfen", { schreiben: true, pfad: "data/inbox/error/auszug.csv" });
     assert.ok(!erst.isError, erst.text);
     assert.equal(readFileSync(join(korb, "error", "auszug.csv"), "utf8"), "kaputt 1");
     assert.equal(readFileSync(join(korb, "error", "auszug.csv.fehler.txt"), "utf8"), "Spalte fehlt\n");
@@ -72,7 +72,7 @@ test("inbox_verwerfen: aus error/ mit Fehlernotiz, Unterstruktur bleibt; Kollisi
     // Gleicher Name noch einmal: nichts wird ueberschrieben, die Gruppe bekommt -2.
     writeFileSync(join(inbox, "error", "auszug.csv"), "kaputt 2");
     writeFileSync(join(inbox, "error", "auszug.csv.fehler.txt"), "Datum unlesbar\n");
-    const zweit = await s.werkzeug("inbox_verwerfen", { pfad: "data/inbox/error/auszug.csv" });
+    const zweit = await s.werkzeug("inbox_verwerfen", { schreiben: true, pfad: "data/inbox/error/auszug.csv" });
     assert.ok(!zweit.isError, zweit.text);
     assert.match(zweit.text, /error\/auszug-2\.csv/);
     assert.equal(readFileSync(join(korb, "error", "auszug.csv"), "utf8"), "kaputt 1");
@@ -101,7 +101,7 @@ test("inbox_verwerfen: Pfadschutz — ../, Symlink, Belege, master, Ordner", asy
       "data/inbox",
       "data/inbox/gibtesnicht.pdf",
     ]) {
-      const r = await s.werkzeug("inbox_verwerfen", { pfad });
+      const r = await s.werkzeug("inbox_verwerfen", { schreiben: true, pfad });
       assert.equal(r.isError, true, `${pfad} muss abgewiesen werden: ${r.text}`);
     }
     assert.equal(readFileSync(join(abzug.master, "konten.json"), "utf8"), kontenVorher);
@@ -121,10 +121,10 @@ test("inbox_verwerfen und inbox_zurueckholen nur mit Schreibrecht", async () => 
     const namen = (await s.anfrage("tools/list")).result.tools.map((t) => t.name);
     assert.ok(!namen.includes("inbox_verwerfen"));
     assert.ok(!namen.includes("inbox_zurueckholen"));
-    const v = await s.werkzeug("inbox_verwerfen", { pfad: "data/inbox/lesend.pdf" });
+    const v = await s.werkzeug("inbox_verwerfen", { schreiben: true, pfad: "data/inbox/lesend.pdf" });
     assert.equal(v.isError, true);
     assert.match(v.text, /recht=schreiben/);
-    const z = await s.werkzeug("inbox_zurueckholen", { pfad: "data/inbox/error/lesend.csv" });
+    const z = await s.werkzeug("inbox_zurueckholen", { schreiben: true, pfad: "data/inbox/error/lesend.csv" });
     assert.equal(z.isError, true);
     assert.ok(existsSync(join(inbox, "lesend.pdf")));
     assert.ok(existsSync(join(inbox, "error", "lesend.csv")));
@@ -146,7 +146,7 @@ test("inbox_zurueckholen: aus error/ in die Wurzel, Kollision bricht ab, nur err
   writeFileSync(join(inbox, "error", "nochmal.csv"), "neu");
   const s = starteServer(abzug, "schreiben");
   try {
-    const ok = await s.werkzeug("inbox_zurueckholen", { pfad: "data/inbox/error/nochmal.csv" });
+    const ok = await s.werkzeug("inbox_zurueckholen", { schreiben: true, pfad: "data/inbox/error/nochmal.csv" });
     assert.ok(!ok.isError, ok.text);
     assert.match(ok.text, /data\/inbox\/nochmal\.csv/);
     assert.match(ok.text, /Validator nach dem Schreiben/);
@@ -155,7 +155,7 @@ test("inbox_zurueckholen: aus error/ in die Wurzel, Kollision bricht ab, nur err
     assert.equal(logZeilen().at(-1).anlass, "inbox-zurueckholen");
 
     writeFileSync(join(inbox, "error", "nochmal.csv"), "anders");
-    const kollision = await s.werkzeug("inbox_zurueckholen", { pfad: "data/inbox/error/nochmal.csv" });
+    const kollision = await s.werkzeug("inbox_zurueckholen", { schreiben: true, pfad: "data/inbox/error/nochmal.csv" });
     assert.equal(kollision.isError, true);
     assert.match(kollision.text, /existiert bereits/);
     assert.equal(readFileSync(join(inbox, "nochmal.csv"), "utf8"), "neu");
@@ -165,7 +165,7 @@ test("inbox_zurueckholen: aus error/ in die Wurzel, Kollision bricht ab, nur err
     mkdirSync(join(inbox, "processed"), { recursive: true });
     writeFileSync(join(inbox, "processed", "fertig.csv"), "x");
     for (const pfad of ["data/inbox/processed/fertig.csv", "data/inbox/error/../processed/fertig.csv", "data/inbox/error/nochmal.csv.fehler.txt", "data/master/konten.json", "data/inbox/error"]) {
-      const r = await s.werkzeug("inbox_zurueckholen", { pfad });
+      const r = await s.werkzeug("inbox_zurueckholen", { schreiben: true, pfad });
       assert.equal(r.isError, true, `${pfad} muss abgewiesen werden: ${r.text}`);
     }
     assert.ok(existsSync(join(inbox, "processed", "fertig.csv")));

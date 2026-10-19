@@ -24,13 +24,20 @@
 // Textzwilling entsteht neben dem Beleg unter `Belege/` — siehe
 // `belege-text.mjs`, das den Vorlauf danach wieder abraeumt.
 import { access, readFile, writeFile, readdir, rename, mkdir } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { runImport } from "./import.mjs";
 import { normalizeCsv } from "./normalize.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
 import { validateImportProfil } from "./import-format.mjs";
 import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
+import { bestandOrte } from "./lib/bestand-orte.mjs";
+
+const APP = fileURLToPath(new URL("../", import.meta.url));
+// Inbox-Pfad relativ zum App-Raum fuer Bericht, rohquelle und Protokoll
+// (data/master: data/inbox, sonst <bestand>/inbox).
+const inboxName = (inboxRoot) => path.relative(APP, fileURLToPath(inboxRoot)).split(path.sep).join("/");
 
 const IGNORIEREN = new Set([".DS_Store", ".gitkeep"]);
 const VERARBEITBAR = new Set(["csv", "pdf", ...BILD_ENDUNGEN]);
@@ -156,7 +163,7 @@ async function archiviere(inboxRoot, { quelle, datei, ordner, notiz }) {
   const name = await freierArchivName(zielOrdner, datei);
   await rename(fileURLToPath(quelle), fileURLToPath(new URL(encodeURIComponent(name), zielOrdner)));
   if (notiz) await writeFile(new URL(encodeURIComponent(`${name}.fehler.txt`), zielOrdner), notiz);
-  return `data/inbox/${ordner}/${name}`;
+  return `${inboxName(inboxRoot)}/${ordner}/${name}`;
 }
 
 export function betroffeneTransaktionsIds(laeufe) {
@@ -238,7 +245,8 @@ async function main() {
   const argv = process.argv.slice(2);
   const schreiben = argv.includes("--schreiben");
   const masterRoot = dataRootFromArg(argv.find((a) => !a.startsWith("--")), new URL("../data/master/", import.meta.url), new URL("../", import.meta.url));
-  const inboxRoot = new URL("../data/inbox/", import.meta.url);
+  // Jeder Bestand hat seine Inbox (data/master: data/inbox/), siehe bestand-orte.mjs.
+  const inboxRoot = pathToFileURL(`${bestandOrte(APP, fileURLToPath(masterRoot)).inbox}${path.sep}`);
 
   const { profile, ungueltig: ungueltigeProfile } = await ladeProfile(new URL("../import-profile/", inboxRoot));
   const eintraege = await readdir(inboxRoot, { withFileTypes: true });
@@ -275,7 +283,7 @@ async function main() {
 
     if (auftrag.art === "pdf-text" || auftrag.art === "bild-text") {
       const zielName = `${auftrag.datei.replace(/\.[^.]+$/, "")}.txt`;
-      const lauf = { datei: auftrag.datei, art: auftrag.art, ziel: `data/inbox/standardized/${zielName}`, hinweis: "Zeilenextraktion durch den Agenten; Textzwilling danach ueber belege-text.mjs" };
+      const lauf = { datei: auftrag.datei, art: auftrag.art, ziel: `${inboxName(inboxRoot)}/standardized/${zielName}`, hinweis: "Zeilenextraktion durch den Agenten; Textzwilling danach ueber belege-text.mjs" };
       // OCR ist teuer: nur im Schreiblauf. Die Vorschau nennt nur den Auftrag.
       if (schreiben) {
         let vorlauf;
@@ -306,7 +314,7 @@ async function main() {
     }
 
     const profil = profile.find((p) => p.profil_id === auftrag.profil_id);
-    const rohquelle = profil.beleg_ziel ? `${profil.beleg_ziel}/${auftrag.datei}` : `data/inbox/processed/${auftrag.datei}`;
+    const rohquelle = profil.beleg_ziel ? `${profil.beleg_ziel}/${auftrag.datei}` : `${inboxName(inboxRoot)}/processed/${auftrag.datei}`;
     let normalized;
     try {
       normalized = normalizeCsv({ text: await readFile(quelle, "utf8"), profil, rohquelle });
@@ -375,7 +383,7 @@ async function main() {
   const protokoll = {
     zeitpunkt: new Date().toISOString(),
     anlass: "inbox-lauf",
-    inputs: plan.auftraege.map((a) => `data/inbox/${a.datei}`),
+    inputs: plan.auftraege.map((a) => `${inboxName(inboxRoot)}/${a.datei}`),
     anzahl_importiert: bericht.laeufe.reduce((s, l) => s + (l.geschrieben ?? 0), 0),
     anzahl_offen: plan.offen.length,
     anzahl_fehler: bericht.laeufe.reduce((s, l) => s + (l.importfehler ?? 0) + (l.lesefehler ?? 0), 0),

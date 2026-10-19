@@ -12,7 +12,7 @@ Wahrheit; hier steht nur, was zusaetzlich gilt.
 Lesen, Schreiben und jeder Tool-Lauf gehen
 ueber die `mcp__finanzen__*`-Tools (Zuordnung CLI -> Tool in
 `app/docs/agent-context.md`, „Betrieb ueber MCP"). Die standardisierte JSONL
-schreibst du per `datei_schreiben` nach `data/inbox/standardized/` und spielst
+schreibst du per `datei_schreiben` (mit `schreiben: true`) nach `data/inbox/standardized/` und spielst
 sie mit `import` ein — erst als Vorschau, dann mit `schreiben: true`.
 
 Deine Station ist die riskanteste der Pipeline. Eine falsche Spaltenzuordnung

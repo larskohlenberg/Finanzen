@@ -76,7 +76,7 @@ das ist **kategorisierung-review**.
    Hineinkopierte Archivexporte liegen in Unterordnern und werden vom Tool
    nicht erfasst — die von Hand abgleichen, wenn welche da sind.
 8. **Protokollieren.** Die Zaehler in `DATENROOT/agent_log.jsonl` festhalten
-   (`datei_schreiben` mit `anhaengen: true`).
+   (`datei_schreiben` mit `anhaengen: true, schreiben: true`).
 
 ## Zentrale Regeln
 

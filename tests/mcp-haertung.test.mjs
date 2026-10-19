@@ -36,12 +36,12 @@ test("Atomares Schreiben behaelt den Dateimodus, neue Dateien bekommen 0640", as
   chmodSync(bestehend, 0o600);
   const s = starteServer(abzug, "schreiben");
   try {
-    const ersetzt = await s.werkzeug("datei_ersetzen", { pfad: "data/inbox/modus.txt", alt: "a=1", neu: "a=2" });
+    const ersetzt = await s.werkzeug("datei_ersetzen", { schreiben: true, pfad: "data/inbox/modus.txt", alt: "a=1", neu: "a=2" });
     assert.ok(!ersetzt.isError, ersetzt.text);
     assert.equal(readFileSync(bestehend, "utf8"), "a=2\n");
     assert.equal(statSync(bestehend).mode & 0o777, 0o600);
 
-    const neu = await s.werkzeug("datei_schreiben", { pfad: "data/inbox/neu-modus.txt", inhalt: "x" });
+    const neu = await s.werkzeug("datei_schreiben", { schreiben: true, pfad: "data/inbox/neu-modus.txt", inhalt: "x" });
     assert.ok(!neu.isError, neu.text);
     assert.equal(statSync(join(abzug.app, "data", "inbox", "neu-modus.txt")).mode & 0o777, 0o640);
   } finally {
@@ -55,12 +55,12 @@ test("Anhaengen an eine unlesbare Datei bricht ab statt sie zu ersetzen", { skip
   chmodSync(datei, 0o200);
   const s = starteServer(abzug, "schreiben");
   try {
-    const r = await s.werkzeug("datei_schreiben", { pfad: "data/inbox/gesperrt.txt", inhalt: "neu", anhaengen: true });
+    const r = await s.werkzeug("datei_schreiben", { schreiben: true, pfad: "data/inbox/gesperrt.txt", inhalt: "neu", anhaengen: true });
     assert.equal(r.isError, true, r.text);
     chmodSync(datei, 0o600);
     assert.equal(readFileSync(datei, "utf8"), "alt\n");
 
-    const neu = await s.werkzeug("datei_schreiben", { pfad: "data/inbox/frisch.txt", inhalt: "erste", anhaengen: true });
+    const neu = await s.werkzeug("datei_schreiben", { schreiben: true, pfad: "data/inbox/frisch.txt", inhalt: "erste", anhaengen: true });
     assert.ok(!neu.isError, neu.text);
     assert.equal(readFileSync(join(abzug.app, "data", "inbox", "frisch.txt"), "utf8"), "erste\n");
   } finally {

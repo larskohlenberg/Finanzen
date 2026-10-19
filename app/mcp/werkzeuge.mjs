@@ -20,7 +20,7 @@ import { localTodayIso } from "../liquiditaet.mjs";
 import { abfragen } from "./abfrage.mjs";
 import { pruefeArgumente } from "./argumente.mjs";
 import { istKalenderdatum, kennzahlenText, planIstText } from "./kennzahlen.mjs";
-import { LESE_WURZELN, PfadFehler, SCHREIB_WURZELN, loesePfad } from "./pfade.mjs";
+import { LESE_WURZELN, PfadFehler, bestandWurzeln, loesePfad, pruefeEndung, pruefeKeinAktiverTyp } from "./pfade.mjs";
 import { kopiereDatenroot, mitRollback } from "./schreiben.mjs";
 
 const MAX_TEXT = 2 * 1024 * 1024;
@@ -33,7 +33,7 @@ const DATUM = { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" };
 const BETRAG = { type: "string", pattern: "^-?\\d+(\\.\\d{1,2})?$", description: "Decimal-String, z. B. \"-12.50\"" };
 const SCHREIBEN = {
   type: "boolean",
-  description: "Default false = Vorschau, es wird nichts geschrieben. true schreibt (nur mit --recht=schreiben); danach laeuft der Validator, bei neuen Fehlern wird der Masterstand zurueckgesetzt.",
+  description: "Default false = Vorschau, es wird nichts geschrieben. true schreibt (nur mit --recht=schreiben); danach laeuft der Validator, bei neuen Fehlern oder einem Werkzeugfehler wird der Bestand zurueckgesetzt.",
 };
 
 // Die Kategorisierungsregel (ADR 0029) an einer Stelle: Anleitung und
@@ -41,6 +41,13 @@ const SCHREIBEN = {
 export const KATEGORIE_REGEL = "Regeln nur mit Beleg (Belegleiter E1-E4). Einzelbuchungen ohne Beleg schaetzt der Agent: plausibelste Kategorie als Einzelvorschlag (agent_vorschlag); KAT-012 nur, wenn keine Kategorie plausibel ist.";
 
 const ergebnis = (text, isError = false) => ({ text, isError });
+
+// Belege/ gehoert nur zu data/master; andere Bestaende haben keine Belegablage.
+function belegeWurzel(ctx) {
+  const { belege, datenroot } = bestandWurzeln(ctx);
+  if (!belege) throw new PfadFehler(`Belege/ gehoert zum Bestand data/master; ${datenroot} hat keine Belegablage`);
+  return belege;
+}
 const json = (wert) => JSON.stringify(wert, null, 2);
 
 // ---------------------------------------------------------------- CLI-Laeufe
@@ -62,7 +69,11 @@ function starte(ctx, skript, args) {
 // schreibFlag: Flag der CLI fuer den Schreiblauf. ohneVorschau: die CLI
 // schreibt immer (import.mjs, recategorize.mjs) — dann laeuft die Vorschau gegen
 // eine Wegwerfkopie des Datenroots, und beim Schreiben wird kein Flag gereicht.
-function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], schreibFlag, ohneVorschau = false, okCodes = [0], argv }) {
+// rueckrollungBeiFehler: false fuer Laeufe, die Dateien ausserhalb des
+// Bestands verschieben (Inbox-Archiv, Belege); dort wuerde ein Zuruecksetzen nur
+// des Bestands Verweise ins Leere zeigen lassen. Sie setzen nur bei neuen
+// Validatorfehlern zurueck. mitBelegen: der Lauf arbeitet auf Belege/.
+function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], schreibFlag, ohneVorschau = false, okCodes = [0], rueckrollungBeiFehler = true, mitBelegen = false, argv }) {
   const properties = { ...eigenschaften };
   if (schreibFlag) properties.schreiben = SCHREIBEN;
   return {
@@ -75,6 +86,7 @@ function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], sch
       if (schreiben && ctx.recht !== "schreiben") {
         return ergebnis(`${name} mit schreiben:true braucht --recht=schreiben. Dieser Zugang darf nur Vorschau-Laeufe.`, true);
       }
+      if (mitBelegen) belegeWurzel(ctx);
       const lauf = async (root, kopfzeile) => {
         const cliArgs = await argv(ctx, args, root);
         const flag = schreiben && !ohneVorschau ? [schreibFlag] : [];
@@ -88,7 +100,7 @@ function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], sch
         if (r.stderr.trim()) teile.push(`--- stderr ---\n${r.stderr.trimEnd()}`);
         return ergebnis(teile.join("\n"), !okCodes.includes(r.exitCode));
       };
-      if (schreiben) return mitRollback(ctx.datenroot, () => lauf(ctx.datenrootRel, "Modus: schreiben"));
+      if (schreiben) return mitRollback(ctx.datenroot, () => lauf(ctx.datenrootRel, "Modus: schreiben"), { rueckrollungBeiFehler });
       if (!ohneVorschau) return lauf(ctx.datenrootRel, "Modus: Vorschau");
       // Die CLI kennt keine Vorschau: gegen eine Wegwerfkopie des Datenroots laufen.
       const kopie = await kopiereDatenroot(ctx.datenroot);
@@ -101,6 +113,12 @@ function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], sch
   };
 }
 
+// Bilddateien fuer logos: Bestand samt Inbox, bei data/master auch Belege/.
+function logoQuellen(ctx) {
+  const w = bestandWurzeln(ctx);
+  return [...w.schreiben, ...(w.belege ? [w.belege] : [])];
+}
+
 const CLI_WERKZEUGE = [
   cli({
     name: "pruefbericht",
@@ -111,19 +129,20 @@ const CLI_WERKZEUGE = [
   cli({
     name: "inbox",
     skript: "inbox.mjs",
-    beschreibung: "Inbox-Lauf (tools/inbox.mjs) ueber die Dateien direkt in data/inbox/: Profil zuordnen, CSV normalisieren, importieren, PDFs und Bilder als Textvorlauf nach standardized/ (ohne Textlayer per OCR; Bilder bleiben im Inbox-Root liegen). CSV-Dateien werden erst nach Schreiben und Validieren des Bestands verschoben: vollstaendig gelesen nach processed/, abgebrochen oder mit Zeilenfehlern samt Fehlernotiz <name>.fehler.txt nach error/ (die guten Zeilen sind dann importiert); gleichnamige Dateien bekommen ein Suffix (-2, -3 ...). Bringt der Lauf neue Validatorfehler, wird nichts geschrieben und nichts verschoben. Der Bericht nennt alle Lese- und Importfehler. Vorschau ist Default.",
+    beschreibung: "Inbox-Lauf (tools/inbox.mjs) ueber die Dateien direkt in der Inbox des Bestands (data/master: data/inbox/, andere Bestaende: <bestand>/inbox/): Profil zuordnen, CSV normalisieren, importieren, PDFs und Bilder als Textvorlauf nach standardized/ (ohne Textlayer per OCR; Bilder bleiben im Inbox-Root liegen). CSV-Dateien werden erst nach Schreiben und Validieren des Bestands verschoben: vollstaendig gelesen nach processed/, abgebrochen oder mit Zeilenfehlern samt Fehlernotiz <name>.fehler.txt nach error/ (die guten Zeilen sind dann importiert); gleichnamige Dateien bekommen ein Suffix (-2, -3 ...). Bringt der Lauf neue Validatorfehler, wird nichts geschrieben und nichts verschoben. Der Bericht nennt alle Lese- und Importfehler. Vorschau ist Default.",
     schreibFlag: "--schreiben",
+    rueckrollungBeiFehler: false,
     argv: async (ctx, a, root) => [root],
   }),
   cli({
     name: "import",
     skript: "import.mjs",
-    beschreibung: "Eine standardisierte JSONL-Datei (Importformat, liegt unter data/inbox/, meist standardized/) importieren (tools/import.mjs): Dedupe gegen den Bestand, Kategorisierung per Regeln, Transfer-Match. Vorschau ist Default (laeuft gegen eine Kopie des Datenroots).",
+    beschreibung: "Eine standardisierte JSONL-Datei (Importformat, liegt in der Inbox des Bestands, meist standardized/) importieren (tools/import.mjs): Dedupe gegen den Bestand, Kategorisierung per Regeln, Transfer-Match. Vorschau ist Default (laeuft gegen eine Kopie des Datenroots).",
     eigenschaften: { datei: { type: "string", description: "Pfad relativ zum App-Raum, z. B. data/inbox/standardized/lauf.jsonl" } },
     pflicht: ["datei"],
     schreibFlag: true,
     ohneVorschau: true,
-    argv: async (ctx, a, root) => [(await loesePfad(ctx.app, a.datei, ["data/inbox"])).absolut, root],
+    argv: async (ctx, a, root) => [(await loesePfad(ctx.app, a.datei, [bestandWurzeln(ctx).inbox])).absolut, root],
   }),
   cli({
     name: "regel_vorschlag",
@@ -142,7 +161,7 @@ const CLI_WERKZEUGE = [
     beschreibung: "Regelkandidaten gegen den Gesamtbestand rechnen, bevor etwas geschrieben wird (tools/regel-probelauf.mjs). Kandidaten in Endfassung inkl. belegstufe (E1-E4) und kommentar. Exitcode 2 = blockiert (Strukturfehler, unspezifisch, neue Konflikte, Wiedervorlagen, Widersprueche zu menschlichen Entscheidungen, verlorene bestaetigte Treffer) — dann nicht schreiben. Rein lesend.",
     eigenschaften: {
       kandidaten: { type: "array", items: { type: "object" }, minItems: 1, description: "Regelkandidaten als Objekte im Schema von kategorisierungsregeln.json" },
-      kandidaten_datei: { type: "string", description: "Alternativ: JSON-Datei mit Kandidaten unter data/" },
+      kandidaten_datei: { type: "string", description: "Alternativ: JSON-Datei mit Kandidaten im Bestand oder seiner Inbox" },
       aenderung: { type: "boolean", description: "Bestandsregel bewusst aendern (bekannte regel_id erlaubt)" },
       json: { type: "boolean", description: "Bericht als JSON" },
     },
@@ -155,7 +174,7 @@ const CLI_WERKZEUGE = [
         await writeFile(datei, JSON.stringify(a.kandidaten));
       } else if (a.kandidaten_datei) {
         // Den geprueften absoluten Pfad reichen: die CLI soll nichts mehr deuten.
-        datei = (await loesePfad(ctx.app, a.kandidaten_datei, SCHREIB_WURZELN)).absolut;
+        datei = (await loesePfad(ctx.app, a.kandidaten_datei, bestandWurzeln(ctx).schreiben)).absolut;
       } else {
         throw new PfadFehler("kandidaten oder kandidaten_datei angeben");
       }
@@ -167,9 +186,8 @@ const CLI_WERKZEUGE = [
   cli({
     name: "nachkategorisieren",
     skript: "recategorize.mjs",
-    beschreibung: "Bestand nach Regelaenderungen neu bewerten (tools/recategorize.mjs): offene, regelbasierte und auto-freigegebene Buchungen gegen das aktuelle Regelwerk; menschlich bestaetigte, abgelehnte und manuelle bleiben samt Regelbezug unangetastet, Widersprueche zaehlt widerspruch (Liste im Pruefbericht). Vorschau ist Default (laeuft gegen eine Kopie des Datenroots).",
-    schreibFlag: true,
-    ohneVorschau: true,
+    beschreibung: "Bestand nach Regelaenderungen neu bewerten (tools/recategorize.mjs): offene, regelbasierte und auto-freigegebene Buchungen gegen das aktuelle Regelwerk; menschlich bestaetigte, abgelehnte und manuelle bleiben samt Regelbezug unangetastet, Widersprueche zaehlt widerspruch (Liste im Pruefbericht). Vorschau ist Default.",
+    schreibFlag: "--schreiben",
     argv: async (ctx, a, root) => [root],
   }),
   cli({
@@ -261,7 +279,7 @@ const CLI_WERKZEUGE = [
             domain: { type: "string", description: "z. B. beispielmarkt.de" },
             muster: { type: "string", description: "Gegenpartei-Muster, z. B. BEISPIELMARKT|BSP MARKT" },
             bild: { type: "string", maxLength: 1500000, description: "Optional: Logo als PNG oder JPEG, Base64; statt Abruf beim Dienst" },
-            datei: { type: "string", description: "Optional statt bild: lokale Bilddatei, relativ zum App-Raum unter data/ oder Belege/, z. B. data/inbox/beispielmarkt-logo.png" },
+            datei: { type: "string", description: "Optional statt bild: lokale Bilddatei, relativ zum App-Raum im Bestand, seiner Inbox oder unter Belege/, z. B. data/inbox/beispielmarkt-logo.png" },
             quelle: { type: "string", description: "Pflicht mit bild, optional mit datei: https-URL, woher das Bild stammt" },
           },
           required: ["name", "domain", "muster"],
@@ -270,6 +288,8 @@ const CLI_WERKZEUGE = [
       },
       top: { type: "integer", minimum: 1, maximum: 200, description: "Bericht: so viele Gegenparteien ohne Logo (Default 20)" },
     },
+    // Teilerfolg (einzelne Abrufe gescheitert) bleibt; der Validator wacht.
+    rueckrollungBeiFehler: false,
     schreibFlag: "--schreiben",
     argv: async (ctx, a, root) => {
       const out = [root];
@@ -277,7 +297,7 @@ const CLI_WERKZEUGE = [
       if (!a.eintraege) return out;
       const eintraege = [];
       for (const e of a.eintraege) {
-        eintraege.push(e.datei ? { ...e, datei: (await loesePfad(ctx.app, e.datei, ["data", "Belege"])).absolut } : e);
+        eintraege.push(e.datei ? { ...e, datei: (await loesePfad(ctx.app, e.datei, logoQuellen(ctx))).absolut } : e);
       }
       const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-logos-"));
       const datei = path.join(ordner, "plan.json");
@@ -306,6 +326,8 @@ const CLI_WERKZEUGE = [
     skript: "belege-text.mjs",
     beschreibung: "Textzwillinge (.txt) fuer PDFs und Bilder unter Belege/ erzeugen (ohne Textlayer per OCR, alte Kein-Textlayer-Marker werden nachgeholt) und data/inbox/standardized/ sowie processed/ per Inhalts-Hash aufraeumen (tools/belege-text.mjs). error/ bleibt unangetastet. Vorschau ist Default; geloeschte Eingangsdateien werden bei einem Rollback nicht wiederhergestellt.",
     schreibFlag: "--schreiben",
+    rueckrollungBeiFehler: false,
+    mitBelegen: true,
     argv: async () => [],
   }),
   cli({
@@ -326,9 +348,11 @@ const CLI_WERKZEUGE = [
           additionalProperties: false,
         },
       },
-      plan_datei: { type: "string", description: "Alternativ: JSON-Datei unter data/ mit derselben Liste" },
+      plan_datei: { type: "string", description: "Alternativ: JSON-Datei im Bestand oder seiner Inbox mit derselben Liste" },
     },
     schreibFlag: "--schreiben",
+    rueckrollungBeiFehler: false,
+    mitBelegen: true,
     argv: async (ctx, a, root) => {
       let datei;
       if (a.umzuege) {
@@ -336,7 +360,7 @@ const CLI_WERKZEUGE = [
         datei = path.join(ordner, "plan.json");
         await writeFile(datei, JSON.stringify(a.umzuege));
       } else if (a.plan_datei) {
-        datei = (await loesePfad(ctx.app, a.plan_datei, SCHREIB_WURZELN)).absolut;
+        datei = (await loesePfad(ctx.app, a.plan_datei, bestandWurzeln(ctx).schreiben)).absolut;
       } else {
         throw new PfadFehler("umzuege oder plan_datei angeben");
       }
@@ -360,7 +384,7 @@ async function zaehleDateien(ordner) {
 }
 
 async function inboxStand(ctx) {
-  const ordner = path.join(ctx.app, "data", "inbox");
+  const ordner = path.join(ctx.app, bestandWurzeln(ctx).inbox);
   const dateien = [];
   const unterordner = {};
   for (const e of await readdir(ordner, { withFileTypes: true }).catch(() => [])) {
@@ -675,20 +699,34 @@ async function schreibeAtomar(absolut, inhalt) {
   }
 }
 
+// Ziel eines Dateiwerkzeugs: nur im Bestand der Sitzung (samt Inbox,
+// Importprofilen, Papierkorb) und nur mit erlaubter Endung.
+async function schreibZiel(ctx, pfad) {
+  const ziel = await loesePfad(ctx.app, pfad, bestandWurzeln(ctx).schreiben);
+  pruefeEndung(ziel.relativ);
+  return ziel;
+}
+
 const dateiSchreiben = {
   name: "datei_schreiben",
-  description: "Ganze Textdatei unter data/ schreiben oder anlegen (max. 10 MB), z. B. eine standardisierte JSONL unter data/inbox/standardized/, ein Importprofil oder eine Masterdatei. Mit anhaengen:true wird der Inhalt als Zeile(n) ans Dateiende gehaengt (z. B. ein Eintrag in agent_log.jsonl). Nicht Belege/. Danach laeuft der Validator; bei neuen Fehlern wird der Masterstand zurueckgesetzt. Kategorien nie per Datei-Edit an Transaktionen setzen — dafuer gibt es bestaetigen/agent_vorschlag.",
+  description: "Ganze Textdatei im Bestand der Sitzung oder in dessen Inbox/Importprofilen schreiben oder anlegen (max. 10 MB), z. B. eine standardisierte JSONL unter <inbox>/standardized/ (data/master: data/inbox/), ein Importprofil (data/master: data/import-profile/) oder eine Masterdatei. Nur Endungen json, jsonl, csv, txt, md, pdf, png, jpg. Mit anhaengen:true wird der Inhalt als Zeile(n) ans Dateiende gehaengt (z. B. ein Eintrag in agent_log.jsonl). Nicht Belege/, nicht andere Bestaende. Vorschau ist Default; erst schreiben:true schreibt. Danach laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird der Bestand zurueckgesetzt. Kategorien nie per Datei-Edit an Transaktionen setzen — dafuer gibt es bestaetigen/agent_vorschlag.",
   inputSchema: {
     type: "object",
-    properties: { pfad: { type: "string" }, inhalt: { type: "string" }, anhaengen: { type: "boolean" } },
+    properties: { pfad: { type: "string" }, inhalt: { type: "string" }, anhaengen: { type: "boolean" }, schreiben: SCHREIBEN },
     required: ["pfad", "inhalt"],
     additionalProperties: false,
   },
   nurSchreiben: true,
   async ausfuehren(ctx, args) {
-    const { absolut, relativ } = await loesePfad(ctx.app, args.pfad, SCHREIB_WURZELN);
-    if (Buffer.byteLength(args.inhalt) > MAX_SCHREIBEN) return ergebnis("Inhalt groesser als 10 MB", true);
-    if ((await stat(absolut).catch(() => null))?.isDirectory()) return ergebnis(`${relativ} ist ein Ordner`, true);
+    const { absolut, relativ } = await schreibZiel(ctx, args.pfad);
+    const bytes = Buffer.byteLength(args.inhalt);
+    if (bytes > MAX_SCHREIBEN) return ergebnis("Inhalt groesser als 10 MB", true);
+    const info = await stat(absolut).catch(() => null);
+    if (info?.isDirectory()) return ergebnis(`${relativ} ist ein Ordner`, true);
+    if (!args.schreiben) {
+      const was = args.anhaengen ? `${bytes} Bytes an ${relativ} anhaengen` : `${relativ} ${info ? "ueberschreiben" : "anlegen"} (${bytes} Bytes)`;
+      return ergebnis(`Vorschau (nichts geschrieben): wuerde ${was}. Mit schreiben:true ausfuehren.`);
+    }
     return mitRollback(ctx.datenroot, async () => {
       if (args.anhaengen) {
         // Nur eine fehlende Datei gilt als leer; jeder andere Lesefehler bricht ab,
@@ -698,39 +736,58 @@ const dateiSchreiben = {
           throw error;
         });
         await schreibeAtomar(absolut, `${bisher.replace(/\n*$/, bisher ? "\n" : "")}${args.inhalt.replace(/\n*$/, "\n")}`);
-        return ergebnis(`${relativ}: ${Buffer.byteLength(args.inhalt)} Bytes angehaengt.`);
+        return ergebnis(`${relativ}: ${bytes} Bytes angehaengt.`);
       }
       await schreibeAtomar(absolut, args.inhalt);
-      return ergebnis(`${relativ} geschrieben (${Buffer.byteLength(args.inhalt)} Bytes).`);
+      return ergebnis(`${relativ} geschrieben (${bytes} Bytes).`);
     });
   },
 };
 
 const dateiErsetzen = {
   name: "datei_ersetzen",
-  description: "Exakten Textabschnitt in einer Datei unter data/ ersetzen. alt muss genau einmal vorkommen (sonst Fehler, nichts geaendert). Danach laeuft der Validator; bei neuen Fehlern wird der Masterstand zurueckgesetzt.",
+  description: "Exakten Textabschnitt in einer Datei im Bestand der Sitzung oder in dessen Inbox/Importprofilen ersetzen. alt muss genau einmal vorkommen (sonst Fehler, nichts geaendert). Vorschau ist Default; erst schreiben:true schreibt. Danach laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird der Bestand zurueckgesetzt.",
   inputSchema: {
     type: "object",
-    properties: { pfad: { type: "string" }, alt: { type: "string", minLength: 1 }, neu: { type: "string" } },
+    properties: { pfad: { type: "string" }, alt: { type: "string", minLength: 1 }, neu: { type: "string" }, schreiben: SCHREIBEN },
     required: ["pfad", "alt", "neu"],
     additionalProperties: false,
   },
   nurSchreiben: true,
   async ausfuehren(ctx, args) {
-    const { absolut, relativ } = await loesePfad(ctx.app, args.pfad, SCHREIB_WURZELN);
-    const info = await stat(absolut).catch(() => null);
-    if (!info?.isFile()) return ergebnis(`${relativ} existiert nicht`, true);
-    if (info.size > MAX_SCHREIBEN) return ergebnis(`${relativ} ist groesser als 10 MB`, true);
-    const text = await readFile(absolut, "utf8");
-    const erste = text.indexOf(args.alt);
-    if (erste < 0) return ergebnis(`alt kommt in ${relativ} nicht vor — nichts geaendert`, true);
-    if (text.indexOf(args.alt, erste + 1) >= 0) return ergebnis(`alt kommt in ${relativ} mehrfach vor — mehr Kontext angeben, nichts geaendert`, true);
+    const { absolut, relativ } = await schreibZiel(ctx, args.pfad);
+    const pruefen = async () => {
+      const info = await stat(absolut).catch(() => null);
+      if (!info?.isFile()) return { fehler: `${relativ} existiert nicht` };
+      if (info.size > MAX_SCHREIBEN) return { fehler: `${relativ} ist groesser als 10 MB` };
+      const text = await readFile(absolut, "utf8");
+      const erste = text.indexOf(args.alt);
+      if (erste < 0) return { fehler: `alt kommt in ${relativ} nicht vor — nichts geaendert` };
+      if (text.indexOf(args.alt, erste + 1) >= 0) return { fehler: `alt kommt in ${relativ} mehrfach vor — mehr Kontext angeben, nichts geaendert` };
+      return { text, erste };
+    };
+    const vorab = await pruefen();
+    if (vorab.fehler) return ergebnis(vorab.fehler, true);
+    if (!args.schreiben) {
+      const zeile = vorab.text.slice(0, vorab.erste).split("\n").length;
+      return ergebnis(`Vorschau (nichts geschrieben): wuerde in ${relativ} 1 Stelle ab Zeile ${zeile} ersetzen. Mit schreiben:true ausfuehren.`);
+    }
     return mitRollback(ctx.datenroot, async () => {
-      await schreibeAtomar(absolut, text.slice(0, erste) + args.neu + text.slice(erste + args.alt.length));
+      // Unter der Schreibreihenfolge neu lesen: dazwischen kann ein anderer
+      // Aufruf die Datei geaendert haben.
+      const jetzt = await pruefen();
+      if (jetzt.fehler) return ergebnis(jetzt.fehler, true);
+      await schreibeAtomar(absolut, jetzt.text.slice(0, jetzt.erste) + args.neu + jetzt.text.slice(jetzt.erste + args.alt.length));
       return ergebnis(`${relativ}: 1 Stelle ersetzt.`);
     });
   },
 };
+
+// Werkzeuge, die Dateien verschieben (Inbox, Papierkorb, Belege/): die
+// Verschiebung nimmt ein Zuruecksetzen nicht zurueck, also setzt nur ein neuer
+// Validatorfehler den Bestand zurueck, nicht schon ein Werkzeugfehler (sonst
+// zeigten umgeschriebene Verweise ins Leere).
+const mitVerschieben = (ctx, fn) => mitRollback(ctx.datenroot, fn, { rueckrollungBeiFehler: false });
 
 // Ablage nach Objekt (agent-context, "Ablage nach Objekt"): Belege/<Klasse>/...
 // Klassen mit Stammsatz verlangen <ID>_<Kurzname> oder Allgemein als Ordner.
@@ -771,20 +828,23 @@ export function pruefeBelegZiel(relativ) {
 
 const belegAblegen = {
   name: "beleg_ablegen",
-  description: "Rohbeleg aus data/inbox/ (auch processed/, error/) sprechend benannt unter Belege/ ablegen, nach Objekt und Jahr, z. B. Belege/Konten/<KTO-ID>_<Kurzname>/<Jahr>/... (Regel: agent-context, Ablage nach Objekt) Verschiebt, legt fehlende Ordner an, ueberschreibt nie, Endung bleibt gleich. Ein .txt-Zwilling gleichen Namens neben der Quelle wird mitgenommen (so kommt ein von Hand geschriebener Bildscan-Zwilling an den Beleg: erst per datei_schreiben neben die Quelle legen). Wird bei einem Rollback nicht zurueckgenommen.",
+  description: "Rohbeleg aus der Inbox (data/inbox/, auch processed/, error/; nur Bestand data/master) sprechend benannt unter Belege/ ablegen, nach Objekt und Jahr, z. B. Belege/Konten/<KTO-ID>_<Kurzname>/<Jahr>/... (Regel: agent-context, Ablage nach Objekt) Verschiebt, legt fehlende Ordner an, ueberschreibt nie, Endung bleibt gleich. Ein .txt-Zwilling gleichen Namens neben der Quelle wird mitgenommen (so kommt ein von Hand geschriebener Bildscan-Zwilling an den Beleg: erst per datei_schreiben neben die Quelle legen). Vorschau ist Default; erst schreiben:true verschiebt. Wird bei einem Rollback nicht zurueckgenommen.",
   inputSchema: {
     type: "object",
     properties: {
       quelle: { type: "string", description: "z. B. data/inbox/processed/scan0001.pdf" },
       ziel: { type: "string", description: "z. B. Belege/Versicherungen/KFZ_MusterversicherungB_12345/2026/KFZ_MusterversicherungB_Beitragsrechnung_2026.pdf" },
+      schreiben: SCHREIBEN,
     },
     required: ["quelle", "ziel"],
     additionalProperties: false,
   },
   nurSchreiben: true,
   async ausfuehren(ctx, args) {
-    const quelle = await loesePfad(ctx.app, args.quelle, ["data/inbox"]);
-    const ziel = await loesePfad(ctx.app, args.ziel, ["Belege"]);
+    const belege = belegeWurzel(ctx);
+    const quelle = await loesePfad(ctx.app, args.quelle, [bestandWurzeln(ctx).inbox]);
+    const ziel = await loesePfad(ctx.app, args.ziel, [belege]);
+    pruefeKeinAktiverTyp(ziel.relativ);
     const falschesZiel = pruefeBelegZiel(ziel.relativ);
     if (falschesZiel) return ergebnis(falschesZiel, true);
     if (!(await lstat(quelle.absolut).catch(() => null))?.isFile()) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
@@ -801,7 +861,9 @@ const belegAblegen = {
     for (const [, z] of paare) {
       if (await lstat(z.absolut).catch(() => null)) return ergebnis(`${z.relativ} existiert bereits — nichts verschoben`, true);
     }
-    return mitRollback(ctx.datenroot, async () => {
+    const bericht = paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n");
+    if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${bericht}`);
+    return mitVerschieben(ctx, async () => {
       await mkdir(path.dirname(ziel.absolut), { recursive: true });
       for (const [q, z] of paare) await rename(q.absolut, z.absolut);
       return ergebnis(paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n"));
@@ -827,7 +889,8 @@ const TEXTVORLAUF = /\.(pdf|png|jpe?g|gif|webp|heic)$/i;
 // standardized/, Fehlernotiz in error/) fuer den Papierkorb planen: Paare
 // [quelle, ziel], ein gemeinsames Suffix bei Namenskollision.
 async function planePapierkorb(ctx, quelle) {
-  const inbox = path.join(ctx.app, "data", "inbox");
+  const w = bestandWurzeln(ctx);
+  const inbox = path.join(ctx.app, w.inbox);
   const unter = path.relative(inbox, quelle.absolut);
   const ordner = path.dirname(unter);
   const name = path.basename(unter);
@@ -842,10 +905,10 @@ async function planePapierkorb(ctx, quelle) {
   if (ordner === "error") kandidaten.push({ unter: path.join(ordner, `${name}.fehler.txt`), ordner, rest: `${endung}.fehler.txt` });
   for (const k of kandidaten) {
     // Auch die Mitlaeufer muessen durch den Pfadschutz (Symlink daneben).
-    const geprueft = await loesePfad(ctx.app, path.join("data", "inbox", k.unter), ["data/inbox"]).catch(() => null);
+    const geprueft = await loesePfad(ctx.app, path.join(w.inbox, k.unter), [w.inbox]).catch(() => null);
     if (geprueft && (await istDatei(geprueft.absolut))) gruppe.push(k);
   }
-  const korb = path.join("data", "papierkorb", localTodayIso());
+  const korb = path.join(w.papierkorb, localTodayIso());
   const zielFuer = (g, n) => path.join(korb, g.ordner, `${stamm}${n > 1 ? `-${n}` : ""}${g.rest}`);
   let n = 1;
   for (;;) {
@@ -856,8 +919,8 @@ async function planePapierkorb(ctx, quelle) {
   const paare = [];
   for (const g of gruppe) {
     paare.push([
-      { absolut: path.join(inbox, g.unter), relativ: path.join("data", "inbox", g.unter).split(path.sep).join("/") },
-      await loesePfad(ctx.app, zielFuer(g, n), ["data/papierkorb"]),
+      { absolut: path.join(inbox, g.unter), relativ: path.join(w.inbox, g.unter).split(path.sep).join("/") },
+      await loesePfad(ctx.app, zielFuer(g, n), [w.papierkorb]),
     ]);
   }
   return paare;
@@ -871,10 +934,11 @@ async function planeBelegKorb(ctx, beleg) {
   const gruppe = [{ absolut: beleg.absolut, rest: endung }];
   if (endung.toLowerCase() !== ".txt") {
     // Auch der Zwilling muss durch den Pfadschutz (Symlink daneben).
-    const zwilling = await loesePfad(ctx.app, path.relative(ctx.app, `${stamm}.txt`), ["Belege"]).catch(() => null);
+    const zwilling = await loesePfad(ctx.app, path.relative(ctx.app, `${stamm}.txt`), [belegeWurzel(ctx)]).catch(() => null);
     if (zwilling && (await istDatei(zwilling.absolut))) gruppe.push({ absolut: zwilling.absolut, rest: ".txt" });
   }
-  const korbStamm = path.join("data", "papierkorb", localTodayIso(), path.relative(ctx.app, stamm));
+  const { papierkorb } = bestandWurzeln(ctx);
+  const korbStamm = path.join(papierkorb, localTodayIso(), path.relative(ctx.app, stamm));
   const zielFuer = (g, n) => `${korbStamm}${n > 1 ? `-${n}` : ""}${g.rest}`;
   let n = 1;
   while ((await Promise.all(gruppe.map((g) => lstat(path.join(ctx.app, zielFuer(g, n))).then(() => true, () => false)))).some(Boolean)) n += 1;
@@ -882,7 +946,7 @@ async function planeBelegKorb(ctx, beleg) {
   for (const g of gruppe) {
     paare.push([
       { absolut: g.absolut, relativ: path.relative(ctx.app, g.absolut).split(path.sep).join("/") },
-      await loesePfad(ctx.app, zielFuer(g, n), ["data/papierkorb"]),
+      await loesePfad(ctx.app, zielFuer(g, n), [papierkorb]),
     ]);
   }
   return paare;
@@ -911,22 +975,24 @@ async function inDenPapierkorb(paare) {
 
 const inboxVerwerfen = {
   name: "inbox_verwerfen",
-  description: "Datei aus data/inbox/ (auch error/, standardized/, processed/) in den Papierkorb data/papierkorb/<JJJJ-MM-TT>/ verschieben, z. B. ein erkanntes Duplikat. Nichts wird geloescht: die Unterstruktur unterhalb von data/inbox/ bleibt erhalten, bei Namenskollision bekommt die Datei ein Suffix (-2, -3 ...), ueberschrieben wird nie. Mit wandern: der gleichnamige .txt-Zwilling daneben, der Textvorlauf in standardized/ und eine Fehlernotiz <name>.fehler.txt in error/. grund wird als notiz in agent_log.jsonl protokolliert. Den Papierkorb leert nur der Nutzer. Wird bei einem Rollback nicht zurueckgenommen.",
+  description: "Datei aus der Inbox des Bestands (data/master: data/inbox/, auch error/, standardized/, processed/) in dessen Papierkorb (data/master: data/papierkorb/<JJJJ-MM-TT>/) verschieben, z. B. ein erkanntes Duplikat. Nichts wird geloescht: die Unterstruktur unterhalb von data/inbox/ bleibt erhalten, bei Namenskollision bekommt die Datei ein Suffix (-2, -3 ...), ueberschrieben wird nie. Mit wandern: der gleichnamige .txt-Zwilling daneben, der Textvorlauf in standardized/ und eine Fehlernotiz <name>.fehler.txt in error/. grund wird als notiz in agent_log.jsonl protokolliert. Den Papierkorb leert nur der Nutzer. Vorschau ist Default; erst schreiben:true verschiebt. Wird bei einem Rollback nicht zurueckgenommen.",
   inputSchema: {
     type: "object",
     properties: {
       pfad: { type: "string", description: "z. B. data/inbox/auszug-2.pdf oder data/inbox/error/auszug.csv" },
       grund: { type: "string", maxLength: 300, description: "Kurz, z. B. \"Duplikat von data/inbox/processed/auszug.pdf\"" },
+      schreiben: SCHREIBEN,
     },
     required: ["pfad"],
     additionalProperties: false,
   },
   nurSchreiben: true,
   async ausfuehren(ctx, args) {
-    const quelle = await loesePfad(ctx.app, args.pfad, ["data/inbox"]);
+    const quelle = await loesePfad(ctx.app, args.pfad, [bestandWurzeln(ctx).inbox]);
     if (!(await istDatei(quelle.absolut))) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
     const paare = await planePapierkorb(ctx, quelle);
-    return mitRollback(ctx.datenroot, async () => {
+    if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n")}`);
+    return mitVerschieben(ctx, async () => {
       await inDenPapierkorb(paare);
       await protokolliere(ctx, {
         anlass: "inbox-verwerfen",
@@ -941,7 +1007,7 @@ const inboxVerwerfen = {
 
 const belegTeilen = {
   name: "beleg_teilen",
-  description: "Sammelscan aus data/inbox/ (auch processed/, error/) in einzelne PDFs zerlegen, z. B. mehrere zusammengescannte Briefe. Jeder Teil nennt seine Seiten (\"1-4\", \"5\", \"1-2,7\") und einen sprechenden Dateinamen; jede Seite gehoert genau einem Teil. Die Teile landen in der Inbox-Wurzel data/inbox/ und gehen von dort den normalen Weg (inbox-Lauf, beleg_ablegen); das Original wandert samt Zwilling und Textvorlauf in den Papierkorb wie bei inbox_verwerfen. Ueberschreibt nie. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
+  description: "Sammelscan aus der Inbox des Bestands (data/master: data/inbox/, auch processed/, error/) in einzelne PDFs zerlegen, z. B. mehrere zusammengescannte Briefe. Jeder Teil nennt seine Seiten (\"1-4\", \"5\", \"1-2,7\") und einen sprechenden Dateinamen; jede Seite gehoert genau einem Teil. Die Teile landen in der Inbox-Wurzel data/inbox/ und gehen von dort den normalen Weg (inbox-Lauf, beleg_ablegen); das Original wandert samt Zwilling und Textvorlauf in den Papierkorb wie bei inbox_verwerfen. Ueberschreibt nie. Vorschau ist Default; wird bei einem Rollback nicht zurueckgenommen.",
   inputSchema: {
     type: "object",
     properties: {
@@ -967,7 +1033,8 @@ const belegTeilen = {
   },
   nurSchreiben: true,
   async ausfuehren(ctx, args) {
-    const quelle = await loesePfad(ctx.app, args.quelle, ["data/inbox"]);
+    const { inbox } = bestandWurzeln(ctx);
+    const quelle = await loesePfad(ctx.app, args.quelle, [inbox]);
     if (!(await istDatei(quelle.absolut))) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
     if (path.extname(quelle.absolut).toLowerCase() !== ".pdf") return ergebnis(`${quelle.relativ} ist kein PDF`, true);
     const namen = args.teile.map((t) => t.name.toLowerCase());
@@ -983,7 +1050,7 @@ const belegTeilen = {
     }
     const teile = [];
     for (const teil of plan) {
-      const ziel = await loesePfad(ctx.app, path.join("data", "inbox", teil.name), ["data/inbox"]);
+      const ziel = await loesePfad(ctx.app, path.join(inbox, teil.name), [inbox]);
       if (await lstat(ziel.absolut).catch(() => null)) return ergebnis(`${ziel.relativ} existiert bereits — nichts geteilt`, true);
       teile.push({ ...teil, ziel });
     }
@@ -993,7 +1060,7 @@ const belegTeilen = {
       ...korb.map(([q, z]) => `${q.relativ} -> ${z.relativ}`),
     ].join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (${seitenzahl} Seiten, nichts geschrieben):\n${bericht}`);
-    return mitRollback(ctx.datenroot, async () => {
+    return mitVerschieben(ctx, async () => {
       const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-teilen-"));
       try {
         await programm("pdfseparate", [quelle.absolut, path.join(ordner, "seite-%d.pdf")]);
@@ -1036,8 +1103,9 @@ const belegErgaenzen = {
   },
   nurSchreiben: true,
   async ausfuehren(ctx, args) {
-    const quelle = await loesePfad(ctx.app, args.quelle, ["data/inbox", "Belege"]);
-    const ziel = await loesePfad(ctx.app, args.ziel, ["Belege"]);
+    const belege = belegeWurzel(ctx);
+    const quelle = await loesePfad(ctx.app, args.quelle, [bestandWurzeln(ctx).inbox, belege]);
+    const ziel = await loesePfad(ctx.app, args.ziel, [belege]);
     const ausBelege = quelle.relativ.startsWith("Belege/");
     if (quelle.absolut === ziel.absolut) return ergebnis("Quelle und Ziel sind derselbe Beleg", true);
     for (const p of [quelle, ziel]) {
@@ -1064,7 +1132,7 @@ const belegErgaenzen = {
       ...verweise.map((v) => `Verweise umgestellt in ${v.name}: ${v.anzahl}`),
     ].join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts geschrieben):\n${bericht}`);
-    return mitRollback(ctx.datenroot, async () => {
+    return mitVerschieben(ctx, async () => {
       const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-ergaenzen-"));
       try {
         await programm("pdfseparate", [ziel.absolut, path.join(ordner, "alt-%d.pdf")]);
@@ -1114,7 +1182,7 @@ const belegVerwerfen = {
   },
   nurSchreiben: true,
   async ausfuehren(ctx, args) {
-    const beleg = await loesePfad(ctx.app, args.pfad, ["Belege"]);
+    const beleg = await loesePfad(ctx.app, args.pfad, [belegeWurzel(ctx)]);
     if (!(await istDatei(beleg.absolut))) return ergebnis(`${beleg.relativ} ist keine Datei`, true);
     const paare = await planeBelegKorb(ctx, beleg);
     const verweise = await datenMitVerweis(ctx, paare.map(([q]) => q.relativ));
@@ -1123,7 +1191,7 @@ const belegVerwerfen = {
     }
     const bericht = paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${bericht}`);
-    return mitRollback(ctx.datenroot, async () => {
+    return mitVerschieben(ctx, async () => {
       await inDenPapierkorb(paare);
       await protokolliere(ctx, {
         anlass: "beleg-verwerfen",
@@ -1138,22 +1206,24 @@ const belegVerwerfen = {
 
 const inboxZurueckholen = {
   name: "inbox_zurueckholen",
-  description: "Datei aus data/inbox/error/ zurueck in die Inbox-Wurzel data/inbox/ verschieben, damit der naechste inbox-Lauf sie wieder aufnimmt. Existiert dort schon eine Datei gleichen Namens, bricht das Tool ab (nichts ueberschrieben). Eine Fehlernotiz <name>.fehler.txt bleibt in error/ liegen.",
+  description: "Datei aus <inbox>/error/ zurueck in die Inbox-Wurzel des Bestands (data/master: data/inbox/) verschieben, damit der naechste inbox-Lauf sie wieder aufnimmt. Existiert dort schon eine Datei gleichen Namens, bricht das Tool ab (nichts ueberschrieben). Eine Fehlernotiz <name>.fehler.txt bleibt in error/ liegen. Vorschau ist Default; erst schreiben:true verschiebt.",
   inputSchema: {
     type: "object",
-    properties: { pfad: { type: "string", description: "z. B. data/inbox/error/auszug.csv" } },
+    properties: { pfad: { type: "string", description: "z. B. data/inbox/error/auszug.csv" }, schreiben: SCHREIBEN },
     required: ["pfad"],
     additionalProperties: false,
   },
   nurSchreiben: true,
   async ausfuehren(ctx, args) {
-    const quelle = await loesePfad(ctx.app, args.pfad, ["data/inbox/error"]);
+    const { inbox } = bestandWurzeln(ctx);
+    const quelle = await loesePfad(ctx.app, args.pfad, [`${inbox}/error`]);
     if (!(await istDatei(quelle.absolut))) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
     const name = path.basename(quelle.absolut);
     if (name.endsWith(".fehler.txt")) return ergebnis(`${quelle.relativ} ist eine Fehlernotiz, keine Eingangsdatei`, true);
-    const ziel = await loesePfad(ctx.app, path.join("data", "inbox", name), ["data/inbox"]);
+    const ziel = await loesePfad(ctx.app, path.join(inbox, name), [inbox]);
     if (await lstat(ziel.absolut).catch(() => null)) return ergebnis(`${ziel.relativ} existiert bereits — nichts verschoben`, true);
-    return mitRollback(ctx.datenroot, async () => {
+    if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${quelle.relativ} -> ${ziel.relativ}`);
+    return mitVerschieben(ctx, async () => {
       await rename(quelle.absolut, ziel.absolut);
       await protokolliere(ctx, { anlass: "inbox-zurueckholen", inputs: [quelle.relativ], notiz: `Aus error/ zurueck nach ${ziel.relativ}` });
       return ergebnis(`${quelle.relativ} -> ${ziel.relativ}`);

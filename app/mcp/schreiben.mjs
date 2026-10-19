@@ -1,6 +1,8 @@
 // app/mcp/schreiben.mjs
 // Schreibschutz um jeden schreibenden Vorgang: Masterdateien vorher kopieren,
-// danach validieren, bei NEUEN Validatorfehlern zurueckspielen. Mehr nicht.
+// danach validieren, bei NEUEN Validatorfehlern oder einem Werkzeugfehler
+// zurueckspielen (Vertrag: Werkzeugfehler = kein Commit). Das ist keine
+// Transaktion: bricht der Prozess selbst ab, bleibt der Zwischenstand.
 // Verschiebungen in data/inbox/ und Belege/ liegen ausserhalb des Datenroots
 // und werden nicht zurueckgerollt.
 import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
@@ -32,8 +34,11 @@ async function spieleZurueck(kopie, datenrootPfad) {
 }
 
 // fn liefert ein Tool-Ergebnis { text, isError? }. Zurueck kommt dasselbe,
-// ergaenzt um Validator- und ggf. Rollback-Befund.
-export async function mitRollback(datenrootPfad, fn) {
+// ergaenzt um Validator- und ggf. Rollback-Befund. rueckrollungBeiFehler:false
+// nur fuer Laeufe, die Dateien ausserhalb des Datenroots verschieben (dann
+// setzt nur ein neuer Validatorfehler zurueck). Ein schon vorher ungueltiger
+// Bestand setzt ebenfalls nur bei neuen Validatorfehlern zurueck.
+export async function mitRollback(datenrootPfad, fn, { rueckrollungBeiFehler = true } = {}) {
   const vorher = await validiere(datenrootPfad);
   const kopie = await kopiereDatenroot(datenrootPfad);
   let sicherungBehalten = false;
@@ -47,7 +52,10 @@ export async function mitRollback(datenrootPfad, fn) {
     const nachher = await validiere(datenrootPfad);
     const bekannt = new Set(vorher.fehler);
     const neu = nachher.fehler.filter((f) => !bekannt.has(f));
-    if (neu.length === 0) {
+    // War der Bestand schon vorher ungueltig, melden die CLIs auch alte
+    // Validatorfehler mit Exitcode 1; dann setzt nur ein neuer Fehler zurueck.
+    const werkzeugfehler = ergebnis.isError === true && rueckrollungBeiFehler && vorher.gueltig;
+    if (neu.length === 0 && !werkzeugfehler) {
       const befund = nachher.gueltig ? "Validator nach dem Schreiben: gueltig." : `Validator nach dem Schreiben: ${nachher.fehler.length} Fehler, alle schon vorher vorhanden.`;
       return { ...ergebnis, text: `${ergebnis.text}\n\n${befund}` };
     }
@@ -59,12 +67,15 @@ export async function mitRollback(datenrootPfad, fn) {
       sicherungBehalten = true;
       return {
         isError: true,
-        text: `${ergebnis.text}\n\nValidator meldet ${neu.length} neue(n) Fehler, Zurueckspielen fehlgeschlagen (${error.message}). Masterstand von Hand aus der Sicherung wiederherstellen. Sicherung: ${kopie}`,
+        text: `${ergebnis.text}\n\n${neu.length ? `Validator meldet ${neu.length} neue(n) Fehler` : "Werkzeugfehler"}, Zurueckspielen fehlgeschlagen (${error.message}). Masterstand von Hand aus der Sicherung wiederherstellen. Sicherung: ${kopie}`,
       };
     }
+    const befund = neu.length
+      ? `Validator meldet ${neu.length} neue(n) Fehler — Masterstand wurde zurueckgesetzt:\n${neu.slice(0, 30).map((f) => `- ${f}`).join("\n")}`
+      : "Werkzeugfehler — kein Commit, Masterstand wurde zurueckgesetzt.";
     return {
       isError: true,
-      text: `${ergebnis.text}\n\nValidator meldet ${neu.length} neue(n) Fehler — Masterstand wurde zurueckgesetzt:\n${neu.slice(0, 30).map((f) => `- ${f}`).join("\n")}\n\nHinweis: Verschiebungen und Loeschungen in data/inbox/ und Belege/ werden nicht zurueckgerollt.`,
+      text: `${ergebnis.text}\n\n${befund}\n\nHinweis: Verschiebungen und Loeschungen in data/inbox/ und Belege/ werden nicht zurueckgerollt.`,
     };
   } finally {
     if (!sicherungBehalten) await rm(kopie, { recursive: true, force: true });

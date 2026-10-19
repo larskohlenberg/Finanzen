@@ -20,7 +20,7 @@ import { localTodayIso } from "../liquiditaet.mjs";
 import { abfragen } from "./abfrage.mjs";
 import { pruefeArgumente } from "./argumente.mjs";
 import { istKalenderdatum, kennzahlenText, planIstText } from "./kennzahlen.mjs";
-import { LESE_WURZELN, PfadFehler, bestandWurzeln, loesePfad, pruefeEndung } from "./pfade.mjs";
+import { LESE_WURZELN, PfadFehler, bestandWurzeln, loesePfad, pruefeEndung, pruefeKeinAktiverTyp } from "./pfade.mjs";
 import { kopiereDatenroot, mitRollback } from "./schreiben.mjs";
 
 const MAX_TEXT = 2 * 1024 * 1024;
@@ -287,6 +287,8 @@ const CLI_WERKZEUGE = [
       },
       top: { type: "integer", minimum: 1, maximum: 200, description: "Bericht: so viele Gegenparteien ohne Logo (Default 20)" },
     },
+    // Teilerfolg (einzelne Abrufe gescheitert) bleibt; der Validator wacht.
+    rueckrollungBeiFehler: false,
     schreibFlag: "--schreiben",
     argv: async (ctx, a, root) => {
       const out = [root];
@@ -779,6 +781,12 @@ const dateiErsetzen = {
   },
 };
 
+// Werkzeuge, die Dateien verschieben (Inbox, Papierkorb, Belege/): die
+// Verschiebung nimmt ein Zuruecksetzen nicht zurueck, also setzt nur ein neuer
+// Validatorfehler den Bestand zurueck, nicht schon ein Werkzeugfehler (sonst
+// zeigten umgeschriebene Verweise ins Leere).
+const mitVerschieben = (ctx, fn) => mitRollback(ctx.datenroot, fn, { rueckrollungBeiFehler: false });
+
 // Ablage nach Objekt (agent-context, "Ablage nach Objekt"): Belege/<Klasse>/...
 // Klassen mit Stammsatz verlangen <ID>_<Kurzname> oder Allgemein als Ordner.
 // Immobilien haben kein Allgemein, sondern feste Bereiche; Jahresordner nur dort,
@@ -834,7 +842,7 @@ const belegAblegen = {
     const belege = belegeWurzel(ctx);
     const quelle = await loesePfad(ctx.app, args.quelle, [bestandWurzeln(ctx).inbox]);
     const ziel = await loesePfad(ctx.app, args.ziel, [belege]);
-    pruefeEndung(ziel.relativ);
+    pruefeKeinAktiverTyp(ziel.relativ);
     const falschesZiel = pruefeBelegZiel(ziel.relativ);
     if (falschesZiel) return ergebnis(falschesZiel, true);
     if (!(await lstat(quelle.absolut).catch(() => null))?.isFile()) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
@@ -853,7 +861,7 @@ const belegAblegen = {
     }
     const bericht = paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${bericht}`);
-    return mitRollback(ctx.datenroot, async () => {
+    return mitVerschieben(ctx, async () => {
       await mkdir(path.dirname(ziel.absolut), { recursive: true });
       for (const [q, z] of paare) await rename(q.absolut, z.absolut);
       return ergebnis(paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n"));
@@ -982,7 +990,7 @@ const inboxVerwerfen = {
     if (!(await istDatei(quelle.absolut))) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
     const paare = await planePapierkorb(ctx, quelle);
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n")}`);
-    return mitRollback(ctx.datenroot, async () => {
+    return mitVerschieben(ctx, async () => {
       await inDenPapierkorb(paare);
       await protokolliere(ctx, {
         anlass: "inbox-verwerfen",
@@ -1050,7 +1058,7 @@ const belegTeilen = {
       ...korb.map(([q, z]) => `${q.relativ} -> ${z.relativ}`),
     ].join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (${seitenzahl} Seiten, nichts geschrieben):\n${bericht}`);
-    return mitRollback(ctx.datenroot, async () => {
+    return mitVerschieben(ctx, async () => {
       const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-teilen-"));
       try {
         await programm("pdfseparate", [quelle.absolut, path.join(ordner, "seite-%d.pdf")]);
@@ -1122,7 +1130,7 @@ const belegErgaenzen = {
       ...verweise.map((v) => `Verweise umgestellt in ${v.name}: ${v.anzahl}`),
     ].join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts geschrieben):\n${bericht}`);
-    return mitRollback(ctx.datenroot, async () => {
+    return mitVerschieben(ctx, async () => {
       const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-ergaenzen-"));
       try {
         await programm("pdfseparate", [ziel.absolut, path.join(ordner, "alt-%d.pdf")]);
@@ -1181,7 +1189,7 @@ const belegVerwerfen = {
     }
     const bericht = paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${bericht}`);
-    return mitRollback(ctx.datenroot, async () => {
+    return mitVerschieben(ctx, async () => {
       await inDenPapierkorb(paare);
       await protokolliere(ctx, {
         anlass: "beleg-verwerfen",
@@ -1213,7 +1221,7 @@ const inboxZurueckholen = {
     const ziel = await loesePfad(ctx.app, path.join(inbox, name), [inbox]);
     if (await lstat(ziel.absolut).catch(() => null)) return ergebnis(`${ziel.relativ} existiert bereits — nichts verschoben`, true);
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${quelle.relativ} -> ${ziel.relativ}`);
-    return mitRollback(ctx.datenroot, async () => {
+    return mitVerschieben(ctx, async () => {
       await rename(quelle.absolut, ziel.absolut);
       await protokolliere(ctx, { anlass: "inbox-zurueckholen", inputs: [quelle.relativ], notiz: `Aus error/ zurueck nach ${ziel.relativ}` });
       return ergebnis(`${quelle.relativ} -> ${ziel.relativ}`);

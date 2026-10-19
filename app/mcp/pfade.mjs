@@ -32,6 +32,15 @@ export function bestandWurzeln(ctx) {
   return r;
 }
 
+// Abgelegte Belege behalten ihre Endung (xlsx, docx, heic ...); ausgeschlossen
+// sind nur Typen, die im Browser aktiv werden koennen.
+const AKTIVE_ENDUNGEN = [".html", ".htm", ".xhtml", ".shtml", ".js", ".mjs", ".cjs", ".svg", ".svgz", ".xml", ".xsl", ".swf"];
+
+export function pruefeKeinAktiverTyp(relativ) {
+  const endung = path.extname(relativ).toLowerCase();
+  if (AKTIVE_ENDUNGEN.includes(endung)) throw new PfadFehler(`Endung ${endung} ist nicht erlaubt (im Browser aktiver Dateityp)`);
+}
+
 export function pruefeEndung(relativ) {
   const endung = path.extname(relativ).toLowerCase();
   if (!SCHREIB_ENDUNGEN.includes(endung)) {

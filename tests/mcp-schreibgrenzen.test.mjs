@@ -181,3 +181,39 @@ test("recategorize-CLI: ohne Datenroot Abbruch, ohne --schreiben nur Vorschau", 
     rmSync(wurzel, { recursive: true, force: true });
   }
 });
+
+test("mitRollback: schon vorher ungueltiger Bestand setzt nur bei neuen Validatorfehlern zurueck", async () => {
+  const wurzel = mkdtempSync(join(tmpdir(), "finanzen-rollback-alt-"));
+  const master = join(wurzel, "master");
+  cpSync(demoQuelle, master, { recursive: true });
+  // Ein alter Fehler: Konto mit unbekannter Person (bleibt vorher wie nachher).
+  const konten = JSON.parse(readFileSync(join(master, "konten.json"), "utf8"));
+  konten[0].inhaber_person_ids = ["PER-999"];
+  writeFileSync(join(master, "konten.json"), `${JSON.stringify(konten, null, 2)}\n`);
+  try {
+    const r = await mitRollback(master, async () => {
+      writeFileSync(join(master, "neu.txt"), "bleibt");
+      return { text: "CLI meldet alte Validatorfehler mit Exitcode 1", isError: true };
+    });
+    assert.ok(existsSync(join(master, "neu.txt")), r.text);
+    assert.doesNotMatch(r.text, /zurueckgesetzt/);
+  } finally {
+    rmSync(wurzel, { recursive: true, force: true });
+  }
+});
+
+test("beleg_ablegen: Belege behalten ihre Endung, aktive Typen nie", async () => {
+  const inbox = join(abzug.app, "data", "inbox");
+  writeFileSync(join(inbox, "tabelle.xlsx"), "PK x");
+  writeFileSync(join(inbox, "seite.html"), "<script>x</script>");
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const xlsx = await s.werkzeug("beleg_ablegen", { quelle: "data/inbox/tabelle.xlsx", ziel: "Belege/Sonstiges/Allgemein/2026_Tabelle.xlsx", schreiben: true });
+    assert.ok(!xlsx.isError, xlsx.text);
+    const html = await s.werkzeug("beleg_ablegen", { quelle: "data/inbox/seite.html", ziel: "Belege/Sonstiges/Allgemein/2026_Seite.html", schreiben: true });
+    assert.equal(html.isError, true, html.text);
+    assert.ok(existsSync(join(inbox, "seite.html")));
+  } finally {
+    await s.beenden();
+  }
+});

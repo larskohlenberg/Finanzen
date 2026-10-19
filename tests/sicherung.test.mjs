@@ -124,6 +124,34 @@ test("Pruefung erkennt kaputte Daten und fremde Eintraege", async () => {
   await assert.rejects(lauf(process.execPath, [pruefer, `${datei}.kaputt`]), /CRC/);
 });
 
+test("zipTeile: vorAbschluss kann den Abschluss verweigern (Bestand geaendert)", async () => {
+  const { zipTeile } = await import("../app/export.mjs");
+  const e = { name: "a.txt", groesse: 1, geaendert: new Date(), lies: async () => Buffer.from("a") };
+  const teile = [];
+  await assert.rejects(async () => {
+    for await (const t of zipTeile([e], { vorAbschluss: async () => { throw new Error("Bestand hat sich geaendert"); } })) teile.push(t);
+  }, /Bestand hat sich geaendert/);
+  assert.ok(!Buffer.concat(teile).includes(Buffer.from([0x50, 0x4b, 0x05, 0x06])), "kein Endesatz");
+});
+
+test("Pruefung meldet doppelte und nicht auspackbare Namen, abgeschnittene ZIP sauber", async () => {
+  const { zipTeile } = await import("../app/export.mjs");
+  const eintrag = (name, text) => ({ name, groesse: Buffer.byteLength(text), geaendert: new Date(), lies: async () => Buffer.from(text) });
+  const manifest = { dateien: [{ name: "Inbox/a.csv", groesse: 1 }, { name: "Inbox/b\\c.csv", groesse: 1 }], abgeleitet: [] };
+  const teile = [];
+  for await (const t of zipTeile([eintrag("Inbox/a.csv", "x"), eintrag("Inbox/a.csv", "y"), eintrag("Inbox/b\\c.csv", "z"), eintrag("SICHERUNG.json", JSON.stringify(manifest))])) teile.push(t);
+  const datei = join(wurzel, "doppelt.zip");
+  await writeFile(datei, Buffer.concat(teile));
+  const fehler = await lauf(process.execPath, [pruefer, datei]).catch((f) => f);
+  assert.match(String(fehler.stderr), /doppelt/);
+  assert.match(String(fehler.stderr), /ungueltiger Name/);
+  const zip = Buffer.concat(teile);
+  const kaputt = Buffer.from(zip);
+  kaputt.writeUInt32LE(0xfffffff0, kaputt.length - 22 + 12);
+  await writeFile(`${datei}.kaputt`, kaputt);
+  await assert.rejects(lauf(process.execPath, [pruefer, `${datei}.kaputt`]), /abgeschnitten/);
+});
+
 test("Auspacken weist Pfade ausserhalb des Ziels ab", async () => {
   const { zipTeile } = await import("../app/export.mjs");
   const eintrag = (name, text) => ({ name, groesse: Buffer.byteLength(text), geaendert: new Date(), lies: async () => Buffer.from(text) });

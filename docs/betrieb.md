@@ -99,7 +99,7 @@ Eine ZIP (ohne Kompression) mit:
 | `Importprofile/` | Importprofile | `<Datenort>/import-profile/` |
 | `SICHERUNG.json` | Manifest: Zeitpunkt, Generation (`stand`), Code-Stand, Validator-Ergebnis derselben Generation, Bereiche, jede Datei mit Groesse | – |
 
-Der Bestand stammt aus einer einzigen Generation (konsistenter Stand, ADR 0035); das Pruefergebnis im Manifest gilt fuer genau diese Generation. Nicht enthalten: Papierkorb, alte Generationen (Verlauf), Server-Konfiguration (`/etc/finanzen`, Unit, SSH-Schluessel). Die stecken im VM-Backup.
+Der Bestand stammt aus einer einzigen Generation (konsistenter Stand, ADR 0035); das Pruefergebnis im Manifest gilt fuer genau diese Generation. Belege und Inbox werden waehrend des Downloads gelesen; entsteht in dieser Zeit eine neue Generation (Import, Ablage), bricht der Download ohne gueltige ZIP ab. Dann einfach erneut exportieren. Nicht enthalten: Papierkorb, alte Generationen (Verlauf), Server-Konfiguration (`/etc/finanzen`, Unit, SSH-Schluessel). Die stecken im VM-Backup.
 
 ### App-Sicherung pruefen und probeweise wiederherstellen
 
@@ -120,8 +120,8 @@ So erprobt, ohne die laufende VM anzufassen (Platzhalter: `<vmid>` laufende VM, 
 3. `qm start <probe-id>`, warten, bis der Gast-Agent antwortet (`qm agent <probe-id> ping`).
 4. Daten pruefen, ohne Netz, ueber den Gast-Agenten:
    ```
-   qm guest exec <probe-id> -- sudo -u finanzen node /opt/finanzen/app/tools/validator.mjs data/master
-   qm guest exec <probe-id> -- sudo -u finanzen node /opt/finanzen/app/tools/deploy-pruefung.mjs rauchtest /opt/finanzen/app/data/master
+   qm guest exec <probe-id> --timeout 300 -- sudo -u finanzen node /opt/finanzen/app/tools/validator.mjs data/master
+   qm guest exec <probe-id> --timeout 300 -- sudo -u finanzen node /opt/finanzen/app/tools/deploy-pruefung.mjs rauchtest /opt/finanzen/app/data/master
    ```
    Mit externem Datenort jeweils `env FINANZEN_DATEN=<Datenort>` vor `node` setzen. Erwartet: „validation passed“ und dieselbe Buchungs- und Kontenzahl wie auf der echten VM.
 5. Aufraeumen: `qm stop <probe-id> && qm destroy <probe-id> --purge 1`.

@@ -25,7 +25,9 @@ const ENDE = 22;
 // Eintraege einer stored-ZIP ohne Kommentar (so schreibt sie export.mjs).
 async function liesZip(datei) {
   const fh = await open(datei, "r");
+  let groesseDatei = 0;
   const lies = async (pos, laenge) => {
+    if (pos < 0 || pos + laenge > groesseDatei) throw new Error("ZIP ist abgeschnitten oder beschaedigt");
     const puffer = Buffer.alloc(laenge);
     const { bytesRead } = await fh.read(puffer, 0, laenge, pos);
     if (bytesRead !== laenge) throw new Error("ZIP ist abgeschnitten");
@@ -33,6 +35,7 @@ async function liesZip(datei) {
   };
   try {
     const { size } = await fh.stat();
+    groesseDatei = size;
     if (size < ENDE) throw new Error("keine ZIP-Datei");
     const ende = await lies(size - ENDE, ENDE);
     if (ende.readUInt32LE(0) !== 0x06054b50) throw new Error("keine ZIP-Datei (Endesatz fehlt)");
@@ -68,7 +71,10 @@ export async function pruefeSicherung(datei, { auspacken } = {}) {
   try {
     const fehler = [];
     let manifest = null;
+    const namen = new Set();
     for (const e of eintraege) {
+      if (namen.has(e.name)) fehler.push(`${e.name}: doppelt in der ZIP`);
+      namen.add(e.name);
       const inhalt = await e.inhalt();
       if (crc32(inhalt) !== e.crc) fehler.push(`${e.name}: CRC stimmt nicht (Datei beschaedigt)`);
       else if (e.name === SICHERUNG_MANIFEST) manifest = JSON.parse(inhalt.toString("utf8"));
@@ -82,6 +88,10 @@ export async function pruefeSicherung(datei, { auspacken } = {}) {
         else if (inZip.get(name) !== groesse) fehler.push(`${name}: Groesse ${inZip.get(name)} statt ${groesse}`);
       }
       for (const name of inZip.keys()) if (!gelistet.has(name)) fehler.push(`${name}: in der ZIP, fehlt im Manifest`);
+      // Schon beim Pruefen melden, was sich nicht auspacken liesse.
+      for (const name of inZip.keys()) {
+        try { zielPfad("/", name, manifest.abgeleitet ?? []); } catch (f) { fehler.push(f.message); }
+      }
     }
     if (fehler.length === 0 && auspacken) await packeAus(eintraege, manifest, auspacken);
     return { ok: fehler.length === 0, fehler, manifest, dateien: eintraege.length };

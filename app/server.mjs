@@ -53,7 +53,7 @@ import { erstelleSnapshotQuelle } from "./stand.mjs";
 import { AnfrageFehler, LESE_ANSICHTEN, leseAnsicht } from "./lese-api.mjs";
 import { legeDateiAn } from "./tools/lib/datei.mjs";
 import { physisch, pruefeDatenort } from "./tools/lib/datenort.mjs";
-import { mitLesestand } from "./tools/lib/lesestand.mjs";
+import { lesestandId, mitLesestand } from "./tools/lib/lesestand.mjs";
 import { loadMasterData, validateMasterData } from "./tools/validator.mjs";
 import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt, istHeic } from "./upload-regeln.mjs";
 
@@ -688,7 +688,14 @@ export function createAppServer({ appDir, inboxDir, belegeDir = physisch(appDir,
       "Content-Disposition": `attachment; filename="${name}"`,
     });
     try {
-      await pipeline(Readable.from(zipTeile(eintraege)), res);
+      // Belege und Inbox werden live gelesen: Entsteht waehrend der Sicherung
+      // eine neue Generation (Import, Ablage), passen sie nicht mehr sicher zum
+      // Bestand. Dann bricht die ZIP vor dem Endesatz ab.
+      const vorAbschluss = art === "komplett" ? async () => {
+        const jetzt = await lesestandId(datenDirs[quelle]);
+        if (jetzt !== leser.id) throw new Error(`Bestand hat sich waehrend der Sicherung geaendert (${leser.id} -> ${jetzt})`);
+      } : undefined;
+      await pipeline(Readable.from(zipTeile(eintraege, { vorAbschluss })), res);
       log(`${new Date().toISOString()} export art=${art} quelle=${quelle} dateien=${eintraege.length} groesse=${groesse}`);
     } catch (fehler) {
       log(`${new Date().toISOString()} export art=${art} ergebnis=abgebrochen:${fehler.message}`);

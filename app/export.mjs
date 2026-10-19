@@ -63,8 +63,9 @@ export function pruefeZipGrenzen(eintraege) {
 // eintraege: [{ name, groesse, geaendert: Date, lies: async () => Buffer }].
 // Liefert die ZIP als Folge von Buffern. Hat sich eine Datei seit dem
 // Sammeln geaendert (andere Laenge), bricht der Strom ab, statt eine ZIP mit
-// falscher Laenge zu liefern.
-export async function* zipTeile(eintraege) {
+// falscher Laenge zu liefern. vorAbschluss laeuft vor dem zentralen
+// Verzeichnis; wirft es, endet der Strom ohne Endesatz (ZIP unbrauchbar).
+export async function* zipTeile(eintraege, { vorAbschluss } = {}) {
   pruefeZipGrenzen(eintraege);
   const zentral = [];
   let offset = 0;
@@ -107,6 +108,7 @@ export async function* zipTeile(eintraege) {
     zentral.push(kopf, name);
     offset += LOKAL_KOPF + name.length + inhalt.length;
   }
+  if (vorAbschluss) await vorAbschluss();
   const verzeichnis = Buffer.concat(zentral);
   const ende = Buffer.alloc(ENDE);
   ende.writeUInt32LE(0x06054b50, 0);

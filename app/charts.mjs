@@ -4,9 +4,7 @@
 // Beschriftung formatiert der Aufrufer (formatWert). Getestet ueber die erzeugte
 // Geometrie. Beantwortet "wann kippt es?" — daher immer mit Nulllinie im Blick.
 
-function esc(value) {
-  return String(value ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-}
+import { escapeHtml as esc } from "./format.mjs";
 
 // punkte: [{ wert: number, label?: string, monat?: "YYYY-MM" }]
 // vergleich (optional): zweite Serie gleicher Länge — gestrichelt (Basis vs. Szenario).

@@ -81,7 +81,7 @@ test("lesbarerCheckText: Betraege und ISO-Daten lokal, IDs bleiben", async () =>
   assert.equal(lesbar("Frist FR-012 Kuendigung: fällig am 2026-11-30"), "Frist FR-012 Kuendigung: fällig am 30.11.2026");
   assert.equal(lesbar("Vorsorge VS-003: Dynamik zum 12-01 entscheiden"), "Vorsorge VS-003: Dynamik zum 12-01 entscheiden");
   state.lang = "en";
-  assert.match(lesbar("erwartet 34792.40 am 2026-03-31"), /€34,792\.40 am 3\/31\/2026/);
+  assert.match(lesbar("erwartet 34792.40 am 2026-03-31"), /€34,792\.40 am 31\/03\/2026/);
   state.lang = "de";
 });
 

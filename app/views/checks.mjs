@@ -1,7 +1,7 @@
 // app/views/checks.mjs
 // Prüfungen: Transfer-Checks + Vermögens-Checks. Bereich der Administration
 // (#/administration/checks), keine eigene Seite mehr.
-import { data, state, t, escapeHtml, cents, kontenById } from "../runtime.mjs";
+import { data, state, t, tf, escapeHtml, cents, kontenById } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, categoryName } from "../komponenten.mjs";
 import { heuteIso } from "../selektoren.mjs";
@@ -27,14 +27,9 @@ function guardrailItem(g) {
   const kat = g.kategorie_id ? categoryName(g.kategorie_id) : "";
   let detail = g.text;
   if (g.code === "cash-realismus") {
-    detail = t("checksPage.cashRealismusText")
-      .replace("{kategorie}", kat)
-      .replace("{plan}", formatMoney(g.plan_cents))
-      .replace("{ist}", formatMoney(g.ist_cents));
+    detail = tf("checksPage.cashRealismusText", { kategorie: kat, plan: formatMoney(g.plan_cents), ist: formatMoney(g.ist_cents) });
   } else if (g.code === "kategorie-ungeplant") {
-    detail = t("checksPage.kategorieUngeplantText")
-      .replace("{kategorie}", kat)
-      .replace("{ist}", formatMoney(g.ist_cents));
+    detail = tf("checksPage.kategorieUngeplantText", { kategorie: kat, ist: formatMoney(g.ist_cents) });
   }
   return `
     <div class="rail-item">
@@ -96,7 +91,7 @@ export function renderChecks() {
       <section class="panel panel-pad section-spacing">
         <h2 class="section-title">${escapeHtml(t("checksPage.transfers"))}</h2>
         <p class="page-lead">${escapeHtml(t("checksPage.transfersLead"))}</p>
-        ${unvollstaendig.length === 0 ? `<p class="muted">${escapeHtml(t("checksPage.transfersAllOk").replace("{n}", String(transferAnzahl)))}</p>` : `
+        ${unvollstaendig.length === 0 ? `<p class="muted">${escapeHtml(tf("checksPage.transfersAllOk", { n: String(transferAnzahl) }))}</p>` : `
         <div class="rail-list">
           ${unvollstaendig.map((tc) => `
             <div class="rail-item">

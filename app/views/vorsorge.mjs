@@ -3,7 +3,7 @@
 // Kapitalleistungen, Rueckkaufswerte, Beitraege), darunter je Vertragsart ein Tab
 // (Renten, Lebensversicherungen, Versicherungen). Im Tab eine Karte je Vertrag,
 // darunter der gewaehlte Vertrag in voller Breite. Rechnen in vorsorge-rechnung.mjs.
-import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
+import { data, state, t, tf, fmt, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
 import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { aktuellerZeitwert } from "../vermoegen.mjs";
@@ -17,7 +17,7 @@ import {
 } from "../vorsorge-rechnung.mjs";
 import { dynamikStand, widerspruchFuerFrist } from "../vorsorge-dynamik.mjs";
 import { fristenZuObjekt } from "../fristen.mjs";
-import { balkenSvg, dokumenteBrowserHtml, fristenText, geld, kennzahl, prozent, qualitaetChip, rhythmusLabel, tf } from "./vermoegen-teile.mjs";
+import { balkenSvg, dokumenteBrowserHtml, fristenText, geld, kennzahl, prozent, qualitaetChip, rhythmusLabel } from "./vermoegen-teile.mjs";
 
 const GRUPPEN_TABS = VORSORGE_TABS.filter((tab) => tab !== "uebersicht");
 
@@ -61,7 +61,7 @@ const riesterHinweis = (vs) => (istRiester(vs) ? t(`vorsorge.riester.wahl.${vs.k
 // Ein Rueckkaufswert zaehlt nur bei kapitalbildenden Vertraegen ins Nettovermoegen.
 const ausserhalbVermoegen = (vs, feld) => feld === "vertragswert" || (feld === "rueckkaufswert" && !vs.kapitalbildend);
 const vertraegeIm = (tab) => (data.vorsorge ?? []).filter((vs) => tabFuerVorsorge(vs) === tab);
-const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
+const geldOhneCent = (c) => fmt().geldGanz(c);
 const einheit = (text) => `<span class="betrag-einheit">${escapeHtml(text)}</span>`;
 const jaehrlichGezahlt = (vs, today) => {
   const rz = laufendeBeitraege(data, vs.vorsorge_id, today);
@@ -443,7 +443,7 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
 // "+3,40 € (+3,5 %)" bzw. "−2,00 € (−1,8 %)".
 function aenderungText(a) {
   const vorzeichen = a.diff_cents > 0 ? "+" : "−";
-  const prozent = a.anteil === null ? "" : ` (${vorzeichen}${new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { maximumFractionDigits: 1 }).format(Math.abs(a.anteil) * 100)} %)`;
+  const prozent = a.anteil === null ? "" : ` (${vorzeichen}${fmt().zahl(Math.abs(a.anteil) * 100, 1)} %)`;
   return `${vorzeichen}${formatMoney(Math.abs(a.diff_cents))}${prozent}`;
 }
 

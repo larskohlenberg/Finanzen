@@ -13,7 +13,7 @@ const VOLL = {
 };
 
 test("vollstaendige Version: Kurz-Hash, Datum, Link, kein Branch bei main", () => {
-  const v = versionAnzeige(VOLL, { locale: "de-DE", lokal: "lokal" });
+  const v = versionAnzeige(VOLL, { lang: "de", lokal: "lokal" });
   assert.equal(v.lokal, false);
   assert.equal(v.text, "a1b2c3d · 11.10.2026");
   assert.equal(v.href, "https://github.com/larskohlenberg/Finanzen/commit/" + VOLL.commit);
@@ -21,8 +21,8 @@ test("vollstaendige Version: Kurz-Hash, Datum, Link, kein Branch bei main", () =
 });
 
 test("Branch ungleich main wird angehaengt, Datum folgt der Sprache", () => {
-  const v = versionAnzeige({ ...VOLL, branch: "feat/beispiel" }, { locale: "en-US", lokal: "local" });
-  assert.equal(v.text, "a1b2c3d · 10/11/2026 · feat/beispiel");
+  const v = versionAnzeige({ ...VOLL, branch: "feat/beispiel" }, { lang: "en", lokal: "local" });
+  assert.equal(v.text, "a1b2c3d · 11/10/2026 · feat/beispiel");
   assert.equal(v.branch, "feat/beispiel");
 });
 

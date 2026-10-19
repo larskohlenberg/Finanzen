@@ -3,14 +3,14 @@
 // darunter das gewaehlte Objekt in voller Breite: Kennzahlen und Stammdaten,
 // dann Diagramme und Tabelle, zuletzt Bemerkung, Wertstaende und Dokumente.
 // Rechnen in vermoegen-details.mjs, hier nur Darstellung.
-import { data, state, t, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
+import { data, state, t, tf, fmt, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
 import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel, bemerkungInhalt } from "../komponenten.mjs";
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
 import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, investitionsKategorien } from "../vermoegen-details.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
   balkenSvg, dokumenteBrowserHtml, geld, kennzahl, laufzeitText, prozent, qualitaetChip, rateJeMonatCents,
-  fristenText, renderPositionWertstaende, rhythmusLabel, sondertilgungenRow, tf,
+  fristenText, renderPositionWertstaende, rhythmusLabel, sondertilgungenRow,
 } from "./vermoegen-teile.mjs";
 
 const aktiveImmobilien = () => (data.immobilien ?? []).filter((i) => i.status !== "verkauft");
@@ -43,14 +43,12 @@ function karte({ klasse, id, aktiv, titel, chip = "", wertHtml, zeilen = [], for
 
 // "Okt 25" fuer die Achse; die Tabelle nutzt den vollen Monatsnamen.
 function kurzMonat(monat) {
-  const [jahr, mon] = monat.split("-").map(Number);
-  const name = new Intl.DateTimeFormat(state.lang === "en" ? "en-GB" : "de-DE", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(jahr, mon - 1, 1)));
-  return `${name.replace(".", "")} ${String(jahr).slice(2)}`;
+  return `${fmt().monatKurz(monat).replace(".", "")} ${monat.slice(2, 4)}`;
 }
 
 // Achsenbeschriftung ohne Cent, damit der linke Rand schmal bleibt.
 function achsenGeld(centsWert) {
-  return new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(centsWert / 100);
+  return fmt().geldGanz(centsWert);
 }
 
 // Trennt die Auswahlkarten optisch vom Detail des gewaehlten Objekts.
@@ -291,7 +289,7 @@ function renderImmobilieDetail(imm, today, modell) {
       <div class="stammdaten-raster stammdaten-fest">
         ${feld(t("vermoegen.adresse"), imm.adresse ? escapeHtml(imm.adresse) : "", imm.adresse)}
         ${feld(t("vermoegen.immobilie.nutzung"), imm.nutzung ? escapeHtml(nutzungLabel(imm.nutzung)) : "")}
-        ${feld(t("vermoegen.immobilie.wohnflaeche"), imm.wohnflaeche ? `${escapeHtml(new Intl.NumberFormat("de-DE").format(Number(imm.wohnflaeche)))} m²` : "")}
+        ${feld(t("vermoegen.immobilie.wohnflaeche"), imm.wohnflaeche ? `${escapeHtml(fmt().zahl(Number(imm.wohnflaeche), 2))} m²` : "")}
         ${feld(t("vermoegen.eigentumsanteile"), escapeHtml(anteile), anteile)}
         ${feld(t("vermoegen.immobilie.angeschafft"), imm.anschaffungsdatum ? escapeHtml(formatDate(imm.anschaffungsdatum)) : "")}
         ${feld(t("vermoegen.immobilie.anschaffungskosten"), imm.anschaffungskosten ? escapeHtml(formatMoney(cents(imm.anschaffungskosten))) : "")}

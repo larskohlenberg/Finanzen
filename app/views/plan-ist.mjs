@@ -8,7 +8,7 @@
 // Zeitraum), Einnahmen und Ausgaben je Kategorie (aufklappbar: Regelzahlungen,
 // Einzelposten ab 400 Euro, Sprung in die Buchungen), Sparen und die Termine von
 // Regelzahlungen ohne zugeordnete Buchung. Gerechnet wird in app/plan-ist.mjs.
-import { state, t, escapeHtml } from "../runtime.mjs";
+import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { formatDate, formatMonth, heuteIso, infoTipp, kennzahlKachel, kachelZeile, klappKachel, renderPageHead, zeitverlaufKlein } from "../komponenten.mjs";
 import { perioden } from "../plan-ist.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
@@ -27,9 +27,8 @@ function planIstAntwort(heute) {
   return cache.hole(`./api/v1/plan-ist?${suche}`);
 }
 
-const tf = (key, werte) => Object.entries(werte).reduce((text, [k, v]) => text.replaceAll(`{${k}}`, String(v)), t(key));
-const geld = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
-const prozent = (q) => (q === null ? "–" : new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "percent", maximumFractionDigits: 0 }).format(q));
+const geld = (c) => fmt().geldGanz(c);
+const prozent = (q) => fmt().prozent(q);
 const mitVorzeichen = (c) => `${c > 0 ? "+" : c < 0 ? "−" : "±"}${geld(Math.abs(c))}`;
 
 // Abweichung Ist − Plan, gefaerbt nach Wirkung: bei Einnahmen und Sparen ist

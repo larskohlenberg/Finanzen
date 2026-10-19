@@ -7,7 +7,7 @@
 // Termine der nächsten zwölf Monate (Fristen und jährliche Zahlungen) und die
 // Absicherung bei Berufsunfähigkeit und im Todesfall als zwei Kacheln. Konten- und Depottabellen stehen nur noch
 // unter Vermögen, die nächste Aktion im Arbeitsstatus oben.
-import { state, t, escapeHtml } from "../runtime.mjs";
+import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil } from "../komponenten.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
@@ -16,7 +16,7 @@ import { verteileRundung } from "../uebersicht-rechnung.mjs";
 import { abweichungHtml } from "./plan-ist.mjs";
 import { bezugLink, fristChip, fristKlasse } from "./fristen.mjs";
 import { terminLeiste } from "../charts.mjs";
-import { balkenSvg, tf } from "./vermoegen-teile.mjs";
+import { balkenSvg } from "./vermoegen-teile.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 import { HORIZONT_MONATE } from "../uebersicht-modell.mjs";
 
@@ -31,7 +31,7 @@ function uebersichtAntwort(heute) {
   return cache.hole(`./api/v1/uebersicht?${suche}`);
 }
 
-const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
+const geldOhneCent = (c) => fmt().geldGanz(c);
 const standText = (datum) => (datum ? `${t("labels.stand")} ${formatDate(datum)}` : t("labels.noStand"));
 const farbPunkt = (klasse) => `<i class="farbpunkt ${klasse}" aria-hidden="true"></i>`;
 
@@ -74,8 +74,8 @@ function bereichsKachel({ id, icon, titel, ziel, wertTitel = "", wert, notiz = "
 // Die Reihenfolge ergibt sich je Zeitraum neu aus den Betraegen.
 const TOP_KATEGORIEN = 3;
 const TOP_AUSGABEN = 5;
-const formatMonatLang = (ym) => new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short", year: "numeric" }).format(new Date(`${ym}-01T00:00:00`));
-const formatProzent = (anteil) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "percent", maximumFractionDigits: 0 }).format(anteil);
+const formatMonatLang = (ym) => fmt().monatJahrKurz(ym);
+const formatProzent = (anteil) => fmt().prozent(anteil);
 
 const kategorieZiel = (id, mittel) => `data-action="kategorie-transactions" data-kategorie="${escapeHtml(id)}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"`;
 
@@ -152,7 +152,7 @@ function quotePfeil(sq) {
   const pp = sq.aenderung_pp;
   const richtung = Math.abs(pp) < 1 ? "seitwaerts" : pp > 0 ? "hoch" : "runter";
   const klasse = richtung === "seitwaerts" ? "abw-neutral" : richtung === "hoch" ? "abw-gut" : "abw-schlecht";
-  const aenderung = new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { maximumFractionDigits: 1, signDisplay: "exceptZero" }).format(pp);
+  const aenderung = fmt().zahlMitVorzeichen(pp, 1);
   const titel = tf("trend.quoteTitel", { aenderung, vorher: formatProzent(sq.vorher_quote) });
   return `<span class="trend-pfeil ${klasse}" title="${escapeHtml(titel)}" aria-label="${escapeHtml(titel)}">${{ hoch: "↗", runter: "↘", seitwaerts: "→" }[richtung]} ${escapeHtml(aenderung)} ${escapeHtml(t("trend.pp"))}</span>`;
 }
@@ -236,14 +236,14 @@ function renderLiquiditaetKachel(modell) {
   const verfuegbar = modell.konten;
   const zeilen = verfuegbar.zeilen.map((z) => zeile(
     link(ZIEL.vermoegenTab("konten"), z.name),
-    z.wert_cents === null ? `<span class="muted">${escapeHtml(t("overview.nichtBelegt"))}</span>` : escapeHtml(formatMoney(z.wert_cents)),
+    z.wert_cents === null ? `<span class="muted">${escapeHtml(t("overview.nichtBelegt"))}</span>` : escapeHtml(geldOhneCent(z.wert_cents)),
   ));
   return bereichsKachel({
     id: "liquiditaet",
     icon: "liquiditaet",
     titel: t("overview.liquiditaet"),
     ziel: ZIEL.liquiditaet,
-    wert: escapeHtml(formatMoney(verfuegbar.summe_cents)),
+    wert: escapeHtml(geldOhneCent(verfuegbar.summe_cents)),
     notiz: `${escapeHtml(t("overview.availableMoney"))} · ${escapeHtml(standText(verfuegbar.aeltester))}`,
     zeilen,
   });
@@ -266,11 +266,11 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null }) {
   const balken = aktiva || schulden
     ? `<div class="uebersicht-balken">${balkenSvg(segmente)}${schulden ? balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(schulden)}` }], { laenge: schulden / basis }) : ""}</div>`
     : "";
-  const zeilen = sichtbar.map((k) => zeile(link(k.ziel, k.titel, { title: k.titel }), escapeHtml(formatMoney(summe(k.filter))), { punkt: k.punkt }));
+  const zeilen = sichtbar.map((k) => zeile(link(k.ziel, k.titel, { title: k.titel }), escapeHtml(geldOhneCent(summe(k.filter))), { punkt: k.punkt }));
   return `
         <div class="vermoegen-teil">
           <h3 class="vermoegen-teil-titel">${escapeHtml(titel)}</h3>
-          <div class="vermoegen-teil-wert">${escapeHtml(formatMoney(summe(() => true)))}</div>
+          <div class="vermoegen-teil-wert">${escapeHtml(geldOhneCent(summe(() => true)))}</div>
           ${balken}
           ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : `<p class="muted">${escapeHtml(t("overview.vermoegenTeilLeer"))}</p>`}
         </div>`;
@@ -297,7 +297,7 @@ function renderVermoegenKachel(modell) {
       <h2 class="uebersicht-kachel-kopf" id="kachel-vermoegen">
         <button class="linkish" ${ZIEL.vermoegen}>${iconSvg("vermoegen")}<span>${escapeHtml(t("nav.vermoegen"))}</span>${iconSvg("chevronRight")}</button>
       </h2>
-      <div class="kpi-value">${escapeHtml(formatMoney(r.netto_cents))}</div>
+      <div class="kpi-value">${escapeHtml(geldOhneCent(r.netto_cents))}</div>
       <div class="kpi-note">${escapeHtml(t("vermoegen.netto"))} · ${escapeHtml(standText(stand))}</div>
       <div class="vermoegen-teile">
         ${vermoegenTeil({
@@ -359,7 +359,7 @@ function renderVorsorgeKachel(modell) {
   const einmal = kapital.length ? `
       <div class="uebersicht-zweitwert">
         <h3 class="vermoegen-teil-titel">${link(ZIEL.vorsorgeTab("lebensversicherungen"), t("overview.kapitalFaellig"))}</h3>
-        <div class="kpi-value">${escapeHtml(formatMoney(kapitalSumme))} <span class="betrag-einheit">${escapeHtml(t("overview.einmalig"))}</span></div>
+        <div class="kpi-value">${escapeHtml(geldOhneCent(kapitalSumme))} <span class="betrag-einheit">${escapeHtml(t("overview.einmalig"))}</span></div>
         <div class="kpi-note">${escapeHtml([tf("vorsorge.kopf.kapitalFaellig", { jahre: kapitalJahre.join(" · ") }), nichtFaellig ? tf("vorsorge.kopf.nichtFaellig", { betrag: geldOhneCent(nichtFaellig) }) : ""].filter(Boolean).join(" · "))}</div>
         <div class="uebersicht-balken">${balkenSvg(kapitalSegmente)}</div>
         <ul class="vorsorge-kopf-liste">${kapitalZeilen.join("")}</ul>
@@ -370,7 +370,7 @@ function renderVorsorgeKachel(modell) {
     titel: t("nav.vorsorge"),
     ziel: ZIEL.vorsorge,
     wertTitel: link(ZIEL.vorsorgeTab("renten"), t("overview.monatlicheRenten")),
-    wert: `${escapeHtml(formatMoney(gesamt))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonatBrutto"))}</span>`,
+    wert: `${escapeHtml(geldOhneCent(gesamt))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonatBrutto"))}</span>`,
     notiz: escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten")),
     grafik: renten.length ? `<div class="uebersicht-balken">${balkenSvg(segmente)}</div>` : "",
     zusatz: einmal,
@@ -387,7 +387,7 @@ function zielLink(rz) {
   return `<button class="linkish" ${ziel}>${escapeHtml(rz.bezeichnung)}</button>`;
 }
 
-const formatMonatKurz = (iso) => new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short" }).format(new Date(`${iso}T00:00:00`));
+const formatMonatKurz = (iso) => fmt().monatKurz(iso);
 
 // Text einer Terminzeile: einzeilig, Bezug wird zuerst gekuerzt (CSS); der volle
 // Text steht im Tooltip. Die Teile sind schon escapetes HTML, daher nur Tags weg.
@@ -417,7 +417,7 @@ function renderTermineKachel(modell) {
   const zahlungZeilen = zahlungen.map(({ datum, regelzahlung: rz, konto_name: kontoName }) => `
             <li data-datum="${escapeHtml(datum)}">
               <span class="termine-datum">${escapeHtml(formatDate(datum))}</span>
-              ${terminText([zielLink(rz), escapeHtml(rz.konto_id ? t("overview.jahreszahlungenKonto").replace("{konto}", kontoName) : t("overview.jahreszahlungenOhneKonto"))])}
+              ${terminText([zielLink(rz), escapeHtml(rz.konto_id ? tf("overview.jahreszahlungenKonto", { konto: kontoName }) : t("overview.jahreszahlungenOhneKonto"))])}
               <span class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</span>
             </li>`);
   const leiste = terminLeiste({

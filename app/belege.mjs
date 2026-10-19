@@ -4,6 +4,7 @@
 // Verweis-Index Datei -> Datensaetze, Sortierung/Suche, Routen.
 // Kein DOM, kein runtime-Import: in Node direkt testbar (tests/belege.test.mjs).
 
+import { formatierer, spracheAus } from "./format.mjs";
 import { vermoegenRoute } from "./vermoegen-routen.mjs";
 
 export const BELEGE_WURZEL = "Belege";
@@ -316,8 +317,5 @@ export function sucheDateien(dateien, suche) {
 }
 
 export function formatGroesse(bytes, locale = "de-DE") {
-  const nf = (n, stellen) => n.toLocaleString(locale, { maximumFractionDigits: stellen });
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${nf(bytes / 1024, 0)} KB`;
-  return `${nf(bytes / (1024 * 1024), 1)} MB`;
+  return formatierer(spracheAus(locale)).groesse(bytes);
 }

@@ -3,7 +3,7 @@
 // mit den letzten zwoelf Monaten, Prognose bis zum Horizont), darunter
 // Einnahmen und Ausgaben im Trend (gleitendes 12-Monats-Mittel) und die
 // Tabellen als zugeklappte Kacheln.
-import { state, t, escapeHtml } from "../runtime.mjs";
+import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzahlKachel, kachelZeile, zeitverlaufKlein, klappKachel, trendPfeil } from "../komponenten.mjs";
 import { miniKurve } from "../charts.mjs";
@@ -23,15 +23,14 @@ function liquiditaetAntwort(heute) {
   return cache.hole(`./api/v1/liquiditaet?${suche}`);
 }
 
-const geldOhneCent = (c) => new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(c / 100);
-const tf = (key, werte) => Object.entries(werte).reduce((text, [k, v]) => text.replaceAll(`{${k}}`, String(v)), t(key));
+const geldOhneCent = (c) => fmt().geldGanz(c);
 // Kurzer Monatsname als Achsenbeschriftung, im Januar mit Jahr.
 const monatKurz = (monat) => {
-  const name = new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "short" }).format(new Date(`${monat}-01T00:00:00`));
+  const name = fmt().monatKurz(monat);
   return monat.endsWith("-01") ? monat.slice(0, 4) : name.replace(".", "");
 };
 // Kurzbetrag in Tausend Euro mit hoechstens einer Nachkommastelle ("-20 T€", "+4,8 T€").
-const tausend = (c) => `${new Intl.NumberFormat(state.lang === "en" ? "en-GB" : "de-DE", { maximumFractionDigits: 1 }).format(c / 100000)} ${state.lang === "en" ? "k€" : "T€"}`;
+const tausend = (c) => fmt().tausend(c);
 // Ueber zwoelf Monate nur Quartalsanfaenge beschriften (Januar mit Jahr), sonst wird es eng.
 const monatsAchse = (monate) => monate.map((m) => ({
   label: monate.length <= 12 || ["01", "04", "07", "10"].includes(m.slice(5, 7)) ? monatKurz(m) : "",
@@ -137,7 +136,7 @@ function istKachel(ist, verlauf) {
     .sort((a, b) => (b.saldo_cents ?? -Infinity) - (a.saldo_cents ?? -Infinity))
     .map((k) => kachelZeile(`<button class="linkish" data-action="account-transactions" data-account="${escapeHtml(k.konto_id)}" title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>`, k.saldo_cents === null ? "—" : formatMoney(k.saldo_cents)));
   const legende = unten ? `<div class="vermoegen-legende liquiditaet-legende"><span><i class="legende-linie liquiditaet-linie"></i>${escapeHtml(t("liquiditaet.balance"))}</span><span><i class="legende-linie liquiditaet-trend-linie"></i>${escapeHtml(t("liquiditaet.trend"))}</span></div>` : "";
-  return kennzahlKachel({ label: t("liquiditaet.ist"), wert: escapeHtml(formatMoney(ist.saldo_cents)), notiz, zeilen, unten: unten + legende });
+  return kennzahlKachel({ label: t("liquiditaet.ist"), wert: escapeHtml(geldOhneCent(ist.saldo_cents)), notiz, zeilen, unten: unten + legende });
 }
 
 // Einnahmen bzw. Ausgaben im Trend: Wert ist das Mittel der letzten zwoelf
@@ -248,7 +247,7 @@ function prognoseKachel(prognose, zahlungen) {
   const liste = zeilen.length ? [`<li class="muted">${escapeHtml(t("liquiditaet.naechsteZahlungen"))}</li>`, ...zeilen] : [];
   return kennzahlKachel({
     label: tf("liquiditaet.prognoseBis", { datum: formatDate(prognose.horizont_ende) }),
-    wert: escapeHtml(formatMoney(prognose.end_saldo_cents)),
+    wert: escapeHtml(geldOhneCent(prognose.end_saldo_cents)),
     notiz,
     zeilen: liste,
     grafik,
@@ -257,7 +256,7 @@ function prognoseKachel(prognose, zahlungen) {
 }
 
 function formatMonat(monat) {
-  return new Intl.DateTimeFormat(state.lang === "de" ? "de-DE" : "en-US", { month: "long", year: "numeric" }).format(new Date(`${monat}-01T00:00:00`));
+  return fmt().monat(monat);
 }
 
 function formatPeriode(periode) {

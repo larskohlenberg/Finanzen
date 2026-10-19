@@ -5,7 +5,7 @@
 // statische Auslieferung) zeigt die Ansicht einen Hinweis statt Fehler.
 // Im Demo-Modus gibt es weder Upload noch Inbox-Liste: die Inbox gehoert dem
 // echten Bestand (demo-modus.mjs).
-import { state, t, escapeHtml } from "../runtime.mjs";
+import { state, t, fmt, escapeHtml } from "../runtime.mjs";
 import { renderPageHead } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { ERLAUBTE_ENDUNGEN, inboxDateiUrl, vorpruefeDatei } from "../upload-regeln.mjs";
@@ -19,18 +19,8 @@ const upload = {
   inbox: { zustand: "unbekannt", dateien: [] },
 };
 
-function formatGroesse(bytes) {
-  const nf = (n, stellen) => n.toLocaleString(state.lang === "en" ? "en-GB" : "de-DE", { maximumFractionDigits: stellen });
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${nf(bytes / 1024, 0)} KB`;
-  return `${nf(bytes / (1024 * 1024), 1)} MB`;
-}
-
-function formatZeit(iso) {
-  const datum = new Date(iso);
-  if (Number.isNaN(datum.getTime())) return "";
-  return datum.toLocaleString(state.lang === "en" ? "en-GB" : "de-DE", { dateStyle: "medium", timeStyle: "short" });
-}
+const formatGroesse = (bytes) => fmt().groesse(bytes);
+const formatZeit = (iso) => fmt().zeitpunkt(iso);
 
 function grundText(grund) {
   const key = `uploadPage.grund.${grund}`;

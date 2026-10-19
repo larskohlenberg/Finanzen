@@ -2,6 +2,8 @@
 // ops/aktualisieren.sh beim Deploy; lokal fehlt die Datei, dann steht dort
 // "lokal". Reine Funktionen, damit sie ohne Browser testbar sind.
 
+import { formatierer } from "./format.mjs";
+
 const REPO_COMMIT_URL = "https://github.com/larskohlenberg/Finanzen/commit/";
 
 // Nur, was das Skript wirklich schreibt: Hex-Hashes und ein ISO-Datum. Alles
@@ -14,12 +16,12 @@ function gueltig(version) {
     && /^\d{4}-\d{2}-\d{2}$/.test(version.datum ?? "");
 }
 
-// Liefert die Teile der Anzeige. `locale` formatiert das Datum wie die
-// uebrige App (formatDate in komponenten.mjs), `lokal` ist der uebersetzte
-// Ersatztext ohne version.json.
-export function versionAnzeige(version, { locale = "de-DE", lokal = "lokal" } = {}) {
+// Liefert die Teile der Anzeige. `lang` formatiert das Datum wie die
+// uebrige App (format.mjs), `lokal` ist der uebersetzte Ersatztext ohne
+// version.json.
+export function versionAnzeige(version, { lang = "de", lokal = "lokal" } = {}) {
   if (!gueltig(version)) return { lokal: true, text: lokal };
-  const datum = new Intl.DateTimeFormat(locale).format(new Date(`${version.datum}T00:00:00`));
+  const datum = formatierer(lang).datum(version.datum);
   const branch = typeof version.branch === "string" && version.branch && version.branch !== "main"
     ? version.branch
     : "";

@@ -50,6 +50,8 @@ const DATEIEN = {
   "data/demo/agent_log.jsonl": "{}",
   "data/inbox/auszug.csv": "a;b",
   "data/inbox/error/auszug.txt": "fehler",
+  "data/inbox/processed/alt.csv": "a;b",
+  "data/inbox/boese.html": "<script>alert(1)</script>",
   "data/exports/x.zip": "zip",
   "data/test-invalid/personen.json": "[]",
   "Belege/Konten/auszug.pdf": "%PDF-1.4",
@@ -97,6 +99,7 @@ test("Statik: App-Shell, Module, Loader-Daten, Logos und Dokumente kommen", asyn
     "/data/master/personen.json", "/data/master/transaktionen.jsonl", "/data/demo/konten.json",
     "/data/master/logos/a.example.png",
     "/Belege/Konten/auszug.pdf", "/Belege/Konten/foto.png", "/Belege/Konten/notiz.txt",
+    "/data/inbox/auszug.csv",
     `/Belege/Konten/${encodeURIComponent("Ärger mit Leerzeichen.pdf")}`,
   ]) {
     assert.equal((await hole(pfad)).statusCode, 200, pfad);
@@ -112,7 +115,8 @@ test("Statik: Quellen, Doku, Protokoll, Papierkorb, Inbox und Ausfuehrbares sind
     "/data/master/agent_log.jsonl", "/data/demo/agent_log.jsonl",
     "/data/master/boese.html", "/data/master/boese.js",
     "/data/master/papierkorb/2026-01-01/x.json", "/data/master/belege-text/x.txt",
-    "/data/inbox/auszug.csv", "/data/inbox/error/auszug.txt", "/data/exports/x.zip",
+    "/data/inbox/error/auszug.txt", "/data/inbox/processed/alt.csv", "/data/inbox/boese.html", "/data/inbox/",
+    "/data/exports/x.zip",
     "/data/test-invalid/personen.json",
     "/Belege/Sonstiges/boese.html", "/Belege/Sonstiges/boese.svg", "/Belege/Sonstiges/boese.js", "/Belege/Sonstiges/boese.xhtml",
     "/Belege/", "/Belege",
@@ -136,6 +140,21 @@ test("Statik: Dokumente kommen aus dem Belege-Verzeichnis des Servers (--belege)
   }
 });
 
+test("Statik: wartende Inbox-Dateien kommen aus dem Inbox-Verzeichnis des Servers (--inbox)", async () => {
+  const eigen = join(wurzel, "eigene-inbox");
+  await mkdir(eigen, { recursive: true });
+  await writeFile(join(eigen, "neu.pdf"), "%PDF-1.4");
+  const s = createAppServer({ appDir: join(wurzel, "app"), inboxDir: eigen, log: () => {} });
+  await new Promise((resolve) => s.listen(0, "127.0.0.1", resolve));
+  try {
+    const p = s.address().port;
+    assert.equal((await hole("/data/inbox/neu.pdf", p)).statusCode, 200);
+    assert.equal((await hole("/data/inbox/auszug.csv", p)).statusCode, 404, "app/data/inbox gilt mit --inbox nicht mehr");
+  } finally {
+    await new Promise((resolve) => s.close(resolve));
+  }
+});
+
 test("statikErlaubt: reine Regel", () => {
   const module = new Set(["main.js", "views/a.mjs"]);
   assert.equal(statikErlaubt(["main.js"], { module }), true);
@@ -145,6 +164,8 @@ test("statikErlaubt: reine Regel", () => {
   assert.equal(statikErlaubt(["data", "master", "logos.json"], { module }), true);
   assert.equal(statikErlaubt(["data", "master", "agent_log.jsonl"], { module }), false);
   assert.equal(statikErlaubt(["data", "inbox", "personen.json"], { module }), false);
+  assert.equal(statikErlaubt(["data", "inbox", "auszug.csv"], { module }), true);
+  assert.equal(statikErlaubt(["data", "inbox", "error", "auszug.csv"], { module }), false);
   assert.equal(statikErlaubt(["Belege", "a", "b.pdf"], { module }), true);
   assert.equal(statikErlaubt(["Belege", "a", "b.HTML"], { module }), false);
 });

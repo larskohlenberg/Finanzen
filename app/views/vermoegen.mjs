@@ -386,7 +386,7 @@ export function renderVermoegenDetail(p, today, konten) {
   if (p.klasse === "konto") {
     const konto = kontenById.get(p.id);
     const istDepot = konto?.kontotyp === "depot";
-    const zw = aktuellerZeitwert(data.zeitwerte, "konto", p.id, istDepot ? "depotwert" : "kontostand");
+    const zw = aktuellerZeitwert(data.zeitwerte, "konto", p.id, istDepot ? "depotwert" : "kontostand", today);
     let buchungenHtml = "";
     if (!istDepot && zw) {
       buchungenHtml = detailRow(t("vermoegen.buchungenSeitAnker"), escapeHtml(formatMoney(konten.konten[p.id]?.seit_anker_cents ?? 0)));
@@ -406,7 +406,7 @@ export function renderVermoegenDetail(p, today, konten) {
 
   if (p.klasse === "immobilie" || p.klasse === "vermoegenswert") {
     const entity = (p.klasse === "immobilie" ? data.immobilien : data.vermoegenswerte)?.find((e) => (e.immobilie_id || e.vermoegenswert_id) === p.id);
-    const mw = aktuellerZeitwert(data.zeitwerte, p.klasse, p.id, "marktwert");
+    const mw = aktuellerZeitwert(data.zeitwerte, p.klasse, p.id, "marktwert", today);
     const mwCents = mw ? cents(mw.wert) : 0;
     return head
       + (entity?.typ ? detailRow(t("labels.type"), escapeHtml(t(`vermoegen.typ.${entity.typ}`))) : "")

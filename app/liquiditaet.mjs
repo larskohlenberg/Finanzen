@@ -4,6 +4,7 @@
 // Modell-Begruendung: Liquiditaet = belegter Konto-Anker + Ist-Buchungen + Regelzahlungs-Fortschreibung.
 
 import { toCents } from "./tools/lib/text.mjs";
+import { aktivAm, kontoStand } from "./bewertung.mjs";
 export { toCents };
 
 export function monatVon(isoDate) {
@@ -109,40 +110,23 @@ export function periodenSchluessel(monat, granularitaet) {
   return monat;
 }
 
-function aktuellerZeitwert(zeitwerte, entitaet, entitaetId, feld) {
-  let best = null;
-  for (const zw of zeitwerte ?? []) {
-    if (zw.entitaet !== entitaet || zw.entitaet_id !== entitaetId || zw.feld !== feld) continue;
-    if (best === null || zw.standdatum > best.standdatum) best = zw;
-  }
-  return best;
-}
-
-function liquiditaetsKonten(konten) {
+// Liquide Konten zum Stichtag: liquiditaetsrelevant, kein Bargeld, kein Depot;
+// geschlossene zaehlen bis aktiv_bis (Lebenszyklus wie im Bewertungsstand).
+function liquiditaetsKonten(konten, datum) {
   return (konten ?? []).filter((konto) =>
-    konto.status !== "geschlossen"
+    aktivAm(konto, "geschlossen", datum)
     && konto.liquiditaetsrelevant === true
     && konto.kontotyp !== "bar"
     && konto.kontotyp !== "depot"
   );
 }
 
+// Saldo eines Kontos zum Stichtag aus dem gemeinsamen Bewertungsstand
+// (bewertung.mjs: juengster Anker vorwaerts, sonst Rueckrechnung aus dem
+// naechsten spaeteren Anker). Vor dem Beginn des Kontos 0.
 function kontoSaldoZuDatum(konto, zeitwerte, transaktionen, bisDatum) {
-  const anker = aktuellerZeitwert(zeitwerte, "konto", konto.konto_id, "kontostand");
-  if (!anker) return { saldo_cents: null, basis: "anker-fehlt", anker: null };
-
-  // Vorwaerts: Buchungen nach dem Anker addieren. Rueckwaerts (Stichtag vor dem
-  // Anker): Buchungen bis zum Anker abziehen — sie stecken im Ankerwert bereits drin.
-  let saldo = toCents(anker.wert);
-  for (const tx of transaktionen ?? []) {
-    if (tx.konto_id !== konto.konto_id) continue;
-    if (bisDatum >= anker.standdatum) {
-      if (tx.buchungsdatum > anker.standdatum && tx.buchungsdatum <= bisDatum) saldo += toCents(tx.betrag);
-    } else {
-      if (tx.buchungsdatum > bisDatum && tx.buchungsdatum <= anker.standdatum) saldo -= toCents(tx.betrag);
-    }
-  }
-  return { saldo_cents: saldo, basis: "anker+buchungen", anker };
+  const w = kontoStand(konto, zeitwerte, transaktionen, bisDatum);
+  return { saldo_cents: w.wert_cents, basis: w.basis };
 }
 
 function tagesbewegungenFuerMonat(data, today, gueltigeKontoIds) {
@@ -162,7 +146,7 @@ export function computeLiquiditaetIst(data, { today }) {
   let fehlendeAnker = 0;
   const gueltigeKontoIds = new Set();
 
-  for (const konto of liquiditaetsKonten(data.konten)) {
+  for (const konto of liquiditaetsKonten(data.konten, today)) {
     const kontoSaldo = kontoSaldoZuDatum(konto, data.zeitwerte, data.transaktionen, today);
     if (kontoSaldo.saldo_cents === null) {
       fehlendeAnker++;
@@ -174,12 +158,11 @@ export function computeLiquiditaetIst(data, { today }) {
     konten.push({ konto_id: konto.konto_id, name: konto.name, saldo_cents: kontoSaldo.saldo_cents, basis: kontoSaldo.basis });
   }
 
+  // Monatsanfang = Saldo heute minus die Bewegungen des Monats: der Verlauf
+  // endet so per Konstruktion beim Saldo heute.
   const start = monatsStart(today);
-  const startSaldo = [...gueltigeKontoIds].reduce((sum, kontoId) => {
-    const konto = (data.konten ?? []).find((k) => k.konto_id === kontoId);
-    return sum + (kontoSaldoZuDatum(konto, data.zeitwerte, data.transaktionen, addInterval(start, "tag", -1)).saldo_cents ?? 0);
-  }, 0);
   const bewegungen = tagesbewegungenFuerMonat(data, today, gueltigeKontoIds);
+  const startSaldo = saldo - [...bewegungen.values()].reduce((a, b) => a + b, 0);
   const monatsverlauf = [{ datum: start, saldo_cents: startSaldo, bewegung_cents: 0, quelle: "ist" }];
   let laufenderSaldo = startSaldo;
   for (const [datum, bewegung] of [...bewegungen.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
@@ -201,14 +184,13 @@ export function computeLiquiditaetIst(data, { today }) {
 // Sprung erklaeren (grosseBuchungen), und der Trend aus gleitender Regression
 // (trendVerlauf).
 export function liquiditaetVerlauf(data, today, monate = 12) {
-  const konten = liquiditaetsKonten(data.konten);
   const erster = addInterval(`${today.slice(0, 7)}-01`, "monat", -(monate - 1));
   const grosse = grosseBuchungen(data, erster, today);
   const punkte = [];
   for (let i = monate - 1; i >= 0; i--) {
     const monat = addInterval(`${today.slice(0, 7)}-01`, "monat", -i).slice(0, 7);
     const datum = i === 0 ? today : addInterval(addInterval(`${monat}-01`, "monat", 1), "tag", -1);
-    const saldo = konten.reduce((a, k) => a + (kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum).saldo_cents ?? 0), 0);
+    const saldo = liquiditaetsKonten(data.konten, datum).reduce((a, k) => a + (kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum).saldo_cents ?? 0), 0);
     punkte.push({ monat, datum, saldo_cents: saldo, grosse: grosse.filter((g) => g.monat === monat) });
   }
   trendVerlauf(punkte.map((p) => p.saldo_cents)).forEach((tr, i) => Object.assign(punkte[i], tr));
@@ -273,7 +255,7 @@ function buchungsLabel(tx, data) {
 // ohne Regelzahlungen und ohne Gegenparteien, die in mindestens drei Monaten mit
 // aehnlichem Betrag (+-20 %) wiederkehren, etwa das Gehalt. Nach Datum.
 export function grosseBuchungen(data, von, bis, schwelle = GROSSE_BUCHUNG_CENTS) {
-  const liquide = new Set(liquiditaetsKonten(data.konten).map((k) => k.konto_id));
+  const liquide = new Set(liquiditaetsKonten(data.konten, von).map((k) => k.konto_id));
   const kontoVon = new Map((data.transaktionen ?? []).map((tx) => [tx.transaktion_id, tx.konto_id]));
   const transfers = new Map((data.transfers ?? []).map((tr) => [tr.transfer_id, tr]));
   const intern = (tx) => {

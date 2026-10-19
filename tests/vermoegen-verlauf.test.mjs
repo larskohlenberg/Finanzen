@@ -51,11 +51,13 @@ test("Konto rueckwaerts vom Anker, vor der ersten Buchung gab es es nicht", () =
 test("Immobilie ab Anschaffung mit Anschaffungskosten, Darlehen ab Anfangsbetrag", () => {
   const d = daten();
   assert.equal(nettovermoegenAm(d, "2025-02-28").passiva_cents, 0, "vor dem Anfangsdatum");
-  // Juli 2025: Immobilie zu Anschaffungskosten, Depot mit aeltestem Wert, Giro
-  // rueckwaerts gerechnet; Darlehen 12000 minus vier Raten (April bis Juli).
+  // Juli 2025: Immobilie zu Anschaffungskosten, Giro rueckwaerts gerechnet;
+  // Darlehen 12000 minus vier Raten (April bis Juli). Das Depot hat erst ab
+  // Juni 2026 einen Wert: davor unbekannt, kein spaeterer Wert rueckwaerts.
   const juli = nettovermoegenAm(d, "2025-07-31");
   assert.equal(juli.passiva_cents, 800000);
-  assert.equal(juli.aktiva_cents, 20000000 + 300000 + 120000);
+  assert.equal(juli.aktiva_cents, 20000000 + 120000);
+  assert.equal(juli.unbekannt, 1);
 });
 
 test("Verlauf je Monatsende ab der ersten Buchung, zuletzt heute", () => {

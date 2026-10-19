@@ -56,7 +56,7 @@ export function darlehenKennzahlen(darlehen, zeitwerte, today) {
 export function immobilienKennzahlen(data, immobilieId, today) {
   const immobilie = (data.immobilien ?? []).find((i) => i.immobilie_id === immobilieId);
   if (!immobilie) return null;
-  const marktwert = aktuellerZeitwert(data.zeitwerte, "immobilie", immobilieId, "marktwert");
+  const marktwert = aktuellerZeitwert(data.zeitwerte, "immobilie", immobilieId, "marktwert", today);
   const marktwertCents = marktwert ? toCents(marktwert.wert) : null;
   const anteilig = marktwertCents === null ? null : anteilWertCents(marktwertCents, immobilie.eigentumsanteile);
   const darlehen = (data.darlehen ?? []).filter((d) => d.immobilie_id === immobilieId && d.status !== "abgeloest");
@@ -171,23 +171,20 @@ const monatsEnde = (monat) => {
   return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
 };
 
-// Saldo je Monatsende, rueckgerechnet vom heutigen Stand (kontoWert) ueber die
-// Buchungen danach. Der laufende Monat endet heute. Monate vor der ersten
-// Buchung des Kontos fallen weg: dort waere der Wert geraten.
+// Saldo je Monatsende aus dem Bewertungsstand (kontoWert zum Monatsende: Anker
+// vorwaerts, sonst Rueckrechnung). Der laufende Monat endet heute. Monate vor
+// der ersten Buchung des Kontos fallen weg: dort waere der Wert geraten.
 export function kontoSaldoVerlauf(data, konto, today, monate = 12) {
   if (konto.kontotyp === "depot") return [];
-  const heute = kontoWert(konto, data.zeitwerte, data.transaktionen, today);
-  if (heute.wert_cents === null) return [];
-  const buchungen = (data.transaktionen ?? []).filter((tx) => tx.konto_id === konto.konto_id && tx.buchungsdatum <= today);
-  const erste = buchungen.reduce((min, tx) => (tx.buchungsdatum < min ? tx.buchungsdatum : min), today);
+  if (kontoWert(konto, data.zeitwerte, data.transaktionen, today).wert_cents === null) return [];
+  const erste = (data.transaktionen ?? []).reduce((min, tx) => (tx.konto_id === konto.konto_id && tx.buchungsdatum < min ? tx.buchungsdatum : min), today);
   const punkte = [];
   for (let i = monate - 1; i >= 0; i -= 1) {
     const monat = addInterval(`${today.slice(0, 7)}-01`, "monat", -i).slice(0, 7);
     const datum = i === 0 ? today : monatsEnde(monat);
     if (datum < erste.slice(0, 7) + "-01") continue;
-    let danach = 0;
-    for (const tx of buchungen) if (tx.buchungsdatum > datum) danach += toCents(tx.betrag);
-    punkte.push({ monat, datum, wert_cents: heute.wert_cents - danach });
+    const w = kontoWert(konto, data.zeitwerte, data.transaktionen, datum);
+    punkte.push({ monat, datum, wert_cents: w.wert_cents ?? 0 });
   }
   return punkte;
 }

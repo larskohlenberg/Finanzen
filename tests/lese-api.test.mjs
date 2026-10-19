@@ -229,7 +229,7 @@ test("Konten und Vermoegen: nur Zahlen und Ids, keine Buchungslisten; Stichtag g
 
   const v = (await hole("/api/v1/vermoegen?quelle=demo&heute=2026-10-19")).json();
   assert.deepEqual(Object.keys(v).sort(), ["checks", "heute", "immobilien", "netto", "stand", "verlauf", "vorsorge_bezug"]);
-  for (const p of v.verlauf) assert.deepEqual(Object.keys(p).sort(), ["monat", "netto_cents"]);
+  for (const p of v.verlauf) assert.deepEqual(Object.keys(p).sort(), ["monat", "netto_cents", "unbekannt"]);
   for (const imm of Object.values(v.immobilien)) {
     assert.deepEqual(Object.keys(imm).sort(), ["alle_buchungen", "investitionen", "monate_mit_rate", "monate_ohne_investitionen", "monate_ohne_rate"]);
     for (const b of imm.investitionen.buchungen) assert.deepEqual(Object.keys(b).sort(), ["bemerkung", "betrag", "buchungsdatum", "gegenpartei", "transaktion_id", "verwendungszweck"]);

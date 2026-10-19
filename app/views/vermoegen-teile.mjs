@@ -2,10 +2,11 @@
 // Gemeinsame Bausteine der Vermoegensseite (Tabs in vermoegen.mjs und
 // vermoegen-objekte.mjs): Qualitaets-Chips, Wertstaende eines Objekts,
 // Kennzahl-Kacheln, Dokumentliste, Rhythmus/Laufzeit-Texte.
-import { data, datenVersion, t, escapeHtml, cents } from "../runtime.mjs";
+import { data, t, escapeHtml, cents } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, detailRow, quelleHtml } from "../komponenten.mjs";
-import { dokumentRoute, dokumenteZuObjekt, verweisIndex } from "../belege.mjs";
+import { dokumentRoute, dokumenteZuObjekt } from "../belege.mjs";
+import { verweise } from "./belegverweise-daten.mjs";
 import { fristenZuObjekt } from "../fristen.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
 import { belegDateienStand, renderDokumenteAusschnitt } from "./belege.mjs";
@@ -151,13 +152,6 @@ export function balkenSvg(teile, { klasse = "vermoegen-balken", laenge = 1 } = {
   }).join("");
   const breiteGesamt = (Math.max(0, Math.min(1, laenge)) * 100).toFixed(2);
   return `<svg class="${klasse}" viewBox="0 0 100 10" preserveAspectRatio="none" width="${breiteGesamt}%" aria-hidden="true"><rect x="0" y="0" width="100" height="10" class="balken-grund" />${rects}</svg>`;
-}
-
-// Verweisindex je Bestandsstand: nach einem Standwechsel neu gebaut.
-let index = null;
-function verweise() {
-  if (index?.version !== datenVersion()) index = { version: datenVersion(), wert: verweisIndex(data) };
-  return index.wert;
 }
 
 // Dokumente eines Objekts als Ausschnitt der Dokumentenansicht (Ordnerbaum und

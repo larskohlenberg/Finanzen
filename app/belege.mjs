@@ -188,8 +188,24 @@ export function routeFuerDatensatz(entitaet, id) {
   return "#/vermoegen";
 }
 
-// Map belegSchluessel(pfad) -> { transaktionen: [ids], andere: [{ entitaet, id, label, route }] }
-export function verweisIndex(daten) {
+// Buchungen je Beleg, der sie als rohquelle nennt: belegSchluessel(pfad) ->
+// { anzahl, konten, von, bis }. Rechnet der App-Server (GET
+// /api/v1/belegverweise); der Browser hat keine Buchungen.
+export function buchungsBelege(daten) {
+  const je = new Map();
+  for (const tx of daten.transaktionen ?? []) {
+    for (const pfad of belegPfadeAusText(tx.rohquelle)) {
+      const k = belegSchluessel(pfad);
+      if (!je.has(k)) je.set(k, []);
+      je.get(k).push(tx);
+    }
+  }
+  return Object.fromEntries([...je].map(([k, liste]) => [k, fasseTransaktionenZusammen(liste)]));
+}
+
+// Map belegSchluessel(pfad) -> { buchungen: { anzahl, konten, von, bis } | null, andere: [{ entitaet, id, label, route }] }
+// buchungen: Ergebnis von buchungsBelege (vom Server); ohne es aus daten.transaktionen.
+export function verweisIndex(daten, { buchungen = null } = {}) {
   const index = new Map();
   // Namen fuer Zeitwerte, die nur die ID ihres Objekts kennen.
   const namen = new Map((daten.konten ?? []).map((k) => [k.konto_id, k.name]));
@@ -198,12 +214,10 @@ export function verweisIndex(daten) {
   }
   const eintrag = (pfad) => {
     const k = belegSchluessel(pfad);
-    if (!index.has(k)) index.set(k, { transaktionen: [], andere: [] });
+    if (!index.has(k)) index.set(k, { buchungen: null, andere: [] });
     return index.get(k);
   };
-  for (const tx of daten.transaktionen ?? []) {
-    for (const pfad of belegPfadeAusText(tx.rohquelle)) eintrag(pfad).transaktionen.push(tx.transaktion_id);
-  }
+  for (const [pfad, zusammenfassung] of Object.entries(buchungen ?? buchungsBelege(daten))) eintrag(pfad).buchungen = zusammenfassung;
   for (const zw of daten.zeitwerte ?? []) {
     for (const pfad of belegPfadeAusText(zw.quelle_hinweis)) {
       eintrag(pfad).andere.push({
@@ -253,7 +267,7 @@ export function dokumenteZuObjekt({ dateien = [], index = new Map(), ids = [], o
 }
 
 export function verweisAnzahl(verweis) {
-  return verweis ? verweis.transaktionen.length + verweis.andere.length : 0;
+  return verweis ? (verweis.buchungen?.anzahl ?? 0) + verweis.andere.length : 0;
 }
 
 // Verweise ohne die Objekte, in deren Kachel die Datei gerade steht: je Ziel ein
@@ -265,7 +279,7 @@ export function fremdeVerweise(verweis, eigeneIds = []) {
   for (const v of verweis?.andere ?? []) {
     if (!eigene.has(v.id) && !ziele.has(v.route)) ziele.set(v.route, v);
   }
-  return { andere: [...ziele.values()], buchungen: verweis?.transaktionen.length ?? 0 };
+  return { andere: [...ziele.values()], buchungen: verweis?.buchungen?.anzahl ?? 0 };
 }
 
 export function fasseTransaktionenZusammen(transaktionen) {

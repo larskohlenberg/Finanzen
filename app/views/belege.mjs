@@ -6,15 +6,16 @@
 // App-Server (GET /api/belege); ohne ihn zeigt die Ansicht einen Hinweis.
 // Im Demo-Modus nur die Demo-Dokumente (demo-modus.mjs).
 // In der Oberflaeche heisst eine Datei "Dokument", nie "Beleg" (CONTEXT.md).
-import { data, datenVersion, state, t, escapeHtml, kontenById, transaktionenById } from "../runtime.mjs";
+import { state, t, escapeHtml, kontenById } from "../runtime.mjs";
 import { renderPageHead, formatDate } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { belegDateiUrl, belegeApiUrl } from "../demo-modus.mjs";
 import {
-  BELEGE_WURZEL, baueBaum, belegSchluessel, dokumentRoute, fasseTransaktionenZusammen,
+  BELEGE_WURZEL, baueBaum, belegSchluessel, dokumentRoute,
   findeOrdner, formatGroesse, fremdeVerweise, istBildTyp, kodierePfad, ordneZwillingeZu, sortiereDateien, sucheDateien,
-  verweisAnzahl, verweisIndex, vorfahren,
+  verweisAnzahl, vorfahren,
 } from "../belege.mjs";
+import { verweise } from "./belegverweise-daten.mjs";
 
 const ansicht = {
   zustand: "unbekannt",
@@ -27,12 +28,6 @@ const ansicht = {
   zwillingeZeigen: false,
 };
 
-// Verweis-Index je Bestandsstand: nach einem Standwechsel neu gebaut.
-let index = null;
-function verweise() {
-  if (index?.version !== datenVersion()) index = { version: datenVersion(), wert: verweisIndex(data) };
-  return index.wert;
-}
 function verweisFuer(pfad) {
   return verweise().get(belegSchluessel(pfad));
 }
@@ -405,8 +400,8 @@ function renderVerknuepfungen(d) {
     return `<div class="detail-section"><p class="muted">${escapeHtml(t("dokumente.nichtVerknuepft"))}</p></div>`;
   }
   const teile = [];
-  if (verweis.transaktionen.length) {
-    const z = fasseTransaktionenZusammen(verweis.transaktionen.map((id) => transaktionenById.get(id)).filter(Boolean));
+  if (verweis.buchungen?.anzahl) {
+    const z = verweis.buchungen;
     const titel = z.anzahl === 1 ? t("dokumente.quelleFuerBuchung") : t("dokumente.quelleFuerBuchungen").replace("{n}", String(z.anzahl));
     const konten = z.konten.map((id) => escapeHtml(kontenById.get(id)?.name || id)).join(", ");
     const zeitraum = z.von === z.bis ? escapeHtml(formatDate(z.von)) : `${escapeHtml(formatDate(z.von))} – ${escapeHtml(formatDate(z.bis))}`;

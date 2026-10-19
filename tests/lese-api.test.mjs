@@ -275,3 +275,9 @@ test("Checks: Transfers nur als Anzahl und unvollstaendige mit Id und Betrag; St
   for (const tr of c.transfers.unvollstaendig) assert.deepEqual(Object.keys(tr).sort(), ["betrag", "transfer_id"]);
   assert.equal((await hole("/api/v1/checks?quelle=demo&heute=9999-12-31")).status, 400);
 });
+
+test("Belegverweise: je Beleg nur Anzahl, Konten und Zeitraum der Buchungen", async () => {
+  const a = (await hole("/api/v1/belegverweise?quelle=demo")).json();
+  assert.deepEqual(Object.keys(a).sort(), ["buchungen", "stand"]);
+  for (const z of Object.values(a.buchungen)) assert.deepEqual(Object.keys(z).sort(), ["anzahl", "bis", "konten", "von"]);
+});

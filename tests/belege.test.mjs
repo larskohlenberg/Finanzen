@@ -6,7 +6,7 @@ import { test } from "node:test";
 import {
   belegPfadeAusText, belegTextHtml, baueBaum, ordneZwillingeZu, verweisIndex,
   fasseTransaktionenZusammen, dokumentRoute, belegPfadAusRoute, sortiereDateien,
-  sucheDateien, formatGroesse, ordnerVon, vorfahren, belegSchluessel, dokumenteZuObjekt, belegOrdnerAusText, fremdeVerweise,
+  sucheDateien, formatGroesse, ordnerVon, vorfahren, belegSchluessel, dokumenteZuObjekt, belegOrdnerAusText, fremdeVerweise, buchungsBelege,
 } from "../app/belege.mjs";
 import { routeFromState, parseRoute } from "../app/routing.mjs";
 
@@ -166,10 +166,10 @@ const DATEN = {
 test("verweisIndex: Transaktionen per rohquelle, andere Entitaeten per quelle_hinweis", () => {
   const index = verweisIndex(DATEN);
   const csv = index.get("Belege/Kontoauszuege/KTO-001/b.csv");
-  assert.deepEqual(csv.transaktionen, ["TXN-1", "TXN-2", "TXN-3"]);
+  assert.deepEqual(csv.buchungen, { anzahl: 3, konten: ["KTO-001", "KTO-002"], von: "2026-01-02", bis: "2026-02-10" });
   assert.deepEqual(csv.andere, []);
   const auszug = index.get("Belege/Kontoauszuege/KTO-001/a.pdf");
-  assert.deepEqual(auszug.transaktionen, []);
+  assert.equal(auszug.buchungen, null);
   assert.equal(auszug.andere.length, 1);
   assert.equal(auszug.andere[0].entitaet, "zeitwert");
   assert.equal(auszug.andere[0].route, "#/vermoegen/konten/KTO-001");
@@ -203,6 +203,11 @@ test("verweisIndex und belegSchluessel vergleichen Unicode-normalisiert", () => 
   const nfc = "Belege/x/Änderung.pdf";
   const index = verweisIndex({ transaktionen: [{ transaktion_id: "T", konto_id: "K", buchungsdatum: "2026-01-01", rohquelle: nfc }] });
   assert.ok(index.get(belegSchluessel(nfd)));
+});
+
+test("verweisIndex: Buchungen je Beleg vom Server ersetzen die Buchungen im Bestand", () => {
+  const buchungen = JSON.parse(JSON.stringify(buchungsBelege(DATEN)));
+  assert.deepEqual([...verweisIndex({ ...DATEN, transaktionen: [] }, { buchungen })], [...verweisIndex(DATEN)]);
 });
 
 test("verweisIndex: fehlende Sammlungen sind kein Fehler", () => {

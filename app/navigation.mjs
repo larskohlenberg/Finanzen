@@ -47,6 +47,12 @@ const URL_NAMEN = [
   ["transfer", "transfer"],
   ["origin", "herkunft"],
 ];
+// Feste Wertebereiche; andere Werte aus einer von Hand geaenderten URL fallen weg.
+const ERLAUBT = {
+  status: ["", "offen", "vorgeschlagen", "bestaetigt", "abgelehnt"],
+  transfer: ["", "only", "without"],
+  origin: ["", "regel", "agent", "manuell"],
+};
 const PFAD_NAMEN = [["beleg", "dokument"], ["vorsorge", "vorsorge"]];
 const ZEIT_FELDER = {
   range: [["dateFrom", "von"], ["dateTo", "bis"]],
@@ -67,9 +73,11 @@ const MUSTER = {
 // vorsorge sind sonst Pfadteile der Route (routing.mjs); nur wenn der Pfad
 // schon eine Buchung adressiert, kommen sie mit pfadfilter in die Query.
 // search bleibt immer draussen.
-export function filterAlsQuery(filter, { pfadfilter = false } = {}) {
+export function filterAlsQuery(filter, { pfadfilter = false, imPfad = "" } = {}) {
   const suche = new URLSearchParams();
-  if (pfadfilter) for (const [name, param] of PFAD_NAMEN) if (filter[name]) suche.set(param, filter[name]);
+  for (const [name, param] of PFAD_NAMEN) {
+    if (filter[name] && (pfadfilter || (imPfad && imPfad !== name))) suche.set(param, filter[name]);
+  }
   for (const [name, param] of URL_NAMEN) if (filter[name]) suche.set(param, filter[name]);
   const zeit = ZEIT_FELDER[filter.timeMode];
   if (zeit) {
@@ -85,7 +93,10 @@ export function filterAlsQuery(filter, { pfadfilter = false } = {}) {
 export function filterAusQuery(query) {
   const suche = new URLSearchParams(query ?? "");
   const filter = { ...LEERE_FILTER };
-  for (const [name, param] of [...PFAD_NAMEN, ...URL_NAMEN]) filter[name] = suche.get(param) ?? "";
+  for (const [name, param] of [...PFAD_NAMEN, ...URL_NAMEN]) {
+    const wert = suche.get(param) ?? "";
+    filter[name] = !ERLAUBT[name] || ERLAUBT[name].includes(wert) ? wert : "";
+  }
   const modus = suche.get("zeit");
   if (ZEIT_FELDER[modus]) {
     filter.timeMode = modus;

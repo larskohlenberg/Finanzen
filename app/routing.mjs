@@ -87,9 +87,9 @@ function buchungenRoute(state) {
   const query = filterAlsQuery(filter);
   if (state.selectedTransactionId) return `#/transaktionen/${encodeURIComponent(state.selectedTransactionId)}${filterAlsQuery(filter, { pfadfilter: true })}`;
   // Gefiltert auf ein Quelldokument (Pfad ohne "Belege/").
-  if (filter.beleg?.startsWith("Belege/")) return `#/transaktionen/dokument/${kodierePfad(filter.beleg.slice("Belege/".length))}${query}`;
+  if (filter.beleg?.startsWith("Belege/")) return `#/transaktionen/dokument/${kodierePfad(filter.beleg.slice("Belege/".length))}${filterAlsQuery(filter, { imPfad: "beleg" })}`;
   // Gefiltert auf die Beitragsbuchungen eines Vorsorgevertrags.
-  if (filter.vorsorge) return `#/transaktionen/vorsorge/${encodeURIComponent(filter.vorsorge)}${query}`;
+  if (filter.vorsorge) return `#/transaktionen/vorsorge/${encodeURIComponent(filter.vorsorge)}${filterAlsQuery(filter, { imPfad: "vorsorge" })}`;
   return `#/transaktionen${query}`;
 }
 

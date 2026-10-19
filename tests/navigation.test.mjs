@@ -49,7 +49,7 @@ test("Filter in der URL: ohne Freitextsuche, ohne Standardwerte, umkehrbar", () 
 });
 
 test("filterAusQuery verwirft ungueltige Werte", () => {
-  assert.deepEqual(filterAusQuery("zeit=unsinn&quartal=9&status=<x>&unbekannt=1"), { ...LEERE_FILTER, status: "<x>" });
+  assert.deepEqual(filterAusQuery("zeit=unsinn&quartal=9&status=<x>&transfer=foo&unbekannt=1"), LEERE_FILTER);
   assert.deepEqual(filterAusQuery("zeit=quarter&quartalsjahr=2026&quartal=3"), { ...LEERE_FILTER, timeMode: "quarter", quarterYear: "2026", quarter: "3" });
 });
 
@@ -68,7 +68,7 @@ test("Dokument- und Vorsorgefilter bleiben Pfad, weitere Filter haengen als Quer
   const route = routeFromState(s);
   assert.equal(route, "#/transaktionen/vorsorge/VS-001?zeit=year&jahr=2025");
   assert.deepEqual(parseRoute(route).transactionFilters, s.transactionFilters);
-  const beleg = { view: "transactions", transactionFilters: { ...LEERE_FILTER, beleg: "Belege/Konto/a b.pdf", account: "KTO-1" } };
+  const beleg = { view: "transactions", transactionFilters: { ...LEERE_FILTER, beleg: "Belege/Konto/a b.pdf", account: "KTO-1", vorsorge: "VS-002" } };
   assert.deepEqual(parseRoute(routeFromState(beleg)).transactionFilters, beleg.transactionFilters);
 });
 

@@ -189,8 +189,8 @@ function seitenDetail() {
   if (state.view === "vermoegen") return String(state.selectedVermoegenId ?? "").split(":")[1] ?? "";
   if (state.view === "vorsorge") return state.selectedVorsorgeId;
   if (state.view === "szenarien") return state.selectedSzenarioId;
-  if (state.view === "termine") return state.selectedRegelzahlungId;
-  if (state.view === "masterdata") return state.selectedKonto || state.selectedRegel;
+  if (state.view === "termine") return state.termineTab === "fristen" ? "" : state.selectedRegelzahlungId;
+  if (state.view === "masterdata") return state.masterSection === "konten" ? state.selectedKonto : state.masterSection === "regeln" ? state.selectedRegel : "";
   if (state.view === "belege") return String(state.selectedBeleg ?? "").split("/").pop();
   return "";
 }
@@ -588,6 +588,12 @@ app.addEventListener("keydown", guard((event) => {
   if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
   const el = event.target;
   if (!el || typeof el.matches !== "function") return;
+  // Links reagieren nativ nur auf Enter; die Leertaste wie bei Knoepfen nachreichen.
+  if (el.matches("a[href][data-action], a[href][data-view]") && event.key !== "Enter") {
+    event.preventDefault();
+    el.click();
+    return;
+  }
   if (el.matches("button, a, input, select, textarea")) return;
   if (el.getAttribute("tabindex") == null) return;
   if (!el.matches(KEY_ACTIVATION_SELECTOR)) return;
@@ -906,7 +912,8 @@ async function handleAction(element) {
     else if (Object.hasOwn(state.transactionFilters, name)) state.transactionFilters[name] = LEERE_FILTER[name];
     else return;
     state.transactionPage = 1;
-    commitNavigation();
+    // Auch Dokument- und Vertragsfilter (Pfadteile) sind Filter: ersetzen.
+    commitNavigation({ ersetzen: true });
     return;
   }
   if (action === "reset-transaction-filters") {
@@ -944,9 +951,11 @@ async function handleAction(element) {
     return;
   }
   if (action === "select-transaction") {
+    // Erstes Oeffnen ist ein neuer Eintrag, der Wechsel zwischen Buchungen ersetzt ihn.
+    const wechsel = Boolean(state.selectedTransactionId) && !state.detailRailClosed;
     state.selectedTransactionId = element.dataset.transaction;
     state.detailRailClosed = false;
-    commitNavigation();
+    commitNavigation({ ersetzen: wechsel });
     return;
   }
   if (action === "open-transaction") {

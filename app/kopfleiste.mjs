@@ -3,9 +3,9 @@
 // einen Bestand: rechnet im App-Server (lese-api.mjs, GET /api/v1/kopfleiste)
 // mit denselben Modulen wie zuvor der Browser (vermoegen, szenarien,
 // next-action). Zurueck gehen nur Zahlen und die Prompts der Aktionen.
+import { importAbdeckung } from "./klassifikation.mjs";
 import { buildNextAgentActions } from "./next-action.mjs";
 import { guardrailWarnungen } from "./szenarien.mjs";
-import { kontenGruppen } from "./uebersicht-rechnung.mjs";
 import { computeVermoegenChecks } from "./vermoegen.mjs";
 
 // Transfer-Paare: vollstaendig, wenn beide Buchungen existieren, als Transfer
@@ -24,7 +24,7 @@ export function transferPruefung(daten) {
 
 // Prognose-Realismus im Fenster von Plan & Ist: nur Monate, die auf allen Konten gebucht sind.
 export function prognoseRealismus(daten, heute) {
-  return guardrailWarnungen(daten, heute, { vollstaendigBis: kontenGruppen(daten, heute).konten.aeltester });
+  return guardrailWarnungen(daten, heute, { vollstaendigBis: importAbdeckung(daten, heute).vollstaendig_bis });
 }
 
 // daten: Bestand mit metadata.dataMode, validation, checks und importfehler

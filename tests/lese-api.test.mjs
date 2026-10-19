@@ -142,7 +142,7 @@ test("Uebersicht: Kennzahlen der Kacheln ohne Rohlisten, Stichtag geprueft", asy
     assert.equal((await hole(`/api/v1/uebersicht?quelle=demo&heute=${falsch}`)).status, 400, falsch);
   }
   // Nur die Felder, die die Kacheln lesen: keine Einzelbuchungen der Sondereffekte, keine Monatsreihen.
-  assert.deepEqual(Object.keys(a.mittel).sort(), ["anzahl_monate", "ausgaben", "bis", "einnahmen", "monate", "sparen", "von"]);
+  assert.deepEqual(Object.keys(a.mittel).sort(), ["anzahl_monate", "ausgaben", "ausschluesse", "bis", "einnahmen", "monate", "sparen", "umfang", "von"]);
   assert.deepEqual(Object.keys(a.mittel.einnahmen).sort(), ["kategorien", "mittel_cents"]);
   // Pfeile der Kacheln: Jahresvergleich der Summen und je Kategorie (Demo hat drei Jahre).
   assert.deepEqual(Object.keys(a.trend).sort(), ["ausgaben", "einnahmen", "sparquote"]);
@@ -192,7 +192,7 @@ test("Liquiditaet: Ist, Verlauf, Prognose und Zahlungen; Parameter geprueft", as
 
 test("Plan & Ist: Monate, Rechnung des Zeitraums, Verlauf nur mit Summen; Parameter geprueft", async () => {
   const a = (await hole("/api/v1/plan-ist?quelle=demo&heute=2026-10-19&periode=12m&granularitaet=quartal")).json();
-  assert.deepEqual(Object.keys(a).sort(), ["alle", "heute", "r", "stand", "verlauf"]);
+  assert.deepEqual(Object.keys(a).sort(), ["alle", "heute", "r", "stand", "umfang", "verlauf"]);
   assert.equal(a.r.anzahl_monate, 12);
   assert.ok(a.verlauf.every((p) => /-Q\d$/.test(p.schluessel)));
   for (const p of a.verlauf) assert.deepEqual(Object.keys(p.r).sort(), ["ausgaben", "einnahmen", "sparen"]);
@@ -210,11 +210,12 @@ test("Plan & Ist: Route und API pruefen Zeitraeume gleich; Teile einzeln gerechn
   assert.equal(parseRoute("#/plan-ist/2026-13").planIstPeriode, undefined);
   assert.equal(parseRoute("#/plan-ist/2026-12").planIstPeriode, "2026-12");
   const { planIstModell, planIstMonate, planIstRechnung, planIstVerlauf } = await import("../app/plan-ist-modell.mjs");
+  const { importAbdeckung } = await import("../app/klassifikation.mjs");
   const { leseSnapshot } = await import("../app/stand.mjs");
   const { daten } = await leseSnapshot(fileURLToPath(DEMO));
   const alle = planIstMonate(daten, "2026-10-19");
   assert.deepEqual(planIstModell(daten, { heute: "2026-10-19", periode: "12m", granularitaet: "quartal" }), {
-    heute: "2026-10-19", alle, r: planIstRechnung(daten, alle, "12m"), verlauf: planIstVerlauf(daten, alle, "quartal"),
+    heute: "2026-10-19", alle, umfang: importAbdeckung(daten, "2026-10-19"), r: planIstRechnung(daten, alle, "12m"), verlauf: planIstVerlauf(daten, alle, "quartal"),
   });
 });
 

@@ -4,8 +4,8 @@
 // Ansicht (plan-ist.mjs). Zurueck gehen die Monate des Bestands, die
 // Rechnung des gewaehlten Zeitraums (Einzelposten nur mit Id, Datum,
 // Gegenpartei, Betrag) und je Periode des Verlaufs nur die Summen.
+import { importAbdeckung } from "./klassifikation.mjs";
 import { bestandsMonate, perioden, planIst, zeitraumMonate } from "./plan-ist.mjs";
-import { kontenGruppen } from "./uebersicht-rechnung.mjs";
 
 export const GRANULARITAETEN = Object.freeze(["monat", "quartal", "jahr"]);
 
@@ -32,7 +32,7 @@ const summen = (r) => ({
 
 // Nur Monate, die auf allen Konten vollstaendig gebucht sind.
 export function planIstMonate(daten, heute) {
-  return bestandsMonate(daten, heute, { vollstaendigBis: kontenGruppen(daten, heute).konten.aeltester });
+  return bestandsMonate(daten, heute, { vollstaendigBis: importAbdeckung(daten, heute).vollstaendig_bis });
 }
 
 export function planIstRechnung(daten, alle, periode = "") {
@@ -52,5 +52,5 @@ export function planIstVerlauf(daten, alle, granularitaet = "jahr") {
 
 export function planIstModell(daten, { heute, periode = "", granularitaet = "jahr" }) {
   const alle = planIstMonate(daten, heute);
-  return { heute, alle, r: planIstRechnung(daten, alle, periode), verlauf: planIstVerlauf(daten, alle, granularitaet) };
+  return { heute, alle, umfang: importAbdeckung(daten, heute), r: planIstRechnung(daten, alle, periode), verlauf: planIstVerlauf(daten, alle, granularitaet) };
 }

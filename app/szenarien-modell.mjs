@@ -5,14 +5,14 @@
 // den Buchungen nur den Startbestand, also die Positionen des
 // Nettovermoegens, und fuer den Hinweis der Rechengrundlage die Zahl der
 // Warnungen zum Prognose-Realismus.
+import { importAbdeckung } from "./klassifikation.mjs";
 import { computeNettovermoegen } from "./vermoegen.mjs";
 import { guardrailWarnungen } from "./szenarien.mjs";
-import { kontenGruppen } from "./uebersicht-rechnung.mjs";
 
 export function szenarienModell(daten, heute) {
   return {
     heute,
     positionen: computeNettovermoegen(daten, heute).positionen,
-    guardrails: guardrailWarnungen(daten, heute, { vollstaendigBis: kontenGruppen(daten, heute).konten.aeltester }).length,
+    guardrails: guardrailWarnungen(daten, heute, { vollstaendigBis: importAbdeckung(daten, heute).vollstaendig_bis }).length,
   };
 }

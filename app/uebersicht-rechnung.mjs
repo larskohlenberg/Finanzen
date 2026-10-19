@@ -4,6 +4,8 @@
 // `kennzahlen` rufen dieselben Funktionen, damit beide gleich rechnen.
 import { toCents } from "./tools/lib/text.mjs";
 import { aktivAm } from "./bewertung.mjs";
+import { ausschlussZaehler, buchungsKlasse, kategorienIndex, KATEGORIE_UNGEKLAERT } from "./klassifikation.mjs";
+import { bestandsMonate } from "./plan-ist.mjs";
 import { computeVermoegenChecks, kontoWert, standVeraltet } from "./vermoegen.mjs";
 
 // Summe aller geladenen Buchungen eines Kontos (kein Anfangssaldo, kein Stichtag).
@@ -138,9 +140,11 @@ export function verteileRundung(werteCents, zielCents) {
 }
 
 // Monatliche Einnahmen, Ausgaben und Sparquote: Durchschnitt der letzten zwoelf
-// vollen Monate aus den Buchungen, die vor dem laufenden Monat und spaetestens
-// mit dem Monat der letzten Buchung enden (so drueckt ein noch nicht importierter
-// Monat den Schnitt nicht). Transfers zaehlen nicht.
+// vollstaendigen Monate, dieselbe Monatsliste wie Plan & Ist (bestandsMonate:
+// ab dem letzten Startzustand, vor dem laufenden Monat, hoechstens bis zum
+// letzten Monat, den alle Konten belegen). Welche Buchungen zaehlen, sagt die
+// zentrale Klassifikation (klassifikation.mjs): Transfers, Startzustand,
+// Investitionen und Sondereffekte nicht; sie stehen in `ausschluesse`.
 // - Einnahme- und Ausgabenkategorien (auch "Noch zu klaeren" und Buchungen ohne
 //   Kategorie) zaehlen netto je Kategorie: Ueberwiegen die Gutschriften (etwa
 //   Steuererstattungen, Kindergeld), ist die Kategorie eine Einnahme, sonst eine
@@ -154,49 +158,34 @@ export function verteileRundung(werteCents, zielCents) {
 //   sparziel "depot" bzw. "versicherung", was in Depots und Vertraege fliesst;
 //   der Rest des Ueberschusses bleibt kurzfristig liquide (Konten, Tagesgeld,
 //   Festgeld; negativ: aus Ruecklagen entnommen).
-// Bei kuerzerer Historie wird nur durch die Monate seit der ersten Buchung geteilt.
-// vollstaendigBis (aeltester Kontenstand): ein Monat zaehlt erst, wenn alle Konten
+// Bei kuerzerer Historie wird nur durch die vorhandenen Monate geteilt.
+// vollstaendigBis (importAbdeckung): ein Monat zaehlt erst, wenn alle Konten
 // bis zu seinem letzten Tag belegt sind, sonst fehlen noch Buchungen.
-const KATEGORIE_UNGEKLAERT = "KAT-012";
-
-function letzterVollerMonat(datum) {
-  const [y, m, d] = datum.split("-").map(Number);
-  const monatsletzter = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  return d >= monatsletzter ? datum.slice(0, 7) : new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7);
-}
-
 export function monatsMittel(data, today, { vollstaendigBis = "" } = {}) {
-  const grenze = vollstaendigBis ? letzterVollerMonat(vollstaendigBis) : "";
-  const laufend = grenze && grenze < today.slice(0, 7) ? new Date(Date.UTC(Number(grenze.slice(0, 4)), Number(grenze.slice(5, 7)), 1)).toISOString().slice(0, 7) : today.slice(0, 7);
-  const vorher = (data.transaktionen ?? []).map((tx) => tx.buchungsdatum?.slice(0, 7)).filter((m) => m && m < laufend).sort();
-  const monate = [];
-  if (vorher.length) {
-    const [jahr, monat] = vorher.at(-1).split("-").map(Number);
-    for (let i = 11; i >= 0; i--) {
-      const m = new Date(Date.UTC(jahr, monat - 1 - i, 1)).toISOString().slice(0, 7);
-      if (m >= vorher[0]) monate.push(m);
-    }
-  }
+  const monate = bestandsMonate(data, today, { vollstaendigBis }).slice(-12);
   const index = new Map(monate.map((m, i) => [m, i]));
-  const typ = new Map((data.kategorien ?? []).map((k) => [k.kategorie_id, k]));
+  const typ = kategorienIndex(data);
   const istNeutral = (id) => typ.get(id)?.typ === "neutral" && id !== KATEGORIE_UNGEKLAERT;
   const sondereffekte = new Map();
   const investNetto = new Map();
+  const ausschluesse = ausschlussZaehler();
 
   // Netto je Kategorie, gesamt und je Monat (Vorzeichen wie gebucht).
   const netto = new Map();
   for (const tx of data.transaktionen ?? []) {
-    if (tx.ist_transfer === true) continue;
     const i = index.get(tx.buchungsdatum?.slice(0, 7));
     if (i === undefined) continue;
     const id = tx.kategorie_id ?? "";
     const cents = toCents(tx.betrag);
-    if (typ.get(id)?.investition === true) {
+    const klasse = buchungsKlasse(tx, typ);
+    ausschluesse.zaehle(klasse, cents);
+    if (klasse === "transfer" || klasse === "startzustand") continue;
+    if (klasse === "investition") {
       investNetto.set(id, (investNetto.get(id) ?? 0) + cents);
       continue;
     }
     const key = typ.get(id)?.brutto === true ? `${id}${cents >= 0 ? "+" : "-"}` : id;
-    if (cents > 0 && typ.get(id)?.gutschriften_sondereffekt === true) {
+    if (klasse === "sondereffekt") {
       const se = sondereffekte.get(id) ?? { kategorie_id: id, name: typ.get(id).name, summe_cents: 0, buchungen: [] };
       se.summe_cents += cents;
       se.buchungen.push({ datum: tx.buchungsdatum, betrag_cents: cents });
@@ -288,6 +277,7 @@ export function monatsMittel(data, today, { vollstaendigBis = "" } = {}) {
     ausgaben,
     sparen,
     sondereffekte: [...sondereffekte.values()],
+    ausschluesse: ausschluesse.ergebnis(),
   };
 }
 
@@ -371,5 +361,6 @@ export function monatsTrend(data, today, { vollstaendigBis = "", punkte = 24 } =
     sparquote: fenster.map((f) => f.r.sparen.quote),
     kategorien: { einnahmen: kategorien("einnahmen"), ausgaben: kategorien("ausgaben") },
     vergleich: mittelVergleich(jetzt, vorher),
+    ausschluesse: jetzt.ausschluesse,
   };
 }

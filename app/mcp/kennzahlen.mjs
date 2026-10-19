@@ -5,6 +5,7 @@
 // next-action.mjs, fristen.mjs, absicherung.mjs); hier wird nur formatiert.
 // Betraege als Decimal-String. Dazu planIstText hinter dem Tool `plan_ist`
 // (Rechnung in plan-ist.mjs wie die Seite Plan & Ist).
+import { importAbdeckung } from "../klassifikation.mjs";
 import { absicherung } from "../absicherung.mjs";
 import { bestandsMonate, perioden, planIst, zeitraumMonate } from "../plan-ist.mjs";
 import { anstehendeFristen } from "../fristen.mjs";
@@ -51,18 +52,31 @@ function absicherungZeilen(data, stichtag) {
   ];
 }
 
+// Umfang und Ausschluesse einer Kennzahl (klassifikation.mjs) als Textzeilen.
+const KLASSE_TEXT = { transfer: "Umbuchungen", startzustand: "Startzustaende", investition: "Investitionen", sondereffekt: "Sondereffekte (Gutschriften)" };
+export function umfangZeilen(abdeckung, ausschluesse) {
+  const konten = abdeckung.konten.map((k) => `${k.konto_id} bis ${k.belegt_bis || "-"}`).join(", ");
+  const aus = Object.entries(ausschluesse ?? {}).filter(([, x]) => x.anzahl).map(([k, x]) => `${KLASSE_TEXT[k] ?? k} ${x.anzahl} (${centsToDecimal(x.summe_cents)})`).join(", ");
+  return [
+    `  Umfang: verfuegbare Konten belegt (letzte Buchung oder Kontostand): ${konten || "keine"}; vollstaendig bis ${abdeckung.vollstaendig_bis || "-"}${abdeckung.begrenzt_durch ? `, begrenzt durch ${abdeckung.begrenzt_durch}` : ""}`,
+    `  Nicht enthalten: ${aus || "nichts"}`,
+  ];
+}
+
 const quote = (q) => (q === null ? "-" : `${Math.round(q * 1000) / 10} %`);
 const abw = (ist, plan) => `${ist - plan >= 0 ? "+" : ""}${centsToDecimal(ist - plan)}`;
 
 // Kacheln Einnahmen, Ausgaben, Sparquote der Uebersicht (Ø der letzten zwoelf
 // vollen Monate) mit dem Plan aus den Regelzahlungen im selben Zeitraum.
 function monatsZeilen(data, stichtag) {
-  const mittel = monatsMittel(data, stichtag, { vollstaendigBis: kontenGruppen(data, stichtag).konten.aeltester });
+  const abdeckung = importAbdeckung(data, stichtag);
+  const mittel = monatsMittel(data, stichtag, { vollstaendigBis: abdeckung.vollstaendig_bis });
   if (!mittel.anzahl_monate) return ["Einnahmen, Ausgaben, Sparquote: noch kein voller Monat gebucht"];
   const r = planIst(data, mittel.monate);
   const m = (c) => Math.round(c / mittel.anzahl_monate);
   return [
     `Einnahmen, Ausgaben, Sparquote (Ø je Monat, ${mittel.anzahl_monate} volle Monate ${mittel.von} bis ${mittel.bis}; Ist wie die Kacheln, Plan aus den Regelzahlungen; Details im Tool plan_ist):`,
+    ...umfangZeilen(abdeckung, mittel.ausschluesse),
     `- Einnahmen: Ist ${eur(mittel.einnahmen.mittel_cents)}, Plan ${eur(m(r.einnahmen.plan_cents))}, Abweichung ${abw(mittel.einnahmen.mittel_cents, m(r.einnahmen.plan_cents))}`,
     `- Ausgaben: Ist ${eur(mittel.ausgaben.mittel_cents)}, Plan ${eur(m(r.ausgaben.plan_cents))}, Abweichung ${abw(mittel.ausgaben.mittel_cents, m(r.ausgaben.plan_cents))}; davon Einzelposten ab 400 Euro ohne Regelzahlung ${eur(m(r.ausgaben.einzel_cents))}`,
     `- Sparquote: Ist ${quote(mittel.sparen.quote)} (${eur(mittel.sparen.ueberschuss_cents)} Ueberschuss), Plan ${quote(r.sparen.plan.quote)} (${eur(m(r.sparen.plan.ueberschuss_cents))})`,
@@ -93,7 +107,8 @@ function trendZeilen(v, mittel) {
 // "2026", "2026-Q2", "2026-05"), je Monat gemittelt oder als Summe, optional
 // mit dem Verlauf je Jahr, Quartal oder Monat.
 export function planIstText(data, stichtag, { zeitraum = "", darstellung = "je_monat", verlauf = "" } = {}) {
-  const alle = bestandsMonate(data, stichtag, { vollstaendigBis: kontenGruppen(data, stichtag).konten.aeltester });
+  const abdeckung = importAbdeckung(data, stichtag);
+  const alle = bestandsMonate(data, stichtag, { vollstaendigBis: abdeckung.vollstaendig_bis });
   const auswahl = zeitraum === "gesamt" ? "" : zeitraum;
   const r = planIst(data, zeitraumMonate(alle, auswahl));
   if (!r.anzahl_monate) return `Plan & Ist: keine vollen Monate im Zeitraum ${zeitraum || "gesamt"} (Bestand ${alle[0] ?? "-"} bis ${alle.at(-1) ?? "-"}).`;
@@ -108,7 +123,8 @@ export function planIstText(data, stichtag, { zeitraum = "", darstellung = "je_m
   const { ist, plan } = r.sparen;
   const zeilen = [
     `Plan & Ist ${zeitraum || "gesamt"}: ${r.von} bis ${r.bis}, ${r.anzahl_monate} volle Monate. Betraege in EUR ${jeMonat ? "als Ø je Monat" : "als Summe"}.`,
-    "Ist: Buchungen ohne Umbuchungen und Investitionen, Steuererstattungen als Sondereffekt daneben. Plan: Termine der bestaetigten Regelzahlungen, die im Zeitraum galten (ab erster zugeordneter Buchung, Konsumplaene immer, bis aktiv_bis). Einzelposten = Ausgaben ab 400 Euro ohne Regelzahlung, bewusst nicht im Plan.",
+    ...umfangZeilen(abdeckung, r.ausschluesse),
+    "Ist: Buchungen ohne Umbuchungen, Startzustaende und Investitionen, Steuererstattungen als Sondereffekt daneben. Plan: Termine der bestaetigten Regelzahlungen, die im Zeitraum galten (ab erster zugeordneter Buchung, Konsumplaene immer, bis aktiv_bis). Einzelposten = Ausgaben ab 400 Euro ohne Regelzahlung, bewusst nicht im Plan.",
     "",
     `Einnahmen: Ist ${centsToDecimal(w(r.einnahmen.ist_cents))}, Plan ${centsToDecimal(w(r.einnahmen.plan_cents))}, Abweichung ${abw(w(r.einnahmen.ist_cents), w(r.einnahmen.plan_cents))}`,
     ...r.einnahmen.kategorien.flatMap((k) => [zeile(k), ...details(k)]),

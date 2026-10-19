@@ -4,8 +4,9 @@
 // die Ansicht (liquiditaet.mjs). Zurueck gehen Salden, Verlaeufe, die
 // Prognoseposten, die naechsten grossen Zahlungen und der Trend von Einnahmen
 // und Ausgaben, keine Buchungslisten.
+import { importAbdeckung } from "./klassifikation.mjs";
 import { anstehendeJahreszahlungen, computeLiquiditaetIst, computeLiquiditaetPrognoseDetail, liquiditaetVerlauf } from "./liquiditaet.mjs";
-import { kontenGruppen, monatsTrend } from "./uebersicht-rechnung.mjs";
+import { monatsTrend } from "./uebersicht-rechnung.mjs";
 
 export const GRANULARITAETEN = Object.freeze(["monat", "quartal", "jahr"]);
 
@@ -16,7 +17,7 @@ export function liquiditaetModell(daten, { heute, bis, granularitaet }) {
     verlauf: liquiditaetVerlauf(daten, heute, 24),
     // Einnahmen und Ausgaben als gleitendes 12-Monats-Mittel, Zeitraum wie die
     // Kacheln der Uebersicht (nur Monate, die alle Konten vollstaendig belegen).
-    trend: monatsTrend(daten, heute, { vollstaendigBis: kontenGruppen(daten, heute).konten.aeltester, punkte: 24 }),
+    trend: monatsTrend(daten, heute, { vollstaendigBis: importAbdeckung(daten, heute).vollstaendig_bis, punkte: 24 }),
     prognose: computeLiquiditaetPrognoseDetail(daten, { today: heute, horizonEnd: bis, granularitaet }),
     // Jaehrliche Abfluesse der naechsten drei Monate.
     zahlungen: anstehendeJahreszahlungen(daten.regelzahlungen, heute, 3).map(({ datum, regelzahlung: rz }) => ({

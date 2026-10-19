@@ -1,5 +1,5 @@
 // app/tools/import.mjs
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 import { validateImportEntry } from "./import-format.mjs";
@@ -10,6 +10,7 @@ import { nextTransaktionId } from "./ids.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 const optionalTransactionFields = [
   "wertstellungsdatum",
@@ -166,8 +167,8 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
-  await writeFile(new URL("transfers.json", masterRoot), JSON.stringify(out.transfers, null, 2) + "\n");
+  await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
+  await ersetzeDatei(new URL("transfers.json", masterRoot), JSON.stringify(out.transfers, null, 2) + "\n");
   // Dubletten-Prueffaelle (ADR 0034) ins Protokoll, damit der Pruefbericht sie
   // zeigt, bis ein spaeterer Eintrag sie mit dubletten_geprueft abhakt.
   if (out.result.pruefen.length) {
@@ -181,7 +182,7 @@ async function main() {
     };
     const logUrl = new URL("agent_log.jsonl", masterRoot);
     const bisher = await readFile(logUrl, "utf8").catch(() => "");
-    await writeFile(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(eintrag)}\n`);
+    await ersetzeDatei(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(eintrag)}\n`);
   }
 }
 

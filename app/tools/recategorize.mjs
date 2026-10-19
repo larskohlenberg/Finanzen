@@ -8,13 +8,14 @@
 // `widerspruch`, und der Pruefbericht listet sie. Wiedervorgelegt wird nur eine
 // Auto-Freigabe: die naechste Freigabe gaebe sonst eine menschliche
 // Entscheidung still mit der neuen Kategorie frei.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { istWiderspruch, menschlichEntschieden } from "./lib/entscheidung.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 // Kandidat fuer die Neubewertung: offene Buchungen plus alles, was per Regel
 // kategorisiert wurde. Menschliche Akte sind tabu, auch mit Herkunft regel.
@@ -174,7 +175,7 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  await writeFile(
+  await ersetzeDatei(
     new URL("transaktionen.jsonl", masterRoot),
     out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n",
   );

@@ -13,7 +13,7 @@
 // ueber den Dateinamen: Der Agent benennt Belege beim Ablegen um, Namen
 // driften also systematisch auseinander. Inhalte tun das nicht.
 
-import { readFile, writeFile, readdir, rm } from "node:fs/promises";
+import { readFile, readdir, rm } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import { erkenneText, istBild, ocrRumpf, OCR_KOPF } from "./lib/ocr.mjs";
 import { bestandOrte } from "./lib/bestand-orte.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -331,7 +332,7 @@ export async function main({
       inhalt = ergebnis.art === "ocr" ? uebernimmVorlauf(ergebnis.inhalt) : ergebnis.inhalt;
       art = ergebnis.art;
     }
-    if (schreiben) await writeFile(urlUnterBelege(auftrag.ziel, belegeRoot), inhalt);
+    if (schreiben) await ersetzeDatei(urlUnterBelege(auftrag.ziel, belegeRoot), inhalt);
     neueZwillinge.push({ pfad: auftrag.ziel, hash: hashVon(Buffer.from(inhalt, "utf8")) });
     bericht.erzeugt.push({ ort: auftrag.ziel, art, ...(art === "marker" && !ergebnis.ocrFehlt ? { ocr: ergebnis.grund } : {}) });
     if (art === "marker") bericht.offen.push({ ort: auftrag.ziel, grund: "OCR ausstehend" });
@@ -350,7 +351,7 @@ export async function main({
     }
     if (ergebnis.art === "ohne-text") continue;
     const inhalt = ergebnis.art === "ocr" ? uebernimmVorlauf(ergebnis.inhalt) : ergebnis.inhalt;
-    if (schreiben) await writeFile(urlUnterBelege(auftrag.ziel, belegeRoot), inhalt);
+    if (schreiben) await ersetzeDatei(urlUnterBelege(auftrag.ziel, belegeRoot), inhalt);
     ersetzt.add(auftrag.ziel);
     neueZwillinge.push({ pfad: auftrag.ziel, hash: hashVon(Buffer.from(inhalt, "utf8")) });
     bericht.erzeugt.push({ ort: auftrag.ziel, art: ergebnis.art, ersetzt: "marker" });

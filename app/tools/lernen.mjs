@@ -7,10 +7,11 @@
 // Kein Urteil, keine Selbsteinschaetzung — nur beobachtete Ergebnisse gegen den
 // einzigen verfuegbaren Grundwahrheitswert: die Korrekturen des Nutzers an
 // Auto-Freigaben.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 // Startwerte. Anders als eine risikobasierte Freigabeschwelle messen sie kein
 // Urteil darueber, was eine Buchung bedeutet, sondern beobachtetes Verhalten —
@@ -141,7 +142,7 @@ async function main() {
   }
 
   const next = regeln.map((r) => m.stillzulegende_regeln.includes(r.regel_id) ? { ...r, status: "inaktiv" } : r);
-  await writeFile(new URL("kategorisierungsregeln.json", masterRoot), JSON.stringify(next, null, 2) + "\n");
+  await ersetzeDatei(new URL("kategorisierungsregeln.json", masterRoot), JSON.stringify(next, null, 2) + "\n");
   console.log(`\n${m.stillzulegende_regeln.length} Regel(n) auf inaktiv gesetzt. Jetzt recategorize.mjs laufen lassen.`);
 }
 

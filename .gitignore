@@ -44,6 +44,15 @@ app/data/demo/inbox/
 app/data/demo/import-profile/
 app/data/demo/papierkorb/
 **/.schreibsperre*
+# Echtbestand komplett (Ordner oder nach der Umstellung ein Symlink) samt
+# Generationen, Sicherung und Zwischenstaenden der Umstellung (E1 Schritt 5):
+# auch .gitkeep/README.md darin gehoeren nicht ins Repo. Ein ignorierter Ordner
+# wird nicht betreten, die Ausnahmen oben greifen darin also nicht.
+app/data/master
+app/data/*.gen/
+app/data/*.ordner-*/
+app/data/*.zurueck/
+app/data/*.link-*
 app/Belege/**
 !app/Belege/**/
 !app/Belege/**/.gitkeep

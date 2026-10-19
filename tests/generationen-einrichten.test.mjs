@@ -2,7 +2,7 @@
 // Umstellung mit Sicherung und Byte-Vergleich, Schreiben danach, Rueckweg.
 import assert from "node:assert/strict";
 import { execSync, spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -97,5 +97,42 @@ test("Lesetest ohne Lease: klappt ohne Schreibrecht, meldet Abweichungen", { ski
   } finally {
     for (const o of [basis, join(basis, "generationen"), gen]) if (existsSync(o)) chmodSync(o, 0o755);
     b.weg();
+  }
+});
+
+// Nach der Umstellung muss der Checkout sauber bleiben, sonst bricht das
+// Update-Skript auf dem Server mit "lokale Aenderungen" ab: Symlink, .gen,
+// Sicherung (samt .gitkeep/README.md) und Rueckweg-Zwischenstand sind ignoriert.
+test("Umstellung laesst git status leer (gitignore deckt Generationen und Sicherung)", () => {
+  const wurzel = realpathSync(mkdtempSync(join(tmpdir(), "finanzen-umstellung-git-")));
+  const git = (...args) => execSync(`git ${args.join(" ")}`, { cwd: wurzel, encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.org", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@example.org" } });
+  try {
+    git("init", "-q");
+    copyFileSync(fileURLToPath(new URL("../.gitignore", import.meta.url)), join(wurzel, ".gitignore"));
+    const daten = join(wurzel, "app", "data");
+    mkdirSync(join(daten, "inbox"), { recursive: true });
+    writeFileSync(join(daten, ".gitkeep"), "");
+    writeFileSync(join(daten, "inbox", ".gitkeep"), "");
+    git("add", "-A");
+    git("commit", "-q", "-m", "start");
+    const master = join(daten, "master");
+    cpSync(demo, master, { recursive: true });
+    writeFileSync(join(master, ".gitkeep"), "");
+    writeFileSync(join(master, "README.md"), "Platzhalter\n");
+    assert.equal(git("status", "--porcelain", "--untracked-files=all"), "", "Bestand als Ordner");
+    const r = lauf([master, "--schreiben"]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(lstatSync(master).isSymbolicLink());
+    assert.equal(git("status", "--porcelain", "--untracked-files=all"), "", "nach der Umstellung");
+    // Rueckweg-Zwischenstand ebenfalls ignoriert.
+    cpSync(join(`${master}.gen`, "generationen", "000001"), join(daten, "master.zurueck"), { recursive: true });
+    assert.equal(git("status", "--porcelain", "--untracked-files=all"), "", "Rueckweg-Zwischenstand");
+    // Gegenprobe: echte Ausnahmen bleiben sichtbar.
+    writeFileSync(join(daten, "neu.txt"), "x");
+    mkdirSync(join(daten, "exports"));
+    writeFileSync(join(daten, "exports", ".gitkeep"), "");
+    assert.equal(git("status", "--porcelain", "--untracked-files=all"), "?? app/data/exports/.gitkeep\n");
+  } finally {
+    rmSync(wurzel, { recursive: true, force: true });
   }
 });

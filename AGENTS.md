@@ -18,7 +18,7 @@ Die Arbeitsteilung: **Erkennen und Vorschlagen ist dein Urteil, Matchen und Rech
 
 ## Nicht verhandelbar
 1. **Echte Finanzdaten kommen nie ins Repo**, weder in den Stand noch in die Historie. `app/data/**` (außer `app/data/demo/`) und `app/Belege/**` sind von Git ausgeschlossen. Auch Prosa leckt: Namen, Adressen, Beträge, Orte, IBANs, Bank- und Händlernamen gehören nicht in Doku, Tests, Commit-Texte oder PR-Beschreibungen. Vor jedem Push den ausgehenden Diff darauf durchsuchen. Konkrete Werte gehören ins `agent_log.jsonl` im Datenbestand.
-2. **Schreibende Werkzeuge sind ohne Flag eine Vorschau.** Erst `--schreiben` (bzw. `--anwenden`, im MCP `schreiben: true`) schreibt. Erst Vorschau ansehen, dann schreiben.
+2. **Schreibende Werkzeuge sind ohne Flag eine Vorschau.** Erst `--schreiben` (bzw. `--anwenden`, im MCP `schreiben: true`) schreibt. Erst Vorschau ansehen, dann schreiben, am besten mit dem Fingerabdruck der Vorschau (`--fingerabdruck=...`, im MCP `fingerabdruck`).
 3. **Nach jedem Schreiben läuft der Validator.** Bei einem harten Validierungsfehler anhalten und den Fehler beheben, bevor es weitergeht.
 4. **Der Datenbestand ist immer ausdrücklich benannt.** Echtdaten: `data/master`. Erfundene Beispieldaten: `data/demo`. Nie raten, nie einen Default annehmen. Auf `data/demo` nie echte Daten schreiben.
 5. **Beträge sind Decimal-Strings** (`"-12.34"`), gerechnet wird in Cent. Nie Gleitkomma.

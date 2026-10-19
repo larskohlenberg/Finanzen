@@ -18,7 +18,7 @@ The division of labour: **recognising and proposing is your judgement, matching 
 
 ## Non-negotiable
 1. **Real financial data never goes into the repo**, neither into the current state nor into the history. `app/data/**` (except `app/data/demo/`) and `app/Belege/**` are excluded from Git. Prose leaks too: names, addresses, amounts, places, IBANs, bank and merchant names do not belong in docs, tests, commit messages or PR descriptions. Search the outgoing diff for them before every push. Concrete values belong in `agent_log.jsonl` inside the data set.
-2. **Writing tools are a preview without a flag.** Only `--schreiben` (or `--anwenden`; via MCP `schreiben: true`) writes. Look at the preview first, then write.
+2. **Writing tools are a preview without a flag.** Only `--schreiben` (or `--anwenden`; via MCP `schreiben: true`) writes. Look at the preview first, then write, preferably with the preview's fingerprint (`--fingerabdruck=...`, via MCP `fingerabdruck`).
 3. **The validator runs after every write.** On a hard validation error, stop and fix it before continuing.
 4. **The data set is always named explicitly.** Real data: `data/master`. Made-up sample data: `data/demo`. Never guess, never assume a default. Never write real data into `data/demo`.
 5. **Amounts are decimal strings** (`"-12.34"`), computed in cents. Never floating point.

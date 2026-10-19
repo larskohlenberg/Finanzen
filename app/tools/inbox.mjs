@@ -30,7 +30,7 @@ import { runImport } from "./import.mjs";
 import { normalizeCsv } from "./normalize.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
-import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
+import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { validateImportProfil } from "./import-format.mjs";
 import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
 import { bestandOrte } from "./lib/bestand-orte.mjs";
@@ -251,8 +251,9 @@ async function main() {
   const argv = process.argv.slice(2);
   const schreiben = argv.includes("--schreiben");
   const masterRoot = pflichtDatenroot(argv.find((a) => !a.startsWith("--")));
-  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
-  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
+  // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
+  // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
+  await beginneLauf(fileURLToPath(masterRoot), schreiben);
   // Jeder Bestand hat seine Inbox (data/master: data/inbox/), siehe bestand-orte.mjs.
   const inboxRoot = pathToFileURL(`${bestandOrte(APP, fileURLToPath(masterRoot)).inbox}${path.sep}`);
 

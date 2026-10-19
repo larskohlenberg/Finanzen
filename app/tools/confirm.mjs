@@ -14,7 +14,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
-import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
+import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { normalizeLoose } from "./lib/text.mjs";
 import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
 
@@ -147,6 +147,7 @@ function parseArgs(argv) {
   for (const arg of argv) {
     if (arg === "--schreiben") { args.schreiben = true; continue; }
     if (arg === "--auch-entschiedene") { args.filter.auch_entschiedene = true; continue; }
+    if (arg.startsWith("--fingerabdruck=")) continue; // lib/fingerabdruck.mjs
     const [key, ...rest] = arg.replace(/^--/, "").split("=");
     const value = rest.join("=");
     if (!arg.startsWith("--")) { args.root = arg; continue; }
@@ -177,8 +178,9 @@ async function main() {
     return;
   }
   const masterRoot = pflichtDatenroot(args.root);
-  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
-  if (args.schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
+  // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
+  // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
+  await beginneLauf(fileURLToPath(masterRoot), args.schreiben);
   const [transaktionen, regeln] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),
     readFile(new URL("kategorisierungsregeln.json", masterRoot), "utf8").then(JSON.parse),

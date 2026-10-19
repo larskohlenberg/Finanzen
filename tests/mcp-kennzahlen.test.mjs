@@ -49,6 +49,8 @@ test("kennzahlen liefert dieselben Werte wie die Uebersicht", async () => {
     const gruppen = selektoren.overviewAccountGroups();
     assert.ok(text.includes(`Verfuegbares Geld: ${eur(gruppen.konten.summe_cents)} (= Summe Konten der Tabelle, ${gruppen.konten.belegt} von ${gruppen.konten.gesamt} belegt`), text);
     assert.ok(text.includes(`Summe Depots: ${eur(gruppen.depots.summe_cents)}`), text);
+    // Trend der Kacheln: Jahresvergleich der Summen (oder der Hinweis, dass Vormonate fehlen).
+    assert.match(text, /Trend \(Ø letzte 12 Monate gegen die 12 davor|Trend: fuer den Vergleich fehlen/);
 
     // Kontentabelle in derselben Reihenfolge und mit denselben Salden.
     const zeilen = text.split("\n");

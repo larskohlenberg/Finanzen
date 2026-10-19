@@ -8,7 +8,7 @@ import { absicherung } from "./absicherung.mjs";
 import { anstehendeFristen } from "./fristen.mjs";
 import { anstehendeJahreszahlungen } from "./liquiditaet.mjs";
 import { planIst } from "./plan-ist.mjs";
-import { kontenGruppen, monatsMittel } from "./uebersicht-rechnung.mjs";
+import { kontenGruppen, mittelVergleich, monatsMittel, vorjahresMittel } from "./uebersicht-rechnung.mjs";
 import { computeNettovermoegen } from "./vermoegen.mjs";
 import { gesetzlicherRentenbeginn, kapitalLeistungen, rentenStufen, tabFuerVorsorge, vertragsFarben } from "./vorsorge-rechnung.mjs";
 
@@ -69,6 +69,8 @@ export function uebersichtModell(daten, heute) {
       ausgaben: { mittel_cents: mittel.ausgaben.mittel_cents, kategorien: mittel.ausgaben.kategorien },
       sparen: mittel.sparen,
     },
+    // Pfeile der Kacheln: letzte zwoelf Monate gegen die zwoelf davor (null ohne volle Vorjahresmonate).
+    trend: mittelVergleich(mittel, vorjahresMittel(daten, mittel)),
     plan: plan ? {
       einnahmen_plan_cents: plan.einnahmen.plan_cents,
       ausgaben_plan_cents: plan.ausgaben.plan_cents,

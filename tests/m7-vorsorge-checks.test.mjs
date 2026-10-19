@@ -1,3 +1,4 @@
+import { vermoegenCheckText } from "../app/check-texte.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeVermoegenChecks } from "../app/vermoegen.mjs";
@@ -74,7 +75,7 @@ test("vorsorge-wechsel warnt bei Deckungsluecke (Nachfolger schliesst nicht luec
       { regelzahlung_id: "RZ-015", bezeichnung: "KFZ neu", betrag: "-88.00", rhythmus_einheit: "jahr", rhythmus_intervall: 1, anker_datum: "2027-03-01", status: "bestaetigt", erstellt_am: "2026-12-01", vorsorge_id: "VS-008" },
     ],
   }, TODAY);
-  assert.ok(checks.some((c) => c.art === "vorsorge-wechsel" && c.entitaet_id === "VS-007" && /Deckungsl/.test(c.text)));
+  assert.ok(checks.some((c) => c.art === "vorsorge-wechsel" && c.entitaet_id === "VS-007" && c.fall === "deckungsluecke" && /Deckungsl/.test(vermoegenCheckText(c))));
 });
 
 test("vorsorge-wechsel warnt wenn Nachfolger gar keinen Beitrag traegt", () => {

@@ -8,6 +8,7 @@ import { formatMoney, formatDate, categoryName, zielElement, hrefAttr } from "..
 import { heuteIso } from "../selektoren.mjs";
 import { kopfleisteAntwort } from "./kopfleiste-daten.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
+import { szenarioWarnungText, vermoegenCheckText } from "../check-texte.mjs";
 
 // Transfer-Pruefung, Vermoegens-Checks und Prognose-Realismus rechnet der
 // App-Server (GET /api/v1/checks, app/checks-modell.mjs).
@@ -26,7 +27,7 @@ function checksAntwort(heute) {
 function guardrailItem(g) {
   const titel = t(`szenarien.warnCode.${g.code}.titel`);
   const kat = g.kategorie_id ? categoryName(g.kategorie_id) : "";
-  let detail = g.text;
+  let detail = szenarioWarnungText(g, ANZEIGE);
   if (g.code === "cash-realismus") {
     detail = tf("checksPage.cashRealismusText", { kategorie: kat, plan: formatMoney(g.plan_cents), ist: formatMoney(g.ist_cents) });
   } else if (g.code === "kategorie-ungeplant") {
@@ -39,14 +40,9 @@ function guardrailItem(g) {
     </div>`;
 }
 
-// Die Rechenmodule schreiben Check-Texte mit Rohwerten ("erwartet 34792.40",
-// "2026-03-31"). Fuer die Anzeige werden Betraege mit zwei Nachkommastellen und
-// ISO-Daten lokal formatiert; IDs (VS-003) und Termine ohne Jahr (12-01) bleiben.
-export function lesbarerCheckText(text) {
-  return String(text ?? "")
-    .replace(/(?<![\w.-])\d{4}-\d{2}-\d{2}(?![\w.-])/g, (iso) => formatDate(iso))
-    .replace(/(?<![\w.,-])(-?\d+)\.(\d{2})(?![\w.]|,\d)/g, (_, ganz, rest) => formatMoney(Number(ganz) * 100 + Math.sign(Number(`${ganz}1`)) * Number(rest)));
-}
+// Die Rechenmodule liefern Pruefbefunde als Werte (Cent, ISO-Datum); den Satz
+// baut check-texte.mjs mit den lokalen Formatierern der Anzeige.
+const ANZEIGE = { geld: (c) => formatMoney(c), datum: (d) => formatDate(d) };
 
 // Zähler für die obere Leiste: was nur hier sichtbar ist. Offene Kategorien und
 // Importfehler haben dort eigene Chips und zählen deshalb nicht mit.
@@ -111,7 +107,7 @@ export function renderChecks() {
             <div class="rail-item">
               <span class="chip review">${iconSvg("review")}${escapeHtml(t(`vermoegen.checkArt.${check.art}`))}</span>
               <a class="linkish" href="${escapeHtml(zielRoute("open-vermoegen-entity", `${check.entitaet}:${check.entitaet_id}`))}" data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(check.entitaet)}" data-vid="${escapeHtml(check.entitaet_id)}">${escapeHtml(check.entitaet_id)}</a>
-              <span class="muted">${escapeHtml(lesbarerCheckText(check.text))}</span>
+              <span class="muted">${escapeHtml(vermoegenCheckText(check, ANZEIGE))}</span>
             </div>
           `).join("")}
         </div>

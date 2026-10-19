@@ -8,6 +8,7 @@ import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
+import { vermoegenCheckText } from "../check-texte.mjs";
 import { aktuellerZeitwert } from "../vermoegen.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 import { donutDiagramm, wertVerlauf } from "../charts.mjs";
@@ -289,7 +290,7 @@ function renderOffenePunkte(offen) {
       if (c.art === "vorsorge-ungeprueft") {
         if (!ungeprueft.has(vs.person_id)) ungeprueft.set(vs.person_id, []);
         ungeprueft.get(vs.person_id).push(vs);
-      } else zeilen.push({ vs, titel: vs.name, text: t(`vermoegen.checkArt.${c.art}`), detail: c.text });
+      } else zeilen.push({ vs, titel: vs.name, text: t(`vermoegen.checkArt.${c.art}`), detail: vermoegenCheckText(c, { geld: formatMoney, datum: formatDate }) });
     }
   }
   for (const [personId, liste] of ungeprueft) {

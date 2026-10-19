@@ -103,14 +103,14 @@ export async function leseSnapshot(datenDir) {
 }
 
 // Was der Browser vom Bestand bekommt: alles ausser Buchungen und Transfers
-// (die rechnen die Lese-APIs, lese-api.mjs), dazu je Regelzahlung das Logo,
-// das sie von ihren gebuchten Gegenparteien erbt (logos.mjs).
+// (die rechnen die Lese-APIs, lese-api.mjs), dazu je Regelzahlung die Id des
+// Logos, das sie von ihren gebuchten Gegenparteien erbt (logos.mjs).
 export const NUR_SERVER = Object.freeze(["transaktionen", "transfers"]);
 
 export function grunddatenAus(snapshot) {
   const daten = Object.fromEntries(Object.entries(snapshot.daten).filter(([schluessel]) => !NUR_SERVER.includes(schluessel)));
   const verzeichnis = logoVerzeichnis(snapshot.daten);
-  daten.regelzahlung_logos = Object.fromEntries((snapshot.daten.regelzahlungen ?? []).map((rz) => [rz.regelzahlung_id, verzeichnis.fuerRegelzahlung(rz)]));
+  daten.regelzahlung_logos = Object.fromEntries((snapshot.daten.regelzahlungen ?? []).map((rz) => [rz.regelzahlung_id, verzeichnis.fuerRegelzahlung(rz)?.logo_id ?? null]));
   return { format: snapshot.format, stand: snapshot.stand, validierung: snapshot.validierung, daten };
 }
 

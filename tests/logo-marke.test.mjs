@@ -38,7 +38,7 @@ test("mit Logo: Bild aus dem gewaehlten Datenbestand, Kuerzel bleibt darunter", 
 
   // Das von Buchungen geerbte Logo einer Regelzahlung kommt mit den Grunddaten.
   const rz = { regelzahlung_id: "RZ-TEST", bezeichnung: "Gehalt" };
-  data.regelzahlung_logos = { "RZ-TEST": data.logos[0] };
+  data.regelzahlung_logos = { "RZ-TEST": "LOGO-001" };
   assert.match(logoMarke({ regelzahlung: rz }), /muster\.example\.png/);
   data.regelzahlung_logos = {};
   data.logos = [];

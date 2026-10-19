@@ -36,7 +36,7 @@ test("physisch/logisch: mit FINANZEN_DATEN liegen Echtdaten extern, Demo bleibt 
   assert.equal(logisch(app, "/var/lib/finanzen/Belege/Konten/a.pdf", env), "Belege/Konten/a.pdf");
   assert.equal(logisch(app, "/var/lib/finanzen/master", env), "data/master");
   assert.equal(logisch(app, "/x/app/data/demo/a.json", env), "data/demo/a.json");
-  assert.deepEqual(physischeWurzeln(app, "data", env), ["/var/lib/finanzen", "/x/app/data"]);
+  assert.deepEqual(physischeWurzeln(app, "data", env), ["/var/lib/finanzen", "/x/app/data/demo", "/x/app/data/demo-belege"]);
   assert.deepEqual(physischeWurzeln(app, "Belege", env), ["/var/lib/finanzen/Belege"]);
 });
 
@@ -54,6 +54,11 @@ test("bestandOrte und dataRootFromArg folgen FINANZEN_DATEN", () => {
   try {
     assert.equal(fileURLToPath(dataRootFromArg("data/master", undefined, new URL("file:///x/app/"))), "/var/lib/finanzen/master/");
     assert.equal(fileURLToPath(dataRootFromArg("data/demo", undefined, new URL("file:///x/app/"))), "/x/app/data/demo/");
+    // Auch ein Pfad in den Checkout (npm-Skripte: app/data/master, alter
+    // Forced Command: absolut) meint den Echtbestand am Datenort.
+    assert.equal(fileURLToPath(dataRootFromArg("/x/app/data/master", undefined, new URL("file:///x/app/"))), "/var/lib/finanzen/master/");
+    assert.equal(fileURLToPath(dataRootFromArg("/x/app/data/demo", undefined, new URL("file:///x/app/"))), "/x/app/data/demo/");
+    assert.equal(fileURLToPath(dataRootFromArg("/anderswo/bestand", undefined, new URL("file:///x/app/"))), "/anderswo/bestand/");
   } finally {
     if (vorher === undefined) delete process.env.FINANZEN_DATEN; else process.env.FINANZEN_DATEN = vorher;
   }

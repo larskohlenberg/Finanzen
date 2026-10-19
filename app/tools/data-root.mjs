@@ -9,7 +9,12 @@ import { physisch } from "./lib/datenort.mjs";
 export function dataRootFromArg(arg, fallbackRoot, appRoot = new URL("../", import.meta.url)) {
   if (!arg) return fallbackRoot;
   const value = String(arg);
-  const ziel = value.startsWith("data/") ? physisch(fileURLToPath(appRoot), value) : path.resolve(process.cwd(), value);
+  const app = path.resolve(fileURLToPath(appRoot));
+  // Ein Pfad in den Checkout (app/data/master, absolut) meint denselben
+  // logischen Ort wie data/master.
+  const absolut = path.resolve(value.startsWith("data/") ? app : process.cwd(), value);
+  const imCheckout = absolut.startsWith(`${path.join(app, "data")}${path.sep}`);
+  const ziel = imCheckout ? physisch(app, path.relative(app, absolut)) : absolut;
   return pathToFileURL(`${ziel}${path.sep}`);
 }
 

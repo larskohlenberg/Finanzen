@@ -26,7 +26,10 @@ Fehlt die Variable, sucht ein Prozess die Daten im Checkout und findet nach dem 
 
 ### Umzug in einen externen Datenort
 
-Voraussetzung: Der Stand mit ADR 0036 ist deployt (`sudo finanzen-aktualisieren`). Alles als Admin auf dem Server; die App ist einige Minuten offline.
+Voraussetzungen, alles als Admin auf dem Server; die App ist einige Minuten offline:
+- Der Stand mit ADR 0036 ist deployt (`sudo finanzen-aktualisieren`).
+- Die root-eigene Kopie des Deploy-Skripts ist auf diesem Stand. Sonst kennt sie `FINANZEN_DATEN` nicht und jedes Deploy nach dem Umzug bricht ab. Uebernehmen wie im Kopf von `ops/aktualisieren.sh` beschrieben (`git show <commit>:ops/aktualisieren.sh` nach `/root/aktualisieren.neu`, `diff`, `install`).
+- Der Bestand ist auf Generationen umgestellt (`data/master` ist ein Symlink auf `master.gen/aktuell`, ADR 0035). Bei einem einfachen Ordner `master` statt `master.gen` kopieren und vergleichen.
 
 1. **Sicherung.** Frisches Backup der ganzen VM (Hypervisor) und zusaetzlich ein Archiv der Daten:
    ```
@@ -63,7 +66,7 @@ Voraussetzung: Der Stand mit ADR 0036 ist deployt (`sudo finanzen-aktualisieren`
    sudo -u finanzen git -C /opt/finanzen clean -fdX -- app/data app/Belege
    sudo -u finanzen git -C /opt/finanzen status --short                        # muss leer sein
    ```
-   Achtung: Die Liste darf nur Echtdaten nennen, nichts unter `app/data/demo`.
+   Achtung: Die Liste darf nur Echtdaten nennen. Unter `app/data/demo` sind nur die Laufzeitordner `inbox/`, `import-profile/`, `papierkorb/` und Sperrdateien erlaubt, keine Demodaten.
 7. **Webdienst.** In `/etc/finanzen/app.env` `FINANZEN_DATEN=/var/lib/finanzen` ergaenzen. In der Unit `ReadWritePaths=/var/lib/finanzen/inbox` statt des alten Inbox-Pfads (Vorlage `ops/systemd/finanzen-app.service`), dann `sudo systemctl daemon-reload`.
 8. **MCP.** Forced Command wie in der Tabelle oben, Zeile wieder aktivieren.
 9. **Start und Probe.** `sudo systemctl start finanzen-app`, `journalctl -u finanzen-app -n 5` zeigt „Datenort /var/lib/finanzen“. Dann `sudo finanzen-aktualisieren` (prueft Validator und Rauchtest gegen den neuen Ort), eine MCP-Sitzung mit `status`, in der App Uebersicht, ein Beleg und ein Probe-Upload in die Inbox.

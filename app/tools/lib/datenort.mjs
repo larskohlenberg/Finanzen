@@ -46,11 +46,12 @@ export function logisch(app, absolut, env = process.env) {
 }
 
 // Alle Orte auf der Platte, die eine logische Wurzel abdeckt. "data" umfasst
-// bei externem Datenort den Datenort und die Beispieldaten im Checkout.
+// bei externem Datenort den Datenort und die Beispieldaten im Checkout (nicht
+// den Rest von app/data: der logische Pfad dorthin zeigt auf den Datenort).
 export function physischeWurzeln(app, relativ, env = process.env) {
   const extern = externerDatenort(env);
   const absolut = path.resolve(app, relativ);
-  if (extern && absolut === path.join(path.resolve(app), "data")) return [extern, absolut];
+  if (extern && absolut === path.join(path.resolve(app), "data")) return [extern, ...[...VERSIONIERT].map((v) => path.join(absolut, v))];
   return [physisch(app, relativ, env)];
 }
 

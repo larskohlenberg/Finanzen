@@ -2,13 +2,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { validateMasterData } from "../app/tools/validate-core.mjs";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -17,7 +20,17 @@ globalThis.fetch = async (path) => {
 await import("../app/i18n.js");
 
 const { data, state } = await import("../app/runtime.mjs");
+appDaten = data;
 const { renderVorsorge } = await import("../app/views/vorsorge.mjs");
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Was Buchungen braucht, kommt vom Server (GET /api/v1/vorsorge): Antworten
+// verwerfen, zeichnen, auf die Antwort warten, erneut zeichnen.
+async function vorsorgeGezeichnet() {
+  verwerfeApiCaches();
+  renderVorsorge();
+  await apiAbwarten();
+  return renderVorsorge();
+}
 const { computeNettovermoegen } = await import("../app/vermoegen.mjs");
 
 const BELEG = "Belege/Vorsorge/VS-002_Muster-Riester/2026/2026_Muster_Vertragsuebersicht.pdf";
@@ -32,7 +45,7 @@ const zeitwerte = [
   { entitaet: "vorsorge", entitaet_id: "VS-002", feld: "vertragswert", wert: "27000.00", standdatum: "2026-10-01", qualitaet: "belegt", quelle_hinweis: BELEG },
 ];
 
-function mitFixture(fn) {
+async function mitFixture(fn) {
   const saved = { ...data, selectedVorsorgeId: state.selectedVorsorgeId, view: state.view, vorsorgeTab: state.vorsorgeTab };
   try {
     Object.assign(data, {
@@ -41,7 +54,7 @@ function mitFixture(fn) {
       immobilien: [], darlehen: [], vermoegenswerte: [], szenarien: [],
     });
     state.view = "vorsorge";
-    fn();
+    await fn();
   } finally {
     Object.assign(data, saved);
     state.selectedVorsorgeId = saved.selectedVorsorgeId;
@@ -50,7 +63,7 @@ function mitFixture(fn) {
   }
 }
 
-test("Validator erlaubt vertragswert nur fuer Vorsorge", () => {
+test("Validator erlaubt vertragswert nur fuer Vorsorge", async () => {
   const basis = {
     personen: [{ person_id: "PER-001", name: "Lena", status: "aktiv" }],
     konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", inhaber_person_ids: ["PER-001"], liquiditaetsrelevant: true, status: "aktiv" }],
@@ -61,29 +74,29 @@ test("Validator erlaubt vertragswert nur fuer Vorsorge", () => {
   assert.ok(falsch.errors.some((e) => /vertragswert ist fuer konto nicht zulaessig/.test(e)), falsch.errors.join("\n"));
 });
 
-test("Vertragswert zaehlt nicht ins Nettovermoegen", () => {
-  mitFixture(() => {
+test("Vertragswert zaehlt nicht ins Nettovermoegen", async () => {
+  await mitFixture(async () => {
     const nv = computeNettovermoegen(data, "2026-10-12");
     const vorsorge = nv.positionen.filter((p) => p.klasse === "vorsorge");
     assert.deepEqual(vorsorge.map((p) => [p.id, p.wert_cents]), [["VS-002", 2400000]]);
   });
 });
 
-test("Vorsorge-Karten zeigen den Vertragswert neben der Rente", () => {
-  mitFixture(() => {
+test("Vorsorge-Karten zeigen den Vertragswert neben der Rente", async () => {
+  await mitFixture(async () => {
     state.vorsorgeTab = "renten";
     state.selectedVorsorgeId = "";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /24\.000,00/, "Rueckkaufswert der Riester-Karte");
     assert.match(html, /35\.000,00[\s\S]*Vertragswert · nicht im Vermögen/, "Vertragswert auch bei nicht kapitalbildendem Vertrag sichtbar");
   });
 });
 
-test("Vorsorge-Detail zeigt Vertragswert, Quelle und Dokumente", () => {
-  mitFixture(() => {
+test("Vorsorge-Detail zeigt Vertragswert, Quelle und Dokumente", async () => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-002";
     state.klappKacheln = { "vorsorge.anhang": true };
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     state.klappKacheln = {};
     const detail = html.slice(html.indexOf("objekt-detail-titel"));
     assert.match(detail, /Rückkaufswert[\s\S]*24\.000,00[\s\S]*Vertragswert 27\.000/, "Vertragswert als Notiz am Rueckkaufswert");

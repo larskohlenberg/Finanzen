@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -16,15 +19,25 @@ globalThis.fetch = async (path) => {
 await import("../app/i18n.js");
 
 const { data, state } = await import("../app/runtime.mjs");
+appDaten = data;
 const { renderAbsicherungKacheln } = await import("../app/views/absicherung.mjs");
 // Die Personen rechnet in der Uebersicht der Server (uebersicht-modell.mjs); hier direkt.
 const { absicherung } = await import("../app/absicherung.mjs");
 const { renderVorsorge } = await import("../app/views/vorsorge.mjs");
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Was Buchungen braucht, kommt vom Server (GET /api/v1/vorsorge): Antworten
+// verwerfen, zeichnen, auf die Antwort warten, erneut zeichnen.
+async function vorsorgeGezeichnet() {
+  verwerfeApiCaches();
+  renderVorsorge();
+  await apiAbwarten();
+  return renderVorsorge();
+}
 
 const HEUTE = "2026-10-17";
 const zw = (id, feld, wert, standdatum = "2026-01-01") => ({ entitaet: "vorsorge", entitaet_id: id, feld, wert, standdatum, qualitaet: "belegt" });
 
-function mitFixture(fn) {
+async function mitFixture(fn) {
   const saved = { ...data, lang: state.lang, view: state.view, selectedVorsorgeId: state.selectedVorsorgeId, klappKacheln: state.klappKacheln };
   try {
     Object.assign(data, {
@@ -46,7 +59,7 @@ function mitFixture(fn) {
       immobilien: [], darlehen: [], vermoegenswerte: [], szenarien: [],
     });
     state.lang = "de";
-    return fn();
+    return await fn();
   } finally {
     Object.assign(data, saved);
     state.lang = saved.lang;
@@ -56,7 +69,7 @@ function mitFixture(fn) {
   }
 }
 
-test("Kacheln Absicherung: Personenzeilen sind per Standard zugeklappt", () => mitFixture(() => {
+test("Kacheln Absicherung: Personenzeilen sind per Standard zugeklappt", async () => mitFixture(async () => {
   const html = renderAbsicherungKacheln(absicherung(data, HEUTE));
   assert.doesNotMatch(html, /absicherung-posten/);
   assert.match(html, /<h3 class="absicherung-person-titel">\s*<button type="button" class="klapp-knopf absicherung-person-kopf" data-action="klapp-kachel" data-kachel="absicherung\.bu\.PER-001" data-standard="false" aria-expanded="false"><svg[\s\S]*?<span class="absicherung-person-name">Anna Muster<\/span><strong>2\.450,00\s€ je Monat<\/strong><\/button>/);
@@ -65,7 +78,7 @@ test("Kacheln Absicherung: Personenzeilen sind per Standard zugeklappt", () => m
   assert.match(html, /<h3>Ben Muster<\/h3>/);
 }));
 
-test("Kacheln Absicherung: je eine fuer BU und Tod, darin je Person Summe und Posten mit Link", () => mitFixture(() => {
+test("Kacheln Absicherung: je eine fuer BU und Tod, darin je Person Summe und Posten mit Link", async () => mitFixture(async () => {
   state.klappKacheln = { "absicherung.bu.PER-001": true, "absicherung.tod.PER-001": true };
   const html = renderAbsicherungKacheln(absicherung(data, HEUTE));
   assert.match(html, /aria-expanded="true"/);
@@ -90,7 +103,7 @@ test("Kacheln Absicherung: je eine fuer BU und Tod, darin je Person Summe und Po
   assert.doesNotMatch(html, /style=/);
 }));
 
-test("Kachel Absicherung: ohne Personen mit Vertrag ein Hinweis, englische Texte", () => mitFixture(() => {
+test("Kachel Absicherung: ohne Personen mit Vertrag ein Hinweis, englische Texte", async () => mitFixture(async () => {
   data.vorsorge = [];
   assert.equal((renderAbsicherungKacheln(absicherung(data, HEUTE)).match(/Keine Person mit laufendem Vorsorgevertrag erfasst\./g) ?? []).length, 2);
   state.lang = "en";
@@ -101,11 +114,11 @@ test("Kachel Absicherung: ohne Personen mit Vertrag ein Hinweis, englische Texte
   assert.match(html, /Anna Muster<\/h3>\s*<span class="muted">not recorded/);
 }));
 
-test("Wertstaende eines Vertrags beschriften die Absicherungswerte sprechend", () => mitFixture(() => {
+test("Wertstaende eines Vertrags beschriften die Absicherungswerte sprechend", async () => mitFixture(async () => {
   state.view = "vorsorge";
   state.selectedVorsorgeId = "VS-001";
   state.klappKacheln = { "vorsorge.anhang": true };
-  const html = renderVorsorge();
+  const html = (await vorsorgeGezeichnet());
   assert.match(html, /Erwerbsminderungsrente · 1\.7\.2026/);
   assert.match(html, /Hinterbliebenenrente · 1\.7\.2026/);
   assert.doesNotMatch(html, /erwerbsminderungsrente ·/);

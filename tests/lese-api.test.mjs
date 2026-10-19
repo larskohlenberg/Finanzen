@@ -241,3 +241,15 @@ test("Konten und Vermoegen: nur Zahlen und Ids, keine Buchungslisten; Stichtag g
     }
   }
 });
+
+test("Vorsorge: offene Punkte und Positionen nur der Vertraege, je Vertrag nur Kennzahlen der Buchungen", async () => {
+  const v = (await hole("/api/v1/vorsorge?quelle=demo&heute=2026-10-19")).json();
+  assert.deepEqual(Object.keys(v).sort(), ["checks", "heute", "positionen", "stand", "vertraege"]);
+  assert.ok(v.checks.every((c) => c.entitaet === "vorsorge"));
+  assert.ok(v.positionen.every((p) => p.klasse === "vorsorge"));
+  for (const e of Object.values(v.vertraege)) {
+    assert.deepEqual(Object.keys(e).sort(), ["anzahl_buchungen", "bezug", "letzte_aenderung", "vorjahr"]);
+    assert.ok(Number.isInteger(e.anzahl_buchungen));
+  }
+  assert.equal((await hole("/api/v1/vorsorge?quelle=demo&heute=9999-12-31")).status, 400);
+});

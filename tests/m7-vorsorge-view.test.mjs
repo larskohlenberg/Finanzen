@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -22,7 +25,17 @@ await import("../app/i18n.js");
 const runtime = await import("../app/runtime.mjs");
 const vorsorgeView = await import("../app/views/vorsorge.mjs");
 const { data, state, personenById } = runtime;
+appDaten = data;
 const { renderVorsorge, resetVorsorgeFilters } = vorsorgeView;
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Was Buchungen braucht, kommt vom Server (GET /api/v1/vorsorge): Antworten
+// verwerfen, zeichnen, auf die Antwort warten, erneut zeichnen.
+async function vorsorgeGezeichnet() {
+  verwerfeApiCaches();
+  renderVorsorge();
+  await apiAbwarten();
+  return renderVorsorge();
+}
 const { toggleKlappKachel } = await import("../app/komponenten.mjs");
 
 const LEER = { konten: [], kategorien: [], transaktionen: [], transfers: [], immobilien: [], darlehen: [], vermoegenswerte: [], szenarien: [], regelzahlungen: [], zeitwerte: [] };
@@ -60,7 +73,7 @@ function fixture() {
   };
 }
 
-function mitFixture(fn, aenderung = {}) {
+async function mitFixture(fn, aenderung = {}) {
   const saved = { ...data };
   const savedState = { view: state.view, vorsorgeTab: state.vorsorgeTab, vorsorgeFilters: state.vorsorgeFilters, selectedVorsorgeId: state.selectedVorsorgeId, klappKacheln: state.klappKacheln };
   const savedPersonen = new Map(personenById);
@@ -73,7 +86,7 @@ function mitFixture(fn, aenderung = {}) {
     state.selectedVorsorgeId = "";
     state.klappKacheln = {};
     resetVorsorgeFilters();
-    fn();
+    await fn();
   } finally {
     for (const key of Object.keys(data)) delete data[key];
     Object.assign(data, saved);
@@ -85,9 +98,9 @@ function mitFixture(fn, aenderung = {}) {
 
 const anzahl = (html, muster) => (html.match(muster) ?? []).length;
 
-test("Uebersicht zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und Beitraege", () => {
-  mitFixture(() => {
-    const html = renderVorsorge();
+test("Uebersicht zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und Beitraege", async () => {
+  await mitFixture(async () => {
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /Erwartetes Alterseinkommen/);
     assert.match(html, /2\.550,00/, "DRV + Riester");
     assert.match(html, /voll ab 1\.4\.2040/);
@@ -100,9 +113,9 @@ test("Uebersicht zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und B
   });
 });
 
-test("Tabs stehen direkt unter dem Seitenkopf, die Kennzahlen im Uebersichtstab", () => {
-  mitFixture(() => {
-    const html = renderVorsorge();
+test("Tabs stehen direkt unter dem Seitenkopf, die Kennzahlen im Uebersichtstab", async () => {
+  await mitFixture(async () => {
+    const html = (await vorsorgeGezeichnet());
     const tabs = html.indexOf("vermoegen-tabs");
     assert.ok(tabs > 0 && html.indexOf("Erwartetes Alterseinkommen") > tabs, "Kennzahlen stehen erst nach den Tabs");
     const uebersicht = html.slice(html.indexOf('id="vorsorge-tab-uebersicht"'));
@@ -114,13 +127,13 @@ test("Tabs stehen direkt unter dem Seitenkopf, die Kennzahlen im Uebersichtstab"
     assert.doesNotMatch(html, /klassen-karte/, "keine Bereichskarten mehr");
     // In den anderen Tabs keine Seitenkennzahlen.
     state.vorsorgeTab = "renten";
-    assert.doesNotMatch(renderVorsorge(), /Erwartetes Alterseinkommen|kachel-paare/);
+    assert.doesNotMatch((await vorsorgeGezeichnet()), /Erwartetes Alterseinkommen|kachel-paare/);
   });
 });
 
-test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", () => {
-  mitFixture(() => {
-    const html = renderVorsorge();
+test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", async () => {
+  await mitFixture(async () => {
+    const html = (await vorsorgeGezeichnet());
     const kopf = html.slice(html.indexOf("kachel-paare"));
     const kachel = (titel) => kopf.slice(kopf.indexOf(titel), kopf.indexOf("</section>", kopf.indexOf(titel)));
     const rkw = kachel("Rückkaufswerte im Vermögen");
@@ -141,39 +154,39 @@ test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", () => {
   });
 });
 
-test("Dokumente stehen als eigene Kachel vor Bemerkung und Wertstaenden", () => {
-  mitFixture(() => {
+test("Dokumente stehen als eigene Kachel vor Bemerkung und Wertstaenden", async () => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-002";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const dok = html.indexOf('data-kachel="vorsorge.dokumente"');
     const anhang = html.indexOf('data-kachel="vorsorge.anhang"');
     assert.ok(dok > 0 && anhang > dok, "Dokumente-Kachel steht vor dem Anhang");
   });
 });
 
-test("Detail-Kacheln in fester Reihenfolge, Vertragsdaten und Anhang per Default zu", () => {
-  mitFixture(() => {
+test("Detail-Kacheln in fester Reihenfolge, Vertragsdaten und Anhang per Default zu", async () => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-002";
-    let html = renderVorsorge();
+    let html = (await vorsorgeGezeichnet());
     const reihenfolge = [...html.matchAll(/data-kachel="vorsorge\.(\w+)"[^>]*aria-expanded="(\w+)"/g)].map((m) => `${m[1]}=${m[2]}`);
     assert.deepEqual(reihenfolge, ["vertragsdaten=false", "dokumente=true", "beitraege=true", "anhang=false"]);
     assert.doesNotMatch(html, /stammdaten-raster/, "zugeklappte Vertragsdaten rendern keinen Inhalt");
     assert.doesNotMatch(html, /Kapitalwahl noch offen/, "Bemerkung bleibt zu");
     toggleKlappKachel("vorsorge.anhang", false);
     toggleKlappKachel("vorsorge.vertragsdaten", false);
-    html = renderVorsorge();
+    html = (await vorsorgeGezeichnet());
     assert.match(html, /data-kachel="vorsorge.vertragsdaten"[^>]*aria-expanded="true"/);
     assert.match(html, /stammdaten-raster/);
     assert.match(html, /vorsorge-spalten vorsorge-spalten-breit"><div><details class="bemerkung" open>[\s\S]*Kapitalwahl noch offen[\s\S]*Wertstände/, "Bemerkung links, Wertstaende rechts");
     // Der Zustand gilt auch fuer den naechsten Vertrag.
     state.selectedVorsorgeId = "VS-001";
-    assert.match(renderVorsorge(), /data-kachel="vorsorge.anhang"[^>]*aria-expanded="true"/);
+    assert.match((await vorsorgeGezeichnet()), /data-kachel="vorsorge.anhang"[^>]*aria-expanded="true"/);
   });
 });
 
-test("Tabs nach Vertragsart mit Anzahl, Kennzahl und Punkt bei offenen Pruefungen", () => {
-  mitFixture(() => {
-    const html = renderVorsorge();
+test("Tabs nach Vertragsart mit Anzahl, Kennzahl und Punkt bei offenen Pruefungen", async () => {
+  await mitFixture(async () => {
+    const html = (await vorsorgeGezeichnet());
     assert.equal(anzahl(html, /class="vermoegen-tab /g), 4);
     assert.match(html, /2 Renten &amp; Anwartschaften/);
     assert.match(html, /2\.550\s€ \/ Monat erwartet/);
@@ -185,9 +198,9 @@ test("Tabs nach Vertragsart mit Anzahl, Kennzahl und Punkt bei offenen Pruefunge
   });
 });
 
-test("Uebersicht: Zeitverlauf fuer Rente und Kapital, offene Punkte", () => {
-  mitFixture(() => {
-    const html = renderVorsorge();
+test("Uebersicht: Zeitverlauf fuer Rente und Kapital, offene Punkte", async () => {
+  await mitFixture(async () => {
+    const html = (await vorsorgeGezeichnet());
     const rente = html.slice(html.indexOf('aria-label="Monatsrente im Zeitverlauf"'));
     assert.match(rente.slice(0, rente.indexOf("</svg>")), /class="ereignis-label">\+2\.550\s€/, "Riester und DRV 2040 in einem Marker");
     const kapital = html.slice(html.indexOf('aria-label="Ausgezahltes Kapital im Zeitverlauf"'));
@@ -200,10 +213,10 @@ test("Uebersicht: Zeitverlauf fuer Rente und Kapital, offene Punkte", () => {
   });
 });
 
-test("Renten-Tab: Karte je Vertrag, erster gewaehlt, Detail in voller Breite", () => {
-  mitFixture(() => {
+test("Renten-Tab: Karte je Vertrag, erster gewaehlt, Detail in voller Breite", async () => {
+  await mitFixture(async () => {
     state.vorsorgeTab = "renten";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.equal(anzahl(html, /class="objekt-karte /g), 2);
     assert.match(html, /aria-pressed="true"[^>]*>|data-vorsorge="VS-001" aria-pressed="true"/);
     assert.match(html, /<span class="objekt-karte-id">VS-001<\/span>/, "jede Karte zeigt die Objekt-ID");
@@ -213,23 +226,23 @@ test("Renten-Tab: Karte je Vertrag, erster gewaehlt, Detail in voller Breite", (
   });
 });
 
-test("Versicherungsnummer steht als eigene Zeile direkt unter dem Namen der Karte und in den Vertragsdaten", () => {
-  mitFixture(() => {
+test("Versicherungsnummer steht als eigene Zeile direkt unter dem Namen der Karte und in den Vertragsdaten", async () => {
+  await mitFixture(async () => {
     state.vorsorgeTab = "renten";
     data.vorsorge = data.vorsorge.map((vs) => vs.vorsorge_id === "VS-001" ? { ...vs, versicherungsnummer: "12 345678 X 001" } : vs);
     toggleKlappKachel("vorsorge.vertragsdaten", false);
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /DRV Lena<\/strong><span class="objekt-karte-nummer">12 345678 X 001<\/span><\/span><span class="objekt-karte-marke">/);
     assert.equal(anzahl(html, /class="objekt-karte-nummer"/g), 1, "ohne Nummer keine leere Zeile");
     assert.match(html, /Versicherungsnummer[\s\S]*?12 345678 X 001/);
   });
 });
 
-test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten und Anhang", () => {
-  mitFixture(() => {
+test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten und Anhang", async () => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-002";
     state.klappKacheln = { "vorsorge.vertragsdaten": true, "vorsorge.anhang": true };
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /data-tab="renten">\s*<span class="vermoegen-tab-titel">/);
     assert.match(html, /class="vermoegen-tab active"[^>]*data-tab="renten"/);
     const detail = html.slice(html.indexOf("objekt-detail-titel"));
@@ -248,41 +261,41 @@ test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten un
   });
 });
 
-test("ungepruefte und beendete Vertraege stehen in eigenen Gruppen", () => {
-  mitFixture(() => {
+test("ungepruefte und beendete Vertraege stehen in eigenen Gruppen", async () => {
+  await mitFixture(async () => {
     state.vorsorgeTab = "lebensversicherungen";
-    let html = renderVorsorge();
+    let html = (await vorsorgeGezeichnet());
     assert.match(html, /Ungeprüft \(1\)[\s\S]*Ungeprüfte Ansprüche werden nicht als sichere Zukunftswerte gerechnet[\s\S]*LV Martin/);
     assert.match(html, /objekt-karte-ungeprueft/);
     assert.match(html, /kein Wert/);
 
     state.vorsorgeTab = "versicherungen";
-    html = renderVorsorge();
+    html = (await vorsorgeGezeichnet());
     assert.match(html, /Beendet \(1\)[\s\S]*Alte Haftpflicht/);
     assert.match(html, /Gekündigt/);
   });
 });
 
-test("Personenfilter erscheint nur bei mehreren Personen im Tab und filtert die Karten", () => {
-  mitFixture(() => {
+test("Personenfilter erscheint nur bei mehreren Personen im Tab und filtert die Karten", async () => {
+  await mitFixture(async () => {
     state.vorsorgeTab = "renten";
-    assert.doesNotMatch(renderVorsorge(), /data-action="vorsorge-person"/, "Renten nur von Lena");
+    assert.doesNotMatch((await vorsorgeGezeichnet()), /data-action="vorsorge-person"/, "Renten nur von Lena");
 
     state.vorsorgeTab = "lebensversicherungen";
-    let html = renderVorsorge();
+    let html = (await vorsorgeGezeichnet());
     assert.equal(anzahl(html, /data-action="vorsorge-person"/g), 3);
     assert.equal(anzahl(html, /class="objekt-karte /g), 2);
     state.vorsorgeFilters.person = "PER-002";
-    html = renderVorsorge();
+    html = (await vorsorgeGezeichnet());
     assert.equal(anzahl(html, /class="objekt-karte /g), 1);
     assert.match(html, /Details zu<\/span>\s*<h2 class="section-title">LV Martin<\/h2>/);
   });
 });
 
-test("Versicherung zeigt Jahresbeitrag, naechste Faelligkeit und Vorjahresvergleich aus Buchungen", () => {
-  mitFixture(() => {
+test("Versicherung zeigt Jahresbeitrag, naechste Faelligkeit und Vorjahresvergleich aus Buchungen", async () => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-005";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const karte = html.slice(html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed'), html.indexOf("</button>", html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed')));
     assert.match(karte, /900,00[\s\S]*\/ Jahr/);
     assert.match(karte, /Vorjahr 750,00\s€ · \+20 %/);
@@ -294,13 +307,13 @@ test("Versicherung zeigt Jahresbeitrag, naechste Faelligkeit und Vorjahresvergle
   });
 });
 
-test("Versicherung mit Immobilienbezug verlinkt das Objekt auf Karte und im Detail", () => {
-  mitFixture(() => {
+test("Versicherung mit Immobilienbezug verlinkt das Objekt auf Karte und im Detail", async () => {
+  await mitFixture(async () => {
     data.immobilien = [{ immobilie_id: "IMM-001", bezeichnung: "Musterhaus", status: "aktiv" }];
     data.transaktionen = data.transaktionen.map((tx) => ({ ...tx, immobilie_id: "IMM-001" }));
     state.selectedVorsorgeId = "VS-005";
     state.klappKacheln = { "vorsorge.vertragsdaten": true };
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed');
     const karte = html.slice(html.lastIndexOf("<div", start), html.indexOf("</div>", start));
     assert.match(karte, /role="button" tabindex="0" data-action="select-vorsorge"/, "Karte ist kein <button>, damit der Link gueltig darin steht");
@@ -309,26 +322,26 @@ test("Versicherung mit Immobilienbezug verlinkt das Objekt auf Karte und im Deta
     assert.match(detail, /Gehört zu[\s\S]*data-vermoegen="immobilie:IMM-001"/);
     // Ohne zugeordnete Buchung kein Bezug.
     state.selectedVorsorgeId = "VS-002";
-    assert.doesNotMatch(renderVorsorge().slice(renderVorsorge().indexOf("objekt-detail-titel")), /Gehört zu/);
+    assert.doesNotMatch((await vorsorgeGezeichnet()).slice((await vorsorgeGezeichnet()).indexOf("objekt-detail-titel")), /Gehört zu/);
   });
 });
 
-test("Beitragskachel verlinkt nur auf die gefilterten Buchungen, ohne Liste und Aenderungen", () => {
-  mitFixture(() => {
+test("Beitragskachel verlinkt nur auf die gefilterten Buchungen, ohne Liste und Aenderungen", async () => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-005";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const detail = html.slice(html.indexOf("objekt-detail-titel"));
     assert.match(detail, /data-action="vorsorge-transactions" data-vorsorge="VS-005">Alle 2 Buchungen anzeigen/);
     assert.doesNotMatch(detail, /Beitragsänderungen|Letzte Buchungen|data-action="open-transaction"/);
   });
 });
 
-test("kapitalbildende Versicherung zeigt den Rueckkaufswert auf Karte und im Detail", () => {
-  mitFixture(() => {
+test("kapitalbildende Versicherung zeigt den Rueckkaufswert auf Karte und im Detail", async () => {
+  await mitFixture(async () => {
     data.vorsorge = data.vorsorge.map((vs) => vs.vorsorge_id === "VS-005" ? { ...vs, kapitalbildend: true } : vs);
     data.zeitwerte = [...data.zeitwerte, zw("VS-005", "rueckkaufswert", "3000.00", "2026-01-01")];
     state.selectedVorsorgeId = "VS-005";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed');
     const karte = html.slice(start, html.indexOf("</div>", start));
     assert.match(karte, /Rückkaufswert 3\.000,00/);
@@ -338,12 +351,12 @@ test("kapitalbildende Versicherung zeigt den Rueckkaufswert auf Karte und im Det
   });
 });
 
-test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausserhalb des Vermoegens", () => {
-  mitFixture(() => {
+test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausserhalb des Vermoegens", async () => {
+  await mitFixture(async () => {
     data.zeitwerte = [...data.zeitwerte, zw("VS-005", "rueckkaufswert", "3000.00", "2026-01-01")];
     state.selectedVorsorgeId = "VS-005";
     state.klappKacheln = { "vorsorge.vertragsdaten": true, "vorsorge.anhang": true };
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed');
     assert.match(html.slice(start, html.indexOf("</div>", start)), /Rückkaufswert 3\.000,00\s€ · nicht im Vermögen/);
     const kennzahlen = html.slice(html.indexOf("kennzahl-raster"), html.indexOf('data-kachel="vorsorge.vertragsdaten"'));
@@ -352,19 +365,19 @@ test("Rueckkaufswert eines nicht kapitalbildenden Vertrags steht da, aber ausser
     // Die Uebersicht zaehlt ihn nicht mit.
     state.vorsorgeTab = "uebersicht";
     state.selectedVorsorgeId = "";
-    assert.match(renderVorsorge(), /Rückkaufswerte im Vermögen<\/div>\s*<div class="vorsorge-kopf-wert">12\.000,00/);
+    assert.match((await vorsorgeGezeichnet()), /Rückkaufswerte im Vermögen<\/div>\s*<div class="vorsorge-kopf-wert">12\.000,00/);
   });
 });
 
-test("Versicherungs-Tab: Rangliste der Jahresbeitraege mit Veraenderung zum Vorjahr", () => {
-  mitFixture(() => {
+test("Versicherungs-Tab: Rangliste der Jahresbeitraege mit Veraenderung zum Vorjahr", async () => {
+  await mitFixture(async () => {
     state.vorsorgeTab = "versicherungen";
-    let html = renderVorsorge();
+    let html = (await vorsorgeGezeichnet());
     assert.match(html, /data-kachel="vorsorge.ranking"/);
     assert.match(html, /class="panel panel-pad klapp-panel zu vorsorge-ranking-kachel"/, "per Standard zugeklappt");
     assert.doesNotMatch(html, /class="vorsorge-ranking"/);
     state.klappKacheln = { "vorsorge.ranking": true };
-    html = renderVorsorge();
+    html = (await vorsorgeGezeichnet());
     assert.match(html, /class="panel panel-pad klapp-panel\s+vorsorge-ranking-kachel"/, "Abstand zum Kartenraster ueber eigene Klasse");
     const ranking = html.slice(html.indexOf('class="vorsorge-ranking"'), html.indexOf("</ul>", html.indexOf('class="vorsorge-ranking"')));
     assert.equal((ranking.match(/<li>/g) ?? []).length, 1, "nur laufende Vertraege mit Beitrag");
@@ -373,10 +386,10 @@ test("Versicherungs-Tab: Rangliste der Jahresbeitraege mit Veraenderung zum Vorj
   });
 });
 
-test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farbpunkt", () => {
-  mitFixture(() => {
+test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farbpunkt", async () => {
+  await mitFixture(async () => {
     state.vorsorgeTab = "lebensversicherungen";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-003" aria-pressed');
     const karte = html.slice(start, html.indexOf("</div>", start));
     assert.match(karte, /<strong><i class="farbpunkt vertrag-farbe-\d" aria-hidden="true"><\/i>LV Lena<\/strong><\/span><span class="objekt-karte-marke"><span class="chip neutral">Lebensversicherung<\/span><span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">LL<\/span><\/span>/);
@@ -390,15 +403,15 @@ test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farb
   });
 });
 
-test("Karte zeigt die juengste Todesfallleistung, ohne Wert keine Zeile", () => {
+test("Karte zeigt die juengste Todesfallleistung, ohne Wert keine Zeile", async () => {
   const zeitwerte = [
     ...fixture().zeitwerte,
     zw("VS-003", "todesfallleistung", "40000.00", "2025-12-31"),
     zw("VS-003", "todesfallleistung", "45000.00", "2026-06-30"),
   ];
-  mitFixture(() => {
+  await mitFixture(async () => {
     state.vorsorgeTab = "lebensversicherungen";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const karteVon = (id) => {
       const start = html.indexOf(`data-vorsorge="${id}" aria-pressed`);
       return html.slice(start, html.indexOf("</div>", start));
@@ -408,13 +421,13 @@ test("Karte zeigt die juengste Todesfallleistung, ohne Wert keine Zeile", () => 
   }, { zeitwerte });
 });
 
-test("Versicherungen: Sparte als Etikett auf der Kachel und in den Vertragsdaten", () => {
-  mitFixture(() => {
+test("Versicherungen: Sparte als Etikett auf der Kachel und in den Vertragsdaten", async () => {
+  await mitFixture(async () => {
     state.vorsorgeTab = "versicherungen";
     state.zeigeBeendete = true;
     state.selectedVorsorgeId = "VS-005";
     state.klappKacheln = { "vorsorge.vertragsdaten": true };
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const karte = (id) => { const start = html.indexOf(`data-vorsorge="${id}" aria-pressed`); return html.slice(start, html.indexOf("</div>", start)); };
     assert.match(karte("VS-005"), /<span class="objekt-karte-marke"><span class="chip neutral">Wohngebäude<\/span>/);
     assert.doesNotMatch(karte("VS-005"), /Schutzversicherung/, "nicht die Vertragsart");
@@ -423,15 +436,15 @@ test("Versicherungen: Sparte als Etikett auf der Kachel und in den Vertragsdaten
   });
 });
 
-test("Vorgaenger und Nachfolger sind als Vertragslinks erreichbar", () => {
-  mitFixture(() => {
+test("Vorgaenger und Nachfolger sind als Vertragslinks erreichbar", async () => {
+  await mitFixture(async () => {
     data.vorsorge = [
       ...data.vorsorge,
       { vorsorge_id: "VS-007", art: "riester", name: "Riester Nachfolger", person_id: "PER-001", status: "geplant", kapitalbildend: false, ersetzt_vorsorge_id: "VS-002", geprueft_am: "2026-08-15" },
     ];
     state.selectedVorsorgeId = "VS-002";
     state.klappKacheln = { "vorsorge.vertragsdaten": true };
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /Nachfolger[\s\S]*data-action="select-vorsorge" data-vorsorge="VS-007"/);
   });
 });
@@ -440,7 +453,7 @@ test("Vertragsdaten zeigen die naechsten Fristen des Vertrags", async () => {
   const { addInterval, localTodayIso } = await import("../app/liquiditaet.mjs");
   const bald = addInterval(localTodayIso(), "tag", 20);
   const vorbei = addInterval(localTodayIso(), "tag", -5);
-  mitFixture(() => {
+  await mitFixture(async () => {
     data.fristen = [
       { frist_id: "FR-001", bezeichnung: "Dynamik widersprechen", art: "widerspruch", datum: bald, vorsorge_id: "VS-002" },
       { frist_id: "FR-002", bezeichnung: "Unterlagen nachreichen", art: "wiedervorlage", datum: vorbei, vorsorge_id: "VS-002" },
@@ -448,24 +461,24 @@ test("Vertragsdaten zeigen die naechsten Fristen des Vertrags", async () => {
     ];
     state.selectedVorsorgeId = "VS-002";
     state.klappKacheln = { "vorsorge.vertragsdaten": true };
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /detail-label">Fristen<[\s\S]*Unterlagen nachreichen <span class="chip review">überfällig<[\s\S]*Dynamik widersprechen/);
     assert.doesNotMatch(html, /Anderer Vertrag/);
   });
 });
 
-test("unbekannte Auswahl faellt auf die Uebersicht zurueck", () => {
-  mitFixture(() => {
+test("unbekannte Auswahl faellt auf die Uebersicht zurueck", async () => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-999";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /class="vermoegen-tab active"[^>]*data-tab="uebersicht"/);
     assert.doesNotMatch(html, /objekt-detail-titel/);
   });
 });
 
-test("leerer Bestand rendert ohne Fehler", () => {
-  mitFixture(() => {
-    const html = renderVorsorge();
+test("leerer Bestand rendert ohne Fehler", async () => {
+  await mitFixture(async () => {
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /Keine erwarteten Renten erfasst/);
     assert.doesNotMatch(html, /zeitstrahl-diagramm/, "ohne Leistung kein Zeitverlauf");
     assert.equal(anzahl(html, /class="vermoegen-tab /g), 1, "nur die Uebersicht");
@@ -479,10 +492,10 @@ test("Beitragsdynamik: fuenfte Kennzahl-Kachel, Chip auf der Karte, offener Punk
   const jahr = Number(termin.slice(0, 4));
   const dynamik = { termin: termin.slice(5), verlauf: [{ termin: `${jahr - 2}${termin.slice(4)}`, entscheidung: "abgelehnt" }, { termin: `${jahr - 1}${termin.slice(4)}`, entscheidung: "abgelehnt", bemerkung: "Widerspruch per Brief" }] };
   const vorsorge = fixture().vorsorge.map((vs) => (vs.vorsorge_id === "VS-003" ? { ...vs, dynamik } : vs));
-  mitFixture(() => {
-    assert.match(renderVorsorge(), /Offene Punkte[\s\S]*LV Lena[\s\S]*Dynamik entscheiden/);
+  await mitFixture(async () => {
+    assert.match((await vorsorgeGezeichnet()), /Offene Punkte[\s\S]*LV Lena[\s\S]*Dynamik entscheiden/);
     state.selectedVorsorgeId = "VS-003";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const raster = html.match(/<div class="kennzahl-raster kennzahl-raster-5">([\s\S]*?)<\/div>\s*<section/)?.[1] ?? "";
     assert.equal(anzahl(raster, /class="kennzahl"/g), 5, "fuenf Kennzahl-Kacheln");
     assert.match(raster, /title="Die letzten 2 wurden abgelehnt\. Ein weiterer Widerspruch beendet das Dynamikrecht\. Erlischt nach 3/);
@@ -494,25 +507,25 @@ test("Beitragsdynamik: fuenfte Kennzahl-Kachel, Chip auf der Karte, offener Punk
   }, { vorsorge });
 });
 
-test("Vertrag ohne Dynamik behaelt vier Kennzahlen", () => {
-  mitFixture(() => {
+test("Vertrag ohne Dynamik behaelt vier Kennzahlen", async () => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-003";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /<div class="kennzahl-raster">/);
     assert.doesNotMatch(html, /kennzahl-raster-5|Beitragsdynamik/);
   });
 });
 
-test("Absicherung als Kennzahl-Kachel: Hauptwert, weitere Werte darunter, mit Dynamik sechs Kacheln", () => {
+test("Absicherung als Kennzahl-Kachel: Hauptwert, weitere Werte darunter, mit Dynamik sechs Kacheln", async () => {
   const zeitwerte = [
     ...fixture().zeitwerte,
     zw("VS-003", "todesfallleistung", "40000.00", "2025-12-31"),
     zw("VS-003", "todesfallleistung", "45000.00", "2026-06-30"),
     zw("VS-003", "bu_rente", "1500.00", "2026-01-01"),
   ];
-  mitFixture(() => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-003";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const raster = html.match(/<div class="kennzahl-raster kennzahl-raster-5">([\s\S]*?)<\/div>\s*<section/)?.[1] ?? "";
     assert.equal(anzahl(raster, /class="kennzahl"/g), 5, "Absicherung als fuenfte Kachel");
     assert.match(raster, /Absicherung<\/div>\s*<div class="kennzahl-wert">[\s\S]*?1\.500,00\s€<\/span> <span class="betrag-einheit">\/ Monat/);
@@ -521,30 +534,30 @@ test("Absicherung als Kennzahl-Kachel: Hauptwert, weitere Werte darunter, mit Dy
 
   const termin = "2099-12-01";
   const vorsorge = fixture().vorsorge.map((vs) => (vs.vorsorge_id === "VS-003" ? { ...vs, dynamik: { termin: termin.slice(5), verlauf: [] } } : vs));
-  mitFixture(() => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-003";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /<div class="kennzahl-raster kennzahl-raster-6">/);
   }, { zeitwerte, vorsorge });
 });
 
-test("Vertragsdaten zeigen die Beitragsbefreiung als Haekchen", () => {
+test("Vertragsdaten zeigen die Beitragsbefreiung als Haekchen", async () => {
   const vorsorge = fixture().vorsorge.map((vs) => (vs.vorsorge_id === "VS-004" ? { ...vs, beitragsbefreiung: ["bu"] } : vs));
-  mitFixture(() => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-004";
     state.klappKacheln = { "vorsorge.vertragsdaten": true };
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /Beitragsbefreiung[\s\S]*<input type="checkbox" disabled checked> bei BU<\/label>[\s\S]*<input type="checkbox" disabled> bei Arbeitslosigkeit/);
     // Ohne Beitraege und ohne Feld keine Zeile.
     state.selectedVorsorgeId = "VS-003";
-    assert.doesNotMatch(renderVorsorge(), /befreiung-liste/);
+    assert.doesNotMatch((await vorsorgeGezeichnet()), /befreiung-liste/);
   }, { vorsorge });
 });
 
-test("Vertrag ohne Absicherungswerte zeigt keine Absicherungs-Kachel", () => {
-  mitFixture(() => {
+test("Vertrag ohne Absicherungswerte zeigt keine Absicherungs-Kachel", async () => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-003";
-    assert.doesNotMatch(renderVorsorge(), /kennzahl-label">Absicherung/);
+    assert.doesNotMatch((await vorsorgeGezeichnet()), /kennzahl-label">Absicherung/);
   });
 });
 
@@ -558,25 +571,25 @@ test("Beitragsdynamik: Widerspruchsfrist aus der Fristenliste in Kennzahl und Ka
   const dynamik = { termin: termin.slice(5), verlauf: [{ termin: `${jahr - 1}${termin.slice(4)}`, entscheidung: "angenommen" }] };
   const vorsorge = fixture().vorsorge.map((vs) => (vs.vorsorge_id === "VS-003" ? { ...vs, dynamik } : vs));
   const fristen = [{ frist_id: "FR-001", bezeichnung: "Dynamik widersprechen", art: "widerspruch", datum: frist, rhythmus_einheit: "jahr", rhythmus_intervall: 1, vorsorge_id: "VS-003" }];
-  mitFixture(() => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-003";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /Beitragsdynamik<\/div>\s*<div class="kennzahl-wert">Widersprechen<\/div>\s*<div class="kennzahl-notiz">bis [\d.]+ · Erhöhung [\d.]+ · nach der Regel<br>\d{4} ✓/);
     assert.match(html, /objekt-karte-chips">[\s\S]*Widerspruch bis/);
     assert.doesNotMatch(html, /Dynamik ablehnen/, "der Widerspruch ersetzt den Entscheidungs-Hinweis");
   }, { vorsorge, fristen });
 });
 
-test("Beitraege und Wertentwicklung: Diagramm links, vier Kennzahlen rechts, ohne Wertstand bleibt die alte Kachel", () => {
+test("Beitraege und Wertentwicklung: Diagramm links, vier Kennzahlen rechts, ohne Wertstand bleibt die alte Kachel", async () => {
   const zeitwerte = [
     ...fixture().zeitwerte,
     zw("VS-002", "beitragssumme", "18000.00", "2025-12-31"),
     zw("VS-002", "rueckkaufswert", "19000.00", "2024-12-31"),
     zw("VS-002", "beitragssumme", "16200.00", "2024-12-31"),
   ];
-  mitFixture(() => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-002";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     const kachel = html.slice(html.indexOf("Beiträge und Wertentwicklung"));
     assert.match(kachel, /class="vorsorge-spalten vorsorge-spalten-breit wert-entwicklung">\s*<div>[\s\S]*?class="wert-linie"[\s\S]*?<div class="kennzahl-raster wert-kennzahlen">/, "Diagramm vor den Kennzahlen");
     const raster = kachel.match(/<div class="kennzahl-raster wert-kennzahlen">([\s\S]*?)<\/div><p/)?.[1] ?? "";
@@ -586,17 +599,17 @@ test("Beitraege und Wertentwicklung: Diagramm links, vier Kennzahlen rechts, ohn
     assert.match(kachel, /wert-kennzahlen[\s\S]*Noch keine Beitragsbuchung zugeordnet/, "Hinweis bzw. Link rechts unter den Kennzahlen");
 
     state.selectedVorsorgeId = "VS-004";
-    const ohne = renderVorsorge();
+    const ohne = (await vorsorgeGezeichnet());
     assert.doesNotMatch(ohne, /wert-entwicklung/);
     assert.match(ohne, /Gebuchte Beiträge/);
   }, { zeitwerte });
 });
 
-test("Wertentwicklung ohne Beitragssumme vergleicht mit Stand plus Beitraegen und zeigt den Ertrag je Zeitraum im Hover", () => {
+test("Wertentwicklung ohne Beitragssumme vergleicht mit Stand plus Beitraegen und zeigt den Ertrag je Zeitraum im Hover", async () => {
   const zeitwerte = [...fixture().zeitwerte, zw("VS-005", "rueckkaufswert", "1000.00", "2024-03-11"), zw("VS-005", "rueckkaufswert", "2100.00", "2025-03-31")];
-  mitFixture(() => {
+  await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-005";
-    const html = renderVorsorge();
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /<span class="swatch eingezahlt"><\/span>Stand plus Beiträge seither \(ohne Ertrag\)/);
     assert.match(html, /data-spalten="[^"]*Ertrag seit dem Stand davor[^"]*\+200,00/, "1.100 Zuwachs minus 900 Beitrag");
     const raster = html.match(/<div class="kennzahl-raster wert-kennzahlen">([\s\S]*?)<\/div><p/)?.[1] ?? "";
@@ -606,10 +619,10 @@ test("Wertentwicklung ohne Beitragssumme vergleicht mit Stand plus Beitraegen un
   }, { zeitwerte });
 });
 
-test("Kapitalleistungen: bedingte Todesfallsumme steht da, wird aber nicht faellig genannt (0A.6)", () => {
+test("Kapitalleistungen: bedingte Todesfallsumme steht da, wird aber nicht faellig genannt (0A.6)", async () => {
   const risiko = { vorsorge_id: "VS-007", art: "lebensversicherung", name: "Risiko-LV Martin", person_id: "PER-002", status: "aktiv", kapitalbildend: false, geprueft_am: "2026-08-01" };
-  mitFixture(() => {
-    const html = renderVorsorge();
+  await mitFixture(async () => {
+    const html = (await vorsorgeGezeichnet());
     const kachel = html.slice(html.indexOf("Kapitalleistungen"), html.indexOf("Rückkaufswerte im Vermögen"));
     assert.match(kachel, /25\.000,00[\s\S]*fällig 2035 · dazu 200\.000,00\s€ bedingt oder ohne Termin, nicht eingerechnet/);
     assert.doesNotMatch(kachel, /225\.000,00/, "keine Summe aus Faelligem und Bedingtem");
@@ -617,18 +630,18 @@ test("Kapitalleistungen: bedingte Todesfallsumme steht da, wird aber nicht faell
   }, { vorsorge: [...fixture().vorsorge, risiko], zeitwerte: [...fixture().zeitwerte, zw("VS-007", "erwartete_kapitalleistung", "200000.00")] });
 });
 
-test("Beitraege: abgelehnte und erst kuenftig beginnende Regelzahlungen zaehlen nicht (0A.6)", () => {
+test("Beitraege: abgelehnte und erst kuenftig beginnende Regelzahlungen zaehlen nicht (0A.6)", async () => {
   const extra = [
     { regelzahlung_id: "RZ-008", bezeichnung: "abgelehnt", vorsorge_id: "VS-002", betrag: "-900.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-01-01", status: "abgelehnt" },
     { regelzahlung_id: "RZ-009", bezeichnung: "kuenftig", vorsorge_id: "VS-004", betrag: "-110.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2099-01-01", status: "bestaetigt" },
   ];
-  mitFixture(() => {
-    const html = renderVorsorge();
+  await mitFixture(async () => {
+    const html = (await vorsorgeGezeichnet());
     assert.match(html, /230,00[\s\S]*\/ Monat/, "weiterhin nur Riester + LV Martin");
   }, { regelzahlungen: [...fixture().regelzahlungen, ...extra] });
 });
 
-test("Lebensversicherung ohne Ablaufleistung erscheint mit dem heutigen Rueckkaufswert als nicht garantiert", () => {
+test("Lebensversicherung ohne Ablaufleistung erscheint mit dem heutigen Rueckkaufswert als nicht garantiert", async () => {
   const f = fixture();
   const zeitwerte = [...f.zeitwerte, zw("VS-004", "rueckkaufswert", "8000.00", "2025-12-31")];
   const kapitalKachel = (html) => {
@@ -636,20 +649,20 @@ test("Lebensversicherung ohne Ablaufleistung erscheint mit dem heutigen Rueckkau
     return kopf.slice(kopf.indexOf("Kapitalleistungen"), kopf.indexOf("</section>", kopf.indexOf("Kapitalleistungen")));
   };
   // Ohne Ablauf: steht ohne Termin darunter, nicht in der Summe.
-  mitFixture(() => {
-    const kachel = kapitalKachel(renderVorsorge());
+  await mitFixture(async () => {
+    const kachel = kapitalKachel((await vorsorgeGezeichnet()));
     assert.match(kachel, /25\.000,00[\s\S]*dazu 8\.000,00\s€ bedingt oder ohne Termin, nicht eingerechnet/);
     assert.match(kachel, /LV Martin<\/button><span class="muted">ohne Termin · Stand heute<\/span><span class="amount">8\.000,00/);
   }, { zeitwerte });
   // Mit Ablauf: zaehlt mit, die Notiz nennt den nicht garantierten Anteil.
   const vorsorge = f.vorsorge.map((vs) => (vs.vorsorge_id === "VS-004" ? { ...vs, leistung_beginn: "2050-11-01" } : vs));
-  mitFixture(() => {
-    const kachel = kapitalKachel(renderVorsorge());
+  await mitFixture(async () => {
+    const kachel = kapitalKachel((await vorsorgeGezeichnet()));
     assert.match(kachel, /33\.000,00[\s\S]*fällig 2035, 2050 · davon 8\.000,00\s€ Stand heute, nicht garantiert/);
     assert.match(kachel, /LV Martin<\/button><span class="muted">2050 · Stand heute<\/span><span class="amount">8\.000,00/);
     state.vorsorgeTab = "lebensversicherungen";
     state.selectedVorsorgeId = "VS-004";
-    const detail = renderVorsorge();
+    const detail = (await vorsorgeGezeichnet());
     assert.match(detail, /Kapital bei Ablauf[\s\S]*8\.000,00[\s\S]*Rückkaufswert von heute, nicht garantiert/);
     assert.doesNotMatch(detail, /100 % der garantierten Ablaufleistung/, "kein Fortschrittsbalken gegen sich selbst");
   }, { zeitwerte, vorsorge });

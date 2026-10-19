@@ -9,13 +9,16 @@
 //   GET /api/v1/regelwirkung?quelle=&regel=
 //   GET /api/v1/uebersicht?quelle=&heute=
 //   GET /api/v1/kopfleiste?quelle=&heute=
+//   GET /api/v1/liquiditaet?quelle=&heute=&bis=&granularitaet=
 import { istKalenderdatum } from "./mcp/kennzahlen.mjs";
 import { kopfleisteModell } from "./kopfleiste.mjs";
-import { localTodayIso } from "./liquiditaet.mjs";
+import { GRANULARITAETEN, liquiditaetModell } from "./liquiditaet-modell.mjs";
+import { addInterval, defaultHorizonEnd, localTodayIso } from "./liquiditaet.mjs";
 import { uebersichtModell } from "./uebersicht-modell.mjs";
 import { LEERER_FILTER, SEITENGROESSEN, SORTIERUNGEN, regelWirkungAntwort, transaktionenSeite } from "./transaktionen-abfrage.mjs";
 
 const MAX_WERT = 300;
+export const MAX_HORIZONT_JAHRE = 30;
 
 export class AnfrageFehler extends Error {}
 
@@ -32,12 +35,17 @@ function ganzzahl(suche, name, standard) {
   return Number(roh);
 }
 
+// Datum aus der Anfrage: leer -> standard, sonst ein gueltiges Kalenderdatum.
+function datum(suche, name, standard) {
+  const wert = text(suche, name);
+  if (!wert) return standard;
+  if (!istKalenderdatum(wert)) throw new AnfrageFehler(`${name}: gueltiges Datum JJJJ-MM-TT`);
+  return wert;
+}
+
 // Stichtag der Oberflaeche (Tests setzen ihn fest), sonst heute.
 function heute(suche) {
-  const wert = text(suche, "heute");
-  if (!wert) return localTodayIso();
-  if (!istKalenderdatum(wert)) throw new AnfrageFehler("heute: gueltiges Datum JJJJ-MM-TT");
-  return wert;
+  return datum(suche, "heute", localTodayIso());
 }
 
 // Je Stand gemerkt wird nur der heutige Tag; andere Stichtage (Tests, ein
@@ -84,6 +92,17 @@ const ANSICHTEN = {
   uebersicht: (bestand, suche) => {
     const tag = heute(suche);
     return jeStand(bestand, "uebersicht", tag, () => uebersichtModell(bestand.daten, tag));
+  },
+  liquiditaet: (bestand, suche) => {
+    const granularitaet = text(suche, "granularitaet") || "monat";
+    if (!GRANULARITAETEN.includes(granularitaet)) throw new AnfrageFehler(`granularitaet: ${GRANULARITAETEN.join(", ")}`);
+    const tag = heute(suche);
+    // bis leer: Standardhorizont der Prognose. Hoechstens MAX_HORIZONT_JAHRE
+    // voraus: die Prognose rechnet synchron je Termin, ein Horizont im Jahr
+    // 9999 blockierte den Server und braeuchte Hunderte MB.
+    const bis = datum(suche, "bis", defaultHorizonEnd(tag));
+    if (bis > addInterval(tag, "jahr", MAX_HORIZONT_JAHRE)) throw new AnfrageFehler(`bis: hoechstens ${MAX_HORIZONT_JAHRE} Jahre voraus`);
+    return liquiditaetModell(bestand.daten, { heute: tag, bis, granularitaet });
   },
   kopfleiste: (bestand, suche, { quelle }) => {
     const tag = heute(suche);

@@ -312,6 +312,8 @@ window.FINANCE_I18N = {
       kachelPlan: "Plan {betrag}",
     },
     liquiditaet: {
+      loading: "Liquidität wird geladen …",
+      loadFailed: "Liquidität konnte nicht geladen werden",
       title: "Liquidität",
       lead: "Aktueller Saldo aus belegten Kontoständen und Fortschreibung aus bestätigten Regelzahlungen.",
       ist: "Liquidität heute",
@@ -1441,6 +1443,8 @@ window.FINANCE_I18N = {
       kachelPlan: "Plan {betrag}",
     },
     liquiditaet: {
+      loading: "Loading liquidity …",
+      loadFailed: "Liquidity could not be loaded",
       title: "Liquidity",
       lead: "Current balance from confirmed account anchors and projection from confirmed recurring payments.",
       ist: "Liquidity today",

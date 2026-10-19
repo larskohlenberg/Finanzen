@@ -1,7 +1,11 @@
 // app/export.mjs
 //
 // Backup-Export fuer den App-Server: Dokumente (Belege/), Daten (Datenroot
-// plus Buchungsliste als CSV) oder beides als ZIP. Die ZIP entsteht beim
+// plus Buchungsliste als CSV) oder die vollstaendige Sicherung als ZIP.
+// "komplett" (Review D.1) enthaelt zusaetzlich Inbox (samt Originalquellen in
+// processed/), Importprofile und SICHERUNG.json: aus welcher Generation, mit
+// welchem Code und Pruefergebnis, welche Dateien. Gepruefte Wiederherstellung:
+// tools/sicherung-pruefen.mjs, Ablauf in docs/betrieb.md. Die ZIP entsteht beim
 // Herunterladen: Eintraege werden vorab gesammelt (Groessen per lstat), damit
 // Content-Length feststeht, und dann Datei fuer Datei gestreamt. Auf der
 // Platte entsteht nichts.
@@ -14,6 +18,7 @@
 import { lstat, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { crc32 } from "node:zlib";
+import { MANIFEST } from "./tools/lib/generationen.mjs";
 import { toCents } from "./tools/lib/text.mjs";
 
 export const EXPORT_ARTEN = ["dokumente", "daten", "komplett"];
@@ -224,18 +229,49 @@ export function exportDateiname(art, datum) {
   return `finanzen-${art === "komplett" ? "backup" : art}-${heute(datum)}.zip`;
 }
 
+export const SICHERUNG_MANIFEST = "SICHERUNG.json";
+export const ABGELEITET = ["Daten/buchungen.csv"];
+// Bereich in der ZIP -> Ort im Datenort (ADR 0036) beim Wiederherstellen.
+export const SICHERUNG_BEREICHE = { Daten: "master", Belege: "Belege", Inbox: "inbox", Importprofile: "import-profile" };
+
 // Sammelt die Eintraege einer Exportart. In der ZIP: Dokumente unter
-// "Belege/", Daten unter "Daten/" plus "Daten/buchungen.csv".
-export async function exportEintraege(art, { datenDir, belegeDir }) {
+// "Belege/", Daten unter "Daten/" plus "Daten/buchungen.csv"; bei "komplett"
+// ausserdem "Inbox/", "Importprofile/" und SICHERUNG.json. stand, code und
+// pruefung beschreiben die Generation, aus der datenDir stammt.
+export async function exportEintraege(art, { datenDir, belegeDir, inboxDir, profileDir, stand, code, pruefung, erstellt = new Date() }) {
   if (!EXPORT_ARTEN.includes(art)) throw new Error(`unbekannte Exportart "${art}"`);
   const eintraege = [];
   if (art !== "daten") eintraege.push(...(await sammleOrdner(belegeDir, "Belege")));
   if (art !== "dokumente") {
-    eintraege.push(...(await sammleOrdner(datenDir, "Daten")));
+    // Das Manifest der Generation ist Verwaltung, kein Bestand.
+    eintraege.push(...(await sammleOrdner(datenDir, "Daten")).filter((e) => e.name !== `Daten/${MANIFEST}`));
     const transaktionen = await liesJsonlOptional(join(datenDir, "transaktionen.jsonl"));
     const kategorien = await liesJsonOptional(join(datenDir, "kategorien.json"), []);
     const konten = await liesJsonOptional(join(datenDir, "konten.json"), []);
     eintraege.push(pufferEintrag("Daten/buchungen.csv", buchungenCsv(transaktionen, { kategorien, konten })));
   }
+  if (art === "komplett") {
+    if (inboxDir) eintraege.push(...(await sammleOrdner(inboxDir, "Inbox")));
+    if (profileDir) eintraege.push(...(await sammleOrdner(profileDir, "Importprofile")));
+    eintraege.push(pufferEintrag(SICHERUNG_MANIFEST, `${JSON.stringify(sicherungsManifest(eintraege, { stand, code, pruefung, erstellt }), null, 2)}\n`, erstellt));
+  }
   return eintraege;
+}
+
+function sicherungsManifest(eintraege, { stand, code, pruefung, erstellt }) {
+  const bereiche = {};
+  for (const [bereich, ziel] of Object.entries(SICHERUNG_BEREICHE)) {
+    const drin = eintraege.filter((e) => e.name.startsWith(`${bereich}/`) && !ABGELEITET.includes(e.name));
+    bereiche[bereich] = { ziel, dateien: drin.length, bytes: drin.reduce((s, e) => s + e.groesse, 0) };
+  }
+  return {
+    art: "komplett",
+    erstellt: erstellt.toISOString(),
+    stand: stand ?? null,
+    code: code ?? null,
+    pruefung: pruefung ?? null,
+    bereiche,
+    abgeleitet: ABGELEITET,
+    dateien: eintraege.map((e) => ({ name: e.name, groesse: e.groesse })),
+  };
 }

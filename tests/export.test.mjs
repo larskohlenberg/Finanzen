@@ -135,7 +135,8 @@ test("exportEintraege: Dokumente, Daten mit CSV, komplett beides", async () => {
   const namen = async (art) => (await exportEintraege(art, { datenDir, belegeDir })).map((e) => e.name);
   assert.deepEqual(await namen("dokumente"), ["Belege/Steuern/2025/Bescheid.pdf", "Belege/Steuern/Grundsteuer Mühle.pdf"]);
   assert.deepEqual(await namen("daten"), ["Daten/kategorien.json", "Daten/konten.json", "Daten/transaktionen.jsonl", "Daten/buchungen.csv"]);
-  assert.equal((await namen("komplett")).length, 6);
+  assert.equal((await namen("komplett")).length, 7);
+  assert.equal((await namen("komplett")).at(-1), "SICHERUNG.json");
   await assert.rejects(exportEintraege("alles", { datenDir, belegeDir }), /unbekannte Exportart/);
 });
 
@@ -180,7 +181,7 @@ test("GET /api/export/komplett: ZIP mit Belegen, Daten und CSV", async () => {
     assert.equal(dateien.get("Belege/Steuern/2025/Bescheid.pdf"), "%PDF-Bescheid");
     assert.match(dateien.get("Daten/buchungen.csv"), /01\.03\.2025;"Giro; gemeinsam";1500,00;Muster GmbH;Gehalt;KAT-001/);
     assert.match(dateien.get("Daten/buchungen.csv"), /'=HYPERLINK\(1\);"Einkauf ""Wochenmarkt""";Lebensmittel/);
-    assert.ok(logs.some((z) => /export art=komplett quelle=live dateien=6/.test(z)));
+    assert.ok(logs.some((z) => /export art=komplett quelle=live dateien=7/.test(z)));
   });
 });
 

@@ -76,3 +76,52 @@ Voraussetzungen, alles als Admin auf dem Server; die App ist einige Minuten offl
 Solange nach dem Umzug nichts geschrieben wurde: Dienst stoppen, MCP-Zeile auskommentieren, `FINANZEN_DATEN` aus der Env-Datei, alte `ReadWritePaths` und alten Forced Command zuruecksetzen, `cd /opt/finanzen/app && sudo tar -xpf /var/backups/finanzen-umzug/daten-vorher.tar`, `daemon-reload`, starten.
 
 Wurde am neuen Ort schon geschrieben, statt des Archivs den neuen Stand zurueckkopieren: `cd /var/lib/finanzen && sudo -u finanzen cp -a master master.gen inbox import-profile papierkorb /opt/finanzen/app/data/ && sudo -u finanzen cp -a Belege /opt/finanzen/app/`, dann wie oben vergleichen.
+
+## Sicherung und Wiederherstellung (Review D.1)
+
+Zwei Ebenen, die sich ergaenzen:
+
+| Ebene | Was | Wie oft |
+|---|---|---|
+| Ganze VM | Hypervisor-Backup (z. B. Proxmox `vzdump`): System, Code, Daten, Konfiguration | taeglich, automatisch |
+| App-Sicherung | Export „komplett“ (App: Export, oder `GET /api/export/komplett`): alles, was fuer einen Wiederanlauf noetig ist | vor jedem groesseren Eingriff (Umzug, Migration), sonst nach Bedarf |
+
+### Was die App-Sicherung enthaelt
+
+Eine ZIP (ohne Kompression) mit:
+
+| In der ZIP | Herkunft | Beim Wiederherstellen |
+|---|---|---|
+| `Daten/` | genau eine Generation des Bestands (ohne deren `MANIFEST.json`) | `<Datenort>/master/` |
+| `Daten/buchungen.csv` | aus den Buchungen erzeugt, zum Lesen in Excel | entfaellt |
+| `Belege/` | Belegablage | `<Datenort>/Belege/` |
+| `Inbox/` | Inbox samt Originalquellen (`processed/`), Zwischenstaenden und Fehlern | `<Datenort>/inbox/` |
+| `Importprofile/` | Importprofile | `<Datenort>/import-profile/` |
+| `SICHERUNG.json` | Manifest: Zeitpunkt, Generation (`stand`), Code-Stand, Validator-Ergebnis derselben Generation, Bereiche, jede Datei mit Groesse | – |
+
+Der Bestand stammt aus einer einzigen Generation (konsistenter Stand, ADR 0035); das Pruefergebnis im Manifest gilt fuer genau diese Generation. Nicht enthalten: Papierkorb, alte Generationen (Verlauf), Server-Konfiguration (`/etc/finanzen`, Unit, SSH-Schluessel). Die stecken im VM-Backup.
+
+### App-Sicherung pruefen und probeweise wiederherstellen
+
+```
+node app/tools/sicherung-pruefen.mjs finanzen-backup-<datum>.zip
+node app/tools/sicherung-pruefen.mjs finanzen-backup-<datum>.zip --auspacken=/tmp/probe
+FINANZEN_DATEN=/tmp/probe node app/tools/validator.mjs data/master
+```
+
+Die erste Zeile prueft jede Datei gegen ihre CRC und gegen das Manifest. Die zweite packt im Aufbau eines Datenorts aus (nur in einen leeren Ordner). Die dritte prueft den ausgepackten Bestand. Fuer eine echte Wiederherstellung den ausgepackten Ordner als Datenort einsetzen (Abschnitt „Umzug“, ab Schritt 2) und danach bei Bedarf wieder auf Generationen umstellen (`node app/tools/generationen-einrichten.mjs data/master --schreiben`).
+
+### VM-Backup als Restore-Probe
+
+So erprobt, ohne die laufende VM anzufassen (Platzhalter: `<vmid>` laufende VM, `<probe-id>` freie ID, `<archiv>` Backup-Datei):
+
+1. Auf dem Hypervisor: `qmrestore <archiv> <probe-id> --storage <storage> --unique 1` (neue MAC-Adressen).
+2. Vor dem Start das Netz der Probe trennen, damit sie nicht mit der echten VM kollidiert: `qm set <probe-id> --net0 <modell>,bridge=<bridge>,link_down=1`.
+3. `qm start <probe-id>`, warten, bis der Gast-Agent antwortet (`qm agent <probe-id> ping`).
+4. Daten pruefen, ohne Netz, ueber den Gast-Agenten:
+   ```
+   qm guest exec <probe-id> -- sudo -u finanzen node /opt/finanzen/app/tools/validator.mjs data/master
+   qm guest exec <probe-id> -- sudo -u finanzen node /opt/finanzen/app/tools/deploy-pruefung.mjs rauchtest /opt/finanzen/app/data/master
+   ```
+   Mit externem Datenort jeweils `env FINANZEN_DATEN=<Datenort>` vor `node` setzen. Erwartet: „validation passed“ und dieselbe Buchungs- und Kontenzahl wie auf der echten VM.
+5. Aufraeumen: `qm stop <probe-id> && qm destroy <probe-id> --purge 1`.

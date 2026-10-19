@@ -103,6 +103,10 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
   dann spaeter erneut versuchen. Eine Sperre, deren Prozess auf demselben
   Rechner nicht mehr lebt (von einem anderen Rechner: aelter als 30 Minuten),
   wird uebernommen.
+- **Validator nach dem Schreiben:** Nur neue Validatorfehler machen einen Lauf
+  fehlgeschlagen (CLI: Exitcode 1, MCP: Bestand wird zurueckgesetzt). Fehler,
+  die schon vorher im Bestand standen, erscheinen als Hinweis „alle schon vorher
+  vorhanden“; sie trotzdem beheben, aber getrennt vom Lauf.
 - **Version nach Deploy:** Der MCP-Server merkt sich beim Start die
   Release-Kennung (`app/version.json`, auch `serverInfo.version`). Ist danach
   ein neuer Stand installiert, weist er alle Tools ausser `status` mit

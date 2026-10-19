@@ -240,7 +240,7 @@ test("CLI: Vorschau schreibt nichts, --schreiben setzt regelzahlung_id und valid
   }
 });
 
-test("CLI: ungueltiger Stand nach dem Schreiben setzt Exitcode", async () => {
+test("CLI: ein schon vorher ungueltiger Stand ist nur ein Hinweis, kein Exitcode", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "rz-matcher-"));
   try {
     await cp(path.join(repo, "app/data/demo"), root, { recursive: true });
@@ -248,7 +248,8 @@ test("CLI: ungueltiger Stand nach dem Schreiben setzt Exitcode", async () => {
     const rzs = JSON.parse(await readFile(rzDatei, "utf8"));
     rzs[0].kategorie_id = "KAT-999";
     await writeFile(rzDatei, JSON.stringify(rzs));
-    await assert.rejects(run(process.execPath, [cli, root, "--schreiben"]), (e) => e.code === 1 && /Validierung/.test(e.stderr));
+    const r = await run(process.execPath, [cli, root, "--schreiben"]);
+    assert.match(r.stderr, /alle schon vorher vorhanden/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

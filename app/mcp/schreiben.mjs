@@ -67,8 +67,8 @@ async function spieleZurueck(kopie, ziel) {
 // fn liefert ein Tool-Ergebnis { text, isError? }. Zurueck kommt dasselbe,
 // ergaenzt um Validator- und ggf. Rollback-Befund. rueckrollungBeiFehler:false
 // nur fuer Laeufe, die Dateien ausserhalb des Datenroots verschieben (dann
-// setzt nur ein neuer Validatorfehler zurueck). Ein schon vorher ungueltiger
-// Bestand setzt ebenfalls nur bei neuen Validatorfehlern zurueck.
+// setzt nur ein neuer Validatorfehler zurueck). Alte Validatorfehler zaehlen
+// nie: weder hier noch im Exitcode der CLIs (lib/validator-befund.mjs).
 export async function mitRollback(datenrootPfad, fn, { rueckrollungBeiFehler = true } = {}) {
   try {
     return await mitSperre(datenrootPfad, (sperre) => zyklus(datenrootPfad, fn, sperre, rueckrollungBeiFehler), { wer: "MCP" });
@@ -94,9 +94,7 @@ async function zyklus(datenrootPfad, fn, sperre, rueckrollungBeiFehler) {
     const nachher = await validiere(datenrootPfad);
     const bekannt = new Set(vorher.fehler);
     const neu = nachher.fehler.filter((f) => !bekannt.has(f));
-    // War der Bestand schon vorher ungueltig, melden die CLIs auch alte
-    // Validatorfehler mit Exitcode 1; dann setzt nur ein neuer Fehler zurueck.
-    const werkzeugfehler = ergebnis.isError === true && rueckrollungBeiFehler && vorher.gueltig;
+    const werkzeugfehler = ergebnis.isError === true && rueckrollungBeiFehler;
     if (neu.length === 0 && !werkzeugfehler) {
       const befund = nachher.gueltig ? "Validator nach dem Schreiben: gueltig." : `Validator nach dem Schreiben: ${nachher.fehler.length} Fehler, alle schon vorher vorhanden.`;
       return { ...ergebnis, text: `${ergebnis.text}\n\n${befund}` };

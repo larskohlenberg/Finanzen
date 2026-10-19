@@ -29,6 +29,7 @@ import { dekodierePng, istPng, kodierePng, verkleinere } from "./lib/png.mjs";
 import { dekodiereJpeg, istJpeg } from "./lib/jpeg.mjs";
 import { logoVerzeichnis } from "../logos.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
+import { neueFehler } from "./lib/validator-befund.mjs";
 
 // Logodienst: Googles Favicon-Dienst. Frei, ohne Schluessel, liefert meist PNG in
 // der verlangten Groesse, bei manchen Domains aber das JPEG der Website, und 404,
@@ -344,8 +345,9 @@ export async function schreibeLogos(root, data, ergebnisse, logos, jetzt) {
     fehlgeschlagen: ergebnisse.filter((e) => !e.abruf.ok).map((e) => e.eintrag.domain),
   })}\n`);
 
-  const validation = validateMasterData(await loadMasterData(root));
-  return { ok: validation.valid, anzahl: ok.length, fehler: validation.errors.slice(0, 20) };
+  // Nur neue Fehler zaehlen (wie mitRollback); alte stehen schon im Bestand.
+  const neu = neueFehler(validateMasterData(data).errors, validateMasterData(await loadMasterData(root)).errors);
+  return { ok: neu.length === 0, anzahl: ok.length, fehler: neu.slice(0, 20) };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

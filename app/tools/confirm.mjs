@@ -13,10 +13,10 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
-import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 import { normalizeLoose } from "./lib/text.mjs";
+import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
 
 const ENTSCHIEDEN = new Set(["bestaetigt", "abgelehnt"]);
 const KRITERIEN = ["ids", "konto_id", "status", "herkunft", "gegenpartei", "verwendungszweck", "kategorie_id", "regel_id", "von", "bis"];
@@ -191,6 +191,7 @@ async function main() {
     console.log("\nVorschau — nichts geschrieben. Mit --schreiben anwenden.");
     return;
   }
+  const vorher = await validatorFehler(masterRoot);
   await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
 
   // Lernsignal protokollieren (ADR 0026). Nur wenn tatsaechlich eine
@@ -208,12 +209,7 @@ async function main() {
     await writeFile(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);
   }
 
-  const validation = validateMasterData(await loadMasterData(masterRoot));
-  if (!validation.valid) {
-    console.error("Validierung nach Bestaetigungslauf fehlgeschlagen:");
-    for (const error of validation.errors) console.error(`- ${error}`);
-    process.exitCode = 1;
-  }
+  await meldeNachSchreiben(masterRoot, vorher, "Validierung nach Bestaetigungslauf fehlgeschlagen");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

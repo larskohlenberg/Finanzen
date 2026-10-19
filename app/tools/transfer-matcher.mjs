@@ -3,9 +3,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { toCents, centsToDecimal, dayDiff, normalizeLoose } from "./lib/text.mjs";
 import { nextTransferId } from "./ids.mjs";
-import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
+import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
 
 // IBANs werden nur zum Vergleich vereinheitlicht (Gross, ohne Whitespace);
 // gespeichert bleibt immer die Originalform.
@@ -194,15 +194,11 @@ async function main() {
     return;
   }
 
+  const vorher = await validatorFehler(masterRoot);
   await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
   await writeFile(new URL("transfers.json", masterRoot), JSON.stringify(out.transfers, null, 2) + "\n");
 
-  const validation = validateMasterData(await loadMasterData(masterRoot));
-  if (!validation.valid) {
-    console.error("Validierung nach Transfer-Lauf fehlgeschlagen:");
-    for (const error of validation.errors.slice(0, 20)) console.error(`- ${error}`);
-    process.exitCode = 1;
-  }
+  await meldeNachSchreiben(masterRoot, vorher, "Validierung nach Transfer-Lauf fehlgeschlagen");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

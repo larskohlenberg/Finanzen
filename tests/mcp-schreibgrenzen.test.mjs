@@ -182,7 +182,7 @@ test("recategorize-CLI: ohne Datenroot Abbruch, ohne --schreiben nur Vorschau", 
   }
 });
 
-test("mitRollback: schon vorher ungueltiger Bestand setzt nur bei neuen Validatorfehlern zurueck", async () => {
+test("mitRollback: schon vorher ungueltiger Bestand – alte Fehler sind kein Werkzeugfehler, echte Werkzeugfehler setzen zurueck", async () => {
   const wurzel = mkdtempSync(join(tmpdir(), "finanzen-rollback-alt-"));
   const master = join(wurzel, "master");
   cpSync(demoQuelle, master, { recursive: true });
@@ -191,12 +191,21 @@ test("mitRollback: schon vorher ungueltiger Bestand setzt nur bei neuen Validato
   konten[0].inhaber_person_ids = ["PER-999"];
   writeFileSync(join(master, "konten.json"), `${JSON.stringify(konten, null, 2)}\n`);
   try {
-    const r = await mitRollback(master, async () => {
+    const ok = await mitRollback(master, async () => {
       writeFileSync(join(master, "neu.txt"), "bleibt");
-      return { text: "CLI meldet alte Validatorfehler mit Exitcode 1", isError: true };
+      return { text: "CLI fertig (Exitcode 0)" };
     });
-    assert.ok(existsSync(join(master, "neu.txt")), r.text);
-    assert.doesNotMatch(r.text, /zurueckgesetzt/);
+    assert.ok(existsSync(join(master, "neu.txt")), ok.text);
+    assert.match(ok.text, /alle schon vorher vorhanden/);
+
+    // Die CLIs melden alte Fehler nicht mehr mit Exitcode 1; ein Fehler ist
+    // damit ein echter Werkzeugfehler und setzt zurueck, wie beim gueltigen Bestand.
+    const fehler = await mitRollback(master, async () => {
+      writeFileSync(join(master, "halb.txt"), "halb");
+      return { text: "Teil 2 gescheitert", isError: true };
+    });
+    assert.ok(!existsSync(join(master, "halb.txt")), fehler.text);
+    assert.match(fehler.text, /zurueckgesetzt/);
   } finally {
     rmSync(wurzel, { recursive: true, force: true });
   }

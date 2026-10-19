@@ -143,3 +143,28 @@ test("Kontotyp Festgeld: interner Transfer vom Tagesgeld ist gueltig, Rang vor d
   assert.ok(kontoRang({ kontotyp: "tagesgeld" }) < kontoRang({ kontotyp: "festgeld" }));
   assert.ok(kontoRang({ kontotyp: "festgeld" }) < kontoRang({ kontotyp: "depot" }));
 });
+
+test("Transfer-Mitgliedschaft beidseitig: dritte Buchung mit fremder Transfer-ID ist ein Fehler", () => {
+  const TXN_DRITTE = "TXN-55555555-5555-4555-8555-555555555555";
+  const gueltig = basis({
+    transaktionen: [tx(TXN_ABGANG, "KTO-001", "-100.00"), tx(TXN_ZUGANG, "KTO-002", "100.00")],
+    transfers: [internerTransfer()],
+  });
+  assert.deepEqual(validateMasterData(gueltig).errors, []);
+
+  const mitDritter = { ...gueltig, transaktionen: [...gueltig.transaktionen, tx(TXN_DRITTE, "KTO-001", "-100.00")] };
+  const result = validateMasterData(mitDritter);
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), new RegExp(`transaktionen\\.${TXN_DRITTE}\\.transfer_id: .*keine Seite von ${TRF}`));
+
+  // Auch ohne ist_transfer darf eine Buchung keine fremde Transfer-ID tragen.
+  const ohneMarke = { ...gueltig, transaktionen: [...gueltig.transaktionen, tx(TXN_DRITTE, "KTO-001", "-100.00", { ist_transfer: false })] };
+  assert.match(validateMasterData(ohneMarke).errors.join("\n"), /keine Seite von/);
+
+  // Externer Transfer: nur die referenzierte Buchung gehoert dazu.
+  const extern = basis({
+    transaktionen: [tx(TXN_EXTERN, "KTO-001", "-100.00"), tx(TXN_DRITTE, "KTO-002", "-100.00")],
+    transfers: [externerTransfer()],
+  });
+  assert.match(validateMasterData(extern).errors.join("\n"), new RegExp(`${TXN_DRITTE}\\.transfer_id: .*keine Seite`));
+});

@@ -516,6 +516,13 @@ function validateCrossFieldRules(data, errors) {
     }
     if (transaktion.transfer_id && !transfers.has(transaktion.transfer_id)) {
       errors.push(`transaktionen.${transaktion.transaktion_id}.transfer_id: ${transaktion.transfer_id} existiert nicht`);
+    } else if (transaktion.transfer_id) {
+      // Beidseitig: die Buchung muss selbst eine Seite genau dieses Transfers sein,
+      // sonst zaehlte eine dritte Buchung still als Transfer (und fiele aus Ausgaben).
+      const transfer = transfers.get(transaktion.transfer_id);
+      if (transaktion.transaktion_id !== transfer.abgang_transaktion_id && transaktion.transaktion_id !== transfer.zugang_transaktion_id) {
+        errors.push(`transaktionen.${transaktion.transaktion_id}.transfer_id: Buchung ist keine Seite von ${transaktion.transfer_id}`);
+      }
     }
     if (transaktion.regelzahlung_id && !regelzahlungen.has(transaktion.regelzahlung_id)) {
       errors.push(`transaktionen.${transaktion.transaktion_id}.regelzahlung_id: ${transaktion.regelzahlung_id} existiert nicht`);

@@ -959,6 +959,7 @@ window.FINANCE_I18N = {
       oeffnen: "Im neuen Tab ansehen",
       herunterladen: "Herunterladen",
       apiUnavailable: "Hochladen ist nur über den App-Server möglich (npm start). Diese Seite wurde über einen rein statischen Server geöffnet.",
+      demoGesperrt: "Im Demomodus wird nichts hochgeladen: Die Inbox gehört zu deinen echten Daten. Zum Hochladen oben rechts auf „Echt“ stellen.",
       neuerName: "gespeichert als",
       status: {
         wartet: "wartet",
@@ -1045,7 +1046,7 @@ window.FINANCE_I18N = {
       komplett: { titel: "Komplettes Backup", text: "Alle Dokumente und alle Daten in einer Datei." },
       dokumente: { titel: "Dokumente", text: "Alle hochgeladenen Dokumente in ihrer Ordnerstruktur." },
       daten: { titel: "Daten", text: "Buchungen, Regeln, Konten und Verträge als JSON, dazu die Buchungsliste als CSV für Excel." },
-      demoHinweis: "Demomodus: Die Daten im Export sind die Demodaten, die Dokumente die echten.",
+      demoHinweis: "Demomodus: Der Export enthält nur Demodaten und Demo-Dokumente.",
     },
     labels: {
       id: "ID",
@@ -2078,6 +2079,7 @@ window.FINANCE_I18N = {
       oeffnen: "View in new tab",
       herunterladen: "Download",
       apiUnavailable: "Uploading only works through the app server (npm start). This page was opened from a purely static server.",
+      demoGesperrt: "Nothing is uploaded in demo mode: the inbox belongs to your real data. Switch to “Live” at the top right to upload.",
       neuerName: "saved as",
       status: {
         wartet: "waiting",
@@ -2164,7 +2166,7 @@ window.FINANCE_I18N = {
       komplett: { titel: "Full backup", text: "All documents and all data in one file." },
       dokumente: { titel: "Documents", text: "All uploaded documents in their folder structure." },
       daten: { titel: "Data", text: "Transactions, rules, accounts and contracts as JSON, plus the transaction list as CSV for Excel." },
-      demoHinweis: "Demo mode: the data in the export is demo data, the documents are the real ones.",
+      demoHinweis: "Demo mode: the export contains only demo data and demo documents.",
     },
     labels: {
       id: "ID",

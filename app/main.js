@@ -2,6 +2,7 @@ import { defaultHorizonEnd } from "./liquiditaet.mjs";
 import { iconSvg } from "./icons.js";
 import { buildNextAgentActions } from "./next-action.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
+import { hashNachModuswechsel } from "./demo-modus.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
 import { TAB_FUER_KLASSE } from "./vermoegen-routen.mjs";
 import { renderVorsorge, resetVorsorgeFilters } from "./views/vorsorge.mjs";
@@ -707,8 +708,11 @@ function applySetting(setting, value) {
     if (mode === state.dataMode) return;
     state.dataMode = mode;
     localStorage.setItem(storageKeys.dataMode, state.dataMode);
+    // Voller Neuladen leert alle Caches (Dokumente, Inbox, Verweis-Index);
+    // ausgewaehlte Datensaetze und Dokumente gehoeren zum anderen Bestand.
     const url = new URL(window.location.href);
     url.searchParams.set("_reload", String(Date.now()));
+    url.hash = hashNachModuswechsel(url.hash);
     window.location.assign(url);
     return;
   }

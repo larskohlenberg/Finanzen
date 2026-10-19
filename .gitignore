@@ -38,6 +38,7 @@ app/data/**
 !app/data/**/README.md
 # Demodaten sind absichtlich fiktiv und werden fuer Vorfuehrungen versioniert.
 !app/data/demo/**
+!app/data/demo-belege/**
 # Inbox, Importprofile und Papierkorb eines Demo-Laufs sind Arbeitsstand.
 app/data/demo/inbox/
 app/data/demo/import-profile/

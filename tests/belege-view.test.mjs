@@ -1,6 +1,7 @@
 // tests/belege-view.test.mjs
 // Dokumente-Ansicht gegen eine gestubbte /api/belege-Antwort: Baum, Liste,
-// Zwillinge, Suche, Detail mit Zusammenfassung und Links, API-Ausfall.
+// Zwillinge, Suche, Detail mit Zusammenfassung und Links, API-Ausfall. Laeuft
+// im Demo-Modus: Dateilinks zeigen auf data/demo-belege/.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -86,7 +87,7 @@ test("Detail: Transaktionen nur als Zusammenfassung mit Filter-Link", () => {
   const html = view.renderBelege();
   assert.match(html, /Quelle für 2 Buchungen/);
   assert.match(html, /href="#\/transaktionen\/dokument\/Kontoauszuege\/KTO-001\/umsaetze_2026-01\.csv"/);
-  assert.match(html, /href="Belege\/Kontoauszuege\/KTO-001\/umsaetze_2026-01\.csv" target="_blank" rel="noopener"/);
+  assert.match(html, /href="data\/demo-belege\/Kontoauszuege\/KTO-001\/umsaetze_2026-01\.csv" target="_blank" rel="noopener"/);
   assert.match(html, /download="umsaetze_2026-01\.csv"/);
   assert.doesNotMatch(html, /TXN-V1/, "keine Einzelbuchungen");
   assert.doesNotMatch(html, /\bBeleg\b/);
@@ -126,7 +127,7 @@ test("Bilder: Typ Bild, Textzwilling per OCR, Oeffnen und Herunterladen", async 
 
   state.selectedBeleg = "Belege/2026/Sonstiges/quittung.jpg";
   html = view.renderBelege();
-  assert.match(html, /href="Belege\/2026\/Sonstiges\/quittung\.jpg" target="_blank" rel="noopener"/);
+  assert.match(html, /href="data\/demo-belege\/2026\/Sonstiges\/quittung\.jpg" target="_blank" rel="noopener"/);
   assert.match(html, /download="quittung\.jpg"/);
   assert.match(html, /Textzwilling/);
   state.lang = "en";
@@ -153,8 +154,8 @@ test("Ausschnitt je Objekt: gleicher Baum und gleiche Tabelle, nur die Dateien d
   // Start im tiefsten gemeinsamen Ordner, Dateien oeffnen die Dokumentenansicht.
   assert.match(html, /belege-kopf"><strong>Kontoauszuege\/KTO-001<\/strong>/);
   // Im Ausschnitt oeffnen Zeile und Name die Datei direkt; hinten Herunterladen und der Weg in die Dokumentenansicht.
-  assert.match(html, /<tr class="clickable" data-action="dokument-oeffnen" data-url="Belege\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf"/);
-  assert.match(html, /<a class="linkish" href="Belege\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf" target="_blank" rel="noopener" data-action="dokument-link">/);
+  assert.match(html, /<tr class="clickable" data-action="dokument-oeffnen" data-url="data\/demo-belege\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf"/);
+  assert.match(html, /<a class="linkish" href="data\/demo-belege\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf" target="_blank" rel="noopener" data-action="dokument-link">/);
   assert.match(html, /download="auszug_2026-01\.pdf" data-action="dokument-link"/);
   assert.match(html, /href="#\/dokumente\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf" data-action="dokument-link"/);
   assert.doesNotMatch(html, /auszug_2026-01\.txt/, "Textzwilling bleibt ausgeblendet");

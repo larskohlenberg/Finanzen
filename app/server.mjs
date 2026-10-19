@@ -17,6 +17,10 @@
 // (processed/, error/ ...) bleiben 404.
 // GET /api/belege listet (nur lesend) alle Dateien unter Belege/ fuer die
 // Dokumente-Ansicht.
+// Demo-Modus (?quelle=demo an /api/belege, /api/export, /api/inbox): Dokumente
+// kommen aus data/demo-belege/ (statisch unter /data/demo-belege/), die Inbox
+// ist leer und nimmt nichts an. Echte Dokumente und die echte Inbox bleiben
+// dem echten Bestand vorbehalten.
 // GET /api/export/{dokumente|daten|komplett}[?quelle=demo] liefert ein Backup
 // als ZIP (app/export.mjs), gebaut beim Herunterladen, ohne Datei auf der Platte.
 //
@@ -216,7 +220,8 @@ export function parseArgs(argv, { appDir }) {
 // - App-Shell: SHELL plus die Module aus browserModule (Modulgraph ab index.html)
 // - data/<bestand>/: nur die Dateien des Loaders (DATEN_DATEIEN) und die Logos
 //   in data/<bestand>/logos/, dort nur PNG, wie es tools/logos.mjs ablegt
-// - Belege/: Dokumente, aber nichts, was der Browser ausfuehren koennte
+// - Belege/ und data/demo-belege/: Dokumente, aber nichts, was der Browser
+//   ausfuehren koennte
 // - data/inbox/: nur wartende Uploads (oberste Ebene, Upload-Endungen), fuer
 //   die Links der Hochladen-Seite
 const SHELL = new Set(["index.html", "styles.css", "version.json", "sitzung.json"]);
@@ -229,6 +234,7 @@ export function statikErlaubt(segmente, { module = new Set() } = {}) {
   if (segmente[0] === "data") {
     const [, bestand, datei, ...rest] = segmente;
     if (bestand === "inbox") return rest.length === 0 && endungErlaubt(datei ?? "");
+    if (bestand === "demo-belege") return datei !== undefined && !AUSFUEHRBAR.has(endung);
     if (!BESTAENDE.has(bestand)) return false;
     if (rest.length === 0) return DATEN_DATEIEN.includes(datei);
     return datei === "logos" && rest.length === 1 && endung === ".png";
@@ -287,11 +293,15 @@ function nichtGefunden(res) {
   res.end("Nicht gefunden\n");
 }
 
+function quelleAus(req) {
+  return new URLSearchParams(req.url.split("?")[1] ?? "").get("quelle") === "demo" ? "demo" : "live";
+}
+
 function innerhalb(wurzel, pfad) {
   return pfad === wurzel || pfad.startsWith(wurzel + sep);
 }
 
-async function liefereStatik(req, res, { appWurzel, belegeWurzel, inboxWurzel, module }) {
+async function liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, module }) {
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.writeHead(405, { Allow: "GET, HEAD", "Content-Type": "text/plain; charset=utf-8" });
     res.end("Methode nicht erlaubt\n");
@@ -316,7 +326,8 @@ async function liefereStatik(req, res, { appWurzel, belegeWurzel, inboxWurzel, m
   // Dokumente und Uploads kommen aus den Verzeichnissen des Servers, alles andere aus app/.
   const [wurzel, teile] = segmente[0] === "Belege" ? [belegeWurzel, segmente.slice(1)]
     : segmente[0] === "data" && segmente[1] === "inbox" ? [inboxWurzel, segmente.slice(2)]
-      : [appWurzel, segmente];
+      : segmente[0] === "data" && segmente[1] === "demo-belege" ? [demoBelegeWurzel, segmente.slice(2)]
+        : [appWurzel, segmente];
   if (!wurzel) return nichtGefunden(res);
   const ziel = join(wurzel, ...teile);
   if (!innerhalb(wurzel, ziel)) return nichtGefunden(res);
@@ -453,10 +464,11 @@ export async function legeAbOhneUeberschreiben(temp, ziel) {
   }
 }
 
-export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), datenDirs = { live: join(appDir, "data", "master"), demo: join(appDir, "data", "demo") }, proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
+export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Belege"), demoBelegeDir = join(appDir, "data", "demo-belege"), datenDirs = { live: join(appDir, "data", "master"), demo: join(appDir, "data", "demo") }, proxyIp = null, origins = null, maxBytes = MAX_UPLOAD_BYTES, heicKonverter = heifConvert, log = console.log }) {
   let appWurzel = null;
   let belegeWurzel = null;
   let inboxWurzel = null;
+  let demoBelegeWurzel = null;
   let module = null;
   // Uploads nacheinander abschliessen: Namenswahl ohne Wettlauf untereinander.
   let kette = Promise.resolve();
@@ -583,8 +595,8 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
   async function liefereExport(req, res, art) {
     if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
     if (!EXPORT_ARTEN.includes(art)) return abgelehnt(res, 404, "nicht-gefunden");
-    const quelle = new URLSearchParams(req.url.split("?")[1] ?? "").get("quelle") === "demo" ? "demo" : "live";
-    const eintraege = await exportEintraege(art, { datenDir: datenDirs[quelle], belegeDir });
+    const quelle = quelleAus(req);
+    const eintraege = await exportEintraege(art, { datenDir: datenDirs[quelle], belegeDir: quelle === "demo" ? demoBelegeDir : belegeDir });
     let groesse;
     try {
       groesse = pruefeZipGrenzen(eintraege);
@@ -619,25 +631,31 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     appWurzel ??= await realpath(appDir);
     belegeWurzel ??= await realpath(belegeDir).catch(() => null);
     inboxWurzel ??= await realpath(inboxDir).catch(() => null);
+    demoBelegeWurzel ??= await realpath(demoBelegeDir).catch(() => null);
     // Einmal je Serverstart: ein Deploy startet den Dienst neu.
     module ??= await browserModule(appWurzel);
     const rohPfad = req.url.split("?")[0];
+    const demo = quelleAus(req) === "demo";
 
     if (rohPfad === API_INBOX) {
       if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
-      return sendeJson(res, 200, { dateien: await listeInbox(inboxDir) });
+      return sendeJson(res, 200, { dateien: demo ? [] : await listeInbox(inboxDir) });
     }
     if (rohPfad === API_BELEGE) {
       if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
-      return sendeJson(res, 200, { dateien: await listeBelege(belegeDir) });
+      return sendeJson(res, 200, { dateien: await listeBelege(demo ? demoBelegeDir : belegeDir) });
     }
     if (rohPfad.startsWith(`${API_EXPORT}/`)) return liefereExport(req, res, rohPfad.slice(API_EXPORT.length + 1));
     if (rohPfad.startsWith(`${API_INBOX}/`)) {
       if (req.method !== "PUT") return abgelehnt(res, 405, "methode", { Allow: "PUT" });
+      if (demo) {
+        protokolliere(rohPfad.slice(API_INBOX.length + 1), 0, "abgelehnt:demo-modus");
+        return abgelehnt(res, 409, "demo-modus");
+      }
       return nimmUpload(req, res, rohPfad.slice(API_INBOX.length + 1));
     }
     if (rohPfad === "/api" || rohPfad.startsWith("/api/")) return abgelehnt(res, 404, "nicht-gefunden");
-    return liefereStatik(req, res, { appWurzel, belegeWurzel, inboxWurzel, module });
+    return liefereStatik(req, res, { appWurzel, belegeWurzel, demoBelegeWurzel, inboxWurzel, module });
   }
 
   const server = http.createServer((req, res) => {

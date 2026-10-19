@@ -4,12 +4,14 @@
 // Suchtreffer ueber alle Ordner), daneben das Detail mit Oeffnen/Herunterladen
 // und den Datensaetzen, die auf die Datei verweisen. Die Liste liefert der
 // App-Server (GET /api/belege); ohne ihn zeigt die Ansicht einen Hinweis.
+// Im Demo-Modus nur die Demo-Dokumente (demo-modus.mjs).
 // In der Oberflaeche heisst eine Datei "Dokument", nie "Beleg" (CONTEXT.md).
 import { data, state, t, escapeHtml, kontenById, transaktionenById } from "../runtime.mjs";
 import { renderPageHead, formatDate } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
+import { belegDateiUrl, belegeApiUrl } from "../demo-modus.mjs";
 import {
-  BELEGE_WURZEL, baueBaum, belegSchluessel, dateiUrl, dokumentRoute, fasseTransaktionenZusammen,
+  BELEGE_WURZEL, baueBaum, belegSchluessel, dokumentRoute, fasseTransaktionenZusammen,
   findeOrdner, formatGroesse, fremdeVerweise, istBildTyp, kodierePfad, ordneZwillingeZu, sortiereDateien, sucheDateien,
   verweisAnzahl, verweisIndex, vorfahren,
 } from "../belege.mjs";
@@ -55,7 +57,7 @@ function formatZeit(iso) {
 export async function ladeBelege(aktualisiere) {
   ansicht.zustand = "laedt";
   try {
-    const antwort = await fetch("./api/belege", { cache: "no-store" });
+    const antwort = await fetch(belegeApiUrl(state.dataMode), { cache: "no-store" });
     const json = antwort.ok ? await antwort.json() : null;
     if (!Array.isArray(json?.dateien)) throw new Error("keine Belege-API");
     ansicht.dateien = ordneZwillingeZu(json.dateien);
@@ -313,7 +315,7 @@ function renderOrdnerZeile(o, ordnerAttr, aktionen = false) {
 // Die Links tragen eine leere Aktion, damit der Zeilenklick sie nicht doppelt oeffnet.
 // Verknuepft zeigt die anderen Eintraege, die die Datei als Quelle nennen, als Links.
 function renderAusschnittZeile(d, fremde) {
-  const url = dateiUrl(d.pfad);
+  const url = belegDateiUrl(d.pfad, state.dataMode);
   return `
     <tr class="clickable" data-action="dokument-oeffnen" data-url="${escapeHtml(url)}" title="${escapeHtml(t("dokumente.oeffnen"))}">
       <td class="belege-name"><a class="linkish" href="${escapeHtml(url)}" target="_blank" rel="noopener" data-action="dokument-link">${iconSvg("belege")}<span>${escapeHtml(d.name)}</span></a></td>
@@ -380,8 +382,8 @@ function renderDetail(d) {
         <button class="icon-button" data-action="close-beleg" aria-label="${escapeHtml(t("dokumente.schliessen"))}" title="${escapeHtml(t("dokumente.schliessen"))}">${iconSvg("close")}</button>
       </div>
       <div class="detail-section belege-aktionen">
-        <a class="upload-button" href="${escapeHtml(dateiUrl(d.pfad))}" target="_blank" rel="noopener">${iconSvg("external")}${escapeHtml(t("dokumente.oeffnen"))}</a>
-        <a class="belege-download" href="${escapeHtml(dateiUrl(d.pfad))}" download="${escapeHtml(d.name)}">${iconSvg("download")}${escapeHtml(t("dokumente.herunterladen"))}</a>
+        <a class="upload-button" href="${escapeHtml(belegDateiUrl(d.pfad, state.dataMode))}" target="_blank" rel="noopener">${iconSvg("external")}${escapeHtml(t("dokumente.oeffnen"))}</a>
+        <a class="belege-download" href="${escapeHtml(belegDateiUrl(d.pfad, state.dataMode))}" download="${escapeHtml(d.name)}">${iconSvg("download")}${escapeHtml(t("dokumente.herunterladen"))}</a>
       </div>
       <div class="detail-section">
         <div class="detail-list">

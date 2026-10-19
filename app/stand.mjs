@@ -117,6 +117,7 @@ export function erstelleSnapshotQuelle(datenDir) {
           stand: snapshot.stand,
           snapshot,
           daten: snapshot.daten,
+          validierung: snapshot.validierung,
           merke: (schluessel, rechne) => {
             if (!abgeleitet.has(schluessel)) abgeleitet.set(schluessel, rechne());
             return abgeleitet.get(schluessel);

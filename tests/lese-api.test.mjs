@@ -125,3 +125,33 @@ test("Regelwirkung: Treffer je Regel, fuer eine Regel nur Datum, Gegenpartei und
   assert.equal(eine.regel.anzahl, anzahl);
   for (const z of eine.regel.zeilen) assert.deepEqual(Object.keys(z).sort(), ["buchungsdatum", "gegenpartei", "transaktion_id"]);
 });
+
+test("Uebersicht: Kennzahlen der Kacheln ohne Rohlisten, Stichtag geprueft", async () => {
+  const res = await hole("/api/v1/uebersicht?quelle=demo&heute=2026-10-19");
+  assert.equal(res.status, 200);
+  const a = res.json();
+  assert.equal(a.heute, "2026-10-19");
+  assert.deepEqual(Object.keys(a).sort(), ["absicherung", "fristen", "heute", "konten", "mittel", "plan", "stand", "vermoegen", "vorsorge", "zahlungen"]);
+  // Datenschutz: keine Buchungslisten, Konten nur mit Id, Name und Wert.
+  assert.equal(JSON.stringify(a).includes('"transaktion_id"'), false);
+  for (const z of a.konten.zeilen) assert.deepEqual(Object.keys(z).sort(), ["konto_id", "name", "wert_cents"]);
+  for (const r of a.vorsorge.renten) assert.deepEqual(Object.keys(r).sort(), ["name", "vorsorge_id", "wert_cents"]);
+  assert.equal(typeof a.vermoegen.netto_cents, "number");
+  assert.equal((await hole("/api/v1/uebersicht?quelle=demo&heute=morgen")).status, 400);
+  // Demo und Echt: die zusaetzliche Echt-Buchung veraendert nur den Echtbestand.
+  const echt = (await hole("/api/v1/uebersicht?heute=2026-10-19")).json();
+  assert.notEqual(echt.stand, a.stand);
+});
+
+test("Kopfleiste: Zaehler und Aktionen; Prompt nennt den Bestand der Anfrage", async () => {
+  const demo = (await hole("/api/v1/kopfleiste?quelle=demo&heute=2026-10-19")).json();
+  assert.equal(typeof demo.offene_kategorien, "number");
+  assert.equal(typeof demo.offene_checks, "number");
+  assert.ok(Array.isArray(demo.aktionen));
+  for (const aktion of demo.aktionen) assert.deepEqual(Object.keys(aktion).sort(), ["count", "label", "prompt", "type"]);
+  const offen = demoTransaktionen.filter((tx) => tx.kategorisierung_status === "offen").length;
+  assert.equal(demo.offene_kategorien, offen);
+  if (demo.aktionen[0]?.prompt) assert.match(demo.aktionen[0].prompt, /data\/demo/);
+  const echt = (await hole("/api/v1/kopfleiste?heute=2026-10-19")).json();
+  if (echt.aktionen[0]?.prompt) assert.match(echt.aktionen[0].prompt, /data\/master/);
+});

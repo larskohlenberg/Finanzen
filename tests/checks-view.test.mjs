@@ -18,6 +18,7 @@ globalThis.fetch = async (path) => {
   };
 };
 await import("../app/i18n.js");
+const { kopfleisteModell } = await import("../app/kopfleiste.mjs");
 
 const runtime = await import("../app/runtime.mjs");
 const checksView = await import("../app/views/checks.mjs");
@@ -45,7 +46,8 @@ test("Checks-View rendert ohne ReferenceError (Transfer- und Konto-Lookups)", ()
     {
       transaktion_id: "TX-002",
       ist_transfer: true,
-      transfer_id: "TR-001",
+      // Zeigt auf einen anderen Transfer: das Paar ist unvollstaendig und wird gelistet.
+      transfer_id: "TR-ANDERS",
       buchungsdatum: "2026-06-01",
       gegenpartei: "Girokonto",
     },
@@ -75,6 +77,7 @@ test("Checks listen nur unvollstaendige Transfers, der Zaehler zaehlt sie mit", 
     { transfer_id: "TR-OK", betrag: "50.00", abgang_transaktion_id: "TX-OK-A", zugang_transaktion_id: "TX-OK-B" },
     { transfer_id: "TR-HALB", betrag: "20.00", abgang_transaktion_id: "TX-OK-A", zugang_transaktion_id: "TX-FEHLT" },
   ];
+  data.transaktionen = [...data.transaktionen.filter((tx) => !tx.transaktion_id.startsWith("TX-OK-")), ok, okB];
   runtime.transaktionenById.set(ok.transaktion_id, ok);
   runtime.transaktionenById.set(okB.transaktion_id, okB);
   data.checks = [];
@@ -84,9 +87,11 @@ test("Checks listen nur unvollstaendige Transfers, der Zaehler zaehlt sie mit", 
   assert.doesNotMatch(html, /TR-OK/, "vollstaendig gepaarte Transfers werden nicht aufgelistet");
   assert.doesNotMatch(html, /page-head/, "eingebettet in die Administration, ohne eigenen Seitenkopf");
 
-  const ohneTransfer = (() => { data.transfers = []; return checksView.offeneChecksAnzahl(); })();
+  // Den Zaehler der Kopfleiste rechnet der Server (kopfleiste.mjs) ueber denselben Bestand.
+  const zaehler = () => kopfleisteModell(data, "2026-10-19").offene_checks;
+  const ohneTransfer = (() => { data.transfers = []; return zaehler(); })();
   data.transfers = [{ transfer_id: "TR-HALB", betrag: "20.00", abgang_transaktion_id: "TX-OK-A", zugang_transaktion_id: "TX-FEHLT" }];
-  assert.equal(checksView.offeneChecksAnzahl(), ohneTransfer + 1);
+  assert.equal(zaehler(), ohneTransfer + 1);
 });
 
 test("Administration zeigt Checks und Export als Bereiche", async () => {

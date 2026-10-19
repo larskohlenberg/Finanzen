@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
@@ -46,7 +46,10 @@ test("Plan & Ist: aufgeklappte Kategorie zeigt Regelzahlungen und den Sprung in 
   assert.match(offen, /data-periode="\d{4}-Q[1-4]"/);
 });
 
-test("Uebersicht: Kacheln tragen die Planzeile mit Link auf Plan & Ist", () => {
+test("Uebersicht: Kacheln tragen die Planzeile mit Link auf Plan & Ist", async () => {
+  // Die Kennzahlen kommen vom Server (GET /api/v1/uebersicht).
+  renderOverview();
+  await apiAbwarten();
   const html = renderOverview();
   assert.equal((html.match(/class="kpi-plan"/g) ?? []).length >= 2, true);
   assert.match(html, /data-action="plan-ist" data-periode="12m"/);

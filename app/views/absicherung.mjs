@@ -5,8 +5,6 @@
 import { data, state, t, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, mitLogo } from "../komponenten.mjs";
-import { localTodayIso } from "../liquiditaet.mjs";
-import { absicherung } from "../absicherung.mjs";
 import { tf } from "./vermoegen-teile.mjs";
 
 const FELD_LABEL = {
@@ -67,9 +65,9 @@ function kachelHtml(fall, personen, personBlock) {
 }
 
 // Zwei Kacheln fuer die Uebersicht, Berufsunfaehigkeit und Tod, darin je
-// Person die Summe und die Posten; today nur fuer Tests.
-export function renderAbsicherungKacheln(today = localTodayIso()) {
-  const personen = absicherung(data, today);
+// Person die Summe und die Posten. personen: Ergebnis von absicherung()
+// (in der Uebersicht vom Server, GET /api/v1/uebersicht).
+export function renderAbsicherungKacheln(personen) {
   return `
     <div class="absicherung-kacheln">
       ${kachelHtml("bu", personen, (p) => personHtml("bu", p, [[p.bu.monatlich_cents, false]], p.bu.posten))}

@@ -7,6 +7,11 @@
 //
 //   GET /api/v1/transaktionen?quelle=&<Filter>&sort=&dir=&seite=&groesse=&auswahl=&zeige=&ohneKategorie=
 //   GET /api/v1/regelwirkung?quelle=&regel=
+//   GET /api/v1/uebersicht?quelle=&heute=
+//   GET /api/v1/kopfleiste?quelle=&heute=
+import { kopfleisteModell } from "./kopfleiste.mjs";
+import { localTodayIso } from "./liquiditaet.mjs";
+import { uebersichtModell } from "./uebersicht-modell.mjs";
 import { LEERER_FILTER, SEITENGROESSEN, SORTIERUNGEN, regelWirkungAntwort, transaktionenSeite } from "./transaktionen-abfrage.mjs";
 
 const MAX_WERT = 300;
@@ -24,6 +29,20 @@ function ganzzahl(suche, name, standard) {
   if (roh === null || roh === "") return standard;
   if (!/^\d{1,9}$/.test(roh)) throw new AnfrageFehler(`${name}: keine Zahl`);
   return Number(roh);
+}
+
+// Stichtag der Oberflaeche (Tests setzen ihn fest), sonst heute.
+function heute(suche) {
+  const wert = text(suche, "heute");
+  if (!wert) return localTodayIso();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(wert)) throw new AnfrageFehler("heute: JJJJ-MM-TT");
+  return wert;
+}
+
+// Der Bestand, wie ihn der Browser kannte: mit Modus, Validator-Befund und
+// (leeren) Checks und Importfehlern; next-action.mjs liest daraus.
+function wieImBrowser(bestand, quelle) {
+  return { ...bestand.daten, metadata: { dataMode: quelle }, validation: bestand.validierung, checks: [], importfehler: [] };
 }
 
 export function transaktionenParameter(suche) {
@@ -54,13 +73,22 @@ const ANSICHTEN = {
     if (!regel) return { anzahl: bestand.merke("regelwirkung", () => regelWirkungAntwort(bestand.daten).anzahl), regel: null };
     return regelWirkungAntwort(bestand.daten, { regel });
   },
+  uebersicht: (bestand, suche) => {
+    const tag = heute(suche);
+    return bestand.merke(`uebersicht:${tag}`, () => uebersichtModell(bestand.daten, tag));
+  },
+  kopfleiste: (bestand, suche, { quelle }) => {
+    const tag = heute(suche);
+    return bestand.merke(`kopfleiste:${tag}`, () => kopfleisteModell(wieImBrowser(bestand, quelle), tag));
+  },
 };
 
 export const LESE_ANSICHTEN = Object.freeze(Object.keys(ANSICHTEN));
 
-// bestand: { stand, daten, merke } aus erstelleSnapshotQuelle().bestand().
-export function leseAnsicht(name, bestand, suche) {
+// bestand: { stand, daten, validierung, merke } aus erstelleSnapshotQuelle().bestand();
+// quelle: "live" oder "demo" (Anfrage mit ?quelle=demo).
+export function leseAnsicht(name, bestand, suche, { quelle = "live" } = {}) {
   const rechne = ANSICHTEN[name];
   if (!rechne) return null;
-  return { stand: bestand.stand, ...rechne(bestand, suche) };
+  return { stand: bestand.stand, ...rechne(bestand, suche, { quelle }) };
 }

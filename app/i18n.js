@@ -81,6 +81,8 @@ window.FINANCE_I18N = {
       dark: "Dunkel",
     },
     overview: {
+      loading: "Übersicht wird geladen …",
+      loadFailed: "Übersicht konnte nicht geladen werden",
       title: "Übersicht",
       lead: "Finanzstatus, Review-Hinweise und nächste Schritte aus den aktuellen Masterdaten.",
       totalBalance: "Summe geladener Bewegungen (Konten)",
@@ -1207,6 +1209,8 @@ window.FINANCE_I18N = {
       dark: "Dark",
     },
     overview: {
+      loading: "Loading overview …",
+      loadFailed: "Overview could not be loaded",
       title: "Overview",
       lead: "Financial status, review hints, and next steps from the current master data.",
       totalBalance: "Sum of Loaded Movements (Accounts)",

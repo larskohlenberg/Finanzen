@@ -39,7 +39,8 @@ export function bezugLink(bezug) {
   if (!b) return "";
   const objekt = (data[b.liste] ?? []).find((o) => o[`${bezug.typ}_id`] === bezug.id);
   const ziel = b.ziel ? b.ziel(bezug.id) : `data-action="select-vermoegen-objekt" data-vermoegen="${escapeHtml(`${bezug.typ}:${bezug.id}`)}"`;
-  return link(ziel, objekt?.[b.name] ?? bezug.id);
+  // Name aus dem Bestand oder, aus der Uebersicht-API, am Bezug selbst.
+  return link(ziel, objekt?.[b.name] ?? bezug.name ?? bezug.id);
 }
 
 const leer = `<span class="muted">—</span>`;

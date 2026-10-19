@@ -39,10 +39,6 @@ export function overviewJahreszahlungen(monate = 3) {
   return anstehendeJahreszahlungen(data.regelzahlungen, heuteIso(), monate);
 }
 
-export function openCategoryTransactions() {
-  return data.transaktionen.filter((tx) => tx.kategorisierung_status === "offen");
-}
-
 export function missingReferenceChecks() {
   return data.checks.filter((check) => check.title_key === "checks.accountReferenceMissing.title");
 }

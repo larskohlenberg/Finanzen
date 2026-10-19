@@ -2,7 +2,7 @@
 // View-uebergreifende Ableitungen aus dem geladenen Bestand (reine Lesezugriffe,
 // kein DOM). Liegen getrennt von den Render-Funktionen, damit mehrere Views und
 // die Topbar dieselbe Logik teilen.
-import { data } from "./runtime.mjs";
+import { data, state } from "./runtime.mjs";
 import { computeNettovermoegen, computeVermoegenChecks } from "./vermoegen.mjs";
 import { anstehendeJahreszahlungen, localTodayIso } from "./liquiditaet.mjs";
 import {
@@ -16,6 +16,12 @@ import {
   vermoegenCheckItem,
 } from "./uebersicht-rechnung.mjs";
 
+// "Heute" der Oberflaeche: state.heute (fuer Tests mit fester Uhr), sonst das
+// lokale Datum. Die Views nehmen ihr Datum hierueber.
+export function heuteIso() {
+  return state.heute || localTodayIso();
+}
+
 // Die Rechnung der Uebersicht liegt DOM-frei in uebersicht-rechnung.mjs (das
 // MCP-Tool kennzahlen nutzt sie ebenso); hier wird nur der geladene Bestand
 // und der heutige Tag eingesetzt.
@@ -26,11 +32,11 @@ export function reviewChecks() {
 }
 
 export function currentVermoegenChecks() {
-  return computeVermoegenChecks(data, localTodayIso());
+  return computeVermoegenChecks(data, heuteIso());
 }
 
 export function overviewJahreszahlungen(monate = 3) {
-  return anstehendeJahreszahlungen(data.regelzahlungen, localTodayIso(), monate);
+  return anstehendeJahreszahlungen(data.regelzahlungen, heuteIso(), monate);
 }
 
 export function openCategoryTransactions() {
@@ -50,15 +56,15 @@ export function loadedTotalAccountsBalance() {
 }
 
 export function currentNettovermoegen() {
-  return computeNettovermoegen(data, localTodayIso());
+  return computeNettovermoegen(data, heuteIso());
 }
 
 export function overviewAccountGroups() {
-  return kontenGruppen(data, localTodayIso());
+  return kontenGruppen(data, heuteIso());
 }
 
 export function overviewAccountRow(konto) {
-  return kontoZeile(data, konto, localTodayIso());
+  return kontoZeile(data, konto, heuteIso());
 }
 
 export function overviewAccountStandDate(konto) {

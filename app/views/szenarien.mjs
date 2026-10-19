@@ -5,10 +5,10 @@
 // die Liquiditaet? Wie kommen wir in jeder Phase aus? Wo steht das Vermoegen am Ende?
 import { data, state, t, escapeHtml, cents } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead } from "../komponenten.mjs";
+import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead, heuteIso } from "../komponenten.mjs";
 import { zeitstrahlDiagramm, stapelDiagramm } from "../charts.mjs";
 import { computeSzenario, rechneSzenario, guardrailWarnungen, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte, szenarioAenderungen, ereignisAnnahmen } from "../szenarien.mjs";
-import { localTodayIso, addInterval } from "../liquiditaet.mjs";
+import { addInterval } from "../liquiditaet.mjs";
 
 export const MAX_VERGLEICH = 7;
 const PPJ = { tag: 365, woche: 52, monat: 12, jahr: 1 };
@@ -141,7 +141,7 @@ function phasenName(ph) {
 // --- Liste ----------------------------------------------------------------------
 
 export function renderSzenarien() {
-  const today = localTodayIso();
+  const today = heuteIso();
   const szenarien = data.szenarien ?? [];
   const bekannt = new Set(szenarien.map((s) => s.szenario_id));
 
@@ -411,7 +411,7 @@ function annahmeZeile(a) {
   } else if (a.art === "ereignis") {
     nachher = `${t(`szenarien.ereignisFolge.${a.fall}`)}${a.bis ? ` ${t("szenarien.bis")} ${monatLabel(a.bis)}` : ""}`;
     // Monatswirkung zu Beginn: entfallende Beitraege plus einsetzende Renten.
-    const folgen = ereignisAnnahmen(data, a, localTodayIso());
+    const folgen = ereignisAnnahmen(data, a, heuteIso());
     const monat = folgen.reduce((s, f) => {
       if (f.art === "regelzahlung-neu" && f.ab === a.ab) return s + monatsBetrag(f.betrag, f.rhythmus_einheit, f.rhythmus_intervall);
       if (f.art !== "regelzahlung-aenderung") return s;

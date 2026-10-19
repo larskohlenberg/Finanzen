@@ -77,7 +77,10 @@ test("Termin-Kachel listet jährliche Zahlungen der nächsten zwölf Monate mit 
   assert.doesNotMatch(leer, /terminleiste/);
 });
 
-test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nicht belegt'-Texte", () => {
+test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nicht belegt'-Texte", (t) => {
+  // Feste Uhr: der Depotstand vom 15.9.2026 darf nicht mit dem echten Datum altern.
+  state.heute = "2026-10-19";
+  t.after(() => { delete state.heute; });
   const personId = data.personen[0]?.person_id ?? "PER-001";
   data.validation = { valid: true, errors: [] };
   data.importfehler = [];
@@ -332,4 +335,30 @@ test("Termine: Eintraege einzeilig, voller Text im Tooltip", () => {
   const html = renderOverview();
   const termine = html.match(/aria-labelledby="kachel-termine">[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.match(termine, /<span class="termine-text" title="Dynamik widersprechen · Testvertrag mit langem Namen"><span>Dynamik widersprechen<\/span><span class="muted"><button/);
+});
+
+test("Testuhr: Depotstand gilt genau drei Monate nach dem Stand als veraltet (davor, am Tag, danach)", (t) => {
+  t.after(() => { delete state.heute; });
+  data.validation = { valid: true, errors: [] };
+  data.importfehler = [];
+  data.checks = [];
+  data.konten = [{ konto_id: "KTO-951", name: "Ruhiges Depot", kontotyp: "depot", inhaber_person_ids: [], liquiditaetsrelevant: true, status: "aktiv" }];
+  data.transaktionen = [];
+  data.transfers = [];
+  data.regelzahlungen = [];
+  data.immobilien = [];
+  data.darlehen = [];
+  data.vermoegenswerte = [];
+  data.vorsorge = [];
+  data.fristen = [];
+  data.zeitwerte = [{ entitaet: "konto", entitaet_id: "KTO-951", feld: "depotwert", standdatum: "2026-09-15", wert: "1000.00", qualitaet: "belegt" }];
+  state.view = "overview";
+  state.lang = "de";
+  const zeile = (heute) => {
+    state.heute = heute;
+    return renderAccountPanels().match(/<tr[^>]*id="konto-KTO-951"[\s\S]*?<\/tr>/)[0];
+  };
+  assert.doesNotMatch(zeile("2026-12-14"), /veraltet/);
+  assert.match(zeile("2026-12-15"), /belegt · 15\.9\.2026 · veraltet/);
+  assert.match(zeile("2026-12-16"), /veraltet/);
 });

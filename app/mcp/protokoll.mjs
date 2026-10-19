@@ -84,13 +84,19 @@ async function verarbeiteNachricht(ctx, nachricht, log) {
   const start = Date.now();
   try {
     const result = await methode(ctx, nachricht.method, params);
-    log(`${nachricht.method}${nachricht.method === "tools/call" ? ` ${nachricht.params?.name}` : ""} ${Date.now() - start}ms${result?.isError ? " tool-fehler" : ""}`);
+    log(`${logName(nachricht.method)}${nachricht.method === "tools/call" ? ` ${logName(nachricht.params?.name)}` : ""} ${Date.now() - start}ms${result?.isError ? " tool-fehler" : ""}`);
     return { jsonrpc: "2.0", id: nachricht.id, result };
   } catch (error) {
     const code = error instanceof RpcFehler ? error.code : -32603;
-    log(`${nachricht.method} ${Date.now() - start}ms fehler ${code}`);
+    log(`${logName(nachricht.method)}${nachricht.method === "tools/call" ? ` ${logName(nachricht.params?.name)}` : ""} ${Date.now() - start}ms fehler ${code}`);
     return { jsonrpc: "2.0", id: nachricht.id, error: { code, message: error instanceof RpcFehler ? error.message : "Interner Fehler" } };
   }
+}
+
+// Methoden- und Werkzeugnamen kommen vom Client: ins Log nur, was wie ein
+// Name aussieht, nie beliebiger Text.
+function logName(wert) {
+  return typeof wert === "string" && /^[A-Za-z0-9_/.-]{1,64}$/.test(wert) ? wert : "(ungueltig)";
 }
 
 export async function verarbeiteZeile(ctx, zeile, log = () => {}) {

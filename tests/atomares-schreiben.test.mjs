@@ -30,6 +30,8 @@ const AUSNAHMEN = new Set([
   "app/tools/lib/datei.mjs",
   "app/tools/lib/schreibsperre.mjs",
   "app/tools/lib/generationen.mjs",
+  // Betriebsprotokoll des MCP-Servers, kein Bestand: haengt Zeilen an.
+  "app/mcp/metadaten-log.mjs",
 ]);
 const DIREKT = /\b(writeFile|appendFile|writeFileSync|appendFileSync|createWriteStream)\b/;
 

@@ -2,7 +2,8 @@
 // app/mcp/server.mjs
 // MCP-Server "finanzen" ueber stdio (zeilengetrenntes JSON-RPC 2.0), nur
 // Node-Bordmittel. stdout traegt ausschliesslich Protokoll, Logs gehen nach
-// stderr (nur Methode/Tool/Dauer/Fehlerklasse, nie Inhalte).
+// stderr und nach <Datenort>/logs/ (metadaten-log.mjs; nur Methode/Tool/Dauer/
+// Fehlerklasse, nie Inhalte).
 //
 //   node app/mcp/server.mjs <datenroot> [--recht=lesen|schreiben]
 //
@@ -16,15 +17,14 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "../tools/data-root.mjs";
 import { DatenortFehler, externerDatenort, logisch, pruefeDatenort } from "../tools/lib/datenort.mjs";
+import { metadatenLog } from "./metadaten-log.mjs";
 import { verarbeiteZeile } from "./protokoll.mjs";
 import { releaseKennung } from "./version.mjs";
 
 const app = fileURLToPath(new URL("../", import.meta.url)).replace(/\/$/, "");
 const repo = path.dirname(app);
 
-function log(text) {
-  process.stderr.write(`[finanzen-mcp] ${text}\n`);
-}
+const log = metadatenLog(app);
 
 function abbruch(text) {
   log(text);

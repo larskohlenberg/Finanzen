@@ -125,3 +125,15 @@ So erprobt, ohne die laufende VM anzufassen (Platzhalter: `<vmid>` laufende VM, 
    ```
    Mit externem Datenort jeweils `env FINANZEN_DATEN=<Datenort>` vor `node` setzen. Erwartet: „validation passed“ und dieselbe Buchungs- und Kontenzahl wie auf der echten VM.
 5. Aufraeumen: `qm stop <probe-id> && qm destroy <probe-id> --purge 1`.
+
+## MCP-Protokoll
+
+Beim Start per SSH-Forced-Command geht stderr an den Client, nicht ins Journal. Der MCP-Server schreibt seine Metadaten darum zusaetzlich nach `<Datenort>/logs/mcp-<JJJJ-MM>.log` (ohne Datenort: `app/data/logs/`, von Git ausgeschlossen), eine Zeile je Ereignis:
+
+```
+2026-10-20T06:15:02.118Z s=3f9a01c2 pid=4711 tools/call status 126ms
+```
+
+Enthalten sind nur Zeit, Sitzungskennung (zufaellig je Start), Prozess, Methode, Werkzeugname, Dauer und Fehlerklasse, nie Argumente oder Inhalte. Namen, die nicht wie ein Name aussehen, erscheinen als `(ungueltig)`. Je Monat eine Datei; alte Monate loescht der Admin bei Bedarf. Kann der Server nicht schreiben (Rechte, Platte voll), laeuft er weiter und meldet das einmal auf stderr.
+
+Nachsehen auf dem Server: `sudo -u finanzen tail -n 50 <Datenort>/logs/mcp-$(date +%Y-%m).log`.

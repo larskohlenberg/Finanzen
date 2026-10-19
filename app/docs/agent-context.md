@@ -107,6 +107,13 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
   fehlgeschlagen (CLI: Exitcode 1, MCP: Bestand wird zurueckgesetzt). Fehler,
   die schon vorher im Bestand standen, erscheinen als Hinweis „alle schon vorher
   vorhanden“; sie trotzdem beheben, aber getrennt vom Lauf.
+- **Fingerabdruck der Vorschau:** Jede Vorschau nennt `Fingerabdruck: <16 Zeichen>`
+  des gelesenen Bestands (MCP im Ergebnis, CLI auf stderr). Beim Schreiben
+  mitgeben (MCP `fingerabdruck`, CLI `--fingerabdruck=...`): Hat sich der Bestand
+  seit der Vorschau geaendert, wird unter der Schreibsperre abgewiesen und nichts
+  geschrieben (CLI: Exitcode 4); dann die Vorschau neu ansehen. Empfohlen fuer
+  jeden Schreibaufruf; ohne Fingerabdruck wird gegen den aktuellen Stand
+  geschrieben.
 - **Version nach Deploy:** Der MCP-Server merkt sich beim Start die
   Release-Kennung (`app/version.json`, auch `serverInfo.version`). Ist danach
   ein neuer Stand installiert, weist er alle Tools ausser `status` mit

@@ -14,10 +14,16 @@ import { cp, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } fr
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { SPERRDATEI, SperreBelegt, mitSperre } from "../tools/lib/schreibsperre.mjs";
+import { bestandFingerabdruck, veraltetMeldung } from "../tools/lib/fingerabdruck.mjs";
 import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
 
 const istSperrdatei = (name) => name.startsWith(SPERRDATEI);
+
+// Fingerabdruck aus der Vorschau, gegen den ein Schreibaufruf laufen soll
+// (rufeWerkzeug setzt ihn je Aufruf). mitRollback prueft ihn unter der Sperre.
+export const erwarteterStand = new AsyncLocalStorage();
 
 export async function validiere(datenrootPfad) {
   try {
@@ -81,6 +87,11 @@ export async function mitRollback(datenrootPfad, fn, { rueckrollungBeiFehler = t
 // fn bekommt die Sperre (oder null, wenn sie geerbt ist); ihre kennung reicht
 // der Aufrufer an Kindprozesse weiter.
 async function zyklus(datenrootPfad, fn, sperre, rueckrollungBeiFehler) {
+  const erwartet = erwarteterStand.getStore();
+  if (erwartet) {
+    const aktuell = await bestandFingerabdruck(datenrootPfad);
+    if (aktuell !== erwartet) return { text: veraltetMeldung(datenrootPfad, erwartet, aktuell), isError: true };
+  }
   const vorher = await validiere(datenrootPfad);
   const kopie = await kopiereDatenroot(datenrootPfad);
   let sicherungBehalten = false;

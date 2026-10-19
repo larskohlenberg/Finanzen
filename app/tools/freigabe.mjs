@@ -13,7 +13,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
-import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
+import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
 import { kontoanker, stufeVerliehen } from "./lib/kontoanker.mjs";
@@ -150,8 +150,9 @@ async function main() {
   if (args.includes("--help")) { console.log(USAGE); return; }
   const schreiben = args.includes("--schreiben");
   const masterRoot = dataRootFromArg(args.find((a) => !a.startsWith("--")));
-  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
-  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
+  // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
+  // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
+  await beginneLauf(fileURLToPath(masterRoot), schreiben);
 
   const [transaktionen, regeln] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),

@@ -20,7 +20,7 @@ import { constants, copyFile, link, lstat, mkdir, readFile, readdir, realpath, r
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
-import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
+import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { belegPfadeAusText } from "../belege.mjs";
 
 const BELEGE_STANDARD = new URL("../Belege/", import.meta.url);
@@ -270,8 +270,8 @@ export async function main({
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const sperre = process.argv.includes("--schreiben") && process.argv[2]
-    ? sperreFuerProzess(fileURLToPath(dataRootFromArg(process.argv[2])))
+  const sperre = process.argv[2] && !process.argv[2].startsWith("--")
+    ? beginneLauf(fileURLToPath(dataRootFromArg(process.argv[2])), process.argv.includes("--schreiben"))
     : Promise.resolve();
   sperre.then(() => main()).then((bericht) => {
     if (bericht.fehler.length) process.exitCode = 2;

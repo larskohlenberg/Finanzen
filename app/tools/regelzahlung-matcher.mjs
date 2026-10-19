@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import { toCents, centsToDecimal, dayDiff, normalizeLoose, normalizeWhitespace } from "./lib/text.mjs";
 import { addInterval } from "../liquiditaet.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
-import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
 import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
+import { beginneLauf } from "./lib/fingerabdruck.mjs";
 
 // Betragstoleranz relativ zum Betrag der Regelzahlung. Die Mandatsreferenz ist
 // ein strukturelles Signal und traegt Beitragsdynamik ueber Jahre; die
@@ -303,8 +303,9 @@ async function main() {
   const schreiben = argv.includes("--schreiben");
   const details = argv.includes("--details");
   const masterRoot = pflichtDatenroot(argv.find((a) => !a.startsWith("--")));
-  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
-  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
+  // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
+  // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
+  await beginneLauf(fileURLToPath(masterRoot), schreiben);
 
   const [transaktionen, regelzahlungen] = await Promise.all([
     readJsonl(new URL("transaktionen.jsonl", masterRoot)),

@@ -9,7 +9,7 @@ import { matchTransfers } from "./transfer-matcher.mjs";
 import { nextTransaktionId } from "./ids.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
-import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
+import { beginneLauf } from "./lib/fingerabdruck.mjs";
 
 const optionalTransactionFields = [
   "wertstellungsdatum",
@@ -135,8 +135,9 @@ async function main() {
     return;
   }
   const masterRoot = pflichtDatenroot(rootArg);
-  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
-  if (schreiben) await sperreFuerProzess(fileURLToPath(masterRoot));
+  // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
+  // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
+  await beginneLauf(fileURLToPath(masterRoot), schreiben);
   const [konten, kategorien, transaktionen, transfers, kategorisierungsregeln, regelzahlungen] = await Promise.all([
     readJson(new URL("konten.json", masterRoot)),
     readJson(new URL("kategorien.json", masterRoot)),

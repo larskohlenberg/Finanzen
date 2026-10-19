@@ -22,7 +22,8 @@ import { abfragen } from "./abfrage.mjs";
 import { pruefeArgumente } from "./argumente.mjs";
 import { istKalenderdatum, kennzahlenText, planIstText } from "./kennzahlen.mjs";
 import { LESE_WURZELN, PfadFehler, bestandWurzeln, loesePfad, pruefeEndung, pruefeKeinAktiverTyp } from "./pfade.mjs";
-import { kopiereDatenroot, mitRollback } from "./schreiben.mjs";
+import { erwarteterStand, kopiereDatenroot, mitRollback } from "./schreiben.mjs";
+import { bestandFingerabdruck } from "../tools/lib/fingerabdruck.mjs";
 import { releaseStand } from "./version.mjs";
 
 const MAX_TEXT = 2 * 1024 * 1024;
@@ -36,6 +37,12 @@ const BETRAG = { type: "string", pattern: "^-?\\d+(\\.\\d{1,2})?$", description:
 const SCHREIBEN = {
   type: "boolean",
   description: "Default false = Vorschau, es wird nichts geschrieben. true schreibt (nur mit --recht=schreiben); danach laeuft der Validator, bei neuen Fehlern oder einem Werkzeugfehler wird der Bestand zurueckgesetzt.",
+};
+
+const FINGERABDRUCK = {
+  type: "string",
+  pattern: "^[0-9a-f]{16}$",
+  description: "Empfohlen mit schreiben:true: der Fingerabdruck aus der Vorschau. Hat sich der Bestand seither geaendert, wird nichts geschrieben und abgewiesen. Ohne Fingerabdruck wird gegen den aktuellen Stand geschrieben.",
 };
 
 // Die Kategorisierungsregel (ADR 0029) an einer Stelle: Anleitung und
@@ -1237,6 +1244,11 @@ const inboxZurueckholen = {
 
 export const WERKZEUGE = [status, kennzahlen, planIstWerkzeug, transaktionenAbfragen, dateiLesen, dateienSuchen, ...CLI_WERKZEUGE, dateiSchreiben, dateiErsetzen, belegAblegen, belegTeilen, belegErgaenzen, belegVerwerfen, inboxVerwerfen, inboxZurueckholen];
 
+// Jedes Werkzeug mit Vorschau nimmt den Fingerabdruck der Vorschau an.
+for (const w of WERKZEUGE) {
+  if (w.inputSchema.properties?.schreiben) w.inputSchema.properties.fingerabdruck = FINGERABDRUCK;
+}
+
 export function sichtbareWerkzeuge(ctx) {
   return WERKZEUGE
     .filter((w) => !w.nurSchreiben || ctx.recht === "schreiben")
@@ -1266,8 +1278,17 @@ export async function rufeWerkzeug(ctx, name, args = {}) {
   const fehler = pruefeArgumente(werkzeug.inputSchema, args);
   if (fehler.length) return alsErgebnis(ergebnis(`Ungueltige Argumente:\n${fehler.map((f) => `- ${f}`).join("\n")}`, true));
   const schreibt = Boolean(werkzeug.nurSchreiben || (args.schreiben === true && werkzeug.inputSchema.properties?.schreiben));
+  const vorschau = Boolean(werkzeug.inputSchema.properties?.schreiben) && args.schreiben !== true;
   try {
-    const lauf = () => werkzeug.ausfuehren(ctx, args);
+    if (vorschau) {
+      // Fingerabdruck VOR dem Lesen: aendert sich der Bestand waehrend der
+      // Vorschau, wird ein Schreiben damit abgewiesen (sichere Seite).
+      const fingerabdruck = await bestandFingerabdruck(ctx.datenroot);
+      const r = await werkzeug.ausfuehren(ctx, args);
+      const zeile = `Fingerabdruck: ${fingerabdruck}`;
+      return alsErgebnis(typeof r.text !== "string" || r.text.includes(zeile) ? r : { ...r, text: `${r.text}\n\n${zeile} (mit schreiben:true als fingerabdruck mitgeben, dann wird nur gegen diesen Stand geschrieben)` });
+    }
+    const lauf = () => erwarteterStand.run(args.fingerabdruck, () => werkzeug.ausfuehren(ctx, args));
     return alsErgebnis(await (schreibt ? nacheinander(lauf) : lauf()));
   } catch (error) {
     return alsErgebnis(ergebnis(error instanceof PfadFehler ? `Pfad abgewiesen: ${error.message}` : `Fehler: ${error.message}`, true));

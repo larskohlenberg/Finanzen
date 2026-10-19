@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { open, readFile, rename, unlink } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
-import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
+import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 
 export function aktualisiereImmobilienbezug({
@@ -383,6 +383,8 @@ function parseArgs(argv) {
       args.bemerkung = arg.slice("--bemerkung=".length);
     } else if (arg.startsWith("--immobilie=")) {
       args.immobilieId = arg.slice("--immobilie=".length);
+    } else if (arg.startsWith("--fingerabdruck=")) {
+      // lib/fingerabdruck.mjs
     } else if (arg.startsWith("--")) {
       throw new Error(`unbekanntes Argument: ${arg}`);
     } else if (args.root === undefined) {
@@ -401,8 +403,9 @@ async function main() {
     new URL("../data/master/", import.meta.url),
     new URL("../", import.meta.url),
   );
-  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
-  if (args.schreiben) await sperreFuerProzess(fileURLToPath(dataRoot));
+  // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
+  // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
+  await beginneLauf(fileURLToPath(dataRoot), args.schreiben);
   const data = await loadMasterData(dataRoot);
   const out = aktualisiereImmobilienbezug({
     transaktionen: data.transaktionen,

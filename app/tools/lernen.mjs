@@ -10,7 +10,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
-import { sperreFuerProzess } from "./lib/schreibsperre.mjs";
+import { beginneLauf } from "./lib/fingerabdruck.mjs";
 
 // Startwerte. Anders als eine risikobasierte Freigabeschwelle messen sie kein
 // Urteil darueber, was eine Buchung bedeutet, sondern beobachtetes Verhalten —
@@ -120,8 +120,9 @@ async function main() {
   if (args.includes("--help")) { console.log(USAGE); return; }
   const anwenden = args.includes("--anwenden");
   const masterRoot = dataRootFromArg(args.find((a) => !a.startsWith("--")));
-  // Schreibsperre des Bestands fuer den ganzen Lauf (Lesen bis Schreiben).
-  if (anwenden) await sperreFuerProzess(fileURLToPath(masterRoot));
+  // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
+  // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
+  await beginneLauf(fileURLToPath(masterRoot), anwenden);
 
   const logText = await readFile(new URL("agent_log.jsonl", masterRoot), "utf8").catch(() => "");
   const log = logText.split(/\r?\n/).filter((l) => l.trim()).map((l) => JSON.parse(l));

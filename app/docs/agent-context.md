@@ -400,8 +400,9 @@ Wichtige Tools:
   **bevor** etwas geschrieben wird. Blockiert mit Exit-Code 2 bei Strukturfehlern,
   unspezifischen Mustern, neuen Regelkonflikten, Wiedervorlagen (Kandidat
   widerspricht einer Auto-Freigabe), **Widerspruechen zu menschlichen
-  Entscheidungen** und **verlorenen bestaetigten Treffern**: eine Einengung laesst bereits bestaetigte Buchungen aus
-  der Regel fallen, sie verlieren ihre Kategorie und landen wieder auf `offen`.
+  Entscheidungen** und **verlorenen bestaetigten Treffern**: eine Einengung
+  laesst Auto-Freigaben aus der Regel fallen, sie behielten ihre Kategorie ohne
+  tragende Regel.
   Die gemeldeten Trefferzahlen gelten fuer den Gesamtbestand, nicht nur fuer den
   Offen-Stapel — sonst erschiene eine Regel bei leerem Offen-Stapel als
   wirkungslos, obwohl sie hunderte bestaetigte Buchungen traegt.

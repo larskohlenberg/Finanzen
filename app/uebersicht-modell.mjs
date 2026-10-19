@@ -59,7 +59,16 @@ export function uebersichtModell(daten, heute) {
       aeltester: gruppen.konten.aeltester,
       zeilen: gruppen.konten.zeilen.map(({ konto, zeile }) => ({ konto_id: konto.konto_id, name: konto.name, wert_cents: zeile.wert_cents })),
     },
-    mittel,
+    // Nur, was die Kacheln lesen (keine Einzelbuchungen der Sondereffekte, keine Monatsreihen).
+    mittel: {
+      monate: mittel.monate,
+      anzahl_monate: mittel.anzahl_monate,
+      von: mittel.von,
+      bis: mittel.bis,
+      einnahmen: { mittel_cents: mittel.einnahmen.mittel_cents, kategorien: mittel.einnahmen.kategorien },
+      ausgaben: { mittel_cents: mittel.ausgaben.mittel_cents, kategorien: mittel.ausgaben.kategorien },
+      sparen: mittel.sparen,
+    },
     plan: plan ? {
       einnahmen_plan_cents: plan.einnahmen.plan_cents,
       ausgaben_plan_cents: plan.ausgaben.plan_cents,

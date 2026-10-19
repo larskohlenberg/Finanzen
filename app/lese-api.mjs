@@ -9,6 +9,7 @@
 //   GET /api/v1/regelwirkung?quelle=&regel=
 //   GET /api/v1/uebersicht?quelle=&heute=
 //   GET /api/v1/kopfleiste?quelle=&heute=
+import { istKalenderdatum } from "./mcp/kennzahlen.mjs";
 import { kopfleisteModell } from "./kopfleiste.mjs";
 import { localTodayIso } from "./liquiditaet.mjs";
 import { uebersichtModell } from "./uebersicht-modell.mjs";
@@ -35,8 +36,15 @@ function ganzzahl(suche, name, standard) {
 function heute(suche) {
   const wert = text(suche, "heute");
   if (!wert) return localTodayIso();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(wert)) throw new AnfrageFehler("heute: JJJJ-MM-TT");
+  if (!istKalenderdatum(wert)) throw new AnfrageFehler("heute: gueltiges Datum JJJJ-MM-TT");
   return wert;
+}
+
+// Je Stand gemerkt wird nur der heutige Tag; andere Stichtage (Tests, ein
+// Browser ueber Mitternacht) werden gerechnet, aber nicht aufgehoben, damit
+// der Speicher je Stand begrenzt bleibt.
+function jeStand(bestand, name, tag, rechne) {
+  return tag === localTodayIso() ? bestand.merke(`${name}:${tag}`, rechne) : rechne();
 }
 
 // Der Bestand, wie ihn der Browser kannte: mit Modus, Validator-Befund und
@@ -75,11 +83,11 @@ const ANSICHTEN = {
   },
   uebersicht: (bestand, suche) => {
     const tag = heute(suche);
-    return bestand.merke(`uebersicht:${tag}`, () => uebersichtModell(bestand.daten, tag));
+    return jeStand(bestand, "uebersicht", tag, () => uebersichtModell(bestand.daten, tag));
   },
   kopfleiste: (bestand, suche, { quelle }) => {
     const tag = heute(suche);
-    return bestand.merke(`kopfleiste:${tag}`, () => kopfleisteModell(wieImBrowser(bestand, quelle), tag));
+    return jeStand(bestand, "kopfleiste", tag, () => kopfleisteModell(wieImBrowser(bestand, quelle), tag));
   },
 };
 

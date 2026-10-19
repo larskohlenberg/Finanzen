@@ -36,6 +36,6 @@ export function kopfleisteModell(daten, heute) {
     offene_kategorien: (daten.transaktionen ?? []).filter((t) => t.kategorisierung_status === "offen").length,
     // Was nur in den Checks sichtbar ist; offene Kategorien und Importfehler haben eigene Chips.
     offene_checks: datenChecks + transfers + computeVermoegenChecks(daten, heute).length + prognoseRealismus(daten, heute).length,
-    aktionen: buildNextAgentActions(daten).map(({ type, label, count, prompt }) => ({ type, label, count, prompt })),
+    aktionen: buildNextAgentActions(daten, { today: heute }).map(({ type, label, count, prompt }) => ({ type, label, count, prompt })),
   };
 }

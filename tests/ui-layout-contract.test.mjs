@@ -145,7 +145,7 @@ test("work status offers an explicit data reload action", () => {
 
 test("next action copies an agent prompt instead of duplicating open-category navigation", () => {
   // Die Aktionen rechnet der Server (kopfleiste.mjs ueber next-action.mjs).
-  assert.match(main, /buildNextAgentActions\(daten\)/);
+  assert.match(main, /buildNextAgentActions\(daten, \{ today: heute \}\)/);
   assert.match(main, /kopfleisteAntwort\(\)\?\.aktionen/);
   assert.match(main, /data-action="copy-next-agent-prompt"/);
   assert.match(main, /copyNextAgentPrompt\(element\.dataset\.nextActionType\)/);

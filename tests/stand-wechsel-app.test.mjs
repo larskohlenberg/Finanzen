@@ -28,9 +28,10 @@ globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? 
 globalThis.window = globalThis;
 
 // Der "Server": Stand und Ersetzungen lassen sich im Test umstellen.
-const server = { stand: "stand-1", ersetze: {}, anfragen: [] };
+const server = { stand: "stand-1", ersetze: {}, anfragen: [], kopfleisteFehlt: false };
 globalThis.fetch = async (pfad, optionen) => {
   server.anfragen.push({ pfad: String(pfad), optionen });
+  if (server.kopfleisteFehlt && String(pfad).includes("api/v1/kopfleiste")) return { ok: false, status: 503, json: async () => ({ grund: "voruebergehend" }) };
   if (String(pfad).includes("api/v1/snapshot") && optionen?.headers?.["If-None-Match"] === `"${server.stand}"`) {
     return { ok: false, status: 304 };
   }
@@ -147,5 +148,21 @@ test("Knopf Daten neu laden: bedingt laden ohne Reload, 304 laesst alles stehen"
   const anfrage = server.anfragen.find((a) => a.pfad.includes("api/v1/snapshot"));
   assert.equal(anfrage.optionen.headers["If-None-Match"], '"stand-2"');
   assert.equal(data.transaktionen, vorher);
+  assert.deepEqual(reloads, []);
+});
+
+test("Kopfleiste: gescheiterter Abruf wird gezeigt, Daten neu laden holt ihn erneut", async () => {
+  const neuLaden = () => {
+    const knopf = { dataset: { action: "reload-data" } };
+    for (const fn of appListeners.get("click") ?? []) {
+      fn({ target: { closest: (sel) => (sel === "[data-action]" ? knopf : null) } });
+    }
+  };
+  server.kopfleisteFehlt = true;
+  neuLaden();
+  await warteBis(() => /Status nicht geladen/.test(app.innerHTML));
+  server.kopfleisteFehlt = false;
+  neuLaden();
+  await warteBis(() => !/Status nicht geladen/.test(app.innerHTML));
   assert.deepEqual(reloads, []);
 });

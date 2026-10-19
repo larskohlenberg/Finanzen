@@ -27,7 +27,7 @@ import {
 import { ladeSnapshot, ladeStand } from "./data-loader.mjs";
 import { erstelleStandWaechter } from "./stand-wechsel.mjs";
 import { formatMoney, heuteIso, toggleKlappKachel, oeffneKlappKachel } from "./komponenten.mjs";
-import { kopfleisteAntwort } from "./views/kopfleiste-daten.mjs";
+import { kopfleisteAntwort, kopfleisteFehler } from "./views/kopfleiste-daten.mjs";
 import { renderErrorPanel, safeRender, guard } from "./error.mjs";
 import { bindDiagrammHover, termineListenBegrenzen } from "./diagramm-hover.mjs";
 import { anwendenBaumBreite, bindBelegeTrenner } from "./belege-trenner.mjs";
@@ -304,6 +304,7 @@ function renderTopbar() {
           ? `<span class="chip success icon-chip" role="img" aria-label="${escapeHtml(t("chrome.validationPassed"))}" title="${escapeHtml(`${t("chrome.validationPassed")} – ${t("chrome.validationPassedHint")}`)}">${iconSvg("success")}</span>`
           : `<button class="chip danger linkish" data-action="show-validation" title="${escapeHtml(t("chrome.validationFailedHint"))}">${iconSvg("warning")}${data.validation?.errors.length ?? 0} ${escapeHtml(t("chrome.validationFailed"))}</button>`}
         <button class="chip neutral linkish icon-chip" data-action="reload-data" aria-label="${escapeHtml(t("chrome.reloadData"))}" title="${escapeHtml(t("chrome.reloadData"))}">${iconSvg("regelzahlungen")}</button>
+        ${kopfleisteFehler() ? `<button class="chip danger linkish" data-action="reload-data" title="${escapeHtml(kopfleisteFehler().message)}">${iconSvg("warning")}${escapeHtml(t("chrome.kopfleisteFehler"))}</button>` : ""}
         ${openCategories > 0 ? `<button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategories} ${escapeHtml(t("chrome.categoryOpen"))}</button>` : ""}
         ${offeneChecks > 0 ? `<button class="chip review linkish" data-action="show-checks">${iconSvg("review")}${offeneChecks} ${escapeHtml(t("chrome.openChecks"))}</button>` : ""}
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
@@ -770,8 +771,11 @@ async function handleAction(element) {
     return;
   }
   if (action === "reload-data") {
-    // Ohne Seiten-Reload: Bestand bedingt neu holen, Dokumente und Inbox frisch listen.
+    // Ohne Seiten-Reload: Bestand bedingt neu holen, Antworten der Lese-APIs
+    // (auch gescheiterte) neu abrufen, Dokumente und Inbox frisch listen.
+    verwerfeApiCaches();
     pruefeStand({ erzwingen: true });
+    render();
     if (state.view === "upload") void ladeInbox(render);
     if (belegDateienStand().zustand !== "unbekannt") void ladeBelege(render);
     return;

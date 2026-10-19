@@ -137,7 +137,12 @@ test("Uebersicht: Kennzahlen der Kacheln ohne Rohlisten, Stichtag geprueft", asy
   for (const z of a.konten.zeilen) assert.deepEqual(Object.keys(z).sort(), ["konto_id", "name", "wert_cents"]);
   for (const r of a.vorsorge.renten) assert.deepEqual(Object.keys(r).sort(), ["name", "vorsorge_id", "wert_cents"]);
   assert.equal(typeof a.vermoegen.netto_cents, "number");
-  assert.equal((await hole("/api/v1/uebersicht?quelle=demo&heute=morgen")).status, 400);
+  for (const falsch of ["morgen", "2026-13-45", "2026-02-30", "0000-00-00"]) {
+    assert.equal((await hole(`/api/v1/uebersicht?quelle=demo&heute=${falsch}`)).status, 400, falsch);
+  }
+  // Nur die Felder, die die Kacheln lesen: keine Einzelbuchungen der Sondereffekte, keine Monatsreihen.
+  assert.deepEqual(Object.keys(a.mittel).sort(), ["anzahl_monate", "ausgaben", "bis", "einnahmen", "monate", "sparen", "von"]);
+  assert.deepEqual(Object.keys(a.mittel.einnahmen).sort(), ["kategorien", "mittel_cents"]);
   // Demo und Echt: die zusaetzliche Echt-Buchung veraendert nur den Echtbestand.
   const echt = (await hole("/api/v1/uebersicht?heute=2026-10-19")).json();
   assert.notEqual(echt.stand, a.stand);

@@ -26,6 +26,8 @@
 // GET /api/v1/snapshot[?quelle=demo] den ganzen Bestand samt Validator-Befund
 // (app/stand.mjs), mit ETag = Stand: If-None-Match mit dem aktuellen Stand gibt
 // 304. Die Bestandsdateien selbst liefert der Server nicht statisch aus.
+// GET /api/v1/<ansicht>[?quelle=demo&...] liefert, was eine Ansicht zeigt,
+// gerechnet aus dem Stand (app/lese-api.mjs, z. B. transaktionen, regelwirkung).
 //
 // Jede Anfrage braucht eine erlaubte Host-Kopfzeile (Schutz gegen DNS-
 // Rebinding): lokal Loopback mit Port, mit --origin der Host der Origin.
@@ -47,6 +49,7 @@ import { dirname, extname, join, posix, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EXPORT_ARTEN, exportDateiname, exportEintraege, pruefeZipGrenzen, zipTeile } from "./export.mjs";
 import { erstelleSnapshotQuelle } from "./stand.mjs";
+import { AnfrageFehler, LESE_ANSICHTEN, leseAnsicht } from "./lese-api.mjs";
 import { legeDateiAn } from "./tools/lib/datei.mjs";
 import { mitLesestand } from "./tools/lib/lesestand.mjs";
 import { ERLAUBTE_ENDUNGEN, MAX_UPLOAD_BYTES, endungErlaubt, istHeic } from "./upload-regeln.mjs";
@@ -57,6 +60,7 @@ const API_BELEGE = "/api/belege";
 const API_EXPORT = "/api/export";
 const API_STAND = "/api/v1/stand";
 const API_SNAPSHOT = "/api/v1/snapshot";
+const API_V1 = "/api/v1/";
 const OCR_KOPF = "# Kein Textlayer";
 
 const MIME = {
@@ -687,6 +691,22 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     res.end(snapshot.body);
   }
 
+  async function liefereAnsicht(req, res, quelle, name) {
+    if (req.method !== "GET") return abgelehnt(res, 405, "methode", { Allow: "GET" });
+    let bestand;
+    try {
+      bestand = await snapshotQuellen[quelle].bestand();
+    } catch (fehler) {
+      return bestandUnlesbar(res, name, quelle, fehler);
+    }
+    try {
+      return sendeJson(res, 200, leseAnsicht(name, bestand, new URLSearchParams(req.url.split("?")[1] ?? "")));
+    } catch (fehler) {
+      if (fehler instanceof AnfrageFehler) return abgelehnt(res, 400, `parameter: ${fehler.message}`);
+      throw fehler;
+    }
+  }
+
   async function behandle(req, res) {
     for (const [k, v] of Object.entries(BASIS_KOPFZEILEN)) res.setHeader(k, v);
     const host = String(req.headers.host ?? "").toLowerCase();
@@ -715,6 +735,9 @@ export function createAppServer({ appDir, inboxDir, belegeDir = join(appDir, "Be
     }
     if (rohPfad === API_STAND) return liefereStand(req, res, demo ? "demo" : "live");
     if (rohPfad === API_SNAPSHOT) return liefereSnapshot(req, res, demo ? "demo" : "live");
+    if (rohPfad.startsWith(API_V1) && LESE_ANSICHTEN.includes(rohPfad.slice(API_V1.length))) {
+      return liefereAnsicht(req, res, demo ? "demo" : "live", rohPfad.slice(API_V1.length));
+    }
     if (rohPfad.startsWith(`${API_EXPORT}/`)) return liefereExport(req, res, rohPfad.slice(API_EXPORT.length + 1));
     if (rohPfad.startsWith(`${API_INBOX}/`)) {
       if (req.method !== "PUT") return abgelehnt(res, 405, "methode", { Allow: "PUT" });

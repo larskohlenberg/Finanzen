@@ -3,6 +3,7 @@
 // Darlehen, Sonstige Werte); die Kennzahlen stehen im Uebersichtstab. Vorsorge hat nur einen Verweis-Reiter auf die Vorsorge-Seite, die die
 // Details traegt. Immobilien und Darlehen rendert vermoegen-objekte.mjs.
 import { data, state, t, tf, fmt, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie, kennzahlKachel, kachelZeile, zeitverlaufKlein } from "../komponenten.mjs";
 import { donutDiagramm } from "../charts.mjs";
@@ -156,7 +157,7 @@ function ausgewaehltePosition(r, klasse) {
 // Restschuld, darunter Konten und die uebrigen Werte, dann die offenen Punkte
 // und die Wertstaende (zu). Die Klassensummen stehen schon in den Tabs.
 const geldOhneCent = (c) => fmt().geldGanz(c);
-const positionLink = (klasse, id, name) => `<button class="linkish" data-action="select-vermoegen" data-vermoegen="${escapeHtml(`${klasse}:${id}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
+const positionLink = (klasse, id, name) => `<a class="linkish" href="${escapeHtml(zielRoute("select-vermoegen", `${klasse}:${id}`))}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(`${klasse}:${id}`)}" title="${escapeHtml(name)}">${escapeHtml(name)}</a>`;
 const KONTOTYPEN = ["giro", "tagesgeld", "spar", "festgeld", "kreditkarte", "depot"];
 
 function renderUebersichtTab(r, je, today, checks, modell) {
@@ -296,7 +297,7 @@ function renderOffenePunkte(checks) {
   const zeilen = [...je.values()].map(({ c, arten, texte }) => {
     const name = NAMEN[c.entitaet]?.(c.entitaet_id) ?? c.entitaet_id;
     const link = NAMEN[c.entitaet]
-      ? `<button class="linkish" data-action="select-vermoegen" data-vermoegen="${escapeHtml(`${c.entitaet}:${c.entitaet_id}`)}" title="${escapeHtml(texte.join("\n"))}">${escapeHtml(name)}</button>`
+      ? `<a class="linkish" href="${escapeHtml(zielRoute("select-vermoegen", `${c.entitaet}:${c.entitaet_id}`))}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(`${c.entitaet}:${c.entitaet_id}`)}" title="${escapeHtml(texte.join("\n"))}">${escapeHtml(name)}</a>`
       : `<span title="${escapeHtml(texte.join("\n"))}">${escapeHtml(name)}</span>`;
     return `<li><span>${link} <span class="muted">${escapeHtml([...arten].join(", "))}</span></span><span class="chip review">${escapeHtml(t("vorsorge.offen.chip"))}</span></li>`;
   });
@@ -317,7 +318,7 @@ function renderKontenTab(r, today, konten) {
     ${linie ? detailRow(t("vermoegen.konto.saldoVerlauf"), linie) : ""}
     <div class="detail-section">
       <button class="linkish" data-action="account-transactions" data-account="${escapeHtml(p.id)}">${escapeHtml(t("vermoegen.konto.buchungen"))}</button>
-      · <button class="linkish" data-action="select-master-account" data-account="${escapeHtml(p.id)}">${escapeHtml(t("vermoegen.konto.stammdaten"))}</button>
+      · <a class="linkish" href="${escapeHtml(zielRoute("select-master-account", p.id))}" data-action="select-master-account" data-account="${escapeHtml(p.id)}">${escapeHtml(t("vermoegen.konto.stammdaten"))}</a>
     </div>`;
   return mitRail(inhalt, rail, t("vermoegen.detailTitle"));
 }

@@ -1,11 +1,13 @@
 // app/views/transaktionen.mjs
 // Transaktions-Ansicht: Tabelle, Filter (inkl. Zeitfilter), Pagination, Detail-Rail.
 import { data, state, t, escapeHtml, cents, kontenById } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, mitLogo, statusChip, renderPageHead, renderTableFilters, categoryName, detailRow, quelleHtml } from "../komponenten.mjs";
 import { formatIban } from "../tools/lib/text.mjs";
 import { dokumentRoute } from "../belege.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
+import { aktiveFilter, ohneZeitfilter } from "../navigation.mjs";
 
 // Die Liste rechnet der App-Server (GET /api/v1/transaktionen, Filter, Sortierung,
 // Seite, Sprung zu einer Buchung, Detail der Auswahl); der Browser bekommt nur
@@ -185,46 +187,58 @@ function renderBreadcrumb(accountName) {
     <div class="breadcrumb">
       <button class="linkish" data-action="go-overview">${escapeHtml(t("overview.title"))}</button>
       <span>/</span>
-      <button class="linkish" data-action="open-account-master">${escapeHtml(accountName)}</button>
+      <a class="linkish" href="${escapeHtml(zielRoute("open-account-master", state.transactionFilters.account))}" data-action="open-account-master" data-account="${escapeHtml(state.transactionFilters.account)}">${escapeHtml(accountName)}</a>
       <span>/</span>
       <span>${escapeHtml(t("transactions.title"))}</span>
     </div>
   `;
 }
 
-function renderBelegFilterChip() {
-  const pfad = state.transactionFilters.beleg;
-  if (!pfad) return "";
-  const name = pfad.slice(pfad.lastIndexOf("/") + 1);
-  return `
-    <div class="filter-chips">
-      <span class="filter-chip" title="${escapeHtml(pfad)}">
-        ${iconSvg("belege")}
-        <span>${escapeHtml(t("dokumente.filterChip"))}:</span>
-        <a class="linkish" href="${escapeHtml(dokumentRoute(pfad))}">${escapeHtml(name)}</a>
-        <button class="filter-chip-clear" data-action="clear-transaction-filter" data-filter-name="beleg" aria-label="${escapeHtml(t("dokumente.filterEntfernen"))}" title="${escapeHtml(t("dokumente.filterEntfernen"))}">${iconSvg("clear")}</button>
-      </span>
-    </div>`;
+// Ein Chip je aktivem Filter (navigation.mjs aktiveFilter): Name, Wert und
+// ein Knopf, der genau diesen Filter entfernt. Die Freitextsuche hat ihren
+// eigenen Loeschknopf im Feld.
+function renderFilterChips() {
+  const chips = aktiveFilter(state.transactionFilters).map(({ name }) => filterChip(name)).filter(Boolean);
+  if (!chips.length) return "";
+  return `<div class="filter-chips" role="group" aria-label="${escapeHtml(t("transactions.aktiveFilter"))}">${chips.join("")}</div>`;
 }
 
-function renderVorsorgeFilterChip() {
-  const id = state.transactionFilters.vorsorge;
-  if (!id) return "";
-  const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === id);
-  return `
-    <div class="filter-chips">
-      <span class="filter-chip" title="${escapeHtml(id)}">
-        ${iconSvg("vorsorge")}
-        <span>${escapeHtml(t("transactions.vorsorgeFilterChip"))}:</span>
-        <button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(id)}">${escapeHtml(vs?.name || id)}</button>
-        <button class="filter-chip-clear" data-action="clear-transaction-filter" data-filter-name="vorsorge" aria-label="${escapeHtml(t("transactions.vorsorgeFilterEntfernen"))}" title="${escapeHtml(t("transactions.vorsorgeFilterEntfernen"))}">${iconSvg("clear")}</button>
-      </span>
-    </div>`;
+function filterChip(name) {
+  const f = state.transactionFilters;
+  const chip = ({ icon = "", label, wertHtml, titel = "", entfernen = `${t("chrome.clearFilter")}: ${label}` }) => `
+      <span class="filter-chip"${titel ? ` title="${escapeHtml(titel)}"` : ""}>
+        ${icon ? iconSvg(icon) : ""}<span>${escapeHtml(label)}:</span>
+        ${wertHtml}
+        <button class="filter-chip-clear" data-action="clear-transaction-filter" data-filter-name="${escapeHtml(name)}" aria-label="${escapeHtml(entfernen)}" title="${escapeHtml(entfernen)}">${iconSvg("clear")}</button>
+      </span>`;
+  const text = (wert) => `<strong>${escapeHtml(wert)}</strong>`;
+  if (name === "beleg") {
+    const name = f.beleg.slice(f.beleg.lastIndexOf("/") + 1);
+    return chip({ icon: "belege", label: t("dokumente.filterChip"), titel: f.beleg, entfernen: t("dokumente.filterEntfernen"), wertHtml: `<a class="linkish" href="${escapeHtml(dokumentRoute(f.beleg))}">${escapeHtml(name)}</a>` });
+  }
+  if (name === "vorsorge") {
+    const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === f.vorsorge);
+    return chip({ icon: "vorsorge", label: t("transactions.vorsorgeFilterChip"), titel: f.vorsorge, entfernen: t("transactions.vorsorgeFilterEntfernen"), wertHtml: `<a class="linkish" href="${escapeHtml(zielRoute("open-vorsorge", f.vorsorge))}" data-action="open-vorsorge" data-vorsorge="${escapeHtml(f.vorsorge)}">${escapeHtml(vs?.name || f.vorsorge)}</a>` });
+  }
+  if (name === "account") return chip({ label: t("transactions.filterAccount"), wertHtml: text(kontenById.get(f.account)?.name || f.account) });
+  if (name === "status") return chip({ label: t("transactions.filterStatus"), wertHtml: text(t(`status.${f.status}`)) });
+  if (name === "category") return chip({ label: t("transactions.filterCategory"), wertHtml: text(categoryName(f.category)) });
+  if (name === "transfer") return chip({ label: t("transactions.filterTransfer"), wertHtml: text(t(f.transfer === "only" ? "transactions.onlyTransfers" : "transactions.withoutTransfers")) });
+  if (name === "origin") return chip({ label: t("transactions.filterOrigin"), wertHtml: text(t({ regel: "transactions.originRule", agent: "transactions.originAgent", manuell: "transactions.originManual" }[f.origin] ?? f.origin)) });
+  if (name === "zeit") return chip({ label: t("transactions.filterTime"), wertHtml: text(zeitfilterText(f)) });
+  return "";
+}
+
+function zeitfilterText(f) {
+  if (f.timeMode === "month") return formatMonth(f.month);
+  if (f.timeMode === "quarter") return `Q${f.quarter} ${f.quarterYear}`;
+  if (f.timeMode === "year") return f.year;
+  return `${f.dateFrom ? formatDate(f.dateFrom) : "…"} – ${f.dateTo ? formatDate(f.dateTo) : "…"}`;
 }
 
 function renderTransactionFilters(antwort) {
   return renderTableFilters({
-    prefix: renderBelegFilterChip() + renderVorsorgeFilterChip(),
+    prefix: renderFilterChips(),
     searchFields: [
       {
         name: "search",
@@ -290,10 +304,6 @@ function renderTransactionFilters(antwort) {
     resultCount: antwort.treffer,
     totalCount: antwort.gesamt,
   });
-}
-
-function hasActiveFilters(filters) {
-  return Object.values(filters).some(Boolean);
 }
 
 function transactionTimeFilterFields(antwort) {
@@ -380,18 +390,7 @@ export function applyTransactionTimeModeDefaults(mode) {
 }
 
 function transactionFilterActiveCount() {
-  const filters = state.transactionFilters;
-  const regular = ["account", "status", "category", "transfer", "origin", "search", "beleg"].filter((name) => Boolean(filters[name])).length;
-  return regular + (transactionTimeFilterIsActive() ? 1 : 0);
-}
-
-function transactionTimeFilterIsActive() {
-  const filters = state.transactionFilters;
-  if (filters.timeMode === "range") return Boolean(filters.dateFrom || filters.dateTo);
-  if (filters.timeMode === "month") return Boolean(filters.month);
-  if (filters.timeMode === "quarter") return Boolean(filters.quarterYear);
-  if (filters.timeMode === "year") return Boolean(filters.year);
-  return false;
+  return aktiveFilter(state.transactionFilters).length + (state.transactionFilters.search ? 1 : 0);
 }
 
 function renderTransactionRow(tx) {
@@ -399,7 +398,7 @@ function renderTransactionRow(tx) {
   return `
     <tr class="transaction-row ${tx.transaktion_id === state.selectedTransactionId ? "selected" : ""} ${tx.kategorisierung_status === "offen" ? "open" : ""} ${tx.kategorisierung_status === "vorgeschlagen" ? "vorgeschlagen" : ""}">
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
-      <td><button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(transactionAccountLabel(tx))}</button></td>
+      <td><a class="linkish" href="${escapeHtml(zielRoute("open-account-master", tx.konto_id))}" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(transactionAccountLabel(tx))}</a></td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei), { groesse: "tabelle" })}</td>
       <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}${tx.bemerkung ? `<div class="tx-bemerkung" title="${escapeHtml(t("transactions.bemerkung"))}">${escapeHtml(tx.bemerkung)}</div>` : ""}</td>
       <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
@@ -461,21 +460,21 @@ export function renderTransactionDetail({ transaktion: tx, regelzahlung, vorsorg
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("labels.account"))}</div>
       <div class="detail-value">
-        <button class="linkish" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</button>
+        <a class="linkish" href="${escapeHtml(zielRoute("open-account-master", tx.konto_id))}" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(konto?.name || tx.konto_id)}</a>
       </div>
     </div>
     ${immobilie ? detailRow(
       t("transactions.immobilie"),
-      `<button class="linkish" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="${escapeHtml(immobilie.immobilie_id)}">${escapeHtml(`${immobilie.immobilie_id} · ${immobilie.bezeichnung}`)}</button>`,
+      `<a class="linkish" href="${escapeHtml(zielRoute("open-vermoegen-entity", `immobilie:${immobilie.immobilie_id}`))}" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="${escapeHtml(immobilie.immobilie_id)}">${escapeHtml(`${immobilie.immobilie_id} · ${immobilie.bezeichnung}`)}</a>`,
     ) : ""}
     ${tx.bemerkung ? detailRow(t("transactions.bemerkung"), escapeHtml(tx.bemerkung)) : ""}
     ${regelzahlung ? detailRow(
       t("transactions.regelzahlung"),
-      `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(regelzahlung.regelzahlung_id)}">${escapeHtml(`${regelzahlung.regelzahlung_id} · ${regelzahlung.bezeichnung}`)}</button>`,
+      `<a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", regelzahlung.regelzahlung_id))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(regelzahlung.regelzahlung_id)}">${escapeHtml(`${regelzahlung.regelzahlung_id} · ${regelzahlung.bezeichnung}`)}</a>`,
     ) : ""}
     ${vorsorge ? detailRow(
       t("transactions.vorsorge"),
-      `<button class="linkish" data-action="open-vorsorge" data-vorsorge="${escapeHtml(vorsorge.vorsorge_id)}">${escapeHtml(`${vorsorge.vorsorge_id} · ${vorsorge.name}`)}</button>`,
+      `<a class="linkish" href="${escapeHtml(zielRoute("open-vorsorge", vorsorge.vorsorge_id))}" data-action="open-vorsorge" data-vorsorge="${escapeHtml(vorsorge.vorsorge_id)}">${escapeHtml(`${vorsorge.vorsorge_id} · ${vorsorge.name}`)}</a>`,
     ) : ""}
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t("transactions.coreData"))}</div>
@@ -533,11 +532,5 @@ function transactionDetailRow(label, value) {
 }
 
 export function clearTransactionTimeFilter() {
-  state.transactionFilters.timeMode = "none";
-  state.transactionFilters.dateFrom = "";
-  state.transactionFilters.dateTo = "";
-  state.transactionFilters.month = "";
-  state.transactionFilters.quarterYear = "";
-  state.transactionFilters.quarter = "1";
-  state.transactionFilters.year = "";
+  state.transactionFilters = ohneZeitfilter(state.transactionFilters);
 }

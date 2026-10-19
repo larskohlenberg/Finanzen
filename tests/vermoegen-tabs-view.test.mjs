@@ -96,7 +96,7 @@ test("Uebersicht: Tabs oben, Nettovermoegen und Restschuld nebeneinander, darunt
     assert.ok(tabs > 0 && html.indexOf("kachel-paare-oben") > tabs, "Kennzahlen erst nach den Tabs");
     assert.match(oben, /Nettovermögen[\s\S]*zeitstrahl-linie vermoegen-netto-linie[\s\S]*Restschuld der Darlehen[\s\S]*zeitstrahl-linie vermoegen-restschuld-linie/);
     assert.match(oben, /schuldenfrei 20\d\d/);
-    assert.match(oben, /data-vermoegen="darlehen:DAR-001"[^>]*>Darlehen DAR-001<\/button><span class="muted">getilgt 20\d\d/);
+    assert.match(oben, /data-vermoegen="darlehen:DAR-001"[^>]*>Darlehen DAR-001<\/(?:a|button)><span class="muted">getilgt 20\d\d/);
     const unten = html.slice(html.indexOf('<div class="kachel-paare">'));
     assert.match(unten, /Konten &amp; Depots[\s\S]*class="donut-diagramm"[\s\S]*data-vermoegen="konto:KTO-001"/);
     assert.match(unten, /Immobilien und weitere Werte/);
@@ -184,7 +184,7 @@ test("Immobilie: Stammdaten immer mit acht Feldern, Darlehen als Links nebeneina
     assert.equal(stammdatenFelder(html).length, 8);
     assert.match(html, />15\.1\.2020</);
     assert.match(html, /300\.000,00/);
-    assert.match(html, /class="darlehen-links"><button[^]*?<\/button><span class="darlehen-trenner" aria-hidden="true">·<\/span><button/);
+    assert.match(html, /class="darlehen-links"><(?:a|button)[^]*?<\/(?:a|button)><span class="darlehen-trenner" aria-hidden="true">·<\/span><(?:a|button)/);
     assert.match(html, /class="linkish darlehen-link"[^>]*data-vermoegen="darlehen:DAR-001"[^>]*title="Erstes Darlehen mit langem Namen"/);
     assert.doesNotMatch(html, /<br><button class="linkish"/);
   });

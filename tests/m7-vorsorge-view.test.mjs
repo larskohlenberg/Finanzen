@@ -137,17 +137,17 @@ test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", async () => {
     const kopf = html.slice(html.indexOf("kachel-paare"));
     const kachel = (titel) => kopf.slice(kopf.indexOf(titel), kopf.indexOf("</section>", kopf.indexOf(titel)));
     const rkw = kachel("Rückkaufswerte im Vermögen");
-    assert.match(rkw, /data-vorsorge="VS-003"[^>]*>LV Lena<\/button><span class="amount">12\.000,00/);
-    assert.match(rkw, /data-vorsorge="VS-003"[^>]*>LV Lena<\/button><span class="amount">12\.000,00/);
+    assert.match(rkw, /data-vorsorge="VS-003"[^>]*>LV Lena<\/(?:a|button)><span class="amount">12\.000,00/);
+    assert.match(rkw, /data-vorsorge="VS-003"[^>]*>LV Lena<\/(?:a|button)><span class="amount">12\.000,00/);
     assert.match(rkw, /data-tab="lebensversicherungen">1 ohne Wert/);
     // Donut der Rueckkaufswerte und Farbpunkte in derselben Vertragsfarbe.
     assert.match(rkw, /class="donut-diagramm"/);
     assert.match(rkw, /class="donut-segment vertrag-farbe-2" data-titel="LV Lena: 12\.000,00\s€ \(100 %\)"[^>]*><circle[^>]*class="donut-voll"/);
-    assert.match(rkw, /<i class="farbpunkt vertrag-farbe-2" aria-hidden="true"><\/i><button[^>]*data-vorsorge="VS-003"/);
+    assert.match(rkw, /<i class="farbpunkt vertrag-farbe-2" aria-hidden="true"><\/i><(?:a|button)[^>]*data-vorsorge="VS-003"/);
     assert.doesNotMatch(rkw, /Riester Lena/, "Riester steht nicht bei den Rueckkaufswerten im Vermoegen");
     // Beitraege als Donut je Bereich.
     assert.match(kachel("Beiträge"), /class="donut-segment tab-farbe-renten" data-titel="Renten &amp; Anwartschaften pro Jahr: 1\.800,00/);
-    assert.match(kachel("Kapitalleistungen"), /LV Lena<\/button><span class="muted">2035<\/span><span class="amount">25\.000,00/);
+    assert.match(kachel("Kapitalleistungen"), /LV Lena<\/(?:a|button)><span class="muted">2035<\/span><span class="amount">25\.000,00/);
     const beitraege = kachel("Beiträge");
     assert.match(beitraege, /data-tab="renten">Renten &amp; Anwartschaften<\/button><span class="amount">150,00\s€ \/ Monat/);
     assert.match(beitraege, /data-tab="versicherungen">Versicherungen<\/button><span class="amount">900,00\s€ \/ Jahr/);
@@ -317,7 +317,7 @@ test("Versicherung mit Immobilienbezug verlinkt das Objekt auf Karte und im Deta
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-005" aria-pressed');
     const karte = html.slice(html.lastIndexOf("<div", start), html.indexOf("</div>", start));
     assert.match(karte, /role="button" tabindex="0" data-action="select-vorsorge"/, "Karte ist kein <button>, damit der Link gueltig darin steht");
-    assert.match(karte, /Gehört zu <button class="linkish" data-action="select-vermoegen-objekt" data-vermoegen="immobilie:IMM-001"[^>]*>Musterhaus<\/button>/);
+    assert.match(karte, /Gehört zu <(?:a|button) class="linkish"[^>]*data-action="select-vermoegen-objekt" data-vermoegen="immobilie:IMM-001"[^>]*>Musterhaus<\/(?:a|button)>/);
     const detail = html.slice(html.indexOf("objekt-detail-titel"));
     assert.match(detail, /Gehört zu[\s\S]*data-vermoegen="immobilie:IMM-001"/);
     // Ohne zugeordnete Buchung kein Bezug.
@@ -381,7 +381,7 @@ test("Versicherungs-Tab: Rangliste der Jahresbeitraege mit Veraenderung zum Vorj
     assert.match(html, /class="panel panel-pad klapp-panel\s+vorsorge-ranking-kachel"/, "Abstand zum Kartenraster ueber eigene Klasse");
     const ranking = html.slice(html.indexOf('class="vorsorge-ranking"'), html.indexOf("</ul>", html.indexOf('class="vorsorge-ranking"')));
     assert.equal((ranking.match(/<li>/g) ?? []).length, 1, "nur laufende Vertraege mit Beitrag");
-    assert.match(ranking, /data-vorsorge="VS-005"[^>]*><span class="mit-logo"><span class="logo-marke logo-vergleich [^>]*>WO<\/span><span>Wohngebaeude<\/span><\/span><\/button>[\s\S]*width="100\.00"[\s\S]*900,00[\s\S]*class="chip review"[^>]*>\+20 %/);
+    assert.match(ranking, /data-vorsorge="VS-005"[^>]*><span class="mit-logo"><span class="logo-marke logo-vergleich [^>]*>WO<\/span><span>Wohngebaeude<\/span><\/span><\/(?:a|button)>[\s\S]*width="100\.00"[\s\S]*900,00[\s\S]*class="chip review"[^>]*>\+20 %/);
     assert.match(html, /zusammen 900,00/);
   });
 });
@@ -652,14 +652,14 @@ test("Lebensversicherung ohne Ablaufleistung erscheint mit dem heutigen Rueckkau
   await mitFixture(async () => {
     const kachel = kapitalKachel((await vorsorgeGezeichnet()));
     assert.match(kachel, /25\.000,00[\s\S]*dazu 8\.000,00\s€ bedingt oder ohne Termin, nicht eingerechnet/);
-    assert.match(kachel, /LV Martin<\/button><span class="muted">ohne Termin · Stand heute<\/span><span class="amount">8\.000,00/);
+    assert.match(kachel, /LV Martin<\/(?:a|button)><span class="muted">ohne Termin · Stand heute<\/span><span class="amount">8\.000,00/);
   }, { zeitwerte });
   // Mit Ablauf: zaehlt mit, die Notiz nennt den nicht garantierten Anteil.
   const vorsorge = f.vorsorge.map((vs) => (vs.vorsorge_id === "VS-004" ? { ...vs, leistung_beginn: "2050-11-01" } : vs));
   await mitFixture(async () => {
     const kachel = kapitalKachel((await vorsorgeGezeichnet()));
     assert.match(kachel, /33\.000,00[\s\S]*fällig 2035, 2050 · davon 8\.000,00\s€ Stand heute, nicht garantiert/);
-    assert.match(kachel, /LV Martin<\/button><span class="muted">2050 · Stand heute<\/span><span class="amount">8\.000,00/);
+    assert.match(kachel, /LV Martin<\/(?:a|button)><span class="muted">2050 · Stand heute<\/span><span class="amount">8\.000,00/);
     state.vorsorgeTab = "lebensversicherungen";
     state.selectedVorsorgeId = "VS-004";
     const detail = (await vorsorgeGezeichnet());

@@ -2,8 +2,9 @@
 // Prüfungen: Transfer-Checks + Vermögens-Checks. Bereich der Administration
 // (#/administration/checks), keine eigene Seite mehr.
 import { data, state, t, tf, escapeHtml, cents, kontenById } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, categoryName } from "../komponenten.mjs";
+import { formatMoney, formatDate, categoryName, zielElement, hrefAttr } from "../komponenten.mjs";
 import { heuteIso } from "../selektoren.mjs";
 import { kopfleisteAntwort } from "./kopfleiste-daten.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
@@ -109,7 +110,7 @@ export function renderChecks() {
           ${m5.map((check) => `
             <div class="rail-item">
               <span class="chip review">${iconSvg("review")}${escapeHtml(t(`vermoegen.checkArt.${check.art}`))}</span>
-              <button class="linkish" data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(check.entitaet)}" data-vid="${escapeHtml(check.entitaet_id)}">${escapeHtml(check.entitaet_id)}</button>
+              <a class="linkish" href="${escapeHtml(zielRoute("open-vermoegen-entity", `${check.entitaet}:${check.entitaet_id}`))}" data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(check.entitaet)}" data-vid="${escapeHtml(check.entitaet_id)}">${escapeHtml(check.entitaet_id)}</a>
               <span class="muted">${escapeHtml(lesbarerCheckText(check.text))}</span>
             </div>
           `).join("")}
@@ -130,12 +131,12 @@ export function renderCheckItems(checks) {
     const detail = check.detail ?? t(check.detail_key);
     const affected = check.entity_id ? affectedLabel(check) : data.metadata.label;
     const buttonAttrs = check.scope === "vermoegen"
-      ? `data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(check.entitaet || "")}" data-vid="${escapeHtml(check.entity_id || "")}"`
-      : `data-action="open-entity" data-scope="${escapeHtml(check.scope)}" data-entity="${escapeHtml(check.entity_id || "")}"`;
+      ? `${hrefAttr(zielRoute("open-vermoegen-entity", `${check.entitaet || ""}:${check.entity_id || ""}`))}data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(check.entitaet || "")}" data-vid="${escapeHtml(check.entity_id || "")}"`
+      : `${hrefAttr(check.scope === "transaktion" && check.entity_id ? zielRoute("open-transaction", check.entity_id) : "")}data-action="open-entity" data-scope="${escapeHtml(check.scope)}" data-entity="${escapeHtml(check.entity_id || "")}"`;
     return `
       <div class="rail-item">
         <span class="chip ${check.severity === "success" ? "success" : "review"}">${check.severity === "success" ? iconSvg("success") : iconSvg("review")}${escapeHtml(title)}</span>
-        <button class="linkish" ${buttonAttrs}>${escapeHtml(affected)}</button>
+        ${zielElement(buttonAttrs, escapeHtml(affected))}
         <span class="muted">${escapeHtml(detail)}</span>
       </div>
     `;

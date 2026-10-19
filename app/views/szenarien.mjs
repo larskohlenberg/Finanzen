@@ -4,6 +4,7 @@
 // ueber den Agenten. Jede Detailseite beantwortet dieselben Fragen: Wie lange reicht
 // die Liquiditaet? Wie kommen wir in jeder Phase aus? Wo steht das Vermoegen am Ende?
 import { data, state, t, tf, fmt, escapeHtml, cents } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead, heuteIso } from "../komponenten.mjs";
 import { zeitstrahlDiagramm, stapelDiagramm } from "../charts.mjs";
@@ -359,7 +360,7 @@ function aenderungZeile(e) {
     ? `<s class="alt-wert">${escapeHtml(e.alt.name)}</s><br>${escapeHtml(e.name)}`
     : (e.art === "beendet" || e.art === "auslauf" ? `<s class="alt-wert">${escapeHtml(e.name)}</s>` : escapeHtml(e.name));
   const link = e.regelzahlung_id && e.art !== "einmalig"
-    ? `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(e.regelzahlung_id)}">${name}</button>`
+    ? `<a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", e.regelzahlung_id))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(e.regelzahlung_id)}">${name}</a>`
     : name;
   const wirkung = e.art === "einmalig"
     ? ""
@@ -414,7 +415,7 @@ function annahmeZeile(a) {
   let posten = escapeHtml(annahmeName(a));
   if (a.art === "regelzahlung-aenderung") {
     const orig = (data.regelzahlungen ?? []).find((r) => r.regelzahlung_id === a.regelzahlung_id);
-    posten = `<button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(a.regelzahlung_id)}">${posten}</button>`;
+    posten = `<a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", a.regelzahlung_id))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(a.regelzahlung_id)}">${posten}</a>`;
     if (orig) vorher = `${formatMoney(cents(orig.betrag))} / ${rhythmusLabel(orig.rhythmus_einheit, orig.rhythmus_intervall)}`;
     const alt = orig ? monatsBetrag(orig.betrag, orig.rhythmus_einheit, orig.rhythmus_intervall) : 0;
     if (a.aktion === "beenden") {
@@ -547,10 +548,10 @@ function nettoAbschnitt(r) {
 
 function vermoegenLink(zielTyp, zielId, bezeichnung) {
   if ((zielTyp === "immobilie" || zielTyp === "vermoegenswert") && zielId) {
-    return `<button class="linkish" data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(zielTyp)}" data-vid="${escapeHtml(zielId)}">${escapeHtml(bezeichnung)}</button>`;
+    return `<a class="linkish" href="${escapeHtml(zielRoute("open-vermoegen-entity", `${zielTyp}:${zielId}`))}" data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(zielTyp)}" data-vid="${escapeHtml(zielId)}">${escapeHtml(bezeichnung)}</a>`;
   }
   if (zielTyp === "depot" && zielId) {
-    return `<button class="linkish" data-action="open-account-master" data-account="${escapeHtml(zielId)}">${escapeHtml(bezeichnung)}</button>`;
+    return `<a class="linkish" href="${escapeHtml(zielRoute("open-account-master", zielId))}" data-action="open-account-master" data-account="${escapeHtml(zielId)}">${escapeHtml(bezeichnung)}</a>`;
   }
   return escapeHtml(bezeichnung);
 }
@@ -607,7 +608,7 @@ function renderBasisRegelzahlungen(r, endeMonat, aenderungen = []) {
     const bis = x.aktiv_bis ? formatDate(x.aktiv_bis) : tf("szenarien.unbefristetBis", { monat: endeMonat });
     return `
     <tr>
-      <td><button class="linkish" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(x.regelzahlung_id)}">${escapeHtml(x.bezeichnung)}</button></td>
+      <td><a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", x.regelzahlung_id))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(x.regelzahlung_id)}">${escapeHtml(x.bezeichnung)}</a></td>
       <td class="amount">${(() => {
         const e = markiert.get(x.regelzahlung_id);
         const basis = `${formatMoney(cents(x.betrag))} / ${rhythmusLabel(x.rhythmus_einheit, x.rhythmus_intervall)}`;
@@ -720,7 +721,7 @@ function renderVergleich(szenarien, today) {
     <section class="panel section-spacing">
       <div class="table-wrap">
         <table>
-          <thead><tr><th></th>${rechnungen.map(({ sz }, i) => `<th><span class="legende-swatch serie-${i}"></span><button class="linkish" data-action="open-szenario" data-szenario="${escapeHtml(sz.szenario_id)}">${escapeHtml(sz.name)}</button></th>`).join("")}</tr></thead>
+          <thead><tr><th></th>${rechnungen.map(({ sz }, i) => `<th><span class="legende-swatch serie-${i}"></span><a class="linkish" href="${escapeHtml(zielRoute("open-szenario", sz.szenario_id))}" data-action="open-szenario" data-szenario="${escapeHtml(sz.szenario_id)}">${escapeHtml(sz.name)}</a></th>`).join("")}</tr></thead>
           <tbody>${zeilen.map(([label, f]) => `<tr><th scope="row">${escapeHtml(label)}</th>${rechnungen.map((x) => `<td>${f(x)}</td>`).join("")}</tr>`).join("")}</tbody>
         </table>
       </div>

@@ -2,6 +2,7 @@
 // Reine Funktionen der Dokumente-Ansicht (app/belege.mjs): Pfad-Extraktion,
 // Baum, Textzwillinge, Verweis-Index, Zusammenfassung, Routen, i18n.
 import assert from "node:assert/strict";
+import { LEERE_FILTER } from "../app/navigation.mjs";
 import { test } from "node:test";
 import {
   belegPfadeAusText, belegTextHtml, baueBaum, ordneZwillingeZu, verweisIndex,
@@ -74,13 +75,12 @@ test("Route fuer den Dokument-Filter der Transaktionen", () => {
     routeFromState({ view: "transactions", selectedTransactionId: "", transactionFilters: { beleg: pfad } }),
     "#/transaktionen/dokument/Kontoauszuege/KTO-001/a%201.csv",
   );
-  // Auswahl einer Buchung hat Vorrang (teilbares Detail).
-  assert.equal(
-    routeFromState({ view: "transactions", selectedTransactionId: "TXN-1", transactionFilters: { beleg: pfad } }),
-    "#/transaktionen/TXN-1",
-  );
-  assert.deepEqual(parseRoute("#/transaktionen/dokument/Kontoauszuege/KTO-001/a%201.csv"), { view: "transactions", belegFilter: pfad });
-  assert.deepEqual(parseRoute("#/transaktionen/TXN-1"), { view: "transactions", selectedTransactionId: "TXN-1" });
+  // Auswahl einer Buchung hat Vorrang (teilbares Detail); der Dokumentfilter wandert in die Query.
+  const detail = routeFromState({ view: "transactions", selectedTransactionId: "TXN-1", transactionFilters: { beleg: pfad } });
+  assert.equal(detail, `#/transaktionen/TXN-1?dokument=${encodeURIComponent(pfad).replaceAll("%20", "+")}`);
+  assert.equal(parseRoute(detail).transactionFilters.beleg, pfad);
+  assert.deepEqual(parseRoute("#/transaktionen/dokument/Kontoauszuege/KTO-001/a%201.csv"), { view: "transactions", transactionFilters: { ...LEERE_FILTER, beleg: pfad } });
+  assert.deepEqual(parseRoute("#/transaktionen/TXN-1"), { view: "transactions", selectedTransactionId: "TXN-1", transactionFilters: LEERE_FILTER });
 });
 
 // --- Zwillinge, Baum ----------------------------------------------------------

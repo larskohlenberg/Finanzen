@@ -7,6 +7,7 @@
 // Im Demo-Modus nur die Demo-Dokumente (demo-modus.mjs).
 // In der Oberflaeche heisst eine Datei "Dokument", nie "Beleg" (CONTEXT.md).
 import { state, t, tf, fmt, escapeHtml, kontenById } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { renderPageHead, formatDate } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { belegDateiUrl, belegeApiUrl } from "../demo-modus.mjs";
@@ -330,7 +331,7 @@ function renderZeile(d, gewaehlt, suche) {
   const anzahl = verweisAnzahl(verweisFuer(d.pfad));
   return `
     <tr class="clickable ${gewaehlt ? "selected" : ""}" data-action="select-beleg" data-beleg="${escapeHtml(d.pfad)}">
-      <td class="belege-name"><button type="button" class="linkish" data-action="select-beleg" data-beleg="${escapeHtml(d.pfad)}"${gewaehlt ? ` aria-current="true"` : ""}>${iconSvg("belege")}<span>${escapeHtml(d.name)}</span></button></td>
+      <td class="belege-name"><a class="linkish" href="${escapeHtml(zielRoute("select-beleg", d.pfad))}" data-action="select-beleg" data-beleg="${escapeHtml(d.pfad)}"${gewaehlt ? ` aria-current="true"` : ""}>${iconSvg("belege")}<span>${escapeHtml(d.name)}</span></a></td>
       ${suche ? `<td class="muted">${escapeHtml(d.ordner.slice(BELEGE_WURZEL.length + 1) || "/")}</td>` : ""}
       <td>${escapeHtml(typText(d.typ))}</td>
       <td class="amount">${escapeHtml(fmt().groesse(d.groesse))}</td>
@@ -350,10 +351,10 @@ function metaZeile(label, wertHtml) {
 
 function renderDetail(d) {
   const zwillingLink = d.zwilling
-    ? `<button type="button" class="linkish" data-action="select-beleg" data-beleg="${escapeHtml(d.zwilling)}">${escapeHtml(d.zwilling.slice(d.zwilling.lastIndexOf("/") + 1))}</button>`
+    ? `<a class="linkish" href="${escapeHtml(zielRoute("select-beleg", d.zwilling))}" data-action="select-beleg" data-beleg="${escapeHtml(d.zwilling)}">${escapeHtml(d.zwilling.slice(d.zwilling.lastIndexOf("/") + 1))}</a>`
     : "";
   const quelleLink = d.zwillingVon
-    ? `<button type="button" class="linkish" data-action="select-beleg" data-beleg="${escapeHtml(d.zwillingVon)}">${escapeHtml(d.zwillingVon.slice(d.zwillingVon.lastIndexOf("/") + 1))}</button>`
+    ? `<a class="linkish" href="${escapeHtml(zielRoute("select-beleg", d.zwillingVon))}" data-action="select-beleg" data-beleg="${escapeHtml(d.zwillingVon)}">${escapeHtml(d.zwillingVon.slice(d.zwillingVon.lastIndexOf("/") + 1))}</a>`
     : "";
   return `
     <aside class="panel panel-pad detail-panel belege-detail" aria-labelledby="belege-detail-titel">
@@ -370,7 +371,7 @@ function renderDetail(d) {
       </div>
       <div class="detail-section">
         <div class="detail-list">
-          ${metaZeile(t("dokumente.ordnerSpalte"), `<button type="button" class="linkish" data-action="select-beleg" data-beleg="${escapeHtml(d.ordner)}">${escapeHtml(d.ordner)}</button>`)}
+          ${metaZeile(t("dokumente.ordnerSpalte"), `<a class="linkish" href="${escapeHtml(zielRoute("select-beleg", d.ordner))}" data-action="select-beleg" data-beleg="${escapeHtml(d.ordner)}">${escapeHtml(d.ordner)}</a>`)}
           ${metaZeile(t("dokumente.spalteTyp"), escapeHtml(typText(d.typ)))}
           ${metaZeile(t("dokumente.spalteGroesse"), escapeHtml(fmt().groesse(d.groesse)))}
           ${metaZeile(t("dokumente.spalteGeaendert"), escapeHtml(formatZeit(d.geaendert)))}

@@ -127,8 +127,9 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
 7. **Validieren:** vor jedem Schreiben `tools/validator.mjs DATENROOT` laufen
    lassen, nach dem Schreiben erneut validieren und die verbleibenden
    Vorsorge-Checks aus `vermoegen.mjs` melden.
-8. **Protokollieren:** schreibende Laeufe in `DATENROOT/agent_log.jsonl` mit
-   geaenderten IDs, Zaehlern und kurzer Notiz dokumentieren.
+8. **Protokollieren:** `stammdatum_setzen` und `zeitwert_anhaengen` protokollieren
+   selbst; eine Zusammenfassung mit geaenderten IDs, Zaehlern und kurzer Notiz
+   per `protokoll_eintrag`.
 
 ## Platzhalter aus Lastschriften
 

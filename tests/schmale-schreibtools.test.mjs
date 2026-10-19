@@ -219,3 +219,9 @@ test("protokoll_eintrag: Abstimmung (normalisierung) fuer den Pruefbericht", () 
   assert.equal(e.normalisierung.reconciliation_erledigt.konto_id, "KTO-001");
   assert.throws(() => protokollEintrag({ anlass: "abstimmung", notiz: "x", normalisierung: { beliebig: 1 } }), /unbekannte/);
 });
+
+test("protokoll_eintrag: Abhaken einer Abstimmungsdifferenz braucht Konto, Bezug und Grund", () => {
+  assert.throws(() => protokollEintrag({ anlass: "abstimmung", notiz: "x", normalisierung: { reconciliation_erledigt: { konto_id: "KTO-001" } } }), /bezug und grund/);
+  assert.throws(() => protokollEintrag({ anlass: "abstimmung", notiz: "x", normalisierung: { reconciliation_erledigt: { konto_id: "x", bezug: "b", grund: "g" } } }), /konto_id/);
+  assert.throws(() => protokollEintrag({ anlass: "abstimmung", notiz: "x", normalisierung: { reconciliation_differenz: "12.00" } }), /konto_id/);
+});

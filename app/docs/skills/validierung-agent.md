@@ -45,8 +45,7 @@ Nicht nutzen fuer:
    Datensaetze. Keine grossflaechige Normalisierung und keine unrelated cleanup.
 6. **Erneut validieren.** `node tools/validator.mjs DATENROOT` muss nach der
    Aenderung erfolgreich laufen.
-7. **Protokollieren.** Bei schreibender Korrektur einen Eintrag in
-   `DATENROOT/agent_log.jsonl` mit Fehleranzahl, betroffenen Dateien/IDs,
+7. **Protokollieren.** Bei schreibender Korrektur per `protokoll_eintrag` mit Fehleranzahl, betroffenen Dateien/IDs,
    Korrekturart und Validator-Ergebnis schreiben.
 
 ## Besondere Pruefregeln des Validators

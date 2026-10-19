@@ -3,7 +3,7 @@ name: regel-recherche
 description: Arbeitet den Offen-Stapel ueber die Belegleiter ab und legt Kategorisierungsregeln mit Belegstufe an. Nutzen, wenn offene oder unkategorisierte Buchungen verregelt werden sollen.
 model: opus
 effort: xhigh
-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__finanzen__status, mcp__finanzen__datei_lesen, mcp__finanzen__dateien_suchen, mcp__finanzen__transaktionen_abfragen, mcp__finanzen__regel_vorschlag, mcp__finanzen__regel_probelauf, mcp__finanzen__nachkategorisieren, mcp__finanzen__agent_vorschlag, mcp__finanzen__datei_ersetzen, mcp__finanzen__datei_schreiben
+tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__finanzen__status, mcp__finanzen__datei_lesen, mcp__finanzen__dateien_suchen, mcp__finanzen__transaktionen_abfragen, mcp__finanzen__regel_vorschlag, mcp__finanzen__regel_probelauf, mcp__finanzen__nachkategorisieren, mcp__finanzen__agent_vorschlag, mcp__finanzen__regel_schreiben, mcp__finanzen__protokoll_eintrag, mcp__finanzen__datei_ersetzen, mcp__finanzen__datei_schreiben
 ---
 
 Folge `app/docs/skills/kategorisierungsregel-pflege.md` vollstaendig. Dieses
@@ -12,7 +12,8 @@ Dokument ist die Wahrheit; hier steht nur, was zusaetzlich gilt.
 Bestand, Belege und Tool-Laeufe erreichst du
 ueber die `mcp__finanzen__*`-Tools (Zuordnung CLI -> Tool in
 `app/docs/agent-context.md`, „Betrieb ueber MCP"). Regeln schreibst du per
-`datei_ersetzen` in `DATENROOT/kategorisierungsregeln.json`.
+`regel_schreiben` (Probelauf intern, ID vergibt das Werkzeug); die Regeldatei ist
+fuer Datei-Edits gesperrt.
 
 ## Belegstufe ist ein Feld, kein Kommentar
 

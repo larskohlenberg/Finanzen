@@ -21,6 +21,29 @@ export const RESERVIERTE_ANLAESSE = Object.freeze([
 // reconciliation_erledigt, quelle), die der Pruefbericht auswertet.
 const NORMALISIERUNG_FELDER = new Set(["quelle", "reconciliation_differenz", "reconciliation_erledigt"]);
 
+const KONTO = /^KTO-\d{3,}$/;
+const text = (w) => typeof w === "string" && w.trim().length > 0;
+
+// Der Pruefbericht hakt offene Abstimmungsdifferenzen je Konto ab; ein
+// Abhaken von Hand braucht darum Konto, Bezug und Grund (nachvollziehbar),
+// eine Differenz mindestens das Konto.
+function pruefeNormalisierung(n) {
+  if (n.quelle !== undefined && !text(n.quelle)) throw new Error("normalisierung.quelle muss Text sein");
+  if (n.reconciliation_differenz !== undefined) {
+    const d = n.reconciliation_differenz;
+    if (!d || typeof d !== "object" || Array.isArray(d) || !KONTO.test(d.konto_id ?? "")) throw new Error("normalisierung.reconciliation_differenz braucht ein Objekt mit konto_id");
+  }
+  if (n.reconciliation_erledigt !== undefined) {
+    const liste = Array.isArray(n.reconciliation_erledigt) ? n.reconciliation_erledigt : [n.reconciliation_erledigt];
+    if (liste.length === 0) throw new Error("normalisierung.reconciliation_erledigt ist leer");
+    for (const e of liste) {
+      if (!e || typeof e !== "object" || !KONTO.test(e.konto_id ?? "") || !text(e.bezug) || !text(e.grund)) {
+        throw new Error("normalisierung.reconciliation_erledigt braucht je Eintrag konto_id, bezug und grund");
+      }
+    }
+  }
+}
+
 export function protokollEintrag({ anlass, notiz, ids, zaehler, normalisierung, dubletten_geprueft, zeitpunkt = new Date().toISOString() }) {
   if (typeof anlass !== "string" || !/^[a-z][a-z0-9-]*$/.test(anlass)) throw new Error("anlass: kurzes Wort in Kleinbuchstaben, z. B. stammdaten");
   if (RESERVIERTE_ANLAESSE.includes(anlass)) throw new Error(`anlass ${anlass} ist reserviert (schreibt das Werkzeug selbst)`);
@@ -40,6 +63,7 @@ export function protokollEintrag({ anlass, notiz, ids, zaehler, normalisierung, 
     if (!normalisierung || typeof normalisierung !== "object" || Array.isArray(normalisierung)) throw new Error("normalisierung muss ein Objekt sein");
     const fremd = Object.keys(normalisierung).filter((k) => !NORMALISIERUNG_FELDER.has(k));
     if (fremd.length) throw new Error(`normalisierung: unbekannte Felder ${fremd.join(", ")} (erlaubt: ${[...NORMALISIERUNG_FELDER].join(", ")})`);
+    pruefeNormalisierung(normalisierung);
     eintrag.normalisierung = normalisierung;
   }
   if (dubletten_geprueft === true) eintrag.dubletten_geprueft = true;

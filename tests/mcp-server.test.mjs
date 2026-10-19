@@ -215,9 +215,11 @@ test("Rollback bei Validatorfehler, gueltiges Schreiben bleibt", async () => {
     assert.ok(!ok.isError, ok.text);
     assert.match(readFileSync(kontenPfad, "utf8"), /Gemeinschaftskonto/);
 
-    const log = await s.werkzeug("datei_schreiben", { schreiben: true, pfad: "data/master/agent_log.jsonl", inhalt: "{\"anlass\":\"test\"}", anhaengen: true });
+    const log = await s.werkzeug("datei_schreiben", { schreiben: true, pfad: "data/inbox/notizen.jsonl", inhalt: "{\"anlass\":\"test\"}", anhaengen: true });
     assert.ok(!log.isError, log.text);
-    assert.match(readFileSync(join(abzug.master, "agent_log.jsonl"), "utf8"), /\n\{"anlass":"test"\}\n$/);
+    const zweite = await s.werkzeug("datei_schreiben", { schreiben: true, pfad: "data/inbox/notizen.jsonl", inhalt: "{\"anlass\":\"zwei\"}", anhaengen: true });
+    assert.ok(!zweite.isError, zweite.text);
+    assert.match(readFileSync(join(abzug.app, "data", "inbox", "notizen.jsonl"), "utf8"), /^\{"anlass":"test"\}\n\{"anlass":"zwei"\}\n$/);
 
     const mehrdeutig = await s.werkzeug("datei_ersetzen", { schreiben: true, pfad: "data/master/konten.json", alt: "\"status\": \"aktiv\"", neu: "x" });
     assert.equal(mehrdeutig.isError, true);
@@ -309,12 +311,12 @@ test("Schreib-Lauf einer CLI validiert danach", async () => {
 
 test("Parallele Schreibaufrufe einer Sitzung laufen nacheinander: kein verlorenes Anhaengen, kein fremder Rollback", async () => {
   const s = starteServer(abzug, "schreiben");
-  const logPfad = join(abzug.master, "agent_log.jsonl");
+  const logPfad = join(abzug.app, "data", "inbox", "parallel.jsonl");
   const kontenPfad = join(abzug.master, "konten.json");
   const kontenVorher = readFileSync(kontenPfad, "utf8");
   try {
     const anhaengen = Array.from({ length: 6 }, (_, i) =>
-      s.werkzeug("datei_schreiben", { schreiben: true, pfad: "data/master/agent_log.jsonl", inhalt: `{"anlass":"parallel-${i}"}`, anhaengen: true }));
+      s.werkzeug("datei_schreiben", { schreiben: true, pfad: "data/inbox/parallel.jsonl", inhalt: `{"anlass":"parallel-${i}"}`, anhaengen: true }));
     // Ein kaputter Schreibvorgang dazwischen darf beim Rollback keine fremden Schreibvorgaenge mitnehmen.
     const kaputt = s.werkzeug("datei_schreiben", { schreiben: true, pfad: "data/master/konten.json", inhalt: "{ kaputt" });
     const ergebnisse = await Promise.all([...anhaengen, kaputt]);

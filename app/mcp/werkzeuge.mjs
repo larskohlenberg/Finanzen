@@ -848,15 +848,29 @@ const dateienSuchen = {
 
 // Ziel eines Dateiwerkzeugs: nur im Bestand der Sitzung (samt Inbox,
 // Importprofilen, Papierkorb) und nur mit erlaubter Endung.
+// Kerndateien des Bestands aendern nur die Fachwerkzeuge (Review 1B.3): so
+// setzt kein Datei-Edit `bestaetigt_durch: mensch`, keine Regel umgeht den
+// Probelauf, kein Protokolleintrag faelscht einen Werkzeug-Anlass.
+export const KERNDATEIEN = Object.freeze({
+  "transaktionen.jsonl": "Buchungen nur ueber die Fachwerkzeuge: bestaetigen (menschliche Entscheidung), agent_vorschlag, nachkategorisieren, freigabe, transfers, transfer_extern, immobilienbezug, regelzahlungen_zuordnen; neue Buchungen ueber eine standardisierte JSONL in der Inbox und import",
+  "transfers.json": "Transfers ueber transfers (interne Paare) oder transfer_extern",
+  "agent_log.jsonl": "Protokollzeilen ueber protokoll_eintrag; die Werkzeuge protokollieren ihre Laeufe selbst",
+  "kategorisierungsregeln.json": "Regeln ueber regel_schreiben (mit Probelauf), danach nachkategorisieren",
+});
+
 async function schreibZiel(ctx, pfad) {
   const ziel = await loesePfad(ctx.app, pfad, bestandWurzeln(ctx).schreiben);
   pruefeEndung(ziel.relativ);
+  const bestand = await realpath(ctx.datenroot).catch(() => path.resolve(ctx.datenroot));
+  const imBestand = [path.resolve(ctx.datenroot), bestand].map((w) => path.relative(w, ziel.absolut));
+  const name = imBestand.find((rel) => Object.hasOwn(KERNDATEIEN, rel));
+  if (name) throw new PfadFehler(`${ziel.relativ} ist fuer Datei-Edits gesperrt. ${KERNDATEIEN[name]}.`);
   return ziel;
 }
 
 const dateiSchreiben = {
   name: "datei_schreiben",
-  description: "Ganze Textdatei im Bestand der Sitzung oder in dessen Inbox/Importprofilen schreiben oder anlegen (max. 10 MB), z. B. eine standardisierte JSONL unter <inbox>/standardized/ (data/master: data/inbox/), ein Importprofil (data/master: data/import-profile/) oder eine Masterdatei. Nur Endungen json, jsonl, csv, txt, md, pdf, png, jpg. Mit anhaengen:true wird der Inhalt als Zeile(n) ans Dateiende gehaengt (z. B. ein Eintrag in agent_log.jsonl). Nicht Belege/, nicht andere Bestaende. Vorschau ist Default; erst schreiben:true schreibt. Danach laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird nichts uebernommen. Kategorien nie per Datei-Edit an Transaktionen setzen — dafuer gibt es bestaetigen/agent_vorschlag.",
+  description: "Ganze Textdatei im Bestand der Sitzung oder in dessen Inbox/Importprofilen schreiben oder anlegen (max. 10 MB), z. B. eine standardisierte JSONL unter <inbox>/standardized/ (data/master: data/inbox/), ein Importprofil (data/master: data/import-profile/) oder eine Masterdatei. Nicht die Kerndateien transaktionen.jsonl, transfers.json, agent_log.jsonl, kategorisierungsregeln.json (dafuer die Fachwerkzeuge, u. a. protokoll_eintrag und regel_schreiben). Nur Endungen json, jsonl, csv, txt, md, pdf, png, jpg. Mit anhaengen:true wird der Inhalt als Zeile(n) ans Dateiende gehaengt. Nicht Belege/, nicht andere Bestaende. Vorschau ist Default; erst schreiben:true schreibt. Danach laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird nichts uebernommen. Kategorien nie per Datei-Edit an Transaktionen setzen — dafuer gibt es bestaetigen/agent_vorschlag.",
   inputSchema: {
     type: "object",
     properties: { pfad: { type: "string" }, inhalt: { type: "string" }, anhaengen: { type: "boolean" }, schreiben: SCHREIBEN },

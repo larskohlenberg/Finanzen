@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   beitragJeJahrCents, beitragJeJahrVertrag, beitragJeMonatCents, beitragJeMonatVertrag, beitragVorjahr, erwarteteLeistungen,
-  gebuchteBeitraegeAlle, gesetzlicherRentenbeginn, leistungsZeitstrahl, monateBis, naechsterBeitrag,
+  gebuchteBeitraegeAlle, kapitalZumAblauf, gesetzlicherRentenbeginn, leistungsZeitstrahl, monateBis, naechsterBeitrag,
   rentenStufen, tabFuerVorsorge, vermoegensBezug, beitragsAenderungen, vertragsFarben,
 } from "../app/vorsorge-rechnung.mjs";
 
@@ -175,4 +175,45 @@ test("Vertragsfarben: mehr Vertraege als Farben beginnen die Palette von vorn st
   assert.equal(farben.get("VS-014"), 13);
   assert.equal(farben.get("VS-015"), 0);
   assert.equal(farben.get("VS-016"), 1);
+});
+
+test("Kapital zum Ablauf: Lebensversicherung ohne Ablaufleistung zaehlt mit dem neuesten Rueckkaufswert", () => {
+  const lv = (id, extra = {}) => ({ vorsorge_id: id, art: "lebensversicherung", name: id, person_id: "PER-001", status: "aktiv", kapitalbildend: true, ...extra });
+  const d = {
+    vorsorge: [
+      lv("VS-010", { leistung_beginn: "2051-11-01" }),
+      lv("VS-011"),
+      lv("VS-012", { kapitalwahl: "monatsrente" }),
+      lv("VS-013"),
+      lv("VS-014", { kapitalbildend: false }),
+      { vorsorge_id: "VS-015", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: false },
+      lv("VS-016", { status: "gekuendigt" }),
+    ],
+    zeitwerte: [
+      zw("VS-010", "rueckkaufswert", "30000.00", "2024-12-31"),
+      zw("VS-010", "rueckkaufswert", "37454.52", "2025-12-31"),
+      zw("VS-011", "rueckkaufswert", "20000.00"),
+      zw("VS-011", "erwartete_kapitalleistung", "25000.00"),
+      zw("VS-012", "rueckkaufswert", "5000.00"),
+      zw("VS-013", "rueckkaufswert", "6000.00"),
+      zw("VS-013", "erwartete_rente", "50.00"),
+      zw("VS-014", "rueckkaufswert", "7000.00"),
+      zw("VS-015", "rueckkaufswert", "8000.00"),
+      zw("VS-016", "rueckkaufswert", "9000.00"),
+    ],
+  };
+  const vs = (id) => d.vorsorge.find((v) => v.vorsorge_id === id);
+  const ersatz = kapitalZumAblauf(d, vs("VS-010"));
+  assert.equal(ersatz.ersatz, true);
+  assert.equal(ersatz.zeitwert.wert, "37454.52");
+  assert.deepEqual(kapitalZumAblauf(d, vs("VS-011")), { zeitwert: d.zeitwerte[3], ersatz: false });
+  for (const id of ["VS-012", "VS-013", "VS-014", "VS-015"]) assert.equal(kapitalZumAblauf(d, vs(id)), null, id);
+
+  const kapital = erwarteteLeistungen(d).filter((l) => l.typ === "kapital");
+  assert.deepEqual(kapital.map((l) => [l.vorsorge.vorsorge_id, l.wert_cents, l.ersatz, l.beginn]), [
+    ["VS-010", 3745452, true, "2051-11-01"],
+    ["VS-011", 2500000, false, null],
+  ]);
+  const z = leistungsZeitstrahl(d, HEUTE);
+  assert.equal(z.kapital.at(-1), 3745452);
 });

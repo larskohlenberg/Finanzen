@@ -145,6 +145,19 @@ export function beitragVorjahr(data, vorsorgeId) {
   };
 }
 
+// Kapital zum Ablauf: die erwartete Kapitalleistung laut Beleg. Fondsgebundene
+// Lebensversicherungen garantieren keine; dort gilt der jeweils neueste
+// Rueckkaufswert als Stand heute (ersatz: true), ohne Hochrechnung. Nicht fuer
+// Vertraege mit erwarteter Rente oder gewaehlter Monatsrente.
+export function kapitalZumAblauf(data, vs, today = null) {
+  const wert = (feld) => aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld, today);
+  const kapital = wert("erwartete_kapitalleistung");
+  if (kapital) return { zeitwert: kapital, ersatz: false };
+  if (vs.art !== "lebensversicherung" || !vs.kapitalbildend || vs.kapitalwahl === "monatsrente" || wert("erwartete_rente")) return null;
+  const rkw = wert("rueckkaufswert");
+  return rkw ? { zeitwert: rkw, ersatz: true } : null;
+}
+
 // Erwartete Leistungen laufender Vertraege: Renten (monatlich) und Kapital, mit
 // Wertstand bis zum Stichtag `today` (ohne: der juengste).
 export function erwarteteLeistungen(data, today = null) {
@@ -153,8 +166,8 @@ export function erwarteteLeistungen(data, today = null) {
     if (istBeendet(vs)) continue;
     const rente = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "erwartete_rente", today);
     if (rente) leistungen.push({ vorsorge: vs, typ: "rente", wert_cents: toCents(rente.wert), beginn: vs.leistung_beginn || null, zeitwert: rente });
-    const kapital = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "erwartete_kapitalleistung", today);
-    if (kapital) leistungen.push({ vorsorge: vs, typ: "kapital", wert_cents: toCents(kapital.wert), beginn: vs.leistung_beginn || null, zeitwert: kapital });
+    const kapital = kapitalZumAblauf(data, vs, today);
+    if (kapital) leistungen.push({ vorsorge: vs, typ: "kapital", wert_cents: toCents(kapital.zeitwert.wert), beginn: vs.leistung_beginn || null, zeitwert: kapital.zeitwert, ersatz: kapital.ersatz });
   }
   return leistungen.sort((a, b) => String(a.beginn ?? "9999").localeCompare(String(b.beginn ?? "9999")) || a.vorsorge.vorsorge_id.localeCompare(b.vorsorge.vorsorge_id));
 }

@@ -643,11 +643,17 @@ app.addEventListener("input", guard((event) => {
 // dazwischen etwas neu (eine eintreffende API-Antwort, die entprellte Suche),
 // ersetzt es das Element unter dem Zeiger und der Klick geht verloren. Darum
 // wartet jedes Neuzeichnen, solange gedrueckt ist, und kommt nach dem Klick.
-app.addEventListener("pointerdown", () => { zeigerGedrueckt = true; }, true);
-for (const typ of ["pointerup", "pointercancel", "blur"]) {
+// Nur die primaere, linke Taste: ein Rechtsklick oeffnet ein Kontextmenue, das
+// das Loslassen verschluckt. Jede Bewegung ohne gedrueckte Taste gibt frei,
+// falls ein pointerup doch ausblieb (z. B. nach einem Scrollbalken).
+app.addEventListener("pointerdown", (event) => {
+  if (event.isPrimary !== false && (event.button ?? 0) === 0) zeigerGedrueckt = true;
+}, true);
+for (const typ of ["pointerup", "pointercancel", "blur", "contextmenu", "pointermove"]) {
   window.addEventListener(typ, (event) => {
     // blur nur des Fensters (Capture sieht auch das Blur jedes Feldes).
     if (typ === "blur" && event.target !== window) return;
+    if (typ === "pointermove" && (!zeigerGedrueckt || event.buttons !== 0)) return;
     zeigerGedrueckt = false;
     if (!zeichnenAufgeschoben) return;
     zeichnenAufgeschoben = false;

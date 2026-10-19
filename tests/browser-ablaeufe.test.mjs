@@ -19,7 +19,7 @@ const appDir = fileURLToPath(new URL("../app", import.meta.url));
 // "Echt" ist im Test eine Kopie der Demodaten (vollstaendiger Bestand).
 const vorlage = fileURLToPath(new URL("../app/data/demo", import.meta.url));
 
-describe("Ablaeufe im Browser", { skip: chrome ? false : "kein Chrome/Chromium gefunden (CHROME_PATH)" }, () => {
+describe("Ablaeufe im Browser", { skip: chrome ? false : "kein Chrome/Chromium gefunden (CHROME_PATH)", timeout: 120000 }, () => {
   let server;
   let browser;
   let seite;

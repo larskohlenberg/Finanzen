@@ -37,7 +37,6 @@ export function erstelleEntpreller(fn, ms, uhr = globalThis) {
     timer = null;
     fn();
   };
-  entpreller.ausstehend = () => timer !== null;
   entpreller.abbrechen = () => {
     if (timer !== null) uhr.clearTimeout(timer);
     timer = null;

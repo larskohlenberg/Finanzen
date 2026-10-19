@@ -24,18 +24,34 @@ export function findeChrome() {
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function starteBrowser({ chrome = findeChrome(), breite = 1280, hoehe = 900 } = {}) {
+// Jede Anfrage an Chrome hat eine Frist; nichts darf den Testlauf endlos halten.
+const FRIST_MS = 20000;
+
+export async function starteBrowser(optionen = {}) {
   const profil = mkdtempSync(join(tmpdir(), "finanzen-browser-"));
+  const prozesse = [];
+  try {
+    return await starte({ ...optionen, profil, prozesse });
+  } catch (fehler) {
+    // Start gescheitert: Chrome nicht verwaist zuruecklassen.
+    for (const p of prozesse) p.kill("SIGKILL");
+    rmSync(profil, { recursive: true, force: true, maxRetries: 5 });
+    throw fehler;
+  }
+}
+
+async function starte({ chrome = findeChrome(), breite = 1280, hoehe = 900, profil, prozesse }) {
   const prozess = spawn(chrome, [
     "--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profil}`,
     "--no-first-run", "--no-default-browser-check", "--disable-gpu", "--no-sandbox",
     `--window-size=${breite},${hoehe}`, "about:blank",
   ], { stdio: ["ignore", "ignore", "pipe"] });
+  prozesse.push(prozess);
   const wsUrl = await new Promise((resolve, reject) => {
     let puffer = "";
     const zeit = setTimeout(() => reject(new Error(`Chrome meldet sich nicht: ${puffer.slice(-300)}`)), 15000);
     prozess.stderr.on("data", (stueck) => {
-      puffer += stueck;
+      puffer = (puffer + stueck).slice(-4000);
       const treffer = puffer.match(/DevTools listening on (ws:\/\/\S+)/);
       if (treffer) { clearTimeout(zeit); resolve(treffer[1]); }
     });
@@ -56,10 +72,23 @@ export async function starteBrowser({ chrome = findeChrome(), breite = 1280, hoe
       else resolve(daten.result);
     } else for (const fn of hoerer) fn(daten);
   };
+  // Bricht die Verbindung ab (Chrome beendet oder abgestuerzt), scheitern alle offenen Anfragen.
+  ws.onclose = () => {
+    for (const { reject } of offen.values()) reject(new Error("Verbindung zu Chrome beendet"));
+    offen.clear();
+  };
   const sende = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
     naechsteId += 1;
-    offen.set(naechsteId, { resolve, reject });
-    ws.send(JSON.stringify({ id: naechsteId, method, params, ...(sessionId ? { sessionId } : {}) }));
+    const id = naechsteId;
+    const frist = setTimeout(() => {
+      offen.delete(id);
+      reject(new Error(`Chrome antwortet nicht: ${method}`));
+    }, FRIST_MS);
+    offen.set(id, {
+      resolve: (wert) => { clearTimeout(frist); resolve(wert); },
+      reject: (grund) => { clearTimeout(frist); reject(grund); },
+    });
+    ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
   });
 
   const { targetId } = await sende("Target.createTarget", { url: "about:blank" });
@@ -106,8 +135,11 @@ export async function starteBrowser({ chrome = findeChrome(), breite = 1280, hoe
         const fn = (e) => { if (e.sessionId === sessionId && e.method === "Page.loadEventFired") { hoerer.delete(fn); resolve(); } };
         hoerer.add(fn);
       });
-      await s("Page.navigate", { url });
-      await Promise.race([geladen, warte(15000).then(() => { throw new Error(`Seite laedt nicht: ${url}`); })]);
+      const { errorText } = await s("Page.navigate", { url });
+      if (errorText) throw new Error(`Seite laedt nicht: ${url} (${errorText})`);
+      let frist;
+      await Promise.race([geladen, new Promise((_, reject) => { frist = setTimeout(() => reject(new Error(`Seite laedt nicht: ${url}`)), 15000); })]);
+      clearTimeout(frist);
     },
     // Ausdruck im Seitenkontext auswerten (Promises werden abgewartet).
     async werte(ausdruck) {
@@ -157,9 +189,13 @@ export async function starteBrowser({ chrome = findeChrome(), breite = 1280, hoe
     async beende() {
       try { await sende("Browser.close"); } catch { /* schon zu */ }
       ws.close();
-      await Promise.race([new Promise((r) => prozess.once("exit", r)), warte(3000)]);
-      if (prozess.exitCode === null) prozess.kill("SIGKILL");
-      rmSync(profil, { recursive: true, force: true });
+      const beendet = new Promise((r) => (prozess.exitCode !== null ? r() : prozess.once("exit", r)));
+      await Promise.race([beendet, warte(3000)]);
+      if (prozess.exitCode === null) {
+        prozess.kill("SIGKILL");
+        await Promise.race([beendet, warte(3000)]);
+      }
+      rmSync(profil, { recursive: true, force: true, maxRetries: 5 });
     },
   };
 }

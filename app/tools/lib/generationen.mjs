@@ -153,6 +153,11 @@ export async function bestandsArt(basis) {
 export async function findeBasis(datenroot) {
   const pfad = path.resolve(datenroot);
   if ((await lstat(path.join(pfad, ZEIGER)).catch(() => null))?.isSymbolicLink()) return pfad;
+  // Symlink auf <basis>/aktuell: die Basis so, wie der Link sie nennt.
+  if ((await lstat(pfad).catch(() => null))?.isSymbolicLink()) {
+    const ziel = path.resolve(path.dirname(pfad), await readlink(pfad));
+    if (path.basename(ziel) === ZEIGER && (await lstat(ziel).catch(() => null))?.isSymbolicLink()) return path.dirname(ziel);
+  }
   const echt = await realpath(pfad).catch(() => pfad);
   const oben = path.dirname(path.dirname(echt));
   if (istId(path.basename(echt)) && path.basename(path.dirname(echt)) === GENERATIONEN && (await lstat(path.join(oben, ZEIGER)).catch(() => null))?.isSymbolicLink()) return oben;

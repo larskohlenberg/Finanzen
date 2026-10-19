@@ -3,7 +3,7 @@
 // ueber einen Symlink auf <basis>/aktuell, und im Rueckfallmodus.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -35,7 +35,7 @@ test("findeBasis: Basis, Generation ueber Symlink und einfacher Ordner", async (
   const b = await generationenBestand();
   try {
     assert.equal(await findeBasis(b.basis), b.basis);
-    assert.equal(await findeBasis(b.master), realpathSync(b.basis));
+    assert.equal(await findeBasis(b.master), b.basis);
     assert.equal(await findeBasis(demo), resolve(demo));
     assert.equal(await bestandFingerabdruck(b.master), "G000001");
     assert.match(await bestandFingerabdruck(demo), /^[0-9a-f]{16}$/);

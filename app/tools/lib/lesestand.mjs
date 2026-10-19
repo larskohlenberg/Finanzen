@@ -8,21 +8,14 @@
 // immer die Basis des Bestands: nach der Migration (E1 Schritt 5) ist er ein
 // Symlink auf <basis>/aktuell. bestandsBasis loest das auf; Lese- und
 // Schreibpfad nutzen dieselbe Aufloesung.
-import { lstat, readlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { ORDNER, ZEIGER, aktuelleId, bestandsArt, mitLeser } from "./generationen.mjs";
+import { ORDNER, aktuelleId, bestandsArt, findeBasis, mitLeser } from "./generationen.mjs";
 
 const alsPfad = (datenroot) => path.resolve(datenroot instanceof URL ? fileURLToPath(datenroot) : String(datenroot));
 
 export async function bestandsBasis(datenroot) {
-  const pfad = alsPfad(datenroot);
-  const info = await lstat(pfad).catch(() => null);
-  if (info?.isSymbolicLink()) {
-    const ziel = path.resolve(path.dirname(pfad), await readlink(pfad));
-    if (path.basename(ziel) === ZEIGER) return path.dirname(ziel);
-  }
-  return pfad;
+  return findeBasis(alsPfad(datenroot));
 }
 
 // fn(leser) mit leser = { id, ordner, lies, dateien } aus generationen.mjs plus

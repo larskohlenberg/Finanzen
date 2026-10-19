@@ -2,7 +2,7 @@
 import { istGueltigerBetrag } from "./lib/text.mjs";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-const regelzahlungPattern = /^RZ-\d{3}$/;
+const regelzahlungPattern = /^RZ-\d{3,}$/;
 const optionalStringFields = [
   "bank_referenz",
   "transaktionstyp",
@@ -142,7 +142,7 @@ export function validateImportProfil(profil) {
     if (Object.hasOwn(profil, feld) && typeof profil[feld] !== "string") fehler.push(`${feld}: muss string sein`);
   }
   if (typeof profil.profil_id === "string" && !/^[a-z0-9-]+$/.test(profil.profil_id)) fehler.push("profil_id: nur Kleinbuchstaben, Ziffern und Bindestrich");
-  if (typeof profil.konto_id === "string" && !/^KTO-\d{3}$/.test(profil.konto_id)) fehler.push("konto_id: muss dem Muster KTO-NNN folgen");
+  if (typeof profil.konto_id === "string" && !/^KTO-\d{3,}$/.test(profil.konto_id)) fehler.push("konto_id: muss dem Muster KTO-NNN folgen");
   if (typeof profil.dateimuster === "string") fehler.push(...regexFehler("dateimuster", profil.dateimuster));
   if (typeof profil.kopfzeile === "string" && profil.kopfzeile.trim() === "") fehler.push("kopfzeile: darf nicht leer sein");
   if (typeof profil.trennzeichen === "string" && profil.trennzeichen === "") fehler.push("trennzeichen: darf nicht leer sein");

@@ -8,7 +8,7 @@
     "additionalProperties": false,
     "required": ["kategorie_id", "name", "typ", "lebenshaltung_relevant", "status"],
     "properties": {
-      "kategorie_id": { "type": "string", "pattern": "^KAT-\\d{3}$" },
+      "kategorie_id": { "type": "string", "pattern": "^KAT-\\d{3,}$" },
       "name": { "type": "string", "minLength": 1 },
       "typ": { "type": "string", "enum": ["einnahme", "ausgabe", "neutral"] },
       "lebenshaltung_relevant": { "type": "boolean" },

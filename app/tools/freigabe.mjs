@@ -17,7 +17,7 @@ import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
 import { kontoanker, stufeVerliehen } from "./lib/kontoanker.mjs";
-import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
+import { meldeNachSchreiben, validatorBefunde } from "./lib/validator-befund.mjs";
 import { ersetzeDatei } from "./lib/datei.mjs";
 
 const BELEGSTUFEN = new Set(["E1", "E2", "E3", "E4"]);
@@ -174,7 +174,7 @@ async function main() {
     return;
   }
 
-  const vorher = await validatorFehler(masterRoot);
+  const vorher = await validatorBefunde(masterRoot);
   await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
 
   const protokoll = {

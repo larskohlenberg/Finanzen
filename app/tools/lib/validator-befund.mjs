@@ -1,20 +1,22 @@
 // app/tools/lib/validator-befund.mjs
 // Befund nach einem Schreiblauf (im Entwurf), einheitlich mit mitRollback (app/mcp/schreiben.mjs):
 // Nur NEUE Validatorfehler machen den Lauf fehlgeschlagen (Exitcode 1). Fehler,
-// die schon vor dem Lauf im Bestand standen, sind ein Hinweis.
+// die schon vor dem Lauf im Bestand standen, sind ein Hinweis. Verglichen wird
+// ueber Code, Objekt und Feld der Befunde (neueBefunde), nicht ueber den Text.
 import { loadMasterData, validateMasterData } from "../validator.mjs";
+import { neueBefunde } from "../validate-core.mjs";
 
-export async function validatorFehler(root) {
-  return validateMasterData(await loadMasterData(root)).errors;
+export async function validatorBefunde(root) {
+  return validateMasterData(await loadMasterData(root)).befunde;
 }
 
+// Meldungstexte der Befunde in `nachher`, die `vorher` nicht hatte.
 export function neueFehler(vorher, nachher) {
-  const bekannt = new Set(vorher);
-  return nachher.filter((f) => !bekannt.has(f));
+  return neueBefunde(vorher, nachher).map((b) => (typeof b === "string" ? b : b.meldung));
 }
 
 export async function meldeNachSchreiben(root, vorher, titel) {
-  const nachher = await validatorFehler(root);
+  const nachher = await validatorBefunde(root);
   const neu = neueFehler(vorher, nachher);
   if (neu.length) {
     console.error(`${titel}: ${neu.length} neue(r) Validatorfehler`);

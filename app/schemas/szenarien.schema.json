@@ -7,7 +7,7 @@
     "required": ["szenario_id", "name", "status", "stand", "reichweite_bis", "erstellt_am", "annahmen"],
     "additionalProperties": false,
     "properties": {
-      "szenario_id": { "type": "string", "pattern": "^SZN-\\d{3}$" },
+      "szenario_id": { "type": "string", "pattern": "^SZN-\\d{3,}$" },
       "name": { "type": "string", "minLength": 1 },
       "beschreibung": { "type": "string" },
       "status": { "type": "string", "enum": ["entwurf", "bestaetigt", "verworfen"] },

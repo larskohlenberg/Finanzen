@@ -7,7 +7,7 @@
     "required": ["immobilie_id", "bezeichnung", "eigentumsanteile", "status"],
     "additionalProperties": false,
     "properties": {
-      "immobilie_id": { "type": "string", "pattern": "^IMM-\\d{3}$" },
+      "immobilie_id": { "type": "string", "pattern": "^IMM-\\d{3,}$" },
       "bezeichnung": { "type": "string", "minLength": 1 },
       "eigentumsanteile": {
         "type": "array",
@@ -17,7 +17,7 @@
           "required": ["person_id", "zaehler", "nenner"],
           "additionalProperties": false,
           "properties": {
-            "person_id": { "type": "string", "pattern": "^PER-\\d{3}$" },
+            "person_id": { "type": "string", "pattern": "^PER-\\d{3,}$" },
             "zaehler": { "type": "integer", "minimum": 1 },
             "nenner": { "type": "integer", "minimum": 1 }
           }

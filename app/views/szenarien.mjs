@@ -7,9 +7,25 @@ import { data, state, t, escapeHtml, cents } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, categoryName, renderPageHead, heuteIso } from "../komponenten.mjs";
 import { zeitstrahlDiagramm, stapelDiagramm } from "../charts.mjs";
-import { computeSzenario, rechneSzenario, guardrailWarnungen, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte, szenarioAenderungen, ereignisAnnahmen } from "../szenarien.mjs";
+import { computeSzenario, rechneSzenario, kippMonat, tiefpunkt, phasenKennzahlen, ereignisWirkung, jahresWerte, szenarioAenderungen, ereignisAnnahmen } from "../szenarien.mjs";
 import { addInterval } from "../liquiditaet.mjs";
-import { overviewAccountGroups } from "../selektoren.mjs";
+import { erstelleApiCache } from "../api-daten.mjs";
+
+// Aus den Buchungen brauchen die Szenarien nur den Startbestand (Positionen
+// des Nettovermoegens) und die Zahl der Hinweise zum Prognose-Realismus; beides
+// rechnet der App-Server (GET /api/v1/szenarien, app/szenarien-modell.mjs).
+// Die Szenariorechnung selbst laeuft hier. renderSzenarien setzt die Antwort
+// fuer die Dauer eines Zeichnens.
+const cache = erstelleApiCache({ maxEintraege: 4 });
+let grundlage = null;
+const mitStart = () => ({ positionen: grundlage.positionen });
+
+function szenarienAntwort(heute) {
+  const suche = new URLSearchParams();
+  if (state.dataMode === "demo") suche.set("quelle", "demo");
+  suche.set("heute", heute);
+  return cache.hole(`./api/v1/szenarien?${suche}`);
+}
 
 export const MAX_VERGLEICH = 7;
 const PPJ = { tag: 365, woche: 52, monat: 12, jahr: 1 };
@@ -143,6 +159,13 @@ function phasenName(ph) {
 
 export function renderSzenarien() {
   const today = heuteIso();
+  const { antwort, fehler } = szenarienAntwort(today);
+  if (!antwort) {
+    return `
+    ${renderPageHead(t("szenarien.title"), t("szenarien.lead"))}
+    <section class="panel panel-pad"><p class="muted" role="status">${escapeHtml(fehler ? `${t("szenarien.loadFailed")} (${fehler.message})` : t("szenarien.loading"))}</p></section>`;
+  }
+  grundlage = antwort;
   const szenarien = data.szenarien ?? [];
   const bekannt = new Set(szenarien.map((s) => s.szenario_id));
 
@@ -157,7 +180,7 @@ export function renderSzenarien() {
 
   const auswahl = state.szenarioAuswahl ?? new Set();
   const rows = szenarien.map((sz) => {
-    const r = rechneSzenario(data, sz, today);
+    const r = rechneSzenario(data, sz, today, mitStart());
     const kipp = kippMonat(r.punkte);
     const tief = tiefpunkt(r.punkte);
     const ende = r.punkte.at(-1);
@@ -209,8 +232,8 @@ function vergleichsRechnung(szenario, today) {
     ? (data.szenarien ?? []).find((s) => s.szenario_id === state.szenarioVergleichMit && s.szenario_id !== szenario.szenario_id)
     : undefined;
   if (state.szenarioVergleichMit && !anderes) state.szenarioVergleichMit = "";
-  if (anderes) return { label: anderes.name, r: rechneSzenario(data, anderes, today) };
-  return { label: t("szenarien.basis"), r: rechneSzenario(data, { ...szenario, annahmen: [] }, today) };
+  if (anderes) return { label: anderes.name, r: rechneSzenario(data, anderes, today, mitStart()) };
+  return { label: t("szenarien.basis"), r: rechneSzenario(data, { ...szenario, annahmen: [] }, today, mitStart()) };
 }
 
 function beschreibungHtml(szenario) {
@@ -256,7 +279,7 @@ function antwortZeile(szenario, r, v, today) {
   const ende = r.punkte.at(-1);
   const vEnde = v.r.punkte.at(-1);
   const annahmenById = new Map((szenario.annahmen ?? []).map((a) => [a.annahme_id, a]));
-  const wirkung = ereignisWirkung(data, szenario, today).map((w) => {
+  const wirkung = ereignisWirkung(data, szenario, today, mitStart()).map((w) => {
     const a = annahmenById.get(w.annahme_id);
     return `${escapeHtml(t("szenarien.ohne"))} ${escapeHtml(a ? annahmeName(a) : w.annahme_id)}: ${escapeHtml(reichtBisText(w.kipp_monat, r.punkte))}`;
   });
@@ -613,11 +636,11 @@ function rechengrundlage(szenario, today) {
   const offen = state.szenarioGrundlageOffen;
   const kopf = klappKopf("toggle-szenario-grundlage", offen, t("szenarien.rechengrundlageTitle"));
   if (!offen) return `<section class="panel panel-pad section-spacing">${kopf}</section>`;
-  const c = computeSzenario(data, szenario, today);
-  const guardrails = guardrailWarnungen(data, today, { vollstaendigBis: overviewAccountGroups().konten.aeltester });
-  const hinweis = guardrails.length ? `
+  const c = computeSzenario(data, szenario, today, mitStart());
+  const guardrails = grundlage.guardrails;
+  const hinweis = guardrails ? `
     <p class="page-lead">
-      <span class="chip neutral">${iconSvg("review")}${escapeHtml(t("szenarien.prognosebasisHinweis").replace("{n}", String(guardrails.length)))}</span>
+      <span class="chip neutral">${iconSvg("review")}${escapeHtml(t("szenarien.prognosebasisHinweis").replace("{n}", String(guardrails)))}</span>
       <button class="linkish" data-action="show-checks">${escapeHtml(t("szenarien.zuChecks"))}</button>
     </p>` : "";
   return `
@@ -630,7 +653,7 @@ function rechengrundlage(szenario, today) {
 }
 
 function renderDetail(szenario, today) {
-  const r = rechneSzenario(data, szenario, today);
+  const r = rechneSzenario(data, szenario, today, mitStart());
   const v = vergleichsRechnung(szenario, today);
   const phasen = phasenKennzahlen(szenario, r.punkte);
   const andere = (data.szenarien ?? []).filter((s) => s.szenario_id !== szenario.szenario_id);
@@ -665,7 +688,7 @@ function renderDetail(szenario, today) {
 // --- Vergleich ------------------------------------------------------------------
 
 function renderVergleich(szenarien, today) {
-  const rechnungen = szenarien.map((sz) => ({ sz, r: rechneSzenario(data, sz, today) }));
+  const rechnungen = szenarien.map((sz) => ({ sz, r: rechneSzenario(data, sz, today, mitStart()) }));
   const alleMonate = [...new Set(rechnungen.flatMap(({ r }) => r.punkte.map((p) => p.monat)))].sort();
   const raster = alleMonate.map((monat) => ({ monat }));
   const spalten = spaltenAus(raster, "jahr");

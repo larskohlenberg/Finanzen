@@ -836,6 +836,8 @@ window.FINANCE_I18N = {
       },
     },
     szenarien: {
+      loading: "Szenarien werden geladen …",
+      loadFailed: "Szenarien konnten nicht geladen werden",
       title: "Szenarien",
       lead: "Was-wäre-wenn-Sichten auf Liquidität, Restschuld und Nettovermögen, basierend auf expliziten Annahmen.",
       name: "Name",
@@ -1992,6 +1994,8 @@ window.FINANCE_I18N = {
       },
     },
     szenarien: {
+      loading: "Loading scenarios …",
+      loadFailed: "Scenarios could not be loaded",
       title: "Scenarios",
       lead: "What-if views on liquidity, remaining debt and net worth, based on explicit assumptions.",
       name: "Name",

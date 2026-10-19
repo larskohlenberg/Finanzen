@@ -12,10 +12,13 @@ const MATERIALITAET_MONAT_CENTS = 5000;
 // (computeNettovermoegen): liquide Konten, nicht liquide Konten (eingefroren),
 // offene Depots, Sachwerte und Rueckkaufswerte, laufende Darlehen. Positionen ohne
 // Wert sind "unbekannt": sie tragen 0, die Qualitaet "offen" und eine Warnung.
+// positionen: die Positionen von computeNettovermoegen, schon gerechnet (der
+// Browser bekommt sie vom App-Server, GET /api/v1/szenarien, und hat selbst
+// keine Buchungen); ohne sie rechnet startbestand sie hier.
 const KLASSE_TEXT = { konto: "Konto", immobilie: "Immobilie", vermoegenswert: "Vermögenswert", vorsorge: "Vorsorge", darlehen: "Darlehen" };
 
-function startbestand(data, today) {
-  const nv = computeNettovermoegen(data, today);
+function startbestand(data, today, positionen = null) {
+  const nv = positionen ? { positionen } : computeNettovermoegen(data, today);
   const kontoById = new Map((data.konten ?? []).map((k) => [k.konto_id, k]));
   let liquide = 0;
   let gebunden = 0;
@@ -283,7 +286,7 @@ export function expandVorsorgeLeistungen(data, szenario, today) {
   return { szenario: { ...szenario, annahmen }, warnungen };
 }
 
-export function rechneSzenario(data, szenario, today) {
+export function rechneSzenario(data, szenario, today, { positionen = null } = {}) {
   const horizon = szenario.reichweite_bis;
   const warnungen = [];
   const { szenario: szenarioExpandiert, warnungen: vw } = expandVorsorgeLeistungen(data, szenario, today);
@@ -292,7 +295,7 @@ export function rechneSzenario(data, szenario, today) {
   const { rzs, warnungen: mw } = modifizierteRegelzahlungen(data, szenario);
   warnungen.push(...mw);
 
-  const start = startbestand(data, today);
+  const start = startbestand(data, today, positionen);
   if (start.unbekannt.length) {
     warnungen.push({ code: "startbestand-unbekannt", text: `Startbestand unvollständig, ohne belegten Wert: ${start.unbekannt.map((u) => `${KLASSE_TEXT[u.klasse] ?? u.klasse} ${u.name}`).join(", ")}` });
   }
@@ -469,8 +472,8 @@ export function rechneSzenario(data, szenario, today) {
   return { punkte, qualitaet, warnungen, unbekannt: start.unbekannt, basisRegelzahlungen, darlehen, depots, sachwertwirkungen, vorsorgewirkungen };
 }
 
-export function computeSzenario(data, szenario, today) {
-  return { szenario: rechneSzenario(data, szenario, today), basis: rechneSzenario(data, { ...szenario, annahmen: [] }, today) };
+export function computeSzenario(data, szenario, today, optionen = {}) {
+  return { szenario: rechneSzenario(data, szenario, today, optionen), basis: rechneSzenario(data, { ...szenario, annahmen: [] }, today, optionen) };
 }
 
 // Prognose-Realismus: rechnet wie Plan & Ist (planIst) ueber die letzten zwoelf
@@ -578,8 +581,8 @@ export function phasenKennzahlen(szenario, punkte) {
 // Welche Einmal-Ereignisse tragen das Szenario? Je Einmalzahlung (und Kapital-
 // Leistung) ohne diese eine Annahme nachrechnen; gemeldet wird, wenn sich der
 // Kipp-Monat um mehr als 12 Monate verschiebt oder erst dadurch entsteht.
-export function ereignisWirkung(data, szenario, today) {
-  const basisKipp = kippMonat(rechneSzenario(data, szenario, today).punkte);
+export function ereignisWirkung(data, szenario, today, optionen = {}) {
+  const basisKipp = kippMonat(rechneSzenario(data, szenario, today, optionen).punkte);
   const horizontIndex = monatsIndex(monatVon(szenario.reichweite_bis)) + 1;
   const index = (k) => (k === null ? horizontIndex : monatsIndex(k));
   const wirkung = [];
@@ -587,7 +590,7 @@ export function ereignisWirkung(data, szenario, today) {
     const einmal = a.art === "einmalzahlung" || (a.art === "vorsorge-leistung" && a.arm === "kapital");
     if (!einmal) continue;
     const ohne = { ...szenario, annahmen: szenario.annahmen.filter((x) => x !== a) };
-    const kipp = kippMonat(rechneSzenario(data, ohne, today).punkte);
+    const kipp = kippMonat(rechneSzenario(data, ohne, today, optionen).punkte);
     const verschiebung = Math.abs(index(kipp) - index(basisKipp));
     if ((kipp === null) !== (basisKipp === null) || verschiebung > 12) wirkung.push({ annahme_id: a.annahme_id, kipp_monat: kipp });
   }

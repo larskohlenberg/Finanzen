@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bestandAntwort } from "./hilfe-bestand.mjs";
+import { apiAbwarten, bestandAntwort } from "./hilfe-bestand.mjs";
+
+// Die Lese-APIs rechnen ueber den Bestand der App (data), den die Tests aendern.
+let appDaten = null;
 
 globalThis.document = { querySelector: () => ({ innerHTML: "" }) };
 globalThis.localStorage = { getItem: (key) => (key === "finance-m2-data-mode" ? "demo" : null), setItem: () => {} };
 globalThis.window = globalThis;
 globalThis.fetch = async (path) => {
-  const bestand = bestandAntwort(path);
+  const bestand = bestandAntwort(path, { daten: appDaten });
   if (bestand) return bestand;
   const cleanPath = String(path).replace(/^\.\//, "").replace(/\?.*$/, "");
   const body = readFileSync(new URL(`../app/${cleanPath}`, import.meta.url), "utf8");
@@ -15,7 +18,17 @@ globalThis.fetch = async (path) => {
 };
 await import("../app/i18n.js");
 const { data, state } = await import("../app/runtime.mjs");
+appDaten = data;
 const { renderSzenarien } = await import("../app/views/szenarien.mjs");
+const { verwerfeApiCaches } = await import("../app/api-daten.mjs");
+// Startbestand und Prognose-Hinweise kommen vom Server (GET /api/v1/szenarien):
+// Antworten verwerfen, zeichnen, auf die Antwort warten, erneut zeichnen.
+async function szenarienGezeichnet() {
+  verwerfeApiCaches();
+  renderSzenarien();
+  await apiAbwarten();
+  return renderSzenarien();
+}
 
 const JAHR = Number(new Date().toISOString().slice(0, 4));
 function setDaten() {
@@ -49,20 +62,20 @@ function setDaten() {
   state.szenarioPhaseOffen = new Set();
 }
 
-test("Liste: Kennzahlen je Szenario, Auswahl und Vergleichshinweis", () => {
+test("Liste: Kennzahlen je Szenario, Auswahl und Vergleichshinweis", async () => {
   setDaten();
-  const html = renderSzenarien();
+  const html = (await szenarienGezeichnet());
   assert.match(html, /Liquidität reicht bis/);
   assert.match(html, /data-action="toggle-szenario-auswahl"/);
   assert.match(html, /Zwei oder mehr Szenarien anhaken/);
   state.szenarioAuswahl = new Set(["SZN-001", "SZN-002"]);
-  assert.match(renderSzenarien(), /data-action="szenarien-vergleichen"/);
+  assert.match((await szenarienGezeichnet()), /data-action="szenarien-vergleichen"/);
 });
 
-test("Detail: Antwortzeile, Zeitstrahl mit Phasen und Ereignis, Phasentabelle", () => {
+test("Detail: Antwortzeile, Zeitstrahl mit Phasen und Ereignis, Phasentabelle", async () => {
   setDaten();
   state.selectedSzenarioId = "SZN-001";
-  const html = renderSzenarien();
+  const html = (await szenarienGezeichnet());
   assert.match(html, /<h1 class="page-title">Pause und Verkauf<\/h1>/);
   assert.match(html, /Erst arbeiten, dann Pause\./);
   assert.doesNotMatch(html, /Danach reicht es/, "Beschreibung zunaechst gekuerzt");
@@ -73,42 +86,42 @@ test("Detail: Antwortzeile, Zeitstrahl mit Phasen und Ereignis, Phasentabelle", 
   assert.match(html, /data-control="szenario-vergleich"/);
 });
 
-test("Detail: aufgeklappte Phase zeigt Annahmen mit Wirkung pro Monat", () => {
+test("Detail: aufgeklappte Phase zeigt Annahmen mit Wirkung pro Monat", async () => {
   setDaten();
   state.selectedSzenarioId = "SZN-001";
   state.szenarioPhaseOffen = new Set([0]);
-  const html = renderSzenarien();
+  const html = (await szenarienGezeichnet());
   assert.match(html, /Lebenshaltung/);
   assert.match(html, /-2\.500,00\s€ \/ Monat/);
 });
 
-test("Detail: Vergleich gegen ein anderes Szenario und Differenzmodus", () => {
+test("Detail: Vergleich gegen ein anderes Szenario und Differenzmodus", async () => {
   setDaten();
   state.selectedSzenarioId = "SZN-001";
   state.szenarioVergleichMit = "SZN-002";
   state.szenarioDiagrammModus = "differenz";
-  const html = renderSzenarien();
+  const html = (await szenarienGezeichnet());
   assert.match(html, /<option value="SZN-002" selected>/);
   assert.match(html, /zeitstrahl-linie differenz/);
   state.szenarioDiagrammModus = "absolut";
 });
 
-test("Vergleich: eine Linie je Szenario und Kennzahlentabelle", () => {
+test("Vergleich: eine Linie je Szenario und Kennzahlentabelle", async () => {
   setDaten();
   state.szenarioVergleichIds = ["SZN-001", "SZN-002"];
-  const html = renderSzenarien();
+  const html = (await szenarienGezeichnet());
   assert.match(html, /Szenarien im Vergleich/);
   assert.match(html, /zeitstrahl-linie serie-0/);
   assert.match(html, /zeitstrahl-linie serie-1/);
   assert.match(html, /data-action="open-szenario" data-szenario="SZN-002"/);
 });
 
-test("Detail: Abschnitt 'Was sich aendert' mit Monatsgruppe, Ersetzung und Durchstreichung", () => {
+test("Detail: Abschnitt 'Was sich aendert' mit Monatsgruppe, Ersetzung und Durchstreichung", async () => {
   setDaten();
   data.regelzahlungen[0].aktiv_bis = `${JAHR + 1}-12-31`;
   data.szenarien[0].annahmen.push({ annahme_id: "A3", art: "regelzahlung-neu", qualitaet: "geschaetzt", name: "Gehalt neu", kategorie_id: "KAT-001", betrag: "3500.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, ab: `${JAHR + 2}-01-27` });
   state.selectedSzenarioId = "SZN-001";
-  const html = renderSzenarien();
+  const html = (await szenarienGezeichnet());
   assert.match(html, /Was sich ändert/);
   assert.match(html, /<s class="alt-wert">Gehalt<\/s><br>Gehalt neu/);
   assert.match(html, /class="quelle-chip bestand">Bestand/);

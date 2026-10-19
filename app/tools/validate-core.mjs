@@ -3,7 +3,7 @@
 // Eine Quelle der Wahrheit fuer CLI (tools/validator.mjs) UND Browser (app/main.js):
 // "das Tool prueft" gilt damit auch in der UF. Node-I/O (Dateien lesen, CLI) liegt
 // bewusst in validator.mjs, damit dieses Modul im Browser importierbar bleibt.
-import { toCents, istGueltigerBetrag } from "./lib/text.mjs";
+import { toCents, istGueltigerBetrag, hatLeerenZweig } from "./lib/text.mjs";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 // Opake UUID-Identifier mit Typ-Praefix (kein Datum/keine laufende Nummer).
@@ -512,6 +512,12 @@ function validateCrossFieldRules(data, errors) {
     if (regel.status === "aktiv" && !regel.gegenpartei_pattern && !regel.verwendungszweck_pattern) {
       errors.push(`kategorisierungsregeln.${regel.regel_id}: aktive Regel braucht gegenpartei_pattern oder verwendungszweck_pattern`);
     }
+    // Auch bei inaktiven Regeln: eine Reaktivierung prueft niemand neu.
+    for (const feld of ["gegenpartei_pattern", "verwendungszweck_pattern"]) {
+      if (typeof regel[feld] === "string" && hatLeerenZweig(regel[feld])) {
+        errors.push(`kategorisierungsregeln.${regel.regel_id}.${feld}: leerer Musterzweig (ein Tippfehler wie "A|B|" traefe jede Buchung)`);
+      }
+    }
   });
 
   const regelIds = new Set((data.kategorisierungsregeln ?? []).map((r) => r.regel_id));
@@ -745,7 +751,7 @@ function validateLogos(logos, errors) {
       else domains.set(logo.domain, ort);
       if (typeof logo.datei === "string" && logo.datei !== `logos/${logo.domain}.png`) errors.push(`${ort}.datei: muss logos/${logo.domain}.png sein`);
     }
-    if (typeof logo.gegenpartei_pattern === "string" && logo.gegenpartei_pattern.split("|").some((teil) => teil.trim() === "")) {
+    if (typeof logo.gegenpartei_pattern === "string" && hatLeerenZweig(logo.gegenpartei_pattern)) {
       errors.push(`${ort}.gegenpartei_pattern: leerer Musterteil`);
     }
   });

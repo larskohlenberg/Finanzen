@@ -30,7 +30,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { categorize } from "./categorizer.mjs";
-import { toCents } from "./lib/text.mjs";
+import { hatLeerenZweig, toCents } from "./lib/text.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 
@@ -66,6 +66,9 @@ function strukturFehler(kandidaten, bestandsRegeln, kategorieIds, aenderung) {
     if (r.status && !["aktiv", "inaktiv"].includes(r.status)) fehler.push(`${id}: status muss aktiv oder inaktiv sein`);
     if (r.erstellt_am && !/^\d{4}-\d{2}-\d{2}$/.test(r.erstellt_am)) fehler.push(`${id}: erstellt_am muss ein Datum JJJJ-MM-TT sein`);
     if (!r.gegenpartei_pattern && !r.verwendungszweck_pattern) fehler.push(`${id}: braucht mindestens ein Muster`);
+    for (const feld of ["gegenpartei_pattern", "verwendungszweck_pattern"]) {
+      if (typeof r[feld] === "string" && hatLeerenZweig(r[feld])) fehler.push(`${id}: ${feld} hat einen leeren Musterzweig — "A|B|" oder "A||B" traefe jede Buchung`);
+    }
     if (r.vorzeichen && !["einnahme", "ausgabe"].includes(r.vorzeichen)) fehler.push(`${id}: vorzeichen muss einnahme oder ausgabe sein`);
     if (r.belegstufe && !BELEGSTUFEN.has(r.belegstufe)) fehler.push(`${id}: belegstufe muss E1 bis E4 sein`);
   }

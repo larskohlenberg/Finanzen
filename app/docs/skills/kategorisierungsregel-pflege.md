@@ -149,9 +149,11 @@ Darum gilt eng begrenzt:
    Muster moeglichst **thematisch buendeln**: `categorizer.mjs` unterstuetzt in
    `gegenpartei_pattern` und `verwendungszweck_pattern` eine **Pipe-Alternation**
    (`"a|b|c"` — schlichte Alternation lose normalisierter Substrings, **kein**
-   regulaerer Ausdruck). Ein Buendel „alle Parkhaeuser" ist eine Regel mit einer
-   Erklaerung statt sieben Einzelsaetzen — und im Review eine Entscheidung statt
-   sieben. Buendle nur, was **dieselbe Kategorie und denselben Belegstand** teilt.
+   regulaerer Ausdruck). Kein Zweig darf leer sein (`"a|b|"`, `"|a"`, `"a||b"`,
+   `"a|  "`): Validator und Probelauf lehnen das ab. Ein Buendel „alle
+   Parkhaeuser" ist eine Regel mit einer Erklaerung statt sieben Einzelsaetzen —
+   und im Review eine Entscheidung statt sieben. Buendle nur, was **dieselbe
+   Kategorie und denselben Belegstand** teilt.
 
 3. **Regelkandidaten mechanisch pruefen — vor jedem Schreiben, ohne Ausnahme.**
 

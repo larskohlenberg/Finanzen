@@ -7,6 +7,7 @@
 // umgekehrt.
 import { realpathSync } from "node:fs";
 import path from "node:path";
+import { bestandZumEntwurf } from "./schreiblauf.mjs";
 
 // Verglichen wird ueber den echten Pfad (Symlinks, z. B. /var -> /private/var).
 function echt(pfad) {
@@ -19,8 +20,13 @@ function echt(pfad) {
 
 export function bestandOrte(appPfad, datenrootPfad) {
   const app = path.resolve(appPfad);
+  // Im Entwurf eines Schreiblaufs entscheidet der eigentliche Bestand, ob es
+  // data/master ist (Orte daneben, ausserhalb des Entwurfs). Jeder andere
+  // Bestand hat seine Orte im eigenen Ordner, im Entwurf also im Entwurf:
+  // sonst naehme das Uebernehmen die Verschiebungen dort wieder zurueck.
+  const original = bestandZumEntwurf(datenrootPfad);
   const root = path.resolve(datenrootPfad);
-  if (root === path.join(app, "data", "master") || echt(root) === echt(path.join(app, "data", "master"))) {
+  if (original === path.join(app, "data", "master") || echt(original) === echt(path.join(app, "data", "master"))) {
     const daten = path.join(app, "data");
     return {
       inbox: path.join(daten, "inbox"),

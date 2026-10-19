@@ -31,6 +31,7 @@ import { normalizeCsv } from "./normalize.mjs";
 import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
+import { alsBestandsPfad } from "./lib/schreiblauf.mjs";
 import { validateImportProfil } from "./import-format.mjs";
 import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
 import { bestandOrte } from "./lib/bestand-orte.mjs";
@@ -39,7 +40,8 @@ import { ersetzeDatei } from "./lib/datei.mjs";
 const APP = fileURLToPath(new URL("../", import.meta.url));
 // Inbox-Pfad relativ zum App-Raum fuer Bericht, rohquelle und Protokoll
 // (data/master: data/inbox, sonst <bestand>/inbox).
-const inboxName = (inboxRoot) => path.relative(APP, fileURLToPath(inboxRoot)).split(path.sep).join("/");
+// Name wie im eigentlichen Bestand, auch wenn der Lauf in einem Entwurf arbeitet.
+const inboxName = (inboxRoot) => path.relative(APP, alsBestandsPfad(fileURLToPath(inboxRoot))).split(path.sep).join("/");
 
 const IGNORIEREN = new Set([".DS_Store", ".gitkeep"]);
 const VERARBEITBAR = new Set(["csv", "pdf", ...BILD_ENDUNGEN]);
@@ -254,7 +256,7 @@ async function main() {
   const masterRoot = pflichtDatenroot(argv.find((a) => !a.startsWith("--")));
   // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
   // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
-  await beginneLauf(fileURLToPath(masterRoot), schreiben);
+  await beginneLauf(fileURLToPath(masterRoot), schreiben, argv, { aussenWirkung: true });
   // Jeder Bestand hat seine Inbox (data/master: data/inbox/), siehe bestand-orte.mjs.
   const inboxRoot = pathToFileURL(`${bestandOrte(APP, fileURLToPath(masterRoot)).inbox}${path.sep}`);
 

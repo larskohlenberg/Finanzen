@@ -94,7 +94,7 @@ export const dateiPersistenz = {
     return readFile(url, "utf8");
   },
   schreibeStage(url, inhalt) {
-    return schreibeNeuSynchron(url, inhalt, 0o600);
+    return schreibeNeuSynchron(url, inhalt);
   },
   benenneUm(von, nach) {
     return rename(von, nach);
@@ -395,7 +395,7 @@ async function main() {
   );
   // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
   // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
-  await beginneLauf(fileURLToPath(dataRoot), args.schreiben);
+  await beginneLauf(fileURLToPath(dataRoot), args.schreiben, undefined, { okCodes: [0, 2] });
   const data = await loadMasterData(dataRoot);
   const out = aktualisiereImmobilienbezug({
     transaktionen: data.transaktionen,

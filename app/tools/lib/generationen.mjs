@@ -34,9 +34,10 @@
 //   anderes Format nicht kennt, liest und schreibt es nicht.
 import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
-import { chmod, copyFile, link, lstat, mkdir, open, readdir, readFile, readlink, rename, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
+import { chmod, copyFile, link, lstat, mkdir, open, readdir, readFile, readlink, realpath, rename, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import path from "node:path";
+import { ENTWURF_MARKE } from "./datei.mjs";
 import { istVerwaist, mitSperre, UMGEBUNG } from "./schreibsperre.mjs";
 
 export const ZEIGER = "aktuell";
@@ -144,6 +145,23 @@ export async function bestandsArt(basis) {
   if (!(await stat(basis).catch(() => null))?.isDirectory()) throw new Error(`Datenbestand ${basis} fehlt`);
   if (await existiert(path.join(basis, GENERATIONEN))) throw new Error(`${basis}: Einrichten der Generationen nicht abgeschlossen (kein Zeiger ${ZEIGER}); einrichten erneut aufrufen`);
   return ORDNER;
+}
+
+// Basisordner zu einem Datenroot: der Basisordner selbst, eine Generation
+// (auch ueber einen Symlink wie data/master -> <basis>/aktuell) oder ein
+// einfacher Ordner (dann er selbst).
+export async function findeBasis(datenroot) {
+  const pfad = path.resolve(datenroot);
+  if ((await lstat(path.join(pfad, ZEIGER)).catch(() => null))?.isSymbolicLink()) return pfad;
+  // Symlink auf <basis>/aktuell: die Basis so, wie der Link sie nennt.
+  if ((await lstat(pfad).catch(() => null))?.isSymbolicLink()) {
+    const ziel = path.resolve(path.dirname(pfad), await readlink(pfad));
+    if (path.basename(ziel) === ZEIGER && (await lstat(ziel).catch(() => null))?.isSymbolicLink()) return path.dirname(ziel);
+  }
+  const echt = await realpath(pfad).catch(() => pfad);
+  const oben = path.dirname(path.dirname(echt));
+  if (istId(path.basename(echt)) && path.basename(path.dirname(echt)) === GENERATIONEN && (await lstat(path.join(oben, ZEIGER)).catch(() => null))?.isSymbolicLink()) return oben;
+  return pfad;
 }
 
 // Id der aktuellen Generation; im Rueckfallmodus ORDNER.
@@ -319,6 +337,22 @@ async function aufraeumen(basis, behalten, halt) {
   return geloescht;
 }
 
+// Temp-Dateien abgebrochener Schreiber im einfachen Ordner (versteckt, Endung
+// .tmp, z. B. aus ersetzeDatei). Unter der Sperre schreibt niemand sonst, also
+// ist jede davon ein Rest. Sicherungen ("-backup") bleiben liegen: Sie koennen
+// nach einem gescheiterten Zurueckspielen die einzige Kopie sein.
+async function raeumeTempReste(ordner) {
+  let anzahl = 0;
+  for (const e of await readdir(ordner, { withFileTypes: true })) {
+    if (e.isDirectory() && !e.name.startsWith(".")) anzahl += await raeumeTempReste(path.join(ordner, e.name));
+    else if (e.isFile() && e.name.startsWith(".") && /\.tmp$|^\.tmp-/.test(e.name) && !e.name.includes("-backup")) {
+      await unlink(path.join(ordner, e.name)).catch(() => {});
+      anzahl += 1;
+    }
+  }
+  return anzahl;
+}
+
 // Raeumt Reste abgebrochener Schreibvorgaenge weg. Nur unter der Sperre.
 export async function wiederanlauf(basis) {
   const befund = { entwuerfe: 0, unveroeffentlicht: 0, zeigerReste: 0 };
@@ -328,6 +362,7 @@ export async function wiederanlauf(basis) {
       await rm(path.join(basis, name), { recursive: true, force: true });
       befund.entwuerfe += 1;
     }
+    befund.tempReste = await raeumeTempReste(basis);
     return befund;
   }
   const aktuell = Number(await aktuelleId(basis));
@@ -380,7 +415,7 @@ function transaktion(entwurf, vorher, kennung, halt) {
 // Vergleicht den Entwurf mit seiner Quelle. Im Generationsmodus heisst
 // "unveraendert": gleicher Inode wie in der Quelle, und dessen Inhalt passt
 // noch zum Manifest. Im Rueckfallmodus (ohne Manifest) entscheidet der Inhalt.
-async function sichteEntwurf(entwurf, quelle, quellManifest) {
+async function sichteEntwurf(entwurf, quelle, quellManifest, ausgangsliste = null) {
   const dateien = {};
   const neu = [];
   const ersetzt = [];
@@ -401,7 +436,9 @@ async function sichteEntwurf(entwurf, quelle, quellManifest) {
     const altHash = quellManifest ? quellManifest.dateien[rel]?.sha256 : alt?.isFile() && sha256(await readFile(path.join(quelle, rel)));
     if (!alt || altHash !== dateien[rel].sha256) neu.push(rel);
   }
-  const geloescht = (await dateiListe(quelle)).filter((rel) => !dateien[rel]);
+  // Rueckfallmodus: nur loeschen, was beim Anlegen des Entwurfs schon da war;
+  // was seither daneben hinzukam (z. B. ein Upload in die Inbox), bleibt.
+  const geloescht = (ausgangsliste ?? (await dateiListe(quelle))).filter((rel) => !dateien[rel]);
   return { dateien, neu, ersetzt, geloescht, geaendert: [...neu, ...geloescht].sort() };
 }
 
@@ -445,6 +482,10 @@ async function schreibeGeneration(basis, fn, { pruefe, behalten = BEHALTEN, erwa
 
   const entwurf = path.join(basis, GENERATIONEN, `.neu-${process.pid}-${zufall()}`);
   await mkdir(entwurf);
+  // Marke fuer ersetzeDatei: die schreibgeschuetzten Hardlinks hier duerfen
+  // per rename ersetzt werden. Der Rueckfallmodus braucht sie nicht (Kopien
+  // mit dem Modus des Originals; Schreibschutz gilt dort weiter).
+  await writeFile(path.join(entwurf, ENTWURF_MARKE), "");
   const verwerfen = () => rm(entwurf, { recursive: true, force: true });
   let sicht;
   try {
@@ -517,14 +558,15 @@ async function schreibeOrdner(basis, fn, { pruefe, erwartet, vonGeneration, halt
   const entwurf = path.join(basis, `${ENTWURF_ORDNER}${process.pid}-${zufall()}`);
   await mkdir(entwurf);
   try {
-    for (const rel of await dateiListe(basis)) {
+    const ausgang = await dateiListe(basis);
+    for (const rel of ausgang) {
       await mkdir(path.dirname(path.join(entwurf, rel)), { recursive: true });
       await copyFile(path.join(basis, rel), path.join(entwurf, rel), constants.COPYFILE_FICLONE);
     }
     halt("entwurf-angelegt");
     await fn(transaktion(entwurf, ORDNER, kennung, halt));
     const fehler = await pruefeEntwurf(entwurf, pruefe);
-    const sicht = await sichteEntwurf(entwurf, basis, null);
+    const sicht = await sichteEntwurf(entwurf, basis, null, ausgang);
     const ergebnis = { id: ORDNER, vorher: ORDNER, geaendert: sicht.geaendert, geloescht: sicht.geloescht, aufgeraeumt: [], wiederanlauf: wieder };
     if (fehler) return { ...ergebnis, verworfen: true, fehler };
     for (const rel of sicht.neu) {
@@ -536,7 +578,7 @@ async function schreibeOrdner(basis, fn, { pruefe, erwartet, vonGeneration, halt
       await rename(path.join(entwurf, rel), path.join(basis, rel));
       halt("ordner-datei-ersetzt");
     }
-    for (const rel of sicht.geloescht) await unlink(path.join(basis, rel));
+    for (const rel of sicht.geloescht) await unlink(path.join(basis, rel)).catch((error) => { if (error.code !== "ENOENT") throw error; });
     for (const ordner of new Set(sicht.geaendert.map((rel) => path.dirname(rel)))) await fsyncPfad(path.join(basis, ordner));
     return ergebnis;
   } finally {

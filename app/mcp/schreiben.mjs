@@ -1,133 +1,109 @@
 // app/mcp/schreiben.mjs
-// Schreibschutz um jeden schreibenden Vorgang: Masterdateien vorher kopieren,
-// danach validieren, bei NEUEN Validatorfehlern oder einem Werkzeugfehler
-// zurueckspielen (Vertrag: Werkzeugfehler = kein Commit). Das ist keine
-// Transaktion: bricht der Prozess selbst ab, bleibt der Zwischenstand.
+// Jeder schreibende Vorgang laeuft ueber einen Entwurf (ADR 0035,
+// lib/generationen.mjs): Das Werkzeug schreibt in den Entwurf, danach prueft
+// der Validator. Nur ohne NEUE Validatorfehler und ohne Werkzeugfehler wird der
+// Entwurf veroeffentlicht (Vertrag: Werkzeugfehler = kein Commit); sonst bleibt
+// der Bestand unveraendert. Bricht der Prozess ab, raeumt der naechste
+// Schreiber den Entwurf weg.
 // Verschiebungen in data/inbox/ und Belege/ liegen ausserhalb des Datenroots
-// und werden nicht zurueckgerollt.
+// und werden nicht zurueckgenommen.
 //
-// Der ganze Zyklus (Vorher-Pruefung, Sicherung, Schreiben, Pruefen,
-// Zurueckspielen) laeuft unter der prozessuebergreifenden Schreibsperre des
-// Bestands. Zurueckgespielt wird Datei fuer Datei (atomar per rename), nie
-// durch Leeren des Datenroots: Leser sehen jede Datei alt oder neu, nie fehlend.
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+// Der ganze Zyklus laeuft unter der prozessuebergreifenden Schreibsperre des
+// Bestands (im Basisordner). Bei einem einfachen Ordner (Rueckfallmodus) wird
+// Datei fuer Datei per rename uebernommen, bei Generationen atomar.
+import { realpathSync } from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { ersetzeDatei } from "../tools/lib/datei.mjs";
-import { SPERRDATEI, SperreBelegt, mitSperre } from "../tools/lib/schreibsperre.mjs";
+import { findeBasis, mitSchreiber } from "../tools/lib/generationen.mjs";
+import { SperreBelegt } from "../tools/lib/schreibsperre.mjs";
 import { bestandFingerabdruck, veraltetMeldung } from "../tools/lib/fingerabdruck.mjs";
-import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
-
-const istSperrdatei = (name) => name.startsWith(SPERRDATEI);
+import { validatorFehler } from "../tools/lib/schreiblauf.mjs";
 
 // Fingerabdruck aus der Vorschau, gegen den ein Schreibaufruf laufen soll
 // (rufeWerkzeug setzt ihn je Aufruf). mitRollback prueft ihn unter der Sperre.
 export const erwarteterStand = new AsyncLocalStorage();
 
 export async function validiere(datenrootPfad) {
+  const fehler = await validatorFehler(datenrootPfad);
+  return { gueltig: fehler.length === 0, fehler };
+}
+
+class Abbruch extends Error {
+  constructor(ergebnis) {
+    super("Abbruch");
+    this.ergebnis = ergebnis;
+  }
+}
+
+function echt(pfad) {
   try {
-    const ergebnis = validateMasterData(await loadMasterData(pathToFileURL(`${datenrootPfad}${path.sep}`)));
-    return { gueltig: ergebnis.valid, fehler: ergebnis.errors };
-  } catch (error) {
-    return { gueltig: false, fehler: [`Masterdaten nicht lesbar: ${error.message}`] };
+    return realpathSync(pfad);
+  } catch {
+    return path.resolve(pfad);
   }
 }
 
-export async function kopiereDatenroot(datenrootPfad) {
-  const ziel = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-"));
-  await cp(datenrootPfad, ziel, { recursive: true, filter: (quelle) => !istSperrdatei(path.basename(quelle)) });
-  return ziel;
-}
-
-async function gleicherInhalt(a, b) {
-  const [x, y] = await Promise.all([stat(a), stat(b).catch(() => null)]);
-  if (!y?.isFile() || x.size !== y.size) return false;
-  const [p, q] = await Promise.all([readFile(a), readFile(b)]);
-  return p.equals(q);
-}
-
-// Ziel auf den Stand der Kopie bringen: Ueberzaehliges entfernen, Geaendertes
-// per Temp-Datei + rename ersetzen, Unveraendertes nicht anfassen.
-async function spieleZurueck(kopie, ziel) {
-  const soll = new Map((await readdir(kopie, { withFileTypes: true })).map((e) => [e.name, e]));
-  for (const e of await readdir(ziel, { withFileTypes: true })) {
-    if (istSperrdatei(e.name)) continue;
-    const k = soll.get(e.name);
-    if (!k || k.isDirectory() !== e.isDirectory()) await rm(path.join(ziel, e.name), { recursive: true, force: true });
-  }
-  for (const [name, k] of soll) {
-    const von = path.join(kopie, name);
-    const nach = path.join(ziel, name);
-    if (k.isDirectory()) {
-      await mkdir(nach, { recursive: true });
-      await spieleZurueck(von, nach);
-    } else if (!(await gleicherInhalt(von, nach))) {
-      await ersetzeDatei(nach, await readFile(von), { modus: (await stat(von)).mode & 0o7777 });
+// Bildet einen Pfad im Datenroot auf den Entwurf ab; Pfade ausserhalb (Inbox
+// und Belege von data/master) bleiben, wie sie sind.
+export function entwurfsAbbildung(datenrootPfad, entwurf) {
+  const wurzeln = [...new Set([path.resolve(datenrootPfad), echt(datenrootPfad)])];
+  return (pfad) => {
+    for (const wurzel of wurzeln) {
+      const rel = path.relative(wurzel, path.resolve(pfad));
+      if (rel === "") return entwurf;
+      if (!rel.startsWith("..") && !path.isAbsolute(rel)) return path.join(entwurf, rel);
     }
-  }
+    return pfad;
+  };
 }
 
-// fn liefert ein Tool-Ergebnis { text, isError? }. Zurueck kommt dasselbe,
-// ergaenzt um Validator- und ggf. Rollback-Befund. rueckrollungBeiFehler:false
-// nur fuer Laeufe, die Dateien ausserhalb des Datenroots verschieben (dann
-// setzt nur ein neuer Validatorfehler zurueck). Alte Validatorfehler zaehlen
-// nie: weder hier noch im Exitcode der CLIs (lib/validator-befund.mjs).
+// fn(s) liefert ein Tool-Ergebnis { text, isError? }; s = { ordner (Entwurf),
+// sperre ({ kennung } fuer Kindprozesse), pfad(absolut) (Abbildung in den
+// Entwurf) }. Zurueck kommt dasselbe Ergebnis, ergaenzt um den
+// Validatorbefund. rueckrollungBeiFehler:false nur fuer Laeufe, die Dateien
+// ausserhalb des Datenroots verschieben (dann verhindert nur ein neuer
+// Validatorfehler die Uebernahme). Alte Validatorfehler zaehlen nie.
 export async function mitRollback(datenrootPfad, fn, { rueckrollungBeiFehler = true } = {}) {
+  const erwartet = erwarteterStand.getStore();
+  let vorher = [];
+  let ergebnis;
+  let nachher = [];
+  let r;
   try {
-    return await mitSperre(datenrootPfad, (sperre) => zyklus(datenrootPfad, fn, sperre, rueckrollungBeiFehler), { wer: "MCP" });
+    r = await mitSchreiber(await findeBasis(datenrootPfad), async (tx) => {
+      if (erwartet) {
+        const aktuell = await bestandFingerabdruck(datenrootPfad);
+        if (aktuell !== erwartet) throw new Abbruch({ text: veraltetMeldung(datenrootPfad, erwartet, aktuell), isError: true });
+      }
+      vorher = await validatorFehler(tx.ordner);
+      try {
+        ergebnis = await fn({ ordner: tx.ordner, sperre: tx.sperre ? { kennung: tx.sperre } : null, pfad: entwurfsAbbildung(datenrootPfad, tx.ordner) });
+      } catch (error) {
+        ergebnis = { text: `Fehler: ${error.message}`, isError: true };
+      }
+      if (ergebnis.isError === true && rueckrollungBeiFehler) {
+        throw new Abbruch({ ...ergebnis, text: `${ergebnis.text}\n\nWerkzeugfehler — kein Commit, der Bestand ist unveraendert.` });
+      }
+    }, {
+      wer: "MCP",
+      pruefe: async (ordner) => {
+        nachher = await validatorFehler(ordner);
+        const bekannt = new Set(vorher);
+        return nachher.filter((f) => !bekannt.has(f));
+      },
+    });
   } catch (error) {
+    if (error instanceof Abbruch) return error.ergebnis;
     if (error instanceof SperreBelegt) return { text: error.message, isError: true };
     throw error;
   }
-}
-
-// fn bekommt die Sperre (oder null, wenn sie geerbt ist); ihre kennung reicht
-// der Aufrufer an Kindprozesse weiter.
-async function zyklus(datenrootPfad, fn, sperre, rueckrollungBeiFehler) {
-  const erwartet = erwarteterStand.getStore();
-  if (erwartet) {
-    const aktuell = await bestandFingerabdruck(datenrootPfad);
-    if (aktuell !== erwartet) return { text: veraltetMeldung(datenrootPfad, erwartet, aktuell), isError: true };
-  }
-  const vorher = await validiere(datenrootPfad);
-  const kopie = await kopiereDatenroot(datenrootPfad);
-  let sicherungBehalten = false;
-  try {
-    let ergebnis;
-    try {
-      ergebnis = await fn(sperre);
-    } catch (error) {
-      ergebnis = { text: `Fehler: ${error.message}`, isError: true };
-    }
-    const nachher = await validiere(datenrootPfad);
-    const bekannt = new Set(vorher.fehler);
-    const neu = nachher.fehler.filter((f) => !bekannt.has(f));
-    const werkzeugfehler = ergebnis.isError === true && rueckrollungBeiFehler;
-    if (neu.length === 0 && !werkzeugfehler) {
-      const befund = nachher.gueltig ? "Validator nach dem Schreiben: gueltig." : `Validator nach dem Schreiben: ${nachher.fehler.length} Fehler, alle schon vorher vorhanden.`;
-      return { ...ergebnis, text: `${ergebnis.text}\n\n${befund}` };
-    }
-    try {
-      await spieleZurueck(kopie, datenrootPfad);
-    } catch (error) {
-      // Der Master kann jetzt teilweise fehlen: die Sicherung ist die einzige
-      // Quelle fuer die Wiederherstellung und bleibt liegen.
-      sicherungBehalten = true;
-      return {
-        isError: true,
-        text: `${ergebnis.text}\n\n${neu.length ? `Validator meldet ${neu.length} neue(n) Fehler` : "Werkzeugfehler"}, Zurueckspielen fehlgeschlagen (${error.message}). Masterstand von Hand aus der Sicherung wiederherstellen. Sicherung: ${kopie}`,
-      };
-    }
-    const befund = neu.length
-      ? `Validator meldet ${neu.length} neue(n) Fehler — Masterstand wurde zurueckgesetzt:\n${neu.slice(0, 30).map((f) => `- ${f}`).join("\n")}`
-      : "Werkzeugfehler — kein Commit, Masterstand wurde zurueckgesetzt.";
+  if (r.verworfen) {
     return {
       isError: true,
-      text: `${ergebnis.text}\n\n${befund}\n\nHinweis: Verschiebungen und Loeschungen in data/inbox/ und Belege/ werden nicht zurueckgerollt.`,
+      text: `${ergebnis.text}\n\nValidator meldet ${r.fehler.length} neue(n) Fehler — nichts uebernommen, der Bestand ist unveraendert:\n${r.fehler.slice(0, 30).map((f) => `- ${f}`).join("\n")}\n\nHinweis: Verschiebungen und Loeschungen in data/inbox/ und Belege/ werden nicht zurueckgenommen.`,
     };
-  } finally {
-    if (!sicherungBehalten) await rm(kopie, { recursive: true, force: true });
   }
+  const befund = nachher.length === 0 ? "Validator nach dem Schreiben: gueltig." : `Validator nach dem Schreiben: ${nachher.length} Fehler, alle schon vorher vorhanden.`;
+  const stand = r.id !== r.vorher ? `\nNeuer Stand: G${r.id}.` : "";
+  return { ...ergebnis, text: `${ergebnis.text}\n\n${befund}${stand}${r.warnung ? `\n${r.warnung}` : ""}` };
 }

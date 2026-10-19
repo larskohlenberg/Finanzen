@@ -14,6 +14,21 @@ import { fileURLToPath } from "node:url";
 // nicht fuer alle lesbar werden), bestehende behalten ihren Modus.
 const NEU_MODUS = 0o640;
 
+// Marke im Wurzelordner eines Generationen-Entwurfs (lib/generationen.mjs).
+// Dort sind unveraenderte Dateien schreibgeschuetzte Hardlinks auf die
+// veroeffentlichte Generation: Sie werden per rename ersetzt, nie in place.
+export const ENTWURF_MARKE = ".entwurf";
+
+async function liegtImEntwurf(pfad) {
+  let ordner = path.dirname(pfad);
+  for (;;) {
+    if (await stat(path.join(ordner, ENTWURF_MARKE)).then(() => true, () => false)) return true;
+    const hoeher = path.dirname(ordner);
+    if (hoeher === ordner) return false;
+    ordner = hoeher;
+  }
+}
+
 function alsPfad(ziel) {
   return ziel instanceof URL ? fileURLToPath(ziel) : String(ziel);
 }
@@ -48,7 +63,9 @@ export async function schreibeNeuSynchron(ziel, inhalt, modus = NEU_MODUS) {
 
 // Modus der bisherigen Datei (null, wenn es sie nicht gibt). Eine
 // schreibgeschuetzte Datei bleibt geschuetzt: rename wuerde den Schutz sonst
-// still umgehen, weil es nur das Schreibrecht am Ordner braucht.
+// still umgehen, weil es nur das Schreibrecht am Ordner braucht. Ausnahme ist
+// ein Entwurf: dort ist der Schreibschutz der Hardlinks gewollt, und die neue
+// Datei wird bei der Veroeffentlichung selbst schreibgeschuetzt.
 async function bisherigerModus(pfad) {
   let modus;
   try {
@@ -57,7 +74,12 @@ async function bisherigerModus(pfad) {
     if (error.code === "ENOENT") return null;
     throw error;
   }
-  await access(pfad, constants.W_OK);
+  try {
+    await access(pfad, constants.W_OK);
+  } catch (error) {
+    if (error.code === "EACCES" && (await liegtImEntwurf(pfad))) return NEU_MODUS;
+    throw error;
+  }
   return modus;
 }
 

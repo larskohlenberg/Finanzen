@@ -16,7 +16,7 @@ function anleitung(ctx) {
     `Finanzmodell, Datenroot ${ctx.datenrootRel}, Recht: ${ctx.recht}.`,
     "Auswertungen und Statusfragen direkt per Tool beantworten (kennzahlen, status, transaktionen_abfragen, pruefbericht), ohne Vorlektuere; fuer \u201eWie stehen wir?\u201c zuerst kennzahlen.",
     "Vor Datenarbeit (Import, Kategorisieren, Regeln, Freigabe, jedes Schreiben) die Ressource finanzen://docs/agent-context und den passenden Skill-Prompt lesen.",
-    "Alle Tool-Laeufe sind ohne schreiben:true eine Vorschau; sie nennen einen Fingerabdruck des gelesenen Bestands. Beim Schreiben diesen als fingerabdruck mitgeben: hat sich der Bestand seither geaendert, wird abgewiesen. Nach jedem Schreiben laeuft der Validator; neue Fehler oder ein Werkzeugfehler setzen den Bestand zurueck.",
+    "Alle Tool-Laeufe sind ohne schreiben:true eine Vorschau; sie nennen einen Fingerabdruck des gelesenen Bestands. Beim Schreiben diesen als fingerabdruck mitgeben: hat sich der Bestand seither geaendert, wird abgewiesen. Nach jedem Schreiben laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird nichts uebernommen.",
     KATEGORIE_REGEL,
   ].join(" ");
 }

@@ -255,7 +255,7 @@ async function main() {
   const root = dataRootFromArg(opt.root, null, new URL("../", import.meta.url));
   // Schreibsperre und ggf. Fingerabdruck-Pruefung fuer den ganzen Lauf
   // (Lesen bis Schreiben); die Vorschau nennt den Fingerabdruck.
-  if (root) await beginneLauf(fileURLToPath(root), opt.schreiben);
+  if (root) await beginneLauf(fileURLToPath(root), opt.schreiben, undefined, { aussenWirkung: true });
   const data = await loadMasterData(root);
 
   let eintraege = null;

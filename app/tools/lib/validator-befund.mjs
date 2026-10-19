@@ -1,5 +1,5 @@
 // app/tools/lib/validator-befund.mjs
-// Befund nach einem Schreiblauf, einheitlich mit mitRollback (app/mcp/schreiben.mjs):
+// Befund nach einem Schreiblauf (im Entwurf), einheitlich mit mitRollback (app/mcp/schreiben.mjs):
 // Nur NEUE Validatorfehler machen den Lauf fehlgeschlagen (Exitcode 1). Fehler,
 // die schon vor dem Lauf im Bestand standen, sind ein Hinweis.
 import { loadMasterData, validateMasterData } from "../validator.mjs";

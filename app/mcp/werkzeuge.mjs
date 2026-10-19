@@ -6,7 +6,7 @@
 // - Datei-Schreiben (datei_schreiben, datei_ersetzen, beleg_ablegen, beleg_teilen,
 //   beleg_ergaenzen, beleg_verwerfen, inbox_verwerfen, inbox_zurueckholen), nur mit
 //   --recht=schreiben.
-// Jeder schreibende Vorgang laeuft durch mitRollback (Validator + Rueckspielen).
+// Jeder schreibende Vorgang laeuft durch mitRollback (Entwurf, Validator, erst dann uebernommen).
 import { execFile } from "node:child_process";
 import { constants as fsKonstanten } from "node:fs";
 import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, stat } from "node:fs/promises";
@@ -18,6 +18,7 @@ import { ersetzeDatei } from "../tools/lib/datei.mjs";
 import { GENERATIONEN, ZEIGER } from "../tools/lib/generationen.mjs";
 import { mitLesestand } from "../tools/lib/lesestand.mjs";
 import { UMGEBUNG as SPERRE_UMGEBUNG } from "../tools/lib/schreibsperre.mjs";
+import { BESTAND_UMGEBUNG, ENTWURF_UMGEBUNG } from "../tools/lib/schreiblauf.mjs";
 import { planeTeilung } from "../tools/lib/seiten.mjs";
 import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
 import { localTodayIso } from "../liquiditaet.mjs";
@@ -25,7 +26,7 @@ import { abfragen } from "./abfrage.mjs";
 import { pruefeArgumente } from "./argumente.mjs";
 import { istKalenderdatum, kennzahlenText, planIstText } from "./kennzahlen.mjs";
 import { LESE_WURZELN, PfadFehler, bestandWurzeln, loesePfad, pruefeEndung, pruefeKeinAktiverTyp } from "./pfade.mjs";
-import { erwarteterStand, kopiereDatenroot, mitRollback } from "./schreiben.mjs";
+import { erwarteterStand, mitRollback } from "./schreiben.mjs";
 import { bestandFingerabdruck } from "../tools/lib/fingerabdruck.mjs";
 import { releaseStand } from "./version.mjs";
 
@@ -39,12 +40,12 @@ const DATUM = { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" };
 const BETRAG = { type: "string", pattern: "^-?\\d+(\\.\\d{1,2})?$", description: "Decimal-String, z. B. \"-12.50\"" };
 const SCHREIBEN = {
   type: "boolean",
-  description: "Default false = Vorschau, es wird nichts geschrieben. true schreibt (nur mit --recht=schreiben); danach laeuft der Validator, bei neuen Fehlern oder einem Werkzeugfehler wird der Bestand zurueckgesetzt.",
+  description: "Default false = Vorschau, es wird nichts geschrieben. true schreibt (nur mit --recht=schreiben) in einen Entwurf; danach laeuft der Validator, und nur ohne neue Fehler und ohne Werkzeugfehler wird uebernommen.",
 };
 
 const FINGERABDRUCK = {
   type: "string",
-  pattern: "^[0-9a-f]{16}$",
+  pattern: "^([0-9a-f]{16}|G\\d{6,})$",
   description: "Empfohlen mit schreiben:true: der Fingerabdruck aus der Vorschau. Hat sich der Bestand seither geaendert, wird nichts geschrieben und abgewiesen. Ohne Fingerabdruck wird gegen den aktuellen Stand geschrieben.",
 };
 
@@ -68,13 +69,19 @@ const ladeBestand = (ctx) => mitLesestand(ctx.datenroot, async (leser) => ({ sta
 
 // ---------------------------------------------------------------- CLI-Laeufe
 
-// sperre: die von mitRollback gehaltene Schreibsperre; die CLI erbt sie ueber
-// die Umgebung und nimmt keine eigene.
-function starte(ctx, skript, args, sperre = null) {
+// s: der Schreibvorgang aus mitRollback. Die CLI schreibt in dessen Entwurf
+// und erbt die Schreibsperre ueber die Umgebung (keine eigene Sperre, kein
+// eigener Entwurf).
+function umgebung(ctx, s) {
+  if (!s) return process.env;
+  return { ...process.env, [ENTWURF_UMGEBUNG]: s.ordner, [BESTAND_UMGEBUNG]: ctx.datenroot, ...(s.sperre ? { [SPERRE_UMGEBUNG]: s.sperre.kennung } : {}) };
+}
+
+function starte(ctx, skript, args, s = null) {
   return new Promise((resolve) => {
     execFile(process.execPath, [path.join(ctx.app, "tools", skript), ...args], {
       cwd: ctx.app,
-      env: sperre ? { ...process.env, [SPERRE_UMGEBUNG]: sperre.kennung } : process.env,
+      env: umgebung(ctx, s),
       timeout: LAUF_TIMEOUT,
       maxBuffer: 64 * 1024 * 1024,
     }, (error, stdout, stderr) => {
@@ -85,14 +92,12 @@ function starte(ctx, skript, args, sperre = null) {
   });
 }
 
-// schreibFlag: Flag der CLI fuer den Schreiblauf. ohneVorschau: die CLI
-// schreibt immer (derzeit keine) — dann laeuft die Vorschau gegen
-// eine Wegwerfkopie des Datenroots, und beim Schreiben wird kein Flag gereicht.
-// rueckrollungBeiFehler: false fuer Laeufe, die Dateien ausserhalb des
+// schreibFlag: Flag der CLI fuer den Schreiblauf; der Schreiblauf bekommt den
+// Entwurf als Datenroot. rueckrollungBeiFehler: false fuer Laeufe, die Dateien ausserhalb des
 // Bestands verschieben (Inbox-Archiv, Belege); dort wuerde ein Zuruecksetzen nur
 // des Bestands Verweise ins Leere zeigen lassen. Sie setzen nur bei neuen
 // Validatorfehlern zurueck. mitBelegen: der Lauf arbeitet auf Belege/.
-function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], schreibFlag, ohneVorschau = false, okCodes = [0], rueckrollungBeiFehler = true, mitBelegen = false, argv }) {
+function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], schreibFlag, okCodes = [0], rueckrollungBeiFehler = true, mitBelegen = false, argv }) {
   const properties = { ...eigenschaften };
   if (schreibFlag) properties.schreiben = SCHREIBEN;
   return {
@@ -106,12 +111,12 @@ function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], sch
         return ergebnis(`${name} mit schreiben:true braucht --recht=schreiben. Dieser Zugang darf nur Vorschau-Laeufe.`, true);
       }
       if (mitBelegen) belegeWurzel(ctx);
-      const lauf = async (root, kopfzeile, sperre = null) => {
+      const lauf = async (root, kopfzeile, s = null) => {
         const cliArgs = await argv(ctx, args, root);
-        const flag = schreiben && !ohneVorschau ? [schreibFlag] : [];
+        const flag = schreiben ? [schreibFlag] : [];
         let r;
         try {
-          r = await starte(ctx, skript, [...cliArgs, ...flag], sperre);
+          r = await starte(ctx, skript, [...cliArgs, ...flag], s);
         } finally {
           await cliArgs.aufraeumen?.();
         }
@@ -119,15 +124,8 @@ function cli({ name, skript, beschreibung, eigenschaften = {}, pflicht = [], sch
         if (r.stderr.trim()) teile.push(`--- stderr ---\n${r.stderr.trimEnd()}`);
         return ergebnis(teile.join("\n"), !okCodes.includes(r.exitCode));
       };
-      if (schreiben) return mitRollback(ctx.datenroot, (sperre) => lauf(ctx.datenrootRel, "Modus: schreiben", sperre), { rueckrollungBeiFehler });
-      if (!ohneVorschau) return lauf(ctx.datenrootRel, "Modus: Vorschau");
-      // Die CLI kennt keine Vorschau: gegen eine Wegwerfkopie des Datenroots laufen.
-      const kopie = await kopiereDatenroot(ctx.datenroot);
-      try {
-        return await lauf(kopie, "Modus: Vorschau (Lauf gegen eine temporaere Kopie des Datenroots — am Bestand wurde nichts geschrieben)");
-      } finally {
-        await rm(kopie, { recursive: true, force: true });
-      }
+      if (schreiben) return mitRollback(ctx.datenroot, (s) => lauf(s.ordner, "Modus: schreiben", s), { rueckrollungBeiFehler });
+      return lauf(ctx.datenrootRel, "Modus: Vorschau");
     },
   };
 }
@@ -745,7 +743,7 @@ async function schreibZiel(ctx, pfad) {
 
 const dateiSchreiben = {
   name: "datei_schreiben",
-  description: "Ganze Textdatei im Bestand der Sitzung oder in dessen Inbox/Importprofilen schreiben oder anlegen (max. 10 MB), z. B. eine standardisierte JSONL unter <inbox>/standardized/ (data/master: data/inbox/), ein Importprofil (data/master: data/import-profile/) oder eine Masterdatei. Nur Endungen json, jsonl, csv, txt, md, pdf, png, jpg. Mit anhaengen:true wird der Inhalt als Zeile(n) ans Dateiende gehaengt (z. B. ein Eintrag in agent_log.jsonl). Nicht Belege/, nicht andere Bestaende. Vorschau ist Default; erst schreiben:true schreibt. Danach laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird der Bestand zurueckgesetzt. Kategorien nie per Datei-Edit an Transaktionen setzen — dafuer gibt es bestaetigen/agent_vorschlag.",
+  description: "Ganze Textdatei im Bestand der Sitzung oder in dessen Inbox/Importprofilen schreiben oder anlegen (max. 10 MB), z. B. eine standardisierte JSONL unter <inbox>/standardized/ (data/master: data/inbox/), ein Importprofil (data/master: data/import-profile/) oder eine Masterdatei. Nur Endungen json, jsonl, csv, txt, md, pdf, png, jpg. Mit anhaengen:true wird der Inhalt als Zeile(n) ans Dateiende gehaengt (z. B. ein Eintrag in agent_log.jsonl). Nicht Belege/, nicht andere Bestaende. Vorschau ist Default; erst schreiben:true schreibt. Danach laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird nichts uebernommen. Kategorien nie per Datei-Edit an Transaktionen setzen — dafuer gibt es bestaetigen/agent_vorschlag.",
   inputSchema: {
     type: "object",
     properties: { pfad: { type: "string" }, inhalt: { type: "string" }, anhaengen: { type: "boolean" }, schreiben: SCHREIBEN },
@@ -763,18 +761,19 @@ const dateiSchreiben = {
       const was = args.anhaengen ? `${bytes} Bytes an ${relativ} anhaengen` : `${relativ} ${info ? "ueberschreiben" : "anlegen"} (${bytes} Bytes)`;
       return ergebnis(`Vorschau (nichts geschrieben): wuerde ${was}. Mit schreiben:true ausfuehren.`);
     }
-    return mitRollback(ctx.datenroot, async () => {
+    return mitRollback(ctx.datenroot, async (s) => {
+      const ziel = s.pfad(absolut);
       if (args.anhaengen) {
         // Nur eine fehlende Datei gilt als leer; jeder andere Lesefehler bricht ab,
         // sonst ersetzte das Anhaengen den unlesbaren Inhalt.
-        const bisher = await readFile(absolut, "utf8").catch((error) => {
+        const bisher = await readFile(ziel, "utf8").catch((error) => {
           if (error.code === "ENOENT") return "";
           throw error;
         });
-        await ersetzeDatei(absolut, `${bisher.replace(/\n*$/, bisher ? "\n" : "")}${args.inhalt.replace(/\n*$/, "\n")}`);
+        await ersetzeDatei(ziel, `${bisher.replace(/\n*$/, bisher ? "\n" : "")}${args.inhalt.replace(/\n*$/, "\n")}`);
         return ergebnis(`${relativ}: ${bytes} Bytes angehaengt.`);
       }
-      await ersetzeDatei(absolut, args.inhalt);
+      await ersetzeDatei(ziel, args.inhalt);
       return ergebnis(`${relativ} geschrieben (${bytes} Bytes).`);
     });
   },
@@ -782,7 +781,7 @@ const dateiSchreiben = {
 
 const dateiErsetzen = {
   name: "datei_ersetzen",
-  description: "Exakten Textabschnitt in einer Datei im Bestand der Sitzung oder in dessen Inbox/Importprofilen ersetzen. alt muss genau einmal vorkommen (sonst Fehler, nichts geaendert). Vorschau ist Default; erst schreiben:true schreibt. Danach laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird der Bestand zurueckgesetzt.",
+  description: "Exakten Textabschnitt in einer Datei im Bestand der Sitzung oder in dessen Inbox/Importprofilen ersetzen. alt muss genau einmal vorkommen (sonst Fehler, nichts geaendert). Vorschau ist Default; erst schreiben:true schreibt. Danach laeuft der Validator; bei neuen Fehlern oder einem Werkzeugfehler wird nichts uebernommen.",
   inputSchema: {
     type: "object",
     properties: { pfad: { type: "string" }, alt: { type: "string", minLength: 1 }, neu: { type: "string" }, schreiben: SCHREIBEN },
@@ -792,11 +791,11 @@ const dateiErsetzen = {
   nurSchreiben: true,
   async ausfuehren(ctx, args) {
     const { absolut, relativ } = await schreibZiel(ctx, args.pfad);
-    const pruefen = async () => {
-      const info = await stat(absolut).catch(() => null);
+    const pruefen = async (datei = absolut) => {
+      const info = await stat(datei).catch(() => null);
       if (!info?.isFile()) return { fehler: `${relativ} existiert nicht` };
       if (info.size > MAX_SCHREIBEN) return { fehler: `${relativ} ist groesser als 10 MB` };
-      const text = await readFile(absolut, "utf8");
+      const text = await readFile(datei, "utf8");
       const erste = text.indexOf(args.alt);
       if (erste < 0) return { fehler: `alt kommt in ${relativ} nicht vor — nichts geaendert` };
       if (text.indexOf(args.alt, erste + 1) >= 0) return { fehler: `alt kommt in ${relativ} mehrfach vor — mehr Kontext angeben, nichts geaendert` };
@@ -808,12 +807,12 @@ const dateiErsetzen = {
       const zeile = vorab.text.slice(0, vorab.erste).split("\n").length;
       return ergebnis(`Vorschau (nichts geschrieben): wuerde in ${relativ} 1 Stelle ab Zeile ${zeile} ersetzen. Mit schreiben:true ausfuehren.`);
     }
-    return mitRollback(ctx.datenroot, async () => {
-      // Unter der Schreibreihenfolge neu lesen: dazwischen kann ein anderer
+    return mitRollback(ctx.datenroot, async (s) => {
+      // Unter der Sperre im Entwurf neu lesen: dazwischen kann ein anderer
       // Aufruf die Datei geaendert haben.
-      const jetzt = await pruefen();
+      const jetzt = await pruefen(s.pfad(absolut));
       if (jetzt.fehler) return ergebnis(jetzt.fehler, true);
-      await ersetzeDatei(absolut, jetzt.text.slice(0, jetzt.erste) + args.neu + jetzt.text.slice(jetzt.erste + args.alt.length));
+      await ersetzeDatei(s.pfad(absolut), jetzt.text.slice(0, jetzt.erste) + args.neu + jetzt.text.slice(jetzt.erste + args.alt.length));
       return ergebnis(`${relativ}: 1 Stelle ersetzt.`);
     });
   },
@@ -899,17 +898,17 @@ const belegAblegen = {
     }
     const bericht = paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${bericht}`);
-    return mitVerschieben(ctx, async () => {
-      await mkdir(path.dirname(ziel.absolut), { recursive: true });
-      for (const [q, z] of paare) await rename(q.absolut, z.absolut);
+    return mitVerschieben(ctx, async (s) => {
+      await mkdir(path.dirname(s.pfad(ziel.absolut)), { recursive: true });
+      for (const [q, z] of paare) await rename(s.pfad(q.absolut), s.pfad(z.absolut));
       return ergebnis(paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n"));
     });
   },
 };
 
-// Eine Protokollzeile im Format der CLIs (inbox.mjs) ans agent_log.jsonl.
-async function protokolliere(ctx, eintrag) {
-  const absolut = path.join(ctx.datenroot, "agent_log.jsonl");
+// Eine Protokollzeile im Format der CLIs (inbox.mjs) ans agent_log.jsonl des Entwurfs.
+async function protokolliere(s, eintrag) {
+  const absolut = path.join(s.ordner, "agent_log.jsonl");
   const bisher = await readFile(absolut, "utf8").catch((error) => {
     if (error.code === "ENOENT") return "";
     throw error;
@@ -1001,11 +1000,11 @@ async function datenMitVerweis(ctx, pfade) {
   return treffer;
 }
 
-async function inDenPapierkorb(paare) {
+async function inDenPapierkorb(paare, s) {
   for (const [q, z] of paare) {
     // Wie data/ selbst: nicht fuer alle lesbar (die umask allein liesse 775 zu).
-    await mkdir(path.dirname(z.absolut), { recursive: true, mode: 0o750 });
-    await rename(q.absolut, z.absolut);
+    await mkdir(path.dirname(s.pfad(z.absolut)), { recursive: true, mode: 0o750 });
+    await rename(s.pfad(q.absolut), s.pfad(z.absolut));
   }
 }
 
@@ -1028,9 +1027,9 @@ const inboxVerwerfen = {
     if (!(await istDatei(quelle.absolut))) return ergebnis(`${quelle.relativ} ist keine Datei`, true);
     const paare = await planePapierkorb(ctx, quelle);
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n")}`);
-    return mitVerschieben(ctx, async () => {
-      await inDenPapierkorb(paare);
-      await protokolliere(ctx, {
+    return mitVerschieben(ctx, async (s) => {
+      await inDenPapierkorb(paare, s);
+      await protokolliere(s, {
         anlass: "inbox-verwerfen",
         inputs: paare.map(([q]) => q.relativ),
         papierkorb: paare.map(([, z]) => z.relativ),
@@ -1096,7 +1095,7 @@ const belegTeilen = {
       ...korb.map(([q, z]) => `${q.relativ} -> ${z.relativ}`),
     ].join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (${seitenzahl} Seiten, nichts geschrieben):\n${bericht}`);
-    return mitVerschieben(ctx, async () => {
+    return mitVerschieben(ctx, async (s) => {
       const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-teilen-"));
       try {
         await programm("pdfseparate", [quelle.absolut, path.join(ordner, "seite-%d.pdf")]);
@@ -1105,13 +1104,13 @@ const belegTeilen = {
           const fertig = path.join(ordner, `teil-${i + 1}.pdf`);
           if (einzeln.length === 1) await rename(einzeln[0], fertig);
           else await programm("pdfunite", [...einzeln, fertig]);
-          await copyFile(fertig, teil.ziel.absolut, fsKonstanten.COPYFILE_EXCL);
+          await copyFile(fertig, s.pfad(teil.ziel.absolut), fsKonstanten.COPYFILE_EXCL);
         }
       } finally {
         await rm(ordner, { recursive: true, force: true });
       }
-      await inDenPapierkorb(korb);
-      await protokolliere(ctx, {
+      await inDenPapierkorb(korb, s);
+      await protokolliere(s, {
         anlass: "beleg-teilen",
         inputs: [quelle.relativ],
         teile: teile.map((t) => ({ datei: t.ziel.relativ, seiten: t.seiten })),
@@ -1168,11 +1167,11 @@ const belegErgaenzen = {
       ...verweise.map((v) => `Verweise umgestellt in ${v.name}: ${v.anzahl}`),
     ].join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts geschrieben):\n${bericht}`);
-    return mitVerschieben(ctx, async () => {
+    return mitVerschieben(ctx, async (s) => {
       const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-ergaenzen-"));
       try {
-        await programm("pdfseparate", [ziel.absolut, path.join(ordner, "alt-%d.pdf")]);
-        await programm("pdfseparate", [quelle.absolut, path.join(ordner, "neu-%d.pdf")]);
+        await programm("pdfseparate", [s.pfad(ziel.absolut), path.join(ordner, "alt-%d.pdf")]);
+        await programm("pdfseparate", [s.pfad(quelle.absolut), path.join(ordner, "neu-%d.pdf")]);
         const seite = (art, nr) => path.join(ordner, `${art}-${nr}.pdf`);
         const folge = [];
         for (let nr = 1; nr <= nach; nr += 1) folge.push(seite("alt", nr));
@@ -1181,15 +1180,15 @@ const belegErgaenzen = {
         const fertig = path.join(ordner, "fertig.pdf");
         await programm("pdfunite", [...folge, fertig]);
         // Erst neben dem Beleg bereitlegen, dann tauschen: der Beleg fehlt nie.
-        const bereit = `${ziel.absolut}.ergaenzt`;
+        const bereit = `${s.pfad(ziel.absolut)}.ergaenzt`;
         await copyFile(fertig, bereit, fsKonstanten.COPYFILE_EXCL);
-        await inDenPapierkorb(korb);
-        await rename(bereit, ziel.absolut);
+        await inDenPapierkorb(korb, s);
+        await rename(bereit, s.pfad(ziel.absolut));
       } finally {
         await rm(ordner, { recursive: true, force: true });
       }
-      for (const v of verweise) await ersetzeDatei(path.join(ctx.datenroot, v.name), ersetzeVerweise(v.text, ersetzungen).text);
-      await protokolliere(ctx, {
+      for (const v of verweise) await ersetzeDatei(path.join(s.ordner, v.name), ersetzeVerweise(v.text, ersetzungen).text);
+      await protokolliere(s, {
         anlass: "beleg-ergaenzen",
         inputs: [quelle.relativ],
         beleg: ziel.relativ,
@@ -1227,9 +1226,9 @@ const belegVerwerfen = {
     }
     const bericht = paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${bericht}`);
-    return mitVerschieben(ctx, async () => {
-      await inDenPapierkorb(paare);
-      await protokolliere(ctx, {
+    return mitVerschieben(ctx, async (s) => {
+      await inDenPapierkorb(paare, s);
+      await protokolliere(s, {
         anlass: "beleg-verwerfen",
         inputs: paare.map(([q]) => q.relativ),
         papierkorb: paare.map(([, z]) => z.relativ),
@@ -1259,9 +1258,9 @@ const inboxZurueckholen = {
     const ziel = await loesePfad(ctx.app, path.join(inbox, name), [inbox]);
     if (await lstat(ziel.absolut).catch(() => null)) return ergebnis(`${ziel.relativ} existiert bereits — nichts verschoben`, true);
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${quelle.relativ} -> ${ziel.relativ}`);
-    return mitVerschieben(ctx, async () => {
-      await rename(quelle.absolut, ziel.absolut);
-      await protokolliere(ctx, { anlass: "inbox-zurueckholen", inputs: [quelle.relativ], notiz: `Aus error/ zurueck nach ${ziel.relativ}` });
+    return mitVerschieben(ctx, async (s) => {
+      await rename(s.pfad(quelle.absolut), s.pfad(ziel.absolut));
+      await protokolliere(s, { anlass: "inbox-zurueckholen", inputs: [quelle.relativ], notiz: `Aus error/ zurueck nach ${ziel.relativ}` });
       return ergebnis(`${quelle.relativ} -> ${ziel.relativ}`);
     });
   },
@@ -1282,7 +1281,7 @@ export function sichtbareWerkzeuge(ctx) {
 
 // Schreibende Aufrufe einer Sitzung laufen nacheinander: Clients schicken
 // Tool-Aufrufe parallel, und Lesen-Aendern-Schreiben (anhaengen, ersetzen)
-// sowie Kopie und Rueckspielen in mitRollback vertragen keine Ueberlappung.
+// vertragen keine Ueberlappung, und mitRollback haelt je Bestand nur einen Entwurf.
 // Zwischen zwei Sitzungen (Prozessen) schuetzt die Schreibsperre des Bestands
 // (mitRollback): die zweite Sitzung bekommt eine Abweisung.
 let schreibKette = Promise.resolve();

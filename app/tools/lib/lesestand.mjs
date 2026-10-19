@@ -1,8 +1,9 @@
 // app/tools/lib/lesestand.mjs
 // Lesen aus einem Datenbestand ueber eine Lease (ADR 0035): der Leser sieht
-// genau eine Generation, auch wenn waehrenddessen geschrieben wird. Im
-// Rueckfallmodus (einfacher Ordner, heute data/master und data/demo) liest er
-// den Ordner direkt, wie bisher.
+// genau eine Generation, auch wenn waehrenddessen geschrieben wird. Ohne
+// Schreibrecht (Webdienst) liest er ohne Lease mit Frist, siehe
+// generationen.mjs. Im Rueckfallmodus (einfacher Ordner, z. B. data/demo)
+// liest er den Ordner direkt, wie bisher.
 //
 // Der Datenroot, den Werkzeuge und Server bekommen (data/master), ist nicht
 // immer die Basis des Bestands: nach der Migration (E1 Schritt 5) ist er ein
@@ -20,9 +21,10 @@ export async function bestandsBasis(datenroot) {
 
 // fn(leser) mit leser = { id, ordner, lies, dateien } aus generationen.mjs plus
 // url (file-URL des Ordners mit Schlusstrenner, fuer loadMasterData & Co.).
-// id ist die Generations-Id oder ORDNER.
-export async function mitLesestand(datenroot, fn) {
-  return mitLeser(await bestandsBasis(datenroot), (leser) => fn({ ...leser, url: pathToFileURL(`${leser.ordner}${path.sep}`) }));
+// id ist die Generations-Id oder ORDNER. optionen gehen an oeffneLeser
+// (z. B. lease: false fuer einen Lesetest wie im Webdienst).
+export async function mitLesestand(datenroot, fn, optionen) {
+  return mitLeser(await bestandsBasis(datenroot), (leser) => fn({ ...leser, url: pathToFileURL(`${leser.ordner}${path.sep}`) }), optionen);
 }
 
 // Generations-Id des aktuellen Stands oder ORDNER (einfacher Ordner).

@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -150,6 +150,35 @@ test("App-Server: Grunddaten, 304, Logos und Export aus der aktuellen Generation
     assert.deepEqual(await leases(basis, "000002"), [], "keine Lease bleibt liegen");
   } finally {
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+// Produktionsfall 19.10.2026: der Webdienst laeuft mit ProtectSystem=strict
+// und darf nur die Inbox schreiben. Nachgebildet: der ganze Generationsbestand
+// ohne Schreibrecht. Lesen muss trotzdem gehen, ohne Lease-Dateien.
+test("App-Server liest einen Generationsbestand ohne Schreibrecht", { skip: process.getuid?.() === 0 && "root ignoriert Dateirechte" }, async () => {
+  const app = join(wurzel, "readonly-test", "app");
+  const data = join(app, "data");
+  await mkdir(join(data, "inbox"), { recursive: true });
+  await writeFile(join(app, "index.html"), "<!doctype html><title>t</title>");
+  const basis = await generationsLayout(data);
+  await schreibe(basis, "personen.json", (t) => `${JSON.stringify(JSON.parse(t))}\n`);
+  const ordner = [basis, join(basis, "generationen"), generationsOrdner(basis, "000001"), generationsOrdner(basis, "000002")];
+  for (const o of ordner) await chmod(o, 0o555);
+  const server = createAppServer({ appDir: app, inboxDir: join(data, "inbox"), log: () => {} });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address();
+  try {
+    const stand = JSON.parse((await hole(port, "/api/v1/stand")).body).stand;
+    assert.equal(stand, "g000002-f1");
+    const grund = await hole(port, "/api/v1/grunddaten");
+    assert.equal(grund.status, 200, grund.body.toString());
+    assert.equal(JSON.parse(grund.body).stand, stand);
+    assert.equal((await hole(port, "/api/export/daten")).status, 200);
+    assert.deepEqual(await leases(basis, "000002"), []);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    for (const o of ordner) await chmod(o, 0o755);
   }
 });
 

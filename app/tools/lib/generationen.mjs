@@ -30,6 +30,14 @@
 // - Leser binden sich per Lease (.leser-* in der Generation) an eine Id. Das
 //   Aufraeumen loescht keine Generation mit lebender Lease (Marker-Protokoll
 //   in raeumeGeneration) und behaelt ausserdem die letzten `behalten`.
+// - Leser ohne Schreibrecht (Webdienst unter ProtectSystem=strict: EROFS,
+//   sonst EACCES/EPERM) lesen ohne Lease, aber mit Frist: Sie duerfen hoechstens
+//   LESER_FRIST_MS lang lesen, danach weist lies() ab. Das Aufraeumen loescht
+//   eine Generation erst, wenn sie seit ABGELOEST_FRIST_MS (laenger als die
+//   Lesefrist) nicht mehr aktuell ist; "abgeloest seit" ist der Zeitstempel
+//   des Manifests ihrer Nachfolgerin (Ids steigen streng, auch bei Undo). Ein
+//   Leser ohne Lease sah seine Generation beim Oeffnen als aktuelle, also wird
+//   sie fruehestens ABGELOEST_FRIST_MS nach dem Oeffnen geloescht.
 // - Das Manifest traegt die Formatversion des Bestands (FORMAT). Code, der ein
 //   anderes Format nicht kennt, liest und schreibt es nicht.
 import { createHash, randomBytes } from "node:crypto";
@@ -52,6 +60,11 @@ const ENTWURF_ORDNER = ".entwurf-";
 // Eine Lease ohne lesbaren Inhalt (Leser starb zwischen Anlegen und Schreiben)
 // gilt nach dieser Zeit als verwaist.
 const LEASE_KAPUTT_MS = 60 * 1000;
+// Lesefrist ohne Lease und Schonfrist abgeloester Generationen (siehe oben).
+// Der Abstand deckt die Zeit zwischen Manifest und Zeigerwechsel ab.
+export const LESER_FRIST_MS = 10 * 60 * 1000;
+export const ABGELOEST_FRIST_MS = LESER_FRIST_MS + 5 * 60 * 1000;
+const OHNE_SCHREIBRECHT = new Set(["EROFS", "EACCES", "EPERM"]);
 
 export class FormatUnbekannt extends Error {
   constructor(basis, format) {
@@ -234,55 +247,78 @@ export async function einrichten(basis, quellOrdner, { halt = ohneHalt, wer = "e
 
 const leaseInhalt = () => `${JSON.stringify({ pid: process.pid, rechner: hostname(), zeit: new Date().toISOString() })}\n`;
 
-function leserAuf(id, ordner, schliessen = async () => {}) {
+function leserAuf(id, ordner, schliessen = async () => {}, bis = Infinity) {
+  // Nur Leser ohne Lease haben eine Frist; danach koennte das Aufraeumen ihre
+  // Generation schon wegnehmen, also lieber laut abweisen.
+  const inFrist = () => {
+    if (Date.now() > bis) throw new Error(`Lesevorgang ohne Lease auf Generation ${id} hat seine Frist ueberschritten; neu oeffnen`);
+  };
   return {
     id,
     ordner,
-    lies: (rel, kodierung = "utf8") => readFile(path.join(ordner, relPfad(rel)), kodierung ?? undefined),
-    dateien: () => dateiListe(ordner),
+    lease: bis === Infinity,
+    lies: async (rel, kodierung = "utf8") => {
+      inFrist();
+      return readFile(path.join(ordner, relPfad(rel)), kodierung ?? undefined);
+    },
+    dateien: async () => {
+      inFrist();
+      return dateiListe(ordner);
+    },
     schliessen,
   };
 }
 
 // Oeffnet einen Lesevorgang auf der aktuellen Generation. Liefert
-// { id, ordner, lies(rel, kodierung), dateien(), schliessen() }. Bis
-// schliessen() bleibt die Generation erhalten. Im Rueckfallmodus liest der
-// Leser den Ordner direkt (ohne Schnappschuss-Garantie).
-export async function oeffneLeser(basis) {
+// { id, ordner, lease, lies(rel, kodierung), dateien(), schliessen() }. Mit
+// Lease bleibt die Generation bis schliessen() erhalten; ohne Schreibrecht
+// (oder mit lease: false) liest der Leser ohne Lease hoechstens fristMs lang
+// (Default LESER_FRIST_MS, siehe Kopf). Im Rueckfallmodus liest der Leser den
+// Ordner direkt (ohne Schnappschuss-Garantie).
+export async function oeffneLeser(basis, { lease: mitLease = true, fristMs = LESER_FRIST_MS } = {}) {
   if ((await bestandsArt(basis)) === ORDNER) return leserAuf(ORDNER, basis);
+  if (!(fristMs >= 0 && fristMs <= LESER_FRIST_MS)) throw new Error(`fristMs muss zwischen 0 und ${LESER_FRIST_MS} liegen: ${fristMs}`);
   for (let versuch = 0; versuch < 50; versuch += 1) {
+    const beginn = Date.now();
     const id = await aktuelleId(basis);
     const ordner = generationsOrdner(basis, id);
-    const lease = path.join(ordner, `${LEASE}${process.pid}-${randomBytes(6).toString("hex")}`);
-    try {
-      await writeFile(lease, leaseInhalt(), { flag: "wx" });
-    } catch (error) {
-      if (error.code === "ENOENT") continue; // Generation gerade weggeraeumt
-      throw error;
+    let lease = mitLease ? path.join(ordner, `${LEASE}${process.pid}-${randomBytes(6).toString("hex")}`) : null;
+    if (lease) {
+      try {
+        await writeFile(lease, leaseInhalt(), { flag: "wx" });
+      } catch (error) {
+        if (error.code === "ENOENT") continue; // Generation gerade weggeraeumt
+        if (!OHNE_SCHREIBRECHT.has(error.code)) throw error;
+        lease = null; // kein Schreibrecht: Lesen mit Frist
+      }
     }
+    const abmelden = async () => {
+      if (lease) await unlink(lease).catch(() => {});
+    };
     // Erst nach der Anmeldung pruefen: Marker da oder Ordner weg -> neu.
     if ((await existiert(path.join(ordner, MARKER))) || !(await existiert(path.join(ordner, MANIFEST)))) {
-      await unlink(lease).catch(() => {});
+      await abmelden();
       continue;
     }
     try {
       await liesManifest(basis, ordner);
     } catch (error) {
-      await unlink(lease).catch(() => {});
+      await abmelden();
       throw error;
     }
+    if (!lease) return leserAuf(id, ordner, async () => {}, beginn + fristMs);
     let offen = true;
     return leserAuf(id, ordner, async () => {
       if (!offen) return;
       offen = false;
-      await unlink(lease).catch(() => {});
+      await abmelden();
     });
   }
   throw new Error(`${basis}: keine stabile Generation gefunden`);
 }
 
-export async function mitLeser(basis, fn) {
-  const leser = await oeffneLeser(basis);
+export async function mitLeser(basis, fn, optionen) {
+  const leser = await oeffneLeser(basis, optionen);
   try {
     return await fn(leser);
   } finally {
@@ -331,12 +367,23 @@ async function raeumeGeneration(basis, id, halt) {
   return true;
 }
 
-async function aufraeumen(basis, behalten, halt) {
+// Seit wann eine Generation nicht mehr aktuell ist: Manifest-Zeit ihrer
+// Nachfolgerin (geschrieben kurz vor deren Zeigerwechsel).
+async function abgeloestSeit(basis, nachfolgerin) {
+  return (await stat(path.join(generationsOrdner(basis, nachfolgerin), MANIFEST))).mtimeMs;
+}
+
+async function aufraeumen(basis, behalten, halt, fristMs) {
   const aktuell = Number(await aktuelleId(basis));
-  const alt = (await veroeffentlichteIds(basis)).filter((id) => Number(id) < aktuell);
+  const ids = await veroeffentlichteIds(basis);
+  const alt = ids.filter((id) => Number(id) < aktuell);
   const kandidaten = alt.slice(0, Math.max(0, alt.length - behalten));
   const geloescht = [];
-  for (const id of kandidaten) if (await raeumeGeneration(basis, id, halt)) geloescht.push(id);
+  for (const id of kandidaten) {
+    // Aufsteigend: ist diese noch in der Schonfrist, sind es alle spaeteren auch.
+    if (Date.now() - (await abgeloestSeit(basis, ids[ids.indexOf(id) + 1])) < fristMs) break;
+    if (await raeumeGeneration(basis, id, halt)) geloescht.push(id);
+  }
   return geloescht;
 }
 
@@ -459,7 +506,8 @@ async function pruefeEntwurf(entwurf, pruefe) {
 // fehler?, aufgeraeumt, warnung?, wiederanlauf }. warnung: die Generation ist
 // veroeffentlicht, nur das Aufraeumen alter Generationen scheiterte.
 //
-// Optionen: pruefe, behalten (Default BEHALTEN), erwartet (Id aus der
+// Optionen: pruefe, behalten (Default BEHALTEN), fristMs (Schonfrist
+// abgeloester Generationen, Default ABGELOEST_FRIST_MS), erwartet (Id aus der
 // Vorschau), gesperrt (Aufrufer haelt die Sperre auf basis schon), wer,
 // wartenMs, halt (Testhaken), vonGeneration (nur fuer rueckgaengig).
 export async function mitSchreiber(basis, fn, optionen = {}) {
@@ -475,8 +523,9 @@ export async function mitSchreiber(basis, fn, optionen = {}) {
   return mitSperre(basis, lauf, { wer, ...(wartenMs ? { wartenMs } : {}) });
 }
 
-async function schreibeGeneration(basis, fn, { pruefe, behalten = BEHALTEN, erwartet, vonGeneration, halt = ohneHalt }, kennung) {
+async function schreibeGeneration(basis, fn, { pruefe, behalten = BEHALTEN, fristMs = ABGELOEST_FRIST_MS, erwartet, vonGeneration, halt = ohneHalt }, kennung) {
   if (!Number.isInteger(behalten) || behalten < 0) throw new Error(`behalten muss eine ganze Zahl >= 0 sein: ${behalten}`);
+  if (!Number.isInteger(fristMs) || fristMs < 0) throw new Error(`fristMs muss eine ganze Zahl >= 0 sein: ${fristMs}`);
   // Format zuerst: Code, der das Format nicht kennt, raeumt auch nichts weg.
   const vorher = await aktuelleId(basis);
   const bisher = await liesManifest(basis, generationsOrdner(basis, vorher));
@@ -548,7 +597,7 @@ async function schreibeGeneration(basis, fn, { pruefe, behalten = BEHALTEN, erwa
   // Die neue Generation ist veroeffentlicht: ein Fehler beim Aufraeumen ist nur
   // ein Hinweis, der naechste Schreiber versucht es erneut.
   try {
-    ergebnis.aufgeraeumt = await aufraeumen(basis, behalten, halt);
+    ergebnis.aufgeraeumt = await aufraeumen(basis, behalten, halt, fristMs);
   } catch (error) {
     ergebnis.warnung = `Aufraeumen alter Generationen gescheitert: ${error.message}`;
   }

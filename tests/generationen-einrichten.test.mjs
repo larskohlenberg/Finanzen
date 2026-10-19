@@ -2,12 +2,13 @@
 // Umstellung mit Sicherung und Byte-Vergleich, Schreiben danach, Rueckweg.
 import assert from "node:assert/strict";
 import { execSync, spawnSync } from "node:child_process";
-import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { aktuelleId, pruefeGeneration } from "../app/tools/lib/generationen.mjs";
+import { lesetestOhneLease } from "../app/tools/generationen-einrichten.mjs";
+import { aktuelleId, einrichten, generationsOrdner, pruefeGeneration } from "../app/tools/lib/generationen.mjs";
 
 const demo = fileURLToPath(new URL("../app/data/demo/", import.meta.url));
 const werkzeug = fileURLToPath(new URL("../app/tools/generationen-einrichten.mjs", import.meta.url));
@@ -37,6 +38,7 @@ test("Umstellung: Vorschau aendert nichts; danach Symlink, Sicherung byte-gleich
     const r = lauf([b.master, "--schreiben"]);
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, /Umgestellt: Fingerabdruck G000001/);
+    assert.match(r.stdout, /Lesetest ohne Lease ok/);
     assert.ok(lstatSync(b.master).isSymbolicLink());
     const sicherung = readdirSync(b.daten).find((n) => n.startsWith("master.ordner-"));
     assert.deepEqual(inhalt(join(b.daten, sicherung)), original);
@@ -74,6 +76,26 @@ test("Umstellung verweigert: vorhandenes .gen, schon umgestellt", () => {
     assert.match(r.stderr, /existiert schon/);
     assert.ok(lstatSync(b.master).isDirectory());
   } finally {
+    b.weg();
+  }
+});
+
+// Der Webdienst darf im Bestand nichts schreiben (ProtectSystem=strict); der
+// Lesetest bildet das nach und findet veraenderte Dateien.
+test("Lesetest ohne Lease: klappt ohne Schreibrecht, meldet Abweichungen", { skip: process.getuid?.() === 0 && "root ignoriert Dateirechte" }, async () => {
+  const b = bestand();
+  const basis = `${b.master}.gen`;
+  const gen = generationsOrdner(basis, "000001");
+  try {
+    await einrichten(basis, b.master);
+    for (const o of [basis, join(basis, "generationen"), gen]) chmodSync(o, 0o555);
+    assert.deepEqual(await lesetestOhneLease(basis), []);
+    for (const o of [basis, join(basis, "generationen"), gen]) chmodSync(o, 0o755);
+    chmodSync(join(gen, "farben.json"), 0o644);
+    writeFileSync(join(gen, "farben.json"), "{}\n");
+    assert.match((await lesetestOhneLease(basis)).join("\n"), /farben\.json weicht vom Manifest ab/);
+  } finally {
+    for (const o of [basis, join(basis, "generationen"), gen]) if (existsSync(o)) chmodSync(o, 0o755);
     b.weg();
   }
 });

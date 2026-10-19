@@ -36,7 +36,7 @@ async function einmal(basis, kennung, n) {
     await tx.schreibe("transaktionen.jsonl", `${t}${JSON.stringify(b)}\n`);
     const l = await tx.lies("agent_log.jsonl");
     await tx.schreibe("agent_log.jsonl", `${l}${JSON.stringify({ anlass: "gen-test", betroffene_ids: [b.transaktion_id] })}\n`);
-  }, { wartenMs: 60000, behalten: 3, halt, wer: "gen-test" });
+  }, { wartenMs: 60000, behalten: 3, fristMs: 0, halt, wer: "gen-test" });
 }
 
 export function pruefeInvariante(transaktionen, log) {

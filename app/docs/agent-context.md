@@ -56,6 +56,7 @@ ohne MCP.
 | Seite Plan & Ist der Web-App | `plan_ist` (Plan aus den Regelzahlungen gegen das Ist der Buchungen, je Kategorie mit Regelzahlungen, Einzelposten ab 400 Euro und Terminen ohne Buchung; `zeitraum` gesamt, 12m, Jahr, Quartal oder Monat; optional `verlauf` und `darstellung`). Die Kurzfassung der letzten zwoelf Monate steht auch in `kennzahlen`. |
 | Fristen anlegen, abhaken | `datei_lesen` / `datei_ersetzen` auf `DATENROOT/fristen.json` (kein eigenes Tool; Validator laeuft danach) |
 | `tools/neuer-bestand.mjs` | — (nur CLI: legt einmalig einen leeren Datenbestand mit Grundkategorien an, bevor es einen MCP-Server gibt) |
+| `tools/deploy-pruefung.mjs` | — (nur fuer das Deploy-Skript `ops/aktualisieren.sh`: Schreibsperre ueber den Release-Wechsel, Kennzahlen-Rauchtest; kein Agentenwerkzeug) |
 | `tools/validator.mjs` | `status` (Validator-Ergebnis mit Fehlern; laeuft ausserdem nach jedem Schreiben) |
 | `tools/inbox.mjs` | `inbox` |
 | `tools/import.mjs` | `import` (Datenbestand Pflicht, schreibt nur mit `--schreiben`) |
@@ -119,6 +120,8 @@ Freigabe, Schreiben); Auswertungen und Statusfragen gehen direkt ans Tool.
   ein neuer Stand installiert, weist er alle Tools ausser `status` mit
   Neustarthinweis ab: MCP-Server neu verbinden bzw. neue Sitzung starten.
   `status` zeigt unter `version` beide Staende.
+  Waehrend eines Deploys haelt das Deploy-Skript die Schreibsperre (Halter
+  `deploy`): Schreibaufrufe werden dann abgewiesen, kurz danach erneut versuchen.
 - **Rechte je Schluessel:** `--recht=lesen` erlaubt nur Lese-Tools und
   Vorschau-Laeufe; `--recht=schreiben` zusaetzlich `schreiben: true`,
   `datei_schreiben`, `datei_ersetzen`, `beleg_ablegen`, `beleg_teilen`,

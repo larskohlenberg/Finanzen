@@ -12,11 +12,12 @@
 // jeden menschlichen Treffer bleiben ohne Stufe. Sie geben damit nichts
 // automatisch frei und stehen im Gate-Durchfallbericht — das ist die
 // Arbeitsliste, kein Fehler.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { referenzmenge } from "./lib/spezifitaet.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 export function belegstufeAusBestand(regeln, transaktionen) {
   const referenz = referenzmenge(transaktionen);
@@ -59,7 +60,7 @@ async function main() {
   }
 
   if (!schreiben) { console.log("\nVorschau — nichts geschrieben. Mit --schreiben anwenden."); return; }
-  await writeFile(new URL("kategorisierungsregeln.json", masterRoot), JSON.stringify(out.regeln, null, 2) + "\n");
+  await ersetzeDatei(new URL("kategorisierungsregeln.json", masterRoot), JSON.stringify(out.regeln, null, 2) + "\n");
   console.log("\nGeschrieben.");
 }
 

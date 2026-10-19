@@ -10,13 +10,14 @@
 // darum auch eine frueher getroffene Entscheidung korrigieren — aber nur mit
 // ausdruecklichem `auch_entschiedene`, damit ein zu breiter Filter keine
 // stille Massen-Ueberschreibung wird.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { pflichtDatenroot } from "./data-root.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { normalizeLoose } from "./lib/text.mjs";
 import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 const ENTSCHIEDEN = new Set(["bestaetigt", "abgelehnt"]);
 const KRITERIEN = ["ids", "konto_id", "status", "herkunft", "gegenpartei", "verwendungszweck", "kategorie_id", "regel_id", "von", "bis"];
@@ -194,7 +195,7 @@ async function main() {
     return;
   }
   const vorher = await validatorFehler(masterRoot);
-  await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
+  await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
 
   // Lernsignal protokollieren (ADR 0026). Nur wenn tatsaechlich eine
   // Auto-Freigabe ueberschrieben wurde — sonst blaeht der Log auf.
@@ -208,7 +209,7 @@ async function main() {
     };
     const logUrl = new URL("agent_log.jsonl", masterRoot);
     const bisher = await readFile(logUrl, "utf8").catch(() => "");
-    await writeFile(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);
+    await ersetzeDatei(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);
   }
 
   await meldeNachSchreiben(masterRoot, vorher, "Validierung nach Bestaetigungslauf fehlgeschlagen");

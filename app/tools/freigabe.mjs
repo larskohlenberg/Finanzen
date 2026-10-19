@@ -9,7 +9,7 @@
 // eine fruehere Entscheidung korrigieren. Hier entscheidet das Regelwerk; jede
 // Freigabe traegt bestaetigt_durch = "auto" und bleibt fuer recategorize.mjs
 // anfassbar, weil nie jemand hingeschaut hat.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
 import { dataRootFromArg } from "./data-root.mjs";
@@ -18,6 +18,7 @@ import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 import { metriken, gesperrteBelegstufenAus } from "./lernen.mjs";
 import { kontoanker, stufeVerliehen } from "./lib/kontoanker.mjs";
 import { meldeNachSchreiben, validatorFehler } from "./lib/validator-befund.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 const BELEGSTUFEN = new Set(["E1", "E2", "E3", "E4"]);
 
@@ -174,7 +175,7 @@ async function main() {
   }
 
   const vorher = await validatorFehler(masterRoot);
-  await writeFile(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
+  await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
 
   const protokoll = {
     zeitpunkt: new Date().toISOString(),
@@ -187,7 +188,7 @@ async function main() {
   };
   const logUrl = new URL("agent_log.jsonl", masterRoot);
   const bisher = await readFile(logUrl, "utf8").catch(() => "");
-  await writeFile(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);
+  await ersetzeDatei(logUrl, `${bisher.replace(/\n*$/, "\n")}${JSON.stringify(protokoll)}\n`);
 
   await meldeNachSchreiben(masterRoot, vorher, "Validierung nach Freigabe fehlgeschlagen");
 }

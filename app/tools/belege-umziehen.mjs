@@ -16,12 +16,13 @@
 //
 //   node tools/belege-umziehen.mjs <datenroot> <plan.json> [--schreiben]
 
-import { constants, copyFile, link, lstat, mkdir, readFile, readdir, realpath, rmdir, unlink, writeFile } from "node:fs/promises";
+import { constants, copyFile, link, lstat, mkdir, readFile, readdir, realpath, rmdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataRootFromArg } from "./data-root.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { belegPfadeAusText } from "../belege.mjs";
+import { ersetzeDatei } from "./lib/datei.mjs";
 
 const BELEGE_STANDARD = new URL("../Belege/", import.meta.url);
 const PROTOKOLL = "agent_log.jsonl";
@@ -258,7 +259,7 @@ export async function main({
     const { text, anzahl } = ersetzeVerweise(datei.text, plan.ersetzungen);
     if (anzahl) {
       bericht.verweise[datei.name] = anzahl;
-      if (schreiben) await writeFile(new URL(datei.name, datenRoot), text);
+      if (schreiben) await ersetzeDatei(new URL(datei.name, datenRoot), text);
     }
     for (const pfad of belegPfadeAusText(text)) if (!nachher.has(nfc(pfad))) verwaist.add(pfad);
   }

@@ -9,11 +9,12 @@
 // Jeder schreibende Vorgang laeuft durch mitRollback (Validator + Rueckspielen).
 import { execFile } from "node:child_process";
 import { constants as fsKonstanten } from "node:fs";
-import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { ersetzeVerweise } from "../tools/belege-umziehen.mjs";
+import { ersetzeDatei } from "../tools/lib/datei.mjs";
 import { UMGEBUNG as SPERRE_UMGEBUNG } from "../tools/lib/schreibsperre.mjs";
 import { planeTeilung } from "../tools/lib/seiten.mjs";
 import { loadMasterData, validateMasterData } from "../tools/validator.mjs";
@@ -182,7 +183,7 @@ const CLI_WERKZEUGE = [
       if (a.kandidaten) {
         const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-kandidaten-"));
         datei = path.join(ordner, "kandidaten.json");
-        await writeFile(datei, JSON.stringify(a.kandidaten));
+        await ersetzeDatei(datei, JSON.stringify(a.kandidaten));
       } else if (a.kandidaten_datei) {
         // Den geprueften absoluten Pfad reichen: die CLI soll nichts mehr deuten.
         datei = (await loesePfad(ctx.app, a.kandidaten_datei, bestandWurzeln(ctx).schreiben)).absolut;
@@ -312,7 +313,7 @@ const CLI_WERKZEUGE = [
       }
       const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-logos-"));
       const datei = path.join(ordner, "plan.json");
-      await writeFile(datei, JSON.stringify(eintraege));
+      await ersetzeDatei(datei, JSON.stringify(eintraege));
       out.push("--plan", datei);
       out.aufraeumen = () => rm(ordner, { recursive: true, force: true });
       return out;
@@ -369,7 +370,7 @@ const CLI_WERKZEUGE = [
       if (a.umzuege) {
         const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-umzug-"));
         datei = path.join(ordner, "plan.json");
-        await writeFile(datei, JSON.stringify(a.umzuege));
+        await ersetzeDatei(datei, JSON.stringify(a.umzuege));
       } else if (a.plan_datei) {
         datei = (await loesePfad(ctx.app, a.plan_datei, bestandWurzeln(ctx).schreiben)).absolut;
       } else {
@@ -694,22 +695,6 @@ const dateienSuchen = {
 
 // ---------------------------------------------------------------- Schreiben
 
-// Bestehende Dateien behalten ihren Modus, neue bekommen 0640 (unabhaengig von
-// der umask; die Daten sollen nicht fuer alle lesbar werden).
-async function schreibeAtomar(absolut, inhalt) {
-  await mkdir(path.dirname(absolut), { recursive: true });
-  const modus = ((await stat(absolut).catch(() => null))?.mode ?? 0o640) & 0o7777;
-  const temp = path.join(path.dirname(absolut), `.${path.basename(absolut)}.mcp-${process.pid}`);
-  try {
-    await writeFile(temp, inhalt, { mode: modus });
-    await chmod(temp, modus);
-    await rename(temp, absolut);
-  } catch (error) {
-    await rm(temp, { force: true });
-    throw error;
-  }
-}
-
 // Ziel eines Dateiwerkzeugs: nur im Bestand der Sitzung (samt Inbox,
 // Importprofilen, Papierkorb) und nur mit erlaubter Endung.
 async function schreibZiel(ctx, pfad) {
@@ -746,10 +731,10 @@ const dateiSchreiben = {
           if (error.code === "ENOENT") return "";
           throw error;
         });
-        await schreibeAtomar(absolut, `${bisher.replace(/\n*$/, bisher ? "\n" : "")}${args.inhalt.replace(/\n*$/, "\n")}`);
+        await ersetzeDatei(absolut, `${bisher.replace(/\n*$/, bisher ? "\n" : "")}${args.inhalt.replace(/\n*$/, "\n")}`);
         return ergebnis(`${relativ}: ${bytes} Bytes angehaengt.`);
       }
-      await schreibeAtomar(absolut, args.inhalt);
+      await ersetzeDatei(absolut, args.inhalt);
       return ergebnis(`${relativ} geschrieben (${bytes} Bytes).`);
     });
   },
@@ -788,7 +773,7 @@ const dateiErsetzen = {
       // Aufruf die Datei geaendert haben.
       const jetzt = await pruefen();
       if (jetzt.fehler) return ergebnis(jetzt.fehler, true);
-      await schreibeAtomar(absolut, jetzt.text.slice(0, jetzt.erste) + args.neu + jetzt.text.slice(jetzt.erste + args.alt.length));
+      await ersetzeDatei(absolut, jetzt.text.slice(0, jetzt.erste) + args.neu + jetzt.text.slice(jetzt.erste + args.alt.length));
       return ergebnis(`${relativ}: 1 Stelle ersetzt.`);
     });
   },
@@ -890,7 +875,7 @@ async function protokolliere(ctx, eintrag) {
     throw error;
   });
   const zeile = { zeitpunkt: new Date().toISOString(), ...eintrag, anzahl_importiert: 0, anzahl_offen: 0, anzahl_fehler: 0 };
-  await schreibeAtomar(absolut, `${bisher.replace(/\n*$/, bisher ? "\n" : "")}${JSON.stringify(zeile)}\n`);
+  await ersetzeDatei(absolut, `${bisher.replace(/\n*$/, bisher ? "\n" : "")}${JSON.stringify(zeile)}\n`);
 }
 
 const istDatei = async (absolut) => Boolean((await lstat(absolut).catch(() => null))?.isFile());
@@ -1163,7 +1148,7 @@ const belegErgaenzen = {
       } finally {
         await rm(ordner, { recursive: true, force: true });
       }
-      for (const v of verweise) await schreibeAtomar(path.join(ctx.datenroot, v.name), ersetzeVerweise(v.text, ersetzungen).text);
+      for (const v of verweise) await ersetzeDatei(path.join(ctx.datenroot, v.name), ersetzeVerweise(v.text, ersetzungen).text);
       await protokolliere(ctx, {
         anlass: "beleg-ergaenzen",
         inputs: [quelle.relativ],

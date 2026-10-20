@@ -11,7 +11,7 @@ import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, zielElement, hrefAttr, teilbestandChip } from "../komponenten.mjs";
+import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, trendZeitraumText, zielElement, hrefAttr, teilbestandChip } from "../komponenten.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { verteileRundung } from "../uebersicht-rechnung.mjs";
@@ -86,8 +86,8 @@ const kategorieZiel = (id, mittel) => `data-action="kategorie-transactions" data
 // Rest als aufklappbares "Übrige" mit allen weiteren Kategorien.
 // vergleich (Jahresvergleich der Seite, optional): je Kategorie ein kleiner
 // Pfeil, nur wenn sie sich spuerbar veraendert hat.
-function kategorieTeile(kategorien, mittel, top = TOP_KATEGORIEN, { vergleich = null, mehrIstGut = true } = {}) {
-  const pfeil = (k) => trendPfeil(vergleich?.kategorien[k.kategorie_id], { mehrIstGut, kurz: true, ohneSeitwaerts: true });
+function kategorieTeile(kategorien, mittel, top = TOP_KATEGORIEN, { vergleich = null, mehrIstGut = true, zeitraum = null } = {}) {
+  const pfeil = (k) => trendPfeil(vergleich?.kategorien[k.kategorie_id], { mehrIstGut, kurz: true, ohneSeitwaerts: true, zeitraum });
   const weitere = kategorien.slice(top);
   const rest = weitere.reduce((a, k) => a + k.mittel_cents, 0);
   return [
@@ -150,13 +150,15 @@ function flacheKachel({ id, titel, info = "", wert, trend = "", notiz, plan = ""
 
 // Pfeil der Sparquote: Veraenderung in Prozentpunkten gegen die zwoelf Monate
 // davor; unter einem Prozentpunkt seitwaerts.
-function quotePfeil(sq) {
+function quotePfeil(sq, zeitraum) {
   if (!sq || sq.aenderung_pp === null) return "";
   const pp = sq.aenderung_pp;
   const richtung = Math.abs(pp) < 1 ? "seitwaerts" : pp > 0 ? "hoch" : "runter";
   const klasse = richtung === "seitwaerts" ? "abw-neutral" : richtung === "hoch" ? "abw-gut" : "abw-schlecht";
   const aenderung = fmt().zahlMitVorzeichen(pp, 1);
-  const titel = tf("trend.quoteTitel", { aenderung, vorher: formatProzent(sq.vorher_quote) });
+  const titel = zeitraum
+    ? tf("trend.quoteTitelZeitraum", { aenderung, vorher: formatProzent(sq.vorher_quote), zeitraum: trendZeitraumText(zeitraum.vorher_von, zeitraum.vorher_bis) })
+    : tf("trend.quoteTitel", { aenderung, vorher: formatProzent(sq.vorher_quote) });
   return `<span class="trend-pfeil ${klasse}" title="${escapeHtml(titel)}" aria-label="${escapeHtml(titel)}">${{ hoch: "↗", runter: "↘", seitwaerts: "→" }[richtung]} ${escapeHtml(aenderung)} ${escapeHtml(t("trend.pp"))}</span>`;
 }
 
@@ -216,14 +218,14 @@ function renderEinnahmenAusgaben(modell) {
   });
   return `
     <div class="uebersicht-flach">
-      ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), trend: trendPfeil(trend?.einnahmen.summe, { mehrIstGut: true }), notiz: basisNotiz, plan: planZeile(mittel.einnahmen.mittel_cents, planMittel(plan.einnahmen_plan_cents), true), teile: kategorieTeile(mittel.einnahmen.kategorien, mittel, TOP_KATEGORIEN, { vergleich: trend?.einnahmen, mehrIstGut: true }), summe_cents: mittel.einnahmen.mittel_cents })}
-      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), trend: trendPfeil(trend?.ausgaben.summe, { mehrIstGut: false }), notiz: basisNotiz, plan: planZeile(mittel.ausgaben.mittel_cents, planMittel(plan.ausgaben_plan_cents), false), teile: kategorieTeile(mittel.ausgaben.kategorien, mittel, TOP_AUSGABEN, { vergleich: trend?.ausgaben, mehrIstGut: false }), summe_cents: mittel.ausgaben.mittel_cents })}
+      ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), trend: trendPfeil(trend?.einnahmen.summe, { mehrIstGut: true, zeitraum: trend?.zeitraum }), notiz: basisNotiz, plan: planZeile(mittel.einnahmen.mittel_cents, planMittel(plan.einnahmen_plan_cents), true), teile: kategorieTeile(mittel.einnahmen.kategorien, mittel, TOP_KATEGORIEN, { vergleich: trend?.einnahmen, mehrIstGut: true, zeitraum: trend?.zeitraum }), summe_cents: mittel.einnahmen.mittel_cents })}
+      ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), trend: trendPfeil(trend?.ausgaben.summe, { mehrIstGut: false, zeitraum: trend?.zeitraum }), notiz: basisNotiz, plan: planZeile(mittel.ausgaben.mittel_cents, planMittel(plan.ausgaben_plan_cents), false), teile: kategorieTeile(mittel.ausgaben.kategorien, mittel, TOP_AUSGABEN, { vergleich: trend?.ausgaben, mehrIstGut: false, zeitraum: trend?.zeitraum }), summe_cents: mittel.ausgaben.mittel_cents })}
       ${flacheKachel({
         id: "sparquote",
         titel: t("overview.sparquote"),
         info: t("overview.sparquoteInfo"),
         wert: sparen.quote === null ? "–" : escapeHtml(formatProzent(sparen.quote)),
-        trend: quotePfeil(trend?.sparquote),
+        trend: quotePfeil(trend?.sparquote, trend?.zeitraum),
         notiz: `${escapeHtml(tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) }))} · ${basisNotiz}`,
         plan: quoteZeile,
         teile: sparTeile,

@@ -308,8 +308,9 @@ export function vorjahresMittel(data, jetzt) {
 }
 
 // Letzte zwoelf Monate gegen die zwoelf davor: Summen, je Kategorie (nach
-// kategorie_id, je Seite) und die Sparquote in Prozentpunkten. Null, solange
-// eines der beiden Fenster keine vollen zwoelf Monate hat.
+// kategorie_id, je Seite) und die Sparquote in Prozentpunkten, dazu beide
+// Zeitraeume (bis = Stichtag). Null, solange eines der beiden Fenster keine
+// vollen zwoelf Monate hat.
 export function mittelVergleich(jetzt, vorher) {
   if (!jetzt || !vorher || jetzt.anzahl_monate < 12 || vorher.anzahl_monate < 12) return null;
   const seite = (s) => {
@@ -322,6 +323,7 @@ export function mittelVergleich(jetzt, vorher) {
   const q = jetzt.sparen.quote;
   const qAlt = vorher.sparen.quote;
   return {
+    zeitraum: { von: jetzt.von, bis: jetzt.bis, vorher_von: vorher.von, vorher_bis: vorher.bis },
     einnahmen: seite("einnahmen"),
     ausgaben: seite("ausgaben"),
     sparquote: { quote: q, vorher_quote: qAlt, aenderung_pp: q === null || qAlt === null ? null : Math.round((q - qAlt) * 1000) / 10 },

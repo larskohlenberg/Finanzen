@@ -88,6 +88,8 @@ test("vorjahresMittel und mittelVergleich: das Fenster zwoelf Monate frueher", (
   assert.equal(vorher.anzahl_monate, 12);
   const v = mittelVergleich(jetzt, vorher);
   assert.equal(v.einnahmen.summe.vorher_cents, 300000);
+  // Stichtag und beide Zeitraeume fuer die Anzeige
+  assert.deepEqual(v.zeitraum, { von: "2025-01-01", bis: "2025-12-31", vorher_von: "2024-01-01", vorher_bis: "2024-12-31" });
   assert.equal(mittelVergleich(jetzt, null), null);
 });
 

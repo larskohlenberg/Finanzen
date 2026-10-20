@@ -193,6 +193,16 @@ export function gruppenSummen(daten, treffer, gruppe, ohneKategorie = "") {
     : liste.sort((a, b) => Math.abs(b.summe_cent) - Math.abs(a.summe_cent) || a.name.localeCompare(b.name, "de"));
 }
 
+// Importstand je Konto: letzte Buchung oder letzter Kontostand, je spaeter.
+// Grundlage fuer "ueberfaellig" bei Regelzahlungen (termine-modell.mjs).
+export function importstandJeKonto(daten) {
+  const stand = {};
+  const merke = (id, datum) => { if (id && datum && !(stand[id] >= datum)) stand[id] = datum; };
+  for (const tx of daten.transaktionen ?? []) merke(tx.konto_id, tx.buchungsdatum);
+  for (const zw of daten.zeitwerte ?? []) if (zw.entitaet === "konto" && zw.feld === "kontostand") merke(zw.entitaet_id, zw.standdatum);
+  return stand;
+}
+
 export function transaktionenSeite(daten, {
   filter = {}, sort = {}, seite = 1, groesse = 10, auswahl = "", zeige = "", ohneKategorie = "", gruppe = "",
 } = {}) {
@@ -226,6 +236,7 @@ export function transaktionenSeite(daten, {
     monate: datumsteile(daten.transaktionen ?? [], 7),
     jahre: datumsteile(daten.transaktionen ?? [], 4),
     gruppen: gruppenSummen(daten, treffer, gruppe, ohneKategorie),
+    ...(gruppe === "regelzahlung" ? { importstand: importstandJeKonto(daten) } : {}),
   };
 }
 

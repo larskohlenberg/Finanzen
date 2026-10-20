@@ -2,7 +2,7 @@
 // Quelltext-Regex-Vertraege aus ui-layout-contract.test.mjs ab. Geprueft wird,
 // was der Nutzer sieht und tut (Filterleiste, Blaettern, Zeitraum, Detail,
 // Einstellungen, mobile Navigation, Liquiditaet), nicht wie der Code heisst.
-// Demodaten; ohne lokales Chrome uebersprungen, in der CI (CI=true) Pflicht.
+// Demodaten; ohne lokales Chrome oder Playwright uebersprungen, in der CI (CI=true) Pflicht.
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,15 +10,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, before, describe, test } from "node:test";
 import { createAppServer } from "../app/server.mjs";
-import { findeChrome, starteBrowser } from "./hilfe-browser.mjs";
+import { browserFehlt, starteBrowser } from "./hilfe-browser.mjs";
 
-const chrome = findeChrome();
-if (!chrome && process.env.CI) throw new Error("CI ohne Chrome: Browsertests koennen nicht laufen (CHROME_PATH setzen)");
+const fehlt = await browserFehlt();
 
 const appDir = fileURLToPath(new URL("../app", import.meta.url));
 const demo = join(appDir, "data", "demo");
 
-describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromium gefunden (CHROME_PATH)", timeout: 120000 }, () => {
+describe("Oberflaeche im Browser", { skip: fehlt ?? false, timeout: 120000 }, () => {
   let server;
   let browser;
   let seite;
@@ -36,7 +35,7 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
     });
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
     basis = `http://127.0.0.1:${server.address().port}`;
-    browser = await starteBrowser({ chrome });
+    browser = await starteBrowser();
     seite = browser.seite;
   });
 

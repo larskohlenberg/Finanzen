@@ -28,5 +28,8 @@
     "pruefbericht": "node app/tools/pruefbericht.mjs app/data/master",
     "lernen": "node app/tools/lernen.mjs app/data/master",
     "lernen:anwenden": "node app/tools/lernen.mjs app/data/master --anwenden"
+  },
+  "devDependencies": {
+    "playwright-core": "1.63.0"
   }
 }

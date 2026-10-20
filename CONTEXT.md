@@ -54,6 +54,10 @@ Regelmaessig hinzukommende kontobezogene Ereignisdaten, z. B. **Transaktionen** 
 
 Wirtschaftlicher Traeger einer Transaktion folgt dem **Konto**, nicht der Person. Keine fiktive Quotenverteilung pro Buchung. "Wer hat das bezahlt" beantwortet sich ueber die Inhaberliste des Kontos.
 
+## Fuer Person
+
+Wem eine Buchung zugutekommt (`fuer_person_id`), z. B. der Vereinsbeitrag eines Kindes. **Orthogonal zum Cashflow-Traeger:** wer bezahlt hat, folgt weiter dem Konto; die Person sagt nur, fuer wen. Hoechstens eine Person je Buchung, keine Aufteilung; ohne Person heisst fuer die Familie oder gemeinsam. Eine Person braucht dafuer kein Konto. Gesetzt wird sie aus der **Regelzahlung** der Buchung oder aus einer **Kategorisierungsregel** mit `fuer_person_id`, oder von Hand; die Handentscheidung (`fuer_person_herkunft: manuell`) hat Vorrang und kann auch bewusst „keine Person" sein. Die Kategorie bleibt davon unberuehrt: Sport eines Kindes ist Sport, das Kind steht in der Person (ADR 0039).
+
 ## Transaktions-ID und Deduplikation
 
 `transaktion_id` ist ein **opaker** Identifier ohne Informationsgehalt: `TXN-<uuid>` (UUID v4). Bewusst **kein** Datum und **keine** laufende Nummer im Identifier — er ist eindeutig, gibt aber nichts ueber Zeitpunkt oder Reihenfolge der Buchung preis (auch nicht in Deep-Link-URLs). `transfer_id` analog: `TRF-<uuid>`. Das Praefix bleibt nur als Typ-Kennung. Zusaetzlich traegt jede Transaktion einen `dedupe_hash`. Beim Import prueft die Import-Pipeline, ob der Hash bereits existiert; wenn ja, wird der Datensatz uebersprungen.

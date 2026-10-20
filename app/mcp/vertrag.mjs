@@ -31,7 +31,7 @@ export const PFLICHT = Object.freeze([
 export const AUFGABEN = Object.freeze([
   { id: "auswerten", titel: "Auswerten", werkzeuge: ["status", "kennzahlen", "plan_ist", "transaktionen_abfragen", "pruefbericht", "verlauf"] },
   { id: "lesen", titel: "Lesen", werkzeuge: ["datei_lesen", "dateien_suchen"] },
-  { id: "import", titel: "Importieren", werkzeuge: ["inbox", "import", "transfers", "transfer_extern", "regelzahlungen_zuordnen", "immobilienbezug", "inbox_verwerfen", "inbox_zurueckholen"] },
+  { id: "import", titel: "Importieren", werkzeuge: ["inbox", "import", "transfers", "transfer_extern", "regelzahlungen_zuordnen", "personenbezug", "immobilienbezug", "inbox_verwerfen", "inbox_zurueckholen"] },
   { id: "kategorisieren", titel: "Kategorisieren", werkzeuge: ["regel_vorschlag", "regel_probelauf", "regel_schreiben", "nachkategorisieren", "agent_vorschlag", "freigabe", "bestaetigen", "lernen"] },
   { id: "stammdaten", titel: "Stammdaten", werkzeuge: ["stammdatum_setzen", "zeitwert_anhaengen", "logos"] },
   { id: "belege", titel: "Belege", werkzeuge: ["beleg_ablegen", "beleg_teilen", "beleg_ergaenzen", "beleg_verwerfen", "belege_umziehen", "belege_text"] },

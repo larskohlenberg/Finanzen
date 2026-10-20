@@ -314,6 +314,7 @@ test("Immobilien-Ruecklink oeffnet die Transaktionssuche nur mit der Immobilien-
     regelzahlung: "",
     gegenpartei: "",
     klasse: "",
+    person: "",
     gruppe: "",
   });
   assert.equal(state.transactionPage, 1);
@@ -436,6 +437,7 @@ test("verknüpfte Beitragsbuchung öffnet die Transaktions-Rail und navigiert zu
       regelzahlung: "",
       gegenpartei: "",
       klasse: "",
+      person: "",
       gruppe: "",
     });
     assert.ok(app.innerHTML.includes("transaction-row selected"));

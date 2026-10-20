@@ -991,7 +991,7 @@ button.roadmap-card-link:focus-visible {
 }
 
 .filter-gruppen .filter-gruppe {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .filter-gruppen .filter-gruppe-betrag {

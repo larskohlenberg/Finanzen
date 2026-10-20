@@ -7,7 +7,7 @@ function patternMatches(value, pattern) {
   return musterzweige(pattern).some((zweig) => zweig !== "" && value.includes(zweig));
 }
 
-function matchesRule(buchung, regel) {
+export function matchesRule(buchung, regel) {
   const gegenpartei = normalizeLoose(buchung.gegenpartei);
   const verwendungszweck = normalizeLoose(buchung.verwendungszweck);
 

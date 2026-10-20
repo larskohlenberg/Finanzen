@@ -8,6 +8,7 @@ const GRUPPEN = {
   kategorie: (t) => t.kategorie_id ?? "(ohne)",
   konto: (t) => t.konto_id ?? "(ohne)",
   gegenpartei: (t) => t.gegenpartei ?? "(ohne)",
+  person: (t) => t.fuer_person_id ?? "(ohne)",
 };
 
 export function passt(t, f) {
@@ -16,6 +17,7 @@ export function passt(t, f) {
   if (f.konto && t.konto_id !== f.konto) return false;
   if (f.kategorie && t.kategorie_id !== f.kategorie) return false;
   if (f.immobilie && t.immobilie_id !== f.immobilie) return false;
+  if (f.person && t.fuer_person_id !== f.person) return false;
   if (f.status && t.kategorisierung_status !== f.status) return false;
   if (f.ist_transfer !== undefined && Boolean(t.ist_transfer) !== f.ist_transfer) return false;
   if (f.betrag_min !== undefined && toCents(t.betrag) < toCents(f.betrag_min)) return false;
@@ -46,7 +48,7 @@ export function abfragen(transaktionen, f = {}, namen = {}) {
     const liste = [...map.values()];
     if (f.gruppieren_nach === "monat") liste.sort((a, b) => a.schluessel.localeCompare(b.schluessel));
     else liste.sort((a, b) => Math.abs(b.cents) - Math.abs(a.cents));
-    const namensquelle = f.gruppieren_nach === "kategorie" ? namen.kategorien : f.gruppieren_nach === "konto" ? namen.konten : undefined;
+    const namensquelle = { kategorie: namen.kategorien, konto: namen.konten, person: namen.personen }[f.gruppieren_nach];
     ergebnis.gruppen = liste.map((g) => ({
       schluessel: g.schluessel,
       ...(namensquelle?.[g.schluessel] ? { name: namensquelle[g.schluessel] } : {}),

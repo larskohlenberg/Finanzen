@@ -20,13 +20,17 @@ export const LEERER_FILTER = Object.freeze({
   gegenpartei: "",
   // Klasse der zentralen Klassifikation (klassifikation.mjs), z. B. laufend.
   klasse: "",
+  // Fuer wen die Buchung ist (fuer_person_id, ADR 0039); "ohne" = keine Person.
+  person: "",
 });
 
 // Kategorie-Filter fuer Buchungen ohne Kategorie.
 export const OHNE_KATEGORIE = "ohne";
+// Personen-Filter fuer Buchungen ohne Person (Familie, gemeinsam).
+export const OHNE_PERSON = "ohne";
 
 export const RICHTUNGEN = Object.freeze(["einnahme", "ausgabe"]);
-export const GRUPPEN = Object.freeze(["kategorie", "monat", "gegenpartei", "regelzahlung"]);
+export const GRUPPEN = Object.freeze(["kategorie", "monat", "gegenpartei", "regelzahlung", "person"]);
 // Eurobetrag ohne Vorzeichen mit hoechstens zwei Nachkommastellen, Punkt oder Komma.
 export const BETRAG_MUSTER = /^\d{1,9}([.,]\d{1,2})?$/;
 const betragCent = (wert) => toCents(String(wert).replace(",", "."));
@@ -102,6 +106,7 @@ export function filtereTransaktionen(daten, filter) {
     if (!passtBeleg(tx, f.beleg)) return false;
     if (!passtZeitraum(tx, f)) return false;
     if (f.regelzahlung && tx.regelzahlung_id !== f.regelzahlung) return false;
+    if (f.person === OHNE_PERSON ? Boolean(tx.fuer_person_id) : f.person && tx.fuer_person_id !== f.person) return false;
     if (f.richtung || f.betragVon || f.betragBis) {
       const cent = toCents(tx.betrag);
       if (f.richtung === "einnahme" && cent <= 0) return false;
@@ -162,12 +167,14 @@ export function gruppenSummen(daten, treffer, gruppe, ohneKategorie = "") {
   if (!GRUPPEN.includes(gruppe)) return null;
   const kategorien = new Map((daten.kategorien ?? []).map((k) => [k.kategorie_id, k.name]));
   const regelzahlungen = new Map((daten.regelzahlungen ?? []).map((rz) => [rz.regelzahlung_id, rz.bezeichnung]));
+  const personen = new Map((daten.personen ?? []).map((p) => [p.person_id, p.name]));
   const je = new Map();
   for (const tx of treffer) {
     const schluessel = gruppe === "kategorie" ? tx.kategorie_id || ""
       : gruppe === "monat" ? String(tx.buchungsdatum ?? "").slice(0, 7)
         : gruppe === "regelzahlung" ? tx.regelzahlung_id || ""
-          : String(tx.gegenpartei ?? "").trim();
+          : gruppe === "person" ? tx.fuer_person_id || ""
+            : String(tx.gegenpartei ?? "").trim();
     const eintrag = je.get(schluessel) ?? { schluessel, name: "", anzahl: 0, summe_cent: 0, letzte: "" };
     eintrag.anzahl += 1;
     eintrag.summe_cent += toCents(tx.betrag);
@@ -178,7 +185,8 @@ export function gruppenSummen(daten, treffer, gruppe, ohneKategorie = "") {
     ...g,
     name: gruppe === "kategorie" ? (g.schluessel ? kategorien.get(g.schluessel) || g.schluessel : ohneKategorie)
       : gruppe === "regelzahlung" ? (g.schluessel ? regelzahlungen.get(g.schluessel) || g.schluessel : "")
-        : g.schluessel,
+        : gruppe === "person" ? (g.schluessel ? personen.get(g.schluessel) || g.schluessel : "")
+          : g.schluessel,
   }));
   return gruppe === "monat"
     ? liste.sort((a, b) => b.schluessel.localeCompare(a.schluessel))
@@ -233,16 +241,19 @@ export function transaktionenSeite(daten, {
 }
 
 // Buchung mit ihren Bezuegen fuer das Detail: Regelzahlung, Vorsorge (nur ueber
-// die Regelzahlung, agent-context: Transaktion -> Regelzahlung -> Vorsorge), Immobilie.
+// die Regelzahlung, agent-context: Transaktion -> Regelzahlung -> Vorsorge), Immobilie,
+// Person (fuer wen die Buchung ist).
 export function transaktionDetail(daten, tx) {
   const regelzahlung = tx.regelzahlung_id ? (daten.regelzahlungen ?? []).find((rz) => rz.regelzahlung_id === tx.regelzahlung_id) : undefined;
   const vorsorge = regelzahlung?.vorsorge_id ? (daten.vorsorge ?? []).find((vs) => vs.vorsorge_id === regelzahlung.vorsorge_id) : undefined;
   const immobilie = tx.immobilie_id ? (daten.immobilien ?? []).find((im) => im.immobilie_id === tx.immobilie_id) : undefined;
+  const person = tx.fuer_person_id ? (daten.personen ?? []).find((p) => p.person_id === tx.fuer_person_id) : undefined;
   return {
     transaktion: tx,
     regelzahlung: regelzahlung ? { regelzahlung_id: regelzahlung.regelzahlung_id, bezeichnung: regelzahlung.bezeichnung } : null,
     vorsorge: vorsorge ? { vorsorge_id: vorsorge.vorsorge_id, name: vorsorge.name } : null,
     immobilie: immobilie ? { immobilie_id: immobilie.immobilie_id, bezeichnung: immobilie.bezeichnung } : null,
+    person: person ? { person_id: person.person_id, name: person.name, herkunft: tx.fuer_person_herkunft ?? null } : null,
   };
 }
 

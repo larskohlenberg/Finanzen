@@ -9,6 +9,7 @@ import { heuteIso } from "./selektoren.mjs";
 import { belegTextHtml } from "./belege.mjs";
 import { dataModes } from "./data-loader.mjs";
 import { kuerzel, kuerzelFarbe, logoVerzeichnis } from "./logos.mjs";
+import { vermoegenRoute } from "./vermoegen-routen.mjs";
 
 let logoStand = null;
 // Das von Buchungen geerbte Logo je Regelzahlung kommt mit den Grunddaten
@@ -132,7 +133,7 @@ export function renderPageHead(title, lead, extra = "") {
     <div class="page-head">
       <div>
         ${extra}
-        <h1 class="page-title">${escapeHtml(title)}</h1>
+        <h1 class="page-title" tabindex="-1" data-fokus="seitentitel">${escapeHtml(title)}</h1>
         <p class="page-lead">${escapeHtml(lead)}</p>
       </div>
     </div>
@@ -277,7 +278,28 @@ export function trendPfeil(v, { mehrIstGut, kurz = false, ohneSeitwaerts = false
 // Flacher Zeitverlauf fuer eine halbe Kachelbreite (Optionen wie zeitstrahlDiagramm).
 export function zeitverlaufKlein(optionen) {
   const svg = zeitstrahlDiagramm({ breite: 560, plotHoehe: 90, ...optionen });
-  return svg ? `<div class="diagramm-wrap kachel-zeitverlauf">${svg}</div>` : "";
+  return svg ? `<div class="diagramm-wrap kachel-zeitverlauf">${svg}</div>${diagrammTabelle(optionen)}` : "";
+}
+
+// Gleichwertige Tabelle zu einem Verlaufsdiagramm (ohne Maus, Screenreader):
+// aufklappbar unter dem Diagramm, je Spalte eine Zeile, je Serie eine Spalte.
+// Serien, die nur Teile einer Linie sind (teil, z. B. belegt/zurueckgerechnet),
+// stehen zusammen in einer Spalte.
+export function diagrammTabelle({ spalten, serien, formatWert = String, ariaLabel = "" }) {
+  if (!spalten?.length || !serien?.length) return "";
+  const gruppen = [];
+  for (const s of serien) {
+    const basis = s.teil ? gruppen.find((g) => g.teil) : null;
+    if (basis) basis.werte = basis.werte.map((w, i) => w ?? s.werte[i]);
+    else gruppen.push({ label: s.label, teil: Boolean(s.teil), werte: [...s.werte] });
+  }
+  const kopf = gruppen.map((g) => `<th class="amount">${escapeHtml(g.label)}</th>`).join("");
+  const zeilen = spalten.map((sp, i) => `<tr><th scope="row">${escapeHtml(sp.titel ?? sp.label ?? "")}</th>${gruppen.map((g) => `<td class="amount">${g.werte[i] == null ? "—" : escapeHtml(formatWert(g.werte[i]))}</td>`).join("")}</tr>`).join("");
+  return `
+    <details class="diagramm-tabelle">
+      <summary>${escapeHtml(t("chrome.alsTabelle"))}</summary>
+      <div class="table-wrap"><table${ariaLabel ? ` aria-label="${escapeHtml(ariaLabel)}"` : ""}><thead><tr><th></th>${kopf}</tr></thead><tbody>${zeilen}</tbody></table></div>
+    </details>`;
 }
 
 export function detailRow(label, valueHtml) {
@@ -429,10 +451,10 @@ export function renderMasterAccountTable(kontenModell) {
           ? `<span class="muted">—</span>`
           : `<span class="chip review">${iconSvg("review")}${escapeHtml(t("labels.referenceMissing"))}</span>`;
       return `
-        <tr class="clickable ${konto.konto_id === state.selectedKonto ? "selected" : ""}" id="konto-${escapeHtml(konto.konto_id)}" data-action="select-master-account" data-account="${escapeHtml(konto.konto_id)}" tabindex="0" role="button" aria-label="${escapeHtml(konto.name)}">
+        <tr class="clickable" id="konto-${escapeHtml(konto.konto_id)}" data-action="select-master-account" data-account="${escapeHtml(konto.konto_id)}">
           <td class="logo-zelle">${logoMarke({ konto }, { groesse: "tabelle" })}</td>
           <td class="id-zelle">${escapeHtml(konto.konto_id)}</td>
-          <td><span class="linkish">${escapeHtml(konto.name)}</span></td>
+          <td><a class="linkish zeilen-link" href="${escapeHtml(vermoegenRoute("konto", konto.konto_id))}" data-action="select-master-account" data-account="${escapeHtml(konto.konto_id)}">${escapeHtml(konto.name)}</a></td>
           <td>${referenz}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
           <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>

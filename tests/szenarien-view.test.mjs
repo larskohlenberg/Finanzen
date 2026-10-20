@@ -76,7 +76,7 @@ test("Detail: Antwortzeile, Zeitstrahl mit Phasen und Ereignis, Phasentabelle", 
   setDaten();
   state.selectedSzenarioId = "SZN-001";
   const html = (await szenarienGezeichnet());
-  assert.match(html, /<h1 class="page-title">Pause und Verkauf<\/h1>/);
+  assert.match(html, /<h1 class="page-title" tabindex="-1" data-fokus="seitentitel">Pause und Verkauf<\/h1>/);
   assert.match(html, /Erst arbeiten, dann Pause\./);
   assert.doesNotMatch(html, /Danach reicht es/, "Beschreibung zunaechst gekuerzt");
   assert.match(html, /class="phase-band /);

@@ -191,9 +191,9 @@ export function renderSzenarien() {
     const ende = r.punkte.at(-1);
     const gewaehlt = auswahl.has(sz.szenario_id);
     return `
-    <tr class="clickable" data-action="open-szenario" data-szenario="${escapeHtml(sz.szenario_id)}" tabindex="0" role="button" aria-label="${escapeHtml(sz.name)}">
+    <tr class="clickable" data-action="open-szenario" data-szenario="${escapeHtml(sz.szenario_id)}">
       <td class="auswahl-zelle"><input type="checkbox" data-action="toggle-szenario-auswahl" data-szenario="${escapeHtml(sz.szenario_id)}" ${gewaehlt ? "checked" : ""} aria-label="${escapeHtml(t("szenarien.zumVergleich"))}: ${escapeHtml(sz.name)}"></td>
-      <td>${escapeHtml(sz.name)}</td>
+      <td><a class="linkish zeilen-link" href="${escapeHtml(zielRoute("open-szenario", sz.szenario_id))}" data-action="open-szenario" data-szenario="${escapeHtml(sz.szenario_id)}">${escapeHtml(sz.name)}</a></td>
       <td>${statusChip(sz.status)}</td>
       <td class="amount">${escapeHtml(String(sz.phasen?.length || 1))}</td>
       <td class="${kipp ? "amount-negativ" : ""}">${escapeHtml(kipp ? formatMonth(kipp) : tf("szenarien.ueberHorizontKurz", { monat: ende ? kurzMonat(ende.monat) : "—" }))}</td>
@@ -505,8 +505,8 @@ function phasenTabelle(szenario, phasen) {
     const istOffen = offen.has(i);
     const annahmen = ph.annahme_ids.map((id) => annahmenById.get(id)).filter(Boolean);
     const kopf = `
-      <tr class="clickable" data-action="toggle-szenario-phase" data-phase="${i}" tabindex="0" role="button" aria-expanded="${istOffen}">
-        <td><span class="toggle-icon">${iconSvg(istOffen ? "chevronDown" : "chevronRight")}</span>${escapeHtml(phasenName(ph))} <span class="muted">· ${annahmen.length} ${escapeHtml(t(annahmen.length === 1 ? "szenarien.annahmeKurz" : "szenarien.annahmenKurz"))}</span></td>
+      <tr class="clickable" data-action="toggle-szenario-phase" data-phase="${i}">
+        <td><button type="button" class="linkish row-toggle" data-action="toggle-szenario-phase" data-phase="${i}" aria-expanded="${istOffen}"><span class="toggle-icon">${iconSvg(istOffen ? "chevronDown" : "chevronRight")}</span>${escapeHtml(phasenName(ph))}</button> <span class="muted">· ${annahmen.length} ${escapeHtml(t(annahmen.length === 1 ? "szenarien.annahmeKurz" : "szenarien.annahmenKurz"))}</span></td>
         <td>${escapeHtml(kurzMonat(ph.von))} – ${escapeHtml(kurzMonat(ph.bis))}</td>
         <td class="amount">${escapeHtml(formatMoney(ph.ein_cents))}</td>
         <td class="amount">${escapeHtml(formatMoney(ph.aus_cents))}</td>
@@ -712,7 +712,7 @@ function renderDetail(szenario, today) {
     <div class="page-head szenario-kopf">
       <div>
         <button class="linkish" data-action="back-to-szenarien">${iconSvg("chevronLeft")}${escapeHtml(t("szenarien.backToList"))}</button>
-        <h1 class="page-title">${escapeHtml(szenario.name)}</h1>
+        <h1 class="page-title" tabindex="-1" data-fokus="seitentitel">${escapeHtml(szenario.name)}</h1>
         <p class="kpi-note">${escapeHtml(meta)} ${qualitaetChip(r.qualitaet)}</p>
         ${beschreibungHtml(szenario)}
       </div>
@@ -750,7 +750,7 @@ function renderVergleich(szenarien, today) {
     <div class="page-head">
       <div>
         <button class="linkish" data-action="back-to-szenarien">${iconSvg("chevronLeft")}${escapeHtml(t("szenarien.backToList"))}</button>
-        <h1 class="page-title">${escapeHtml(t("szenarien.vergleichTitel"))}</h1>
+        <h1 class="page-title" tabindex="-1" data-fokus="seitentitel">${escapeHtml(t("szenarien.vergleichTitel"))}</h1>
         <p class="page-lead">${escapeHtml(t("szenarien.vergleichLead"))}</p>
       </div>
     </div>

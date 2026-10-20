@@ -130,8 +130,8 @@ function investitionenPanel(inv) {
   const mitBemerkung = inv.buchungen.some((tx) => tx.bemerkung);
   const span = mitBemerkung ? 3 : 2;
   const zeilen = inv.buchungen.map((tx) => `
-        <tr class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}" tabindex="0">
-          <td>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
+        <tr class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">
+          <td><a class="linkish zeilen-link" href="${escapeHtml(zielRoute("open-transaction", tx.transaktion_id))}" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum))}</a></td>
           <td>${escapeHtml(tx.gegenpartei || tx.verwendungszweck || "")}</td>
           ${mitBemerkung ? `<td>${escapeHtml(tx.bemerkung || "")}</td>` : ""}
           <td class="amount">${geld(cents(tx.betrag), { negativ: true })}</td>

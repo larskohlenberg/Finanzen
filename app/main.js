@@ -75,6 +75,7 @@ function announceStatus() {
   if (region.textContent !== msg) region.textContent = msg;
 }
 
+let zuletztGezeichnet = state.view;
 let zeigerGedrueckt = false;
 let zeichnenAufgeschoben = false;
 
@@ -106,6 +107,12 @@ function render() {
   anwendenBaumBreite(app);
   termineListenBegrenzen(app);
   restoreFocus(app, focusSnap);
+  // Neue Seite: der Fokus geht auf ihre Ueberschrift (Screenreader liest sie),
+  // ausser er steht schon im Inhalt (z. B. nach einem Link innerhalb der Seite).
+  if (state.view !== zuletztGezeichnet && !app.querySelector("main")?.contains(document.activeElement)) {
+    app.querySelector("main h1")?.focus({ preventScroll: true });
+  }
+  zuletztGezeichnet = state.view;
   document.title = seitenTitel([seitenName(), seitenDetail()], t("appTitle"));
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
@@ -170,7 +177,7 @@ app.addEventListener("click", guard((event) => {
   // Sonst uebernimmt die Aktion des Links, der Browser folgt der href nicht.
   const anker = event.target.closest("a[href]");
   if (anker && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button > 0)) return;
-  if (anker?.matches("[data-action], [data-view]")) event.preventDefault();
+  if (anker?.matches("[data-action], [data-view], [data-rule]")) event.preventDefault();
   if (state.settingsMenuOpen && !event.target.closest(".settings-control")) {
     state.settingsMenuOpen = false;
     render();

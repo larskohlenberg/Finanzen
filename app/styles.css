@@ -3616,3 +3616,35 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .zeitstrahl-linie.vermoegen-teilbestand { stroke-dasharray: 3 4; opacity: 0.8; }
 .chip.teilbestand { margin-right: 6px; }
 .szenario-ergebnis td:first-child { white-space: normal; }
+
+/* Wertetabelle unter Verlaufsdiagrammen (Zugaenglichkeit) */
+.diagramm-tabelle { margin-top: 4px; font-size: 12px; }
+.diagramm-tabelle summary { cursor: pointer; color: var(--muted); }
+.diagramm-tabelle table { min-width: 0; font-size: 12px; }
+.diagramm-tabelle th[scope="row"] { text-align: left; font-weight: 400; white-space: nowrap; text-transform: none; letter-spacing: normal; font-size: 12px; color: var(--text); }
+
+/* Seitenueberschrift bekommt beim Seitenwechsel den Fokus, ohne Rahmen */
+.page-title:focus { outline: none; }
+
+/* Ohne JavaScript (data-theme fehlt): Systemvorgabe fuer Dunkel uebernehmen */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #0f1513;
+    --surface: #17201d;
+    --surface-2: #202b27;
+    --text: #eef5f0;
+    --muted: #a8b5af;
+    --border: #2d3a35;
+    --border-strong: #405049;
+    --accent: #5ac7b8;
+    --accent-strong: #8dddd2;
+    --accent-soft: #123b36;
+    --review: #efb84a;
+    --review-soft: #3d2e13;
+    --success: #75d08f;
+    --success-soft: #173821;
+    --danger: #ff8b7f;
+    --danger-soft: #421b18;
+  }
+}

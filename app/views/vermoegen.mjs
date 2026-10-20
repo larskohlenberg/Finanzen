@@ -347,8 +347,8 @@ function renderSonstigeTab(r, today) {
     const vmw = data.vermoegenswerte.find((v) => v.vermoegenswert_id === p.id);
     const key = `vermoegenswert:${p.id}`;
     return `
-      <tr class="clickable ${key === state.selectedVermoegenId ? "selected" : ""}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(key)}" tabindex="0" role="button" aria-label="${escapeHtml(p.name)}">
-        <td>${escapeHtml(p.name)}</td>
+      <tr class="clickable ${key === state.selectedVermoegenId ? "selected" : ""}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(key)}"${key === state.selectedVermoegenId ? ' aria-current="true"' : ""}>
+        <td><a class="linkish zeilen-link" href="${escapeHtml(zielRoute("select-vermoegen", key))}" data-action="select-vermoegen" data-vermoegen="${escapeHtml(key)}">${escapeHtml(p.name)}</a></td>
         <td>${escapeHtml(vmw?.typ ? t(`vermoegen.typ.${vmw.typ}`) : "")}</td>
         <td class="amount">${p.fehlt ? `<span class="muted">${escapeHtml(t("vermoegen.standOhne"))}</span>` : escapeHtml(formatMoney(p.wert_cents))}</td>
         <td>${p.standdatum ? escapeHtml(formatDate(p.standdatum)) : "—"}</td>

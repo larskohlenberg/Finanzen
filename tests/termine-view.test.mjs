@@ -40,7 +40,7 @@ test("Termine zeigt beide Reiter, Regelzahlungen sind Standard", () => {
   state.lang = "de";
   state.termineTab = "regelzahlungen";
   const html = renderTermine();
-  assert.match(html, /<h1 class="page-title">Termine<\/h1>/);
+  assert.match(html, /<h1 class="page-title" tabindex="-1" data-fokus="seitentitel">Termine<\/h1>/);
   assert.match(html, /data-action="termine-tab" data-tab="regelzahlungen"/);
   assert.match(html, /data-action="termine-tab" data-tab="fristen"/);
   assert.match(html, /1 Regelzahlungen/);

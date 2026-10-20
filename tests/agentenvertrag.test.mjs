@@ -88,6 +88,19 @@ test("structuredContent: status mit Validator-Befunden, Vorschau mit Fingerabdru
   }
 });
 
+// Claude Code zeigt dem Agenten nur structuredContent, sobald es da ist: der
+// Text fuer Menschen muss dort mitkommen, sonst fehlen z. B. alle Kennzahlen.
+test("structuredContent traegt den Ergebnistext mit", async () => {
+  const s = starteServer(abzug, "schreiben");
+  try {
+    const k = await s.werkzeug("kennzahlen");
+    assert.equal(k.structuredContent.text, k.text);
+    assert.match(k.structuredContent.text, /\S/);
+  } finally {
+    await s.beenden();
+  }
+});
+
 test("structuredContent: abgewiesener Schreiblauf nennt Fehlercode und neue Befunde mit Objekt/Feld", async () => {
   const s = starteServer(abzug, "schreiben");
   const konten = join(abzug.master, "konten.json");

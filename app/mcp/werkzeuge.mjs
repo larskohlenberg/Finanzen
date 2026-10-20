@@ -1554,9 +1554,11 @@ export async function rufeWerkzeug(ctx, name, args = {}) {
   const modus = vorschau ? "vorschau" : (schreibt ? "schreiben" : "lesen");
   // Text fuer Menschen, structuredContent fuer Agenten: werkzeug, ok, modus,
   // fingerabdruck (Vorschau), fehler (Code), dazu was das Werkzeug liefert.
+  // Der Text kommt auch in structuredContent mit: Claude Code zeigt dem Agenten
+  // nur diesen Teil, sobald es ihn gibt.
   const alsErgebnis = (r, fingerabdruck) => {
     if (r.content) return r;
-    const strukturiert = { werkzeug: name, ok: !r.isError, modus, ...(fingerabdruck ? { fingerabdruck } : {}), ...(r.isError && !r.struktur?.fehler ? { fehler: "werkzeug" } : {}), ...(r.struktur ?? {}) };
+    const strukturiert = { werkzeug: name, ok: !r.isError, modus, ...(fingerabdruck ? { fingerabdruck } : {}), ...(r.isError && !r.struktur?.fehler ? { fehler: "werkzeug" } : {}), ...(r.struktur ?? {}), text: r.text };
     return { content: [{ type: "text", text: r.text }], structuredContent: strukturiert, ...(r.isError ? { isError: true } : {}) };
   };
   if (werkzeug.nurSchreiben && ctx.recht !== "schreiben") {

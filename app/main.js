@@ -1,4 +1,5 @@
 import { ablauf } from "./ablauf.mjs";
+import { DEMO_STICHTAG } from "./demo-modus.mjs";
 import { beiApiAntwort, leereApiCaches, verwerfeApiCaches } from "./api-daten.mjs";
 import { anwendenBaumBreite, bindBelegeTrenner } from "./belege-trenner.mjs";
 import { ladeGrunddaten, ladeStand } from "./data-loader.mjs";
@@ -39,6 +40,10 @@ import { aktionen as planTermineAktionen } from "./aktionen/plan-termine.mjs";
 import { iconSvg } from "./icons.js";
 
 let sitzungGesperrt = false;
+
+// Die Demo rechnet mit ihrem festen Stichtag (demo-modus.mjs), damit sie zu
+// ihren Buchungen passt; heuteIso() liest state.heute.
+if (state.dataMode === "demo" && !state.heute) state.heute = DEMO_STICHTAG;
 
 // Die ausgelagerten Teile (verlauf.mjs, rahmen.mjs, aktionen/*) zeichnen,
 // melden Fehler und pruefen den Stand ueber ablauf.mjs.

@@ -3,7 +3,9 @@
 // Statuschips und Einstellungsmenue, Banner fuer Validierung und Fehler.
 // rahmen haelt, was nur der Rahmen kennt (Version, Sitzungskonfiguration).
 import { renderErrorPanel } from "./error.mjs";
-import { data, state, navItems, TABBAR_VIEWS, t, escapeHtml, datenVersion } from "./runtime.mjs";
+import { data, state, navItems, TABBAR_VIEWS, t, tf, escapeHtml, datenVersion } from "./runtime.mjs";
+import { DEMO_STICHTAG } from "./demo-modus.mjs";
+import { formatDate } from "./komponenten.mjs";
 import { routeFromState } from "./routing.mjs";
 import { suchIndex, suche } from "./schnellsuche.mjs";
 import { versionAnzeige } from "./version.mjs";
@@ -161,7 +163,7 @@ export function renderTopbar() {
   return `
     <header class="topbar">
       <div class="work-status" role="group" aria-label="${escapeHtml(t("chrome.workStatus"))}">
-        ${demoActive ? `<span class="chip demo" title="${escapeHtml(t("chrome.demoDataHint"))}">${iconSvg("masterdata")}${escapeHtml(t("chrome.demoData"))}</span>` : ""}
+        ${demoActive ? `<span class="chip demo" title="${escapeHtml(tf("chrome.demoDataHint", { datum: formatDate(DEMO_STICHTAG) }))}">${iconSvg("masterdata")}${escapeHtml(t("chrome.demoData"))} · ${escapeHtml(formatDate(DEMO_STICHTAG))}</span>` : ""}
         ${data.validation?.valid
           ? `<span class="chip success icon-chip" role="img" aria-label="${escapeHtml(t("chrome.validationPassed"))}" title="${escapeHtml(`${t("chrome.validationPassed")} – ${t("chrome.validationPassedHint")}`)}">${iconSvg("success")}</span>`
           : `<button class="chip danger linkish" data-action="show-validation" title="${escapeHtml(t("chrome.validationFailedHint"))}">${iconSvg("warning")}${data.validation?.errors.length ?? 0} ${escapeHtml(t("chrome.validationFailed"))}</button>`}

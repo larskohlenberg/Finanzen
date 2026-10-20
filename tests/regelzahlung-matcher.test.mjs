@@ -220,6 +220,9 @@ test("CLI: Vorschau schreibt nichts, --schreiben setzt regelzahlung_id und valid
   try {
     await cp(path.join(repo, "app/data/demo"), root, { recursive: true });
     const datei = path.join(root, "transaktionen.jsonl");
+    // Die Demo ist schon zugeordnet (Schaufenster); fuer den Lauf ohne Zuordnungen beginnen.
+    const roh = (await readFile(datei, "utf8")).trim().split("\n").map((z) => JSON.parse(z));
+    await writeFile(datei, `${roh.map(({ regelzahlung_id, ...tx }) => JSON.stringify(tx)).join("\n")}\n`);
     const vorher = await readFile(datei, "utf8");
 
     const vorschau = await run(process.execPath, [cli, root]);

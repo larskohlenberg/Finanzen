@@ -8,5 +8,6 @@ export const ablauf = {
   setUiError: () => {},
   pruefeStand: () => {},
   oeffneSchnellsuche: () => {},
+  schliesseSchnellsuche: () => {},
   springeZu: () => {},
 };

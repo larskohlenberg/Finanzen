@@ -18,14 +18,16 @@ const QUELLEN = [
   ["frist", "fristen", "frist_id", "bezeichnung", () => "#/termine/fristen"],
 ];
 
-// Kleinbuchstaben, ohne Akzente/Umlaut-Punkte, ss fuer ss.
+// Kleinbuchstaben ohne Akzente ("ü" -> "u", "ß" -> "ss").
 export function normiere(text) {
-  return String(text ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss");
+  return String(text ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\u00df/g, "ss");
 }
+// Umschrift ("ü" -> "ue"), damit auch "Gebuehr" "Gebühr" findet.
+const umschrift = (text) => normiere(String(text ?? "").toLowerCase().replace(/\u00e4/g, "ae").replace(/\u00f6/g, "oe").replace(/\u00fc/g, "ue"));
 
 // seiten: [{ name, route }] (aus der Navigation, schon uebersetzt).
 export function suchIndex(daten, { seiten = [] } = {}) {
-  const eintraege = seiten.map((s) => ({ art: "seite", id: "", name: s.name, route: s.route }));
+  const eintraege = seiten.map((s) => ({ art: "seite", id: "", name: s.name, route: s.route, view: s.view ?? "" }));
   for (const [art, liste, idFeld, nameFeld, route] of QUELLEN) {
     for (const o of daten?.[liste] ?? []) {
       const id = o[idFeld];
@@ -34,7 +36,7 @@ export function suchIndex(daten, { seiten = [] } = {}) {
       eintraege.push({ art, id, name, route: route(id) });
     }
   }
-  return eintraege.map((e) => ({ ...e, schluessel: normiere(`${e.id} ${e.name}`), idNorm: normiere(e.id), nameNorm: normiere(e.name) }));
+  return eintraege.map((e) => ({ ...e, schluessel: `${normiere(`${e.id} ${e.name}`)} ${umschrift(e.name)}`, idNorm: normiere(e.id), nameNorm: normiere(e.name) }));
 }
 
 const BUCHUNG = /^txn-[0-9a-f-]{8,}$/i;
@@ -45,14 +47,15 @@ export function suche(index, anfrage, max = 12) {
   if (!q) return [];
   const treffer = [];
   if (BUCHUNG.test(q)) {
-    const id = String(anfrage).trim();
+    // IDs: Praefix gross, UUID-Teil klein (wie im Bestand).
+    const id = `TXN-${String(anfrage).trim().slice(4).toLowerCase()}`;
     treffer.push({ art: "buchung", id, name: "", route: `#/transaktionen/${enc(id)}`, rang: 0 });
   }
   const woerter = q.split(/\s+/);
   for (const e of index) {
     if (!woerter.every((w) => e.schluessel.includes(w))) continue;
     const rang = e.idNorm === q ? 0 : e.idNorm.startsWith(q) ? 1 : e.nameNorm.startsWith(q) ? 2 : 3;
-    treffer.push({ art: e.art, id: e.id, name: e.name, route: e.route, rang });
+    treffer.push({ art: e.art, id: e.id, name: e.name, route: e.route, view: e.view ?? "", rang });
   }
   return treffer.sort((a, b) => a.rang - b.rang || a.name.localeCompare(b.name, "de")).slice(0, max).map(({ rang, ...t }) => t);
 }

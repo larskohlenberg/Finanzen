@@ -359,10 +359,11 @@ document.addEventListener?.("keydown", guard((event) => {
   if (!s.offen) return;
   if (event.key === "Escape") {
     event.preventDefault();
-    s.offen = false;
-    render();
+    schliesseSchnellsuche();
     return;
   }
+  // Pfeile und Enter nur im Suchfeld (sonst bedienen sie, was den Fokus hat).
+  if (event.target?.id !== "schnellsuche-eingabe" || event.isComposing) return;
   const treffer = schnellsucheTreffer();
   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
     event.preventDefault();
@@ -373,23 +374,39 @@ document.addEventListener?.("keydown", guard((event) => {
   }
   if (event.key === "Enter" && treffer.length) {
     event.preventDefault();
-    springeZu(treffer[Math.min(s.index, treffer.length - 1)].route);
+    const ziel = treffer[Math.min(s.index, treffer.length - 1)];
+    springeZu(ziel.route, ziel.view);
   }
 }, setUiError, "keydown"));
 
+// Fokus vor dem Oeffnen, damit Esc ihn zurueckgibt.
+let fokusVorSuche = null;
 function oeffneSchnellsuche() {
+  if (!state.schnellsuche.offen) fokusVorSuche = captureFocus(app);
   state.schnellsuche = { offen: true, text: "", index: 0 };
+  state.settingsMenuOpen = false;
   render();
   document.getElementById("schnellsuche-eingabe")?.focus();
 }
 
-// Ziel der Schnellsuche: wie ein Link (neuer Verlaufseintrag, Route anwenden).
-function springeZu(route) {
+function schliesseSchnellsuche() {
   state.schnellsuche.offen = false;
-  if (location.hash === route) render();
+  render();
+  restoreFocus(app, fokusVorSuche);
+}
+
+// Ziel der Schnellsuche: eine Seite wie ueber die Navigation (Filter bleiben),
+// ein Objekt wie ein Link (neuer Verlaufseintrag, Route anwenden).
+function springeZu(route, view = "") {
+  state.schnellsuche.offen = false;
+  if (view) {
+    state.view = view;
+    if (view === "szenarien") oeffneSzenario("");
+    commitNavigation();
+  } else if (location.hash === route) render();
   else location.hash = route;
 }
-Object.assign(ablauf, { oeffneSchnellsuche, springeZu });
+Object.assign(ablauf, { oeffneSchnellsuche, schliesseSchnellsuche, springeZu });
 
 // Ein Klick braucht Druecken und Loslassen auf demselben Element. Zeichnet
 // dazwischen etwas neu (eine eintreffende API-Antwort, die entprellte Suche),

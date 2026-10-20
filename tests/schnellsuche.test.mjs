@@ -34,6 +34,9 @@ test("Name: Teilwoerter, Gross-/Kleinschreibung und Umlaute egal; Seiten auch", 
 });
 
 test("Buchungs-ID wird direkt angesprungen", () => {
+  assert.equal(suche(index, "txn-00000000-0000-4000-8000-0000000002A0")[0].route, "#/transaktionen/TXN-00000000-0000-4000-8000-0000000002a0");
+  assert.equal(suche(suchIndex({ kategorien: [{ kategorie_id: "KAT-9", name: "Gebühren" }] }), "gebuehr")[0].id, "KAT-9", "Umschrift");
+  assert.equal(suche(suchIndex({ kategorien: [{ kategorie_id: "KAT-9", name: "Gebühren" }] }), "gebuhr")[0].id, "KAT-9");
   const [treffer] = suche(index, "TXN-00000000-0000-4000-8000-0000000002a0");
   assert.equal(treffer.art, "buchung");
   assert.equal(treffer.route, "#/transaktionen/TXN-00000000-0000-4000-8000-0000000002a0");

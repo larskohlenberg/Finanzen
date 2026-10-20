@@ -14,7 +14,7 @@ import { iconSvg } from "./icons.js";
 // Combobox, Treffer als Liste von Links; die Auswahl steht in state.schnellsuche.
 let suchStand = null;
 function suchtreffer() {
-  const seiten = navItems.map(([view, labelKey]) => ({ name: t(labelKey), route: routeFromState({ view }) }));
+  const seiten = navItems.map(([view, labelKey]) => ({ name: t(labelKey), route: routeFromState({ view }), view }));
   if (suchStand?.version !== datenVersion() || suchStand.lang !== state.lang) {
     suchStand = { version: datenVersion(), lang: state.lang, index: suchIndex(data, { seiten }) };
   }
@@ -32,7 +32,7 @@ export function renderSchnellsuche() {
   const aktiv = Math.min(s.index, Math.max(0, treffer.length - 1));
   const liste = treffer.map((tr, i) => `
     <li role="option" id="suchtreffer-${i}" aria-selected="${i === aktiv}" class="${i === aktiv ? "aktiv" : ""}">
-      <a href="${escapeHtml(tr.route)}" data-action="schnellsuche-ziel" data-route="${escapeHtml(tr.route)}" tabindex="-1">
+      <a href="${escapeHtml(tr.route)}" data-action="schnellsuche-ziel" data-route="${escapeHtml(tr.route)}" data-ziel-view="${escapeHtml(tr.view ?? "")}" tabindex="-1">
         <span class="such-art">${escapeHtml(t(`chrome.suchArt.${tr.art}`))}</span>
         <span class="such-name">${escapeHtml(tr.name || tr.id)}</span>
         ${tr.id && tr.name ? `<span class="such-id muted">${escapeHtml(tr.id)}</span>` : ""}

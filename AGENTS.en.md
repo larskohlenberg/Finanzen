@@ -32,7 +32,7 @@ Show the user these five stages at the start. After each stage: summary and “R
    - **Which accounts are there?** Current accounts, savings, credit cards, brokerage accounts, loans, each with its bank. Reason: each account is created once; after that its statements flow in automatically.
    - **Will you keep working with Git?** Local only, your own fork, or a server? Reason: the operating rules depend on it, especially the protection against accidentally publishing data.
 2. **Setup.**
-   - Check Node.js (`node --version`, 22 or newer; otherwise have the user install it from nodejs.org), then run `npm test` as a smoke test.
+   - Check Node.js (`node --version`, 22 or newer; otherwise have the user install it from nodejs.org), then run `npm install` (fetches Playwright for the browser tests) and `npm test` as a smoke test.
    - Start the app (`node app/server.mjs`, then open http://127.0.0.1:8000) and switch the selector at the top right to **Demo**. This shows the user where the journey is going. The app can be switched to English; the selector then reads Live/Demo instead of Echt/Demo.
    - Create the user's own data set: `node app/tools/neuer-bestand.mjs data/master` as a preview, then with `--schreiben`. Afterwards `npm run validate:master`. The data set starts with basic categories and no rules. Switch the app back to **Echt** (Live).
    - **Connect the MCP server** if your program supports it: `node app/mcp/server.mjs data/master --recht=schreiben` as a stdio server named `finanzen`. For Claude Code, copy `.mcp.json.beispiel` to `.mcp.json`; other programs have their own settings for this. From then on every step runs through the `finanzen` tools (mapping CLI → tool in `app/docs/agent-context.md`). Without MCP you use the CLIs.
@@ -122,7 +122,7 @@ For Claude Code the first two are ready in `.claude/agents/` (`import-normalisie
 - `npm test` must pass. Tools are a pure function plus a CLI, tested with `node --test`.
 - `npm run typen` checks the JSDoc types at the core boundaries (files with `// @ts-check`, listed in `tsconfig.json`); TypeScript is only fetched as a dev tool into `.typpruefung/`.
 - Merge only once CI is green (GitHub Actions: tests on Node 22 and 24, validator on demo data and fixtures, PII scan): `gh pr checks <nr> --watch`, then `gh pr merge <nr> --merge`. Run the PII scan locally before pushing too: `node app/tools/pii-scan.mjs origin/main`. Errors (real IBAN, card number) block, warnings are worth a look.
-- No build pipeline, no dependencies besides Node.js.
+- No build pipeline. The app and its tools need only Node.js, no runtime dependencies. The only development dependency is Playwright (`playwright-core`, pinned) for the browser tests (ADR 0038). Further packages only after asking the user.
 - The data set is always an argument (`dataRootFromArg` from `app/tools/data-root.mjs`), never hard-coded.
 - Amounts via `toCents` from `app/tools/lib/text.mjs`.
 - Private project, **no enterprise patterns**: no audit logs, no append-only, no version fields. The Git history is trail enough.

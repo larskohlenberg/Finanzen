@@ -42,9 +42,10 @@ Daten liegen als einfache JSON-Dateien vor, die gegen Schemas geprüft werden. J
 Die App kann auch dauerhaft auf einem eigenen Server laufen, hinter Reverse Proxy und Anmeldung; Agenten greifen dann über einen MCP-Server per SSH auf die Daten zu. Siehe [app/README.md](app/README.md) und [ADR 0028](docs/adr/0028-betrieb-auf-eigener-vm.md).
 
 ## Für Entwickler
-Keine Build-Pipeline, keine Abhängigkeiten außer Node.js.
+Keine Build-Pipeline. Die App selbst braucht nur Node.js; einzige Entwicklungsabhängigkeit ist Playwright für die Browsertests (nutzt das installierte Chrome).
 
 ```bash
+npm install
 npm test
 node app/server.mjs
 ```

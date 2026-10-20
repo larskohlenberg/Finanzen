@@ -32,7 +32,7 @@ Diese fünf Etappen zeigst du dem Nutzer zu Beginn. Nach jeder Etappe: Zusammenf
    - **Welche Konten gibt es?** Girokonten, Tagesgeld, Kreditkarten, Depots, Darlehen, jeweils mit Bank. Grund: Jedes Konto wird einmal angelegt, danach laufen seine Auszüge automatisch zu.
    - **Arbeitest du mit Git weiter?** Nur lokal, ein eigener Fork oder ein Server? Grund: Davon hängen die Betriebsregeln ab, besonders der Schutz vor versehentlich veröffentlichten Daten.
 2. **Einrichten.**
-   - Node.js prüfen (`node --version`, 22 oder neuer; sonst von nodejs.org installieren lassen), dann `npm test` als Funktionsprobe.
+   - Node.js prüfen (`node --version`, 22 oder neuer; sonst von nodejs.org installieren lassen), dann `npm install` (lädt Playwright für die Browsertests) und `npm test` als Funktionsprobe.
    - Die App starten (`node app/server.mjs`, dann http://127.0.0.1:8000 öffnen) und oben rechts in der Auswahl auf **Demo** stellen. So sieht der Nutzer, wohin die Reise geht.
    - Den eigenen Datenbestand anlegen: `node app/tools/neuer-bestand.mjs data/master` als Vorschau, dann mit `--schreiben`. Danach `npm run validate:master`. Der Bestand startet mit Grundkategorien und ohne Regeln. In der App wieder auf **Echt** stellen.
    - **MCP-Server einbinden**, wenn dein Programm das kann: `node app/mcp/server.mjs data/master --recht=schreiben` als stdio-Server namens `finanzen`. Für Claude Code `.mcp.json.beispiel` nach `.mcp.json` kopieren; andere Programme haben eigene Einstellungen dafür. Danach laufen alle Schritte über die Tools `finanzen` (Zuordnung CLI → Tool in `app/docs/agent-context.md`). Ohne MCP nutzt du die CLIs.
@@ -122,7 +122,7 @@ Für Claude Code liegen die ersten beiden fertig in `.claude/agents/` (`import-n
 - `npm test` muss grün sein. Werkzeuge sind eine reine Funktion plus CLI, getestet mit `node --test`.
 - `npm run typen` prüft die JSDoc-Typen der Kerngrenzen (Dateien mit `// @ts-check`, Liste in `tsconfig.json`); TypeScript wird dafür nur als Dev-Werkzeug nach `.typpruefung/` geladen.
 - Gemergt wird erst, wenn die CI grün ist (GitHub Actions: Tests auf Node 22 und 24, Validator auf Demodaten und Fixtures, PII-Scan): `gh pr checks <nr> --watch`, dann `gh pr merge <nr> --merge`. Den PII-Scan vor dem Push auch lokal laufen lassen: `node app/tools/pii-scan.mjs origin/main`. Fehler (echte IBAN, Kartennummer) blockieren, Warnungen ansehen.
-- Keine Build-Pipeline, keine Abhängigkeiten außer Node.js.
+- Keine Build-Pipeline. Die App und ihre Werkzeuge brauchen nur Node.js, keine Laufzeitabhängigkeiten. Einzige Entwicklungsabhängigkeit ist Playwright (`playwright-core`, feste Version) für die Browsertests (ADR 0038). Weitere Pakete nur nach Rückfrage beim Nutzer.
 - Der Datenbestand ist immer ein Argument (`dataRootFromArg` aus `app/tools/data-root.mjs`), nie fest im Code.
 - Beträge über `toCents` aus `app/tools/lib/text.mjs`.
 - Privates Projekt, **keine Enterprise-Muster**: keine Audit-Logs, kein Append-Only, keine Versionsfelder. Die Git-Historie ist Spur genug.

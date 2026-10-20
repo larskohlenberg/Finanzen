@@ -1,6 +1,6 @@
 # Browsertests ueber das DevTools-Protokoll, ohne Abhaengigkeit
 
-Status: angenommen (2026-10-20). Massnahme P.3 aus dem Architektur-Review.
+Status: abgeloest durch [ADR 0038](0038-browsertests-mit-playwright.md) (2026-10-20). Massnahme P.3 aus dem Architektur-Review.
 
 ## Problem
 

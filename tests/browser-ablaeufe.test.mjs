@@ -1,7 +1,7 @@
-// Ablauftests im echten Browser (ADR 0037): Filter -> Drilldown, Fokus,
+// Ablauftests im echten Browser (ADR 0038, Playwright): Filter -> Drilldown, Fokus,
 // Demo/Echt-Wechsel, Sitzungssperre und Abmelden. Der App-Server laeuft im
 // Testprozess; "Echt" ist eine Kopie der Demodaten, "Demo" die
-// versionierten Demodaten. Ohne lokales Chrome werden die Tests uebersprungen,
+// versionierten Demodaten. Ohne lokales Chrome oder Playwright werden die Tests uebersprungen,
 // in der CI (CI=true) schlagen sie fehl.
 import assert from "node:assert/strict";
 import { cpSync, mkdtempSync, rmSync } from "node:fs";
@@ -10,16 +10,15 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, before, describe, test } from "node:test";
 import { createAppServer } from "../app/server.mjs";
-import { findeChrome, starteBrowser } from "./hilfe-browser.mjs";
+import { browserFehlt, starteBrowser } from "./hilfe-browser.mjs";
 
-const chrome = findeChrome();
-if (!chrome && process.env.CI) throw new Error("CI ohne Chrome: Browsertests koennen nicht laufen (CHROME_PATH setzen)");
+const fehlt = await browserFehlt();
 
 const appDir = fileURLToPath(new URL("../app", import.meta.url));
 // "Echt" ist im Test eine Kopie der Demodaten (vollstaendiger Bestand).
 const vorlage = fileURLToPath(new URL("../app/data/demo", import.meta.url));
 
-describe("Ablaeufe im Browser", { skip: chrome ? false : "kein Chrome/Chromium gefunden (CHROME_PATH)", timeout: 120000 }, () => {
+describe("Ablaeufe im Browser", { skip: fehlt ?? false, timeout: 120000 }, () => {
   let server;
   let browser;
   let seite;
@@ -38,7 +37,7 @@ describe("Ablaeufe im Browser", { skip: chrome ? false : "kein Chrome/Chromium g
     });
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
     basis = `http://127.0.0.1:${server.address().port}`;
-    browser = await starteBrowser({ chrome });
+    browser = await starteBrowser();
     seite = browser.seite;
   });
 
@@ -110,7 +109,7 @@ describe("Ablaeufe im Browser", { skip: chrome ? false : "kein Chrome/Chromium g
 
     await seite.klicke(`[data-action="toggle-settings-menu"]`);
     await seite.warteAuf(`document.querySelector(".settings-menu")`);
-    await seite.taste("Escape", { keyCode: 27 });
+    await seite.page.keyboard.press("Escape");
     await seite.warteAuf(`!document.querySelector(".settings-menu")`);
     assert.equal(await seite.werte(`document.activeElement?.classList.contains("settings-toggle")`), true);
   });
@@ -121,18 +120,18 @@ describe("Ablaeufe im Browser", { skip: chrome ? false : "kein Chrome/Chromium g
     await seite.warteAuf(`document.activeElement?.matches("main h1.page-title") && document.activeElement.textContent.includes("Transaktionen")`, { text: "Fokus auf der Ueberschrift" });
     await seite.warteAuf(`document.querySelector("section.panel[aria-busy='false'] a.zeilen-link[data-action='select-transaction']")`, { text: "Liste geladen" });
     await seite.werte(`document.querySelector("section.panel[aria-busy='false'] a.zeilen-link[data-action='select-transaction']").focus(); true`);
-    await seite.taste("Enter", { keyCode: 13, text: "\r" });
+    await seite.page.keyboard.press("Enter");
     await seite.warteAuf(`document.querySelector(".detail-panel") && location.hash.startsWith("#/transaktionen/TXN-")`, { text: "Detail per Enter" });
   });
 
   test("Schnellsuche: Suchleiste steht in der Kopfzeile, Strg+K springt hinein, Enter oeffnet das Objekt", async () => {
     await oeffne("#/uebersicht");
     assert.equal(await seite.werte(`Boolean(document.querySelector(".topbar #schnellsuche-eingabe")) && !document.querySelector("[role='dialog']")`), true, "Suchfeld sichtbar, kein Dialog");
-    await seite.taste("k", { code: "KeyK", keyCode: 75, modifiers: 2 });
+    await seite.page.keyboard.press("Control+k");
     await seite.warteAuf(`document.activeElement?.id === "schnellsuche-eingabe"`, { text: "Suchfeld fokussiert" });
     await seite.tippe("KTO-001");
     await seite.warteAuf(`document.querySelector("#suchtreffer li.aktiv")`);
-    await seite.taste("Enter", { keyCode: 13, text: "\r" });
+    await seite.page.keyboard.press("Enter");
     await seite.warteAuf(`location.hash === "#/vermoegen/konten/KTO-001" && !document.querySelector("#suchtreffer")`, { text: "Konto geoeffnet" });
     assert.equal(await seite.werte(`document.getElementById("schnellsuche-eingabe").value`), "", "Suchtext nach dem Sprung leer");
   });
@@ -142,7 +141,7 @@ describe("Ablaeufe im Browser", { skip: chrome ? false : "kein Chrome/Chromium g
     await seite.klicke("#schnellsuche-eingabe");
     await seite.tippe("KTO");
     await seite.warteAuf(`document.querySelector("#suchtreffer li")`, { text: "Treffer da" });
-    await seite.taste("Escape", { keyCode: 27 });
+    await seite.page.keyboard.press("Escape");
     await seite.warteAuf(`!document.querySelector("#suchtreffer") && document.getElementById("schnellsuche-eingabe").value === ""`, { text: "Esc leert und schliesst" });
     await seite.tippe("KTO");
     await seite.warteAuf(`document.querySelector("#suchtreffer li")`, { text: "Treffer wieder da" });

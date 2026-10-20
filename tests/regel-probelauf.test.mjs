@@ -264,3 +264,14 @@ test("eine stillgelegte Regel, die bestaetigte Buchungen traegt, blockiert", () 
   assert.equal(out.pro_regel["REG-251"].verliert_bestaetigt, 1);
   assert.equal(out.blockiert, true);
 });
+
+test("fuer_person_id an einer Bestandsregel ist ein erlaubtes Feld und blockiert nicht (ADR 0039)", () => {
+  const out = probelauf({
+    transaktionen: [tx({ gegenpartei: "Musterladena", kategorie_id: "KAT-003", kategorie_herkunft: "regel", kategorisierung_status: "bestaetigt", bestaetigt_durch: "mensch", matched_regeln: ["REG-001"] })],
+    bestandsRegeln: bestand,
+    kandidaten: [{ ...bestand[0], fuer_person_id: "PER-003" }],
+    aenderung: true,
+  });
+  assert.deepEqual(out.struktur_fehler, []);
+  assert.equal(out.blockiert, false);
+});

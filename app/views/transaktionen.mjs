@@ -1,6 +1,6 @@
 // app/views/transaktionen.mjs
 // Transaktions-Ansicht: Tabelle, Filter (inkl. Zeitfilter), Pagination, Detail-Rail.
-import { data, state, t, tf, escapeHtml, cents, kontenById } from "../runtime.mjs";
+import { data, state, t, tf, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, mitLogo, statusChip, renderPageHead, renderTableFilters, categoryName, detailRow, quelleHtml } from "../komponenten.mjs";
@@ -139,7 +139,7 @@ export function renderTransactions() {
 function renderGruppen(antwort) {
   const gruppe = state.transactionFilters.gruppe;
   if (!gruppe || !antwort.gruppen) return "";
-  const name = (g) => (gruppe === "monat" ? formatMonth(g.schluessel) : g.name || "—");
+  const name = (g) => (gruppe === "monat" ? formatMonth(g.schluessel) : gruppe === "person" && !g.schluessel ? t("transactions.personOhne") : g.name || "—");
   return `
     <section class="panel panel-pad transaktion-gruppen" aria-labelledby="gruppen-titel">
       <h2 class="section-title" id="gruppen-titel">${escapeHtml(tf("transactions.gruppenTitel", { gruppe: t(`transactions.gruppe.${gruppe}`) }))}</h2>
@@ -161,7 +161,7 @@ function renderTransactionTableToolbar() {
       <label class="table-page-size">
         <span>${escapeHtml(t("transactions.gruppieren"))}</span>
         <select data-filter="gruppe" aria-label="${escapeHtml(t("transactions.gruppieren"))}">
-          ${["", "kategorie", "monat", "gegenpartei", "regelzahlung"].map((g) => `<option value="${g}" ${state.transactionFilters.gruppe === g ? "selected" : ""}>${escapeHtml(t(`transactions.gruppe.${g}`))}</option>`).join("")}
+          ${["", "kategorie", "monat", "gegenpartei", "regelzahlung", "person"].map((g) => `<option value="${g}" ${state.transactionFilters.gruppe === g ? "selected" : ""}>${escapeHtml(t(`transactions.gruppe.${g}`))}</option>`).join("")}
         </select>
       </label>
       <label class="table-page-size">
@@ -255,6 +255,7 @@ function filterChip(name) {
   if (name === "account") return chip({ label: t("transactions.filterAccount"), wertHtml: text(kontenById.get(f.account)?.name || f.account) });
   if (name === "status") return chip({ label: t("transactions.filterStatus"), wertHtml: text(t(`status.${f.status}`)) });
   if (name === "category") return chip({ label: t("transactions.filterCategory"), wertHtml: text(f.category === "ohne" ? t("labels.noCategory") : categoryName(f.category)) });
+  if (name === "person") return chip({ label: t("transactions.filterPerson"), wertHtml: text(f.person === "ohne" ? t("transactions.personOhne") : personenById.get(f.person)?.name || f.person) });
   if (name === "gegenpartei") return chip({ label: t("labels.counterparty"), wertHtml: text(f.gegenpartei) });
   if (name === "transfer") return chip({ label: t("transactions.filterTransfer"), wertHtml: text(t(f.transfer === "only" ? "transactions.onlyTransfers" : "transactions.withoutTransfers")) });
   if (name === "origin") return chip({ label: t("transactions.filterOrigin"), wertHtml: text(t({ regel: "transactions.originRule", agent: "transactions.originAgent", manuell: "transactions.originManual" }[f.origin] ?? f.origin)) });
@@ -314,6 +315,15 @@ function renderTransactionFilters(antwort) {
             ["", t("transactions.allCategories")],
             ["ohne", t("labels.noCategory")],
             ...data.kategorien.map((kategorie) => [kategorie.kategorie_id, kategorie.name]),
+            ],
+          },
+          {
+            name: "person",
+            label: t("transactions.filterPerson"),
+            options: [
+              ["", t("transactions.allePersonen")],
+              ["ohne", t("transactions.personOhne")],
+              ...(data.personen ?? []).map((person) => [person.person_id, person.name]),
             ],
           },
           {
@@ -522,8 +532,8 @@ export function renderHerkunft(tx) {
   return "—";
 }
 
-// detail: { transaktion, regelzahlung, vorsorge, immobilie } aus der Antwort.
-export function renderTransactionDetail({ transaktion: tx, regelzahlung, vorsorge, immobilie }) {
+// detail: { transaktion, regelzahlung, vorsorge, immobilie, person } aus der Antwort.
+export function renderTransactionDetail({ transaktion: tx, regelzahlung, vorsorge, immobilie, person }) {
   const konto = kontenById.get(tx.konto_id);
   const paired = tx.gegenbuchung;
   const bankDetails = [
@@ -555,6 +565,10 @@ export function renderTransactionDetail({ transaktion: tx, regelzahlung, vorsorg
     ${immobilie ? detailRow(
       t("transactions.immobilie"),
       `<a class="linkish" href="${escapeHtml(zielRoute("open-vermoegen-entity", `immobilie:${immobilie.immobilie_id}`))}" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="${escapeHtml(immobilie.immobilie_id)}">${escapeHtml(`${immobilie.immobilie_id} · ${immobilie.bezeichnung}`)}</a>`,
+    ) : ""}
+    ${person ? detailRow(
+      t("transactions.fuerPerson"),
+      `<button class="linkish" data-action="gruppe-filtern" data-gruppe="person" data-schluessel="${escapeHtml(person.person_id)}" title="${escapeHtml(t("transactions.gruppeFiltern"))}">${escapeHtml(person.name)}</button>${person.herkunft ? `<br><span class="detail-sub">${escapeHtml(t("transactions.origin"))}: ${escapeHtml(t(`transactions.personHerkunft.${person.herkunft}`))}</span>` : ""}`,
     ) : ""}
     ${tx.bemerkung ? detailRow(t("transactions.bemerkung"), escapeHtml(tx.bemerkung)) : ""}
     ${regelzahlung ? detailRow(

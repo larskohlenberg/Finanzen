@@ -386,6 +386,7 @@ const CLI_WERKZEUGE = [
     eigenschaften: {
       ids: { type: "array", items: ID("TXN"), minItems: 1 },
       immobilie: ID("IMM"),
+      person: ID("PER"),
       entfernen: { type: "boolean" },
       ersetzen: { type: "boolean" },
       bemerkung: { type: "string", maxLength: 300 },
@@ -394,6 +395,20 @@ const CLI_WERKZEUGE = [
     schreibFlag: "--schreiben",
     okCodes: [0, 2],
     argv: async (ctx, a, root) => [`--ids=${a.ids.join(",")}`, ...(a.immobilie ? [`--immobilie=${a.immobilie}`] : []), ...(a.entfernen ? ["--entfernen"] : []), ...(a.ersetzen ? ["--ersetzen"] : []), ...(a.bemerkung !== undefined ? [`--bemerkung=${a.bemerkung}`] : []), root],
+  }),
+  cli({
+    name: "personenbezug",
+    skript: "personenbezug.mjs",
+    beschreibung: "Fuer wen ist eine Buchung (tools/personenbezug.mjs; setzt fuer_person_id, ADR 0038). Ohne ids: Ableitung ueber den ganzen Bestand aus der Regelzahlung der Buchung oder aus aktiven Regeln mit fuer_person_id (Vorrang manuell vor Regelzahlung vor Regel); nach Import, Regel- oder Regelzahlungsaenderung und regelzahlungen_zuordnen nachziehen. Mit ids genau eine Aktion: person setzt von Hand, entfernen heisst bewusst keine Person, automatisch gibt die Buchungen an die Ableitung zurueck. Wer bezahlt hat, folgt weiter dem Konto. Exitcode 2 = blockiert. Vorschau ist Default.",
+    eigenschaften: {
+      ids: { type: "array", items: ID("TXN"), minItems: 1 },
+      person: ID("PER"),
+      entfernen: { type: "boolean" },
+      automatisch: { type: "boolean" },
+    },
+    schreibFlag: "--schreiben",
+    okCodes: [0, 2],
+    argv: async (ctx, a, root) => [...(a.ids ? [`--ids=${a.ids.join(",")}`] : []), ...(a.person ? [`--person=${a.person}`] : []), ...(a.entfernen ? ["--entfernen"] : []), ...(a.automatisch ? ["--automatisch"] : []), root],
   }),
   cli({
     name: "transfers",
@@ -639,7 +654,7 @@ const planIstWerkzeug = {
 
 const transaktionenAbfragen = {
   name: "transaktionen_abfragen",
-  description: "Transaktionen filtern und optional gruppieren. Alle Filter sind UND-verknuepft; text sucht case-insensitiv als Teilstring in Gegenpartei, Verwendungszweck und Bemerkung; immobilie filtert auf den Immobilienbezug. Ohne gruppieren_nach: Zeilen (limit Default 100, max 1000) plus Anzahl und Gesamtsumme. Mit gruppieren_nach: Summen je Gruppe; Zeilen nur mit mit_zeilen:true. Summen sind Decimal-Strings, cent-genau gerechnet. Hinweis: Startzustandsbuchungen (transaktionstyp Startzustand) stehen unter der neutralen Kategorie Startzustand; in reinen Summen ueber alle Buchungen sind sie enthalten.",
+  description: "Transaktionen filtern und optional gruppieren. Alle Filter sind UND-verknuepft; text sucht case-insensitiv als Teilstring in Gegenpartei, Verwendungszweck und Bemerkung; immobilie filtert auf den Immobilienbezug, person auf fuer_person_id (fuer wen die Buchung ist). Ohne gruppieren_nach: Zeilen (limit Default 100, max 1000) plus Anzahl und Gesamtsumme. Mit gruppieren_nach: Summen je Gruppe; Zeilen nur mit mit_zeilen:true. Summen sind Decimal-Strings, cent-genau gerechnet. Hinweis: Startzustandsbuchungen (transaktionstyp Startzustand) stehen unter der neutralen Kategorie Startzustand; in reinen Summen ueber alle Buchungen sind sie enthalten.",
   inputSchema: {
     type: "object",
     properties: {
@@ -653,7 +668,7 @@ const transaktionenAbfragen = {
       betrag_min: BETRAG,
       betrag_max: BETRAG,
       ist_transfer: { type: "boolean" },
-      gruppieren_nach: { type: "string", enum: ["monat", "kategorie", "konto", "gegenpartei"] },
+      gruppieren_nach: { type: "string", enum: ["monat", "kategorie", "konto", "gegenpartei", "person"] },
       mit_zeilen: { type: "boolean" },
       limit: { type: "integer", minimum: 1, maximum: 1000 },
     },
@@ -665,6 +680,7 @@ const transaktionenAbfragen = {
     const namen = {
       kategorien: Object.fromEntries(daten.kategorien.map((k) => [k.kategorie_id, k.name])),
       konten: Object.fromEntries(daten.konten.map((k) => [k.konto_id, k.name])),
+      personen: Object.fromEntries((daten.personen ?? []).map((p) => [p.person_id, p.name])),
     };
     return ergebnis(json(abfragen(daten.transaktionen, args, namen)));
   },
@@ -892,7 +908,7 @@ const dateienSuchen = {
 // setzt kein Datei-Edit `bestaetigt_durch: mensch`, keine Regel umgeht den
 // Probelauf, kein Protokolleintrag faelscht einen Werkzeug-Anlass.
 export const KERNDATEIEN = Object.freeze({
-  "transaktionen.jsonl": "Buchungen nur ueber die Fachwerkzeuge: bestaetigen (menschliche Entscheidung), agent_vorschlag, nachkategorisieren, freigabe, transfers, transfer_extern, immobilienbezug, regelzahlungen_zuordnen; neue Buchungen ueber eine standardisierte JSONL in der Inbox und import",
+  "transaktionen.jsonl": "Buchungen nur ueber die Fachwerkzeuge: bestaetigen (menschliche Entscheidung), agent_vorschlag, nachkategorisieren, freigabe, transfers, transfer_extern, immobilienbezug, personenbezug, regelzahlungen_zuordnen; neue Buchungen ueber eine standardisierte JSONL in der Inbox und import",
   "transfers.json": "Transfers ueber transfers (interne Paare) oder transfer_extern",
   "agent_log.jsonl": "Protokollzeilen ueber protokoll_eintrag; die Werkzeuge protokollieren ihre Laeufe selbst",
   "kategorisierungsregeln.json": "Regeln ueber regel_schreiben (mit Probelauf), danach nachkategorisieren",

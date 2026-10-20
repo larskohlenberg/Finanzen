@@ -50,6 +50,9 @@ das ist **kategorisierung-review**.
    Danach Tool `regelzahlungen_zuordnen` mit `schreiben: true`: die neuen
    Buchungen bekommen ihre `regelzahlung_id`. Regelzahlungen unter
    `uebersprungen` (ausser Konsumplaenen) oder `mehrdeutig` im Bericht nennen.
+   Dann Tool `personenbezug` ohne `ids` mit `schreiben: true`: die neuen
+   Buchungen bekommen ihre Person aus Regelzahlung oder Regel (ADR 0038).
+   `konflikte` im Bericht nennen.
 5. **Pruefen.** Tool `pruefbericht` und den Bericht
    **ungekuerzt** zeigen.
 6. **Logos nachziehen.** Tool `logos` ohne Argumente: der Bericht nennt die

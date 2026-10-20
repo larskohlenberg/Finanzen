@@ -91,6 +91,8 @@ const schemas = {
       glaeubiger_id: { type: "string" },
       regelzahlung_id: { type: "string", pattern: /^RZ-\d{3,}$/ },
       immobilie_id: { type: "string", pattern: /^IMM-\d{3,}$/ },
+      fuer_person_id: { type: "string", pattern: /^PER-\d{3,}$/ },
+      fuer_person_herkunft: { type: "string", enum: ["regel", "regelzahlung", "manuell"] },
       transfer_id: { type: "string", pattern: TRF_ID },
       bemerkung: { type: "string" },
     },
@@ -123,6 +125,7 @@ const schemas = {
       darlehen_id: { type: "string", pattern: /^DAR-\d{3,}$/ },
       vorsorge_id: { type: "string", pattern: /^VS-\d{3,}$/ },
       konto_id: { type: "string", pattern: /^KTO-\d{3,}$/ },
+      fuer_person_id: { type: "string", pattern: /^PER-\d{3,}$/ },
       erstellt_am: { type: "string", format: "date" },
       qualitaet: { type: "string", enum: ["belegt", "geschaetzt"] },
       quelle_hinweis: { type: "string" },
@@ -262,6 +265,7 @@ const schemas = {
       erstellt_am: { type: "string", format: "date" },
       kommentar: { type: "string", minLength: 1 },
       belegstufe: { type: "string", enum: ["E1", "E2", "E3", "E4"] },
+      fuer_person_id: { type: "string", pattern: /^PER-\d{3,}$/ },
     },
   },
   logos: {
@@ -687,6 +691,16 @@ function validateCrossFieldRules(data, errors) {
     if (transaktion.immobilie_id && !immobilien.has(transaktion.immobilie_id)) {
       melde(errors, "verweis", `transaktionen.${transaktion.transaktion_id}.immobilie_id`, `${transaktion.immobilie_id} existiert nicht`);
     }
+    if (transaktion.fuer_person_id && !personen.has(transaktion.fuer_person_id)) {
+      melde(errors, "verweis", `transaktionen.${transaktion.transaktion_id}.fuer_person_id`, `${transaktion.fuer_person_id} existiert nicht`);
+    }
+    // Herkunft gehoert zur Person; nur "manuell" darf allein stehen (bewusst keine Person).
+    if (transaktion.fuer_person_id && !transaktion.fuer_person_herkunft) {
+      melde(errors, "konsistenz", `transaktionen.${transaktion.transaktion_id}.fuer_person_herkunft`, `Pflicht bei fuer_person_id`);
+    }
+    if (!transaktion.fuer_person_id && transaktion.fuer_person_herkunft && transaktion.fuer_person_herkunft !== "manuell") {
+      melde(errors, "konsistenz", `transaktionen.${transaktion.transaktion_id}.fuer_person_herkunft`, `${transaktion.fuer_person_herkunft} ohne fuer_person_id`);
+    }
     if (dedupeHashes.has(transaktion.dedupe_hash)) {
       melde(errors, "doppelt", `transaktionen.${transaktion.transaktion_id}.dedupe_hash`, `doppelt mit ${dedupeHashes.get(transaktion.dedupe_hash)}`);
     } else {
@@ -697,6 +711,9 @@ function validateCrossFieldRules(data, errors) {
   data.kategorisierungsregeln?.forEach((regel) => {
     if (regel.kategorie_id && !kategorien.has(regel.kategorie_id)) {
       melde(errors, "verweis", `kategorisierungsregeln.${regel.regel_id}.kategorie_id`, `${regel.kategorie_id} existiert nicht`);
+    }
+    if (regel.fuer_person_id && !personen.has(regel.fuer_person_id)) {
+      melde(errors, "verweis", `kategorisierungsregeln.${regel.regel_id}.fuer_person_id`, `${regel.fuer_person_id} existiert nicht`);
     }
     if (regel.konto_id && !konten.has(regel.konto_id)) {
       melde(errors, "verweis", `kategorisierungsregeln.${regel.regel_id}.konto_id`, `${regel.konto_id} existiert nicht`);
@@ -730,6 +747,9 @@ function validateCrossFieldRules(data, errors) {
     }
     if (rz.konto_id && !konten.has(rz.konto_id)) {
       melde(errors, "verweis", `regelzahlungen.${rz.regelzahlung_id}.konto_id`, `${rz.konto_id} existiert nicht`);
+    }
+    if (rz.fuer_person_id && !personen.has(rz.fuer_person_id)) {
+      melde(errors, "verweis", `regelzahlungen.${rz.regelzahlung_id}.fuer_person_id`, `${rz.fuer_person_id} existiert nicht`);
     }
     if (rz.aktiv_bis && rz.anker_datum && rz.aktiv_bis < rz.anker_datum) {
       melde(errors, "konsistenz", `regelzahlungen.${rz.regelzahlung_id}.aktiv_bis`, `liegt vor anker_datum`);

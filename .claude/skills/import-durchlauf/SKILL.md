@@ -25,7 +25,8 @@ Lauf eine Vorschau.
    Duplikate per `inbox_verwerfen` (mit `grund`) in den Papierkorb schieben.
 3. Den Subagenten **`regel-recherche`** auf den Offen-Stapel ansetzen. Er
    verregelt, was belegt ist, und schaetzt den Rest als Einzelvorschlag.
-4. `freigabe` mit `schreiben: true`.
+4. `freigabe` mit `schreiben: true`, danach `regelzahlungen_zuordnen` und
+   `personenbezug` (beide mit `schreiben: true`).
 5. `pruefbericht` — **ungekuerzt zeigen**.
 6. `logos` — Bericht lesen, neue Gegenparteien ohne Logo melden, fuer die
    wiederkehrenden die Domain bestimmen und Logos nachziehen (Vorschau, dann

@@ -13,6 +13,7 @@ export const aktionen = {
     if (gruppe === "monat") Object.assign(f, ohneZeitfilter(f), { timeMode: "month", month: schluessel });
     if (gruppe === "gegenpartei") f.gegenpartei = schluessel;
     if (gruppe === "regelzahlung") f.regelzahlung = schluessel;
+    if (gruppe === "person") f.person = schluessel || "ohne";
     state.transactionFilters = f;
     state.transactionPage = 1;
     commitNavigation();

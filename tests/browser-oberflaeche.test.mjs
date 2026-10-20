@@ -127,7 +127,7 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
     const kopf = await seite.werte(`[...document.querySelectorAll(".filter-kopf [data-filter]")].map((el) => el.dataset.filter)`);
     assert.deepEqual(kopf, ["search", "timeMode"]);
     const gruppen = await seite.werte(`[...document.querySelectorAll(".filter-gruppe")].map((g) => [g.getAttribute("aria-label"), [...g.querySelectorAll("[data-filter]")].map((el) => el.dataset.filter)])`);
-    assert.deepEqual(gruppen.map(([, f]) => f), [["account", "category", "regelzahlung", "transfer"], ["richtung", "betragVon", "betragBis", "status", "origin"]]);
+    assert.deepEqual(gruppen.map(([, f]) => f), [["account", "category", "person", "regelzahlung", "transfer"], ["richtung", "betragVon", "betragBis", "status", "origin"]]);
     assert.ok(gruppen.every(([titel]) => titel?.length > 0), "jede Gruppe ist fuer Screenreader benannt");
     // Der Zeitraum steht unter der Suche, die Suche behaelt die volle Breite, auch mit Quartal.
     await waehle(`select[data-filter="timeMode"]`, "quarter");

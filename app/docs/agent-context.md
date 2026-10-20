@@ -11,7 +11,7 @@
 - Regeln nur mit Beleg (Belegleiter E1-E4). Einzelbuchungen ohne Beleg schaetzt der Agent: plausibelste Kategorie als Einzelvorschlag (agent_vorschlag); KAT-012 nur, wenn keine Kategorie plausibel ist.
 - Echte Namen, Betraege, IBANs, Bank- und Haendlernamen gehoeren nie in Repo, Doku oder Commit-Texte; konkrete Werte ins Agentenprotokoll (protokoll_eintrag).
 
-Werkzeuge nach Aufgaben: **Auswerten** (status, kennzahlen, plan_ist, transaktionen_abfragen, pruefbericht, verlauf); **Lesen** (datei_lesen, dateien_suchen); **Importieren** (inbox, import, transfers, transfer_extern, regelzahlungen_zuordnen, immobilienbezug, inbox_verwerfen, inbox_zurueckholen); **Kategorisieren** (regel_vorschlag, regel_probelauf, regel_schreiben, nachkategorisieren, agent_vorschlag, freigabe, bestaetigen, lernen); **Stammdaten** (stammdatum_setzen, zeitwert_anhaengen, logos); **Belege** (beleg_ablegen, beleg_teilen, beleg_ergaenzen, beleg_verwerfen, belege_umziehen, belege_text); **Protokoll und Rueckgaengig** (protokoll_eintrag, rueckgaengig); **Dateien (Inbox, Importprofile, uebrige)** (datei_schreiben, datei_ersetzen).
+Werkzeuge nach Aufgaben: **Auswerten** (status, kennzahlen, plan_ist, transaktionen_abfragen, pruefbericht, verlauf); **Lesen** (datei_lesen, dateien_suchen); **Importieren** (inbox, import, transfers, transfer_extern, regelzahlungen_zuordnen, personenbezug, immobilienbezug, inbox_verwerfen, inbox_zurueckholen); **Kategorisieren** (regel_vorschlag, regel_probelauf, regel_schreiben, nachkategorisieren, agent_vorschlag, freigabe, bestaetigen, lernen); **Stammdaten** (stammdatum_setzen, zeitwert_anhaengen, logos); **Belege** (beleg_ablegen, beleg_teilen, beleg_ergaenzen, beleg_verwerfen, belege_umziehen, belege_text); **Protokoll und Rueckgaengig** (protokoll_eintrag, rueckgaengig); **Dateien (Inbox, Importprofile, uebrige)** (datei_schreiben, datei_ersetzen).
 <!-- vertrag:pflicht:ende -->
 
 Gemeinsame Betriebsgrundlage fuer Agentenarbeit im deploybaren App-Raum.
@@ -75,6 +75,7 @@ ohne MCP.
 | `tools/transfer-extern.mjs` | `transfer_extern` (externer Transfer mit `gegenseite` und Begruendung, oder `entfernen`) |
 | `tools/confirm.mjs` | `bestaetigen` |
 | `tools/transaktion-immobilie.mjs` | `immobilienbezug` |
+| `tools/personenbezug.mjs` | `personenbezug` |
 | `tools/transfer-matcher.mjs` | `transfers` |
 | `tools/regelzahlung-matcher.mjs` | `regelzahlungen_zuordnen` (`details: true` listet jede Zuordnung) |
 | `tools/logos.mjs` | `logos` (ohne `eintraege` ein Bericht; mit `eintraege: [{ name, domain, muster }]` Abruf beim Logodienst; mit `bild` + `quelle` je Eintrag ein mitgebrachtes Bild, mit `datei` eine Bilddatei unter `data/` oder `Belege/`) |
@@ -556,6 +557,16 @@ Wichtige Tools:
   (`npm run regelzahlungen`). Nach jedem Import und nach neu gesetztem
   `konto_id` an einer Regelzahlung nachziehen. Regeln unter „Zuordnung zu
   Regelzahlungen".
+- `tools/personenbezug.mjs`: fuer wen eine Buchung ist (`fuer_person_id`,
+  ADR 0038). Ohne `--ids` leitet es ueber den **Bestand** ab: Person der
+  Regelzahlung der Buchung, sonst die eine Person aller aktiven, passenden
+  Regeln mit `fuer_person_id` (mehrere verschiedene = Konflikt, keine Person).
+  Handentscheidungen (`fuer_person_herkunft: manuell`, ohne Person = bewusst
+  keine) fasst es nie an. Nach `regelzahlungen_zuordnen` und nach jeder
+  Aenderung von Personen an Regeln oder Regelzahlungen nachziehen. Mit `--ids`
+  genau eine Aktion: `--person=PER-…`, `--entfernen` oder `--automatisch`
+  (zurueck an die Ableitung). Die Person sagt nur, wem die Ausgabe
+  zugutekommt; wer bezahlt hat, folgt weiter dem Konto.
 - `tools/belege-text.mjs`: Textzwilling (`.txt`) je PDF und Bild unter `Belege/` erzeugen
   und `data/inbox/standardized/` **sowie** `data/inbox/processed/` per
   Inhalts-Hash aufraeumen. Ein `.txt` gilt dabei nie als Nachweis fuer eine

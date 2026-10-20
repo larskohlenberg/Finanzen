@@ -51,3 +51,15 @@ test("Szenario-Warnungen und Prognose-Hinweise tragen Werte statt Text", () => {
   assert.equal(szenarioWarnungText({ code: "cash-realismus", kategorie_id: "KAT-003", plan_cents: 10000, ist_cents: 25000 }, FORMAT), "Geplante Ausgaben für KAT-003 (<10000>/Monat) liegen deutlich unter dem Ist-Durchschnitt (<25000>/Monat)");
   for (const g of guardrailWarnungen(d, "2026-06-30")) assert.equal(g.text, undefined);
 });
+
+test("Saetze folgen den Vorlagen der Oberflaechensprache, fehlende fallen auf Deutsch zurueck", () => {
+  globalThis.window = globalThis;
+  return import("../app/i18n.js").then(() => {
+    const en = window.FINANCE_I18N.en.checkText;
+    const vorlage = (k) => en[k];
+    const drift = { art: "reconciliation-drift", entitaet: "konto", entitaet_id: "KTO-1", name: "Giro", bis: "2026-02-28", erwartet_cents: 9000, belegt_cents: 9550 };
+    assert.equal(vermoegenCheckText(drift, { vorlage }), "Account Giro: bookings do not match the statement of 2026-02-28 (expected 90.00, recorded 95.50)");
+    assert.equal(szenarioWarnungText({ code: "liquiditaet-negativ" }, { vorlage: () => undefined }), "Liquidität bereits im ersten Monat negativ");
+    assert.deepEqual(Object.keys(en).sort(), Object.keys(window.FINANCE_I18N.de.checkText).sort());
+  });
+});

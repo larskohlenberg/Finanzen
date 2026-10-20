@@ -4,7 +4,7 @@
 import { data, state, t, tf, escapeHtml, cents, kontenById } from "../runtime.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, categoryName, zielElement, hrefAttr } from "../komponenten.mjs";
+import { formatMoney, formatDate, categoryName, zielElement, hrefAttr, checkFormat } from "../komponenten.mjs";
 import { heuteIso } from "../selektoren.mjs";
 import { kopfleisteAntwort } from "./kopfleiste-daten.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
@@ -27,7 +27,7 @@ function checksAntwort(heute) {
 function guardrailItem(g) {
   const titel = t(`szenarien.warnCode.${g.code}.titel`);
   const kat = g.kategorie_id ? categoryName(g.kategorie_id) : "";
-  let detail = szenarioWarnungText(g, ANZEIGE);
+  let detail = szenarioWarnungText(g, checkFormat());
   if (g.code === "cash-realismus") {
     detail = tf("checksPage.cashRealismusText", { kategorie: kat, plan: formatMoney(g.plan_cents), ist: formatMoney(g.ist_cents) });
   } else if (g.code === "kategorie-ungeplant") {
@@ -40,9 +40,6 @@ function guardrailItem(g) {
     </div>`;
 }
 
-// Die Rechenmodule liefern Pruefbefunde als Werte (Cent, ISO-Datum); den Satz
-// baut check-texte.mjs mit den lokalen Formatierern der Anzeige.
-const ANZEIGE = { geld: (c) => formatMoney(c), datum: (d) => formatDate(d) };
 
 // Zähler für die obere Leiste: was nur hier sichtbar ist. Offene Kategorien und
 // Importfehler haben dort eigene Chips und zählen deshalb nicht mit.
@@ -107,7 +104,7 @@ export function renderChecks() {
             <div class="rail-item">
               <span class="chip review">${iconSvg("review")}${escapeHtml(t(`vermoegen.checkArt.${check.art}`))}</span>
               <a class="linkish" href="${escapeHtml(zielRoute("open-vermoegen-entity", `${check.entitaet}:${check.entitaet_id}`))}" data-action="open-vermoegen-entity" data-vklasse="${escapeHtml(check.entitaet)}" data-vid="${escapeHtml(check.entitaet_id)}">${escapeHtml(check.entitaet_id)}</a>
-              <span class="muted">${escapeHtml(vermoegenCheckText(check, ANZEIGE))}</span>
+              <span class="muted">${escapeHtml(vermoegenCheckText(check, checkFormat()))}</span>
             </div>
           `).join("")}
         </div>

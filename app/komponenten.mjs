@@ -60,6 +60,19 @@ export function teilbestandChip(positionen) {
   return `<span class="chip review teilbestand" title="${escapeHtml(titel)}">${iconSvg("review")}${escapeHtml(t("vermoegen.uebersicht.teilbestand"))}</span>`;
 }
 
+// Format fuer Pruefbefunde (check-texte.mjs): lokales Geld und Datum, Saetze
+// aus i18n (checkText.*) in der Sprache der Oberflaeche.
+export function checkFormat() {
+  return {
+    geld: formatMoney,
+    datum: formatDate,
+    vorlage: (schluessel) => {
+      const text = t(`checkText.${schluessel}`);
+      return text === `checkText.${schluessel}` ? undefined : text;
+    },
+  };
+}
+
 // Element zu einem Ziel aus Attributen (data-action/data-view ...): mit href
 // ein echter Link, damit "In neuem Tab oeffnen" geht; sonst ein Knopf.
 export function zielElement(attrs, innerHtml, { klasse = "linkish", title = "" } = {}) {

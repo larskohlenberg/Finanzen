@@ -13,3 +13,12 @@ test("Monate vor dem ersten Anker sind modelliert, ab dem Anker belegt", () => {
   const verlauf = liquiditaetVerlauf(data, "2026-05-15", 4);
   assert.deepEqual(verlauf.map((p) => [p.monat, p.modelliert]), [["2026-02", true], ["2026-03", false], ["2026-04", false], ["2026-05", false]]);
 });
+
+test("Konto ganz ohne Anker macht den Verlauf nicht 'zurueckgerechnet'", () => {
+  const data = {
+    konten: [{ konto_id: "KTO-2", name: "Neu", kontotyp: "giro", liquiditaetsrelevant: true, status: "aktiv", inhaber_person_ids: [] }],
+    zeitwerte: [],
+    transaktionen: [],
+  };
+  assert.ok(liquiditaetVerlauf(data, "2026-05-15", 3).every((p) => p.modelliert === false));
+});

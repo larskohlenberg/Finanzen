@@ -148,8 +148,9 @@ export function liquiditaetVerlauf(data, today, monate = 12) {
     const staende = liquiditaetsKonten(data.konten, datum).map((k) => kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum));
     const saldo = staende.reduce((a, w) => a + (w.saldo_cents ?? 0), 0);
     // modelliert: mindestens ein Konto ist nur aus einem spaeteren Anker
-    // zurueckgerechnet oder hat gar keinen; sonst belegt (Anker vorwaerts).
-    const modelliert = staende.some((w) => w.basis === "anker-rueckwaerts" || w.saldo_cents === null);
+    // zurueckgerechnet. Konten ganz ohne Anker zaehlen 0 und meldet die
+    // Kachel ueber "fehlende Anker", nicht als Rueckrechnung.
+    const modelliert = staende.some((w) => w.basis === "anker-rueckwaerts");
     punkte.push({ monat, datum, saldo_cents: saldo, modelliert, grosse: grosse.filter((g) => g.monat === monat) });
   }
   trendVerlauf(punkte.map((p) => p.saldo_cents)).forEach((tr, i) => Object.assign(punkte[i], tr));

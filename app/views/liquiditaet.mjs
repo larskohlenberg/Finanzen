@@ -128,11 +128,12 @@ function istKachel(ist, verlauf) {
     // Belegt durchgezogen, zurueckgerechnet gestrichelt; der erste belegte
     // Monat nach einer Rueckrechnung gehoert zu beiden, damit die Linie anschliesst.
     serien: [
-      { klasse: "liquiditaet-linie", label: t("liquiditaet.balance"), werte: verlauf.map((p) => (p.modelliert ? null : p.saldo_cents)) },
+      { klasse: "liquiditaet-linie", teil: true, label: t("liquiditaet.balance"), werte: verlauf.map((p) => (p.modelliert ? null : p.saldo_cents)) },
       ...(verlauf.some((p) => p.modelliert) ? [{
         klasse: "liquiditaet-linie liquiditaet-modelliert",
+        teil: true,
         label: `${t("liquiditaet.balance")} (${t("liquiditaet.modelliert")})`,
-        werte: verlauf.map((p, i) => (p.modelliert || verlauf[i - 1]?.modelliert ? p.saldo_cents : null)),
+        werte: verlauf.map((p, i) => (p.modelliert || verlauf[i - 1]?.modelliert || verlauf[i + 1]?.modelliert ? p.saldo_cents : null)),
       }] : []),
       { klasse: "liquiditaet-trend-linie", label: t("liquiditaet.trend"), werte: verlauf.map((p) => p.trend_cents) },
     ],

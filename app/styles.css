@@ -3609,4 +3609,5 @@ td.logo-zelle .logo-marke { margin-right: 0; }
   .karten-tabelle td.karten-kopf { display: block; text-align: left; font-weight: 600; padding-bottom: 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
   .karten-tabelle tr.plan-ist-detail td { display: block; text-align: left; padding: 6px 0; }
   .karten-tabelle .plan-ist-abw { display: inline; margin-left: 6px; }
+  .karten-tabelle .plan-ist-summe td { border-top: 0; }
 }

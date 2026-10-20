@@ -8,7 +8,7 @@ import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzahlKachel, kachelZeile, zeitverlaufKlein, klappKachel, trendPfeil, trendZeitraumText } from "../komponenten.mjs";
 import { miniKurve } from "../charts.mjs";
-import { toCents } from "../liquiditaet.mjs";
+import { addInterval, toCents } from "../liquiditaet.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 import { LEERE_FILTER, filterAlsQuery } from "../navigation.mjs";
 
@@ -252,6 +252,37 @@ function kategorienTrendTabelle(trend) {
 
 // Prognose: Stand am Horizont, Verlauf je Monatsende bis dahin, darunter die
 // naechsten grossen Zahlungen (jaehrliche Abfluesse der naechsten drei Monate).
+// Prognosehorizont: Schnellauswahl relativ zu heute, daneben das Datum als
+// Knopf mit Kalendersymbol; er klappt den Kalender auf (app/kalender.mjs).
+export function horizontVorschlaege(heute) {
+  return [
+    ["6m", addInterval(heute, "monat", 6)],
+    ["1j", addInterval(heute, "monat", 12)],
+    ["jahresende", `${heute.slice(0, 4)}-12-31`],
+    ["2j", addInterval(heute, "monat", 24)],
+    ["5j", addInterval(heute, "monat", 60)],
+  ];
+}
+
+function horizontWahl() {
+  const bis = state.liquiditaet.bisDatum;
+  const heute = heuteIso();
+  const knoepfe = horizontVorschlaege(heute).map(([schluessel, datum]) => {
+    const aktiv = datum === bis;
+    return `<button type="button" class="chip ${aktiv ? "success" : "neutral"} linkish" data-liquiditaet-horizont="${escapeHtml(datum)}" aria-pressed="${aktiv}">${escapeHtml(t(`liquiditaet.horizont.${schluessel}`))}</button>`;
+  }).join("");
+  const offen = state.liquiditaet.kalenderOffen;
+  return `
+    <div class="liquiditaet-bis">
+      <span class="liquiditaet-bis-zeile">
+        <span class="muted" id="liquiditaet-bis-label">${escapeHtml(t("liquiditaet.forecastUntil"))}</span>
+        <button type="button" class="datum-knopf" data-liquiditaet-kalender aria-expanded="${offen}" aria-labelledby="liquiditaet-bis-label liquiditaet-bis-wert">${iconSvg("kalender")}<span id="liquiditaet-bis-wert">${escapeHtml(formatDate(bis))}</span></button>
+      </span>
+      <span class="liquiditaet-horizont" role="group" aria-label="${escapeHtml(t("liquiditaet.horizont.gruppe"))}">${knoepfe}</span>
+      ${offen ? `<div class="kalender-popover"><div data-kalender="liquiditaet-bis" data-wert="${escapeHtml(bis)}" data-min="${escapeHtml(heute)}"></div></div>` : ""}
+    </div>`;
+}
+
 function prognoseKachel(prognose, zahlungen) {
   const q = prognose.qualitaet;
   const notiz = [
@@ -259,10 +290,7 @@ function prognoseKachel(prognose, zahlungen) {
     q.vorschlaege_nicht_enthalten > 0 ? `<span class="chip review">${iconSvg("review")}${escapeHtml(String(q.vorschlaege_nicht_enthalten))} ${escapeHtml(t("liquiditaet.qualityProposalsExcluded"))}</span>` : "",
     q.unbefristete_regelzahlungen > 0 ? `<span class="chip neutral">${escapeHtml(String(q.unbefristete_regelzahlungen))} ${escapeHtml(t("liquiditaet.qualityOpenEnded"))}</span>` : "",
   ].join("");
-  const grafik = `
-    <label class="liquiditaet-bis">${escapeHtml(t("liquiditaet.forecastUntil"))}
-      <input type="date" data-control="liquiditaet-bis" value="${escapeHtml(state.liquiditaet.bisDatum)}" />
-    </label>`;
+  const grafik = horizontWahl();
   const monate = prognose.perioden.flatMap((p) => p.monate);
   const unten = monate.length > 1 ? zeitverlaufKlein({
     spalten: monatsAchse(monate.map((m) => m.monat)),

@@ -38,6 +38,7 @@ import { aktionen as vorsorgeAktionen } from "./aktionen/vorsorge.mjs";
 import { aktionen as szenarioAktionen } from "./aktionen/szenarien.mjs";
 import { aktionen as planTermineAktionen } from "./aktionen/plan-termine.mjs";
 import { iconSvg } from "./icons.js";
+import { kalenderAnbinden } from "./kalender.mjs";
 
 let sitzungGesperrt = false;
 
@@ -112,6 +113,7 @@ function render() {
   restoreScroll(app, scrollSnap);
   anwendenBaumBreite(app);
   termineListenBegrenzen(app);
+  kalenderAnbinden(app, { sprache: state.lang, beiWahl: (name, datum) => { if (name === "liquiditaet-bis") setzeHorizont(datum); } }).catch(setUiError);
   restoreFocus(app, focusSnap);
   // Neue Seite: der Fokus geht auf ihre Ueberschrift (Screenreader liest sie),
   // ausser er steht schon im Inhalt (z. B. nach einem Link innerhalb der Seite).
@@ -128,6 +130,14 @@ function render() {
   if (state.view === "vorsorge") belegeBeiBedarfLaden(render);
   // Dokumente je Objekt auf den Tabs Immobilien und Darlehen.
   if (state.view === "vermoegen" && ["immobilien", "darlehen"].includes(state.vermoegenTab)) belegeBeiBedarfLaden(render);
+}
+
+// Prognosehorizont setzen (Schnellauswahl oder Kalender); schliesst den Kalender.
+function setzeHorizont(datum) {
+  state.liquiditaet.bisDatum = datum || defaultHorizonEnd(heuteIso());
+  state.liquiditaet.kalenderOffen = false;
+  state.liquiditaetExpanded.clear();
+  render();
 }
 
 function seitenName() {
@@ -193,6 +203,13 @@ app.addEventListener("click", guard((event) => {
     state.schnellsuche.offen = false;
     render();
   }
+  // Pfad zur Zeit des Klicks: der Kalender zeichnet seine Tage beim Klick neu,
+  // das Ziel haengt danach nicht mehr im Dokument.
+  const imKalender = () => (event.composedPath?.() ?? [event.target]).some((el) => el.closest?.(".kalender-popover, [data-liquiditaet-kalender]"));
+  if (state.liquiditaet.kalenderOffen && !imKalender()) {
+    state.liquiditaet.kalenderOffen = false;
+    render();
+  }
 
   const errorDismiss = event.target.closest("[data-error-dismiss]");
   if (errorDismiss) {
@@ -223,6 +240,18 @@ app.addEventListener("click", guard((event) => {
     const key = liquiditaetToggle.dataset.liquiditaetToggle;
     if (state.liquiditaetExpanded.has(key)) state.liquiditaetExpanded.delete(key);
     else state.liquiditaetExpanded.add(key);
+    render();
+    return;
+  }
+
+  const horizont = event.target.closest("[data-liquiditaet-horizont]");
+  if (horizont) {
+    setzeHorizont(horizont.dataset.liquiditaetHorizont);
+    return;
+  }
+
+  if (event.target.closest("[data-liquiditaet-kalender]")) {
+    state.liquiditaet.kalenderOffen = !state.liquiditaet.kalenderOffen;
     render();
     return;
   }
@@ -297,6 +326,12 @@ app.addEventListener("click", guard((event) => {
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
 const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-wertstaende-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
 app.addEventListener("keydown", guard((event) => {
+  if (event.key === "Escape" && state.liquiditaet.kalenderOffen) {
+    state.liquiditaet.kalenderOffen = false;
+    render();
+    app.querySelector("[data-liquiditaet-kalender]")?.focus();
+    return;
+  }
   if (event.key === "Escape" && state.settingsMenuOpen) {
     state.settingsMenuOpen = false;
     render();
@@ -479,12 +514,6 @@ app.addEventListener("change", guard((event) => {
     state.planIst.periode = control.value || "";
     state.planIstOffen.clear();
     commitNavigation({ ersetzen: true });
-    return;
-  }
-  if (control?.dataset.control === "liquiditaet-bis") {
-    state.liquiditaet.bisDatum = control.value || defaultHorizonEnd(heuteIso());
-    state.liquiditaetExpanded.clear();
-    render();
     return;
   }
 

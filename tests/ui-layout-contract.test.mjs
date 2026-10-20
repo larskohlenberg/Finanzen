@@ -7,6 +7,9 @@ import test from "node:test";
 // Der App-Code ist modularisiert (main.js + runtime/komponenten/views/*). Die
 // Contract-Pruefungen gelten fuer den GESAMTEN UI-Code, nicht eine Datei — daher
 // alle App-JS-Module (ohne data/Belege) zu einem String zusammenfassen.
+// Auslaufend (Massnahme 4.13): Was sich im Browser beobachten laesst, pruefen
+// tests/browser-oberflaeche.test.mjs und browser-ablaeufe.test.mjs am Verhalten;
+// neue Vertraege bitte dort statt als Quelltext-Muster.
 function readAppJs(dir) {
   let out = "";
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -29,28 +32,6 @@ test("app shell has no visible Runde 2 subtitle in sidebar rendering", () => {
   assert.doesNotMatch(main, /appSubtitle/);
 });
 
-test("body does not force a desktop minimum width", () => {
-  assert.doesNotMatch(css, /body\s*{[^}]*min-width:\s*1040px/s);
-});
-
-test("table wrappers own horizontal overflow", () => {
-  assert.match(css, /\.table-wrap\s*{[^}]*overflow-x:\s*auto/s);
-  assert.match(css, /table\s*{[^}]*min-width:/s);
-});
-
-test("transaction filters use the shared table filter renderer", () => {
-  assert.match(main, /function renderTableFilters\(/);
-  assert.match(main, /renderTableFilters\(\s*{[\s\S]*transactionFilters/s);
-});
-
-test("search clear sits visually inside the search input, anchored to its own control row", () => {
-  // Frueher: ✕ schwebte absolut ueber fremden Feldern (Bug). Heute gewollt:
-  // Overlay an der rechten Innenkante des Suchfelds, verankert an der eigenen Row.
-  assert.match(css, /\.filter-field-search \.filter-control-row\s*{[^}]*position:\s*relative/s);
-  assert.match(css, /\.filter-field-search \.filter-clear\s*{[^}]*position:\s*absolute/s);
-  assert.match(css, /\.filter-field-search input\[type="search"\]\s*{[^}]*padding-right/s);
-});
-
 test("manual CRUD labels are not rendered as primary screen actions", () => {
   assert.doesNotMatch(main, />\s*(Neu|Neues Konto|Konto hinzufügen|Konto hinzufuegen|Bearbeiten)\s*</);
 });
@@ -64,11 +45,6 @@ test("local lucide icon helper is used instead of glyph-only navigation", () => 
 test("generic leads are omitted for overview and transactions", () => {
   assert.match(main, /renderPageHead\(t\("overview\.title"\),\s*""/);
   assert.match(main, /renderPageHead\(t\("transactions\.title"\),\s*""/);
-});
-
-test("detail rails have close controls", () => {
-  assert.match(main, /data-action="close-detail-rail"/);
-  assert.match(i18n, /closeDetails/);
 });
 
 test("vermoegen: Tabs je Klasse, Wertstaende als Tabelle auf der Uebersicht, keine Modals", () => {
@@ -106,15 +82,6 @@ test("account masterdata table renders account reference column", () => {
   assert.match(i18n, /accountReference:\s*"Account reference"/);
   assert.match(main, /t\("labels\.accountReference"\)/);
   assert.match(main, /konto\.kontoreferenz/);
-});
-
-test("liquiditaetsprognose keeps granularity controls and expandable rows", () => {
-  assert.match(main, /data-liquiditaet-gran/);
-  assert.match(main, /data-liquiditaet-toggle/);
-  assert.match(main, /renderLiquiditaetPrognoseDetail/);
-  assert.match(main, /state\.liquiditaet\.granularitaet/);
-  assert.match(css, /\.liquiditaet-detail \.row-toggle/);
-  assert.match(i18n, /gran:\s*{\s*monat:/);
 });
 
 test("work status chip reflects real in-app validation, never an unconditional pass", () => {
@@ -173,19 +140,6 @@ test("open-category chip remains the navigation entry for open transactions", ()
   assert.match(main, /openCategories > 0 \?[^\n]*chrome\.categoryOpen/);
 });
 
-test("topbar keeps data mode, language and theme behind one settings menu", () => {
-  assert.match(main, /data-action="toggle-settings-menu"/);
-  assert.match(main, /data-action="set-setting" data-setting="\$\{setting\}"/);
-  for (const setting of ["data-mode", "lang", "theme"]) {
-    assert.match(main, new RegExp(`gruppe\\("${setting}"`));
-  }
-  assert.doesNotMatch(main, /data-control="(data-mode|lang|theme)"/);
-  assert.match(main, /event\.key === "Escape" && state\.settingsMenuOpen/);
-  assert.match(css, /\.settings-menu/);
-  // Demodaten bleiben sichtbar markiert, Echtdaten brauchen keinen Chip.
-  assert.match(main, /demoActive \? `<span class="chip demo"/);
-});
-
 test("IBAN fields render with grouped display format", () => {
   assert.match(main, /formatIban\(konto\.kontoreferenz\)/);
   assert.match(main, /formatIban\(tx\.empfaenger_iban\)/);
@@ -199,116 +153,9 @@ test("transaction detail labels counterparty IBAN by booking direction", () => {
   assert.match(main, /\[transactionIbanLabel\(tx\), formatIban\(tx\.empfaenger_iban\)\]/);
 });
 
-test("transactions view has a local search over loaded transactions", () => {
-  assert.match(main, /name:\s*"search"/);
-  assert.match(main, /matchesQuery\(/);
-  assert.match(main, /addEventListener\("input"/);
-  assert.match(i18n, /filterSearch:\s*"Suche"/);
-  assert.match(i18n, /filterSearch:\s*"Search"/);
-});
-
-test("transactions view offers a booking-date period filter", () => {
-  assert.match(main, /timeMode:\s*"none"/);
-  // Gefiltert wird im Server (transaktionen-abfrage.mjs), die Optionen kommen aus der Antwort.
-  assert.match(main, /function passtZeitraum\(tx, filter\)/);
-  assert.match(main, /tx\.buchungsdatum/);
-  assert.match(main, /searchFields:\s*\[[\s\S]*name:\s*"search"/);
-  assert.match(main, /timeFields:\s*transactionTimeFilterFields\(antwort\)/);
-  assert.match(main, /fields:\s*\[[\s\S]*name:\s*"account"[\s\S]*name:\s*"transfer"/);
-  assert.match(main, /filter-search-row/);
-  assert.match(main, /filter-time-row/);
-  assert.match(main, /filter-primary-row/);
-  assert.match(css, /\.filter-search-row\s*{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
-  assert.match(css, /\.filter-time-row\s*{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(140px,\s*180px\)\)/s);
-  assert.match(css, /\.filter-primary-row\s*{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(140px,\s*1fr\)\)/s);
-  assert.match(main, /transactionTimeFilterFields\(antwort\)/);
-  assert.match(main, /name:\s*"timeMode"/);
-  assert.match(main, /name:\s*"dateFrom"/);
-  assert.match(main, /name:\s*"dateTo"/);
-  assert.match(main, /name:\s*"month"/);
-  assert.match(main, /options:\s*transactionMonthOptions\(antwort\)/);
-  assert.doesNotMatch(main, /t\("transactions\.allMonths"\)/);
-  assert.doesNotMatch(i18n, /allMonths/);
-  assert.match(main, /state\.transactionFilters\.month = transactionMonthOptions\(antwort\)\[0\]\?\.\[0\]/);
-  assert.match(main, /name:\s*"quarterYear"/);
-  assert.match(main, /options:\s*transactionYearOptions\(antwort\)/);
-  assert.match(main, /name:\s*"quarter"/);
-  assert.match(main, /name:\s*"year"/);
-  assert.match(main, /function applyTransactionTimeModeDefaults\(mode\)/);
-  assert.match(main, /latestMonth/);
-  assert.match(main, /Math\.ceil\(Number\(latestMonth\.slice\(5, 7\)\) \/ 3\)/);
-  assert.match(main, /transactionFilterActiveCount\(\)/);
-  assert.match(i18n, /filterTime:\s*"Zeitraum"/);
-  assert.match(i18n, /timeModeRange:\s*"Von-Bis"/);
-  assert.match(i18n, /timeModeMonth:\s*"Monat"/);
-  assert.match(i18n, /timeModeQuarter:\s*"Quartal"/);
-  assert.match(i18n, /timeModeYear:\s*"Jahr"/);
-});
-
-test("transactions table supports page size selection and direct page jumps", () => {
-  assert.match(main, /function renderTransactionTableToolbar\(\)/);
-  assert.match(main, /data-filter="pageSize"/);
-  assert.match(main, /\["10", "10"\]/);
-  assert.match(main, /\["20", "20"\]/);
-  assert.match(main, /\["50", "50"\]/);
-  assert.match(main, /\["100", "100"\]/);
-  assert.match(main, /function paginationItems\(currentPage, pageCount\)/);
-  assert.match(main, /data-action="page-first"/);
-  assert.match(main, /data-action="page-last"/);
-  assert.match(main, /data-action="page-jump"/);
-  assert.match(main, /data-page=/);
-  assert.match(main, /state\.pageSize = Number\(filter\.value\)/);
-  assert.match(i18n, /rowsPerPage:\s*"Zeilen"/);
-  assert.match(i18n, /firstPage:\s*"Erste"/);
-  assert.match(i18n, /lastPage:\s*"Letzte"/);
-});
-
-test("filter bar: search spans the full row and has exactly one clear control", () => {
-  assert.match(main, /filter-field-search/);
-  assert.match(css, /\.filter-field-search\s*{[^}]*grid-column:\s*1 \/ -1/s);
-  assert.match(css, /::-webkit-search-cancel-button\s*{[^}]*appearance:\s*none/s);
-});
-
 test("filter fields are flat: no per-field box inside the filter bar frame", () => {
   assert.doesNotMatch(css, /\.filter-field\s*{[^}]*border:/s);
   assert.doesNotMatch(css, /\.filter-field\s*{[^}]*background:/s);
-});
-
-test("filter reset lives in a footer with an active-filter count, not a floating overlay", () => {
-  // Fester Platz statt absolutem Overlay: Fusszeile mit Trennlinie + Anzahl,
-  // damit klar wird, dass der Reset fuer alle Filter gilt.
-  assert.doesNotMatch(css, /\.filter-actions\s*{[^}]*position:\s*absolute/s);
-  assert.match(css, /\.filter-actions\s*{[^}]*border-top/s);
-  assert.match(main, /filter-active-count/);
-  assert.match(main, /Object\.values\(filters\)\.filter\(Boolean\)\.length/);
-  assert.match(i18n, /filterActiveOther:\s*"Filter aktiv"/);
-});
-
-test("filter reset keeps its reserved footer slot when no filter is active", () => {
-  assert.match(main, /const resetDisabled = effectiveActiveCount === 0/);
-  assert.match(main, /class="filter-reset-group \$\{resetDisabled \? "is-disabled" : ""\}"/);
-  assert.match(main, /<button class="filter-reset" data-action="\$\{escapeHtml\(resetAction\)\}"\$\{resetDisabled \? " disabled" : ""\}>/);
-  assert.match(css, /\.filter-reset-group\s*{[^}]*flex:\s*0 0 220px/s);
-  assert.match(css, /\.filter-reset-group\.is-disabled\s*{[^}]*visibility:\s*hidden/s);
-  assert.match(css, /\.filter-reset:disabled/);
-});
-
-test("filter result count uses the same type size as table pagination", () => {
-  assert.match(css, /\.filter-result-count\s*{[^}]*font-size:\s*13px/s);
-  assert.match(css, /\.pagination\s*{[^}]*font-size:\s*13px/s);
-});
-
-test("select filters clear via their all-option: clear button only on search field", () => {
-  assert.match(main, /type === "search" && active/);
-});
-
-test("mobile navigation is a fixed bottom tab bar with a more menu", () => {
-  assert.match(main, /class="tabbar"/);
-  assert.match(main, /data-action="toggle-more-menu"/);
-  assert.match(css, /\.tabbar\s*{\s*display:\s*none/s);
-  assert.match(css, /\.tabbar\s*{[^}]*position:\s*fixed/s);
-  assert.match(css, /\.sidebar \.nav\s*{[^}]*display:\s*none/s);
-  assert.match(i18n, /more:\s*"Mehr"/);
 });
 
 test("collapsed sidebar hides the meta text instead of wrapping it in the narrow rail", () => {
@@ -325,17 +172,6 @@ test("uppercase eyebrow labels share one harmonized treatment", () => {
   assert.match(shared[1], /font-weight:\s*700/);
   // die alte uneinheitliche 0.05em-Sperrung der Filter-Labels ist verschwunden
   assert.doesNotMatch(css, /letter-spacing:\s*0\.05em/);
-});
-
-test("desktop nav order matches the mobile reading order", () => {
-  // Desktop-Sidebar und mobile Tab-Bar+Mehr-Menü leiten ihre Reihenfolge beide
-  // aus navItems ab — vermoegen steht vor termine (analog zur Mobilseite).
-  const block = main.match(/const navItems = \[(.*?)\];/s)[1];
-  const order = [...block.matchAll(/\["(\w+)"/g)].map((m) => m[1]);
-  assert.deepEqual(order, [
-    "overview", "transactions", "liquiditaet", "vermoegen", "vorsorge",
-    "planIst", "termine", "szenarien", "belege", "upload", "masterdata",
-  ]);
 });
 
 test("stacked detail panel keeps spacing from the preceding content", () => {

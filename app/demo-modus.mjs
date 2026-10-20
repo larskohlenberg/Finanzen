@@ -10,6 +10,10 @@ import { parseRoute, routeFromState } from "./routing.mjs";
 const istDemo = (dataMode) => dataMode === "demo";
 const quelle = (dataMode) => (istDemo(dataMode) ? "?quelle=demo" : "");
 
+// Fester "heute" der Demo: das Ende der Demo-Buchungen. So passt die Demo zu
+// jedem Datum (Kennzahlen, Faelligkeiten, Checks), statt mit der Zeit zu veralten.
+export const DEMO_STICHTAG = "2026-06-30";
+
 export function belegeApiUrl(dataMode) {
   return `./api/belege${quelle(dataMode)}`;
 }

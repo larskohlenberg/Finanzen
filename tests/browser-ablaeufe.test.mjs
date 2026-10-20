@@ -125,6 +125,16 @@ describe("Ablaeufe im Browser", { skip: chrome ? false : "kein Chrome/Chromium g
     await seite.warteAuf(`document.querySelector(".detail-panel") && location.hash.startsWith("#/transaktionen/TXN-")`, { text: "Detail per Enter" });
   });
 
+  test("Schnellsuche: Strg+K, ID tippen, Enter oeffnet das Objekt", async () => {
+    await oeffne("#/uebersicht");
+    await seite.taste("k", { code: "KeyK", keyCode: 75, modifiers: 2 });
+    await seite.warteAuf(`document.activeElement?.id === "schnellsuche-eingabe"`, { text: "Suchfeld fokussiert" });
+    await seite.tippe("KTO-001");
+    await seite.warteAuf(`document.querySelector("#suchtreffer li.aktiv")`);
+    await seite.taste("Enter", { keyCode: 13, text: "\r" });
+    await seite.warteAuf(`location.hash === "#/vermoegen/konten/KTO-001" && !document.querySelector(".schnellsuche")`, { text: "Konto geoeffnet" });
+  });
+
   test("Demo/Echt-Wechsel: neu geladen, anderer Bestand, Auswahl des alten Bestands faellt weg", async () => {
     await oeffne("#/transaktionen?status=offen");
     assert.equal(await seite.werte(`Boolean(document.querySelector(".chip.demo"))`), true);

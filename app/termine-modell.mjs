@@ -65,3 +65,15 @@ export function regelzahlungZeilen(regelzahlungen, gruppen, heute, { zeigen = "a
     return cmp * faktor || vergleiche(a.rz.regelzahlung_id, b.rz.regelzahlung_id);
   });
 }
+
+// Jahresvergleich je Kategorie mit vergleichbaren Zeitraeumen: das laufende
+// Jahr bis zum Ende des letzten vollen Monats gegen dieselben Monate des
+// Vorjahres; im Januar das ganze Vorjahr gegen das Jahr davor.
+export function vergleichsZeitraeume(heute) {
+  const monatsAnfang = `${heute.slice(0, 7)}-01`;
+  const letzterTag = addInterval(monatsAnfang, "tag", -1);
+  const jahr = Number(letzterTag.slice(0, 4));
+  const aktuell = { von: `${jahr}-01-01`, bis: letzterTag };
+  const bisVorjahr = addInterval(`${jahr - 1}${letzterTag.slice(4, 8)}01`, "monat", 1);
+  return { aktuell, vorjahr: { von: `${jahr - 1}-01-01`, bis: addInterval(bisVorjahr, "tag", -1) } };
+}

@@ -9,7 +9,7 @@ import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { beiDatenwechsel, datenwechselMelden, erstelleEntpreller, eingabeBereit, merkeDetails } from "./lebenszyklus.mjs";
 import { defaultHorizonEnd } from "./liquiditaet.mjs";
 import { seitenTitel } from "./navigation.mjs";
-import { rahmen, renderSidebar, renderTabbar, renderTopbar, renderPromptFallback, renderValidationBanner, renderUiErrorBanner } from "./rahmen.mjs";
+import { rahmen, renderSidebar, renderTabbar, renderTopbar, renderPromptFallback, renderValidationBanner, renderUiErrorBanner, renderSchnellsuche, schnellsucheTreffer } from "./rahmen.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { app, data, state, storageKeys, navItems, t, escapeHtml, verwerfeDaten, ersetzeDaten } from "./runtime.mjs";
 import { AKTIVITAETS_EREIGNISSE, PRUEF_INTERVALL_MS, erstelleSitzungswaechter, ladeSitzungKonfig, zielNachSperre } from "./sitzung.mjs";
@@ -103,6 +103,7 @@ function render() {
       ${safeRender(renderView, "view:" + state.view)}
     </main>
     ${renderTabbar()}
+    ${renderSchnellsuche()}
   `;
   restoreScroll(app, scrollSnap);
   anwendenBaumBreite(app);
@@ -317,6 +318,13 @@ app.addEventListener("keydown", guard((event) => {
 // abschliessende compositionend verarbeitet die fertige Eingabe.
 const sucheEntprellt = erstelleEntpreller(() => render(), 250);
 function verarbeiteEingabe(event) {
+  const such = event.target.closest?.("input[data-schnellsuche]");
+  if (such) {
+    state.schnellsuche.text = such.value;
+    state.schnellsuche.index = 0;
+    render();
+    return;
+  }
   const belegeSuche = event.target.closest("input[data-belege-suche]");
   if (belegeSuche) {
     setBelegeSuche(belegeSuche.value);
@@ -340,6 +348,49 @@ function verarbeiteEingabe(event) {
 app.addEventListener("input", guard((event) => {
   if (eingabeBereit(event)) verarbeiteEingabe(event);
 }, setUiError, "input"));
+// Schnellsuche: Cmd/Strg+K oeffnet ueberall; im Dialog Pfeile, Enter, Esc.
+document.addEventListener?.("keydown", guard((event) => {
+  if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    oeffneSchnellsuche();
+    return;
+  }
+  const s = state.schnellsuche;
+  if (!s.offen) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    s.offen = false;
+    render();
+    return;
+  }
+  const treffer = schnellsucheTreffer();
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    if (!treffer.length) return;
+    s.index = (Math.min(s.index, treffer.length - 1) + (event.key === "ArrowDown" ? 1 : -1) + treffer.length) % treffer.length;
+    render();
+    return;
+  }
+  if (event.key === "Enter" && treffer.length) {
+    event.preventDefault();
+    springeZu(treffer[Math.min(s.index, treffer.length - 1)].route);
+  }
+}, setUiError, "keydown"));
+
+function oeffneSchnellsuche() {
+  state.schnellsuche = { offen: true, text: "", index: 0 };
+  render();
+  document.getElementById("schnellsuche-eingabe")?.focus();
+}
+
+// Ziel der Schnellsuche: wie ein Link (neuer Verlaufseintrag, Route anwenden).
+function springeZu(route) {
+  state.schnellsuche.offen = false;
+  if (location.hash === route) render();
+  else location.hash = route;
+}
+Object.assign(ablauf, { oeffneSchnellsuche, springeZu });
+
 // Ein Klick braucht Druecken und Loslassen auf demselben Element. Zeichnet
 // dazwischen etwas neu (eine eintreffende API-Antwort, die entprellte Suche),
 // ersetzt es das Element unter dem Zeiger und der Klick geht verloren. Darum

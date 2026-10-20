@@ -980,7 +980,8 @@ button.roadmap-card-link:focus-visible {
   width: 170px;
 }
 
-/* Gruppen als Zeilen mit je drei gleich breiten Feldern. */
+/* Gruppen als Zeilen mit gleich breiten Feldern; in der Betragszeile sind
+   Richtung und Betraege schmal, Status und Herkunft teilen sich den Rest. */
 .filter-gruppen {
   display: grid;
   gap: 8px;
@@ -990,12 +991,20 @@ button.roadmap-card-link:focus-visible {
 }
 
 .filter-gruppen .filter-gruppe {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.filter-gruppen .filter-gruppe-betrag {
+  grid-template-columns: minmax(150px, 0.8fr) minmax(100px, 0.5fr) minmax(100px, 0.5fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+@media (max-width: 1000px) {
+  .filter-gruppen .filter-gruppe-betrag { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-gruppe-betrag .filter-field:first-child { grid-column: 1 / -1; }
 }
 
 @media (max-width: 760px) {
   .filter-gruppen .filter-gruppe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .filter-gruppe .filter-field:first-child { grid-column: 1 / -1; }
 }
 
 .filter-primary-row {

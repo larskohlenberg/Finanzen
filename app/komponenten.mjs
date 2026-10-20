@@ -344,7 +344,7 @@ export function saldoLinie(punkte, ariaLabel) {
 }
 
 // Oben die Suche, darunter der Zeitraum. Dann entweder eine Zeile fields oder
-// Gruppen (groups: [{ label, fields }]), je Gruppe eine Zeile; der Titel ist nur
+// Gruppen (groups: [{ label, fields, klasse? }]), je Gruppe eine Zeile; der Titel ist nur
 // fuer Screenreader. Aktive Filter (chips) stehen ueber der Trefferzeile.
 export function renderTableFilters({ chips = "", searchFields = [], timeFields = [], fields = [], groups = [], filters, filterAttr, clearAction, resetAction, activeCount, resultCount, totalCount }) {
   const effectiveActiveCount = activeCount ?? Object.values(filters).filter(Boolean).length;
@@ -372,7 +372,7 @@ export function renderTableFilters({ chips = "", searchFields = [], timeFields =
       ${groups.length ? `
       <div class="filter-gruppen">
         ${groups.map((gruppe, i) => `
-        <div class="filter-grid filter-gruppe" role="group" aria-label="${escapeHtml(gruppe.label)}">${feld(gruppe.fields)}</div>`).join("")}
+        <div class="filter-grid filter-gruppe${gruppe.klasse ? ` ${escapeHtml(gruppe.klasse)}` : ""}" role="group" aria-label="${escapeHtml(gruppe.label)}">${feld(gruppe.fields)}</div>`).join("")}
       </div>` : ""}
       ${chips}
       ${hasResultCount || effectiveActiveCount > 0 ? `

@@ -84,6 +84,9 @@ test("Detail: Antwortzeile, Zeitstrahl mit Phasen und Ereignis, Phasentabelle", 
   assert.match(html, /data-action="toggle-szenario-phase" data-phase="0"/);
   assert.match(html, /Vorlauf|Arbeit/);
   assert.match(html, /data-control="szenario-vergleich"/);
+  // Ergebnis als Basis, Szenario, Differenz und der Startbestand mit Bezug aufs Vermoegen.
+  assert.match(html, /<table class="szenario-ergebnis karten-tabelle">[\s\S]*?<th class="amount">Pause und Verkauf<\/th><th class="amount">Basis<\/th><th class="amount">Differenz<\/th>/);
+  assert.match(html, /class="muted szenario-start"[\s\S]*?href="#\/vermoegen"/);
 });
 
 test("Detail: aufgeklappte Phase zeigt Annahmen mit Wirkung pro Monat", async () => {

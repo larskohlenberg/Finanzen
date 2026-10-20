@@ -84,7 +84,8 @@ export function uebersichtModell(daten, heute) {
     } : null,
     vermoegen: {
       netto_cents: netto.netto_cents,
-      positionen: netto.positionen.map(({ klasse, id, name, wert_cents, standdatum }) => ({ klasse, id, name, wert_cents, standdatum })),
+      // fehlt: Position ohne Wert (Chip "bekannter Teilbestand" in der Kachel).
+      positionen: netto.positionen.map(({ klasse, id, name, wert_cents, standdatum, fehlt }) => ({ klasse, id, name, wert_cents, standdatum, fehlt: Boolean(fehlt) })),
       kontotyp,
       rueckkauf_tab: [...jeTab].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "lebensversicherungen",
     },

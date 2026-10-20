@@ -300,6 +300,44 @@ function antwortZeile(szenario, r, v, today) {
     </div>`;
 }
 
+// Szenario, Vergleich (Basis oder anderes Szenario) und Differenz je Kennzahl;
+// darunter der Startbestand, derselbe wie unter Vermoegen (gleiche Positionen).
+function ergebnisTabelle(szenario, r, v, today) {
+  const ende = r.punkte.at(-1);
+  const vEnde = v.r.punkte.at(-1);
+  const tief = tiefpunkt(r.punkte);
+  const vTief = tiefpunkt(v.r.punkte);
+  const geldZeile = (key, a, b) => `
+    <tr><td class="karten-kopf">${escapeHtml(t(`szenarien.ergebnisZeile.${key}`))}</td>
+      <td class="amount" data-label="${escapeHtml(szenario.name)}">${a == null ? "—" : escapeHtml(formatMoney(a))}</td>
+      <td class="amount" data-label="${escapeHtml(v.label)}">${b == null ? "—" : escapeHtml(formatMoney(b))}</td>
+      <td class="amount" data-label="${escapeHtml(t("szenarien.differenz"))}">${a == null || b == null ? "—" : `<span class="${a - b < 0 ? "abw-schlecht" : a - b > 0 ? "abw-gut" : "abw-neutral"}">${escapeHtml(fmt().geldMitVorzeichen(a - b))}</span>`}</td></tr>`;
+  const kipp = kippMonat(r.punkte);
+  const vKipp = kippMonat(v.r.punkte);
+  // Heute, aus denselben Positionen wie das Vermoegen (nicht der erste
+  // Szenariopunkt, der schon das Monatsende mit seinen Zahlungen ist).
+  const startNetto = (grundlage?.positionen ?? []).reduce((summe, p) => summe + (p.wert_cents ?? 0), 0);
+  return `
+    <section class="panel panel-pad section-spacing">
+      <h2 class="section-title">${escapeHtml(t("szenarien.ergebnisTitel"))}</h2>
+      <div class="table-wrap">
+        <table class="szenario-ergebnis karten-tabelle">
+          <thead><tr><th></th><th class="amount">${escapeHtml(szenario.name)}</th><th class="amount">${escapeHtml(v.label)}</th><th class="amount">${escapeHtml(t("szenarien.differenz"))}</th></tr></thead>
+          <tbody>
+            <tr><td class="karten-kopf">${escapeHtml(t("szenarien.ergebnisZeile.reicht"))}</td>
+              <td class="amount" data-label="${escapeHtml(szenario.name)}">${escapeHtml(reichtBisText(kipp, r.punkte))}</td>
+              <td class="amount" data-label="${escapeHtml(v.label)}">${escapeHtml(reichtBisText(vKipp, v.r.punkte))}</td>
+              <td class="amount muted" data-label="${escapeHtml(t("szenarien.differenz"))}">—</td></tr>
+            ${geldZeile("tief", tief?.cents, vTief?.cents)}
+            ${geldZeile("liquideEnde", ende?.liquide_cents, vEnde?.liquide_cents)}
+            ${geldZeile("nettoEnde", ende?.netto_cents, vEnde?.netto_cents)}
+          </tbody>
+        </table>
+      </div>
+      ${grundlage?.positionen ? `<p class="muted szenario-start">${escapeHtml(tf("szenarien.startbestand", { datum: formatDate(today), betrag: formatMoney(startNetto) }))} <a class="linkish" href="#/vermoegen" data-view="vermoegen">${escapeHtml(t("szenarien.startbestandLink"))}</a></p>` : ""}
+    </section>`;
+}
+
 function umschalter(action, aktiv, optionen) {
   return `<div class="segment" role="group">${optionen.map(([wert, label]) => `<button class="segment-button ${aktiv === wert ? "active" : ""}" data-action="${action}" data-wert="${wert}" aria-pressed="${aktiv === wert}">${escapeHtml(label)}</button>`).join("")}</div>`;
 }
@@ -683,6 +721,7 @@ function renderDetail(szenario, today) {
     ${staleNote(szenario, today)}
     ${warnungenHtml(r.warnungen ?? [])}
     ${antwortZeile(szenario, r, v, today)}
+    ${ergebnisTabelle(szenario, r, v, today)}
     ${zeitstrahl(szenario, r, v, phasen)}
     ${aenderungenAbschnitt(szenario, today)}
     ${phasenTabelle(szenario, phasen)}

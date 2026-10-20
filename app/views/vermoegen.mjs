@@ -5,7 +5,7 @@
 import { data, state, t, tf, fmt, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, formatMonth, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie, kennzahlKachel, kachelZeile, zeitverlaufKlein } from "../komponenten.mjs";
+import { formatMoney, formatDate, formatMonth, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie, kennzahlKachel, kachelZeile, zeitverlaufKlein, teilbestandChip } from "../komponenten.mjs";
 import { donutDiagramm } from "../charts.mjs";
 import { aktuellerZeitwert, anteilWertCents, restschuldJahre } from "../vermoegen.mjs";
 import { immobilienKennzahlen } from "../vermoegen-details.mjs";
@@ -175,6 +175,21 @@ function renderUebersichtTab(r, je, today, checks, modell) {
     ${renderWertstaendeTabelle()}`;
 }
 
+// Gestrichelt sind Monate, in denen mehr Positionen ohne Wert sind als heute
+// (aelterer Teilbestand); was heute fehlt, meldet der Chip an der Kennzahl.
+function nettoSerien(verlauf) {
+  const heute = verlauf.at(-1)?.unbekannt ?? 0;
+  const teil = verlauf.map((p) => (p.unbekannt ?? 0) > heute);
+  const netto = { klasse: "vermoegen-netto-linie", teil: true, label: t("vermoegen.netto"), werte: verlauf.map((p, i) => (teil[i] ? null : p.netto_cents)) };
+  if (!teil.some(Boolean)) return [netto];
+  return [netto, {
+    klasse: "vermoegen-netto-linie vermoegen-teilbestand",
+    teil: true,
+    label: t("vermoegen.uebersicht.teilbestandVerlauf"),
+    werte: verlauf.map((p, i) => (teil[i] || teil[i - 1] || teil[i + 1] ? p.netto_cents : null)),
+  }];
+}
+
 function nettoKachel(r, je, verlauf) {
   const aktiva = Math.max(r.aktiva_cents, 1);
   const segmente = ["konto", "immobilie", "vermoegenswert", "vorsorge"]
@@ -187,12 +202,13 @@ function nettoKachel(r, je, verlauf) {
   const vorher = verlauf.length > 1 ? verlauf[Math.max(0, verlauf.length - 13)] : null;
   const diff = vorher ? r.netto_cents - vorher.netto_cents : 0;
   const notiz = [
+    teilbestandChip(r.positionen),
     `${escapeHtml(t("vermoegen.aktiva"))}: ${escapeHtml(geldOhneCent(r.aktiva_cents))} · ${escapeHtml(t("vermoegen.passiva"))}: ${escapeHtml(geldOhneCent(r.passiva_cents))}`,
     vorher ? escapeHtml(tf("vermoegen.uebersicht.veraenderung", { betrag: `${diff > 0 ? "+" : ""}${geldOhneCent(diff)}`, seit: formatMonth(vorher.monat) })) : "",
   ].filter(Boolean).join("<br>");
   const unten = `${verlauf.length > 1 ? zeitverlaufKlein({
     spalten: verlauf.map((p) => ({ label: p.monat.endsWith("-01") ? p.monat.slice(0, 4) : "", titel: formatMonth(p.monat) })),
-    serien: [{ klasse: "vermoegen-netto-linie", label: t("vermoegen.netto"), werte: verlauf.map((p) => p.netto_cents) }],
+    serien: nettoSerien(verlauf),
     formatWert: (c) => formatMoney(c),
     formatAchse: geldOhneCent,
     labelSchritt: 1,

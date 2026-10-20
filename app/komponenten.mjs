@@ -343,10 +343,10 @@ export function saldoLinie(punkte, ariaLabel) {
   return svg ? `<div class="diagramm-wrap">${svg}</div>` : "";
 }
 
-// Kopfzeile: Suche und Zeitraum nebeneinander. Darunter entweder eine Zeile
-// fields oder beschriftete Gruppen (groups: [{ label, fields }]), je Gruppe eine
-// Zeile mit dem Titel links; schmal steht der Titel ueber den Feldern.
-export function renderTableFilters({ prefix = "", searchFields = [], timeFields = [], fields = [], groups = [], filters, filterAttr, clearAction, resetAction, activeCount, resultCount, totalCount }) {
+// Oben die Suche, darunter der Zeitraum. Dann entweder eine Zeile fields oder
+// Gruppen (groups: [{ label, fields }]), je Gruppe eine Zeile; der Titel ist nur
+// fuer Screenreader. Aktive Filter (chips) stehen ueber der Trefferzeile.
+export function renderTableFilters({ chips = "", searchFields = [], timeFields = [], fields = [], groups = [], filters, filterAttr, clearAction, resetAction, activeCount, resultCount, totalCount }) {
   const effectiveActiveCount = activeCount ?? Object.values(filters).filter(Boolean).length;
   const activeLabel = t(effectiveActiveCount === 1 ? "chrome.filterActiveOne" : "chrome.filterActiveOther");
   const hasResultCount = Number.isFinite(resultCount) && Number.isFinite(totalCount);
@@ -354,7 +354,6 @@ export function renderTableFilters({ prefix = "", searchFields = [], timeFields 
   const feld = (liste) => liste.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("");
   return `
     <section class="filter-bar">
-      ${prefix}
       ${searchFields.length || timeFields.length ? `
       <div class="filter-kopf">
         ${searchFields.length ? `
@@ -373,11 +372,9 @@ export function renderTableFilters({ prefix = "", searchFields = [], timeFields 
       ${groups.length ? `
       <div class="filter-gruppen">
         ${groups.map((gruppe, i) => `
-        <div class="filter-gruppe" role="group" aria-labelledby="${escapeHtml(filterAttr)}-gruppe-${i}">
-          <span class="filter-gruppe-titel" id="${escapeHtml(filterAttr)}-gruppe-${i}">${escapeHtml(gruppe.label)}</span>
-          <div class="filter-grid">${feld(gruppe.fields)}</div>
-        </div>`).join("")}
+        <div class="filter-grid filter-gruppe" role="group" aria-label="${escapeHtml(gruppe.label)}">${feld(gruppe.fields)}</div>`).join("")}
       </div>` : ""}
+      ${chips}
       ${hasResultCount || effectiveActiveCount > 0 ? `
         <div class="filter-actions">
           ${hasResultCount ? `<span class="filter-result-count">${escapeHtml(String(resultCount))} ${escapeHtml(t("chrome.of"))} ${escapeHtml(String(totalCount))} ${escapeHtml(t("chrome.hits"))}</span>` : ""}

@@ -65,8 +65,6 @@ function applySetting(setting, value) {
 }
 
 export const aktionen = {
-  "schnellsuche-oeffnen": () => ablauf.oeffneSchnellsuche(),
-  "schnellsuche-schliessen": () => ablauf.schliesseSchnellsuche(),
   "schnellsuche-ziel": (element) => ablauf.springeZu(element.dataset.route, element.dataset.zielView),
   "dokument-oeffnen": (element) => {
     window.open(element.dataset.url, "_blank", "noopener");

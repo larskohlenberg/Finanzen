@@ -121,6 +121,22 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
     await seite.warteAuf(`Number(document.querySelector(".filter-result-count").textContent.trim().split(" ")[0]) === Number(document.querySelector(".filter-result-count").textContent.trim().split(" ")[2])`, { text: "alle Treffer" });
   });
 
+  test("Filteranordnung: Suche und Zeitraum in einer Kopfzeile, die uebrigen Filter in drei beschrifteten Gruppen", async () => {
+    await oeffne("#/transaktionen");
+    await listeGeladen();
+    const kopf = await seite.werte(`[...document.querySelectorAll(".filter-kopf [data-filter]")].map((el) => el.dataset.filter)`);
+    assert.deepEqual(kopf, ["search", "timeMode"]);
+    const gruppen = await seite.werte(`[...document.querySelectorAll(".filter-gruppe")].map((g) => [g.querySelector(".filter-gruppe-titel").textContent.trim(), [...g.querySelectorAll("[data-filter]")].map((el) => el.dataset.filter)])`);
+    assert.deepEqual(gruppen.map(([, f]) => f), [["account", "category", "regelzahlung"], ["richtung", "betragVon", "betragBis"], ["status", "origin", "transfer"]]);
+    assert.ok(gruppen.every(([titel]) => titel.length > 0), "jede Gruppe hat eine Ueberschrift");
+    // Suche und Zeitraum stehen auf dem Desktop auf einer Hoehe.
+    const oben = await seite.werte(`[document.querySelector('input[data-filter="search"]'), document.querySelector('select[data-filter="timeMode"]')].map((el) => Math.round(el.getBoundingClientRect().top))`);
+    assert.equal(oben[0], oben[1], "eine Zeile");
+    // Betragsfelder so hoch wie die Auswahlfelder.
+    const hoehen = await seite.werte(`[document.querySelector('input[data-filter="betragVon"]'), document.querySelector('select[data-filter="richtung"]')].map((el) => Math.round(el.getBoundingClientRect().height))`);
+    assert.equal(hoehen[0], hoehen[1]);
+  });
+
   test("Zeitraumfilter: Monat, Quartal und Von-Bis blenden ihre Felder ein und belegen sie mit dem juengsten Zeitraum", async () => {
     await oeffne("#/transaktionen");
     await listeGeladen();

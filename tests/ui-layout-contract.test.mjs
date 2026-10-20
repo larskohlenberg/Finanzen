@@ -56,7 +56,7 @@ test("vermoegen: Tabs je Klasse, Wertstaende als Tabelle auf der Uebersicht, kei
   assert.match(main, /renderPositionWertstaende/);
   assert.match(main, /role="tablist"/);
   assert.match(main, /data-action="vermoegen-tab"/);
-  // Keine Modals auf der Vermoegensseite (die Schnellsuche ist ein Dialog des Rahmens).
+  // Keine Modals auf der Vermoegensseite.
   for (const datei of ["vermoegen.mjs", "vermoegen-objekte.mjs", "vermoegen-teile.mjs", "vermoegen-wertstaende.mjs"]) {
     assert.doesNotMatch(readFileSync(new URL(`../app/views/${datei}`, import.meta.url), "utf8"), /role="dialog"/, datei);
   }

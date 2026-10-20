@@ -343,25 +343,41 @@ export function saldoLinie(punkte, ariaLabel) {
   return svg ? `<div class="diagramm-wrap">${svg}</div>` : "";
 }
 
-export function renderTableFilters({ prefix = "", searchFields = [], timeFields = [], fields, filters, filterAttr, clearAction, resetAction, activeCount, resultCount, totalCount }) {
+// Kopfzeile: Suche und Zeitraum nebeneinander. Darunter entweder eine Zeile
+// fields oder beschriftete Gruppen (groups: [{ label, fields }]), je Gruppe eine
+// Zeile mit dem Titel links; schmal steht der Titel ueber den Feldern.
+export function renderTableFilters({ prefix = "", searchFields = [], timeFields = [], fields = [], groups = [], filters, filterAttr, clearAction, resetAction, activeCount, resultCount, totalCount }) {
   const effectiveActiveCount = activeCount ?? Object.values(filters).filter(Boolean).length;
   const activeLabel = t(effectiveActiveCount === 1 ? "chrome.filterActiveOne" : "chrome.filterActiveOther");
   const hasResultCount = Number.isFinite(resultCount) && Number.isFinite(totalCount);
   const resetDisabled = effectiveActiveCount === 0;
+  const feld = (liste) => liste.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("");
   return `
     <section class="filter-bar">
       ${prefix}
-      ${searchFields.length ? `
-      <div class="filter-grid filter-search-row">
-        ${searchFields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
+      ${searchFields.length || timeFields.length ? `
+      <div class="filter-kopf">
+        ${searchFields.length ? `
+        <div class="filter-grid filter-search-row">
+          ${feld(searchFields)}
+        </div>` : ""}
+        ${timeFields.length ? `
+        <div class="filter-grid filter-time-row">
+          ${feld(timeFields)}
+        </div>` : ""}
       </div>` : ""}
-      ${timeFields.length ? `
-      <div class="filter-grid filter-time-row">
-        ${timeFields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
-      </div>` : ""}
+      ${fields.length ? `
       <div class="filter-grid filter-primary-row">
-        ${fields.map((field) => renderFilterSelect({ ...field, filters, filterAttr, clearAction })).join("")}
-      </div>
+        ${feld(fields)}
+      </div>` : ""}
+      ${groups.length ? `
+      <div class="filter-gruppen">
+        ${groups.map((gruppe, i) => `
+        <div class="filter-gruppe" role="group" aria-labelledby="${escapeHtml(filterAttr)}-gruppe-${i}">
+          <span class="filter-gruppe-titel" id="${escapeHtml(filterAttr)}-gruppe-${i}">${escapeHtml(gruppe.label)}</span>
+          <div class="filter-grid">${feld(gruppe.fields)}</div>
+        </div>`).join("")}
+      </div>` : ""}
       ${hasResultCount || effectiveActiveCount > 0 ? `
         <div class="filter-actions">
           ${hasResultCount ? `<span class="filter-result-count">${escapeHtml(String(resultCount))} ${escapeHtml(t("chrome.of"))} ${escapeHtml(String(totalCount))} ${escapeHtml(t("chrome.hits"))}</span>` : ""}

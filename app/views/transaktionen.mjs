@@ -295,73 +295,88 @@ function renderTransactionFilters(antwort) {
       },
     ],
     timeFields: transactionTimeFilterFields(antwort),
-    fields: [
+    groups: [
       {
-        name: "account",
-        label: t("transactions.filterAccount"),
-        options: [
-        ["", t("transactions.allAccounts")],
-        ...data.konten.map((konto) => [konto.konto_id, konto.name]),
+        label: t("transactions.filterGruppe.woWas"),
+        fields: [
+          {
+            name: "account",
+            label: t("transactions.filterAccount"),
+            options: [
+            ["", t("transactions.allAccounts")],
+            ...data.konten.map((konto) => [konto.konto_id, konto.name]),
+            ],
+          },
+          {
+            name: "category",
+            label: t("transactions.filterCategory"),
+            options: [
+            ["", t("transactions.allCategories")],
+            ["ohne", t("labels.noCategory")],
+            ...data.kategorien.map((kategorie) => [kategorie.kategorie_id, kategorie.name]),
+            ],
+          },
+          {
+            name: "regelzahlung",
+            label: t("transactions.filterRegelzahlung"),
+            options: [
+              ["", t("transactions.alleRegelzahlungen")],
+              ...[...(data.regelzahlungen ?? [])]
+                .sort((a, b) => String(a.bezeichnung).localeCompare(String(b.bezeichnung), "de"))
+                .map((rz) => [rz.regelzahlung_id, rz.bezeichnung || rz.regelzahlung_id]),
+            ],
+          },
         ],
       },
       {
-        name: "status",
-        label: t("transactions.filterStatus"),
-        options: [
-        ["", t("transactions.allStatuses")],
-        ["offen", t("status.offen")],
-        ["vorgeschlagen", t("status.vorgeschlagen")],
-        ["bestaetigt", t("status.bestaetigt")],
-        ["abgelehnt", t("status.abgelehnt")],
+        label: t("transactions.filterGruppe.betrag"),
+        fields: [
+          {
+            name: "richtung",
+            label: t("transactions.filterRichtung"),
+            options: [
+              ["", t("transactions.alleRichtungen")],
+              ["einnahme", t("transactions.einnahme")],
+              ["ausgabe", t("transactions.ausgabe")],
+            ],
+          },
+          { name: "betragVon", type: "betrag", label: t("transactions.betragVon") },
+          { name: "betragBis", type: "betrag", label: t("transactions.betragBis") },
         ],
       },
       {
-        name: "category",
-        label: t("transactions.filterCategory"),
-        options: [
-        ["", t("transactions.allCategories")],
-        ["ohne", t("labels.noCategory")],
-        ...data.kategorien.map((kategorie) => [kategorie.kategorie_id, kategorie.name]),
-        ],
-      },
-      {
-        name: "transfer",
-        label: t("transactions.filterTransfer"),
-        options: [
-        ["", t("transactions.allTransfers")],
-        ["only", t("transactions.onlyTransfers")],
-        ["without", t("transactions.withoutTransfers")],
-        ],
-      },
-      {
-        name: "richtung",
-        label: t("transactions.filterRichtung"),
-        options: [
-          ["", t("transactions.alleRichtungen")],
-          ["einnahme", t("transactions.einnahme")],
-          ["ausgabe", t("transactions.ausgabe")],
-        ],
-      },
-      { name: "betragVon", type: "betrag", label: t("transactions.betragVon") },
-      { name: "betragBis", type: "betrag", label: t("transactions.betragBis") },
-      {
-        name: "regelzahlung",
-        label: t("transactions.filterRegelzahlung"),
-        options: [
-          ["", t("transactions.alleRegelzahlungen")],
-          ...[...(data.regelzahlungen ?? [])]
-            .sort((a, b) => String(a.bezeichnung).localeCompare(String(b.bezeichnung), "de"))
-            .map((rz) => [rz.regelzahlung_id, rz.bezeichnung || rz.regelzahlung_id]),
-        ],
-      },
-      {
-        name: "origin",
-        label: t("transactions.filterOrigin"),
-        options: [
-        ["", t("transactions.allOrigins")],
-        ["regel", t("transactions.originRule")],
-        ["agent", t("transactions.originAgent")],
-        ["manuell", t("transactions.originManual")],
+        label: t("transactions.filterGruppe.bearbeitung"),
+        fields: [
+          {
+            name: "status",
+            label: t("transactions.filterStatus"),
+            options: [
+            ["", t("transactions.allStatuses")],
+            ["offen", t("status.offen")],
+            ["vorgeschlagen", t("status.vorgeschlagen")],
+            ["bestaetigt", t("status.bestaetigt")],
+            ["abgelehnt", t("status.abgelehnt")],
+            ],
+          },
+          {
+            name: "origin",
+            label: t("transactions.filterOrigin"),
+            options: [
+            ["", t("transactions.allOrigins")],
+            ["regel", t("transactions.originRule")],
+            ["agent", t("transactions.originAgent")],
+            ["manuell", t("transactions.originManual")],
+            ],
+          },
+          {
+            name: "transfer",
+            label: t("transactions.filterTransfer"),
+            options: [
+            ["", t("transactions.allTransfers")],
+            ["only", t("transactions.onlyTransfers")],
+            ["without", t("transactions.withoutTransfers")],
+            ],
+          },
         ],
       },
     ],

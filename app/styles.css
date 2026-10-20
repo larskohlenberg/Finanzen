@@ -960,14 +960,63 @@ button.roadmap-card-link:focus-visible {
   gap: 10px 12px;
 }
 
+/* Kopfzeile: Suche nimmt den Rest, Zeitraum (1-3 Felder) steht rechts daneben;
+   wird es zu eng, bricht der Zeitraum unter die Suche. */
+.filter-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px 12px;
+}
+
 .filter-search-row {
+  flex: 1 1 280px;
   grid-template-columns: minmax(0, 1fr);
 }
 
 .filter-time-row {
-  grid-template-columns: repeat(auto-fit, minmax(140px, 180px));
-  justify-content: start;
-  margin-top: 10px;
+  flex: 0 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.filter-time-row .filter-field {
+  width: 170px;
+}
+
+/* Beschriftete Gruppen als Zeilen: Titel links, drei gleich breite Felder daneben. */
+.filter-gruppen {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.filter-gruppe {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: end;
+  gap: 4px 12px;
+}
+
+.filter-gruppe-titel {
+  padding-bottom: 9px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.filter-gruppe .filter-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .filter-gruppe { grid-template-columns: minmax(0, 1fr); }
+  .filter-gruppe-titel { padding-bottom: 0; }
+  .filter-gruppe .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-gruppe .filter-field:first-child { grid-column: 1 / -1; }
 }
 
 .filter-primary-row {
@@ -1134,6 +1183,7 @@ button.roadmap-card-link:focus-visible {
 
 .filter-field select,
 .filter-field input[type="search"],
+.filter-field input[type="text"],
 .filter-field input[type="date"] {
   width: 100%;
   min-width: 0;
@@ -1151,12 +1201,14 @@ button.roadmap-card-link:focus-visible {
 
 .filter-field select:hover,
 .filter-field input[type="search"]:hover,
+.filter-field input[type="text"]:hover,
 .filter-field input[type="date"]:hover {
   border-color: var(--border-strong);
 }
 
 .filter-field select:focus-visible,
 .filter-field input[type="search"]:focus-visible,
+.filter-field input[type="text"]:focus-visible,
 .filter-field input[type="date"]:focus-visible {
   outline: none;
   border-color: var(--accent);
@@ -1164,6 +1216,7 @@ button.roadmap-card-link:focus-visible {
 
 .filter-field.active select,
 .filter-field.active input[type="search"],
+.filter-field.active input[type="text"],
 .filter-field.active input[type="date"] {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
@@ -1205,6 +1258,7 @@ button.roadmap-card-link:focus-visible {
 
 .filter-control-row select,
 .filter-control-row input[type="search"],
+.filter-control-row input[type="text"],
 .filter-control-row input[type="date"] {
   flex: 1 1 auto;
 }
@@ -3651,13 +3705,30 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 }
 
 /* Schnellsuche (Cmd/Strg+K): Dialog oben mittig ueber einem Schleier */
-.schnellsuche-hintergrund { position: fixed; inset: 0; background: rgb(0 0 0 / 0.35); z-index: 40; }
-.schnellsuche { position: fixed; top: 10vh; left: 50%; transform: translateX(-50%); width: min(640px, calc(100vw - 24px)); max-height: 70vh; overflow: auto; z-index: 41; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px; display: grid; gap: 8px; }
-.schnellsuche input { width: 100%; font-size: 16px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); }
+/* Schnellsuche als Suchleiste in der Kopfzeile, Treffer klappen darunter auf. */
+.schnellsuche { position: relative; flex: 0 1 340px; min-width: 180px; }
+.schnellsuche input { width: 100%; height: 34px; font-size: 13px; padding: 0 64px 0 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+.schnellsuche input:hover { border-color: var(--border-strong); }
+.schnellsuche input:focus-visible { outline: none; border-color: var(--accent); }
+.schnellsuche input::placeholder { color: var(--muted); }
+.schnellsuche input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.schnellsuche-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); display: inline-flex; color: var(--muted); pointer-events: none; }
+.schnellsuche-icon svg { width: 15px; height: 15px; }
+.schnellsuche-kuerzel { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font: 11px/1 inherit; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 3px 5px; background: var(--surface-2); pointer-events: none; }
+.schnellsuche:focus-within .schnellsuche-kuerzel { display: none; }
+.schnellsuche-treffer { position: absolute; top: calc(100% + 6px); right: 0; width: max(100%, min(560px, calc(100vw - 24px))); max-height: 70vh; overflow: auto; z-index: 41; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 10px; padding: 8px; display: grid; gap: 6px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
 .schnellsuche ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .schnellsuche li a { display: grid; grid-template-columns: 9em minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 6px 8px; border-radius: 6px; color: var(--text); text-decoration: none; }
 .schnellsuche li.aktiv a, .schnellsuche li a:hover { background: var(--accent-soft); }
 .schnellsuche .such-art { color: var(--muted); font-size: 12px; }
 .schnellsuche .such-name { overflow-wrap: anywhere; }
 .schnellsuche-hilfe, .schnellsuche-leer { margin: 0; font-size: 12px; }
-@media (max-width: 760px) { .schnellsuche li a { grid-template-columns: minmax(0, 1fr) auto; } .schnellsuche .such-art { grid-column: 1 / -1; } }
+@media (max-width: 760px) {
+  .topbar { flex-wrap: wrap; }
+  .topbar .work-status { flex: 1 1 0; }
+  .schnellsuche { order: 3; flex: 1 1 100%; }
+  .schnellsuche-kuerzel { display: none; }
+  .schnellsuche-treffer { left: 0; width: auto; }
+  .schnellsuche li a { grid-template-columns: minmax(0, 1fr) auto; }
+  .schnellsuche .such-art { grid-column: 1 / -1; }
+}

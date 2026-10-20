@@ -125,14 +125,29 @@ describe("Ablaeufe im Browser", { skip: chrome ? false : "kein Chrome/Chromium g
     await seite.warteAuf(`document.querySelector(".detail-panel") && location.hash.startsWith("#/transaktionen/TXN-")`, { text: "Detail per Enter" });
   });
 
-  test("Schnellsuche: Strg+K, ID tippen, Enter oeffnet das Objekt", async () => {
+  test("Schnellsuche: Suchleiste steht in der Kopfzeile, Strg+K springt hinein, Enter oeffnet das Objekt", async () => {
     await oeffne("#/uebersicht");
+    assert.equal(await seite.werte(`Boolean(document.querySelector(".topbar #schnellsuche-eingabe")) && !document.querySelector("[role='dialog']")`), true, "Suchfeld sichtbar, kein Dialog");
     await seite.taste("k", { code: "KeyK", keyCode: 75, modifiers: 2 });
     await seite.warteAuf(`document.activeElement?.id === "schnellsuche-eingabe"`, { text: "Suchfeld fokussiert" });
     await seite.tippe("KTO-001");
     await seite.warteAuf(`document.querySelector("#suchtreffer li.aktiv")`);
     await seite.taste("Enter", { keyCode: 13, text: "\r" });
-    await seite.warteAuf(`location.hash === "#/vermoegen/konten/KTO-001" && !document.querySelector(".schnellsuche")`, { text: "Konto geoeffnet" });
+    await seite.warteAuf(`location.hash === "#/vermoegen/konten/KTO-001" && !document.querySelector("#suchtreffer")`, { text: "Konto geoeffnet" });
+    assert.equal(await seite.werte(`document.getElementById("schnellsuche-eingabe").value`), "", "Suchtext nach dem Sprung leer");
+  });
+
+  test("Schnellsuche: Esc schliesst die Trefferliste, Klick daneben ebenso", async () => {
+    await oeffne("#/uebersicht");
+    await seite.klicke("#schnellsuche-eingabe");
+    await seite.tippe("KTO");
+    await seite.warteAuf(`document.querySelector("#suchtreffer li")`, { text: "Treffer da" });
+    await seite.taste("Escape", { keyCode: 27 });
+    await seite.warteAuf(`!document.querySelector("#suchtreffer") && document.getElementById("schnellsuche-eingabe").value === ""`, { text: "Esc leert und schliesst" });
+    await seite.tippe("KTO");
+    await seite.warteAuf(`document.querySelector("#suchtreffer li")`, { text: "Treffer wieder da" });
+    await seite.klicke("main h1.page-title");
+    await seite.warteAuf(`!document.querySelector("#suchtreffer")`, { text: "Klick daneben schliesst" });
   });
 
   test("Demo/Echt-Wechsel: neu geladen, anderer Bestand, Auswahl des alten Bestands faellt weg", async () => {

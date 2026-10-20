@@ -12,8 +12,9 @@ import { versionAnzeige } from "./version.mjs";
 import { kopfleisteAntwort, kopfleisteFehler } from "./views/kopfleiste-daten.mjs";
 import { iconSvg } from "./icons.js";
 
-// Schnellsuche als Dialog ueber der Seite (schnellsuche.mjs): Eingabe als
-// Combobox, Treffer als Liste von Links; die Auswahl steht in state.schnellsuche.
+// Schnellsuche als feste Suchleiste in der Kopfzeile (schnellsuche.mjs):
+// Eingabe als Combobox, Treffer klappen als Liste von Links darunter auf.
+// offen = Trefferliste sichtbar; Text, Auswahl und offen stehen in state.schnellsuche.
 let suchStand = null;
 function suchtreffer() {
   const seiten = navItems.map(([view, labelKey]) => ({ name: t(labelKey), route: routeFromState({ view }), view }));
@@ -29,8 +30,8 @@ export function schnellsucheTreffer() {
 
 export function renderSchnellsuche() {
   const s = state.schnellsuche;
-  if (!s.offen) return "";
-  const treffer = suchtreffer();
+  const offen = s.offen && s.text.trim() !== "";
+  const treffer = offen ? suchtreffer() : [];
   const aktiv = Math.min(s.index, Math.max(0, treffer.length - 1));
   const liste = treffer.map((tr, i) => `
     <li role="option" id="suchtreffer-${i}" aria-selected="${i === aktiv}" class="${i === aktiv ? "aktiv" : ""}">
@@ -41,11 +42,15 @@ export function renderSchnellsuche() {
       </a>
     </li>`).join("");
   return `
-    <div class="schnellsuche-hintergrund" data-action="schnellsuche-schliessen"></div>
-    <div class="schnellsuche" role="dialog" aria-modal="true" aria-label="${escapeHtml(t("chrome.schnellsuche"))}">
-      <input id="schnellsuche-eingabe" type="search" autocomplete="off" role="combobox" aria-expanded="${treffer.length > 0}" aria-controls="suchtreffer" ${treffer.length ? `aria-activedescendant="suchtreffer-${aktiv}"` : ""} placeholder="${escapeHtml(t("chrome.schnellsuchePlatzhalter"))}" value="${escapeHtml(s.text)}" data-schnellsuche>
-      ${s.text.trim() ? (treffer.length ? `<ul id="suchtreffer" role="listbox">${liste}</ul>` : `<p class="muted schnellsuche-leer">${escapeHtml(t("chrome.schnellsucheLeer"))}</p>`) : ""}
-      <p class="muted schnellsuche-hilfe">${escapeHtml(t("chrome.schnellsucheHilfe"))}</p>
+    <div class="schnellsuche" role="search">
+      <span class="schnellsuche-icon" aria-hidden="true">${iconSvg("search")}</span>
+      <input id="schnellsuche-eingabe" type="search" autocomplete="off" role="combobox" aria-label="${escapeHtml(t("chrome.schnellsuche"))}" aria-expanded="${treffer.length > 0}" aria-controls="suchtreffer" aria-autocomplete="list" ${treffer.length ? `aria-activedescendant="suchtreffer-${aktiv}"` : ""} placeholder="${escapeHtml(t("chrome.schnellsuchePlatzhalter"))}" title="${escapeHtml(t("chrome.schnellsucheKuerzel"))}" value="${escapeHtml(s.text)}" data-schnellsuche>
+      <kbd class="schnellsuche-kuerzel" aria-hidden="true">${/Mac|iPhone|iPad/.test(globalThis.navigator?.platform ?? "") ? "⌘K" : escapeHtml(t("chrome.schnellsucheTaste"))}</kbd>
+      ${offen ? `
+      <div class="schnellsuche-treffer">
+        ${treffer.length ? `<ul id="suchtreffer" role="listbox">${liste}</ul>` : `<p class="muted schnellsuche-leer">${escapeHtml(t("chrome.schnellsucheLeer"))}</p>`}
+        <p class="muted schnellsuche-hilfe">${escapeHtml(t("chrome.schnellsucheHilfe"))}</p>
+      </div>` : ""}
     </div>`;
 }
 
@@ -174,7 +179,7 @@ export function renderTopbar() {
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
         ${renderNextActionButton(kopf?.aktionen ?? [])}
       </div>
-      <button class="chip neutral linkish icon-chip" data-action="schnellsuche-oeffnen" aria-label="${escapeHtml(t("chrome.schnellsucheKuerzel"))}" title="${escapeHtml(t("chrome.schnellsucheKuerzel"))}">${iconSvg("search")}</button>
+      ${renderSchnellsuche()}
       ${renderSettingsMenu()}
     </header>
   `;

@@ -10,7 +10,7 @@ import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { beiDatenwechsel, datenwechselMelden, erstelleEntpreller, eingabeBereit, merkeDetails } from "./lebenszyklus.mjs";
 import { defaultHorizonEnd } from "./liquiditaet.mjs";
 import { seitenTitel } from "./navigation.mjs";
-import { rahmen, renderSidebar, renderTabbar, renderTopbar, renderPromptFallback, renderValidationBanner, renderUiErrorBanner, renderSchnellsuche, schnellsucheTreffer } from "./rahmen.mjs";
+import { rahmen, renderSidebar, renderTabbar, renderTopbar, renderPromptFallback, renderValidationBanner, renderUiErrorBanner, schnellsucheTreffer } from "./rahmen.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
 import { app, data, state, storageKeys, navItems, t, escapeHtml, verwerfeDaten, ersetzeDaten } from "./runtime.mjs";
 import { AKTIVITAETS_EREIGNISSE, PRUEF_INTERVALL_MS, erstelleSitzungswaechter, ladeSitzungKonfig, zielNachSperre } from "./sitzung.mjs";
@@ -108,7 +108,6 @@ function render() {
       ${safeRender(renderView, "view:" + state.view)}
     </main>
     ${renderTabbar()}
-    ${renderSchnellsuche()}
   `;
   restoreScroll(app, scrollSnap);
   anwendenBaumBreite(app);
@@ -188,6 +187,10 @@ app.addEventListener("click", guard((event) => {
   if (anker?.matches("[data-action], [data-view], [data-rule]")) event.preventDefault();
   if (state.settingsMenuOpen && !event.target.closest(".settings-control")) {
     state.settingsMenuOpen = false;
+    render();
+  }
+  if (state.schnellsuche.offen && !event.target.closest(".schnellsuche")) {
+    state.schnellsuche.offen = false;
     render();
   }
 
@@ -325,8 +328,7 @@ const sucheEntprellt = erstelleEntpreller(() => render(), 250);
 function verarbeiteEingabe(event) {
   const such = event.target.closest?.("input[data-schnellsuche]");
   if (such) {
-    state.schnellsuche.text = such.value;
-    state.schnellsuche.index = 0;
+    state.schnellsuche = { offen: true, text: such.value, index: 0 };
     render();
     return;
   }
@@ -353,22 +355,20 @@ function verarbeiteEingabe(event) {
 app.addEventListener("input", guard((event) => {
   if (eingabeBereit(event)) verarbeiteEingabe(event);
 }, setUiError, "input"));
-// Schnellsuche: Cmd/Strg+K oeffnet ueberall; im Dialog Pfeile, Enter, Esc.
+// Schnellsuche: Cmd/Strg+K springt ueberall ins Suchfeld; dort Pfeile, Enter, Esc.
 document.addEventListener?.("keydown", guard((event) => {
   if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "k") {
     event.preventDefault();
     oeffneSchnellsuche();
     return;
   }
+  if (event.target?.id !== "schnellsuche-eingabe" || event.isComposing) return;
   const s = state.schnellsuche;
-  if (!s.offen) return;
   if (event.key === "Escape") {
     event.preventDefault();
     schliesseSchnellsuche();
     return;
   }
-  // Pfeile und Enter nur im Suchfeld (sonst bedienen sie, was den Fokus hat).
-  if (event.target?.id !== "schnellsuche-eingabe" || event.isComposing) return;
   const treffer = schnellsucheTreffer();
   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
     event.preventDefault();
@@ -384,26 +384,25 @@ document.addEventListener?.("keydown", guard((event) => {
   }
 }, setUiError, "keydown"));
 
-// Fokus vor dem Oeffnen, damit Esc ihn zurueckgibt.
-let fokusVorSuche = null;
+// Strg+K: Fokus ins Suchfeld, vorhandener Text markiert; Esc leert und schliesst.
 function oeffneSchnellsuche() {
-  if (!state.schnellsuche.offen) fokusVorSuche = captureFocus(app);
-  state.schnellsuche = { offen: true, text: "", index: 0 };
   state.settingsMenuOpen = false;
+  if (state.schnellsuche.text) state.schnellsuche.offen = true;
   render();
-  document.getElementById("schnellsuche-eingabe")?.focus();
+  const feld = document.getElementById("schnellsuche-eingabe");
+  feld?.focus();
+  feld?.select();
 }
 
 function schliesseSchnellsuche() {
-  state.schnellsuche.offen = false;
+  state.schnellsuche = { offen: false, text: "", index: 0 };
   render();
-  restoreFocus(app, fokusVorSuche);
 }
 
 // Ziel der Schnellsuche: eine Seite wie ueber die Navigation (Filter bleiben),
 // ein Objekt wie ein Link (neuer Verlaufseintrag, Route anwenden).
 function springeZu(route, view = "") {
-  state.schnellsuche.offen = false;
+  state.schnellsuche = { offen: false, text: "", index: 0 };
   if (view) {
     state.view = view;
     if (view === "szenarien") oeffneSzenario("");

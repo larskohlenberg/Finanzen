@@ -74,6 +74,17 @@ test("Gruppe Regelzahlung: Anzahl, Summe und letzte Buchung je Regelzahlung", ()
   assert.deepEqual(rz.find((g) => g.schluessel === ""), { schluessel: "", name: "", anzahl: 2, summe_cent: 298750, letzte: "2026-02-01" });
 });
 
+test("Gruppe Regelzahlung liefert den Importstand je Konto (letzte Buchung oder spaeterer Kontostand)", async () => {
+  const { importstandJeKonto } = await import("../app/transaktionen-abfrage.mjs");
+  const mit = {
+    transaktionen: [{ transaktion_id: "A1", konto_id: "KTO-A", buchungsdatum: "2026-02-03" }, { transaktion_id: "A2", konto_id: "KTO-A", buchungsdatum: "2026-01-10" }, { transaktion_id: "B1", konto_id: "KTO-B", buchungsdatum: "2026-01-05" }],
+    zeitwerte: [{ entitaet: "konto", entitaet_id: "KTO-B", feld: "kontostand", standdatum: "2026-01-31" }, { entitaet: "konto", entitaet_id: "KTO-A", feld: "kontostand", standdatum: "2025-12-31" }, { entitaet: "konto", entitaet_id: "KTO-C", feld: "depotwert", standdatum: "2026-03-01" }],
+  };
+  assert.deepEqual(importstandJeKonto(mit), { "KTO-A": "2026-02-03", "KTO-B": "2026-01-31" });
+  assert.ok(transaktionenSeite(daten, { gruppe: "regelzahlung" }).importstand);
+  assert.equal(transaktionenSeite(daten, { gruppe: "kategorie" }).importstand, undefined);
+});
+
 test("Klasse: nur laufende Buchungen (ohne Transfers und neutrale Kategorien)", () => {
   const mit = {
     ...daten,

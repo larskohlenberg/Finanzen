@@ -55,6 +55,42 @@ function teileFuerText(knoten, ersetzen) {
   return teile.some((teil) => teil.verdeckt) ? teile : null;
 }
 
+// Eingabefelder (Suche, Betrag ab/bis): Wer zuschaut, soll nicht lesen, wonach
+// gefiltert wird. Der Text im Feld wird durchsichtig, eine Decke darueber zeigt
+// ihn als Zeichen; Suchen und Filtern bleiben, wie sie sind. Datumsfelder bleiben offen.
+const EINGABE = 'input[type="search"], input[type="text"]:not([data-datum-feld])';
+
+function eingabeDecken(feld) {
+  if (!feld?.matches?.(EINGABE) || !feld.parentElement) return;
+  feld.classList.add("diffus-eingabe");
+  feld.parentElement.classList.add("diffus-eingabe-rahmen");
+  let decke = feld.nextElementSibling;
+  if (!decke?.classList.contains("diffus-eingabe-decke")) {
+    decke = document.createElement("span");
+    decke.className = "diffus diffus-eingabe-decke";
+    decke.setAttribute("aria-hidden", "true");
+    feld.after(decke);
+  }
+  const stil = getComputedStyle(feld);
+  const links = Number.parseFloat(stil.paddingLeft) || 0;
+  const rechts = Number.parseFloat(stil.paddingRight) || 0;
+  decke.style.left = `${feld.offsetLeft + feld.clientLeft + links}px`;
+  decke.style.top = `${feld.offsetTop}px`;
+  decke.style.height = `${feld.offsetHeight}px`;
+  decke.style.width = `${Math.max(0, feld.clientWidth - links - rechts)}px`;
+  decke.style.font = stil.font;
+  decke.textContent = feld.value ? verdeckeFreitext(feld.value, diffusorSalz) : "";
+}
+
+function eingabenIn(wurzel) {
+  if (wurzel.matches?.(EINGABE)) eingabeDecken(wurzel);
+  for (const feld of wurzel.querySelectorAll?.(EINGABE) ?? []) eingabeDecken(feld);
+}
+
+globalThis.document?.addEventListener?.("input", (event) => {
+  if (state.diffusor) eingabeDecken(event.target);
+}, true);
+
 const erledigt = new WeakSet();
 
 function textKnoten(knoten, ersetzen = true) {
@@ -107,6 +143,7 @@ function verarbeite(wurzel, ersetzen = true) {
     const elemente = [wurzel, ...wurzel.querySelectorAll(ATTRIBUTE.map((a) => `[${a}]`).join(","))];
     for (const element of elemente) for (const name of ATTRIBUTE) if (element.hasAttribute?.(name)) attribut(element, name);
   }
+  if (ersetzen) eingabenIn(wurzel);
   const gaenger = document.createTreeWalker(wurzel, NodeFilter.SHOW_TEXT);
   const knoten = [];
   while (gaenger.nextNode()) knoten.push(gaenger.currentNode);

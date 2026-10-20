@@ -70,7 +70,8 @@ export const aktionen = {
   "dokument-oeffnen": (element) => {
     window.open(element.dataset.url, "_blank", "noopener");
   },
-  "toggle-diffusor": () => schalteDiffusor(ablauf.render),
+  // Adresszeile neu schreiben: im Diffusor-Modus ohne Betrag, Gegenpartei, Dokument.
+  "toggle-diffusor": () => schalteDiffusor(() => commitNavigation({ ersetzen: true })),
   "toggle-settings-menu": () => {
     state.settingsMenuOpen = !state.settingsMenuOpen;
     ablauf.render();

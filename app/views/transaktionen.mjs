@@ -246,7 +246,7 @@ function filterChip(name) {
   const text = (wert) => `<strong>${escapeHtml(wert)}</strong>`;
   if (name === "beleg") {
     const name = f.beleg.slice(f.beleg.lastIndexOf("/") + 1);
-    return chip({ icon: "belege", label: t("dokumente.filterChip"), titel: f.beleg, entfernen: t("dokumente.filterEntfernen"), wertHtml: `<a class="linkish" href="${escapeHtml(dokumentRoute(f.beleg))}">${escapeHtml(name)}</a>` });
+    return chip({ icon: "belege", label: t("dokumente.filterChip"), titel: state.diffusor ? "" : f.beleg, entfernen: t("dokumente.filterEntfernen"), wertHtml: `<a class="linkish" href="${escapeHtml(dokumentRoute(f.beleg))}" data-diffus="text">${escapeHtml(name)}</a>` });
   }
   if (name === "vorsorge") {
     const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === f.vorsorge);
@@ -256,7 +256,7 @@ function filterChip(name) {
   if (name === "status") return chip({ label: t("transactions.filterStatus"), wertHtml: text(t(`status.${f.status}`)) });
   if (name === "category") return chip({ label: t("transactions.filterCategory"), wertHtml: text(f.category === "ohne" ? t("labels.noCategory") : categoryName(f.category)) });
   if (name === "person") return chip({ label: t("transactions.filterPerson"), wertHtml: text(f.person === "ohne" ? t("transactions.personOhne") : personenById.get(f.person)?.name || f.person) });
-  if (name === "gegenpartei") return chip({ label: t("labels.counterparty"), wertHtml: text(f.gegenpartei) });
+  if (name === "gegenpartei") return chip({ label: t("labels.counterparty"), wertHtml: `<strong data-diffus="gegenpartei">${escapeHtml(f.gegenpartei)}</strong>` });
   if (name === "transfer") return chip({ label: t("transactions.filterTransfer"), wertHtml: text(t(f.transfer === "only" ? "transactions.onlyTransfers" : "transactions.withoutTransfers")) });
   if (name === "origin") return chip({ label: t("transactions.filterOrigin"), wertHtml: text(t({ regel: "transactions.originRule", agent: "transactions.originAgent", manuell: "transactions.originManual" }[f.origin] ?? f.origin)) });
   if (name === "zeit") return chip({ label: t("transactions.filterTime"), wertHtml: text(zeitfilterText(f)) });

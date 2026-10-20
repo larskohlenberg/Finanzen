@@ -159,6 +159,12 @@ oder Alt+Umschalt+D. Der Browser merkt sich den Schalter.
   `vertraulich()` aus `app/komponenten.mjs` oder `data-diffus="text"`.
 - Logos werden zu neutralen Flaechen. Diagramme, Prozente, Daten, Anzahlen und
   Kategorien bleiben lesbar.
+- Eingaben (Suchfelder, Betrag ab/bis, Schnellsuche) erscheinen als Zeichen:
+  der echte Text im Feld ist durchsichtig, eine Decke darueber zeigt ihn
+  verdeckt. Suchen und Filtern funktionieren unveraendert; wer zuschaut, sieht
+  nicht, wonach gefiltert wird. Datumsfelder bleiben offen.
+- Adresszeile und Fenstertitel tragen im Modus weder Betrag, Gegenpartei noch
+  Dokumentpfad; der Filter gilt trotzdem (geht nur beim Neuladen verloren).
 - Beim Umschalten rollen die sichtbaren Stellen wie eine Walze
   (`app/diffusor-anzeige.mjs`); bei "Bewegung reduzieren" ohne Animation.
 - Grenze: reine Anzeige. Die Daten bleiben im Browser geladen, der Server

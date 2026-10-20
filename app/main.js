@@ -126,7 +126,8 @@ function render() {
     app.querySelector("main h1")?.focus({ preventScroll: true });
   }
   zuletztGezeichnet = pfad;
-  document.title = seitenTitel([seitenName(), seitenDetail()], t("appTitle"));
+  // Im Diffusor-Modus ohne Detail: Dateinamen gehoeren nicht in den Fenstertitel.
+  document.title = seitenTitel([seitenName(), state.diffusor ? "" : seitenDetail()], t("appTitle"));
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
   if (state.view === "belege") belegeBeiBedarfLaden(render);
@@ -422,7 +423,7 @@ document.addEventListener?.("keydown", guard((event) => {
   // Diffusor-Modus: Alt+Umschalt+D (event.code, weil Alt auf dem Mac ein anderes Zeichen tippt).
   if (event.altKey && event.shiftKey && !event.metaKey && !event.ctrlKey && event.code === "KeyD") {
     event.preventDefault();
-    schalteDiffusor(render);
+    schalteDiffusor(() => commitNavigation({ ersetzen: true }));
     return;
   }
   if (event.target?.id !== "schnellsuche-eingabe" || event.isComposing) return;

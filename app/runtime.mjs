@@ -40,7 +40,7 @@ async function bootstrap() {
 
 const bootstrapped = await bootstrap();
 export const data = bootstrapped.data;
-export const dictionaries = bootstrapped.dictionaries;
+const dictionaries = bootstrapped.dictionaries;
 
 // "Das Tool prueft" gilt auch in der UI: den Validator-Befund (data.validation)
 // liefert der Server mit den Grunddaten, dieselbe Logik wie das CLI. Er treibt
@@ -199,7 +199,7 @@ export function t(path) {
 
 export { escapeHtml };
 
-// t() mit benannten Platzhaltern: tf("x.y", { n: 3 }) ersetzt "{n}".
+// t() mit benannten Platzhaltern: { n: 3 } ersetzt "{n}" im Text des Schluessels.
 export function tf(path, werte = {}) {
   return fuelle(t(path), werte);
 }

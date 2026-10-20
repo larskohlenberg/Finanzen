@@ -23,7 +23,7 @@ const VIEW_SLUG = {
   belege: "dokumente",
 };
 const SLUG_VIEW = Object.fromEntries(Object.entries(VIEW_SLUG).map(([view, slug]) => [slug, view]));
-export const ADMIN_BEREICHE = ["personen", "konten", "kategorien", "regeln", "checks", "export"];
+const ADMIN_BEREICHE = ["personen", "konten", "kategorien", "regeln", "checks", "export"];
 // Termine: Regelzahlungen (Standard) und Fristen als Reiter einer Seite.
 export const TERMINE_TABS = ["regelzahlungen", "fristen"];
 

@@ -37,8 +37,6 @@ export const LEERE_FILTER = Object.freeze({
   gruppe: "",
 });
 
-export const ZEIT_MODI = ["none", "range", "month", "quarter", "year"];
-
 // Sprung in die Buchungsliste: Filter = LEERE_FILTER + filter, Seite 1.
 // Mit auswahl wird die Buchung geoeffnet und ihre Seite angesteuert.
 export function zuBuchungen(state, { filter = {}, auswahl = "" } = {}) {
@@ -144,7 +142,7 @@ export function aktiveFilter(filter) {
   return liste;
 }
 
-export function zeitfilterAktiv(filter) {
+function zeitfilterAktiv(filter) {
   if (filter.timeMode === "range") return Boolean(filter.dateFrom || filter.dateTo);
   if (filter.timeMode === "month") return Boolean(filter.month);
   if (filter.timeMode === "quarter") return Boolean(filter.quarterYear);

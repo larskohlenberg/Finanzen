@@ -78,7 +78,7 @@ export function formatMoney(amountInCents) {
 }
 
 // Auf ganze Euro gerundet: Kacheln, Kennzahlen, Achsen (docs/ui-regeln.md).
-export function formatGeldGanz(amountInCents) {
+function formatGeldGanz(amountInCents) {
   return fmt().geldGanz(amountInCents);
 }
 
@@ -265,7 +265,7 @@ export function kachelZeile(linkHtml, betrag, zusatz = "", farbe = "") {
 // ist (mehrIstGut), sonst rot; seitwaerts grau oder (ohneSeitwaerts) gar nicht.
 // kurz: nur der Pfeil, Veraenderung und Vorjahreswert stehen im Titel.
 const PFEIL = { hoch: "↗", runter: "↘", seitwaerts: "→" };
-export function trendAenderungText(v) {
+function trendAenderungText(v) {
   return v.anteil !== null ? fmt().prozentMitVorzeichen(v.anteil) : fmt().geldMitVorzeichen(v.aenderung_cents);
 }
 export function trendPfeil(v, { mehrIstGut, kurz = false, ohneSeitwaerts = false } = {}) {
@@ -286,7 +286,7 @@ export function zeitverlaufKlein(optionen) {
 // aufklappbar unter dem Diagramm, je Spalte eine Zeile, je Serie eine Spalte.
 // Serien, die nur Teile einer Linie sind (teil, z. B. belegt/zurueckgerechnet),
 // stehen zusammen in einer Spalte.
-export function diagrammTabelle({ spalten, serien, formatWert = String, ariaLabel = "" }) {
+function diagrammTabelle({ spalten, serien, formatWert = String, ariaLabel = "" }) {
   if (!spalten?.length || !serien?.length) return "";
   const gruppen = [];
   for (const s of serien) {
@@ -361,7 +361,7 @@ export function renderTableFilters({ prefix = "", searchFields = [], timeFields 
   `;
 }
 
-export function renderFilterSelect({ name, label, options, type, placeholder, filters, filterAttr, clearAction }) {
+function renderFilterSelect({ name, label, options, type, placeholder, filters, filterAttr, clearAction }) {
   const active = Boolean(filters[name]);
   const controlId = `${filterAttr}-${name}`;
   let control = "";
@@ -388,7 +388,7 @@ export function renderFilterSelect({ name, label, options, type, placeholder, fi
 }
 
 // "8 von 9 belegt · ältester Stand 8.6.2026" — Abdeckung eines Tabellenblocks.
-export function accountGroupCoverage(gruppe) {
+function accountGroupCoverage(gruppe) {
   const teile = [tf("overview.groupCoverage", { belegt: gruppe.belegt, gesamt: gruppe.gesamt })];
   if (gruppe.aeltester) teile.push(tf("overview.oldestStand", { datum: formatDate(gruppe.aeltester) }));
   return teile.join(" · ");
@@ -505,7 +505,7 @@ export function renderAccountPanels(kontenModell, { rowAction = "account-transac
     .join("");
 }
 
-export function renderAccountRows(accounts, kontenModell, { showId = false, rowAction = "account-transactions", markNotIncluded = false } = {}) {
+function renderAccountRows(accounts, kontenModell, { showId = false, rowAction = "account-transactions", markNotIncluded = false } = {}) {
   return accounts
     .map((konto) => {
       const isDepot = konto.kontotyp === "depot";

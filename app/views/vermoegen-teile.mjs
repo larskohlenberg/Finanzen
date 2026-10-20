@@ -46,7 +46,7 @@ const FELDER_JE_KLASSE = {
   darlehen: ["restschuld"],
 };
 
-export function zeitwerteFuer(klasse, id) {
+function zeitwerteFuer(klasse, id) {
   const felder = FELDER_JE_KLASSE[klasse] ?? [];
   return (data.zeitwerte ?? [])
     .filter((zw) => zw.entitaet === klasse && zw.entitaet_id === id && felder.includes(zw.feld))

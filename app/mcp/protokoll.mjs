@@ -33,7 +33,7 @@ async function methode(ctx, name, params = {}) {
       // Nach einem Deploy: alter Code darf neue Daten weder schreiben noch
       // deuten. Nur status bleibt (zeigt beide Release-Staende).
       const veraltet = params.name === "status" ? null : veraltetHinweis(ctx);
-      if (veraltet) return { content: [{ type: "text", text: veraltet }], structuredContent: { werkzeug: params.name, ok: false, fehler: "veraltet" }, isError: true };
+      if (veraltet) return { content: [{ type: "text", text: veraltet }], structuredContent: { werkzeug: params.name, ok: false, fehler: "veraltet", text: veraltet }, isError: true };
       const ergebnis = await rufeWerkzeug(ctx, params.name, params.arguments ?? {});
       if (!ergebnis) throw new RpcFehler(-32602, `Unbekanntes Tool: ${params.name}`);
       return ergebnis;

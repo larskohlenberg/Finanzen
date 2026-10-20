@@ -23,7 +23,7 @@
 // ein neuer Kontostand belegt den Zeitraum ohne Buchungen. Die Auswahl sind die
 // verfuegbaren Konten (liquiditaetsrelevant, kein Depot, kein Bargeld, am
 // Stichtag offen) und wird mit ausgegeben.
-import { aktivAm } from "./bewertung.mjs";
+import { kontoAktivAm } from "./bewertung.mjs";
 import { toCents } from "./tools/lib/text.mjs";
 
 export const KATEGORIE_UNGEKLAERT = "KAT-012";
@@ -64,13 +64,13 @@ export function ausschlussZaehler() {
   };
 }
 
-const verfuegbar = (konto, today) => konto.kontotyp !== "depot" && konto.kontotyp !== "bar" && konto.liquiditaetsrelevant === true && aktivAm(konto, "geschlossen", today);
+const verfuegbar = (konto, today, data) => konto.kontotyp !== "depot" && konto.kontotyp !== "bar" && konto.liquiditaetsrelevant === true && kontoAktivAm(konto, today, data);
 
 // Importabdeckung je verfuegbarem Konto zum Stichtag: von (erste Buchung),
 // belegt_bis (letzte Buchung oder letzter Kontostand-Anker bis zum Stichtag).
 // vollstaendig_bis ist das frueheste belegt_bis, begrenzt_durch das Konto dazu.
 export function importAbdeckung(data, today) {
-  const konten = (data.konten ?? []).filter((k) => verfuegbar(k, today)).map((k) => ({ konto_id: k.konto_id, name: k.name, von: "", belegt_bis: "" }));
+  const konten = (data.konten ?? []).filter((k) => verfuegbar(k, today, data)).map((k) => ({ konto_id: k.konto_id, name: k.name, von: "", belegt_bis: "" }));
   const index = new Map(konten.map((k) => [k.konto_id, k]));
   for (const tx of data.transaktionen ?? []) {
     const k = index.get(tx.konto_id);

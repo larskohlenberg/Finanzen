@@ -26,6 +26,7 @@ function daten() {
       { vorsorge_id: "VS-001", name: "LV laufend", art: "lebensversicherung", kapitalbildend: true, status: "aktiv", person_id: "PER-001" },
       { vorsorge_id: "VS-002", name: "LV gekuendigt", art: "lebensversicherung", kapitalbildend: true, status: "gekuendigt", aktiv_bis: "2026-03-31", person_id: "PER-001" },
       { vorsorge_id: "VS-003", name: "LV beendet ohne Datum", art: "lebensversicherung", kapitalbildend: true, status: "beendet", person_id: "PER-001" },
+      { vorsorge_id: "VS-004", name: "LV beendet ohne Datum und Stand", art: "lebensversicherung", kapitalbildend: true, status: "beendet", person_id: "PER-001" },
     ],
     darlehen: [{ darlehen_id: "DAR-001", bezeichnung: "Kredit", status: "aktiv", anfangsbetrag: "12000.00", anfangsdatum: "2025-03-01", zinssatz: "0", sollrate: "1000.00", rhythmus_einheit: "monat", rhythmus_intervall: 1 }],
     transaktionen: [
@@ -99,13 +100,43 @@ test("stand: Lebenszyklus – geschlossene, gekuendigte und noch nicht begonnene
   assert.ok(spaet.ausserhalb.some((a) => a.id === "KTO-004" && a.lebenszyklus === "beendet"));
 });
 
-test("stand: Rueckkaufswert gekuendigter Vertraege zaehlt bis aktiv_bis, beendete ohne Datum gar nicht", () => {
+test("stand: Rueckkaufswert gekuendigter Vertraege zaehlt bis aktiv_bis, beendete ohne Datum bis zum letzten Stand", () => {
   const vorher = stand(daten(), "2026-03-31");
   assert.equal(pos(vorher, "vorsorge", "VS-002").wert_cents, 150000);
   const nachher = stand(daten(), "2026-04-01");
   assert.equal(pos(nachher, "vorsorge", "VS-002"), undefined);
-  assert.equal(pos(nachher, "vorsorge", "VS-003"), undefined);
-  assert.equal(pos(vorher, "vorsorge", "VS-003"), undefined);
+  // VS-003: kein aktiv_bis, letzter Rueckkaufswert 2025-12-31 -> zaehlt bis dahin.
+  assert.equal(pos(stand(daten(), "2025-12-31"), "vorsorge", "VS-003").wert_cents, 250000);
+  assert.equal(pos(stand(daten(), "2026-01-01"), "vorsorge", "VS-003"), undefined);
+  assert.ok(nachher.ausserhalb.some((a) => a.id === "VS-003" && a.lebenszyklus === "beendet"));
+  // VS-004: weder aktiv_bis noch Stand -> nie.
+  assert.equal(pos(stand(daten(), "2025-06-30"), "vorsorge", "VS-004"), undefined);
+});
+
+test("stand: laufende und ruhende Vertraege zaehlen ohne aktiv_bis weiter", () => {
+  const d = daten();
+  d.vorsorge.push({ vorsorge_id: "VS-005", name: "LV ruhend", art: "lebensversicherung", kapitalbildend: true, status: "ruhend", person_id: "PER-001" });
+  d.zeitwerte.push(zw("vorsorge", "VS-005", "rueckkaufswert", "900.00", "2025-12-31"));
+  const s = stand(d, "2026-10-17");
+  assert.equal(pos(s, "vorsorge", "VS-001").wert_cents, 400000);
+  assert.equal(pos(s, "vorsorge", "VS-005").wert_cents, 90000);
+});
+
+test("stand und Liquiditaet: geschlossenes Konto ohne aktiv_bis zaehlt bis zur letzten Buchung", () => {
+  const d = daten();
+  delete d.konten.find((k) => k.konto_id === "KTO-004").aktiv_bis;
+  // Letzter Stand von KTO-004: Buchung 2025-02-01.
+  assert.equal(pos(stand(d, "2025-02-01"), "konto", "KTO-004").wert_cents, 9000);
+  assert.equal(pos(stand(d, "2025-02-02"), "konto", "KTO-004"), undefined);
+});
+
+test("Checks: beendete Objekte ohne aktiv_bis melden Enddatum fehlt mit letztem Stand", async () => {
+  const { computeVermoegenChecks } = await import("../app/vermoegen.mjs");
+  const { vermoegenCheckText } = await import("../app/check-texte.mjs");
+  const checks = computeVermoegenChecks(daten(), "2026-10-17").filter((c) => c.art === "enddatum-fehlt");
+  assert.deepEqual(checks.map((c) => [c.entitaet_id, c.letzter_stand]), [["VS-003", "2025-12-31"], ["VS-004", null]]);
+  assert.match(vermoegenCheckText(checks[0]), /ohne Enddatum .* bis zum letzten bekannten Stand 2025-12-31/);
+  assert.match(vermoegenCheckText(checks[1]), /zählt gar nicht/);
 });
 
 test("stand: Rueckkaufswert und erwartete Leistung bleiben verschiedene Groessen", () => {

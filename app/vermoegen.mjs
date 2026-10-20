@@ -5,7 +5,7 @@
 // Modell-Begründungen: ADR 0013 (Anker + Reconciliation), ADR 0014 (Nettovermögen Haushaltssicht).
 
 import { toCents, addInterval } from "./liquiditaet.mjs";
-import { aktuellerZeitwert, darlehensplan, kontoStand, stand } from "./bewertung.mjs";
+import { aktuellerZeitwert, darlehensplan, ENDSTATUS, kontoStand, letzterBekannterStand, stand } from "./bewertung.mjs";
 import { darlehensRegelzahlungen } from "./darlehen.mjs";
 import { dynamikStand } from "./vorsorge-dynamik.mjs";
 import { anstehendeFristen } from "./fristen.mjs";
@@ -88,6 +88,16 @@ export function reconciliationDrift(konto, zeitwerte, transaktionen, bis = null)
 // Daten als ISO-Text. Saetze baut erst die Anzeige (check-texte.mjs).
 export function computeVermoegenChecks(data, today) {
   const checks = [];
+
+  // Beendet ohne Enddatum: zaehlt nur bis zum letzten bekannten Stand (bewertung.mjs).
+  const sammlungen = [["konto", data.konten, "konto_id", "name"], ["immobilie", data.immobilien, "immobilie_id", "bezeichnung"], ["vermoegenswert", data.vermoegenswerte, "vermoegenswert_id", "bezeichnung"], ["vorsorge", data.vorsorge, "vorsorge_id", "name"], ["darlehen", data.darlehen, "darlehen_id", "bezeichnung"]];
+  for (const [entitaet, liste, idFeld, nameFeld] of sammlungen) {
+    const ende = [ENDSTATUS[entitaet]].flat();
+    for (const obj of liste ?? []) {
+      if (!ende.includes(obj.status) || obj.aktiv_bis) continue;
+      checks.push({ art: "enddatum-fehlt", entitaet, entitaet_id: obj[idFeld], name: obj[nameFeld], letzter_stand: letzterBekannterStand(data, entitaet, obj[idFeld]) });
+    }
+  }
 
   // Auch nicht-liquiditaetsrelevante Cash-Konten pruefen: sie fliessen via
   // kontoWert ins Nettovermoegen, also gelten Anker-Pflicht und Reconciliation dort genauso.

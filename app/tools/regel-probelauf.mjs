@@ -41,7 +41,7 @@ import { istWiderspruch, menschlichEntschieden } from "./lib/entscheidung.mjs";
 import { referenzmenge, istSpezifisch } from "./lib/spezifitaet.mjs";
 
 const PFLICHTFELDER = ["regel_id", "kategorie_id", "status", "erstellt_am", "kommentar"];
-const ERLAUBTE_FELDER = new Set([...PFLICHTFELDER, "gegenpartei_pattern", "verwendungszweck_pattern", "konto_id", "vorzeichen", "belegstufe"]);
+const ERLAUBTE_FELDER = new Set([...PFLICHTFELDER, "gegenpartei_pattern", "verwendungszweck_pattern", "konto_id", "vorzeichen", "belegstufe", "fuer_person_id"]);
 // Dieselbe Menge wie in freigabe.mjs: eine Regel mit einer Stufe ausserhalb
 // davon faellt am Gate durch, ohne dass jemand es merkt.
 const BELEGSTUFEN = new Set(["E1", "E2", "E3", "E4"]);

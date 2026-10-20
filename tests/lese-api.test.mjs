@@ -145,7 +145,7 @@ test("Uebersicht: Kennzahlen der Kacheln ohne Rohlisten, Stichtag geprueft", asy
   assert.deepEqual(Object.keys(a.mittel).sort(), ["anzahl_monate", "ausgaben", "ausschluesse", "bis", "einnahmen", "monate", "sparen", "umfang", "von"]);
   assert.deepEqual(Object.keys(a.mittel.einnahmen).sort(), ["kategorien", "mittel_cents"]);
   // Pfeile der Kacheln: Jahresvergleich der Summen und je Kategorie (Demo hat drei Jahre).
-  assert.deepEqual(Object.keys(a.trend).sort(), ["ausgaben", "einnahmen", "sparquote"]);
+  assert.deepEqual(Object.keys(a.trend).sort(), ["ausgaben", "einnahmen", "sparquote", "zeitraum"]);
   assert.ok(["hoch", "runter", "seitwaerts"].includes(a.trend.ausgaben.summe.richtung));
   // Demo und Echt: die zusaetzliche Echt-Buchung veraendert nur den Echtbestand.
   const echt = (await hole("/api/v1/uebersicht?heute=2026-10-19")).json();

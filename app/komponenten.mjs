@@ -281,11 +281,19 @@ const PFEIL = { hoch: "↗", runter: "↘", seitwaerts: "→" };
 function trendAenderungText(v) {
   return v.anteil !== null ? fmt().prozentMitVorzeichen(v.anteil) : fmt().geldMitVorzeichen(v.aenderung_cents);
 }
-export function trendPfeil(v, { mehrIstGut, kurz = false, ohneSeitwaerts = false } = {}) {
+// Zeitraum eines Fensters kurz ("Okt. 2025 – Sept. 2026"); von/bis als ISO-Datum.
+export function trendZeitraumText(von, bis) {
+  return von && bis ? `${fmt().monatJahrKurz(von)} – ${fmt().monatJahrKurz(bis)}` : "";
+}
+// zeitraum (mittelVergleich): nennt im Titel die zwoelf Vergleichsmonate.
+export function trendPfeil(v, { mehrIstGut, kurz = false, ohneSeitwaerts = false, zeitraum = null } = {}) {
   if (!v || (ohneSeitwaerts && v.richtung === "seitwaerts")) return "";
   const klasse = v.richtung === "seitwaerts" ? "abw-neutral" : (v.richtung === "hoch") === mehrIstGut ? "abw-gut" : "abw-schlecht";
   const aenderung = trendAenderungText(v);
-  const titel = tf("trend.titel", { aenderung, vorher: fmt().geldGanz(v.vorher_cents) });
+  const vorher = fmt().geldGanz(v.vorher_cents);
+  const titel = zeitraum
+    ? tf("trend.titelZeitraum", { aenderung, vorher, zeitraum: trendZeitraumText(zeitraum.vorher_von, zeitraum.vorher_bis) })
+    : tf("trend.titel", { aenderung, vorher });
   return `<span class="trend-pfeil ${klasse}" title="${escapeHtml(titel)}" aria-label="${escapeHtml(titel)}">${PFEIL[v.richtung]}${kurz ? "" : ` ${escapeHtml(aenderung)}`}</span>`;
 }
 

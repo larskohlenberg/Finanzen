@@ -199,7 +199,7 @@ export function t(path) {
 
 export { escapeHtml };
 
-// t() mit benannten Platzhaltern: tf("x.y", { n: 3 }) ersetzt "{n}".
+// t() mit benannten Platzhaltern: { n: 3 } ersetzt "{n}" im Text des Schluessels.
 export function tf(path, werte = {}) {
   return fuelle(t(path), werte);
 }

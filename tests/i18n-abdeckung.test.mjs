@@ -37,3 +37,10 @@ test("jeder Schluessel wird benutzt (woertlich oder ueber ein dynamisches Praefi
   const benutzt = (k) => quelltext.includes(`"${k}"`) || quelltext.includes(`'${k}'`) || quelltext.includes(`\`${k}\``) || praefixe.some((p) => k.startsWith(p));
   assert.deepEqual(de.filter((k) => !benutzt(k)), []);
 });
+
+test("jeder woertlich aufgerufene Schluessel existiert", () => {
+  const aufrufe = [...quelltext.matchAll(/\bt[f]?\(\s*["']([A-Za-z0-9_.-]+)["']/g)].map((m) => m[1]);
+  const vorhanden = new Set(de);
+  // Ein Schluessel kann auf ein Objekt zeigen (t() liefert dann den Pfad): nur Blaetter zaehlen.
+  assert.deepEqual([...new Set(aufrufe.filter((k) => !vorhanden.has(k)))], []);
+});

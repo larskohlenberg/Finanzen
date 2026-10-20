@@ -424,3 +424,17 @@ test("Immobilie: Dokumente zeigen die Belege der Versicherungen mit Bezug auf si
     belegeAntwort = null;
   }
 });
+
+test("Bekannter Teilbestand: Positionen ohne Wert stehen an der Kennzahl, nicht als 0", async () => {
+  const teil = {
+    konten: [
+      { konto_id: "KTO-001", name: "Giro", kontotyp: "giro", status: "aktiv", liquiditaetsrelevant: true, inhaber_person_ids: [] },
+      { konto_id: "KTO-002", name: "Tagesgeld ohne Stand", kontotyp: "tagesgeld", status: "aktiv", liquiditaetsrelevant: true, inhaber_person_ids: [] },
+    ],
+    zeitwerte: [{ entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "1000.00", standdatum: "2025-01-01", qualitaet: "belegt" }],
+  };
+  await mitDaten(teil, {}, (html) => {
+    const oben = html.slice(html.indexOf("kachel-paare-oben"), html.indexOf('<div class="kachel-paare">'));
+    assert.match(oben, /class="chip review teilbestand"[^>]*title="[^"]*Tagesgeld ohne Stand[^"]*">[\s\S]*?bekannter Teilbestand/);
+  });
+});

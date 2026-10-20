@@ -3611,3 +3611,8 @@ td.logo-zelle .logo-marke { margin-right: 0; }
   .karten-tabelle .plan-ist-abw { display: inline; margin-left: 6px; }
   .karten-tabelle .plan-ist-summe td { border-top: 0; }
 }
+
+/* Vermoegen: Monate mit Positionen ohne Wert (bekannter Teilbestand) gestrichelt */
+.zeitstrahl-linie.vermoegen-teilbestand { stroke-dasharray: 3 4; opacity: 0.8; }
+.chip.teilbestand { margin-right: 6px; }
+.szenario-ergebnis td:first-child { white-space: normal; }

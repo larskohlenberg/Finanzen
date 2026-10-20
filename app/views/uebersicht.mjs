@@ -11,7 +11,7 @@ import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, zielElement, hrefAttr } from "../komponenten.mjs";
+import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, zielElement, hrefAttr, teilbestandChip } from "../komponenten.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { verteileRundung } from "../uebersicht-rechnung.mjs";
@@ -301,7 +301,7 @@ function renderVermoegenKachel(modell) {
         ${zielElement(ZIEL.vermoegen, `${iconSvg("vermoegen")}<span>${escapeHtml(t("nav.vermoegen"))}</span>${iconSvg("chevronRight")}`)}
       </h2>
       <div class="kpi-value">${escapeHtml(geldOhneCent(r.netto_cents))}</div>
-      <div class="kpi-note">${escapeHtml(t("vermoegen.netto"))} · ${escapeHtml(standText(stand))}</div>
+      <div class="kpi-note">${escapeHtml(t("vermoegen.netto"))} · ${escapeHtml(standText(stand))} ${teilbestandChip(r.positionen)}</div>
       <div class="vermoegen-teile">
         ${vermoegenTeil({
           titel: t("overview.vermoegenSchnell"),

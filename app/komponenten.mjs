@@ -49,6 +49,15 @@ export function mitLogo(quelle, inhaltHtml, optionen = {}) {
 }
 
 // Exakt mit Cent: Tabellen und Details. Kacheln nehmen formatGeldGanz.
+// "bekannter Teilbestand": Positionen ohne Wert zaehlen nicht mit (nicht als 0
+// verstecken). Chip mit den Namen im Titel; "" ohne fehlende Positionen.
+export function teilbestandChip(positionen) {
+  const fehlend = (positionen ?? []).filter((p) => p.fehlt);
+  if (!fehlend.length) return "";
+  const titel = tf("vermoegen.uebersicht.teilbestandHinweis", { n: fehlend.length, namen: fehlend.map((p) => p.name).join(", ") });
+  return `<span class="chip review teilbestand" title="${escapeHtml(titel)}">${iconSvg("review")}${escapeHtml(t("vermoegen.uebersicht.teilbestand"))}</span>`;
+}
+
 // Element zu einem Ziel aus Attributen (data-action/data-view ...): mit href
 // ein echter Link, damit "In neuem Tab oeffnen" geht; sonst ein Knopf.
 export function zielElement(attrs, innerHtml, { klasse = "linkish", title = "" } = {}) {

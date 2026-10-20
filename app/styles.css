@@ -3631,9 +3631,9 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .import-rohzeile { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
 
 /* Liquiditaetsverlauf: aus einem spaeteren Anker zurueckgerechnete Monate gestrichelt */
-.zeitstrahl-linie.liquiditaet-modelliert { stroke-dasharray: 3 4; opacity: 0.8; }
-.zeitstrahl-punkt.liquiditaet-modelliert { fill: var(--surface); stroke: var(--accent); }
-.liquiditaet-legende .legende-linie.liquiditaet-modelliert { border-top-style: dotted; }
+.zeitstrahl-linie.liquiditaet-unvollstaendig { stroke-dasharray: 3 4; opacity: 0.8; }
+.zeitstrahl-punkt.liquiditaet-unvollstaendig { fill: var(--surface); stroke: var(--accent); }
+.liquiditaet-legende .legende-linie.liquiditaet-unvollstaendig { border-top-style: dotted; }
 
 /* Plan & Ist: Abweichung klein unter dem Ist-Wert; die Verlaufstabelle passt
    ohne waagrechtes Scrollen in die Kachel (kein Mindestmass, enge Zellen). */

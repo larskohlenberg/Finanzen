@@ -55,6 +55,9 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
   const listeGeladen = () => seite.warteAuf(`document.querySelector('section.panel[aria-busy="false"] .transaction-row')`, { text: "Liste geladen" });
   // Auswahl wie ein Nutzer aendern: Wert setzen und change ausloesen.
   const waehle = (selektor, wert) => seite.werte(`(() => { const el = document.querySelector(${JSON.stringify(selektor)}); el.value = ${JSON.stringify(wert)}; el.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+  const ersteZeile = () => seite.werte(`document.querySelector('section.panel[aria-busy="false"] .transaction-row .zeilen-link')?.getAttribute("href")`);
+  // Erst wenn die Liste zur neuen Seite da ist; der Blaetterer zeigt sie schon vorher.
+  const warteAufZeile = (nicht) => seite.warteAuf(`(() => { const h = document.querySelector('section.panel[aria-busy="false"] .transaction-row .zeilen-link')?.getAttribute("href"); return h && h !== ${JSON.stringify(nicht)}; })()`, { text: "neue Seite geladen" });
   const seitenText = () => seite.werte(`document.querySelector(".pagination > span").textContent.replace(/\\s+/g, " ").trim()`);
 
   test("Buchungsliste: Zeilen je Seite waehlen, erste/letzte Seite und direkter Sprung", async () => {
@@ -67,14 +70,17 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
     const seiten = Number((await seitenText()).match(/\/ (\d+)/)[1]);
     assert.ok(seiten > 2, "Demodaten fuellen mehr als zwei Seiten");
 
+    const seite1 = await ersteZeile();
     await seite.klicke(`[data-action="page-jump"][data-page="2"]`);
     await seite.warteAuf(`document.querySelector('.page-number.active')?.dataset.page === "2"`, { text: "Seite 2" });
+    await warteAufZeile(seite1);
     assert.match(await seitenText(), /^Seite 2 \/ \d+ · 11-20 /);
     await seite.klicke(`[data-action="page-last"]`);
     await seite.warteAuf(`document.querySelector('.page-number.active')?.dataset.page === "${seiten}"`, { text: "letzte Seite" });
     assert.equal(await seite.werte(`document.querySelector('[data-action="page-last"]').disabled`), true);
     await seite.klicke(`[data-action="page-first"]`);
     await seite.warteAuf(`document.querySelector('.page-number.active')?.dataset.page === "1"`, { text: "erste Seite" });
+    await seite.warteAuf(`document.querySelector('section.panel[aria-busy="false"] .transaction-row .zeilen-link')?.getAttribute("href") === ${JSON.stringify(seite1)}`, { text: "wieder Seite 1" });
     assert.equal(await seite.werte(`document.querySelector('[data-action="page-first"]').disabled`), true);
   });
 
@@ -91,16 +97,28 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
     await seite.warteAuf(`document.querySelector(".filter-active-count")?.textContent.trim() === "1 Filter aktiv"`, { text: "Zaehler 1" });
     assert.equal(await seite.werte(`document.querySelectorAll(".filter-clear").length`), 0, "Auswahlfelder leert man ueber ihre Alle-Option");
 
+    // Suchbegriff: Gegenpartei der ersten Zeile; danach enthaelt jede Zeile ihn.
+    await listeGeladen();
+    const treffer = () => seite.werte(`Number(document.querySelector(".filter-result-count").textContent.trim().split(" ")[0])`);
+    const vorSuche = await treffer();
+    const begriff = await seite.werte(`(() => { const zelle = document.querySelector(".transaction-row td:nth-child(3)"); return (zelle.querySelector(".mit-logo > span:last-child") ?? zelle).textContent.trim(); })()`);
     await seite.klicke(`input[data-filter="search"]`);
-    await seite.tippe("a");
+    await seite.tippe(begriff);
     await seite.warteAuf(`document.querySelector(".filter-active-count")?.textContent.trim() === "2 Filter aktiv"`, { text: "Zaehler 2" });
     const kreuz = await seite.werte(`(() => { const k = [...document.querySelectorAll(".filter-clear")]; const feld = document.querySelector('input[data-filter="search"]').getBoundingClientRect(); const r = k[0].getBoundingClientRect(); return { anzahl: k.length, imFeld: r.left >= feld.left && r.right <= feld.right && r.top >= feld.top - 1 && r.bottom <= feld.bottom + 1 }; })()`);
     assert.deepEqual(kreuz, { anzahl: 1, imFeld: true });
+    await seite.warteAuf(`document.querySelector('section.panel[aria-busy="false"]') && Number(document.querySelector(".filter-result-count").textContent.trim().split(" ")[0]) < ${vorSuche}`, { text: "Suche filtert" });
+    const zeilen = await seite.werte(`[...document.querySelectorAll(".transaction-row")].map((r) => r.textContent.toLowerCase())`);
+    assert.ok(zeilen.length > 0 && zeilen.every((z) => z.includes(begriff.toLowerCase())), begriff);
     // Gleiche Schriftgroesse fuer Trefferzahl und Blaetterleiste.
     assert.equal(await seite.werte(`getComputedStyle(document.querySelector(".filter-result-count")).fontSize`), await seite.werte(`getComputedStyle(document.querySelector(".pagination")).fontSize`));
 
     await seite.klicke(`.filter-reset`);
     await seite.warteAuf(`document.querySelector(".filter-reset")?.disabled && document.querySelector('input[data-filter="search"]').value === ""`, { text: "alles zurueckgesetzt" });
+    await listeGeladen();
+    assert.equal(await seite.werte(`document.querySelector('select[data-filter="account"]').value`), "");
+    assert.equal(await seite.werte(`document.querySelector(".filter-active-count").textContent.trim()`), "");
+    await seite.warteAuf(`Number(document.querySelector(".filter-result-count").textContent.trim().split(" ")[0]) === Number(document.querySelector(".filter-result-count").textContent.trim().split(" ")[2])`, { text: "alle Treffer" });
   });
 
   test("Zeitraumfilter: Monat, Quartal und Von-Bis blenden ihre Felder ein und belegen sie mit dem juengsten Zeitraum", async () => {
@@ -155,7 +173,8 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
     assert.deepEqual(gruppen, ["data-mode", "lang", "theme"]);
     await seite.klicke(`[data-action="set-setting"][data-setting="lang"][data-value="en"]`);
     await seite.warteAuf(`document.documentElement.lang === "en" && document.querySelector("#app .page-title")?.textContent.includes("Overview")`, { text: "Englisch" });
-    await seite.werte(`localStorage.setItem("finance-m2-lang", "de"); true`);
+    // Am Desktop: Seitenleiste statt Tab-Leiste.
+    assert.deepEqual(await seite.werte(`({ tabbar: getComputedStyle(document.querySelector(".tabbar")).display, nav: getComputedStyle(document.querySelector(".sidebar .nav")).display !== "none" })`), { tabbar: "none", nav: true });
   });
 
   test("Mobil: feste Tab-Leiste mit Mehr-Menue in der Reihenfolge der Seitenleiste, kein waagrechtes Scrollen der Seite", async () => {
@@ -187,12 +206,12 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
     // Die Prognosetabelle ist eine zugeklappte Kachel; ihr Kopf traegt die Granularitaet.
     await seite.klicke(`[data-action="klapp-kachel"][data-kachel="liquiditaet.prognose"]`);
     await seite.warteAuf(`document.querySelector("[data-liquiditaet-gran]")`, { text: "Granularitaet" });
-    const aktiv = () => seite.werte(`document.querySelector("[data-liquiditaet-gran].success")?.dataset.liquiditaetGran`);
-    const vorher = await aktiv();
-    const anderes = await seite.werte(`[...document.querySelectorAll("[data-liquiditaet-gran]")].map((b) => b.dataset.liquiditaetGran).find((g) => g !== ${JSON.stringify(vorher)})`);
-    await seite.klicke(`[data-liquiditaet-gran="${anderes}"]`);
-    await seite.warteAuf(`document.querySelector("[data-liquiditaet-gran].success")?.dataset.liquiditaetGran === ${JSON.stringify(anderes)}`, { text: "umgeschaltet" });
-    await seite.warteAuf(`document.querySelector("[data-liquiditaet-toggle]")`, { text: "Zeilen" });
+    assert.equal(await seite.werte(`document.querySelector("[data-liquiditaet-gran].success")?.dataset.liquiditaetGran`), "monat");
+    await seite.klicke(`[data-liquiditaet-gran="quartal"]`);
+    // Erst wenn die Perioden zur neuen Antwort passen (vorher stehen noch die Monate da).
+    const quartale = `(() => { const k = [...document.querySelectorAll("[data-liquiditaet-toggle]")].map((b) => b.dataset.liquiditaetToggle); return k.length > 0 && k.every((p) => /^\\d{4}-Q[1-4]$/.test(p)); })()`;
+    await seite.warteAuf(quartale, { text: "Quartale geladen" });
+    assert.equal(await seite.werte(`document.querySelector("[data-liquiditaet-gran].success")?.dataset.liquiditaetGran`), "quartal");
     const zeilen = () => seite.werte(`document.querySelectorAll("#app tr").length`);
     const zu = await zeilen();
     await seite.klicke(`[data-liquiditaet-toggle]`);

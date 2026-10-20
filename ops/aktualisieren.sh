@@ -338,10 +338,18 @@ if als_nutzer test -f "$quelle" && ! als_nutzer cmp -s "$quelle" "$(readlink -f 
   } >&2
 fi
 
-# Die Unit liegt als Kopie unter /etc — geaenderte Vorlage nur melden.
+# Die Unit liegt als Kopie unter /etc — geaenderte Vorlage nur melden. Mit
+# externem Datenort gehoert in die Kopie ReadWritePaths=<Datenort>/inbox statt
+# des Inbox-Pfads im Checkout (docs/betrieb.md); verglichen wird mit dieser Fassung.
 vorlage="$VERZ/ops/systemd/$DIENST.service"
-if als_nutzer test -f "$vorlage" && ! als_nutzer cmp -s "$vorlage" "/etc/systemd/system/$DIENST.service"; then
-  echo "Hinweis: $vorlage weicht von /etc/systemd/system/$DIENST.service ab (kopieren + daemon-reload)." >&2
+if als_nutzer test -f "$vorlage"; then
+  erwartet="$(als_nutzer cat "$vorlage")"
+  if [[ -n "$DATEN" ]]; then
+    erwartet="${erwartet//"ReadWritePaths=$VERZ/app/data/inbox"/"ReadWritePaths=$DATEN/inbox"}"
+  fi
+  if ! cmp -s <(printf '%s\n' "$erwartet") "/etc/systemd/system/$DIENST.service"; then
+    echo "Hinweis: $vorlage weicht von /etc/systemd/system/$DIENST.service ab (kopieren${DATEN:+, ReadWritePaths=$DATEN/inbox} + daemon-reload)." >&2
+  fi
 fi
 
 echo "$alt -> ${commit:0:7} ($BRANCH, $datum), $DIENST aktiv, Rauchtests ok"

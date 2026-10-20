@@ -15,6 +15,24 @@ test("ueberfaellig: erwartete Buchung (letzte + Rhythmus) plus Toleranz ist vorb
   assert.equal(regelzahlungStand(rz("A"), null, heute).ueberfaellig, false);
 });
 
+test("ueberfaellig misst am Importstand des Kontos, nicht am heutigen Tag", () => {
+  const miete = rz("A", { konto_id: "KTO-1" });
+  const gruppe = { letzte: "2026-03-01", anzahl: 3 };
+  // erwartet 1.4., + 10 Tage = 11.4.; Konto erst bis 5.4. importiert -> keine Aussage moeglich
+  const liegt = regelzahlungStand(miete, gruppe, heute, { "KTO-1": "2026-04-05" });
+  assert.equal(liegt.ueberfaellig, false);
+  assert.equal(liegt.importstand, "2026-04-05");
+  // Konto bis 30.4. importiert, Buchung fehlt trotzdem -> ueberfaellig
+  assert.equal(regelzahlungStand(miete, gruppe, heute, { "KTO-1": "2026-04-30" }).ueberfaellig, true);
+  // Importstand nach heute (Vorausbuchung) zaehlt hoechstens bis heute
+  assert.equal(regelzahlungStand(miete, gruppe, heute, { "KTO-1": "2026-06-30" }).importstand, heute);
+  // ohne Konto an der Regelzahlung gilt heute
+  assert.equal(regelzahlungStand(rz("A"), gruppe, heute, { "KTO-1": "2026-04-05" }).ueberfaellig, true);
+  // ueber regelzahlungZeilen durchgereicht
+  const zeilen = regelzahlungZeilen([miete], [{ schluessel: "A", ...gruppe }], heute, { zeigen: "ueberfaellig", importstand: { "KTO-1": "2026-04-05" } });
+  assert.deepEqual(zeilen, []);
+});
+
 test("nicht ueberfaellig: abgelehnt, vorgeschlagen oder beendet", () => {
   const alt = { letzte: "2025-01-01", anzahl: 1 };
   assert.equal(regelzahlungStand(rz("A", { status: "abgelehnt" }), alt, heute).ueberfaellig, false);

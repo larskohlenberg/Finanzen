@@ -34,7 +34,7 @@ function sortKopf(key, label, { amount = false } = {}) {
 
 function statusZelle(z) {
   if (z.ueberfaellig) {
-    const titel = tf("regelzahlungen.ueberfaelligHinweis", { datum: formatDate(z.erwartet), tage: UEBERFAELLIG_TOLERANZ_TAGE });
+    const titel = tf("regelzahlungen.ueberfaelligHinweis", { datum: formatDate(z.erwartet), tage: UEBERFAELLIG_TOLERANZ_TAGE, stand: formatDate(z.importstand) });
     return `<span class="chip danger" title="${escapeHtml(titel)}">${iconSvg("warning")}${escapeHtml(t("regelzahlungen.ueberfaellig"))}</span>`;
   }
   if (z.beendet) return `<span class="chip neutral">${escapeHtml(z.rz.aktiv_bis ? tf("regelzahlungen.bis", { datum: formatDate(z.rz.aktiv_bis) }) : t("regelzahlungen.beendet"))}</span>`;
@@ -45,7 +45,7 @@ export function renderRegelzahlungen() {
   const today = heuteIso();
   const kontoName = (id) => data.konten.find((k) => k.konto_id === id)?.name ?? id;
   const { antwort } = buchungenJeRegelzahlung();
-  const zeilen = regelzahlungZeilen(data.regelzahlungen, antwort ? antwort.gruppen ?? [] : null, today, { zeigen: state.regelzahlungZeigen, sort: state.regelzahlungSort, immer: state.selectedRegelzahlungId });
+  const zeilen = regelzahlungZeilen(data.regelzahlungen, antwort ? antwort.gruppen ?? [] : null, today, { zeigen: state.regelzahlungZeigen, sort: state.regelzahlungSort, immer: state.selectedRegelzahlungId, importstand: antwort?.importstand ?? null });
   const rows = zeilen.map((z) => {
     const rz = z.rz;
     const angesteuert = rz.regelzahlung_id === state.selectedRegelzahlungId;

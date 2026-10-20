@@ -31,7 +31,7 @@ export const TERMINE_TABS = ["regelzahlungen", "fristen"];
 export function routeFromState(state) {
   if (state.view === "transactions") return buchungenRoute(state);
   // Dokumente: Datei oder Ordner unter Belege/.
-  if (state.view === "belege") return dokumentRoute(state.selectedBeleg);
+  if (state.view === "belege") return dokumentRoute(state.diffusor ? "" : state.selectedBeleg);
   if (state.view === "vorsorge" && state.selectedVorsorgeId) {
     return `#/vorsorge/${encodeURIComponent(state.selectedVorsorgeId)}`;
   }
@@ -78,8 +78,11 @@ export function routeFromState(state) {
 
 // Buchungsliste: Auswahl, Dokument oder Vorsorgevertrag als Pfad, die
 // uebrigen Filter als Query (navigation.mjs, ohne Freitextsuche).
+// Im Diffusor-Modus bleiben Betrag, Gegenpartei und Dokument aus der Adresszeile
+// (sie waere bei einer Bildschirmfreigabe lesbar); der Filter selbst gilt weiter.
 function buchungenRoute(state) {
-  const filter = state.transactionFilters ?? LEERE_FILTER;
+  const roh = state.transactionFilters ?? LEERE_FILTER;
+  const filter = state.diffusor ? { ...roh, betragVon: "", betragBis: "", gegenpartei: "", beleg: "" } : roh;
   const query = filterAlsQuery(filter);
   if (state.selectedTransactionId) return `#/transaktionen/${encodeURIComponent(state.selectedTransactionId)}${filterAlsQuery(filter, { pfadfilter: true })}`;
   // Gefiltert auf ein Quelldokument (Pfad ohne "Belege/").

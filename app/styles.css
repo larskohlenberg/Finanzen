@@ -3797,3 +3797,18 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 
 /* Diffusor-Modus: verdeckte Stellen mit gleich breiten Ziffern, damit die Walze nicht springt. */
 .diffus { font-variant-numeric: tabular-nums; }
+
+/* Diffusor-Modus: Eingaben (Suche, Betrag) als Zeichen; der echte Text im Feld ist durchsichtig, der Cursor bleibt. */
+.diffus-eingabe-rahmen { position: relative; }
+.diffus-eingabe-decke { display: none; }
+.diffusor .diffus-eingabe { -webkit-text-fill-color: transparent; color: transparent; caret-color: var(--text); }
+.diffusor .diffus-eingabe::placeholder { -webkit-text-fill-color: var(--muted); color: var(--muted); }
+.diffusor .diffus-eingabe-decke {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: pre;
+  color: var(--text);
+  pointer-events: none;
+}

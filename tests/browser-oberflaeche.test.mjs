@@ -329,6 +329,23 @@ describe("Oberflaeche im Browser", { skip: fehlt ?? false, timeout: 120000 }, ()
     }
     assert.ok(await seite.werte(`document.querySelectorAll("svg polyline, svg path").length > 0`), "Diagramme bleiben");
     assert.equal(await seite.werte(`document.querySelectorAll(".logo-marke img").length`), 0, "keine Logos");
+    // Eingaben: Suche und Betrag erscheinen als Zeichen, der Filter wirkt, die
+    // Adresszeile traegt keinen Betrag.
+    await seite.werte(`location.hash = "#/transaktionen"; true`);
+    await seite.warteAuf(`document.querySelector('section.panel[aria-busy="false"] .transaction-row')`, { text: "Liste geladen" });
+    await seite.klicke(`input[data-filter="search"]`);
+    await seite.tippe("Muster");
+    await seite.klicke(`input[data-filter="betragVon"]`);
+    await seite.tippe("10");
+    await seite.warteAuf(`location.hash.startsWith("#/transaktionen") && document.querySelector(".filter-chip") && document.querySelector('section.panel[aria-busy="false"]')`, { text: "gefiltert" });
+    const eingaben = await seite.werte(`[...document.querySelectorAll("input.diffus-eingabe")].map((f) => ({ wert: f.value, decke: f.nextElementSibling?.textContent ?? "", farbe: getComputedStyle(f).webkitTextFillColor }))`);
+    const suche = eingaben.find((e) => e.wert === "Muster");
+    assert.ok(suche, "Suchfeld verdeckt");
+    assert.doesNotMatch(suche.decke, /[A-Za-z]/, "Suchtext als Zeichen");
+    assert.equal(suche.farbe, "rgba(0, 0, 0, 0)", "echter Text durchsichtig");
+    assert.doesNotMatch((eingaben.find((e) => e.wert === "10") ?? {}).decke ?? "1", /\d/, "Betrag als Zeichen");
+    assert.doesNotMatch(await seite.werte(`location.hash`), /betrag/, "kein Betrag in der Adresszeile");
+    assert.doesNotMatch(await seite.werte(`document.querySelector(".filter-chips").textContent`), /\d/, "Chip ohne lesbaren Betrag");
     // Gemerkt: auch nach dem Neuladen verdeckt.
     await seite.geheZu(`${basis}/?laden=${Date.now()}#/vorsorge`);
     await seite.warteAuf(`document.querySelector("#app .page-title") && document.documentElement.classList.contains("diffusor")`, { text: "Diffusor gemerkt" });

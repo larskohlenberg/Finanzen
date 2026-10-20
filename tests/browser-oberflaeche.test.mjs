@@ -228,6 +228,30 @@ describe("Oberflaeche im Browser", { skip: fehlt ?? false, timeout: 120000 }, ()
     }
   });
 
+  test("Prognosehorizont: Schnellauswahl setzt das Datum, Kalender waehlt ein eigenes und schliesst mit Esc", async () => {
+    await oeffne("#/liquiditaet");
+    const datum = () => seite.werte(`document.getElementById("liquiditaet-bis-wert").textContent.trim()`);
+    // "2 Jahre" ab dem Stichtag der Demo (30.6.2026).
+    await seite.klicke(`[data-liquiditaet-horizont="2028-06-30"]`);
+    await seite.warteAuf(`document.getElementById("liquiditaet-bis-wert")?.textContent.trim() === "30.6.2028"`, { text: "2 Jahre gesetzt" });
+    assert.equal(await seite.werte(`document.querySelector('[data-liquiditaet-horizont="2028-06-30"]').getAttribute("aria-pressed")`), "true");
+
+    // Kalender: oeffnen, einen Monat weiter, Tag waehlen -> uebernommen und zu.
+    await seite.klicke(`[data-liquiditaet-kalender]`);
+    await seite.warteAuf(`document.querySelector('.kalender-popover [data-vc-date="2028-06-15"]')`, { text: "Kalender offen" });
+    await seite.klicke(`.kalender-popover [data-vc-arrow="next"]`);
+    await seite.klicke(`.kalender-popover [data-vc-date="2028-07-14"] button`);
+    await seite.warteAuf(`!document.querySelector(".kalender-popover") && document.getElementById("liquiditaet-bis-wert").textContent.trim() === "14.7.2028"`, { text: "Tag uebernommen" });
+
+    // Esc schliesst ohne Aenderung und gibt den Fokus an den Knopf zurueck.
+    await seite.klicke(`[data-liquiditaet-kalender]`);
+    await seite.warteAuf(`document.querySelector(".kalender-popover [data-vc-date]")`, { text: "Kalender wieder offen" });
+    await seite.page.keyboard.press("Escape");
+    await seite.warteAuf(`!document.querySelector(".kalender-popover")`, { text: "Esc schliesst" });
+    assert.equal(await datum(), "14.7.2028");
+    assert.equal(await seite.werte(`document.activeElement?.hasAttribute("data-liquiditaet-kalender")`), true);
+  });
+
   test("Liquiditaetsprognose: Granularitaet umschalten, Zeilen aufklappen", async () => {
     await oeffne("#/liquiditaet");
     // Die Prognosetabelle ist eine zugeklappte Kachel; ihr Kopf traegt die Granularitaet.

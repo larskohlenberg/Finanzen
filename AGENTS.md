@@ -122,7 +122,7 @@ Für Claude Code liegen die ersten beiden fertig in `.claude/agents/` (`import-n
 - `npm test` muss grün sein. Werkzeuge sind eine reine Funktion plus CLI, getestet mit `node --test`.
 - `npm run typen` prüft die JSDoc-Typen der Kerngrenzen (Dateien mit `// @ts-check`, Liste in `tsconfig.json`); TypeScript wird dafür nur als Dev-Werkzeug nach `.typpruefung/` geladen.
 - Gemergt wird erst, wenn die CI grün ist (GitHub Actions: Tests auf Node 22 und 24, Validator auf Demodaten und Fixtures, PII-Scan): `gh pr checks <nr> --watch`, dann `gh pr merge <nr> --merge`. Den PII-Scan vor dem Push auch lokal laufen lassen: `node app/tools/pii-scan.mjs origin/main`. Fehler (echte IBAN, Kartennummer) blockieren, Warnungen ansehen.
-- Keine Build-Pipeline. Die App und ihre Werkzeuge brauchen nur Node.js, keine Laufzeitabhängigkeiten. Einzige Entwicklungsabhängigkeit ist Playwright (`playwright-core`, feste Version) für die Browsertests (ADR 0038). Weitere Pakete nur nach Rückfrage beim Nutzer.
+- Keine Build-Pipeline. Server und Werkzeuge brauchen nur Node.js, keine Laufzeitabhängigkeiten. Einzige Entwicklungsabhängigkeit ist Playwright (`playwright-core`, feste Version) für die Browsertests (ADR 0038). Im Browser läuft als einzige Fremdbibliothek Vanilla Calendar Pro für die Datumsauswahl, als unveränderte Kopie in `app/vendor/` (ADR 0039). Weitere Pakete oder Bibliotheken nur nach Rückfrage beim Nutzer.
 - Der Datenbestand ist immer ein Argument (`dataRootFromArg` aus `app/tools/data-root.mjs`), nie fest im Code.
 - Beträge über `toCents` aus `app/tools/lib/text.mjs`.
 - Privates Projekt, **keine Enterprise-Muster**: keine Audit-Logs, kein Append-Only, keine Versionsfelder. Die Git-Historie ist Spur genug.

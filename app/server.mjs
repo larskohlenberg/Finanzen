@@ -241,7 +241,9 @@ export function parseArgs(argv, { appDir, env = process.env }) {
 //   ausfuehren koennte
 // - data/inbox/: nur wartende Uploads (oberste Ebene, Upload-Endungen), fuer
 //   die Links der Hochladen-Seite
-const SHELL = new Set(["index.html", "styles.css", "version.json", "sitzung.json"]);
+// vendor/: unveraenderte Fremdbibliotheken (ADR 0039); ihre Module laufen ueber
+// den Modulgraphen, ihre Stile stehen hier.
+const SHELL = new Set(["index.html", "styles.css", "vendor/vanilla-calendar-pro/index.css", "version.json", "sitzung.json"]);
 const BESTAENDE = new Set(["master", "demo"]);
 const AUSFUEHRBAR = new Set([".html", ".htm", ".xhtml", ".xht", ".shtml", ".svg", ".svgz", ".xml", ".xsl", ".xslt", ".js", ".mjs", ".cjs", ".wasm"]);
 
@@ -419,7 +421,7 @@ async function sendeIndex(req, res, appWurzel, module) {
   } catch {
     return nichtGefunden(res);
   }
-  const erlaubt = (datei) => (module.has(datei) || datei === "styles.css" ? versionVon(appWurzel, datei) : null);
+  const erlaubt = (datei) => (module.has(datei) || (SHELL.has(datei) && datei.endsWith(".css")) ? versionVon(appWurzel, datei) : null);
   const inhalt = Buffer.from(await indexMitVersion(html, erlaubt), "utf8");
   res.writeHead(200, { "Content-Type": MIME[".html"], "Content-Length": inhalt.length });
   res.end(req.method === "HEAD" ? undefined : inhalt);

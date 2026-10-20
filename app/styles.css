@@ -1828,20 +1828,57 @@ tr.angesteuert td:first-child {
   }
 }
 /* Horizont-Auswahl rechts neben dem Wert der Prognose-Kachel. */
+/* Prognosehorizont: Beschriftung und Datumsknopf in einer Zeile, darunter die
+   Schnellauswahl; der Kalender klappt unter dem Knopf auf. */
 .liquiditaet-bis {
+  position: relative;
   display: inline-flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
-  color: var(--muted);
+  gap: 6px;
   font-size: 12px;
 }
-.liquiditaet-bis input[type="date"] {
-  padding: 5px 8px;
+.liquiditaet-bis-zeile {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.datum-knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.datum-knopf:hover { border-color: var(--border-strong); }
+.datum-knopf:focus-visible, .datum-knopf[aria-expanded="true"] { outline: none; border-color: var(--accent); }
+.datum-knopf svg { width: 15px; height: 15px; color: var(--muted); }
+.liquiditaet-horizont {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.kalender-popover {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  z-index: 30;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  border-radius: 12px;
+}
+@media (max-width: 760px) {
+  .vorsorge-kopf-mit-grafik:has(.liquiditaet-bis) { flex-wrap: wrap; }
+  .liquiditaet-bis { align-items: flex-start; }
+  .liquiditaet-horizont { justify-content: flex-start; }
+  .kalender-popover { right: auto; left: 0; }
 }
 .liquiditaet-detail .row-toggle {
   background: none;

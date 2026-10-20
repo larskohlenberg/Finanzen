@@ -7,4 +7,7 @@ export const ablauf = {
   render: () => {},
   setUiError: () => {},
   pruefeStand: () => {},
+  oeffneSchnellsuche: () => {},
+  schliesseSchnellsuche: () => {},
+  springeZu: () => {},
 };

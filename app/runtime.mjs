@@ -117,6 +117,8 @@ export const state = {
   planIstOffen: new Set(),
   // Termine, Regelzahlungen: Auswahl (termine-modell.mjs ZEIGEN) und Sortierung.
   regelzahlungZeigen: "aktiv",
+  // Schnellsuche (Cmd/Strg+K): offen, Suchtext, ausgewaehlter Treffer.
+  schnellsuche: { offen: false, text: "", index: 0 },
   regelzahlungSort: { key: "bezeichnung", dir: "asc" },
   // Vermoegensseite: aktiver Tab und ausgewaehltes Objekt ("klasse:id").
   vermoegenTab: "uebersicht",

@@ -3649,3 +3649,15 @@ td.logo-zelle .logo-marke { margin-right: 0; }
     --shadow: none;
   }
 }
+
+/* Schnellsuche (Cmd/Strg+K): Dialog oben mittig ueber einem Schleier */
+.schnellsuche-hintergrund { position: fixed; inset: 0; background: rgb(0 0 0 / 0.35); z-index: 40; }
+.schnellsuche { position: fixed; top: 10vh; left: 50%; transform: translateX(-50%); width: min(640px, calc(100vw - 24px)); max-height: 70vh; overflow: auto; z-index: 41; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px; display: grid; gap: 8px; }
+.schnellsuche input { width: 100%; font-size: 16px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); }
+.schnellsuche ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.schnellsuche li a { display: grid; grid-template-columns: 9em minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 6px 8px; border-radius: 6px; color: var(--text); text-decoration: none; }
+.schnellsuche li.aktiv a, .schnellsuche li a:hover { background: var(--accent-soft); }
+.schnellsuche .such-art { color: var(--muted); font-size: 12px; }
+.schnellsuche .such-name { overflow-wrap: anywhere; }
+.schnellsuche-hilfe, .schnellsuche-leer { margin: 0; font-size: 12px; }
+@media (max-width: 760px) { .schnellsuche li a { grid-template-columns: minmax(0, 1fr) auto; } .schnellsuche .such-art { grid-column: 1 / -1; } }

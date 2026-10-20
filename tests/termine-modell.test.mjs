@@ -40,3 +40,19 @@ test("Zeilen: filtern nach aktiv/ueberfaellig/beendet, sortieren nach Feldern", 
   assert.equal(a.anzahl, 5);
   assert.equal(a.naechste, "2026-06-01");
 });
+
+import { vergleichsZeitraeume } from "../app/termine-modell.mjs";
+
+test("Jahresvergleich: bisheriges Jahr bis Ende des letzten vollen Monats gegen dieselben Monate im Vorjahr", () => {
+  assert.deepEqual(vergleichsZeitraeume("2026-10-20"), {
+    aktuell: { von: "2026-01-01", bis: "2026-09-30" },
+    vorjahr: { von: "2025-01-01", bis: "2025-09-30" },
+  });
+  // Im Januar gibt es noch keinen vollen Monat: ganzes Vorjahr gegen das Jahr davor.
+  assert.deepEqual(vergleichsZeitraeume("2026-01-15"), {
+    aktuell: { von: "2025-01-01", bis: "2025-12-31" },
+    vorjahr: { von: "2024-01-01", bis: "2024-12-31" },
+  });
+  // Schaltjahr: Februar endet im Vorjahr am 28.
+  assert.deepEqual(vergleichsZeitraeume("2024-03-05").vorjahr, { von: "2023-01-01", bis: "2023-02-28" });
+});

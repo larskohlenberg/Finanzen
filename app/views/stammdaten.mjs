@@ -1,6 +1,7 @@
 // app/views/stammdaten.mjs
 // Administration: Stammdaten (Personen, Konten, Kategorien, Regeln), Checks und Export.
-import { data, state, t, tf, escapeHtml } from "../runtime.mjs";
+import { data, state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
+import { vergleichsZeitraeume } from "../termine-modell.mjs";
 import { zielRoute } from "../routing.mjs";
 import { LEERE_FILTER, filterAlsQuery } from "../navigation.mjs";
 import { addInterval } from "../liquiditaet.mjs";
@@ -90,45 +91,80 @@ function renderKontoSection() {
 // Kategorien mit Anzahl und Summe ihrer Buchungen der letzten zwoelf Monate
 // (Gruppen der Buchungsliste, vom Server). Name und Zahlen fuehren in genau
 // diese Buchungen mit demselben Zeitraum.
-const kategorienCache = erstelleApiCache({ maxEintraege: 2 });
+const kategorienCache = erstelleApiCache({ maxEintraege: 6 });
 // Die letzten zwoelf abgeschlossenen Monate (wie Trend und Plan & Ist "12m").
 function zwoelfMonate(heute) {
   const monatsAnfang = `${heute.slice(0, 7)}-01`;
   return { von: addInterval(monatsAnfang, "monat", -12), bis: addInterval(monatsAnfang, "tag", -1) };
 }
-function renderKategorien() {
-  const { von, bis } = zwoelfMonate(heuteIso());
+function gruppenFuer({ von, bis }) {
   const suche = new URLSearchParams({ gruppe: "kategorie", timeMode: "range", dateFrom: von, dateTo: bis, groesse: "10" });
   if (state.dataMode === "demo") suche.set("quelle", "demo");
-  const { antwort } = kategorienCache.hole(`./api/v1/transaktionen?${suche}`);
-  const je = new Map((antwort?.gruppen ?? []).map((g) => [g.schluessel, g]));
-  const ziel = (id) => {
+  return kategorienCache.hole(`./api/v1/transaktionen?${suche}`).antwort;
+}
+const monatsSpanne = ({ von, bis }) => `${fmt().monatKurz(von)}–${fmt().monatJahrKurz(bis)}`;
+
+// Kategorien mit Anzahl und Summe der letzten zwoelf Monate und dem
+// Jahresvergleich (gleiche Monate im Vorjahr, termine-modell.mjs). Name und
+// Zahlen fuehren in genau diese Buchungen. Reichen die Buchungen nicht bis zum
+// Beginn des Vorjahreszeitraums, steht das am Vergleich.
+function renderKategorien() {
+  const heute = heuteIso();
+  const zwoelf = zwoelfMonate(heute);
+  const { aktuell, vorjahr } = vergleichsZeitraeume(heute);
+  const [a12, aAkt, aVor] = [gruppenFuer(zwoelf), gruppenFuer(aktuell), gruppenFuer(vorjahr)];
+  const jeAus = (antwort) => new Map((antwort?.gruppen ?? []).map((g) => [g.schluessel, g]));
+  const [je12, jeAkt, jeVor] = [jeAus(a12), jeAus(aAkt), jeAus(aVor)];
+  const monate = [...(a12?.monate ?? [])].sort();
+  const [erster = "", letzter = ""] = [monate[0], monate.at(-1)];
+  // Vergleichbar nur, wenn Buchungen den Vorjahresbeginn und das Ende des laufenden Zeitraums abdecken.
+  const vorjahrVoll = Boolean(erster) && erster <= vorjahr.von.slice(0, 7);
+  const aktuellVoll = Boolean(letzter) && letzter >= aktuell.bis.slice(0, 7);
+  const vergleichbar = vorjahrVoll && aktuellVoll;
+  const ziel = (id, { von, bis }) => {
     const filter = { category: id, timeMode: "range", dateFrom: von, dateTo: bis };
     return `href="${escapeHtml(`#/transaktionen${filterAlsQuery({ ...LEERE_FILTER, ...filter })}`)}" data-action="kategorie-transactions" data-kategorie="${escapeHtml(id)}" data-von="${escapeHtml(von)}" data-bis="${escapeHtml(bis)}" data-transfer="all"`;
   };
+  const laedt = `<span class="muted">…</span>`;
+  const summe = (antwort, g, id, zeitraum) => (!antwort ? laedt : g ? `<a class="linkish" ${ziel(id, zeitraum)}>${escapeHtml(formatMoney(g.summe_cent))}</a>` : `<span class="muted">—</span>`);
   const zeilen = data.kategorien.map((k) => {
-    const g = je.get(k.kategorie_id);
-    const zahl = (wert) => (antwort ? wert : `<span class="muted">…</span>`);
+    const id = k.kategorie_id;
+    const g12 = je12.get(id);
+    const [gA, gV] = [jeAkt.get(id), jeVor.get(id)];
+    const diff = aAkt && aVor && vergleichbar ? (gA?.summe_cent ?? 0) - (gV?.summe_cent ?? 0) : null;
+    const diffHtml = diff === null ? `<span class="muted">—</span>`
+      : `<span class="${diff > 0 ? "abw-gut" : diff < 0 ? "abw-schlecht" : "abw-neutral"}">${escapeHtml(fmt().geldMitVorzeichen(diff))}</span>`;
     return `
       <tr>
-        <td><a class="linkish" ${ziel(k.kategorie_id)}>${escapeHtml(k.name)}</a><div class="id-zeile muted">${escapeHtml(k.kategorie_id)}</div></td>
-        <td>${escapeHtml(k.typ ?? "")}</td>
-        <td>${escapeHtml(t(`status.${k.status}`))}</td>
-        <td class="amount">${zahl(g ? g.anzahl : 0)}</td>
-        <td class="amount">${zahl(g ? escapeHtml(formatMoney(g.summe_cent)) : `<span class="muted">—</span>`)}</td>
+        <td class="karten-kopf"><a class="linkish zeilen-link" ${ziel(id, zwoelf)}>${escapeHtml(k.name)}</a><div class="id-zeile muted">${escapeHtml(id)}</div></td>
+        <td data-label="${escapeHtml(t("labels.type"))}">${escapeHtml(k.typ ?? "")}</td>
+        <td data-label="${escapeHtml(t("labels.status"))}">${escapeHtml(t(`status.${k.status}`))}</td>
+        <td class="amount" data-label="${escapeHtml(t("masterdata.kategorienAnzahl12"))}">${a12 ? (g12 ? g12.anzahl : 0) : laedt}</td>
+        <td class="amount" data-label="${escapeHtml(t("masterdata.kategorienSumme12"))}">${summe(a12, g12, id, zwoelf)}</td>
+        <td class="amount" data-label="${escapeHtml(monatsSpanne(aktuell))}">${summe(aAkt, gA, id, aktuell)}</td>
+        <td class="amount" data-label="${escapeHtml(monatsSpanne(vorjahr))}">${summe(aVor, gV, id, vorjahr)}</td>
+        <td class="amount" data-label="${escapeHtml(t("masterdata.kategorienVeraenderung"))}">${diffHtml}</td>
       </tr>`;
   }).join("");
+  const abdeckung = [
+    erster && !vorjahrVoll ? tf("masterdata.kategorienAbdeckung", { monat: fmt().monatJahrKurz(erster) }) : "",
+    letzter && !aktuellVoll ? tf("masterdata.kategorienAbdeckungEnde", { monat: fmt().monatJahrKurz(letzter) }) : "",
+  ].filter(Boolean).map((text) => `<p class="muted"><span class="chip review">${iconSvg("review")}${escapeHtml(text)}</span></p>`).join("");
   return `
     <section class="panel panel-pad section-spacing">
-      <p class="muted">${escapeHtml(tf("masterdata.kategorienZeitraum", { von: formatDate(von), bis: formatDate(bis) }))}</p>
+      <p class="muted">${escapeHtml(tf("masterdata.kategorienZeitraum", { von: formatDate(zwoelf.von), bis: formatDate(zwoelf.bis) }))} ${escapeHtml(tf("masterdata.kategorienVergleich", { aktuell: monatsSpanne(aktuell), vorjahr: monatsSpanne(vorjahr) }))}</p>
+      ${abdeckung}
       <div class="table-wrap">
-        <table>
+        <table class="karten-tabelle kategorien-tabelle">
           <thead><tr>
             <th>${escapeHtml(t("labels.category"))}</th>
             <th>${escapeHtml(t("labels.type"))}</th>
             <th>${escapeHtml(t("labels.status"))}</th>
             <th class="amount">${escapeHtml(t("masterdata.kategorienAnzahl12"))}</th>
             <th class="amount">${escapeHtml(t("masterdata.kategorienSumme12"))}</th>
+            <th class="amount">${escapeHtml(monatsSpanne(aktuell))}</th>
+            <th class="amount">${escapeHtml(monatsSpanne(vorjahr))}</th>
+            <th class="amount">${escapeHtml(t("masterdata.kategorienVeraenderung"))}</th>
           </tr></thead>
           <tbody>${zeilen}</tbody>
         </table>

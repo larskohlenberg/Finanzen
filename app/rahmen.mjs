@@ -3,10 +3,49 @@
 // Statuschips und Einstellungsmenue, Banner fuer Validierung und Fehler.
 // rahmen haelt, was nur der Rahmen kennt (Version, Sitzungskonfiguration).
 import { renderErrorPanel } from "./error.mjs";
-import { data, state, navItems, TABBAR_VIEWS, t, escapeHtml } from "./runtime.mjs";
+import { data, state, navItems, TABBAR_VIEWS, t, escapeHtml, datenVersion } from "./runtime.mjs";
+import { routeFromState } from "./routing.mjs";
+import { suchIndex, suche } from "./schnellsuche.mjs";
 import { versionAnzeige } from "./version.mjs";
 import { kopfleisteAntwort, kopfleisteFehler } from "./views/kopfleiste-daten.mjs";
 import { iconSvg } from "./icons.js";
+
+// Schnellsuche als Dialog ueber der Seite (schnellsuche.mjs): Eingabe als
+// Combobox, Treffer als Liste von Links; die Auswahl steht in state.schnellsuche.
+let suchStand = null;
+function suchtreffer() {
+  const seiten = navItems.map(([view, labelKey]) => ({ name: t(labelKey), route: routeFromState({ view }), view }));
+  if (suchStand?.version !== datenVersion() || suchStand.lang !== state.lang) {
+    suchStand = { version: datenVersion(), lang: state.lang, index: suchIndex(data, { seiten }) };
+  }
+  return suche(suchStand.index, state.schnellsuche.text);
+}
+
+export function schnellsucheTreffer() {
+  return state.schnellsuche.offen ? suchtreffer() : [];
+}
+
+export function renderSchnellsuche() {
+  const s = state.schnellsuche;
+  if (!s.offen) return "";
+  const treffer = suchtreffer();
+  const aktiv = Math.min(s.index, Math.max(0, treffer.length - 1));
+  const liste = treffer.map((tr, i) => `
+    <li role="option" id="suchtreffer-${i}" aria-selected="${i === aktiv}" class="${i === aktiv ? "aktiv" : ""}">
+      <a href="${escapeHtml(tr.route)}" data-action="schnellsuche-ziel" data-route="${escapeHtml(tr.route)}" data-ziel-view="${escapeHtml(tr.view ?? "")}" tabindex="-1">
+        <span class="such-art">${escapeHtml(t(`chrome.suchArt.${tr.art}`))}</span>
+        <span class="such-name">${escapeHtml(tr.name || tr.id)}</span>
+        ${tr.id && tr.name ? `<span class="such-id muted">${escapeHtml(tr.id)}</span>` : ""}
+      </a>
+    </li>`).join("");
+  return `
+    <div class="schnellsuche-hintergrund" data-action="schnellsuche-schliessen"></div>
+    <div class="schnellsuche" role="dialog" aria-modal="true" aria-label="${escapeHtml(t("chrome.schnellsuche"))}">
+      <input id="schnellsuche-eingabe" type="search" autocomplete="off" role="combobox" aria-expanded="${treffer.length > 0}" aria-controls="suchtreffer" ${treffer.length ? `aria-activedescendant="suchtreffer-${aktiv}"` : ""} placeholder="${escapeHtml(t("chrome.schnellsuchePlatzhalter"))}" value="${escapeHtml(s.text)}" data-schnellsuche>
+      ${s.text.trim() ? (treffer.length ? `<ul id="suchtreffer" role="listbox">${liste}</ul>` : `<p class="muted schnellsuche-leer">${escapeHtml(t("chrome.schnellsucheLeer"))}</p>`) : ""}
+      <p class="muted schnellsuche-hilfe">${escapeHtml(t("chrome.schnellsucheHilfe"))}</p>
+    </div>`;
+}
 
 // undefined = Version noch nicht geladen (nichts anzeigen), null = keine
 // version.json. sitzungKonfig null = Sitzungsschutz noch nicht geladen.
@@ -133,6 +172,7 @@ export function renderTopbar() {
         ${(data.importfehler?.length ?? 0) > 0 ? `<button class="chip danger linkish" data-action="show-import-errors">${iconSvg("warning")}${data.importfehler.length} ${escapeHtml(t("chrome.importErrors"))}</button>` : ""}
         ${renderNextActionButton(kopf?.aktionen ?? [])}
       </div>
+      <button class="chip neutral linkish icon-chip" data-action="schnellsuche-oeffnen" aria-label="${escapeHtml(t("chrome.schnellsucheKuerzel"))}" title="${escapeHtml(t("chrome.schnellsucheKuerzel"))}">${iconSvg("search")}</button>
       ${renderSettingsMenu()}
     </header>
   `;

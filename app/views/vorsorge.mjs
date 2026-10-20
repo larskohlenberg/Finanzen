@@ -434,7 +434,7 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
   // Kein <button>: die Karte enthaelt mit dem Bezug einen eigenen Link.
   return `
     <div class="objekt-karte ${aktiv ? "active" : ""} ${vs.geprueft_am || istBeendet(vs) ? "" : "objekt-karte-ungeprueft"}" role="button" tabindex="0" data-action="select-vorsorge" data-vorsorge="${escapeHtml(vs.vorsorge_id)}" aria-pressed="${aktiv}">
-      <span class="objekt-karte-kopf"><span class="objekt-karte-titel"><strong>${farben.has(vs.vorsorge_id) ? farbPunkt(farbKlasse(farben, vs.vorsorge_id)) : ""}${escapeHtml(vs.name)}</strong>${vs.versicherungsnummer ? `<span class="objekt-karte-nummer">${escapeHtml(vs.versicherungsnummer)}</span>` : ""}</span><span class="objekt-karte-marke">${kachelEtikett(vs, tab) ? `<span class="chip neutral">${escapeHtml(kachelEtikett(vs, tab))}</span>` : ""}${logoMarke({ vorsorge: vs })}</span></span>
+      <span class="objekt-karte-kopf"><span class="objekt-karte-titel"><strong>${farben.has(vs.vorsorge_id) ? farbPunkt(farbKlasse(farben, vs.vorsorge_id)) : ""}${escapeHtml(vs.name)}</strong>${vs.versicherungsnummer ? `<span class="objekt-karte-nummer" data-diffus="text">${escapeHtml(vs.versicherungsnummer)}</span>` : ""}</span><span class="objekt-karte-marke">${kachelEtikett(vs, tab) ? `<span class="chip neutral">${escapeHtml(kachelEtikett(vs, tab))}</span>` : ""}${logoMarke({ vorsorge: vs })}</span></span>
       <span class="objekt-karte-wert">${wert}</span>
       ${fortschritt ? `${balkenSvg([{ anteil: fortschritt.anteil, klasse: "fortschritt-wert", titel: fortschritt.text }], { klasse: "fortschritt" })}<span class="objekt-karte-zeile">${escapeHtml(fortschritt.text)}</span>` : ""}
       ${zeilen.filter(Boolean).map((z) => `<span class="objekt-karte-zeile">${escapeHtml(z)}</span>`).join("")}
@@ -583,7 +583,7 @@ function renderVertragsdaten(vs, tab, offen) {
       <div class="stammdaten-raster">
         ${detailRow(t("labels.id"), escapeHtml(vs.vorsorge_id))}
         ${detailRow(t("labels.type"), escapeHtml(vorsorgeArtLabel(vs.art)))}
-        ${vs.versicherungsnummer ? detailRow(t("vorsorge.versicherungsnummer"), escapeHtml(vs.versicherungsnummer)) : ""}
+        ${vs.versicherungsnummer ? detailRow(t("vorsorge.versicherungsnummer"), `<span data-diffus="text">${escapeHtml(vs.versicherungsnummer)}</span>`) : ""}
         ${vs.sparte ? detailRow(t("vorsorge.sparteLabel"), escapeHtml(sparteLabel(vs.sparte))) : ""}
         ${detailRow(t("labels.owner"), escapeHtml(personName(vs.person_id)))}
         ${detailRow(t("labels.status"), statusChip(vs))}
@@ -802,7 +802,7 @@ function renderAnhang(vs) {
     : `<p class="muted">${escapeHtml(t("vermoegen.noWertstaende"))}</p>`;
   // Die Kachel ist per Default zu; wer sie oeffnet, will die Bemerkung lesen.
   const bemerkung = vs.bemerkung
-    ? `<details class="bemerkung"${detailsAttr(`bemerkung.${vs.vorsorge_id}`, true)}><summary>${escapeHtml(t("vorsorge.bemerkung"))}</summary>${bemerkungInhalt(vs.bemerkung)}</details>`
+    ? `<details class="bemerkung"${detailsAttr(`bemerkung.${vs.vorsorge_id}`, true)}><summary>${escapeHtml(t("vorsorge.bemerkung"))}</summary><div data-diffus="text">${bemerkungInhalt(vs.bemerkung)}</div></details>`
     : "";
   // Breite nutzen: Bemerkung links, Wertstaende rechts; ohne Bemerkung nur die Wertstaende.
   const staendeBlock = `<h3 class="section-subtitle">${escapeHtml(t("vermoegen.wertstaende"))}</h3>${wertstaende}`;

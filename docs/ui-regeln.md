@@ -135,7 +135,7 @@ nicht noch einmal. Diagramme in schmalen Kacheln kommen ohne Achsen aus.
 
 ## Kopfzeile
 
-Die Kopfzeile bleibt einzeilig: links die Statuschips, rechts ein Zahnrad.
+Die Kopfzeile bleibt einzeilig: links die Statuschips, rechts Suche, Diffusor-Auge und Zahnrad.
 
 - Datenmodus, Sprache und Darstellung liegen im Zahnrad-Menue (Knopfreihen, Esc
   oder Klick daneben schliesst). Keine eigenen Auswahlfelder in der Kopfzeile.
@@ -143,6 +143,27 @@ Die Kopfzeile bleibt einzeilig: links die Statuschips, rechts ein Zahnrad.
   offene Kategorien und Checks (nur bei mehr als null), Importfehler. Bestandene
   Validierung und Neu laden sind reine Symbole mit Tooltip.
 - Der Prompt-Chip kuerzt seinen Text mit "…", statt die Zeile umbrechen zu lassen.
+
+## Diffusor-Modus
+Sichtschutz fuer Bildschirmfreigabe und Screenshots: das Auge in der Kopfzeile
+oder Alt+Umschalt+D. Der Browser merkt sich den Schalter.
+- Betraege werden zu unlesbaren Zeichen (gespiegelte und gedrehte Glyphen), immer
+  gleich viele, damit die Laenge die Groessenordnung nicht verraet. Vorzeichen
+  und Waehrung bleiben. Die Zeichen haengen von einem Salz je Seitenaufruf ab.
+- Namen aus dem Bestand (Personen, Konten, Vertraege, Immobilien, Darlehen,
+  Regelzahlungen, Logo-Namen) werden zu Platzhaltern wie "Giro A", "Person 1",
+  "Riester 1". Gegenparteien werden "Gegenpartei N"; Umbuchungen auf eigene
+  Konten zeigen deren Platzhalter.
+- Freitext (Verwendungszweck, Bemerkung, IBAN, Versicherungsnummer, Adresse,
+  Dokumentnamen) wird Wort fuer Wort zu Zeichen. Neue Freitextfelder markieren:
+  `vertraulich()` aus `app/komponenten.mjs` oder `data-diffus="text"`.
+- Logos werden zu neutralen Flaechen. Diagramme, Prozente, Daten, Anzahlen und
+  Kategorien bleiben lesbar.
+- Beim Umschalten rollen die sichtbaren Stellen wie eine Walze
+  (`app/diffusor-anzeige.mjs`); bei "Bewegung reduzieren" ohne Animation.
+- Grenze: reine Anzeige. Die Daten bleiben im Browser geladen, der Server
+  aendert sich nicht. Texte vom Server (Pruefbefunde, Regeltexte) verdeckt nur
+  die Namens- und Betragserkennung, nicht jeden Haendlernamen.
 
 ## Drilldowns
 

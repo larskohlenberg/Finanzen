@@ -3,7 +3,7 @@
 import { data, state, t, tf, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, formatMonth, mitLogo, statusChip, renderPageHead, renderTableFilters, categoryName, detailRow, quelleHtml } from "../komponenten.mjs";
+import { formatMoney, formatDate, formatMonth, mitLogo, statusChip, renderPageHead, renderTableFilters, categoryName, detailRow, quelleHtml, vertraulich } from "../komponenten.mjs";
 import { formatIban } from "../tools/lib/text.mjs";
 import { dokumentRoute } from "../belege.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
@@ -147,7 +147,7 @@ function renderGruppen(antwort) {
         <li class="gruppen-kopf" aria-hidden="true"><span>${escapeHtml(t(`transactions.gruppe.${gruppe}`))}</span><span class="amount">${escapeHtml(t("transactions.gruppeAnzahl"))}</span><span class="amount">${escapeHtml(t("transactions.gruppeSumme"))}</span></li>
         ${antwort.gruppen.map((g) => `
           <li>
-            ${["gegenpartei", "regelzahlung"].includes(gruppe) && !g.schluessel ? `<span class="muted">—</span>` : `<button class="linkish" data-action="gruppe-filtern" data-gruppe="${escapeHtml(gruppe)}" data-schluessel="${escapeHtml(g.schluessel)}" title="${escapeHtml(t("transactions.gruppeFiltern"))}">${escapeHtml(name(g))}</button>`}
+            ${["gegenpartei", "regelzahlung"].includes(gruppe) && !g.schluessel ? `<span class="muted">—</span>` : `<button class="linkish" data-action="gruppe-filtern" data-gruppe="${escapeHtml(gruppe)}" data-schluessel="${escapeHtml(g.schluessel)}" title="${escapeHtml(t("transactions.gruppeFiltern"))}">${gruppe === "gegenpartei" ? vertraulich(escapeHtml(name(g)), "gegenpartei") : escapeHtml(name(g))}</button>`}
             <span class="amount muted">${g.anzahl}</span>
             <span class="amount">${escapeHtml(formatMoney(g.summe_cent))}</span>
           </li>`).join("")}
@@ -491,8 +491,8 @@ function renderTransactionRow(tx) {
     <tr class="transaction-row ${tx.transaktion_id === state.selectedTransactionId ? "selected" : ""} ${tx.kategorisierung_status === "offen" ? "open" : ""} ${tx.kategorisierung_status === "vorgeschlagen" ? "vorgeschlagen" : ""}">
       <td class="row-select-cell" ${selectAttrs}><a class="linkish zeilen-link" href="${escapeHtml(detailHref)}" ${selectAttrs}${tx.transaktion_id === state.selectedTransactionId ? ' aria-current="true"' : ""}>${escapeHtml(formatDate(tx.buchungsdatum))}</a></td>
       <td><a class="linkish" href="${escapeHtml(zielRoute("open-account-master", tx.konto_id))}" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(transactionAccountLabel(tx))}</a></td>
-      <td class="row-select-cell" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei), { groesse: "tabelle" })}</td>
-      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}${tx.bemerkung ? `<div class="tx-bemerkung" title="${escapeHtml(t("transactions.bemerkung"))}">${escapeHtml(tx.bemerkung)}</div>` : ""}</td>
+      <td class="row-select-cell" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, vertraulich(escapeHtml(tx.gegenpartei), "gegenpartei"), { groesse: "tabelle" })}</td>
+      <td class="row-select-cell" ${selectAttrs}>${vertraulich(escapeHtml(tx.verwendungszweck))}${tx.bemerkung ? `<div class="tx-bemerkung" title="${escapeHtml(t("transactions.bemerkung"))}">${vertraulich(escapeHtml(tx.bemerkung))}</div>` : ""}</td>
       <td class="amount row-select-cell" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
       <td class="row-select-cell" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${herkunftMarke(tx)}${renderTransferMarke(tx)}</td>
     </tr>
@@ -553,7 +553,7 @@ export function renderTransactionDetail({ transaktion: tx, regelzahlung, vorsorg
         <strong>${escapeHtml(formatMoney(cents(tx.betrag)))}</strong><br>
         ${escapeHtml(formatDate(tx.buchungsdatum))}
         ${tx.wertstellungsdatum ? `<span class="muted"> · ${escapeHtml(t("transactions.valueDateShort"))} ${escapeHtml(formatDate(tx.wertstellungsdatum))}</span>` : ""}<br>
-        ${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei))}
+        ${mitLogo({ gegenpartei: tx.gegenpartei }, vertraulich(escapeHtml(tx.gegenpartei), "gegenpartei"))}
       </div>
     </div>
     <div class="detail-section">
@@ -570,7 +570,7 @@ export function renderTransactionDetail({ transaktion: tx, regelzahlung, vorsorg
       t("transactions.fuerPerson"),
       `<button class="linkish" data-action="gruppe-filtern" data-gruppe="person" data-schluessel="${escapeHtml(person.person_id)}" title="${escapeHtml(t("transactions.gruppeFiltern"))}">${escapeHtml(person.name)}</button>${person.herkunft ? `<br><span class="detail-sub">${escapeHtml(t("transactions.origin"))}: ${escapeHtml(t(`transactions.personHerkunft.${person.herkunft}`))}</span>` : ""}`,
     ) : ""}
-    ${tx.bemerkung ? detailRow(t("transactions.bemerkung"), escapeHtml(tx.bemerkung)) : ""}
+    ${tx.bemerkung ? detailRow(t("transactions.bemerkung"), vertraulich(escapeHtml(tx.bemerkung))) : ""}
     ${regelzahlung ? detailRow(
       t("transactions.regelzahlung"),
       `<a class="linkish" href="${escapeHtml(zielRoute("open-regelzahlung", regelzahlung.regelzahlung_id))}" data-action="open-regelzahlung" data-regelzahlung="${escapeHtml(regelzahlung.regelzahlung_id)}">${escapeHtml(`${regelzahlung.regelzahlung_id} · ${regelzahlung.bezeichnung}`)}</a>`,
@@ -583,8 +583,8 @@ export function renderTransactionDetail({ transaktion: tx, regelzahlung, vorsorg
       <div class="detail-label">${escapeHtml(t("transactions.coreData"))}</div>
       <div class="detail-list">
         ${transactionDetailRow(t("transactions.bookingDate"), formatDate(tx.buchungsdatum))}
-        ${transactionDetailRow(t("labels.counterparty"), tx.gegenpartei)}
-        ${transactionDetailRow(t("labels.purpose"), tx.verwendungszweck)}
+        ${transactionDetailRow(t("labels.counterparty"), tx.gegenpartei, "gegenpartei")}
+        ${transactionDetailRow(t("labels.purpose"), tx.verwendungszweck, "text")}
         ${transactionDetailRow(t("labels.amount"), formatMoney(cents(tx.betrag)))}
         ${transactionDetailRow(t("transactions.transactionId"), tx.transaktion_id)}
       </div>
@@ -593,7 +593,7 @@ export function renderTransactionDetail({ transaktion: tx, regelzahlung, vorsorg
       <div class="detail-section">
         <div class="detail-label">${escapeHtml(t("transactions.bankDetails"))}</div>
         <div class="detail-list">
-          ${bankDetails.map(([label, value, format]) => transactionDetailRow(label, format === "date" ? formatDate(value) : value)).join("")}
+          ${bankDetails.map(([label, value, format]) => transactionDetailRow(label, format === "date" ? formatDate(value) : value, format === "date" ? "" : "text")).join("")}
         </div>
       </div>
     ` : ""}
@@ -625,11 +625,12 @@ function transactionIbanLabel(tx) {
   return tx.transaktionstyp === "Eingang" ? t("transactions.senderIban") : t("transactions.recipientIban");
 }
 
-function transactionDetailRow(label, value) {
+// diffus: Art fuer den Diffusor-Modus ("text", "gegenpartei") oder "" fuer offen.
+function transactionDetailRow(label, value, diffus = "") {
   return `
     <div class="detail-list-row">
       <span class="detail-list-label">${escapeHtml(label)}</span>
-      <span class="detail-list-value">${escapeHtml(value)}</span>
+      <span class="detail-list-value"${diffus ? ` data-diffus="${diffus}"` : ""}>${escapeHtml(value)}</span>
     </div>
   `;
 }

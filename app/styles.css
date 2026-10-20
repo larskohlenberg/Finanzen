@@ -368,6 +368,9 @@ button {
   padding: 0;
 }
 
+/* Diffusor-Modus (diffusor-anzeige.mjs): eingeschaltet wie ein aktiver Chip. */
+.diffusor-schalter[aria-pressed="true"] .icon { stroke-width: 2.2; }
+
 .settings-control {
   position: relative;
   flex: 0 0 auto;
@@ -3446,6 +3449,8 @@ a.linkish {
   object-fit: contain;
 }
 :root[data-theme="dark"] .logo-marke:has(img) { outline: 1px solid rgb(255 255 255 / 12%); outline-offset: -1px; }
+/* Diffusor-Modus: neutrale Marke ohne Bild und Kuerzel. */
+.logo-marke.logo-diffus { background: var(--surface-2); outline: 1px solid var(--border); outline-offset: -1px; }
 .kuerzel-farbe-0 { --kuerzel: #1f5fa8; }
 .kuerzel-farbe-1 { --kuerzel: #b4441c; }
 .kuerzel-farbe-2 { --kuerzel: #137a55; }
@@ -3759,3 +3764,6 @@ td.logo-zelle .logo-marke { margin-right: 0; }
   .schnellsuche li a { grid-template-columns: minmax(0, 1fr) auto; }
   .schnellsuche .such-art { grid-column: 1 / -1; }
 }
+
+/* Diffusor-Modus: verdeckte Stellen mit gleich breiten Ziffern, damit die Walze nicht springt. */
+.diffus { font-variant-numeric: tabular-nums; }

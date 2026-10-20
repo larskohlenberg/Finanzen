@@ -4,6 +4,7 @@ import { beiApiAntwort, leereApiCaches, verwerfeApiCaches } from "./api-daten.mj
 import { anwendenBaumBreite, bindBelegeTrenner } from "./belege-trenner.mjs";
 import { ladeGrunddaten, ladeStand } from "./data-loader.mjs";
 import { bindDiagrammHover, termineListenBegrenzen, versteckeDiagrammHover } from "./diagramm-hover.mjs";
+import { diffusorAnwenden, schalteDiffusor } from "./diffusor-anzeige.mjs";
 import { safeRender, guard } from "./error.mjs";
 import { captureFocus, restoreFocus, captureScroll, restoreScroll } from "./fokus.mjs";
 import { formatMoney, heuteIso } from "./komponenten.mjs";
@@ -96,6 +97,8 @@ function render() {
     return;
   }
   applyTheme();
+  // Vor dem Austausch: im Diffusor-Modus verdeckt der Beobachter das Neue, bevor es zu sehen ist.
+  diffusorAnwenden();
   const focusSnap = captureFocus(app);
   const scrollSnap = captureScroll(app);
   app.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
@@ -395,6 +398,12 @@ document.addEventListener?.("keydown", guard((event) => {
   if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "k") {
     event.preventDefault();
     oeffneSchnellsuche();
+    return;
+  }
+  // Diffusor-Modus: Alt+Umschalt+D (event.code, weil Alt auf dem Mac ein anderes Zeichen tippt).
+  if (event.altKey && event.shiftKey && !event.metaKey && !event.ctrlKey && event.code === "KeyD") {
+    event.preventDefault();
+    schalteDiffusor(render);
     return;
   }
   if (event.target?.id !== "schnellsuche-eingabe" || event.isComposing) return;

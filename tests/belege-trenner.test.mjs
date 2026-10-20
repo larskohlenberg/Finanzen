@@ -17,6 +17,6 @@ test("Trenner sitzt zwischen Baum und Liste, Breite als CSS-Variable", () => {
   const view = readFileSync(new URL("../app/views/belege.mjs", import.meta.url), "utf8");
   const css = readFileSync(new URL("../app/styles.css", import.meta.url), "utf8");
   assert.match(view, /<\/nav>\s*<div class="belege-trenner" data-belege-trenner role="separator"/);
-  assert.match(view, /class="belege-ordner-name" title=/);
+  assert.match(view, /class="belege-ordner-name"\$\{[^}]*\} title=/);
   assert.match(css, /\.belege-browser\s*{[^}]*var\(--belege-baum-breite/s);
 });

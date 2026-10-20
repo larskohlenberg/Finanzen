@@ -4,7 +4,7 @@
 // Einstellungen, mobile Navigation, Liquiditaet), nicht wie der Code heisst.
 // Demodaten; ohne lokales Chrome oder Playwright uebersprungen, in der CI (CI=true) Pflicht.
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -267,6 +267,49 @@ describe("Oberflaeche im Browser", { skip: fehlt ?? false, timeout: 120000 }, ()
     const zu = await zeilen();
     await seite.klicke(`[data-liquiditaet-toggle]`);
     await seite.warteAuf(`document.querySelectorAll("#app tr").length > ${zu}`, { text: "aufgeklappt" });
+  });
+
+  test("Diffusor: Knopf verdeckt Betraege und Namen auf allen Hauptseiten, Diagramme bleiben, Ausschalten zeigt sie wieder", async () => {
+    const lies = (datei) => JSON.parse(readFileSync(join(demo, datei), "utf8"));
+    const kategorien = new Set(lies("kategorien.json").map((k) => k.name.toLowerCase()));
+    const geheim = [
+      ...lies("personen.json").map((p) => p.name),
+      ...lies("konten.json").map((k) => k.name),
+      ...lies("vorsorge.json").map((v) => v.name),
+      ...lies("immobilien.json").map((i) => i.bezeichnung),
+      ...lies("darlehen.json").map((d) => d.bezeichnung),
+      ...lies("regelzahlungen.json").map((r) => r.bezeichnung),
+    ].filter((name) => !kategorien.has(name.toLowerCase()));
+    // Sichtbarer Text samt Hover-Texten und Beschriftungen.
+    const sichtbar = `[document.body.innerText, document.title, ...[...document.querySelectorAll("[title],[aria-label],[alt]")].flatMap((e) => ["title", "aria-label", "alt"].map((a) => e.getAttribute(a) ?? ""))].join("\\n")`;
+    const lesbarerBetrag = /\d(?:[\d.]*\d)?,\d{2}\s?€/u;
+
+    await oeffne("#/uebersicht");
+    await seite.klicke(`[data-action="toggle-diffusor"]`);
+    await seite.warteAuf(`document.documentElement.classList.contains("diffusor") && document.querySelector('[data-action="toggle-diffusor"]').getAttribute("aria-pressed") === "true"`, { text: "Diffusor an" });
+    for (const [hash, fertig] of [
+      ["#/uebersicht", `document.querySelector(".page-title") && !document.querySelector('[aria-busy="true"]')`],
+      ["#/transaktionen", `document.querySelector('section.panel[aria-busy="false"] .transaction-row')`],
+      ["#/vermoegen", `document.querySelector(".page-title") && !document.querySelector('[aria-busy="true"]')`],
+      ["#/vorsorge", `document.querySelector(".page-title") && !document.querySelector('[aria-busy="true"]')`],
+    ]) {
+      await seite.werte(`location.hash = ${JSON.stringify(hash)}; true`);
+      await seite.warteAuf(fertig, { text: `${hash} geladen` });
+      await seite.page.waitForTimeout(300);
+      const text = await seite.werte(sichtbar);
+      const gefunden = geheim.filter((name) => text.includes(name));
+      assert.deepEqual(gefunden, [], `${hash}: Namen sichtbar`);
+      assert.doesNotMatch(text, lesbarerBetrag, `${hash}: lesbarer Betrag`);
+      assert.ok(await seite.werte(`document.querySelectorAll(".diffus").length > 0`), `${hash}: verdeckte Stellen markiert`);
+    }
+    assert.ok(await seite.werte(`document.querySelectorAll("svg polyline, svg path").length > 0`), "Diagramme bleiben");
+    assert.equal(await seite.werte(`document.querySelectorAll(".logo-marke img").length`), 0, "keine Logos");
+    // Gemerkt: auch nach dem Neuladen verdeckt.
+    await seite.geheZu(`${basis}/?laden=${Date.now()}#/vorsorge`);
+    await seite.warteAuf(`document.querySelector("#app .page-title") && document.documentElement.classList.contains("diffusor")`, { text: "Diffusor gemerkt" });
+    await seite.page.keyboard.press("Alt+Shift+KeyD");
+    await seite.warteAuf(`!document.documentElement.classList.contains("diffusor")`, { text: "Diffusor aus" });
+    await seite.warteAuf(`/\\d,\\d{2}\\s?€/.test(document.body.innerText)`, { text: "Betraege wieder lesbar" });
   });
 
   test("keine Skriptfehler", () => {

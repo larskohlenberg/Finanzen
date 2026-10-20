@@ -3,6 +3,7 @@
 import { ablauf } from "../ablauf.mjs";
 import { verwerfeApiCaches } from "../api-daten.mjs";
 import { hashNachModuswechsel } from "../demo-modus.mjs";
+import { schalteDiffusor } from "../diffusor-anzeige.mjs";
 import { toggleKlappKachel } from "../komponenten.mjs";
 import { state, storageKeys } from "../runtime.mjs";
 import { zeigeChecks, commitNavigation } from "../verlauf.mjs";
@@ -69,6 +70,7 @@ export const aktionen = {
   "dokument-oeffnen": (element) => {
     window.open(element.dataset.url, "_blank", "noopener");
   },
+  "toggle-diffusor": () => schalteDiffusor(ablauf.render),
   "toggle-settings-menu": () => {
     state.settingsMenuOpen = !state.settingsMenuOpen;
     ablauf.render();

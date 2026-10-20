@@ -125,7 +125,7 @@ export function renderDokumenteAusschnitt({ pfade, schluessel, ids = [schluessel
   const ordnerAttr = (pfad) => `data-action="select-dok-ausschnitt-ordner" data-dok-ausschnitt="${escapeHtml(schluessel)}" data-beleg-ordner="${escapeHtml(pfad)}"`;
   const fremde = (d) => fremdeVerweise(verweisFuer(d.pfad), ids);
   const zeilen = sortiereDateien(ordner.dateien, ansicht.sort, (d) => { const f = fremde(d); return f.andere.length + f.buchungen; });
-  const kopf = `<p class="belege-kopf"><strong>${escapeHtml(ordner.pfad === BELEGE_WURZEL ? t("dokumente.title") : ordner.pfad.slice(BELEGE_WURZEL.length + 1))}</strong> <span class="muted">· ${ordner.dateien.length}</span></p>`;
+  const kopf = `<p class="belege-kopf"><strong${ordner.pfad === BELEGE_WURZEL ? "" : ' data-diffus="text"'}>${escapeHtml(ordner.pfad === BELEGE_WURZEL ? t("dokumente.title") : ordner.pfad.slice(BELEGE_WURZEL.length + 1))}</strong> <span class="muted">· ${ordner.dateien.length}</span></p>`;
   return `
     <div class="belege-browser belege-ausschnitt">
       <nav class="belege-baum" aria-label="${escapeHtml(t("dokumente.ordner"))}">
@@ -217,7 +217,7 @@ function renderOrdner(knoten, aktiverOrdner, aus = null) {
           ? `<button type="button" class="belege-toggle" ${toggleAttr} aria-label="${escapeHtml(`${toggleLabel}: ${knoten.name}`)}" title="${escapeHtml(toggleLabel)}">${iconSvg(offen ? "chevronDown" : "chevronRight")}</button>`
           : `<span class="belege-toggle-platz"></span>`}
         <button type="button" class="belege-ordner-knopf" ${waehlAttr}${aktiv ? ` aria-current="true"` : ""}>
-          ${iconSvg("folder")}<span class="belege-ordner-name" title="${escapeHtml(knoten.pfad === BELEGE_WURZEL ? t("dokumente.title") : knoten.name)}">${escapeHtml(knoten.pfad === BELEGE_WURZEL ? t("dokumente.title") : knoten.name)}</span>
+          ${iconSvg("folder")}<span class="belege-ordner-name"${knoten.pfad === BELEGE_WURZEL ? "" : ' data-diffus="text"'} title="${escapeHtml(knoten.pfad === BELEGE_WURZEL ? t("dokumente.title") : knoten.name)}">${escapeHtml(knoten.pfad === BELEGE_WURZEL ? t("dokumente.title") : knoten.name)}</span>
           <span class="belege-anzahl">${knoten.anzahl}</span>
         </button>
       </div>
@@ -264,7 +264,7 @@ function renderDateien(sichtbar, ordner, datei) {
   const zeilen = sortiereDateien(basis, ansicht.sort, (d) => verweisAnzahl(verweisFuer(d.pfad)));
   const kopf = suche
     ? `<p class="belege-kopf muted">${zeilen.length} ${escapeHtml(t("dokumente.treffer"))}</p>`
-    : `<p class="belege-kopf"><strong>${escapeHtml(ordner.pfad === BELEGE_WURZEL ? t("dokumente.title") : ordner.pfad.slice(BELEGE_WURZEL.length + 1))}</strong> <span class="muted">· ${ordner.dateien.length}</span></p>`;
+    : `<p class="belege-kopf"><strong${ordner.pfad === BELEGE_WURZEL ? "" : ' data-diffus="text"'}>${escapeHtml(ordner.pfad === BELEGE_WURZEL ? t("dokumente.title") : ordner.pfad.slice(BELEGE_WURZEL.length + 1))}</strong> <span class="muted">· ${ordner.dateien.length}</span></p>`;
   // Wie im Finder: Unterordner stehen vor den Dateien des Ordners.
   const unterordner = suche ? [] : ordner.ordner;
   if (zeilen.length === 0 && unterordner.length === 0) {
@@ -301,7 +301,7 @@ function renderTabelle({ zeilen, unterordner, suche = "", datei = null, ordnerAt
 function renderOrdnerZeile(o, ordnerAttr, aktionen = false) {
   return `
     <tr class="clickable belege-ordnerzeile" ${ordnerAttr(o.pfad)}>
-      <td class="belege-name"><button type="button" class="linkish" ${ordnerAttr(o.pfad)}>${iconSvg("folder")}<span>${escapeHtml(o.name)}</span></button></td>
+      <td class="belege-name"><button type="button" class="linkish" ${ordnerAttr(o.pfad)}>${iconSvg("folder")}<span data-diffus="text">${escapeHtml(o.name)}</span></button></td>
       <td class="muted">${escapeHtml(t("dokumente.ordnerTyp"))}</td>
       <td class="amount muted">${escapeHtml(tf("dokumente.dateienAnzahl", { n: String(o.anzahl) }))}</td>
       <td></td>
@@ -319,7 +319,7 @@ function renderAusschnittZeile(d, fremde) {
   const url = belegDateiUrl(d.pfad, state.dataMode);
   return `
     <tr class="clickable" data-action="dokument-oeffnen" data-url="${escapeHtml(url)}" title="${escapeHtml(t("dokumente.oeffnen"))}">
-      <td class="belege-name"><a class="linkish" href="${escapeHtml(url)}" target="_blank" rel="noopener" data-action="dokument-link">${iconSvg("belege")}<span>${escapeHtml(d.name)}</span></a></td>
+      <td class="belege-name"><a class="linkish" href="${escapeHtml(url)}" target="_blank" rel="noopener" data-action="dokument-link">${iconSvg("belege")}<span data-diffus="text">${escapeHtml(d.name)}</span></a></td>
       <td>${escapeHtml(typText(d.typ))}</td>
       <td class="amount">${escapeHtml(fmt().groesse(d.groesse))}</td>
       <td title="${escapeHtml(formatZeit(d.geaendert))}">${escapeHtml(formatTag(d.geaendert))}</td>
@@ -348,7 +348,7 @@ function renderZeile(d, gewaehlt, suche) {
   const anzahl = verweisAnzahl(verweisFuer(d.pfad));
   return `
     <tr class="clickable ${gewaehlt ? "selected" : ""}" data-action="select-beleg" data-beleg="${escapeHtml(d.pfad)}">
-      <td class="belege-name"><a class="linkish" href="${escapeHtml(zielRoute("select-beleg", d.pfad))}" data-action="select-beleg" data-beleg="${escapeHtml(d.pfad)}"${gewaehlt ? ` aria-current="true"` : ""}>${iconSvg("belege")}<span>${escapeHtml(d.name)}</span></a></td>
+      <td class="belege-name"><a class="linkish" href="${escapeHtml(zielRoute("select-beleg", d.pfad))}" data-action="select-beleg" data-beleg="${escapeHtml(d.pfad)}"${gewaehlt ? ` aria-current="true"` : ""}>${iconSvg("belege")}<span data-diffus="text">${escapeHtml(d.name)}</span></a></td>
       ${suche ? `<td class="muted">${escapeHtml(d.ordner.slice(BELEGE_WURZEL.length + 1) || "/")}</td>` : ""}
       <td>${escapeHtml(typText(d.typ))}</td>
       <td class="amount">${escapeHtml(fmt().groesse(d.groesse))}</td>
@@ -378,7 +378,7 @@ function renderDetail(d) {
       <div class="detail-head">
         <div>
           <div class="detail-label">${escapeHtml(t("dokumente.details"))}</div>
-          <h2 class="section-title belege-detail-titel" id="belege-detail-titel">${escapeHtml(d.name)}</h2>
+          <h2 class="section-title belege-detail-titel" id="belege-detail-titel"><span data-diffus="text">${escapeHtml(d.name)}</span></h2>
         </div>
         <button class="icon-button" data-action="close-beleg" aria-label="${escapeHtml(t("dokumente.schliessen"))}" title="${escapeHtml(t("dokumente.schliessen"))}">${iconSvg("close")}</button>
       </div>

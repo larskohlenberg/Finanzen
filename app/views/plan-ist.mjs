@@ -220,7 +220,7 @@ function kategorieTabelle(seite, { wert, mehrIstGut, ziel, einzel }) {
         <span class="muted">${escapeHtml(z.konto_id ? tf("planIst.termineGebucht", { termine: z.termine, gebucht: z.gebucht_anzahl }) : t("planIst.konsumplan"))}</span>
         <span class="amount">${escapeHtml(geld(wert(Math.abs(z.plan_cents))))}${z.konto_id ? ` / ${escapeHtml(geld(wert(Math.abs(z.gebucht_cents))))}` : ""}</span></li>`).join("");
     const posten = k.einzel_buchungen.map((b) => `
-      <li><a class="linkish" href="#/transaktionen/${encodeURIComponent(b.transaktion_id)}">${escapeHtml(formatDate(b.datum))} · ${escapeHtml(b.gegenpartei || t("planIst.ohneGegenpartei"))}</a><span class="amount">${escapeHtml(geld(Math.abs(b.betrag_cents)))}</span></li>`).join("");
+      <li><a class="linkish" href="#/transaktionen/${encodeURIComponent(b.transaktion_id)}">${escapeHtml(formatDate(b.datum))} · ${b.gegenpartei ? `<span data-diffus="gegenpartei">${escapeHtml(b.gegenpartei)}</span>` : escapeHtml(t("planIst.ohneGegenpartei"))}</a><span class="amount">${escapeHtml(geld(Math.abs(b.betrag_cents)))}</span></li>`).join("");
     const detail = `
       <tr class="plan-ist-detail"><td colspan="${spalten}">
         ${rz ? `<h4>${escapeHtml(t("planIst.regelzahlungen"))} <span class="muted">${escapeHtml(t("planIst.planSlashGebucht"))}</span></h4><ul class="plan-ist-liste">${rz}</ul>` : `<p class="muted">${escapeHtml(t("planIst.keineRegelzahlung"))}</p>`}

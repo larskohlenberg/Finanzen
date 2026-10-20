@@ -163,7 +163,7 @@ test("Ausschnitt je Objekt: gleicher Baum und gleiche Tabelle, nur die Dateien d
   assert.doesNotMatch(html, /Rente/, "fremde Ordner fehlen im Baum");
   assert.match(html, /belege-anzahl">2</, "Wurzel zaehlt nur die zwei Dateien des Objekts");
   // Start im tiefsten gemeinsamen Ordner, Dateien oeffnen die Dokumentenansicht.
-  assert.match(html, /belege-kopf"><strong>Kontoauszuege\/KTO-001<\/strong>/);
+  assert.match(html, /belege-kopf"><strong data-diffus="text">Kontoauszuege\/KTO-001<\/strong>/);
   // Im Ausschnitt oeffnen Zeile und Name die Datei direkt; hinten Herunterladen und der Weg in die Dokumentenansicht.
   assert.match(html, /<tr class="clickable" data-action="dokument-oeffnen" data-url="data\/demo-belege\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf"/);
   assert.match(html, /<a class="linkish" href="data\/demo-belege\/Kontoauszuege\/KTO-001\/auszug_2026-01\.pdf" target="_blank" rel="noopener" data-action="dokument-link">/);
@@ -179,7 +179,7 @@ test("Ausschnitt je Objekt: gleicher Baum und gleiche Tabelle, nur die Dateien d
   // Ordnerwahl und Zuklappen gelten nur fuer diesen Ausschnitt.
   view.waehleAusschnittOrdner("KTO-001", "Belege/Kontoauszuege");
   let nachWahl = view.renderDokumenteAusschnitt({ pfade: [PDF, CSV], schluessel: "KTO-001" });
-  assert.match(nachWahl, /belege-kopf"><strong>Kontoauszuege<\/strong>/);
+  assert.match(nachWahl, /belege-kopf"><strong data-diffus="text">Kontoauszuege<\/strong>/);
   assert.match(nachWahl, /belege-ordnerzeile" data-action="select-dok-ausschnitt-ordner" data-dok-ausschnitt="KTO-001" data-beleg-ordner="Belege\/Kontoauszuege\/KTO-001"/);
   view.toggleAusschnittOrdner("KTO-001", "Belege/Kontoauszuege");
   nachWahl = view.renderDokumenteAusschnitt({ pfade: [PDF, CSV], schluessel: "KTO-001" });

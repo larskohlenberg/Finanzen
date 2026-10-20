@@ -386,7 +386,6 @@ const CLI_WERKZEUGE = [
     eigenschaften: {
       ids: { type: "array", items: ID("TXN"), minItems: 1 },
       immobilie: ID("IMM"),
-      person: ID("PER"),
       entfernen: { type: "boolean" },
       ersetzen: { type: "boolean" },
       bemerkung: { type: "string", maxLength: 300 },
@@ -663,6 +662,7 @@ const transaktionenAbfragen = {
       konto: ID("KTO"),
       kategorie: ID("KAT"),
       immobilie: ID("IMM"),
+      person: ID("PER"),
       status: { type: "string", enum: ["offen", "vorgeschlagen", "bestaetigt", "abgelehnt"] },
       text: { type: "string", maxLength: 200 },
       betrag_min: BETRAG,

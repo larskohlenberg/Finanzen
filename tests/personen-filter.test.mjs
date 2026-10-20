@@ -52,3 +52,13 @@ test("MCP-Abfrage: Filter person und gruppieren_nach person mit Namen", () => {
   const out = abfragen(daten.transaktionen, { gruppieren_nach: "person" }, { personen: { "PER-003": "Kind A" } });
   assert.deepEqual(out.gruppen.map((g) => [g.schluessel, g.name, g.summe]), [["(ohne)", undefined, "-98.00"], ["PER-003", "Kind A", "-69.00"], ["PER-004", undefined, "-10.00"]]);
 });
+
+test("MCP-Schemas: person gehoert zu transaktionen_abfragen und personenbezug, nicht zum Immobilienbezug", async () => {
+  const { WERKZEUGE } = await import("../app/mcp/werkzeuge.mjs");
+  const props = (name) => Object.keys(WERKZEUGE.find((w) => w.name === name).inputSchema.properties);
+  assert.ok(props("transaktionen_abfragen").includes("person"));
+  assert.ok(props("personenbezug").includes("person"));
+  assert.ok(!props("immobilienbezug").includes("person"));
+  const gruppen = WERKZEUGE.find((w) => w.name === "transaktionen_abfragen").inputSchema.properties.gruppieren_nach.enum;
+  assert.ok(gruppen.includes("person"));
+});

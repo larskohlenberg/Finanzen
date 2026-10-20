@@ -121,20 +121,27 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
     await seite.warteAuf(`Number(document.querySelector(".filter-result-count").textContent.trim().split(" ")[0]) === Number(document.querySelector(".filter-result-count").textContent.trim().split(" ")[2])`, { text: "alle Treffer" });
   });
 
-  test("Filteranordnung: Suche und Zeitraum in einer Kopfzeile, die uebrigen Filter in drei beschrifteten Gruppen", async () => {
+  test("Filteranordnung: Suche oben, Zeitraum darunter, drei Gruppen ohne sichtbare Titel, aktive Filter ueber der Trefferzeile", async () => {
     await oeffne("#/transaktionen");
     await listeGeladen();
     const kopf = await seite.werte(`[...document.querySelectorAll(".filter-kopf [data-filter]")].map((el) => el.dataset.filter)`);
     assert.deepEqual(kopf, ["search", "timeMode"]);
-    const gruppen = await seite.werte(`[...document.querySelectorAll(".filter-gruppe")].map((g) => [g.querySelector(".filter-gruppe-titel").textContent.trim(), [...g.querySelectorAll("[data-filter]")].map((el) => el.dataset.filter)])`);
+    const gruppen = await seite.werte(`[...document.querySelectorAll(".filter-gruppe")].map((g) => [g.getAttribute("aria-label"), [...g.querySelectorAll("[data-filter]")].map((el) => el.dataset.filter)])`);
     assert.deepEqual(gruppen.map(([, f]) => f), [["account", "category", "regelzahlung"], ["richtung", "betragVon", "betragBis"], ["status", "origin", "transfer"]]);
-    assert.ok(gruppen.every(([titel]) => titel.length > 0), "jede Gruppe hat eine Ueberschrift");
-    // Suche und Zeitraum stehen auf dem Desktop auf einer Hoehe.
-    const oben = await seite.werte(`[document.querySelector('input[data-filter="search"]'), document.querySelector('select[data-filter="timeMode"]')].map((el) => Math.round(el.getBoundingClientRect().top))`);
-    assert.equal(oben[0], oben[1], "eine Zeile");
+    assert.ok(gruppen.every(([titel]) => titel?.length > 0), "jede Gruppe ist fuer Screenreader benannt");
+    // Der Zeitraum steht unter der Suche, die Suche behaelt die volle Breite, auch mit Quartal.
+    await waehle(`select[data-filter="timeMode"]`, "quarter");
+    await seite.warteAuf(`document.querySelector('select[data-filter="quarter"]') && document.querySelector(".filter-chips")`, { text: "Quartal und Chip" });
+    const [suche, zeit, leiste] = await seite.werte(`[document.querySelector('input[data-filter="search"]'), document.querySelector('select[data-filter="timeMode"]'), document.querySelector(".filter-bar")].map((el) => { const r = el.getBoundingClientRect(); return { oben: Math.round(r.top), unten: Math.round(r.bottom), breite: Math.round(r.width) }; })`);
+    assert.ok(zeit.oben >= suche.unten, "Zeitraum unter der Suche");
+    assert.ok(suche.breite > leiste.breite * 0.9, "Suche ueber die ganze Breite");
+    // Aktive Filter erscheinen als Chips unter den Feldern, direkt vor der Trefferzeile.
+    const reihenfolge = await seite.werte(`[...document.querySelector(".filter-bar").children].map((el) => el.className.split(" ")[0])`);
+    assert.deepEqual(reihenfolge.slice(-2), ["filter-chips", "filter-actions"]);
     // Betragsfelder so hoch wie die Auswahlfelder.
     const hoehen = await seite.werte(`[document.querySelector('input[data-filter="betragVon"]'), document.querySelector('select[data-filter="richtung"]')].map((el) => Math.round(el.getBoundingClientRect().height))`);
     assert.equal(hoehen[0], hoehen[1]);
+    await waehle(`select[data-filter="timeMode"]`, "none");
   });
 
   test("Zeitraumfilter: Monat, Quartal und Von-Bis blenden ihre Felder ein und belegen sie mit dem juengsten Zeitraum", async () => {

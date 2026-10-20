@@ -285,7 +285,7 @@ function zeitfilterText(f) {
 
 function renderTransactionFilters(antwort) {
   return renderTableFilters({
-    prefix: renderFilterChips(),
+    chips: renderFilterChips(),
     searchFields: [
       {
         name: "search",

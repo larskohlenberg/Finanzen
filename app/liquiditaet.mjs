@@ -145,8 +145,13 @@ export function liquiditaetVerlauf(data, today, monate = 12) {
   for (let i = monate - 1; i >= 0; i--) {
     const monat = addInterval(`${today.slice(0, 7)}-01`, "monat", -i).slice(0, 7);
     const datum = i === 0 ? today : addInterval(addInterval(`${monat}-01`, "monat", 1), "tag", -1);
-    const saldo = liquiditaetsKonten(data.konten, datum).reduce((a, k) => a + (kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum).saldo_cents ?? 0), 0);
-    punkte.push({ monat, datum, saldo_cents: saldo, grosse: grosse.filter((g) => g.monat === monat) });
+    const staende = liquiditaetsKonten(data.konten, datum).map((k) => kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum));
+    const saldo = staende.reduce((a, w) => a + (w.saldo_cents ?? 0), 0);
+    // modelliert: mindestens ein Konto ist nur aus einem spaeteren Anker
+    // zurueckgerechnet. Konten ganz ohne Anker zaehlen 0 und meldet die
+    // Kachel ueber "fehlende Anker", nicht als Rueckrechnung.
+    const modelliert = staende.some((w) => w.basis === "anker-rueckwaerts");
+    punkte.push({ monat, datum, saldo_cents: saldo, modelliert, grosse: grosse.filter((g) => g.monat === monat) });
   }
   trendVerlauf(punkte.map((p) => p.saldo_cents)).forEach((tr, i) => Object.assign(punkte[i], tr));
   return punkte;

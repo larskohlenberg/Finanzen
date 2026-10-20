@@ -764,7 +764,10 @@ export function zeitstrahlDiagramm({ spalten, serien, phasen = [], ereignisse = 
     titel: s.titel ?? s.label,
     // spalten[i].zusatz: weitere fertige Hover-Zeilen, z. B. grosse Buchungen des Monats.
     zeilen: [
-      ...gueltig.map((serie) => ({ klasse: serie.klasse, label: serie.label, wert: serie.werte[i] == null ? "—" : formatWert(serie.werte[i]) })),
+      // Mehrteilige Serien (z. B. belegt/zurueckgerechnet) zeigen nur ihren
+      // Abschnitt; fehlt nur dort ein Wert, wo eine Nachbarserie ihn hat, keine "—"-Zeile.
+      ...gueltig.filter((serie) => serie.werte[i] != null || !serie.teil).map((serie) => ({ klasse: serie.klasse, label: serie.label, wert: serie.werte[i] == null ? "—" : formatWert(serie.werte[i]) }))
+        .filter((zeile, k, alle) => !gueltig.find((s) => s.klasse === zeile.klasse)?.teil || alle.findIndex((z) => z.wert === zeile.wert && gueltig.find((s) => s.klasse === z.klasse)?.teil) === k),
       ...(s.zusatz ?? []),
     ],
   }));

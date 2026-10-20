@@ -17,11 +17,13 @@ export async function kalenderAnbinden(wurzel, { sprache = "de", beiWahl }) {
   for (const platz of plaetze) {
     if (!platz.isConnected) continue;
     const wert = platz.dataset.wert || "";
+    // Ohne Wert zeigt der Kalender den Monat von data-ansicht (sonst heute).
+    const monat = wert || platz.dataset.ansicht || "";
     const kalender = new Calendar(platz, {
       locale: sprache === "en" ? "en-GB" : "de-DE",
       firstWeekday: 1,
       selectedDates: wert ? [wert] : [],
-      ...(wert ? { selectedMonth: Number(wert.slice(5, 7)) - 1, selectedYear: Number(wert.slice(0, 4)) } : {}),
+      ...(monat ? { selectedMonth: Number(monat.slice(5, 7)) - 1, selectedYear: Number(monat.slice(0, 4)) } : {}),
       ...(platz.dataset.min ? { dateMin: platz.dataset.min, displayDateMin: platz.dataset.min } : {}),
       onClickDate(self) {
         const gewaehlt = self.context.selectedDates[0];

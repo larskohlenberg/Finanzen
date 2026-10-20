@@ -35,5 +35,5 @@ Kalender-Bibliothek entschieden.
 
 ## Konsequenz
 
-- Weitere Datumsfelder (z. B. Von-Bis der Buchungen) koennen denselben Baustein nutzen.
+- Seit 2026-10-20 nutzen "Prognose bis" und Von-Bis der Buchungen denselben Baustein `datumsFeld` (komponenten.mjs): Datum tippen (TT.MM.JJJJ, auch kurz oder ISO; Enter oder Verlassen uebernimmt, Unlesbares wird markiert) oder Kalender ueber das Symbol im Feld.
 - Aktualisieren nach `HERKUNFT.md`: Version mindestens zwei Wochen alt, erneute Pruefung auf CSP-Verstoesse.

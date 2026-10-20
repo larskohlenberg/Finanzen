@@ -39,6 +39,7 @@ import { aktionen as szenarioAktionen } from "./aktionen/szenarien.mjs";
 import { aktionen as planTermineAktionen } from "./aktionen/plan-termine.mjs";
 import { iconSvg } from "./icons.js";
 import { kalenderAnbinden } from "./kalender.mjs";
+import { datumAusEingabe } from "./datum-eingabe.mjs";
 
 let sitzungGesperrt = false;
 
@@ -113,7 +114,7 @@ function render() {
   restoreScroll(app, scrollSnap);
   anwendenBaumBreite(app);
   termineListenBegrenzen(app);
-  kalenderAnbinden(app, { sprache: state.lang, beiWahl: (name, datum) => { if (name === "liquiditaet-bis") setzeHorizont(datum); } }).catch(setUiError);
+  kalenderAnbinden(app, { sprache: state.lang, beiWahl: setzeDatum }).catch(setUiError);
   restoreFocus(app, focusSnap);
   // Neue Seite: der Fokus geht auf ihre Ueberschrift (Screenreader liest sie),
   // ausser er steht schon im Inhalt (z. B. nach einem Link innerhalb der Seite).
@@ -132,12 +133,27 @@ function render() {
   if (state.view === "vermoegen" && ["immobilien", "darlehen"].includes(state.vermoegenTab)) belegeBeiBedarfLaden(render);
 }
 
-// Prognosehorizont setzen (Schnellauswahl oder Kalender); schliesst den Kalender.
+// Prognosehorizont setzen (Schnellauswahl oder Datumsfeld); schliesst den Kalender.
 function setzeHorizont(datum) {
   state.liquiditaet.bisDatum = datum || defaultHorizonEnd(heuteIso());
-  state.liquiditaet.kalenderOffen = false;
+  state.kalenderOffen = "";
   state.liquiditaetExpanded.clear();
   render();
+}
+
+// Wert eines Datumsfelds (getippt oder im Kalender gewaehlt), ISO oder "".
+function setzeDatum(name, datum) {
+  if (name === "liquiditaet-bis") {
+    setzeHorizont(datum);
+    return;
+  }
+  if (name.startsWith("filter:")) {
+    state.kalenderOffen = "";
+    state.transactionFilters[name.slice("filter:".length)] = datum;
+    state.view = "transactions";
+    state.transactionPage = 1;
+    commitNavigation();
+  }
 }
 
 function seitenName() {
@@ -205,9 +221,9 @@ app.addEventListener("click", guard((event) => {
   }
   // Pfad zur Zeit des Klicks: der Kalender zeichnet seine Tage beim Klick neu,
   // das Ziel haengt danach nicht mehr im Dokument.
-  const imKalender = () => (event.composedPath?.() ?? [event.target]).some((el) => el.closest?.(".kalender-popover, [data-liquiditaet-kalender]"));
-  if (state.liquiditaet.kalenderOffen && !imKalender()) {
-    state.liquiditaet.kalenderOffen = false;
+  const imKalender = () => (event.composedPath?.() ?? [event.target]).some((el) => el.closest?.(".kalender-popover, [data-datum-kalender]"));
+  if (state.kalenderOffen && !imKalender()) {
+    state.kalenderOffen = "";
     render();
   }
 
@@ -250,8 +266,10 @@ app.addEventListener("click", guard((event) => {
     return;
   }
 
-  if (event.target.closest("[data-liquiditaet-kalender]")) {
-    state.liquiditaet.kalenderOffen = !state.liquiditaet.kalenderOffen;
+  const kalenderKnopf = event.target.closest("[data-datum-kalender]");
+  if (kalenderKnopf) {
+    const name = kalenderKnopf.dataset.datumKalender;
+    state.kalenderOffen = state.kalenderOffen === name ? "" : name;
     render();
     return;
   }
@@ -326,10 +344,11 @@ app.addEventListener("click", guard((event) => {
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
 const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-wertstaende-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
 app.addEventListener("keydown", guard((event) => {
-  if (event.key === "Escape" && state.liquiditaet.kalenderOffen) {
-    state.liquiditaet.kalenderOffen = false;
+  if (event.key === "Escape" && state.kalenderOffen) {
+    const name = state.kalenderOffen;
+    state.kalenderOffen = "";
     render();
-    app.querySelector("[data-liquiditaet-kalender]")?.focus();
+    app.querySelector(`[data-datum-kalender="${CSS.escape(name)}"]`)?.focus();
     return;
   }
   if (event.key === "Escape" && state.settingsMenuOpen) {
@@ -514,6 +533,16 @@ app.addEventListener("change", guard((event) => {
     state.planIst.periode = control.value || "";
     state.planIstOffen.clear();
     commitNavigation({ ersetzen: true });
+    return;
+  }
+
+  // Datumsfeld: getippter Wert beim Verlassen oder mit Enter. Unlesbares bleibt
+  // stehen und wird markiert, der bisherige Wert gilt weiter.
+  const datumFeld = event.target.closest("input[data-datum-feld]");
+  if (datumFeld) {
+    const datum = datumAusEingabe(datumFeld.value);
+    datumFeld.toggleAttribute("aria-invalid", datum === null);
+    if (datum !== null) setzeDatum(datumFeld.dataset.datumFeld, datum);
     return;
   }
 

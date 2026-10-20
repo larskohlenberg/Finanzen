@@ -4,7 +4,7 @@
 // Modell-Begruendung: Liquiditaet = belegter Konto-Anker + Ist-Buchungen + Regelzahlungs-Fortschreibung.
 
 import { toCents } from "./tools/lib/text.mjs";
-import { aktivAm, kontoStand } from "./bewertung.mjs";
+import { kontoAktivAm, kontoStand } from "./bewertung.mjs";
 import { addInterval, naechsterTermin, termine } from "./rhythmus.mjs";
 export { toCents, addInterval };
 
@@ -66,10 +66,10 @@ export function periodenSchluessel(monat, granularitaet) {
 }
 
 // Liquide Konten zum Stichtag: liquiditaetsrelevant, kein Bargeld, kein Depot;
-// geschlossene zaehlen bis aktiv_bis (Lebenszyklus wie im Bewertungsstand).
-function liquiditaetsKonten(konten, datum) {
-  return (konten ?? []).filter((konto) =>
-    aktivAm(konto, "geschlossen", datum)
+// geschlossene zaehlen bis aktiv_bis bzw. letztem Stand (wie im Bewertungsstand).
+function liquiditaetsKonten(data, datum) {
+  return (data.konten ?? []).filter((konto) =>
+    kontoAktivAm(konto, datum, data)
     && konto.liquiditaetsrelevant === true
     && konto.kontotyp !== "bar"
     && konto.kontotyp !== "depot"
@@ -101,7 +101,7 @@ export function computeLiquiditaetIst(data, { today }) {
   let fehlendeAnker = 0;
   const gueltigeKontoIds = new Set();
 
-  for (const konto of liquiditaetsKonten(data.konten, today)) {
+  for (const konto of liquiditaetsKonten(data, today)) {
     const kontoSaldo = kontoSaldoZuDatum(konto, data.zeitwerte, data.transaktionen, today);
     if (kontoSaldo.saldo_cents === null) {
       fehlendeAnker++;
@@ -145,7 +145,7 @@ export function liquiditaetVerlauf(data, today, monate = 12) {
   for (let i = monate - 1; i >= 0; i--) {
     const monat = addInterval(`${today.slice(0, 7)}-01`, "monat", -i).slice(0, 7);
     const datum = i === 0 ? today : addInterval(addInterval(`${monat}-01`, "monat", 1), "tag", -1);
-    const staende = liquiditaetsKonten(data.konten, datum).map((k) => kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum));
+    const staende = liquiditaetsKonten(data, datum).map((k) => kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum));
     const saldo = staende.reduce((a, w) => a + (w.saldo_cents ?? 0), 0);
     // modelliert: mindestens ein Konto ist nur aus einem spaeteren Anker
     // zurueckgerechnet. Konten ganz ohne Anker zaehlen 0 und meldet die
@@ -215,7 +215,7 @@ function buchungsLabel(tx, data) {
 // ohne Regelzahlungen und ohne Gegenparteien, die in mindestens drei Monaten mit
 // aehnlichem Betrag (+-20 %) wiederkehren, etwa das Gehalt. Nach Datum.
 export function grosseBuchungen(data, von, bis, schwelle = GROSSE_BUCHUNG_CENTS) {
-  const liquide = new Set(liquiditaetsKonten(data.konten, von).map((k) => k.konto_id));
+  const liquide = new Set(liquiditaetsKonten(data, von).map((k) => k.konto_id));
   const kontoVon = new Map((data.transaktionen ?? []).map((tx) => [tx.transaktion_id, tx.konto_id]));
   const transfers = new Map((data.transfers ?? []).map((tr) => [tr.transfer_id, tr]));
   const intern = (tx) => {

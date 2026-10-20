@@ -211,6 +211,8 @@ Statuswerte sind **pro Entitaet** spezifisch — kein einheitliches Vokabular ue
 
 Statuswechsel mit Zeitbezug: Feld `aktiv_bis` (optional, Datum). Wenn gesetzt und in der Vergangenheit, gilt die Entitaet fuer **neue** Zuordnungen als inaktiv; **bestehende** Verweise (z. B. Altbuchungen auf eine inaktive Kategorie) bleiben gueltig.
 
+Im **Bewertungsstand** (Vermoegen, Verlauf, Liquiditaet) zaehlt ein Objekt mit Endstatus (geschlossen, verkauft, veraeussert, gekuendigt, beendet, abgeloest) bis einschliesslich `aktiv_bis`. Fehlt `aktiv_bis`, zaehlt es bis zu seinem **letzten bekannten Stand** (juengster Zeitwert, bei Konten auch letzte Buchung) und der Check „Enddatum fehlt“ meldet sich; ohne jeden Stand zaehlt es gar nicht. Laufende und ruhende Objekte zaehlen immer.
+
 ## Zeitwerte
 
 Werte mit zeitlichem Bezug, die **nicht aus Transaktionen berechenbar** sind, leben in einer zentralen `data/master/zeitwerte.jsonl`:

@@ -31,6 +31,8 @@ export const VORLAGEN = Object.freeze({
   "marktwert-fehlt": "{objekt}: kein {wert}",
   "bewertung-veraltet": "{objekt}: {wert} vom {datum} älter als {dauer}",
   "darlehen-ohne-regelzahlung": "{objekt}: Rate nicht in der Liquiditätsprognose — Regelzahlung anlegen?",
+  "enddatum-fehlt": "{objekt}: beendet, aber ohne Enddatum (aktiv_bis) — zählt bis zum letzten bekannten Stand {datum}; Enddatum eintragen",
+  "enddatum-fehlt-ohne-stand": "{objekt}: beendet, aber ohne Enddatum (aktiv_bis) und ohne bekannten Stand — zählt gar nicht; Enddatum eintragen",
   "darlehen-rate-abweichung": "{objekt}: Regelzahlung {rz} zahlt {rate}, Sollrate {soll} — Tilgung rechnet mit der Regelzahlung",
   "vorsorge-dynamik": "{objekt}: Dynamik zum {termin} entscheiden{zusatz}",
   "dynamik-vorschlag": " — nach der Regel „nur jede dritte annehmen“: {vorschlag}{chance}",
@@ -69,7 +71,7 @@ function texter(format) {
 
 export function vermoegenCheckText(c, format = {}) {
   const { geld, datum, satz, wort } = texter(format);
-  const klasse = c.entitaet === "konto" && c.art !== "anker-fehlt" && c.art !== "reconciliation-drift" ? "depot" : c.entitaet;
+  const klasse = c.entitaet === "konto" && c.art !== "anker-fehlt" && c.art !== "reconciliation-drift" && c.art !== "enddatum-fehlt" ? "depot" : c.entitaet;
   const objekt = `${wort(`klasse-${klasse}`) ?? c.entitaet} ${c.name ?? c.entitaet_id}`;
   const dauer = (n) => satz(n === 1 ? "monat" : "monate", { n });
   switch (c.art) {
@@ -78,6 +80,7 @@ export function vermoegenCheckText(c, format = {}) {
     case "marktwert-fehlt": return satz("marktwert-fehlt", { objekt, wert: wort(c.entitaet === "konto" ? "wert-depot" : "wert-markt") });
     case "bewertung-veraltet": return satz("bewertung-veraltet", { objekt, wert: wort(c.entitaet === "konto" ? "wert-depot" : c.entitaet === "immobilie" ? "wert-markt" : "wert-allgemein"), datum: datum(c.standdatum), dauer: dauer(c.schwelle_monate) });
     case "darlehen-ohne-regelzahlung": return satz("darlehen-ohne-regelzahlung", { objekt });
+    case "enddatum-fehlt": return c.letzter_stand ? satz("enddatum-fehlt", { objekt, datum: datum(c.letzter_stand) }) : satz("enddatum-fehlt-ohne-stand", { objekt });
     case "darlehen-rate-abweichung": return satz("darlehen-rate-abweichung", { objekt, rz: c.regelzahlung_id, rate: geld(c.rate_cents), soll: geld(c.sollrate_cents) });
     case "vorsorge-dynamik": return satz("vorsorge-dynamik", {
       objekt,

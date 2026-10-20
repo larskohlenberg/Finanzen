@@ -28,7 +28,9 @@
 //   Verlauf erst mit seinem Beginn hinein.
 // - Lebenszyklus: Objekte mit Endstatus (Konto geschlossen, Immobilie verkauft,
 //   Vermoegenswert veraeussert, Darlehen abgeloest, Vorsorge gekuendigt oder
-//   beendet) zaehlen bis einschliesslich aktiv_bis, ohne aktiv_bis gar nicht.
+//   beendet) zaehlen bis einschliesslich aktiv_bis, ohne aktiv_bis bis zu ihrem
+//   letzten bekannten Stand (juengster Zeitwert, bei Konten auch letzte Buchung);
+//   ohne jeden Stand gar nicht. Der Validator warnt, wenn aktiv_bis fehlt.
 //   Immobilien vor der Anschaffung und Darlehen vor dem Anfangsdatum zaehlen noch
 //   nicht, solange es bis dahin keinen Marktwert bzw. Restschuld-Anker gibt. Solche Objekte stehen in `ausserhalb`, nicht in `positionen`.
 // - Vorsorge: nur kapitalbildende Vertraege, bewertet mit dem Rueckkaufswert.
@@ -61,10 +63,34 @@ function naechsterZeitwert(zeitwerte, entitaet, entitaetId, feld, nach) {
 
 const herkunftVon = (zw) => (zw ? { feld: zw.feld, standdatum: zw.standdatum, wert: zw.wert } : null);
 
-// Objekt mit Endstatus zaehlt bis einschliesslich aktiv_bis, ohne aktiv_bis gar nicht.
-export function aktivAm(obj, endStatus, datum) {
+// Objekt mit Endstatus zaehlt bis einschliesslich aktiv_bis. Fehlt aktiv_bis,
+// gilt ersatzEnde() (letzter bekannter Stand, lazy); ohne beides gar nicht.
+// Objekte ohne Endstatus zaehlen immer.
+export function aktivAm(obj, endStatus, datum, ersatzEnde = () => null) {
   const ende = Array.isArray(endStatus) ? endStatus : [endStatus];
-  return !ende.includes(obj.status) || Boolean(obj.aktiv_bis && datum <= obj.aktiv_bis);
+  if (!ende.includes(obj.status)) return true;
+  const bis = obj.aktiv_bis || ersatzEnde();
+  return Boolean(bis && datum <= bis);
+}
+
+// Juengstes Datum, zu dem ein Objekt einen Stand hat: Zeitwerte jeder Art, bei
+// Konten auch Buchungen. Ersatz-Ende fuer beendete Objekte ohne aktiv_bis.
+export function letzterBekannterStand(data, entitaet, id) {
+  let letzt = null;
+  for (const zw of data.zeitwerte ?? []) {
+    if (zw.entitaet === entitaet && zw.entitaet_id === id && (!letzt || zw.standdatum > letzt)) letzt = zw.standdatum;
+  }
+  if (entitaet === "konto") {
+    for (const tx of data.transaktionen ?? []) {
+      if (tx.konto_id === id && (!letzt || tx.buchungsdatum > letzt)) letzt = tx.buchungsdatum;
+    }
+  }
+  return letzt;
+}
+
+// Geschlossene Konten wie oben: bis aktiv_bis, sonst bis zum letzten Stand.
+export function kontoAktivAm(konto, datum, data) {
+  return aktivAm(konto, "geschlossen", datum, () => letzterBekannterStand(data, "konto", konto.konto_id));
 }
 
 // Wert eines Kontos zum Stichtag nach Kontotyp (ADR 0013). Liefert
@@ -170,7 +196,7 @@ export function gesamtQualitaet(positionen) {
   return schlechteste;
 }
 
-const ENDSTATUS = {
+export const ENDSTATUS = {
   konto: "geschlossen",
   immobilie: "verkauft",
   vermoegenswert: "veraeussert",
@@ -208,7 +234,7 @@ export function stand(data, datum) {
     });
   };
   const beendet = (klasse, obj, id, name) => {
-    if (aktivAm(obj, ENDSTATUS[klasse], datum)) return false;
+    if (aktivAm(obj, ENDSTATUS[klasse], datum, () => letzterBekannterStand(data, klasse, id))) return false;
     ausserhalb.push({ klasse, id, name, lebenszyklus: "beendet" });
     return true;
   };

@@ -3,7 +3,7 @@
 // kommt als Argument. Die Uebersicht (ueber selektoren.mjs) und das MCP-Tool
 // `kennzahlen` rufen dieselben Funktionen, damit beide gleich rechnen.
 import { toCents } from "./tools/lib/text.mjs";
-import { aktivAm } from "./bewertung.mjs";
+import { kontoAktivAm } from "./bewertung.mjs";
 import { vermoegenCheckText } from "./check-texte.mjs";
 import { ausschlussZaehler, buchungsKlasse, kategorienIndex, KATEGORIE_UNGEKLAERT } from "./klassifikation.mjs";
 import { bestandsMonate } from "./plan-ist.mjs";
@@ -43,12 +43,12 @@ export function kontoZeile(data, konto, today) {
 
 // Konten, die ins "Verfuegbare Geld" der Uebersicht einfliessen (wie die
 // Liquiditaet: geschlossene bis aktiv_bis).
-export function istVerfuegbaresKonto(konto, today) {
-  return konto.kontotyp !== "depot" && konto.kontotyp !== "bar" && konto.liquiditaetsrelevant === true && aktivAm(konto, "geschlossen", today);
+export function istVerfuegbaresKonto(konto, today, data) {
+  return konto.kontotyp !== "depot" && konto.kontotyp !== "bar" && konto.liquiditaetsrelevant === true && kontoAktivAm(konto, today, data);
 }
 
-function istOffenesDepot(konto, today) {
-  return konto.kontotyp === "depot" && aktivAm(konto, "geschlossen", today);
+function istOffenesDepot(konto, today, data) {
+  return konto.kontotyp === "depot" && kontoAktivAm(konto, today, data);
 }
 
 function kontoGruppe(data, konten, today) {
@@ -67,8 +67,8 @@ function kontoGruppe(data, konten, today) {
 // Uebersicht), depots, weitere (nicht liquide, bar, geschlossen; ohne Summe).
 export function kontenGruppen(data, today) {
   const sortiert = sortierteKonten(data, today);
-  const verfuegbar = (k) => istVerfuegbaresKonto(k, today);
-  const depot = (k) => istOffenesDepot(k, today);
+  const verfuegbar = (k) => istVerfuegbaresKonto(k, today, data);
+  const depot = (k) => istOffenesDepot(k, today, data);
   return {
     konten: kontoGruppe(data, sortiert.filter(verfuegbar), today),
     depots: kontoGruppe(data, sortiert.filter(depot), today),

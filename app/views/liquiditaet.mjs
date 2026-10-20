@@ -125,15 +125,15 @@ function istKachel(ist, verlauf) {
   const unten = zeitverlaufKlein({
     spalten,
     ereignisse,
-    // Belegt durchgezogen, zurueckgerechnet gestrichelt; der erste belegte
-    // Monat nach einer Rueckrechnung gehoert zu beiden, damit die Linie anschliesst.
+    // Vollstaendig importiert durchgezogen, unvollstaendig gestrichelt; der
+    // letzte vollstaendige Monat gehoert zu beiden, damit die Linie anschliesst.
     serien: [
-      { klasse: "liquiditaet-linie", teil: true, label: t("liquiditaet.balance"), werte: verlauf.map((p) => (p.modelliert ? null : p.saldo_cents)) },
-      ...(verlauf.some((p) => p.modelliert) ? [{
-        klasse: "liquiditaet-linie liquiditaet-modelliert",
+      { klasse: "liquiditaet-linie", teil: true, label: t("liquiditaet.balance"), werte: verlauf.map((p) => (p.unvollstaendig ? null : p.saldo_cents)) },
+      ...(verlauf.some((p) => p.unvollstaendig) ? [{
+        klasse: "liquiditaet-linie liquiditaet-unvollstaendig",
         teil: true,
-        label: `${t("liquiditaet.balance")} (${t("liquiditaet.modelliert")})`,
-        werte: verlauf.map((p, i) => (p.modelliert || verlauf[i - 1]?.modelliert || verlauf[i + 1]?.modelliert ? p.saldo_cents : null)),
+        label: `${t("liquiditaet.balance")} (${t("liquiditaet.unvollstaendig")})`,
+        werte: verlauf.map((p, i) => (p.unvollstaendig || verlauf[i - 1]?.unvollstaendig || verlauf[i + 1]?.unvollstaendig ? p.saldo_cents : null)),
       }] : []),
       { klasse: "liquiditaet-trend-linie", label: t("liquiditaet.trend"), werte: verlauf.map((p) => p.trend_cents) },
     ],
@@ -145,10 +145,10 @@ function istKachel(ist, verlauf) {
   const zeilen = [...ist.konten]
     .sort((a, b) => (b.saldo_cents ?? -Infinity) - (a.saldo_cents ?? -Infinity))
     .map((k) => kachelZeile(`<button class="linkish" data-action="account-transactions" data-account="${escapeHtml(k.konto_id)}" title="${escapeHtml(k.name)}">${escapeHtml(k.name)}</button>`, k.saldo_cents === null ? "—" : formatMoney(k.saldo_cents)));
-  const modelliert = verlauf.some((p) => p.modelliert)
-    ? `<span title="${escapeHtml(t("liquiditaet.modelliertHinweis"))}"><i class="legende-linie liquiditaet-linie liquiditaet-modelliert"></i>${escapeHtml(t("liquiditaet.modelliert"))}</span>`
+  const unvollstaendig = verlauf.some((p) => p.unvollstaendig)
+    ? `<span title="${escapeHtml(t("liquiditaet.unvollstaendigHinweis"))}"><i class="legende-linie liquiditaet-linie liquiditaet-unvollstaendig"></i>${escapeHtml(t("liquiditaet.unvollstaendig"))}</span>`
     : "";
-  const legende = unten ? `<div class="vermoegen-legende liquiditaet-legende"><span><i class="legende-linie liquiditaet-linie"></i>${escapeHtml(t("liquiditaet.balance"))}</span>${modelliert}<span><i class="legende-linie liquiditaet-trend-linie"></i>${escapeHtml(t("liquiditaet.trend"))}</span></div>` : "";
+  const legende = unten ? `<div class="vermoegen-legende liquiditaet-legende"><span><i class="legende-linie liquiditaet-linie"></i>${escapeHtml(t("liquiditaet.balance"))}</span>${unvollstaendig}<span><i class="legende-linie liquiditaet-trend-linie"></i>${escapeHtml(t("liquiditaet.trend"))}</span></div>` : "";
   return kennzahlKachel({ label: t("liquiditaet.ist"), wert: escapeHtml(geldOhneCent(ist.saldo_cents)), notiz, zeilen, unten: unten + legende });
 }
 

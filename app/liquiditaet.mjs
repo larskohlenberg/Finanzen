@@ -4,7 +4,7 @@
 // Modell-Begruendung: Liquiditaet = belegter Konto-Anker + Ist-Buchungen + Regelzahlungs-Fortschreibung.
 
 import { toCents } from "./tools/lib/text.mjs";
-import { kontoAktivAm, kontoStand } from "./bewertung.mjs";
+import { kontoAktivAm, kontoStand, letzterBekannterStand } from "./bewertung.mjs";
 import { addInterval, naechsterTermin, termine } from "./rhythmus.mjs";
 export { toCents, addInterval };
 
@@ -147,11 +147,15 @@ export function liquiditaetVerlauf(data, today, monate = 12) {
     const datum = i === 0 ? today : addInterval(addInterval(`${monat}-01`, "monat", 1), "tag", -1);
     const staende = liquiditaetsKonten(data, datum).map((k) => kontoSaldoZuDatum(k, data.zeitwerte, data.transaktionen, datum));
     const saldo = staende.reduce((a, w) => a + (w.saldo_cents ?? 0), 0);
-    // modelliert: mindestens ein Konto ist nur aus einem spaeteren Anker
-    // zurueckgerechnet. Konten ganz ohne Anker zaehlen 0 und meldet die
-    // Kachel ueber "fehlende Anker", nicht als Rueckrechnung.
-    const modelliert = staende.some((w) => w.basis === "anker-rueckwaerts");
-    punkte.push({ monat, datum, saldo_cents: saldo, modelliert, grosse: grosse.filter((g) => g.monat === monat) });
+    // unvollstaendig: mindestens ein Konto ist noch nicht bis zum Monatsende
+    // (bzw. heute) importiert, der Stand kann sich noch aendern. Rueckrechnung
+    // aus einem spaeteren Kontostand ist dagegen belegt (Anker und Buchungen).
+    // Konten ganz ohne Stand zaehlen 0 und meldet die Kachel ueber "fehlende Anker".
+    const unvollstaendig = liquiditaetsKonten(data, datum).some((k) => {
+      const bis = letzterBekannterStand(data, "konto", k.konto_id);
+      return Boolean(bis) && bis < datum;
+    });
+    punkte.push({ monat, datum, saldo_cents: saldo, unvollstaendig, grosse: grosse.filter((g) => g.monat === monat) });
   }
   trendVerlauf(punkte.map((p) => p.saldo_cents)).forEach((tr, i) => Object.assign(punkte[i], tr));
   return punkte;

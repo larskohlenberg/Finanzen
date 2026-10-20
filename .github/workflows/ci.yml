@@ -32,6 +32,8 @@ jobs:
       # pdftotext wie auf der VM; die Belegtext-Tests rufen es auf.
       - name: poppler-utils
         run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+      # Playwright (playwright-core) fuer die Browsertests; nutzt das Chrome des Runners.
+      - run: npm ci --no-audit --no-fund
       - run: npm test
       - name: Validator Demodaten
         run: node app/tools/validator.mjs app/data/demo

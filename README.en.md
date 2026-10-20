@@ -44,9 +44,10 @@ Data is stored as plain JSON files validated against schemas. Every writing tool
 The app can also run permanently on your own server, behind a reverse proxy with authentication; agents then access the data through an MCP server over SSH. See [app/README.md](app/README.md) and [ADR 0028](docs/adr/0028-betrieb-auf-eigener-vm.md) (both in German).
 
 ## For developers
-No build pipeline, no dependencies besides Node.js.
+No build pipeline. The app itself needs only Node.js; the only development dependency is Playwright for the browser tests (it uses the installed Chrome).
 
 ```bash
+npm install
 npm test
 node app/server.mjs
 ```

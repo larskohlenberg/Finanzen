@@ -309,6 +309,11 @@ function infoTippEinpassen(event) {
 }
 
 export function bindDiagrammHover(root) {
+  // Touch und Stift: ein Tippen zeigt die Box wie das Ueberfahren mit der Maus.
+  root.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" || !event.target.closest?.("svg[data-spalten], svg[data-termine], svg.linien-diagramm, " + ANTEIL)) return;
+    event.target.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: event.clientX, clientY: event.clientY, pointerType: event.pointerType, buttons: event.buttons }));
+  });
   root.addEventListener("pointerover", infoTippEinpassen);
   root.addEventListener("focusin", infoTippEinpassen);
   root.addEventListener("pointermove", (event) => {

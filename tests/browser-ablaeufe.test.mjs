@@ -115,6 +115,16 @@ describe("Ablaeufe im Browser", { skip: chrome ? false : "kein Chrome/Chromium g
     assert.equal(await seite.werte(`document.activeElement?.classList.contains("settings-toggle")`), true);
   });
 
+  test("Fokus: Seitenwechsel ueber die Navigation setzt ihn auf die Ueberschrift; Buchungszeile per Tastatur oeffnen", async () => {
+    await oeffne("#/uebersicht");
+    await seite.klicke(`.sidebar [data-view="transactions"]`);
+    await seite.warteAuf(`document.activeElement?.matches("main h1.page-title") && document.activeElement.textContent.includes("Transaktionen")`, { text: "Fokus auf der Ueberschrift" });
+    await seite.warteAuf(`document.querySelector("section.panel[aria-busy='false'] a.zeilen-link[data-action='select-transaction']")`, { text: "Liste geladen" });
+    await seite.werte(`document.querySelector("section.panel[aria-busy='false'] a.zeilen-link[data-action='select-transaction']").focus(); true`);
+    await seite.taste("Enter", { keyCode: 13, text: "\r" });
+    await seite.warteAuf(`document.querySelector(".detail-panel") && location.hash.startsWith("#/transaktionen/TXN-")`, { text: "Detail per Enter" });
+  });
+
   test("Demo/Echt-Wechsel: neu geladen, anderer Bestand, Auswahl des alten Bestands faellt weg", async () => {
     await oeffne("#/transaktionen?status=offen");
     assert.equal(await seite.werte(`Boolean(document.querySelector(".chip.demo"))`), true);

@@ -175,8 +175,8 @@ async function starte({ chrome = findeChrome(), breite = 1280, hoehe = 900, prof
         await s("Input.dispatchKeyEvent", { type: "keyUp", key: zeichen });
       }
     },
-    async taste(key, { code = key, keyCode } = {}) {
-      await s("Input.dispatchKeyEvent", { type: "rawKeyDown", key, code, windowsVirtualKeyCode: keyCode });
+    async taste(key, { code = key, keyCode, text } = {}) {
+      await s("Input.dispatchKeyEvent", { type: text ? "keyDown" : "rawKeyDown", key, code, windowsVirtualKeyCode: keyCode, ...(text ? { text } : {}) });
       await s("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: keyCode });
     },
     async viewport(breite, hoehe, mobil = false) {

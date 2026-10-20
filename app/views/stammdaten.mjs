@@ -1,6 +1,7 @@
 // app/views/stammdaten.mjs
 // Administration: Stammdaten (Personen, Konten, Kategorien, Regeln), Checks und Export.
 import { data, state, t, tf, escapeHtml } from "../runtime.mjs";
+import { zielRoute } from "../routing.mjs";
 import { LEERE_FILTER, filterAlsQuery } from "../navigation.mjs";
 import { addInterval } from "../liquiditaet.mjs";
 import { iconSvg } from "../icons.js";
@@ -157,7 +158,9 @@ function regelSortIndicator(key) {
 }
 
 function regelSortHeader(key, label) {
-  return `<th><button class="linkish sort-th" data-regel-sort="${key}">${escapeHtml(label)}${escapeHtml(regelSortIndicator(key))}</button></th>`;
+  const sort = state.regelSort;
+  const ariaSort = sort?.key === key ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
+  return `<th aria-sort="${ariaSort}"><button class="linkish sort-th" data-regel-sort="${key}">${escapeHtml(label)}${escapeHtml(regelSortIndicator(key))}</button></th>`;
 }
 
 // Treffer je Regel zaehlt der Server (GET /api/v1/regelwirkung); fuer die
@@ -189,8 +192,8 @@ function renderRegelListe() {
     const n = treffer(regel);
     const tot = n === 0 ? `<span class="chip review">${iconSvg("review")}${escapeHtml(t("masterdata.ruleDead"))}</span>` : "";
     return `
-      <tr class="rule-row linkish ${regel.regel_id === state.selectedRegel ? "selected" : ""}" data-rule="${escapeHtml(regel.regel_id)}" tabindex="0">
-        <td>${escapeHtml(regel.regel_id)}</td>
+      <tr class="rule-row linkish ${regel.regel_id === state.selectedRegel ? "selected" : ""}" data-rule="${escapeHtml(regel.regel_id)}"${regel.regel_id === state.selectedRegel ? ' aria-current="true"' : ""}>
+        <td><a class="linkish zeilen-link" href="#/regeln/${escapeHtml(encodeURIComponent(regel.regel_id))}" data-rule="${escapeHtml(regel.regel_id)}">${escapeHtml(regel.regel_id)}</a></td>
         <td>${escapeHtml(regelKlartext(regel, categoryName))}</td>
         <td>${escapeHtml(t(`status.${regel.status}`))}</td>
         <td><span class="rule-hits-cell">${n ?? "…"}${tot}</span></td>
@@ -245,8 +248,8 @@ function renderRegelDetailBody(regel) {
   const wirkung = regelWirkung(regel.regel_id)?.regel;
   const beispiele = wirkung?.beispiele ?? [];
   const txRows = (wirkung?.zeilen ?? []).map((tx) => `
-    <tr class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}" tabindex="0">
-      <td class="regel-tx-date">${escapeHtml(tx.buchungsdatum || "")}</td>
+    <tr class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">
+      <td class="regel-tx-date"><a class="linkish zeilen-link" href="${escapeHtml(zielRoute("open-transaction", tx.transaktion_id))}" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum) || "—")}</a></td>
       <td>${escapeHtml(tx.gegenpartei || "")}</td>
     </tr>`).join("");
   return `

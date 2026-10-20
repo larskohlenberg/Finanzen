@@ -7,7 +7,7 @@ import { formatMoney, formatDate, formatMonth, mitLogo, statusChip, renderPageHe
 import { formatIban } from "../tools/lib/text.mjs";
 import { dokumentRoute } from "../belege.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
-import { aktiveFilter, ohneZeitfilter, BETRAG_MUSTER } from "../navigation.mjs";
+import { aktiveFilter, ohneZeitfilter, BETRAG_MUSTER, filterAlsQuery } from "../navigation.mjs";
 
 // Die Liste rechnet der App-Server (GET /api/v1/transaktionen, Filter, Sortierung,
 // Seite, Sprung zu einer Buchung, Detail der Auswahl); der Browser bekommt nur
@@ -61,7 +61,9 @@ function transactionSortIndicator(key) {
 }
 
 function transactionSortHeader(key, labelKey, amount = false) {
-  return `<th${amount ? ' class="amount"' : ""}><button class="linkish sort-th" data-transaction-sort="${key}">${escapeHtml(t(labelKey))}${escapeHtml(transactionSortIndicator(key))}</button></th>`;
+  const sort = state.transactionSort;
+  const ariaSort = sort.key === key ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
+  return `<th${amount ? ' class="amount"' : ""} aria-sort="${ariaSort}"><button class="linkish sort-th" data-transaction-sort="${key}">${escapeHtml(t(labelKey))}${escapeHtml(transactionSortIndicator(key))}</button></th>`;
 }
 
 export function renderTransactions() {
@@ -461,15 +463,17 @@ function transactionFilterActiveCount() {
 }
 
 function renderTransactionRow(tx) {
+  // Die Zellen sind per Maus waehlbar; per Tastatur genau ein Halt je Zeile: das Datum als Link.
   const selectAttrs = `data-action="select-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}"`;
+  const detailHref = `#/transaktionen/${encodeURIComponent(tx.transaktion_id)}${filterAlsQuery(state.transactionFilters, { pfadfilter: true })}`;
   return `
     <tr class="transaction-row ${tx.transaktion_id === state.selectedTransactionId ? "selected" : ""} ${tx.kategorisierung_status === "offen" ? "open" : ""} ${tx.kategorisierung_status === "vorgeschlagen" ? "vorgeschlagen" : ""}">
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatDate(tx.buchungsdatum))}</td>
+      <td class="row-select-cell" ${selectAttrs}><a class="linkish zeilen-link" href="${escapeHtml(detailHref)}" ${selectAttrs}${tx.transaktion_id === state.selectedTransactionId ? ' aria-current="true"' : ""}>${escapeHtml(formatDate(tx.buchungsdatum))}</a></td>
       <td><a class="linkish" href="${escapeHtml(zielRoute("open-account-master", tx.konto_id))}" data-action="open-account-master" data-account="${escapeHtml(tx.konto_id)}">${escapeHtml(transactionAccountLabel(tx))}</a></td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei), { groesse: "tabelle" })}</td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}${tx.bemerkung ? `<div class="tx-bemerkung" title="${escapeHtml(t("transactions.bemerkung"))}">${escapeHtml(tx.bemerkung)}</div>` : ""}</td>
-      <td class="amount row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
-      <td class="row-select-cell" tabindex="0" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${herkunftMarke(tx)}${renderTransferMarke(tx)}</td>
+      <td class="row-select-cell" ${selectAttrs}>${mitLogo({ gegenpartei: tx.gegenpartei }, escapeHtml(tx.gegenpartei), { groesse: "tabelle" })}</td>
+      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(tx.verwendungszweck)}${tx.bemerkung ? `<div class="tx-bemerkung" title="${escapeHtml(t("transactions.bemerkung"))}">${escapeHtml(tx.bemerkung)}</div>` : ""}</td>
+      <td class="amount row-select-cell" ${selectAttrs}>${escapeHtml(formatMoney(cents(tx.betrag)))}</td>
+      <td class="row-select-cell" ${selectAttrs}>${escapeHtml(transactionCategoryLabel(tx))}${herkunftMarke(tx)}${renderTransferMarke(tx)}</td>
     </tr>
   `;
 }

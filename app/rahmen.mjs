@@ -32,7 +32,7 @@ export function renderSidebar() {
       <nav class="nav" aria-label="${escapeHtml(t("chrome.mainNav"))}">
         ${navItems
           .map(([view, labelKey, icon]) => `
-            <button class="nav-button ${state.view === view ? "active" : ""}" data-view="${view}" aria-label="${escapeHtml(t(labelKey))}" title="${escapeHtml(t(labelKey))}">
+            <button class="nav-button ${state.view === view ? "active" : ""}" data-view="${view}"${state.view === view ? ' aria-current="page"' : ""} aria-label="${escapeHtml(t(labelKey))}" title="${escapeHtml(t(labelKey))}">
               <span class="nav-icon">${iconSvg(icon)}</span>
               <span class="nav-label">${escapeHtml(t(labelKey))}</span>
             </button>
@@ -85,7 +85,7 @@ export function renderTabbar() {
         <div class="tabbar-more-menu">
           ${secondary
             .map(([view, labelKey, icon]) => `
-              <button class="tabbar-more-item ${state.view === view ? "active" : ""}" data-view="${view}">
+              <button class="tabbar-more-item ${state.view === view ? "active" : ""}" data-view="${view}"${state.view === view ? ' aria-current="page"' : ""}>
                 <span class="nav-icon">${iconSvg(icon)}</span>${escapeHtml(t(labelKey))}
               </button>
             `)
@@ -98,7 +98,7 @@ export function renderTabbar() {
       <div class="tabbar-row">
         ${primary
           .map(([view, labelKey, icon]) => `
-            <button class="tabbar-button ${state.view === view ? "active" : ""}" data-view="${view}" aria-label="${escapeHtml(t(labelKey))}">
+            <button class="tabbar-button ${state.view === view ? "active" : ""}" data-view="${view}"${state.view === view ? ' aria-current="page"' : ""} aria-label="${escapeHtml(t(labelKey))}">
               <span class="nav-icon">${iconSvg(icon)}</span>
               <span class="tabbar-label">${escapeHtml(t(labelKey))}</span>
             </button>

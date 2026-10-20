@@ -75,6 +75,8 @@ function announceStatus() {
   if (region.textContent !== msg) region.textContent = msg;
 }
 
+// Pfad der zuletzt gezeichneten Route (Seite, Reiter, Detail) fuer die Fokusregel.
+let zuletztGezeichnet = "";
 let zeigerGedrueckt = false;
 let zeichnenAufgeschoben = false;
 
@@ -106,6 +108,13 @@ function render() {
   anwendenBaumBreite(app);
   termineListenBegrenzen(app);
   restoreFocus(app, focusSnap);
+  // Neue Seite: der Fokus geht auf ihre Ueberschrift (Screenreader liest sie),
+  // ausser er steht schon im Inhalt (z. B. nach einem Link innerhalb der Seite).
+  const pfad = routeFromState(state).split("?")[0];
+  if (pfad !== zuletztGezeichnet && !app.querySelector("main")?.contains(document.activeElement)) {
+    app.querySelector("main h1")?.focus({ preventScroll: true });
+  }
+  zuletztGezeichnet = pfad;
   document.title = seitenTitel([seitenName(), seitenDetail()], t("appTitle"));
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
@@ -170,7 +179,7 @@ app.addEventListener("click", guard((event) => {
   // Sonst uebernimmt die Aktion des Links, der Browser folgt der href nicht.
   const anker = event.target.closest("a[href]");
   if (anker && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button > 0)) return;
-  if (anker?.matches("[data-action], [data-view]")) event.preventDefault();
+  if (anker?.matches("[data-action], [data-view], [data-rule]")) event.preventDefault();
   if (state.settingsMenuOpen && !event.target.closest(".settings-control")) {
     state.settingsMenuOpen = false;
     render();
@@ -345,7 +354,8 @@ for (const typ of ["pointerup", "pointercancel", "blur", "contextmenu", "pointer
   window.addEventListener(typ, (event) => {
     // blur nur des Fensters (Capture sieht auch das Blur jedes Feldes).
     if (typ === "blur" && event.target !== window) return;
-    if (typ === "pointermove" && (!zeigerGedrueckt || event.buttons !== 0)) return;
+    // Nur echte Bewegungen (die Diagramm-Box loest beim Tippen eine eigene aus).
+    if (typ === "pointermove" && (!zeigerGedrueckt || event.buttons !== 0 || !event.isTrusted)) return;
     zeigerGedrueckt = false;
     if (!zeichnenAufgeschoben) return;
     zeichnenAufgeschoben = false;

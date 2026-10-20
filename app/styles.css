@@ -3646,5 +3646,6 @@ td.logo-zelle .logo-marke { margin-right: 0; }
     --success-soft: #173821;
     --danger: #ff8b7f;
     --danger-soft: #421b18;
+    --shadow: none;
   }
 }

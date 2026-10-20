@@ -9,6 +9,7 @@ import { heuteIso } from "./selektoren.mjs";
 import { belegTextHtml } from "./belege.mjs";
 import { dataModes } from "./data-loader.mjs";
 import { kuerzel, kuerzelFarbe, logoVerzeichnis } from "./logos.mjs";
+import { detailsAttr } from "./lebenszyklus.mjs";
 import { vermoegenRoute } from "./vermoegen-routen.mjs";
 
 let logoStand = null;
@@ -296,8 +297,8 @@ export function diagrammTabelle({ spalten, serien, formatWert = String, ariaLabe
   const kopf = gruppen.map((g) => `<th class="amount">${escapeHtml(g.label)}</th>`).join("");
   const zeilen = spalten.map((sp, i) => `<tr><th scope="row">${escapeHtml(sp.titel ?? sp.label ?? "")}</th>${gruppen.map((g) => `<td class="amount">${g.werte[i] == null ? "—" : escapeHtml(formatWert(g.werte[i]))}</td>`).join("")}</tr>`).join("");
   return `
-    <details class="diagramm-tabelle">
-      <summary>${escapeHtml(t("chrome.alsTabelle"))}</summary>
+    <details class="diagramm-tabelle"${detailsAttr(`diagramm.${ariaLabel || spalten[0]?.titel || ""}`)}>
+      <summary data-fokus="${escapeHtml(`diagramm.${ariaLabel}`)}">${escapeHtml(t("chrome.alsTabelle"))}</summary>
       <div class="table-wrap"><table${ariaLabel ? ` aria-label="${escapeHtml(ariaLabel)}"` : ""}><thead><tr><th></th>${kopf}</tr></thead><tbody>${zeilen}</tbody></table></div>
     </details>`;
 }

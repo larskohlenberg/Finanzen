@@ -75,7 +75,8 @@ function announceStatus() {
   if (region.textContent !== msg) region.textContent = msg;
 }
 
-let zuletztGezeichnet = state.view;
+// Pfad der zuletzt gezeichneten Route (Seite, Reiter, Detail) fuer die Fokusregel.
+let zuletztGezeichnet = "";
 let zeigerGedrueckt = false;
 let zeichnenAufgeschoben = false;
 
@@ -109,10 +110,11 @@ function render() {
   restoreFocus(app, focusSnap);
   // Neue Seite: der Fokus geht auf ihre Ueberschrift (Screenreader liest sie),
   // ausser er steht schon im Inhalt (z. B. nach einem Link innerhalb der Seite).
-  if (state.view !== zuletztGezeichnet && !app.querySelector("main")?.contains(document.activeElement)) {
+  const pfad = routeFromState(state).split("?")[0];
+  if (pfad !== zuletztGezeichnet && !app.querySelector("main")?.contains(document.activeElement)) {
     app.querySelector("main h1")?.focus({ preventScroll: true });
   }
-  zuletztGezeichnet = state.view;
+  zuletztGezeichnet = pfad;
   document.title = seitenTitel([seitenName(), seitenDetail()], t("appTitle"));
   announceStatus();
   if (state.view === "upload") inboxBeiBedarfLaden(render);
@@ -352,7 +354,8 @@ for (const typ of ["pointerup", "pointercancel", "blur", "contextmenu", "pointer
   window.addEventListener(typ, (event) => {
     // blur nur des Fensters (Capture sieht auch das Blur jedes Feldes).
     if (typ === "blur" && event.target !== window) return;
-    if (typ === "pointermove" && (!zeigerGedrueckt || event.buttons !== 0)) return;
+    // Nur echte Bewegungen (die Diagramm-Box loest beim Tippen eine eigene aus).
+    if (typ === "pointermove" && (!zeigerGedrueckt || event.buttons !== 0 || !event.isTrusted)) return;
     zeigerGedrueckt = false;
     if (!zeichnenAufgeschoben) return;
     zeichnenAufgeschoben = false;

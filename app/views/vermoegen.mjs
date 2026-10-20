@@ -175,6 +175,21 @@ function renderUebersichtTab(r, je, today, checks, modell) {
     ${renderWertstaendeTabelle()}`;
 }
 
+// Gestrichelt sind Monate, in denen mehr Positionen ohne Wert sind als heute
+// (aelterer Teilbestand); was heute fehlt, meldet der Chip an der Kennzahl.
+function nettoSerien(verlauf) {
+  const heute = verlauf.at(-1)?.unbekannt ?? 0;
+  const teil = verlauf.map((p) => (p.unbekannt ?? 0) > heute);
+  const netto = { klasse: "vermoegen-netto-linie", teil: true, label: t("vermoegen.netto"), werte: verlauf.map((p, i) => (teil[i] ? null : p.netto_cents)) };
+  if (!teil.some(Boolean)) return [netto];
+  return [netto, {
+    klasse: "vermoegen-netto-linie vermoegen-teilbestand",
+    teil: true,
+    label: t("vermoegen.uebersicht.teilbestandVerlauf"),
+    werte: verlauf.map((p, i) => (teil[i] || teil[i - 1] || teil[i + 1] ? p.netto_cents : null)),
+  }];
+}
+
 function nettoKachel(r, je, verlauf) {
   const aktiva = Math.max(r.aktiva_cents, 1);
   const segmente = ["konto", "immobilie", "vermoegenswert", "vorsorge"]
@@ -193,16 +208,7 @@ function nettoKachel(r, je, verlauf) {
   ].filter(Boolean).join("<br>");
   const unten = `${verlauf.length > 1 ? zeitverlaufKlein({
     spalten: verlauf.map((p) => ({ label: p.monat.endsWith("-01") ? p.monat.slice(0, 4) : "", titel: formatMonth(p.monat) })),
-    // Monate mit Positionen ohne Wert (Teilbestand) gestrichelt.
-    serien: [
-      { klasse: "vermoegen-netto-linie", teil: true, label: t("vermoegen.netto"), werte: verlauf.map((p) => (p.unbekannt > 0 ? null : p.netto_cents)) },
-      ...(verlauf.some((p) => p.unbekannt > 0) ? [{
-        klasse: "vermoegen-netto-linie vermoegen-teilbestand",
-        teil: true,
-        label: t("vermoegen.uebersicht.teilbestandVerlauf"),
-        werte: verlauf.map((p, i) => (p.unbekannt > 0 || verlauf[i - 1]?.unbekannt > 0 || verlauf[i + 1]?.unbekannt > 0 ? p.netto_cents : null)),
-      }] : []),
-    ],
+    serien: nettoSerien(verlauf),
     formatWert: (c) => formatMoney(c),
     formatAchse: geldOhneCent,
     labelSchritt: 1,

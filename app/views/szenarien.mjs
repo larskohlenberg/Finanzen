@@ -314,7 +314,9 @@ function ergebnisTabelle(szenario, r, v, today) {
       <td class="amount" data-label="${escapeHtml(t("szenarien.differenz"))}">${a == null || b == null ? "—" : `<span class="${a - b < 0 ? "abw-schlecht" : a - b > 0 ? "abw-gut" : "abw-neutral"}">${escapeHtml(fmt().geldMitVorzeichen(a - b))}</span>`}</td></tr>`;
   const kipp = kippMonat(r.punkte);
   const vKipp = kippMonat(v.r.punkte);
-  const start = r.punkte[0];
+  // Heute, aus denselben Positionen wie das Vermoegen (nicht der erste
+  // Szenariopunkt, der schon das Monatsende mit seinen Zahlungen ist).
+  const startNetto = (grundlage?.positionen ?? []).reduce((summe, p) => summe + (p.wert_cents ?? 0), 0);
   return `
     <section class="panel panel-pad section-spacing">
       <h2 class="section-title">${escapeHtml(t("szenarien.ergebnisTitel"))}</h2>
@@ -332,7 +334,7 @@ function ergebnisTabelle(szenario, r, v, today) {
           </tbody>
         </table>
       </div>
-      ${start ? `<p class="muted szenario-start">${escapeHtml(tf("szenarien.startbestand", { datum: formatDate(today), betrag: formatMoney(start.netto_cents) }))} <a class="linkish" href="#/vermoegen" data-view="vermoegen">${escapeHtml(t("szenarien.startbestandLink"))}</a></p>` : ""}
+      ${grundlage?.positionen ? `<p class="muted szenario-start">${escapeHtml(tf("szenarien.startbestand", { datum: formatDate(today), betrag: formatMoney(startNetto) }))} <a class="linkish" href="#/vermoegen" data-view="vermoegen">${escapeHtml(t("szenarien.startbestandLink"))}</a></p>` : ""}
     </section>`;
 }
 

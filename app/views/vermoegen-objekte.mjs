@@ -27,7 +27,7 @@ function gewaehlt(klasse, liste, idFeld) {
 // Bemerkungen sind oft lange Arbeitsnotizen: eingeklappt, damit die Stammdaten lesbar bleiben.
 function bemerkungHtml(text, id) {
   if (!text) return "";
-  return `<details class="bemerkung"${detailsAttr(`bemerkung.${id}`)}><summary>${escapeHtml(t("vermoegen.immobilie.bemerkung"))}</summary>${bemerkungInhalt(text)}</details>`;
+  return `<details class="bemerkung"${detailsAttr(`bemerkung.${id}`)}><summary>${escapeHtml(t("vermoegen.immobilie.bemerkung"))}</summary><div data-diffus="text">${bemerkungInhalt(text)}</div></details>`;
 }
 
 function karte({ klasse, id, aktiv, titel, chip = "", wertHtml, zeilen = [], fortschritt = null }) {
@@ -132,7 +132,7 @@ function investitionenPanel(inv) {
   const zeilen = inv.buchungen.map((tx) => `
         <tr class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">
           <td><a class="linkish zeilen-link" href="${escapeHtml(zielRoute("open-transaction", tx.transaktion_id))}" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum))}</a></td>
-          <td>${escapeHtml(tx.gegenpartei || tx.verwendungszweck || "")}</td>
+          <td data-diffus="${tx.gegenpartei ? "gegenpartei" : "text"}">${escapeHtml(tx.gegenpartei || tx.verwendungszweck || "")}</td>
           ${mitBemerkung ? `<td>${escapeHtml(tx.bemerkung || "")}</td>` : ""}
           <td class="amount">${geld(cents(tx.betrag), { negativ: true })}</td>
         </tr>`).join("");
@@ -289,7 +289,7 @@ function renderImmobilieDetail(imm, today, modell) {
   const fristen = fristenText("immobilie", id);
   const stammdaten = klappKachel({ id: "immobilie.stammdaten", titel: t("vermoegen.immobilie.stammdaten"), inhalt: `
       <div class="stammdaten-raster stammdaten-fest">
-        ${feld(t("vermoegen.adresse"), imm.adresse ? escapeHtml(imm.adresse) : "", imm.adresse)}
+        ${feld(t("vermoegen.adresse"), imm.adresse ? `<span data-diffus="text">${escapeHtml(imm.adresse)}</span>` : "", imm.adresse)}
         ${feld(t("vermoegen.immobilie.nutzung"), imm.nutzung ? escapeHtml(nutzungLabel(imm.nutzung)) : "")}
         ${feld(t("vermoegen.immobilie.wohnflaeche"), imm.wohnflaeche ? `${escapeHtml(fmt().zahl(Number(imm.wohnflaeche), 2))} m²` : "")}
         ${feld(t("vermoegen.eigentumsanteile"), escapeHtml(anteile), anteile)}

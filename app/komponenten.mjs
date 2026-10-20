@@ -38,6 +38,8 @@ export function logoMarke({ gegenpartei, regelzahlung, vorsorge, konto }, { groe
         : verzeichnis.fuerGegenpartei(gegenpartei);
   const name = logo?.name ?? regelzahlung?.bezeichnung ?? vorsorge?.name ?? konto?.name ?? gegenpartei ?? "";
   if (!String(name).trim()) return "";
+  // Diffusor-Modus: Bild und Kuerzel verraten Bank oder Haendler, also neutral.
+  if (state.diffusor) return `<span class="logo-marke${groesse ? ` logo-${groesse}` : ""} logo-diffus" aria-hidden="true"></span>`;
   const basis = (dataModes[data.metadata?.dataMode] ?? dataModes.live).basePath;
   const bild = logo ? `<img src="${escapeHtml(`${basis}/${logo.datei}`)}" alt="" loading="lazy" decoding="async">` : "";
   return `<span class="logo-marke${groesse ? ` logo-${groesse}` : ""} kuerzel-farbe-${kuerzelFarbe(name)}" aria-hidden="true">${escapeHtml(kuerzel(name))}${bild}</span>`;
@@ -48,6 +50,13 @@ export function logoMarke({ gegenpartei, regelzahlung, vorsorge, konto }, { groe
 export function mitLogo(quelle, inhaltHtml, optionen = {}) {
   const marke = logoMarke(quelle, optionen);
   return marke ? `<span class="mit-logo">${marke}<span>${inhaltHtml}</span></span>` : inhaltHtml;
+}
+
+// Freitext, den der Diffusor-Modus verdeckt (diffusor-anzeige.mjs): art "text"
+// (Zeichen statt Woerter) oder "gegenpartei" (Platzhalter mit Nummer).
+// inhaltHtml ist bereits escaptes HTML.
+export function vertraulich(inhaltHtml, art = "text") {
+  return `<span data-diffus="${art}">${inhaltHtml}</span>`;
 }
 
 // Exakt mit Cent: Tabellen und Details. Kacheln nehmen formatGeldGanz.
@@ -481,7 +490,7 @@ export function renderMasterAccountTable(kontenModell) {
   const rows = kontenZuIds(kontenModell.reihenfolge)
     .map((konto) => {
       const referenz = konto.kontoreferenz
-        ? escapeHtml(formatIban(konto.kontoreferenz))
+        ? vertraulich(escapeHtml(formatIban(konto.kontoreferenz)))
         : konto.kontotyp === "depot"
           ? `<span class="muted">—</span>`
           : `<span class="chip review">${iconSvg("review")}${escapeHtml(t("labels.referenceMissing"))}</span>`;
@@ -569,7 +578,7 @@ function renderAccountRows(accounts, kontenModell, { showId = false, rowAction =
           <td class="logo-zelle">${logoMarke({ konto }, { groesse: "tabelle" })}</td>
           ${showId ? `<td class="id-zelle">${escapeHtml(konto.konto_id)}</td>` : ""}
           <td>${accountName}</td>
-          <td>${konto.kontoreferenz ? escapeHtml(formatIban(konto.kontoreferenz)) : `<span class="muted">—</span>`}</td>
+          <td>${konto.kontoreferenz ? vertraulich(escapeHtml(formatIban(konto.kontoreferenz))) : `<span class="muted">—</span>`}</td>
           <td>${escapeHtml(accountOwnerNames(konto))}</td>
           <td>${escapeHtml(accountTypeLabel(konto.kontotyp))}</td>
           <td class="amount">${balanceCell}</td>

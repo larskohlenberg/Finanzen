@@ -232,7 +232,7 @@ test("Versicherungsnummer steht als eigene Zeile direkt unter dem Namen der Kart
     data.vorsorge = data.vorsorge.map((vs) => vs.vorsorge_id === "VS-001" ? { ...vs, versicherungsnummer: "12 345678 X 001" } : vs);
     toggleKlappKachel("vorsorge.vertragsdaten", false);
     const html = (await vorsorgeGezeichnet());
-    assert.match(html, /DRV Lena<\/strong><span class="objekt-karte-nummer">12 345678 X 001<\/span><\/span><span class="objekt-karte-marke">/);
+    assert.match(html, /DRV Lena<\/strong><span class="objekt-karte-nummer" data-diffus="text">12 345678 X 001<\/span><\/span><span class="objekt-karte-marke">/);
     assert.equal(anzahl(html, /class="objekt-karte-nummer"/g), 1, "ohne Nummer keine leere Zeile");
     assert.match(html, /Versicherungsnummer[\s\S]*?12 345678 X 001/);
   });
@@ -255,7 +255,7 @@ test("gewaehlter Vertrag bestimmt den Tab und zeigt Kennzahlen, Vertragsdaten un
     assert.match(detail, /class="vertragsdaten-mit-logo">[\s\S]*Kapitalwahl[\s\S]*<\/div>\s*<span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">RL<\/span>\s*<\/div>/, "Logo rechts oben in den offenen Vertragsdaten");
     assert.match(detail, /Standmitteilung 2026/);
     assert.match(detail, /data-action="open-regelzahlung" data-regelzahlung="RZ-001"/);
-    assert.match(detail, /<details class="bemerkung" data-details="bemerkung\.[^"]+" open><summary>Bemerkung<\/summary><p>Kapitalwahl noch offen/);
+    assert.match(detail, /<details class="bemerkung" data-details="bemerkung\.[^"]+" open><summary>Bemerkung<\/summary><div data-diffus="text"><p>Kapitalwahl noch offen/);
     assert.match(detail, /Wertstände[\s\S]*Gebundenes Kapital \(nicht im Vermögen\) · 31\.12\.2025/);
     assert.match(detail, /Dokumente/);
   });

@@ -80,7 +80,7 @@ function renderErfasste(termine, today) {
     return `
     <tr id="frist-${escapeHtml(frist.frist_id)}" class="${termin ? fristKlasse(termin) : ""}">
       <td class="id-zelle">${escapeHtml(frist.frist_id)}</td>
-      <td>${escapeHtml(frist.bezeichnung)}${frist.bemerkung ? `<div class="muted">${escapeHtml(frist.bemerkung)}</div>` : ""}</td>
+      <td>${escapeHtml(frist.bezeichnung)}${frist.bemerkung ? `<div class="muted" data-diffus="text">${escapeHtml(frist.bemerkung)}</div>` : ""}</td>
       <td>${escapeHtml(t(`termine.fristArt.${frist.art}`))}</td>
       <td>${bezug ? bezugLink(bezug) : leer}</td>
       <td>${frist.rhythmus_einheit ? escapeHtml(formatRhythmus(frist.rhythmus_einheit, frist.rhythmus_intervall)) : escapeHtml(t("termine.einmalig"))}</td>

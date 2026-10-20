@@ -180,9 +180,17 @@ export function renderTopbar() {
         ${renderNextActionButton(kopf?.aktionen ?? [])}
       </div>
       ${renderSchnellsuche()}
+      ${renderDiffusorSchalter()}
       ${renderSettingsMenu()}
     </header>
   `;
+}
+
+// Diffusor-Modus (diffusor.mjs): Auge neben dem Zahnrad, Alt+Umschalt+D.
+function renderDiffusorSchalter() {
+  const an = state.diffusor;
+  const text = t(an ? "chrome.diffusorAus" : "chrome.diffusorAn");
+  return `<button class="chip ${an ? "success" : "neutral"} linkish icon-chip diffusor-schalter" data-action="toggle-diffusor" aria-pressed="${an}" aria-label="${escapeHtml(text)}" title="${escapeHtml(`${text} (${t("chrome.diffusorKuerzel")})`)}">${iconSvg(an ? "eyeOff" : "eye")}</button>`;
 }
 
 // Ein Zahnrad statt drei Auswahlfeldern: Datenmodus, Sprache und Darstellung

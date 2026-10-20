@@ -5,6 +5,7 @@
 // Referenz). Bewusst ohne DOM-Render-Logik (die liegt in main.js/views/).
 import { loadFinanceData, normalizeDataMode } from "./data-loader.mjs";
 import { escapeHtml, formatierer, fuelle } from "./format.mjs";
+import { neuesSalz, verschleierterFormatierer } from "./diffusor.mjs";
 import { LEERE_FILTER } from "./navigation.mjs";
 import { defaultHorizonEnd, localTodayIso, toCents } from "./liquiditaet.mjs";
 
@@ -54,6 +55,7 @@ export const storageKeys = {
   dataMode: DATA_MODE_STORAGE_KEY,
   sidebarCollapsed: "finance-m2-sidebar-collapsed",
   pageSize: "finance-m2-page-size",
+  diffusor: "finance-m2-diffusor",
 };
 
 // Reihenfolge gilt fuer Desktop-Sidebar UND mobile Tab-Bar/Mehr-Menue
@@ -88,6 +90,8 @@ export const state = {
   theme: localStorage.getItem(storageKeys.theme) || "system",
   dataMode: normalizeDataMode(data.metadata?.dataMode),
   sidebarCollapsed: localStorage.getItem(storageKeys.sidebarCollapsed) === "true",
+  // Diffusor-Modus (diffusor.mjs): Betraege und Namen verdeckt; gemerkt im Browser.
+  diffusor: localStorage.getItem(storageKeys.diffusor) === "true",
   // Filter der Buchungsliste (navigation.mjs: LEERE_FILTER, Spruenge, URL).
   transactionFilters: { ...LEERE_FILTER },
   transactionSort: { key: "date", dir: "desc" },
@@ -206,9 +210,18 @@ export function tf(path, werte = {}) {
   return fuelle(t(path), werte);
 }
 
-// Die Formatierer der aktuellen Sprache (format.mjs).
+// Salz der verdeckten Zeichen im Diffusor-Modus: neu je Seitenaufruf, damit die
+// Zeichen eines Betrags nicht ueber Sitzungen hinweg wiedererkennbar sind.
+export const diffusorSalz = neuesSalz();
+let verdeckterFormatierer = null;
+
+// Die Formatierer der aktuellen Sprache (format.mjs); im Diffusor-Modus mit
+// verdeckten Geldbetraegen.
 export function fmt() {
-  return formatierer(state.lang);
+  const basis = formatierer(state.lang);
+  if (!state.diffusor) return basis;
+  if (verdeckterFormatierer?.basis !== basis) verdeckterFormatierer = { basis, f: verschleierterFormatierer(basis, diffusorSalz) };
+  return verdeckterFormatierer.f;
 }
 
 export const cents = toCents;

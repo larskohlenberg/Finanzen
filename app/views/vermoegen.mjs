@@ -427,7 +427,7 @@ function renderVermoegenDetail(p, today, konten) {
     const mwCents = mw ? cents(mw.wert) : 0;
     return head
       + (entity?.typ ? detailRow(t("labels.type"), escapeHtml(t(`vermoegen.typ.${entity.typ}`))) : "")
-      + (entity?.adresse ? detailRow(t("vermoegen.adresse"), escapeHtml(entity.adresse)) : "")
+      + (entity?.adresse ? detailRow(t("vermoegen.adresse"), `<span data-diffus="text">${escapeHtml(entity.adresse)}</span>`) : "")
       + (mw
         ? detailRow(t("vermoegen.marktwert"),
             `<strong>${escapeHtml(formatMoney(mwCents))}</strong><br>${escapeHtml(formatDate(mw.standdatum))} · ${qualitaetChip({ qualitaet: mw.qualitaet })}${mw.quelle_hinweis ? `<br><span class="muted">${quelleHtml(mw.quelle_hinweis)}</span>` : ""}`)

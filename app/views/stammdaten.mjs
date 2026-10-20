@@ -286,7 +286,7 @@ function renderRegelDetailBody(regel) {
   const txRows = (wirkung?.zeilen ?? []).map((tx) => `
     <tr class="linkish" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">
       <td class="regel-tx-date"><a class="linkish zeilen-link" href="${escapeHtml(zielRoute("open-transaction", tx.transaktion_id))}" data-action="open-transaction" data-transaction="${escapeHtml(tx.transaktion_id)}">${escapeHtml(formatDate(tx.buchungsdatum) || "—")}</a></td>
-      <td>${escapeHtml(tx.gegenpartei || "")}</td>
+      <td data-diffus="gegenpartei">${escapeHtml(tx.gegenpartei || "")}</td>
     </tr>`).join("");
   return `
     <div class="detail-section">

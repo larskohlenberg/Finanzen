@@ -10,7 +10,7 @@ Ohne Einstellung liegen die Echtdaten im Checkout (`app/data/master`, `app/data/
 /var/lib/finanzen/
   master -> master.gen/aktuell
   master.gen/
-  inbox/  import-profile/  papierkorb/  Belege/
+  inbox/  import-profile/  papierkorb/  logs/  Belege/
 ```
 
 Die Variable muss jeder Prozess sehen, der Daten anfasst:
@@ -38,17 +38,17 @@ Voraussetzungen, alles als Admin auf dem Server; die App ist einige Minuten offl
    sudo tar -cpf /var/backups/finanzen-umzug/daten-vorher.tar data Belege
    ```
    Ganz `data/` samt Altlasten wie `master.ordner-*`: Schritt 6 raeumt alle ignorierten Dateien im Checkout.
-2. **Stillstand.** `sudo systemctl stop finanzen-app`. MCP-Zugang sperren: die Zeile in `/home/finanzen/.ssh/authorized_keys` mit `#` auskommentieren, laufende Instanzen pruefen (`pgrep -u finanzen -af mcp/server.mjs`, muss leer sein).
+2. **Stillstand.** Vorher sicherstellen, dass keine andere Sitzung oder kein anderer Agent deployt: `finanzen-aktualisieren` startet den Dienst neu, auch mitten im Umzug. `sudo systemctl stop finanzen-app`. MCP-Zugang sperren: die Zeile in `/home/finanzen/.ssh/authorized_keys` mit `#` auskommentieren, laufende Instanzen beenden (`sudo pkill -TERM -u finanzen -f mcp/server.mjs`, vorher auf Schreibsperren im Bestand pruefen) und pruefen (`pgrep -u finanzen -af mcp/server.mjs`, muss leer sein).
 3. **Zielordner.** `sudo install -d -o finanzen -g finanzen -m 750 /var/lib/finanzen`
 4. **Kopie** in einem Aufruf (so bleiben die Hardlinks zwischen den Generationen erhalten, Symlinks bleiben relativ):
    ```
    cd /opt/finanzen/app
-   sudo -u finanzen cp -a data/master data/master.gen data/inbox data/import-profile data/papierkorb Belege /var/lib/finanzen/
+   sudo -u finanzen cp -a data/master data/master.gen data/inbox data/import-profile data/papierkorb data/logs Belege /var/lib/finanzen/
    ```
-   Ordner, die es nicht gibt (z. B. `papierkorb`), weglassen.
+   Ordner, die es nicht gibt (z. B. `papierkorb`), weglassen. `logs` ist das MCP-Protokoll (`<Datenort>/logs`).
 5. **Byte-Vergleich.** Jeder Ordner muss gleich sein, Symlinks werden als Links verglichen:
    ```
-   for o in master.gen inbox import-profile papierkorb; do sudo diff -r --no-dereference data/$o /var/lib/finanzen/$o && echo "$o gleich"; done
+   for o in master.gen inbox import-profile papierkorb logs; do sudo diff -r --no-dereference data/$o /var/lib/finanzen/$o && echo "$o gleich"; done
    sudo diff -r --no-dereference Belege /var/lib/finanzen/Belege && echo "Belege gleich"
    readlink /var/lib/finanzen/master          # master.gen/aktuell
    ```
@@ -67,9 +67,13 @@ Voraussetzungen, alles als Admin auf dem Server; die App ist einige Minuten offl
    sudo -u finanzen git -C /opt/finanzen status --short                        # muss leer sein
    ```
    Achtung: Die Liste darf nur Echtdaten nennen. Unter `app/data/demo` sind nur die Laufzeitordner `inbox/`, `import-profile/`, `papierkorb/` und Sperrdateien erlaubt, keine Demodaten.
-7. **Webdienst.** In `/etc/finanzen/app.env` `FINANZEN_DATEN=/var/lib/finanzen` ergaenzen. In der Unit `ReadWritePaths=/var/lib/finanzen/inbox` statt des alten Inbox-Pfads (Vorlage `ops/systemd/finanzen-app.service`), dann `sudo systemctl daemon-reload`.
+7. **Webdienst.** In `/etc/finanzen/app.env` `FINANZEN_DATEN=/var/lib/finanzen` ergaenzen. Die Unit aus der Vorlage mit `ReadWritePaths=/var/lib/finanzen/inbox` statt des alten Inbox-Pfads, dann `sudo systemctl daemon-reload`:
+   ```
+   sed 's#^ReadWritePaths=/opt/finanzen/app/data/inbox$#ReadWritePaths=/var/lib/finanzen/inbox#' /opt/finanzen/ops/systemd/finanzen-app.service | sudo tee /etc/systemd/system/finanzen-app.service >/dev/null
+   ```
+   Das Deploy-Skript vergleicht die Unit mit genau dieser Fassung und meldet sonst „weicht ab“.
 8. **MCP.** Forced Command wie in der Tabelle oben, Zeile wieder aktivieren.
-9. **Start und Probe.** `sudo systemctl start finanzen-app`, `journalctl -u finanzen-app -n 5` zeigt „Datenort /var/lib/finanzen“. Dann `sudo finanzen-aktualisieren` (prueft Validator und Rauchtest gegen den neuen Ort), eine MCP-Sitzung mit `status`, in der App Uebersicht, ein Beleg und ein Probe-Upload in die Inbox.
+9. **Start und Probe.** `sudo systemctl restart finanzen-app` (nicht `start`: lief der Dienst doch wieder, aendert `start` nichts), `journalctl -u finanzen-app -n 5` zeigt „Datenort /var/lib/finanzen“. Dann `sudo finanzen-aktualisieren` (prueft Validator und Rauchtest gegen den neuen Ort), eine MCP-Sitzung mit `status`, in der App Uebersicht, ein Beleg und ein Probe-Upload in die Inbox.
 
 ### Rueckweg
 

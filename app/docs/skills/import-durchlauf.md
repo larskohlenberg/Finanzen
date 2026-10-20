@@ -51,7 +51,7 @@ das ist **kategorisierung-review**.
    Buchungen bekommen ihre `regelzahlung_id`. Regelzahlungen unter
    `uebersprungen` (ausser Konsumplaenen) oder `mehrdeutig` im Bericht nennen.
    Dann Tool `personenbezug` ohne `ids` mit `schreiben: true`: die neuen
-   Buchungen bekommen ihre Person aus Regelzahlung oder Regel (ADR 0038).
+   Buchungen bekommen ihre Person aus Regelzahlung oder Regel (ADR 0039).
    `konflikte` im Bericht nennen.
 5. **Pruefen.** Tool `pruefbericht` und den Bericht
    **ungekuerzt** zeigen.

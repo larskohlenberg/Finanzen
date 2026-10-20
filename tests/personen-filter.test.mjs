@@ -1,4 +1,4 @@
-// Fuer wen ist eine Buchung (fuer_person_id, ADR 0038): Filter, Gruppen und
+// Fuer wen ist eine Buchung (fuer_person_id, ADR 0039): Filter, Gruppen und
 // Detail der Buchungsliste, URL-Zustand und die MCP-Abfrage.
 import assert from "node:assert/strict";
 import test from "node:test";

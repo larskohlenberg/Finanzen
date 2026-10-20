@@ -56,7 +56,7 @@ Wirtschaftlicher Traeger einer Transaktion folgt dem **Konto**, nicht der Person
 
 ## Fuer Person
 
-Wem eine Buchung zugutekommt (`fuer_person_id`), z. B. der Vereinsbeitrag eines Kindes. **Orthogonal zum Cashflow-Traeger:** wer bezahlt hat, folgt weiter dem Konto; die Person sagt nur, fuer wen. Hoechstens eine Person je Buchung, keine Aufteilung; ohne Person heisst fuer die Familie oder gemeinsam. Eine Person braucht dafuer kein Konto. Gesetzt wird sie aus der **Regelzahlung** der Buchung oder aus einer **Kategorisierungsregel** mit `fuer_person_id`, oder von Hand; die Handentscheidung (`fuer_person_herkunft: manuell`) hat Vorrang und kann auch bewusst „keine Person" sein. Die Kategorie bleibt davon unberuehrt: Sport eines Kindes ist Sport, das Kind steht in der Person (ADR 0038).
+Wem eine Buchung zugutekommt (`fuer_person_id`), z. B. der Vereinsbeitrag eines Kindes. **Orthogonal zum Cashflow-Traeger:** wer bezahlt hat, folgt weiter dem Konto; die Person sagt nur, fuer wen. Hoechstens eine Person je Buchung, keine Aufteilung; ohne Person heisst fuer die Familie oder gemeinsam. Eine Person braucht dafuer kein Konto. Gesetzt wird sie aus der **Regelzahlung** der Buchung oder aus einer **Kategorisierungsregel** mit `fuer_person_id`, oder von Hand; die Handentscheidung (`fuer_person_herkunft: manuell`) hat Vorrang und kann auch bewusst „keine Person" sein. Die Kategorie bleibt davon unberuehrt: Sport eines Kindes ist Sport, das Kind steht in der Person (ADR 0039).
 
 ## Transaktions-ID und Deduplikation
 

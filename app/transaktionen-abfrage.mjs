@@ -20,7 +20,7 @@ export const LEERER_FILTER = Object.freeze({
   gegenpartei: "",
   // Klasse der zentralen Klassifikation (klassifikation.mjs), z. B. laufend.
   klasse: "",
-  // Fuer wen die Buchung ist (fuer_person_id, ADR 0038); "ohne" = keine Person.
+  // Fuer wen die Buchung ist (fuer_person_id, ADR 0039); "ohne" = keine Person.
   person: "",
 });
 

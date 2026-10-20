@@ -1,6 +1,6 @@
 // app/tools/personenbezug.mjs
 //
-// Fuer wen ist eine Buchung? (ADR 0038) Setzt fuer_person_id an Transaktionen:
+// Fuer wen ist eine Buchung? (ADR 0039) Setzt fuer_person_id an Transaktionen:
 // abgeleitet aus der Regelzahlung der Buchung oder aus Kategorisierungsregeln
 // mit fuer_person_id, oder von Hand fuer explizite IDs. Wer bezahlt hat, folgt
 // weiter dem Konto; dieses Feld sagt nur, wem die Ausgabe zugutekommt.

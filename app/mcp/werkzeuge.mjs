@@ -399,7 +399,7 @@ const CLI_WERKZEUGE = [
   cli({
     name: "personenbezug",
     skript: "personenbezug.mjs",
-    beschreibung: "Fuer wen ist eine Buchung (tools/personenbezug.mjs; setzt fuer_person_id, ADR 0038). Ohne ids: Ableitung ueber den ganzen Bestand aus der Regelzahlung der Buchung oder aus aktiven Regeln mit fuer_person_id (Vorrang manuell vor Regelzahlung vor Regel); nach Import, Regel- oder Regelzahlungsaenderung und regelzahlungen_zuordnen nachziehen. Mit ids genau eine Aktion: person setzt von Hand, entfernen heisst bewusst keine Person, automatisch gibt die Buchungen an die Ableitung zurueck. Wer bezahlt hat, folgt weiter dem Konto. Exitcode 2 = blockiert. Vorschau ist Default.",
+    beschreibung: "Fuer wen ist eine Buchung (tools/personenbezug.mjs; setzt fuer_person_id, ADR 0039). Ohne ids: Ableitung ueber den ganzen Bestand aus der Regelzahlung der Buchung oder aus aktiven Regeln mit fuer_person_id (Vorrang manuell vor Regelzahlung vor Regel); nach Import, Regel- oder Regelzahlungsaenderung und regelzahlungen_zuordnen nachziehen. Mit ids genau eine Aktion: person setzt von Hand, entfernen heisst bewusst keine Person, automatisch gibt die Buchungen an die Ableitung zurueck. Wer bezahlt hat, folgt weiter dem Konto. Exitcode 2 = blockiert. Vorschau ist Default.",
     eigenschaften: {
       ids: { type: "array", items: ID("TXN"), minItems: 1 },
       person: ID("PER"),

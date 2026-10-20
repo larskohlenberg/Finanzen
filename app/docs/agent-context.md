@@ -558,7 +558,7 @@ Wichtige Tools:
   `konto_id` an einer Regelzahlung nachziehen. Regeln unter „Zuordnung zu
   Regelzahlungen".
 - `tools/personenbezug.mjs`: fuer wen eine Buchung ist (`fuer_person_id`,
-  ADR 0038). Ohne `--ids` leitet es ueber den **Bestand** ab: Person der
+  ADR 0039). Ohne `--ids` leitet es ueber den **Bestand** ab: Person der
   Regelzahlung der Buchung, sonst die eine Person aller aktiven, passenden
   Regeln mit `fuer_person_id` (mehrere verschiedene = Konflikt, keine Person).
   Handentscheidungen (`fuer_person_herkunft: manuell`, ohne Person = bewusst

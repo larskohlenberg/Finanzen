@@ -326,10 +326,20 @@ function renderTransactionFilters(antwort) {
                 .map((rz) => [rz.regelzahlung_id, rz.bezeichnung || rz.regelzahlung_id]),
             ],
           },
+          {
+            name: "transfer",
+            label: t("transactions.filterTransfer"),
+            options: [
+            ["", t("transactions.allTransfers")],
+            ["only", t("transactions.onlyTransfers")],
+            ["without", t("transactions.withoutTransfers")],
+            ],
+          },
         ],
       },
       {
-        label: t("transactions.filterGruppe.betrag"),
+        label: t("transactions.filterGruppe.betragBearbeitung"),
+        klasse: "filter-gruppe-betrag",
         fields: [
           {
             name: "richtung",
@@ -342,11 +352,6 @@ function renderTransactionFilters(antwort) {
           },
           { name: "betragVon", type: "betrag", label: t("transactions.betragVon") },
           { name: "betragBis", type: "betrag", label: t("transactions.betragBis") },
-        ],
-      },
-      {
-        label: t("transactions.filterGruppe.bearbeitung"),
-        fields: [
           {
             name: "status",
             label: t("transactions.filterStatus"),
@@ -366,15 +371,6 @@ function renderTransactionFilters(antwort) {
             ["regel", t("transactions.originRule")],
             ["agent", t("transactions.originAgent")],
             ["manuell", t("transactions.originManual")],
-            ],
-          },
-          {
-            name: "transfer",
-            label: t("transactions.filterTransfer"),
-            options: [
-            ["", t("transactions.allTransfers")],
-            ["only", t("transactions.onlyTransfers")],
-            ["without", t("transactions.withoutTransfers")],
             ],
           },
         ],

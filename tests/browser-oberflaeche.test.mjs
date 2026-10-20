@@ -121,13 +121,13 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
     await seite.warteAuf(`Number(document.querySelector(".filter-result-count").textContent.trim().split(" ")[0]) === Number(document.querySelector(".filter-result-count").textContent.trim().split(" ")[2])`, { text: "alle Treffer" });
   });
 
-  test("Filteranordnung: Suche oben, Zeitraum darunter, drei Gruppen ohne sichtbare Titel, aktive Filter ueber der Trefferzeile", async () => {
+  test("Filteranordnung: Suche oben, Zeitraum darunter, zwei Gruppen ohne sichtbare Titel, aktive Filter ueber der Trefferzeile", async () => {
     await oeffne("#/transaktionen");
     await listeGeladen();
     const kopf = await seite.werte(`[...document.querySelectorAll(".filter-kopf [data-filter]")].map((el) => el.dataset.filter)`);
     assert.deepEqual(kopf, ["search", "timeMode"]);
     const gruppen = await seite.werte(`[...document.querySelectorAll(".filter-gruppe")].map((g) => [g.getAttribute("aria-label"), [...g.querySelectorAll("[data-filter]")].map((el) => el.dataset.filter)])`);
-    assert.deepEqual(gruppen.map(([, f]) => f), [["account", "category", "regelzahlung"], ["richtung", "betragVon", "betragBis"], ["status", "origin", "transfer"]]);
+    assert.deepEqual(gruppen.map(([, f]) => f), [["account", "category", "regelzahlung", "transfer"], ["richtung", "betragVon", "betragBis", "status", "origin"]]);
     assert.ok(gruppen.every(([titel]) => titel?.length > 0), "jede Gruppe ist fuer Screenreader benannt");
     // Der Zeitraum steht unter der Suche, die Suche behaelt die volle Breite, auch mit Quartal.
     await waehle(`select[data-filter="timeMode"]`, "quarter");
@@ -138,6 +138,11 @@ describe("Oberflaeche im Browser", { skip: chrome ? false : "kein Chrome/Chromiu
     // Aktive Filter erscheinen als Chips unter den Feldern, direkt vor der Trefferzeile.
     const reihenfolge = await seite.werte(`[...document.querySelector(".filter-bar").children].map((el) => el.className.split(" ")[0])`);
     assert.deepEqual(reihenfolge.slice(-2), ["filter-chips", "filter-actions"]);
+    // Am Desktop je Gruppe eine Zeile; Richtung und Betraege schmaler als Status.
+    const zeilen = await seite.werte(`[...document.querySelectorAll(".filter-gruppe")].map((g) => new Set([...g.querySelectorAll("[data-filter]")].map((el) => Math.round(el.getBoundingClientRect().top))).size)`);
+    assert.deepEqual(zeilen, [1, 1]);
+    const breiten = await seite.werte(`["betragVon", "status"].map((n) => Math.round(document.querySelector('[data-filter="' + n + '"]').getBoundingClientRect().width))`);
+    assert.ok(breiten[0] < breiten[1], breiten.join(" < "));
     // Betragsfelder so hoch wie die Auswahlfelder.
     const hoehen = await seite.werte(`[document.querySelector('input[data-filter="betragVon"]'), document.querySelector('select[data-filter="richtung"]')].map((el) => Math.round(el.getBoundingClientRect().height))`);
     assert.equal(hoehen[0], hoehen[1]);

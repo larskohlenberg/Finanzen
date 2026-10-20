@@ -393,7 +393,7 @@ function anteileHtml(eigentumsanteile, marktwertCents) {
 
 // Auch von den Stammdaten (Konto-Rail) genutzt. konten: Antwort von
 // GET /api/v1/konten (Buchungen seit dem Anker einer Kontoposition).
-export function renderVermoegenDetail(p, today, konten) {
+function renderVermoegenDetail(p, today, konten) {
   const head = `
     <div class="detail-section">
       <div class="detail-label">${escapeHtml(t(`vermoegen.klasse.${p.klasse}`))}</div>

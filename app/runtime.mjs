@@ -40,7 +40,7 @@ async function bootstrap() {
 
 const bootstrapped = await bootstrap();
 export const data = bootstrapped.data;
-export const dictionaries = bootstrapped.dictionaries;
+const dictionaries = bootstrapped.dictionaries;
 
 // "Das Tool prueft" gilt auch in der UI: den Validator-Befund (data.validation)
 // liefert der Server mit den Grunddaten, dieselbe Logik wie das CLI. Er treibt

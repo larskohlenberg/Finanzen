@@ -15,7 +15,7 @@ import { addInterval, naechsteFaelligkeit, toCents } from "./liquiditaet.mjs";
 
 export const UEBERFAELLIG_TOLERANZ_TAGE = 10;
 export const ZEIGEN = Object.freeze(["alle", "aktiv", "ueberfaellig", "beendet"]);
-export const SORTIERUNG = Object.freeze(["bezeichnung", "betrag", "naechste", "letzte"]);
+const SORTIERUNG = Object.freeze(["bezeichnung", "betrag", "naechste", "letzte"]);
 
 export function regelzahlungStand(rz, gruppe, heute) {
   const letzte = gruppe?.letzte || "";

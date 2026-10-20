@@ -609,6 +609,6 @@ function transactionDetailRow(label, value) {
   `;
 }
 
-export function clearTransactionTimeFilter() {
+function clearTransactionTimeFilter() {
   state.transactionFilters = ohneZeitfilter(state.transactionFilters);
 }

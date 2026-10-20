@@ -23,7 +23,7 @@ export function toggleWertstaendeSort(key) {
     : { key, dir: key === "stand" || key === "wert" ? "desc" : "asc" };
 }
 
-export function entityLabel(entitaet, entitaetId) {
+function entityLabel(entitaet, entitaetId) {
   if (entitaet === "konto") return kontenById.get(entitaetId)?.name || entitaetId;
   if (entitaet === "immobilie") return data.immobilien?.find((i) => i.immobilie_id === entitaetId)?.bezeichnung || entitaetId;
   if (entitaet === "vermoegenswert") return data.vermoegenswerte?.find((v) => v.vermoegenswert_id === entitaetId)?.bezeichnung || entitaetId;
@@ -66,7 +66,7 @@ function sortiert(liste) {
   });
 }
 
-export function wertstaendeZeilen() {
+function wertstaendeZeilen() {
   const f = state.wertstaendeFilters;
   return sortiert(zeilen().filter((z) => {
     if (f.klasse && z.zw.entitaet !== f.klasse) return false;

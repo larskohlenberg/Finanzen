@@ -121,7 +121,7 @@ export function renderChecks() {
   `;
 }
 
-export function renderCheckItems(checks) {
+function renderCheckItems(checks) {
   return checks.map((check) => {
     const title = check.title ?? t(check.title_key);
     const detail = check.detail ?? t(check.detail_key);

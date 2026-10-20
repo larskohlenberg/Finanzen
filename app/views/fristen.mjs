@@ -13,7 +13,7 @@ const HORIZONT_MONATE = 600;
 
 const link = (ziel, text) => zielElement(ziel, escapeHtml(text));
 
-export const tageBis = (von, bis) => Math.round((Date.parse(`${bis}T00:00:00Z`) - Date.parse(`${von}T00:00:00Z`)) / 86400000);
+const tageBis = (von, bis) => Math.round((Date.parse(`${bis}T00:00:00Z`) - Date.parse(`${von}T00:00:00Z`)) / 86400000);
 
 export const fristKlasse = (f) => (f.ueberfaellig ? "ueberfaellig" : f.bald ? "bald" : "");
 

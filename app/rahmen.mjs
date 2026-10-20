@@ -51,7 +51,7 @@ export function renderSidebar() {
   `;
 }
 
-export function renderVersion() {
+function renderVersion() {
   if (rahmen.appVersion === undefined) return "";
   const v = versionAnzeige(rahmen.appVersion, {
     lang: state.lang,
@@ -66,7 +66,7 @@ export function renderVersion() {
 }
 
 // Nur mit konfigurierter Logout-URL (sitzung.json); lokal gibt es nichts abzumelden.
-export function renderAbmelden() {
+function renderAbmelden() {
   if (!rahmen.sitzungKonfig?.abmeldenUrl) return "";
   return `
     <button type="button" class="nav-button sidebar-abmelden" data-action="abmelden" aria-label="${escapeHtml(t("chrome.signOut"))}" title="${escapeHtml(t("chrome.signOut"))}">
@@ -140,7 +140,7 @@ export function renderTopbar() {
 
 // Ein Zahnrad statt drei Auswahlfeldern: Datenmodus, Sprache und Darstellung
 // als Knopfreihen im aufklappbaren Menue (Muster wie die Granularitaet in Liquiditaet).
-export function renderSettingsMenu() {
+function renderSettingsMenu() {
   const gruppe = (setting, label, optionen) => `
     <div class="settings-group" role="group" aria-label="${escapeHtml(label)}">
       <span class="settings-label">${escapeHtml(label)}</span>
@@ -161,7 +161,7 @@ export function renderSettingsMenu() {
   `;
 }
 
-export function renderNextActionButton(nextActionActions) {
+function renderNextActionButton(nextActionActions) {
   const nextAction = nextActionActions[0] ?? { type: "none", label: t("chrome.noAgentAction"), prompt: "" };
   const disabled = nextAction.type === "none" ? " disabled" : "";
   const label = state.nextActionCopied ? t("chrome.agentPromptCopied") : t("chrome.copyPromptShort");

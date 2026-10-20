@@ -110,10 +110,11 @@ export const state = {
   nextActionMenuOpen: false,
   settingsMenuOpen: false,
   nextActionPromptFallback: "",
+  // Name des Datumsfelds, dessen Kalender offen ist ("" = keiner).
+  kalenderOffen: "",
   liquiditaet: {
     granularitaet: "monat",
     bisDatum: defaultHorizonEnd(localTodayIso()),
-    kalenderOffen: false,
   },
   liquiditaetExpanded: new Set(),
   // Plan & Ist: Granularitaet der Auswahl, Zeitraum ("" Bestand, "12m", "2026",

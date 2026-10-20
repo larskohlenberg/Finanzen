@@ -1847,22 +1847,47 @@ tr.angesteuert td:first-child {
   gap: 8px;
   white-space: nowrap;
 }
-.datum-knopf {
+/* Datumsfeld: Text zum Tippen, Kalenderknopf rechts im Feld, Kalender darunter. */
+.datum-feld {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  min-width: 0;
+}
+.datum-feld input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 34px 5px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   font: inherit;
   font-size: 13px;
+}
+.datum-feld input:hover { border-color: var(--border-strong); }
+.datum-feld input:focus-visible { outline: none; border-color: var(--accent); }
+.datum-feld input[aria-invalid] { border-color: var(--danger, #d64545); }
+.liquiditaet-bis .datum-feld { width: 140px; }
+.filter-field .datum-feld { width: 100%; }
+.datum-feld-kalender {
+  position: absolute;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
   cursor: pointer;
 }
-.datum-knopf:hover { border-color: var(--border-strong); }
-.datum-knopf:focus-visible, .datum-knopf[aria-expanded="true"] { outline: none; border-color: var(--accent); }
-.datum-knopf svg { width: 15px; height: 15px; color: var(--muted); }
+.datum-feld-kalender:hover, .datum-feld-kalender[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.datum-feld-kalender svg { width: 15px; height: 15px; }
+.filter-field .kalender-popover { left: 0; right: auto; }
 .liquiditaet-horizont {
   display: flex;
   flex-wrap: wrap;
@@ -1871,7 +1896,7 @@ tr.angesteuert td:first-child {
 }
 .kalender-popover {
   position: absolute;
-  top: 34px;
+  top: calc(100% + 6px);
   right: 0;
   z-index: 30;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
@@ -1882,6 +1907,7 @@ tr.angesteuert td:first-child {
   .liquiditaet-bis { align-items: flex-start; }
   .liquiditaet-horizont { justify-content: flex-start; }
   .kalender-popover { right: auto; left: 0; }
+  .filter-time-row .filter-field:last-child .kalender-popover { left: auto; right: 0; }
 }
 .liquiditaet-detail .row-toggle {
   background: none;

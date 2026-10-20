@@ -404,6 +404,19 @@ export function renderTableFilters({ chips = "", searchFields = [], timeFields =
   `;
 }
 
+// Datumsfeld zum Tippen (TT.MM.JJJJ, uebernommen mit Enter oder beim Verlassen)
+// mit Kalenderknopf im Feld; offen ist der Kalender, wenn state.kalenderOffen
+// den Namen traegt (app/kalender.mjs haengt ihn ein, main.js setzt den Wert).
+export function datumsFeld({ name, wert, id, min = "", ansicht = "", ariaLabelledby = "" }) {
+  const offen = state.kalenderOffen === name;
+  return `
+    <span class="datum-feld">
+      <input type="text" inputmode="numeric" autocomplete="off" id="${escapeHtml(id)}" data-datum-feld="${escapeHtml(name)}" value="${escapeHtml(wert ? formatDate(wert) : "")}" placeholder="${escapeHtml(t("chrome.datumPlatzhalter"))}" title="${escapeHtml(t("chrome.datumHinweis"))}"${ariaLabelledby ? ` aria-labelledby="${escapeHtml(ariaLabelledby)}"` : ""}>
+      <button type="button" class="datum-feld-kalender" data-datum-kalender="${escapeHtml(name)}" aria-expanded="${offen}" aria-label="${escapeHtml(t("chrome.kalenderOeffnen"))}" title="${escapeHtml(t("chrome.kalenderOeffnen"))}">${iconSvg("kalender")}</button>
+      ${offen ? `<div class="kalender-popover"><div data-kalender="${escapeHtml(name)}" data-wert="${escapeHtml(wert ?? "")}" data-ansicht="${escapeHtml(ansicht)}" data-min="${escapeHtml(min)}"></div></div>` : ""}
+    </span>`;
+}
+
 function renderFilterSelect({ name, label, options, type, placeholder, filters, filterAttr, clearAction }) {
   const active = Boolean(filters[name]);
   const controlId = `${filterAttr}-${name}`;
@@ -413,7 +426,8 @@ function renderFilterSelect({ name, label, options, type, placeholder, filters, 
   } else if (type === "betrag") {
     control = `<input type="text" inputmode="decimal" id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}" value="${escapeHtml(filters[name])}" placeholder="0,00" autocomplete="off" pattern="\\d+([.,]\\d{1,2})?">`;
   } else if (type === "date") {
-    control = `<input type="date" id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}" value="${escapeHtml(filters[name])}">`;
+    // Bis ohne Wert oeffnet im Monat von Von.
+    control = datumsFeld({ name: `${filterAttr}:${name}`, wert: filters[name], id: controlId, ansicht: name === "dateTo" ? filters.dateFrom : "" });
   } else {
     control = `<select id="${escapeHtml(controlId)}" data-${escapeHtml(filterAttr)}="${escapeHtml(name)}">
         ${options.map(([value, text]) => `<option value="${escapeHtml(value)}" ${filters[name] === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}

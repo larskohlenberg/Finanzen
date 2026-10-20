@@ -6,7 +6,7 @@
 import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzahlKachel, kachelZeile, zeitverlaufKlein, klappKachel, trendPfeil, trendZeitraumText } from "../komponenten.mjs";
+import { datumsFeld, formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzahlKachel, kachelZeile, zeitverlaufKlein, klappKachel, trendPfeil, trendZeitraumText } from "../komponenten.mjs";
 import { miniKurve } from "../charts.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
@@ -252,8 +252,8 @@ function kategorienTrendTabelle(trend) {
 
 // Prognose: Stand am Horizont, Verlauf je Monatsende bis dahin, darunter die
 // naechsten grossen Zahlungen (jaehrliche Abfluesse der naechsten drei Monate).
-// Prognosehorizont: Schnellauswahl relativ zu heute, daneben das Datum als
-// Knopf mit Kalendersymbol; er klappt den Kalender auf (app/kalender.mjs).
+// Prognosehorizont: Schnellauswahl relativ zu heute, daneben das Datumsfeld
+// (tippen oder Kalender, komponenten.mjs datumsFeld).
 export function horizontVorschlaege(heute) {
   return [
     ["6m", addInterval(heute, "monat", 6)],
@@ -271,15 +271,13 @@ function horizontWahl() {
     const aktiv = datum === bis;
     return `<button type="button" class="chip ${aktiv ? "success" : "neutral"} linkish" data-liquiditaet-horizont="${escapeHtml(datum)}" aria-pressed="${aktiv}">${escapeHtml(t(`liquiditaet.horizont.${schluessel}`))}</button>`;
   }).join("");
-  const offen = state.liquiditaet.kalenderOffen;
   return `
     <div class="liquiditaet-bis">
       <span class="liquiditaet-bis-zeile">
-        <span class="muted" id="liquiditaet-bis-label">${escapeHtml(t("liquiditaet.forecastUntil"))}</span>
-        <button type="button" class="datum-knopf" data-liquiditaet-kalender aria-expanded="${offen}" aria-labelledby="liquiditaet-bis-label liquiditaet-bis-wert">${iconSvg("kalender")}<span id="liquiditaet-bis-wert">${escapeHtml(formatDate(bis))}</span></button>
+        <label class="muted" for="liquiditaet-bis">${escapeHtml(t("liquiditaet.forecastUntil"))}</label>
+        ${datumsFeld({ name: "liquiditaet-bis", wert: bis, id: "liquiditaet-bis", min: heute })}
       </span>
       <span class="liquiditaet-horizont" role="group" aria-label="${escapeHtml(t("liquiditaet.horizont.gruppe"))}">${knoepfe}</span>
-      ${offen ? `<div class="kalender-popover"><div data-kalender="liquiditaet-bis" data-wert="${escapeHtml(bis)}" data-min="${escapeHtml(heute)}"></div></div>` : ""}
     </div>`;
 }
 

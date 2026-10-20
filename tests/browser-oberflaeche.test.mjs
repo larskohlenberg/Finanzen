@@ -153,7 +153,7 @@ describe("Oberflaeche im Browser", { skip: fehlt ?? false, timeout: 120000 }, ()
     await listeGeladen();
     const modi = await seite.werte(`[...document.querySelectorAll('select[data-filter="timeMode"] option')].map((o) => o.value)`);
     assert.deepEqual(modi, ["none", "range", "month", "quarter", "year"]);
-    const felder = () => seite.werte(`[...document.querySelectorAll(".filter-time-row [data-filter]")].map((el) => el.dataset.filter)`);
+    const felder = () => seite.werte(`[...document.querySelectorAll(".filter-time-row [data-filter], .filter-time-row [data-datum-feld]")].map((el) => el.dataset.filter ?? el.dataset.datumFeld.replace("filter:", ""))`);
     assert.deepEqual(await felder(), ["timeMode"]);
 
     await waehle(`select[data-filter="timeMode"]`, "month");
@@ -176,7 +176,7 @@ describe("Oberflaeche im Browser", { skip: fehlt ?? false, timeout: 120000 }, ()
     assert.equal(await seite.werte(`document.querySelector('select[data-filter="quarter"]').value`), String(Math.ceil(Number(monat.slice(5, 7)) / 3)));
 
     await waehle(`select[data-filter="timeMode"]`, "range");
-    await seite.warteAuf(`document.querySelector('input[data-filter="dateFrom"]')`, { text: "Von-Bis" });
+    await seite.warteAuf(`document.getElementById("filter-dateFrom")`, { text: "Von-Bis" });
     assert.deepEqual(await felder(), ["timeMode", "dateFrom", "dateTo"]);
   });
 
@@ -230,26 +230,51 @@ describe("Oberflaeche im Browser", { skip: fehlt ?? false, timeout: 120000 }, ()
 
   test("Prognosehorizont: Schnellauswahl setzt das Datum, Kalender waehlt ein eigenes und schliesst mit Esc", async () => {
     await oeffne("#/liquiditaet");
-    const datum = () => seite.werte(`document.getElementById("liquiditaet-bis-wert").textContent.trim()`);
+    const datum = () => seite.werte(`document.getElementById("liquiditaet-bis").value`);
     // "2 Jahre" ab dem Stichtag der Demo (30.6.2026).
     await seite.klicke(`[data-liquiditaet-horizont="2028-06-30"]`);
-    await seite.warteAuf(`document.getElementById("liquiditaet-bis-wert")?.textContent.trim() === "30.6.2028"`, { text: "2 Jahre gesetzt" });
+    await seite.warteAuf(`document.getElementById("liquiditaet-bis")?.value === "30.6.2028"`, { text: "2 Jahre gesetzt" });
     assert.equal(await seite.werte(`document.querySelector('[data-liquiditaet-horizont="2028-06-30"]').getAttribute("aria-pressed")`), "true");
 
     // Kalender: oeffnen, einen Monat weiter, Tag waehlen -> uebernommen und zu.
-    await seite.klicke(`[data-liquiditaet-kalender]`);
+    await seite.klicke(`[data-datum-kalender="liquiditaet-bis"]`);
     await seite.warteAuf(`document.querySelector('.kalender-popover [data-vc-date="2028-06-15"]')`, { text: "Kalender offen" });
     await seite.klicke(`.kalender-popover [data-vc-arrow="next"]`);
     await seite.klicke(`.kalender-popover [data-vc-date="2028-07-14"] button`);
-    await seite.warteAuf(`!document.querySelector(".kalender-popover") && document.getElementById("liquiditaet-bis-wert").textContent.trim() === "14.7.2028"`, { text: "Tag uebernommen" });
+    await seite.warteAuf(`!document.querySelector(".kalender-popover") && document.getElementById("liquiditaet-bis").value === "14.7.2028"`, { text: "Tag uebernommen" });
 
     // Esc schliesst ohne Aenderung und gibt den Fokus an den Knopf zurueck.
-    await seite.klicke(`[data-liquiditaet-kalender]`);
+    await seite.klicke(`[data-datum-kalender="liquiditaet-bis"]`);
     await seite.warteAuf(`document.querySelector(".kalender-popover [data-vc-date]")`, { text: "Kalender wieder offen" });
     await seite.page.keyboard.press("Escape");
     await seite.warteAuf(`!document.querySelector(".kalender-popover")`, { text: "Esc schliesst" });
     assert.equal(await datum(), "14.7.2028");
-    assert.equal(await seite.werte(`document.activeElement?.hasAttribute("data-liquiditaet-kalender")`), true);
+    assert.equal(await seite.werte(`document.activeElement?.dataset.datumKalender`), "liquiditaet-bis");
+
+    // Tippen: Enter uebernimmt, Unlesbares wird markiert und aendert nichts.
+    await seite.page.locator("#liquiditaet-bis").fill("1.3.29");
+    await seite.page.keyboard.press("Enter");
+    await seite.warteAuf(`document.getElementById("liquiditaet-bis")?.value === "1.3.2029"`, { text: "getipptes Datum uebernommen" });
+    await seite.page.locator("#liquiditaet-bis").fill("31.2.2029");
+    await seite.page.keyboard.press("Enter");
+    await seite.warteAuf(`document.getElementById("liquiditaet-bis").hasAttribute("aria-invalid")`, { text: "ungueltig markiert" });
+    assert.match(await seite.werte(`document.querySelector(".liquiditaet-bis")?.closest("section, .panel, article")?.textContent ?? ""`), /1\.3\.2029/);
+  });
+
+  test("Buchungen Von-Bis: Datum tippen oder im Kalender waehlen, beides landet im Filter", async () => {
+    await oeffne("#/transaktionen");
+    await listeGeladen();
+    await waehle(`select[data-filter="timeMode"]`, "range");
+    await seite.warteAuf(`document.getElementById("filter-dateFrom")`, { text: "Von-Feld" });
+    await seite.page.locator("#filter-dateFrom").fill("1.1.2026");
+    await seite.page.keyboard.press("Enter");
+    await seite.warteAuf(`location.hash.includes("von=2026-01-01")`, { text: "Von getippt" });
+    await seite.klicke(`[data-datum-kalender="filter:dateTo"]`);
+    // Bis ohne Wert oeffnet im Monat von Von (Januar 2026).
+    await seite.warteAuf(`document.querySelector('.kalender-popover [data-vc-date="2026-01-20"]')`, { text: "Kalender Bis im Januar offen" });
+    await seite.klicke(`.kalender-popover [data-vc-date="2026-01-20"] button`);
+    await seite.warteAuf(`location.hash.includes("bis=2026-01-20") && !document.querySelector(".kalender-popover")`, { text: "Bis im Kalender gewaehlt" });
+    assert.equal(await seite.werte(`document.getElementById("filter-dateTo").value`), "20.1.2026");
   });
 
   test("Liquiditaetsprognose: Granularitaet umschalten, Zeilen aufklappen", async () => {

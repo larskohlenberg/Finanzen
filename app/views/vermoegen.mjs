@@ -5,7 +5,7 @@
 import { data, state, t, tf, fmt, escapeHtml, cents, kontenById, personenById } from "../runtime.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, formatMonth, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie, kennzahlKachel, kachelZeile, zeitverlaufKlein, teilbestandChip } from "../komponenten.mjs";
+import { formatMoney, formatDate, formatMonth, detailRow, renderPageHead, renderAccountPanels, accountOwnerNames, accountTypeLabel, quelleHtml, saldoLinie, kennzahlKachel, kachelZeile, zeitverlaufKlein, teilbestandChip, checkFormat } from "../komponenten.mjs";
 import { donutDiagramm } from "../charts.mjs";
 import { aktuellerZeitwert, anteilWertCents, restschuldJahre } from "../vermoegen.mjs";
 import { immobilienKennzahlen } from "../vermoegen-details.mjs";
@@ -308,7 +308,7 @@ function renderOffenePunkte(checks) {
     const key = `${c.entitaet}:${c.entitaet_id}`;
     if (!je.has(key)) je.set(key, { c, arten: new Set(), texte: [] });
     je.get(key).arten.add(t(`vermoegen.checkArt.${c.art}`));
-    je.get(key).texte.push(vermoegenCheckText(c, { geld: formatMoney, datum: formatDate }));
+    je.get(key).texte.push(vermoegenCheckText(c, checkFormat()));
   }
   if (!je.size && !vorsorge) return `<p class="vorsorge-offen-keine"><span class="chip success">${iconSvg("success")}${escapeHtml(t("vermoegen.uebersicht.offenKeine"))}</span></p>`;
   const zeilen = [...je.values()].map(({ c, arten, texte }) => {

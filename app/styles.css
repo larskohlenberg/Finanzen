@@ -3501,6 +3501,10 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .flach-unterliste .flach-gruppe .amount { color: inherit; }
 .flach-unterliste .flach-gruppe-folge { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--border); }
 .flach-unterliste:has(.flach-gruppe) li:not(.flach-gruppe) { padding-left: 10px; }
+/* Kategorie-Pfeile der Legende: feste Spalte direkt links vor dem Betrag; der
+   Betrag hat eine Mindestbreite, damit die Pfeile untereinander stehen. */
+.flach-legende li > span.trend-pfeil { flex: 0 0 1.1em; width: 1.1em; overflow: visible; text-align: left; }
+.flach-legende .amount { min-width: 8ch; text-align: right; }
 .uebersicht-flach-kachel .uebersicht-kachel-kopf { display: flex; align-items: center; gap: 6px; }
 @container (max-width: 260px) {
   .flach-inhalt { grid-template-columns: 1fr; gap: 8px; }

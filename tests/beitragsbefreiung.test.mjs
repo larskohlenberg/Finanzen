@@ -94,3 +94,17 @@ test("Ereignis ohne passenden Vertrag warnt", () => {
   const r = rechneSzenario(d, szenario([{ annahme_id: "A1", art: "ereignis", fall: "arbeitslosigkeit", person_id: "PER-002", ab: "2026-09-01", qualitaet: "geschaetzt" }]), TODAY);
   assert.ok(r.warnungen.some((w) => w.code === "ereignis-ohne-wirkung"));
 });
+
+test("BU zahlt nur BU-Renten, volle Erwerbsminderung auch die Erwerbsminderungsrente und befreit wie BU", () => {
+  const d = daten();
+  d.zeitwerte.push({ entitaet: "vorsorge", entitaet_id: "VS-001", feld: "erwerbsminderungsrente", wert: "900.00", standdatum: "2026-01-01", qualitaet: "belegt" });
+  const renten = (fall) => ereignisAnnahmen(d, { annahme_id: "A1", art: "ereignis", fall, person_id: "PER-001", ab: "2026-09-01", qualitaet: "geschaetzt" }, TODAY)
+    .filter((f) => f.art === "regelzahlung-neu").map((f) => f.name).sort();
+  assert.deepEqual(renten("bu"), ["BU-Rente Basisrente Lena"]);
+  assert.deepEqual(renten("erwerbsminderung"), ["BU-Rente Basisrente Lena", "Erwerbsminderungsrente Basisrente Lena"]);
+  const beendet = ereignisAnnahmen(d, { annahme_id: "A1", art: "ereignis", fall: "erwerbsminderung", person_id: "PER-001", ab: "2026-09-01", qualitaet: "geschaetzt" }, TODAY)
+    .filter((f) => f.art === "regelzahlung-aenderung").map((f) => f.regelzahlung_id).sort();
+  assert.deepEqual(beendet, ["RZ-001", "RZ-002"]);
+  d.szenarien = [szenario([{ annahme_id: "A1", art: "ereignis", fall: "erwerbsminderung", person_id: "PER-001", ab: "2026-09-01", qualitaet: "geschaetzt" }])];
+  assert.deepEqual(validateMasterData(d).errors.filter((e) => /fall/.test(e)), []);
+});

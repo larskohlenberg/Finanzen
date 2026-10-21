@@ -47,7 +47,9 @@ test("absicherung: je aktiver Person mit Vertrag BU und Tod mit Summen und Poste
   assert.deepEqual(ergebnis.map((p) => p.person_id), ["PER-001", "PER-002"]);
   const anna = ergebnis[0];
   assert.equal(anna.name, "Anna Muster");
-  assert.equal(anna.bu.monatlich_cents, 245050);
+  // BU-Summe nur BU-Renten; mit voller Erwerbsminderung kommt die EM-Rente dazu.
+  assert.equal(anna.bu.monatlich_cents, 150000);
+  assert.equal(anna.bu.erwerbsminderung_cents, 245050);
   assert.deepEqual(anna.bu.posten, [
     { vorsorge_id: "VS-002", name: "BU Anna", feld: "bu_rente", wert_cents: 150000, standdatum: "2026-03-01", qualitaet: "belegt", einkommensanrechnung: false },
     { vorsorge_id: "VS-001", name: "Gesetzliche Rente Anna", feld: "erwerbsminderungsrente", wert_cents: 95050, standdatum: "2026-07-01", qualitaet: "belegt", einkommensanrechnung: false },
@@ -63,7 +65,7 @@ test("absicherung: je aktiver Person mit Vertrag BU und Tod mit Summen und Poste
 
 test("absicherung: Person ohne Werte bekommt leere Faelle", () => {
   const ben = absicherung(daten(), HEUTE).find((p) => p.person_id === "PER-002");
-  assert.deepEqual(ben.bu, { monatlich_cents: 0, posten: [] });
+  assert.deepEqual(ben.bu, { monatlich_cents: 0, erwerbsminderung_cents: 0, posten: [] });
   assert.deepEqual(ben.tod, { einmalig_cents: 0, monatlich_cents: 0, posten: [] });
 });
 

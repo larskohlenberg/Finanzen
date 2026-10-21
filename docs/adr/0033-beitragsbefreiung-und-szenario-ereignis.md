@@ -34,3 +34,14 @@ eintragen.
   mit dem Nutzer klaert.
 - **Befreiung je Regelzahlung statt je Vertrag:** Die Befreiung ist eine
   Vertragseigenschaft; Beitrags-Regelzahlungen wechseln mit jeder Dynamik.
+
+## Nachtrag 2026-10-21: BU und volle Erwerbsminderung getrennt
+
+Berufsunfaehigkeit (eigener Beruf, private BU-Rente) und volle Erwerbsminderung
+(kaum noch irgendeine Arbeit, gesetzliche Rente) sind verschiedene Risiken; im
+typischen BU-Fall fliesst keine Erwerbsminderungsrente. Der Fall `bu` bucht
+deshalb nur noch `bu_rente` ein. Neuer Fall `erwerbsminderung`: befreit wie `bu`
+und bucht `bu_rente` und `erwerbsminderungsrente` ein. Die Kachel Absicherung
+zeigt entsprechend die BU-Renten als Summe und den Betrag bei voller
+Erwerbsminderung darunter. Verworfen: halbe Erwerbsminderungsrente als dritter
+Fall (nicht als Wert erfasst, haengt am Arbeitsmarkt).

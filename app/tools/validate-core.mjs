@@ -1076,7 +1076,7 @@ function validateSzenarien(data, errors) {
       }
 
       if (a.art === "ereignis") {
-        if (!["bu", "arbeitslosigkeit"].includes(a.fall)) melde(errors, "konsistenz", `${ap}`, `fall ungueltig (bu|arbeitslosigkeit)`);
+        if (!["bu", "erwerbsminderung", "arbeitslosigkeit"].includes(a.fall)) melde(errors, "konsistenz", `${ap}`, `fall ungueltig (bu|erwerbsminderung|arbeitslosigkeit)`);
         if (!personIds.has(a.person_id)) melde(errors, "verweis", `${ap}`, `person_id ${a.person_id} existiert nicht`);
         if (!isIsoDate(a.ab)) melde(errors, "konsistenz", `${ap}`, `ab fehlt/ungueltig`);
         if (a.bis !== undefined && (!isIsoDate(a.bis) || (isIsoDate(a.ab) && a.bis < a.ab))) melde(errors, "konsistenz", `${ap}`, `bis ungueltig oder vor ab`);

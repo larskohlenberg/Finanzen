@@ -214,19 +214,27 @@ function beitraegeBeenden(data, vorsorgeId, ab, annahme, begruendung) {
       aktion: "beenden", ab: r.anker_datum > ab ? r.anker_datum : ab, qualitaet: annahme.qualitaet, begruendung }));
 }
 
-// Ereignis BU oder Arbeitslosigkeit ab `ab` (bis optional `bis`) fuer eine Person:
-// Die Beitraege aller laufenden Vertraege dieser Person mit passender
-// Beitragsbefreiung entfallen; bei BU fliessen zusaetzlich die erfassten BU- und
-// Erwerbsminderungsrenten (brutto) als Einnahme. Uebersetzt in vorhandene
-// Annahme-Arten, damit Rechnung und Aenderungsliste ohne Sonderweg laufen.
-const EREIGNIS_RENTEN = [["bu_rente", "BU-Rente"], ["erwerbsminderungsrente", "Erwerbsminderungsrente"]];
-const EREIGNIS_FALL = { bu: "Berufsunfähigkeit", arbeitslosigkeit: "Arbeitslosigkeit" };
+// Ereignis BU, volle Erwerbsminderung oder Arbeitslosigkeit ab `ab` (bis optional
+// `bis`) fuer eine Person: Die Beitraege aller laufenden Vertraege dieser Person
+// mit passender Beitragsbefreiung entfallen (volle Erwerbsminderung schliesst BU
+// ein, greift also bei Befreiung "bu"). Dazu fliessen die erfassten Renten
+// (brutto) als Einnahme: bei BU nur die BU-Renten, denn die gesetzliche
+// Erwerbsminderungsrente setzt voraus, dass kaum noch irgendeine Arbeit moeglich
+// ist; bei voller Erwerbsminderung beide. Uebersetzt in vorhandene Annahme-Arten,
+// damit Rechnung und Aenderungsliste ohne Sonderweg laufen.
+const EREIGNIS_RENTEN = {
+  bu: [["bu_rente", "BU-Rente"]],
+  erwerbsminderung: [["bu_rente", "BU-Rente"], ["erwerbsminderungsrente", "Erwerbsminderungsrente"]],
+  arbeitslosigkeit: [],
+};
+const EREIGNIS_BEFREIUNG = { bu: "bu", erwerbsminderung: "bu", arbeitslosigkeit: "arbeitslosigkeit" };
+const EREIGNIS_FALL = { bu: "Berufsunfähigkeit", erwerbsminderung: "voller Erwerbsminderung", arbeitslosigkeit: "Arbeitslosigkeit" };
 
 export function ereignisAnnahmen(data, a, today) {
   const annahmen = [];
   const laeuft = (vs) => vs.status !== "beendet" && vs.status !== "gekuendigt" && (!vs.aktiv_bis || vs.aktiv_bis >= a.ab);
   const vertraege = (data.vorsorge ?? []).filter((vs) => vs.person_id === a.person_id && laeuft(vs));
-  for (const vs of vertraege.filter((v) => (v.beitragsbefreiung ?? []).includes(a.fall))) {
+  for (const vs of vertraege.filter((v) => (v.beitragsbefreiung ?? []).includes(EREIGNIS_BEFREIUNG[a.fall]))) {
     const beitraege = (data.regelzahlungen ?? []).filter((r) => r.status === "bestaetigt" && r.vorsorge_id === vs.vorsorge_id
       && toCents(r.betrag) < 0 && r.anker_datum <= a.ab && !(r.aktiv_bis && r.aktiv_bis < a.ab));
     for (const r of beitraege) {
@@ -239,14 +247,12 @@ export function ereignisAnnahmen(data, a, today) {
       }
     }
   }
-  if (a.fall === "bu") {
-    for (const vs of vertraege) {
-      for (const [feld, label] of EREIGNIS_RENTEN) {
-        const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld, today);
-        if (!zw) continue;
-        annahmen.push({ annahme_id: `${a.annahme_id}~${vs.vorsorge_id}~${feld}`, art: "regelzahlung-neu", name: `${label} ${vs.name}`, betrag: zw.wert,
-          rhythmus_einheit: "monat", rhythmus_intervall: 1, ab: a.ab, bis: a.bis, qualitaet: vs.geprueft_am ? (zw.qualitaet ?? "offen") : "offen" });
-      }
+  for (const vs of vertraege) {
+    for (const [feld, label] of EREIGNIS_RENTEN[a.fall] ?? []) {
+      const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld, today);
+      if (!zw) continue;
+      annahmen.push({ annahme_id: `${a.annahme_id}~${vs.vorsorge_id}~${feld}`, art: "regelzahlung-neu", name: `${label} ${vs.name}`, betrag: zw.wert,
+        rhythmus_einheit: "monat", rhythmus_intervall: 1, ab: a.ab, bis: a.bis, qualitaet: vs.geprueft_am ? (zw.qualitaet ?? "offen") : "offen" });
     }
   }
   return annahmen;

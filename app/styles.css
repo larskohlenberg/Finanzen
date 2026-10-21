@@ -3619,7 +3619,8 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 /* Summe fett, Posten normal; beide mit gleich breiten Ziffern, damit die Stellen untereinander stehen. */
 .absicherung-person-kopf strong { font-weight: 720; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .absicherung-person-titel { margin: 0; font-size: inherit; font-weight: inherit; }
-.absicherung-person-kopf.klapp-knopf { display: flex; align-items: center; width: 100%; text-align: left; }
+.absicherung-person-kopf.klapp-knopf { display: flex; flex-wrap: wrap; align-items: center; width: 100%; text-align: left; }
+.absicherung-person-zusatz { flex: 1 0 100%; text-align: right; color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 .absicherung-person-kopf.klapp-knopf strong { margin-left: auto; }
 .absicherung-person-name { flex: 1 1 auto; font-size: 0.95rem; font-weight: 700; }
 .absicherung-person-kopf .icon { width: 16px; height: 16px; color: var(--muted); flex: 0 0 auto; }
@@ -3627,8 +3628,11 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .absicherung-person-kopf:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-tight); }
 .absicherung-posten { list-style: none; margin: 6px 0 0 22px; padding: 0; }
 .absicherung-posten li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 6px 0; border-top: 1px solid var(--border); }
-.absicherung-posten li > button { text-align: left; }
-.absicherung-posten li > .muted { grid-column: 1; font-size: 0.85rem; }
+.absicherung-posten li > a { min-width: 0; }
+/* Lange Vertragsnamen kuerzen statt umbrechen; der volle Name steht im title. */
+.absicherung-posten .mit-logo { display: flex; min-width: 0; }
+.absicherung-posten .mit-logo > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.absicherung-posten li > .muted { grid-column: 1 / -1; font-size: 0.85rem; }
 .absicherung-posten li > .amount { grid-column: 2; grid-row: 1; white-space: nowrap; font-weight: 400; }
 
 /* Beitragsbefreiung in den Vertragsdaten: Haekchen nur zur Anzeige. */

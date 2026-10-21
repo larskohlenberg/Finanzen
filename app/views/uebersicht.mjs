@@ -1,9 +1,9 @@
 // app/views/uebersicht.mjs
-// Ganz oben drei flache Kacheln: monatliche Einnahmen, Ausgaben und Sparquote
-// (Ø der letzten zwoelf Monate aus den Buchungen, nach Kategorie).
-// Übersicht als Dashboard: je Bereich (Liquidität, Vermögen, Vorsorge) eine Kachel
-// mit Kennzahl und Zeilen, die ins Detail führen; Vermögen breit mit zwei
-// Unterkacheln (schnell verfügbar, langfristig gebunden). Darunter die
+// Ganz oben in einer Zeile die Liquiditaet und drei flache Kacheln: monatliche
+// Einnahmen, Ausgaben und Sparquote (Ø der letzten zwoelf Monate aus den
+// Buchungen, nach Kategorie). Darunter Vermoegen (breit, mit zwei Unterkacheln:
+// schnell verfuegbar, langfristig gebunden) und Vorsorge, dann die
+// Versicherungen je Vertrag. Darunter die
 // Termine der nächsten zwölf Monate (Fristen und jährliche Zahlungen) und die
 // Absicherung bei Berufsunfähigkeit und im Todesfall als zwei Kacheln. Konten- und Depottabellen stehen nur noch
 // unter Vermögen, die nächste Aktion im Arbeitsstatus oben.
@@ -76,7 +76,7 @@ function bereichsKachel({ id, icon, titel, ziel, wertTitel = "", wert, notiz = "
 // Wie viele Kategorien einzeln stehen; der Rest klappt unter "Übrige" auf.
 // Die Reihenfolge ergibt sich je Zeitraum neu aus den Betraegen.
 const TOP_KATEGORIEN = 3;
-const TOP_AUSGABEN = 5;
+const TOP_AUSGABEN = 3;
 const formatMonatLang = (ym) => fmt().monatJahrKurz(ym);
 const formatProzent = (anteil) => fmt().prozent(anteil);
 
@@ -125,8 +125,8 @@ function rundeUnter(unter, zielCents) {
   return gruppen.flatMap((g, i) => [{ ...g.kopf, mittel_cents: koepfe[i] }, ...rundeTeile(g.teile, koepfe[i])]);
 }
 
-// Flache Kachel: Kennzahl und Notiz, darunter links die kurze Leiste und
-// rechts die Legende untereinander. Teile mit negativem Betrag stehen nur in der Legende.
+// Flache Kachel: Kennzahl, darunter Trendpfeil und Notiz in einer Zeile, dann
+// die Leiste und unter ihr die Legende. Teile mit negativem Betrag stehen nur in der Legende.
 function flacheKachel({ id, titel, info = "", wert, trend = "", notiz, plan = "", teile: roh, summe_cents }) {
   const teile = summe_cents === undefined ? roh : rundeTeile(roh, summe_cents);
   const basis = Math.max(teile.filter((k) => k.mittel_cents > 0).reduce((a, k) => a + k.mittel_cents, 0), 1);
@@ -137,8 +137,8 @@ function flacheKachel({ id, titel, info = "", wert, trend = "", notiz, plan = ""
       <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">
         ${zielElement(ZIEL.liquiditaet, `${iconSvg("liquiditaet")}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}`)}${info ? infoTipp(info) : ""}
       </h2>
-      <div class="kpi-value">${wert}${trend ? ` <span class="kpi-trend">${trend}</span>` : ""}</div>
-      <div class="kpi-note">${notiz}</div>
+      <div class="kpi-value">${wert}</div>
+      <div class="kpi-note">${trend ? `<span class="kpi-trend">${trend}</span> · ` : ""}${notiz}</div>
       ${plan ? `<div class="kpi-plan">${plan}</div>` : ""}
       ${teile.length ? `
       <div class="flach-inhalt">
@@ -217,7 +217,6 @@ function renderEinnahmenAusgaben(modell) {
     ];
   });
   return `
-    <div class="uebersicht-flach">
       ${flacheKachel({ id: "einnahmen", titel: t("overview.monatlicheEinnahmen"), wert: jeMonat(mittel.einnahmen.mittel_cents), trend: trendPfeil(trend?.einnahmen.summe, { mehrIstGut: true, zeitraum: trend?.zeitraum }), notiz: basisNotiz, plan: planZeile(mittel.einnahmen.mittel_cents, planMittel(plan.einnahmen_plan_cents), true), teile: kategorieTeile(mittel.einnahmen.kategorien, mittel, TOP_KATEGORIEN, { vergleich: trend?.einnahmen, mehrIstGut: true, zeitraum: trend?.zeitraum }), summe_cents: mittel.einnahmen.mittel_cents })}
       ${flacheKachel({ id: "ausgaben", titel: t("overview.monatlicheAusgaben"), wert: jeMonat(mittel.ausgaben.mittel_cents), trend: trendPfeil(trend?.ausgaben.summe, { mehrIstGut: false, zeitraum: trend?.zeitraum }), notiz: basisNotiz, plan: planZeile(mittel.ausgaben.mittel_cents, planMittel(plan.ausgaben_plan_cents), false), teile: kategorieTeile(mittel.ausgaben.kategorien, mittel, TOP_AUSGABEN, { vergleich: trend?.ausgaben, mehrIstGut: false, zeitraum: trend?.zeitraum }), summe_cents: mittel.ausgaben.mittel_cents })}
       ${flacheKachel({
@@ -230,8 +229,7 @@ function renderEinnahmenAusgaben(modell) {
         plan: quoteZeile,
         teile: sparTeile,
         summe_cents: sparen.ueberschuss_cents,
-      })}
-    </div>`;
+      })}`;
 }
 
 // ------------------------------------------------------------- Liquiditaet
@@ -295,7 +293,7 @@ function renderVermoegenKachel(modell) {
   const rueckkauf = r.positionen.filter((p) => p.klasse === "vorsorge").reduce((a, p) => a + p.wert_cents, 0);
   const stand = r.positionen.map((p) => p.standdatum).filter(Boolean).sort()[0] ?? "";
   return `
-    <section class="panel panel-pad uebersicht-kachel uebersicht-kachel-breit" aria-labelledby="kachel-vermoegen">
+    <section class="panel panel-pad uebersicht-kachel" aria-labelledby="kachel-vermoegen">
       <h2 class="uebersicht-kachel-kopf" id="kachel-vermoegen">
         ${zielElement(ZIEL.vermoegen, `${iconSvg("vermoegen")}<span>${escapeHtml(t("nav.vermoegen"))}</span>${iconSvg("chevronRight")}`)}
       </h2>
@@ -485,9 +483,11 @@ export function renderOverview() {
   }
   return `
     ${renderPageHead(t("overview.title"), "")}
-    ${renderEinnahmenAusgaben(modell)}
-    <div class="uebersicht-kacheln">
+    <div class="uebersicht-flach">
       ${renderLiquiditaetKachel(modell)}
+      ${renderEinnahmenAusgaben(modell)}
+    </div>
+    <div class="uebersicht-kacheln">
       ${renderVermoegenKachel(modell)}
       ${renderVorsorgeKachel(modell)}
     </div>

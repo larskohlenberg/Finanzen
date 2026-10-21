@@ -192,7 +192,6 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.match(bereich("vermoegen"), /aria-label="Konten:[\s\S]*?aria-label="Festgeld:[\s\S]*?aria-label="Depots:/);
   assert.match(bereich("vermoegen"), /segment-festgeld/);
   // Konten, Festgeld und Depots in der Unterkachel "Schnell verfuegbar", zusammen 25.471,09.
-  assert.match(bereich("vermoegen"), /uebersicht-kachel-breit/);
   assert.match(bereich("vermoegen"), /Schnell verfügbar<\/h3>\s*<div class="vermoegen-teil-wert">25\.471\s€/);
   assert.match(bereich("vermoegen"), /Langfristig gebunden<\/h3>[\s\S]*Nichts erfasst/);
   assert.match(bereich("vermoegen"), /<svg class="vermoegen-balken"/);
@@ -362,11 +361,11 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   assert.match(kachel("einnahmen"), /Monatliche Einnahmen[\s\S]*<div class="kpi-value">3\.000\s€ <span class="betrag-einheit">/);
   assert.match(kachel("einnahmen"), /1 Monat · /);
   assert.match(kachel("ausgaben"), /<div class="kpi-value">1\.700\s€/);
-  // Bei den Ausgaben die fuenf groessten Kategorien als Link in die Buchungen, der Rest als "Übrige".
+  // Bei den Ausgaben die drei groessten Kategorien als Link in die Buchungen, der Rest als "Übrige".
   assert.match(kachel("ausgaben"), new RegExp(`data-action="kategorie-transactions" data-kategorie="KAT-003" data-von="${vorMonat}" data-bis="[0-9-]+" title="Wohnen">Wohnen</button>`));
-  assert.match(kachel("ausgaben"), /Gesundheit<\/button>[\s\S]*<span>Übrige<\/span><span class="amount">20\s€/);
+  assert.match(kachel("ausgaben"), /Mobilitaet<\/button>[\s\S]*<span>Übrige<\/span><span class="amount">100\s€/);
   // "Übrige" klappt die weiteren Kategorien auf, jede mit Link in die Buchungen.
-  assert.match(kachel("ausgaben"), /<details data-details="uebersicht\.uebrige\.ausgaben"><summary>[\s\S]*Übrige[\s\S]*<ul class="flach-unterliste"><li><button class="linkish" data-action="kategorie-transactions" data-kategorie="KAT-008"/);
+  assert.match(kachel("ausgaben"), /<details data-details="uebersicht\.uebrige\.ausgaben"><summary>[\s\S]*Übrige[\s\S]*<ul class="flach-unterliste"><li><button class="linkish" data-action="kategorie-transactions" data-kategorie="KAT-006"/);
 
   // Sparquote: (3000 - 1700) / 3000 = 43 %, Rest bleibt auf den Konten.
   assert.match(kachel("sparquote"), /Sparquote[\s\S]*<div class="kpi-value">43\s%<\/div>[\s\S]*1\.300\s€ \/ Monat übrig/);
@@ -374,8 +373,12 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   assert.match(kachel("sparquote"), /class="info-tipp"[\s\S]*Sparquote = \(Einnahmen − Ausgaben\)/);
   assert.doesNotMatch(kachel("sparquote"), /flach-fuss/);
 
+  // Liquiditaet steht als erste Kachel in derselben Zeile; ohne Buchungen bleibt sie allein.
+  assert.ok(html.indexOf('aria-labelledby="kachel-liquiditaet"') < html.indexOf('aria-labelledby="kachel-einnahmen"'));
   data.transaktionen = [];
-  assert.doesNotMatch((await gerenderteUebersicht()), /uebersicht-flach/);
+  const ohne = await gerenderteUebersicht();
+  assert.match(ohne, /<div class="uebersicht-flach">\s*<section[^>]*aria-labelledby="kachel-liquiditaet"/);
+  assert.doesNotMatch(ohne, /uebersicht-flach-kachel/);
 });
 
 test("Termine: Eintraege einzeilig, voller Text im Tooltip", async () => {

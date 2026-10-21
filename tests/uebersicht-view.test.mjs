@@ -292,11 +292,11 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   assert.match(teil("Langfristig gebunden"), /<a class="linkish" href="#\/vermoegen\/immobilien\/IMM-901" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="IMM-901" title="Testhaus">Testhaus<\/a>/);
 
   const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
-  assert.doesNotMatch(vorsorge, /Beiträge|Offene Punkte/);
+  assert.doesNotMatch(vorsorge.replace(/<span class="info-tipp"[\s\S]*?<\/span><\/span>/g, ""), /Beiträge|Offene Punkte/);
   // Einmalzahlungen gross, mit Leiste und Zeile je Vertrag, die in den Vertrag fuehrt.
   // Es zaehlt der Wert ohne weitere Beitraege; der bei Weiterzahlung steht nur daneben.
   assert.match(vorsorge, /Einmalzahlungen fällig<\/(?:a|button)><\/h3>\s*<div class="kpi-value">100\.000\s€/);
-  assert.match(vorsorge, /fällig 2040 · bei Weiterzahlung bis Ablauf 150\.000\s€/);
+  assert.match(vorsorge, /info-tipp-text" role="tooltip">Fällig 2040\.[^<]*Werden alle Beiträge bis zum Ablauf gezahlt, sind es 150\.000\s€\./);
   assert.match(vorsorge, /<svg class="vermoegen-balken"[\s\S]*data-titel="Testvertrag: 100\.000,00\s€" data-label="Testvertrag"/);
   assert.match(vorsorge, /data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag<\/(?:a|button)><span class="kopf-rechts"><span class="kopf-rechts-zeile"><span class="muted">1\.12\.2040<\/span><span class="amount">100\.000\s€<\/span><\/span><span class="muted kopf-unter">\(bei Weiterzahlung 150\.000\s€\)<\/span><\/span><\/li>/);
   assert.match(teil("Langfristig gebunden"), /data-action="vorsorge-tab" data-tab="lebensversicherungen"[^>]*>Rückkaufswerte</);

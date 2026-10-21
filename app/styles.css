@@ -1064,23 +1064,21 @@ button.roadmap-card-link:focus-visible {
 
 /* Summe der Treffer rechts in der Trefferzeile; der Reset davor behaelt
    seinen festen Platz, damit die Summe nicht springt. */
-.filter-reset-group + .filter-result-sum {
-  flex: 0 0 auto;
-}
-
 .filter-actions:has(.filter-result-sum) .filter-reset-group {
   margin-left: auto;
 }
 
 .filter-result-sum {
+  min-width: 0;
   color: var(--muted);
   font-size: 13px;
-  white-space: nowrap;
+  text-align: right;
 }
 
 .filter-result-sum strong {
   color: var(--text);
   font-size: 15px;
+  white-space: nowrap;
 }
 
 .filter-active-count {

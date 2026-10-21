@@ -3512,13 +3512,13 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .vertragsdaten-mit-logo > .logo-marke { width: 48px; height: 48px; margin: 8px 0 0; border-radius: 10px; font-size: 16px; }
 
 
-/* Uebersicht: drei Bereichskacheln (Vermoegen doppelt breit) und die Termin-Kachel darunter. */
-/* Uebersicht oben: drei flache Kacheln (Einnahmen, Ausgaben, Sparquote); unter
-   der Kennzahl links die kurze Leiste, rechts die Legende untereinander. */
-.uebersicht-flach { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+/* Uebersicht oben in einer Zeile: Liquiditaet und drei flache Kacheln (Einnahmen,
+   Ausgaben, Sparquote); unter der Kennzahl die Leiste, darunter die Legende.
+   Darunter Vermoegen und Vorsorge, dann Versicherungen und Termine. */
+.uebersicht-flach { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
 .uebersicht-flach-kachel { min-width: 0; container-type: inline-size; }
 .uebersicht-flach-kachel .kpi-value { margin: 8px 0 6px; font-size: 34px; }
-.flach-inhalt { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 16px; align-items: center; margin-top: 10px; }
+.flach-inhalt { display: grid; gap: 8px; margin-top: 10px; }
 .flach-inhalt .uebersicht-balken { margin-top: 0; }
 .flach-legende { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
 .flach-legende li { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
@@ -3545,11 +3545,8 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .flach-legende li > span.trend-pfeil { flex: 0 0 1.1em; width: 1.1em; overflow: visible; text-align: left; }
 .flach-legende .amount { min-width: 8ch; text-align: right; }
 .uebersicht-flach-kachel .uebersicht-kachel-kopf { display: flex; align-items: center; gap: 6px; }
-@container (max-width: 260px) {
-  .flach-inhalt { grid-template-columns: 1fr; gap: 8px; }
-}
 /* Gleich hohe Kacheln und eine feste Groesse fuer alle Kennzahlen (statt an die Kachelbreite gekoppelt). */
-.uebersicht-kacheln { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.3fr); gap: 16px; align-items: stretch; }
+.uebersicht-kacheln { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr); gap: 16px; align-items: stretch; }
 .vermoegen-teile { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .vermoegen-teil { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
 .vermoegen-teil-titel { margin: 0; color: var(--muted); font-size: 13px; font-weight: 650; }
@@ -3620,9 +3617,8 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .termine-liste li.ueberfaellig .termine-datum { color: var(--danger); }
 .termine-liste li.bald .termine-datum { color: var(--review); }
 @media (max-width: 1100px) {
-  .uebersicht-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .uebersicht-kachel-breit { grid-column: 1 / -1; order: -1; }
-  .uebersicht-flach { grid-template-columns: 1fr; }
+  .uebersicht-kacheln { grid-template-columns: 1fr; }
+  .uebersicht-flach { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
   .uebersicht-kacheln { grid-template-columns: 1fr; }

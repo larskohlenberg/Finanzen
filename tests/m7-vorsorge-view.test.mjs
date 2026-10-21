@@ -148,7 +148,7 @@ test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", async () => {
     assert.doesNotMatch(rkw, /Riester Lena/, "Riester steht nicht bei den Rueckkaufswerten im Vermoegen");
     // Beitraege als Donut je Bereich.
     assert.match(kachel("Beiträge"), /class="donut-segment tab-farbe-renten" data-titel="Renten &amp; Anwartschaften pro Jahr: 1\.800,00/);
-    assert.match(kachel("Kapitalleistungen"), /LV Lena<\/(?:a|button)><span class="muted">2035<\/span><span class="amount">25\.000,00\s€<\/span><\/li><li class="kopf-unterzeile"><span class="muted">\(bei Weiterzahlung 30\.000,00\s€\)<\/span><\/li>/);
+    assert.match(kachel("Kapitalleistungen"), /LV Lena<\/(?:a|button)><span class="kopf-rechts"><span class="kopf-rechts-zeile"><span class="muted">2035<\/span><span class="amount">25\.000,00\s€<\/span><\/span><span class="muted kopf-unter">\(bei Weiterzahlung 30\.000,00\s€\)<\/span><\/span><\/li>/);
     const beitraege = kachel("Beiträge");
     assert.match(beitraege, /data-tab="renten">Renten &amp; Anwartschaften<\/button><span class="amount">150,00\s€ \/ Monat/);
     assert.match(beitraege, /data-tab="versicherungen">Versicherungen<\/button><span class="amount">900,00\s€ \/ Jahr/);

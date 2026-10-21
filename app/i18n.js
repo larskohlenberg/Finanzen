@@ -446,7 +446,6 @@ window.FINANCE_I18N = {
       geschaetzt: "geschätzt",
       befristet: "befristet",
       vorAnrechnung: "vor Einkommensanrechnung",
-      anrechnungHinweis: "* Gesetzliche Witwen-/Witwerrente vor Anrechnung eigenen Einkommens; bei Erwerbseinkommen meist deutlich weniger.",
     },
     vorsorge: {
       loading: "Vorsorge wird geladen …",
@@ -1727,7 +1726,6 @@ window.FINANCE_I18N = {
       geschaetzt: "estimated",
       befristet: "time-limited",
       vorAnrechnung: "before income offset",
-      anrechnungHinweis: "* Statutory widow's/widower's pension before offsetting the survivor's own income; with earned income usually considerably less.",
     },
     vorsorge: {
       loading: "Loading provision …",

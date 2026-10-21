@@ -271,7 +271,7 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null, info
   const balken = aktiva || schulden
     ? `<div class="uebersicht-balken">${balkenSvg(segmente)}${schulden ? balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(schulden)}` }], { laenge: schulden / basis }) : ""}</div>`
     : "";
-  const zeilen = sichtbar.map((k) => zeile(link(k.ziel, k.titel, { title: k.titel }), escapeHtml(geldOhneCent(summe(k.filter))), { punkt: k.punkt, zusatz: k.zusatz ?? "" }));
+  const zeilen = sichtbar.map((k) => zeile(link(k.ziel, k.titel, { title: k.titel }), escapeHtml(geldOhneCent(summe(k.filter))), { punkt: k.punkt }));
   return `
         <div class="vermoegen-teil${breit ? " vermoegen-teil-breit" : ""}">
           <h3 class="vermoegen-teil-titel">${escapeHtml(titel)}${info ? infoTipp(info) : ""}</h3>
@@ -279,13 +279,6 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null, info
           ${balken}
           ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : `<p class="muted">${escapeHtml(t("overview.vermoegenTeilLeer"))}</p>`}
         </div>`;
-}
-
-// Jahre der Leistungsbeginne einer Gruppe: "ab 2043" oder "2035–2041".
-function beginnJahre(verwendungen) {
-  const jahre = [...new Set(verwendungen.map((v) => v.beginn?.slice(0, 4)).filter(Boolean))].sort();
-  if (!jahre.length) return "";
-  return jahre.length === 1 ? tf("overview.rueckkaufAb", { jahr: jahre[0] }) : `${jahre[0]}–${jahre.at(-1)}`;
 }
 
 // Breite Kachel: oben das Nettovermoegen, darunter schnell verfuegbar (Konten,
@@ -305,11 +298,10 @@ function renderVermoegenKachel(modell) {
     .map((imm) => ({ titel: imm.name, filter: (p) => p.klasse === "immobilie" && p.id === imm.id, ziel: ZIEL.vermoegenObjekt("immobilie", imm.id), punkt: "segment-immobilie" }));
   // Rueckkaufswerte fuehren in den Vorsorge-Reiter, der den groessten Teil davon haelt.
   const rueckkaufTab = r.rueckkauf_tab;
-  const verwendung = (p) => r.rueckkauf_verwendung[p.id] ?? { art: "kapital", beginn: null };
+  const verwendung = (p) => r.rueckkauf_verwendung[p.id] ?? "kapital";
   const rueckkauf = (art) => {
-    const filter = (p) => p.klasse === "vorsorge" && verwendung(p).art === art;
+    const filter = (p) => p.klasse === "vorsorge" && verwendung(p) === art;
     return { titel: t(art === "rente" ? "overview.rueckkaufRente" : "overview.rueckkaufKapital"), filter,
-      zusatz: beginnJahre(r.positionen.filter(filter).map(verwendung)),
       ziel: ZIEL.vorsorgeTab(art === "rente" ? "renten" : rueckkaufTab), punkt: art === "rente" ? "segment-vorsorge-rente" : "segment-vorsorge" };
   };
   const stand = r.positionen.map((p) => p.standdatum).filter(Boolean).sort()[0] ?? "";

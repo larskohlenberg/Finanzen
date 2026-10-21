@@ -309,10 +309,10 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   assert.doesNotMatch(teil("Langfristig gebunden"), /Rückkaufswerte/);
   const rueckkauf = html.match(/<div class="vermoegen-teil vermoegen-teil-breit">[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? "";
   assert.match(rueckkauf, /Rückkaufswerte der Versicherungen<span class="info-tipp"[^>]*>i<span class="info-tipp-text" role="tooltip">Wert bei Kündigung heute\./);
-  assert.match(rueckkauf, /data-action="vorsorge-tab" data-tab="lebensversicherungen"[^>]*>Wird als Kapital ausgezahlt<\/a><span class="muted">ab 2040<\/span>/);
+  assert.match(rueckkauf, /data-action="vorsorge-tab" data-tab="lebensversicherungen"[^>]*>Wird als Kapital ausgezahlt<\/a><span class="amount">/);
   assert.match(rueckkauf, /vermoegen-teil-wert">50\.000\s€/);
-  assert.match(rueckkauf, />Wird als Kapital ausgezahlt<\/a><span class="muted">ab 2040<\/span><span class="amount">30\.000\s€/);
-  assert.match(rueckkauf, /segment-vorsorge-rente[\s\S]*data-tab="renten"[^>]*>Wird verrentet<\/a><span class="muted">ab 2043<\/span><span class="amount">20\.000\s€/);
+  assert.match(rueckkauf, />Wird als Kapital ausgezahlt<\/a><span class="amount">30\.000\s€/);
+  assert.match(rueckkauf, /segment-vorsorge-rente[\s\S]*data-tab="renten"[^>]*>Wird verrentet<\/a><span class="amount">20\.000\s€/);
   assert.match(vorsorge, /<h3 class="vermoegen-teil-titel uebersicht-werttitel"><a class="linkish" href="#\/vorsorge\/renten" data-action="vorsorge-tab" data-tab="renten">Monatliche Renten<\/a><\/h3>\s*<div class="kpi-value">/);
 });
 

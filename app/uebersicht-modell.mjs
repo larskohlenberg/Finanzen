@@ -52,11 +52,11 @@ export function uebersichtModell(daten, heute) {
     jeTab.set(tab, (jeTab.get(tab) ?? 0) + p.wert_cents);
   }
   // Was bei Ablauf aus dem Rueckkaufswert wird: Rente (faellt dann aus dem
-  // Vermoegen) oder Kapital (bleibt als Guthaben), mit Leistungsbeginn.
+  // Vermoegen) oder Kapital (bleibt als Guthaben).
   const rueckkaufVerwendung = Object.fromEntries(netto.positionen.filter((p) => p.klasse === "vorsorge").map((p) => {
     const vs = (daten.vorsorge ?? []).find((v) => v.vorsorge_id === p.id);
     const rente = vs?.kapitalwahl === "monatsrente" || Boolean(aktuellerZeitwert(daten.zeitwerte, "vorsorge", p.id, "erwartete_rente", heute));
-    return [p.id, { art: rente ? "rente" : "kapital", beginn: vs?.leistung_beginn || null }];
+    return [p.id, rente ? "rente" : "kapital"];
   }));
 
   const { renten, stufen, gesamt_cents } = rentenStufen(daten);

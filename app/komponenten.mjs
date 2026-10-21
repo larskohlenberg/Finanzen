@@ -409,9 +409,13 @@ export function renderTableFilters({ chips = "", searchFields = [], timeFields =
 // den Namen traegt (app/kalender.mjs haengt ihn ein, main.js setzt den Wert).
 export function datumsFeld({ name, wert, id, min = "", ansicht = "", ariaLabelledby = "" }) {
   const offen = state.kalenderOffen === name;
+  // Getippter, noch nicht uebernommener Text bleibt ueber ein Neuzeichnen stehen,
+  // unlesbarer zusaetzlich markiert.
+  const eingabe = state.datumEingabe?.name === name ? state.datumEingabe : null;
+  const roh = eingabe ? eingabe.text : null;
   return `
     <span class="datum-feld">
-      <input type="text" inputmode="numeric" autocomplete="off" id="${escapeHtml(id)}" data-datum-feld="${escapeHtml(name)}" value="${escapeHtml(wert ? formatDate(wert) : "")}" placeholder="${escapeHtml(t("chrome.datumPlatzhalter"))}" title="${escapeHtml(t("chrome.datumHinweis"))}"${ariaLabelledby ? ` aria-labelledby="${escapeHtml(ariaLabelledby)}"` : ""}>
+      <input type="text" inputmode="numeric" autocomplete="off" id="${escapeHtml(id)}" data-datum-feld="${escapeHtml(name)}" value="${escapeHtml(roh ?? (wert ? formatDate(wert) : ""))}"${eingabe?.ungueltig ? " aria-invalid=\"true\"" : ""} placeholder="${escapeHtml(t("chrome.datumPlatzhalter"))}" title="${escapeHtml(t("chrome.datumHinweis"))}"${ariaLabelledby ? ` aria-labelledby="${escapeHtml(ariaLabelledby)}"` : ""}>
       <button type="button" class="datum-feld-kalender" data-datum-kalender="${escapeHtml(name)}" aria-expanded="${offen}" aria-label="${escapeHtml(t("chrome.kalenderOeffnen"))}" title="${escapeHtml(t("chrome.kalenderOeffnen"))}">${iconSvg("kalender")}</button>
       ${offen ? `<div class="kalender-popover"><div data-kalender="${escapeHtml(name)}" data-wert="${escapeHtml(wert ?? "")}" data-ansicht="${escapeHtml(ansicht)}" data-min="${escapeHtml(min)}"></div></div>` : ""}
     </span>`;

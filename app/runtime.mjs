@@ -112,6 +112,8 @@ export const state = {
   nextActionPromptFallback: "",
   // Name des Datumsfelds, dessen Kalender offen ist ("" = keiner).
   kalenderOffen: "",
+  // Getipptes, noch nicht uebernommenes Datum { name, text, ungueltig }.
+  datumEingabe: null,
   liquiditaet: {
     granularitaet: "monat",
     bisDatum: defaultHorizonEnd(localTodayIso()),

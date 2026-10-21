@@ -139,14 +139,28 @@ function render() {
 
 // Prognosehorizont setzen (Schnellauswahl oder Datumsfeld); schliesst den Kalender.
 function setzeHorizont(datum) {
+  if (state.datumEingabe?.name === "liquiditaet-bis") state.datumEingabe = null;
   state.liquiditaet.bisDatum = datum || defaultHorizonEnd(heuteIso());
   state.kalenderOffen = "";
   state.liquiditaetExpanded.clear();
   render();
 }
 
+// Getippten Text eines Datumsfelds uebernehmen (change oder Enter); Unlesbares
+// bleibt stehen und wird markiert, der bisherige Wert gilt weiter.
+function uebernimmDatum(feld) {
+  const datum = datumAusEingabe(feld.value);
+  if (datum === null) {
+    state.datumEingabe = { name: feld.dataset.datumFeld, text: feld.value, ungueltig: true };
+    render();
+    return;
+  }
+  setzeDatum(feld.dataset.datumFeld, datum);
+}
+
 // Wert eines Datumsfelds (getippt oder im Kalender gewaehlt), ISO oder "".
 function setzeDatum(name, datum) {
+  if (state.datumEingabe?.name === name) state.datumEingabe = null;
   if (name === "liquiditaet-bis") {
     setzeHorizont(datum);
     return;
@@ -348,6 +362,13 @@ app.addEventListener("click", guard((event) => {
 // Native Buttons/Links/Inputs bringen Enter/Space selbst mit.
 const KEY_ACTIVATION_SELECTOR = "[data-action], [data-view], [data-master-section], [data-liquiditaet-toggle], [data-liquiditaet-gran], [data-wertstaende-sort], [data-transaction-sort], [data-regel-sort], [data-rule], [data-vorsorge]";
 app.addEventListener("keydown", guard((event) => {
+  // Enter uebernimmt ein getipptes Datum ausdruecklich: wurde das Feld seit dem
+  // Tippen neu gezeichnet, meldet der Browser beim Enter kein change.
+  if (event.key === "Enter" && event.target.matches?.("input[data-datum-feld]")) {
+    event.preventDefault();
+    uebernimmDatum(event.target);
+    return;
+  }
   if (event.key === "Escape" && state.kalenderOffen) {
     const name = state.kalenderOffen;
     state.kalenderOffen = "";
@@ -384,6 +405,13 @@ app.addEventListener("keydown", guard((event) => {
 // abschliessende compositionend verarbeitet die fertige Eingabe.
 const sucheEntprellt = erstelleEntpreller(() => render(), 250);
 function verarbeiteEingabe(event) {
+  // Datumsfeld: Text mitschreiben (uebernommen wird erst bei change), damit ein
+  // Neuzeichnen waehrend des Tippens ihn nicht verwirft.
+  const datumFeld = event.target.closest?.("input[data-datum-feld]");
+  if (datumFeld) {
+    state.datumEingabe = { name: datumFeld.dataset.datumFeld, text: datumFeld.value, ungueltig: false };
+    return;
+  }
   const such = event.target.closest?.("input[data-schnellsuche]");
   if (such) {
     state.schnellsuche = { offen: true, text: such.value, index: 0 };
@@ -550,9 +578,7 @@ app.addEventListener("change", guard((event) => {
   // stehen und wird markiert, der bisherige Wert gilt weiter.
   const datumFeld = event.target.closest("input[data-datum-feld]");
   if (datumFeld) {
-    const datum = datumAusEingabe(datumFeld.value);
-    datumFeld.toggleAttribute("aria-invalid", datum === null);
-    if (datum !== null) setzeDatum(datumFeld.dataset.datumFeld, datum);
+    uebernimmDatum(datumFeld);
     return;
   }
 

@@ -748,6 +748,23 @@ button.transfer-link:focus-visible {
 .transaction-table .col-betrag { width: 9%; }
 .transaction-table .col-kategorie { width: 20.5%; }
 
+/* Kacheln, Filter und Gruppen laufen ueber die volle Breite; die Detail-Rail
+   oeffnet nur im Raster darunter neben der Tabelle. */
+.transaktionen-raster { margin-top: 16px; }
+
+/* Mitlaufender Tabellenkopf (app/tabellenkopf.mjs): die Kopfzellen werden um
+   --kopf-versatz nach unten geschoben, solange der Rahmen oben aus dem Fenster ragt. */
+[data-kopf-klebt] thead th {
+  position: relative;
+  z-index: 2;
+  background: var(--surface);
+  transform: translateY(var(--kopf-versatz, 0px));
+}
+
+.kopf-schwebt thead th {
+  box-shadow: inset 0 -1px 0 var(--border), 0 6px 8px -6px rgba(0, 0, 0, 0.22);
+}
+
 /* Summenzeile eines Tabellenblocks (Kontentabelle der Uebersicht). */
 .table-sum td {
   border-top: 2px solid var(--border);
@@ -1019,6 +1036,7 @@ button.roadmap-card-link:focus-visible {
    mit Anzahl davor — fester Platz, klarer "gilt fuer alle"-Charakter. */
 .filter-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -1042,6 +1060,27 @@ button.roadmap-card-link:focus-visible {
 .filter-result-count {
   color: var(--muted);
   font-size: 13px;
+}
+
+/* Summe der Treffer rechts in der Trefferzeile; der Reset davor behaelt
+   seinen festen Platz, damit die Summe nicht springt. */
+.filter-reset-group + .filter-result-sum {
+  flex: 0 0 auto;
+}
+
+.filter-actions:has(.filter-result-sum) .filter-reset-group {
+  margin-left: auto;
+}
+
+.filter-result-sum {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.filter-result-sum strong {
+  color: var(--text);
+  font-size: 15px;
 }
 
 .filter-active-count {

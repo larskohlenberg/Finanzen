@@ -103,7 +103,7 @@ describe("Ablaeufe im Browser", { skip: fehlt ?? false, timeout: 120000 }, () =>
     await oeffne("#/transaktionen");
     await seite.klicke(`input[data-filter="search"]`);
     await seite.tippe("Miete");
-    await seite.warteAuf(`document.querySelector(".summary-cell strong")`);
+    await seite.warteAuf(`document.querySelector(".filter-result-sum strong")`);
     await new Promise((r) => setTimeout(r, 600));
     assert.deepEqual(await seite.werte(`({ filter: document.activeElement?.dataset.filter, wert: document.activeElement?.value })`), { filter: "search", wert: "Miete" });
 

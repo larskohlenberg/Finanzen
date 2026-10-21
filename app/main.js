@@ -4,6 +4,7 @@ import { beiApiAntwort, leereApiCaches, verwerfeApiCaches } from "./api-daten.mj
 import { anwendenBaumBreite, bindBelegeTrenner } from "./belege-trenner.mjs";
 import { ladeGrunddaten, ladeStand } from "./data-loader.mjs";
 import { bindDiagrammHover, termineListenBegrenzen, versteckeDiagrammHover } from "./diagramm-hover.mjs";
+import { bindTabellenkopf, tabellenkoepfeSetzen } from "./tabellenkopf.mjs";
 import { diffusorAnwenden, schalteDiffusor } from "./diffusor-anzeige.mjs";
 import { safeRender, guard } from "./error.mjs";
 import { captureFocus, restoreFocus, captureScroll, restoreScroll } from "./fokus.mjs";
@@ -117,6 +118,7 @@ function render() {
   restoreScroll(app, scrollSnap);
   anwendenBaumBreite(app);
   termineListenBegrenzen(app);
+  tabellenkoepfeSetzen(app);
   kalenderAnbinden(app, { sprache: state.lang, beiWahl: setzeDatum }).catch(setUiError);
   restoreFocus(app, focusSnap);
   // Neue Seite: der Fokus geht auf ihre Ueberschrift (Screenreader liest sie),
@@ -640,6 +642,7 @@ for (const typ of ["dragover", "drop"]) {
 // Diagramm-Hover: delegierter pointermove-Handler auf dem App-Container.
 bindDiagrammHover(app);
 window.addEventListener("resize", () => termineListenBegrenzen(app));
+bindTabellenkopf(app);
 bindBelegeTrenner(app);
 
 // Alle Aktionen (data-action) je Bereich; Namen sind eindeutig.

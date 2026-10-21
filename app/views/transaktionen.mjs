@@ -86,18 +86,15 @@ export function renderTransactions() {
 
   return `
     ${renderPageHead(t("transactions.title"), "", breadcrumb)}
-    <div class="layout-with-rail ${detailRailOpen ? "" : "rail-closed"}">
+    <div class="stack">
+      ${renderTransactionFilters(antwort)}
+      ${renderGruppen(antwort)}
+    </div>
+    <div class="layout-with-rail ${detailRailOpen ? "" : "rail-closed"} transaktionen-raster">
       <div class="stack">
-        <section class="summary-strip">
-          <div class="summary-cell"><span class="muted">${escapeHtml(t("transactions.hits"))}</span><strong>${antwort.treffer}</strong></div>
-          <div class="summary-cell"><span class="muted">${escapeHtml(t("transactions.filteredBalance"))}</span><strong>${escapeHtml(formatMoney(antwort.saldo_cent))}</strong></div>
-          <div class="summary-cell"><span class="muted">${escapeHtml(t("chrome.categoryOpen"))}</span><strong>${antwort.offen}</strong></div>
-        </section>
-        ${renderTransactionFilters(antwort)}
-        ${renderGruppen(antwort)}
         <section class="panel${laedt ? " laedt" : ""}" aria-busy="${laedt ? "true" : "false"}">
           ${renderTransactionTableToolbar()}
-          <div class="table-wrap">
+          <div class="table-wrap" data-kopf-klebt>
             <table class="transaction-table">
               <colgroup>
                 <col class="col-datum"><col class="col-konto"><col class="col-gegenpartei"><col class="col-zweck">
@@ -393,6 +390,7 @@ function renderTransactionFilters(antwort) {
     activeCount: transactionFilterActiveCount(),
     resultCount: antwort.treffer,
     totalCount: antwort.gesamt,
+    ergebnisZusatz: `<span class="filter-result-sum">${escapeHtml(t("transactions.filteredBalance"))}: <strong>${escapeHtml(formatMoney(antwort.saldo_cent))}</strong></span>`,
   });
 }
 

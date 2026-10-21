@@ -47,7 +47,7 @@ function absicherungZeilen(data, stichtag) {
     ...personen.flatMap((p) => [
       `- ${p.person_id} ${p.name}: BU ${fall([[p.bu.monatlich_cents, "je Monat"]])}; Tod ${fall([[p.tod.einmalig_cents, "einmalig"], [p.tod.monatlich_cents, "je Monat"]])}`,
       ...[["BU", p.bu.posten], ["Tod", p.tod.posten]].flatMap(([name, posten]) =>
-        posten.map((x) => `  * ${name} ${x.vorsorge_id} ${x.name}: ${x.feld} ${eur(x.wert_cents)}, Stand ${x.standdatum}`)),
+        posten.map((x) => `  * ${name} ${x.vorsorge_id} ${x.name}: ${x.feld} ${eur(x.wert_cents)}, Stand ${x.standdatum}${x.qualitaet === "geschaetzt" ? ", geschaetzt" : ""}${x.einkommensanrechnung ? ", vor Einkommensanrechnung" : ""}`)),
     ]),
   ];
 }

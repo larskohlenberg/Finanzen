@@ -3554,7 +3554,7 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .vermoegen-teil { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
 .vermoegen-teil-titel { margin: 0; color: var(--muted); font-size: 13px; font-weight: 650; }
 .vermoegen-teil-wert { margin: 4px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.vermoegen-teil .muted { margin: 8px 0 0; font-size: 13px; }
+.vermoegen-teil > p.muted { margin: 8px 0 0; font-size: 13px; }
 .vermoegen-teil-breit { grid-column: 1 / -1; }
 .uebersicht-kachel { display: flex; flex-direction: column; container-type: inline-size; min-width: 0; }
 .uebersicht-kachel .kpi-value { margin: 8px 0 6px; font-size: 34px; }

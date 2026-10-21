@@ -298,7 +298,7 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   assert.match(vorsorge, /Einmalzahlungen fällig<\/(?:a|button)><\/h3>\s*<div class="kpi-value">100\.000\s€/);
   assert.match(vorsorge, /fällig 2040 · bei Weiterzahlung bis Ablauf 150\.000\s€/);
   assert.match(vorsorge, /<svg class="vermoegen-balken"[\s\S]*data-titel="Testvertrag: 100\.000,00\s€" data-label="Testvertrag"/);
-  assert.match(vorsorge, /data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag<\/(?:a|button)><span class="muted">1\.12\.2040<\/span><span class="amount">100\.000\s€<\/span><\/li><li class="kopf-unterzeile"><span class="muted">\(bei Weiterzahlung 150\.000\s€\)<\/span><\/li>/);
+  assert.match(vorsorge, /data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag<\/(?:a|button)><span class="kopf-rechts"><span class="kopf-rechts-zeile"><span class="muted">1\.12\.2040<\/span><span class="amount">100\.000\s€<\/span><\/span><span class="muted kopf-unter">\(bei Weiterzahlung 150\.000\s€\)<\/span><\/span><\/li>/);
   assert.match(teil("Langfristig gebunden"), /data-action="vorsorge-tab" data-tab="lebensversicherungen"[^>]*>Rückkaufswerte</);
   assert.match(vorsorge, /<h3 class="vermoegen-teil-titel uebersicht-werttitel"><a class="linkish" href="#\/vorsorge\/renten" data-action="vorsorge-tab" data-tab="renten">Monatliche Renten<\/a><\/h3>\s*<div class="kpi-value">/);
 });

@@ -11,7 +11,7 @@ import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, trendZeitraumText, zielElement, hrefAttr, teilbestandChip, weiterzahlungZeile } from "../komponenten.mjs";
+import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, trendZeitraumText, zielElement, hrefAttr, teilbestandChip, weiterzahlungText, rechtsBlock } from "../komponenten.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { verteileRundung } from "../uebersicht-rechnung.mjs";
@@ -38,8 +38,8 @@ const standText = (datum) => (datum ? `${t("labels.stand")} ${formatDate(datum)}
 const farbPunkt = (klasse) => `<i class="farbpunkt ${klasse}" aria-hidden="true"></i>`;
 
 // Eine Zeile unter der Kennzahl: Link ins Detail, optional Zusatz und Betrag.
-function zeile(linkHtml, betrag, { zusatz = "", punkt = "" } = {}) {
-  return `<li>${punkt ? farbPunkt(punkt) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${betrag}</span></li>`;
+function zeile(linkHtml, betrag, { zusatz = "", punkt = "", unter = "" } = {}) {
+  return `<li>${punkt ? farbPunkt(punkt) : ""}${linkHtml}${rechtsBlock(zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : "", betrag, unter)}</li>`;
 }
 
 const link = (ziel, text, { title = "" } = {}) => zielElement(ziel, escapeHtml(text), { title });
@@ -358,8 +358,8 @@ function renderVorsorgeKachel(modell) {
   const kapitalZeilen = kapital.map((l) => zeile(
     `<a class="linkish" href="${escapeHtml(zielRoute("open-vorsorge", l.vorsorge_id))}" data-action="open-vorsorge" data-vorsorge="${escapeHtml(l.vorsorge_id)}">${escapeHtml(l.name)}</a>`,
     escapeHtml(geldOhneCent(l.wert_cents)),
-    { zusatz: [formatDate(l.beginn), l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), punkt: farbKlasse(l.vorsorge_id) },
-  ) + weiterzahlungZeile(l, geldOhneCent));
+    { zusatz: [formatDate(l.beginn), l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), punkt: farbKlasse(l.vorsorge_id), unter: weiterzahlungText(l, geldOhneCent) },
+  ));
   const einmal = kapital.length ? `
       <div class="uebersicht-zweitwert">
         <h3 class="vermoegen-teil-titel">${link(ZIEL.vorsorgeTab("lebensversicherungen"), t("overview.kapitalFaellig"))}</h3>

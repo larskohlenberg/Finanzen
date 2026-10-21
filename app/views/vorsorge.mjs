@@ -6,7 +6,7 @@
 import { data, state, t, tf, fmt, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
-import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein, checkFormat, weiterzahlungZeile } from "../komponenten.mjs";
+import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein, checkFormat, weiterzahlungText } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { vermoegenCheckText } from "../check-texte.mjs";
 import { aktuellerZeitwert } from "../vermoegen.mjs";
@@ -183,10 +183,9 @@ function renderUebersichtTab(today, offen) {
   // Leistungen stehen darunter, ohne Jahr und ohne in die Summe einzugehen.
   // Es zaehlt die garantierte Leistung ohne weitere Beitraege; ohne sie der heutige
   // Rueckkaufswert (ersatz, "Stand heute"). Die Ablaufleistung bei Weiterzahlung steht
-  // nur eingeklammert in einer Zeile darunter.
+  // nur eingeklammert rechts unter dem Betrag.
   const kapitalZeile = (l, zusatz) => zeile(vertragLink(l.vorsorge.vorsorge_id, l.vorsorge.name), formatMoney(l.wert_cents),
-    [zusatz, l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), farbKlasse(farben, l.vorsorge.vorsorge_id))
-    + weiterzahlungZeile(l, formatMoney);
+    [zusatz, l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), farbKlasse(farben, l.vorsorge.vorsorge_id), weiterzahlungText(l, formatMoney));
   const standHeute = kapital.terminiert.filter((l) => l.ersatz).reduce((a, l) => a + l.wert_cents, 0);
   const kapitalZeilen = [
     ...kapital.terminiert.map((l) => kapitalZeile(l, l.beginn.slice(0, 4))),

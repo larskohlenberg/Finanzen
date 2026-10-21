@@ -278,15 +278,23 @@ export function infoTipp(text) {
 export const farbPunkt = (klasse) => `<i class="farbpunkt ${klasse}" aria-hidden="true"></i>`;
 
 // Eine Zeile der Aufschluesselung: Link (HTML), Zusatz und Betrag als Text.
-export function kachelZeile(linkHtml, betrag, zusatz = "", farbe = "") {
-  return `<li>${farbe ? farbPunkt(farbe) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${escapeHtml(betrag)}</span></li>`;
+export function kachelZeile(linkHtml, betrag, zusatz = "", farbe = "", unter = "") {
+  return `<li>${farbe ? farbPunkt(farbe) : ""}${linkHtml}${rechtsBlock(zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : "", escapeHtml(betrag), unter)}</li>`;
 }
 
-// Unterzeile einer Kapitalleistung: die Ablaufleistung bei Weiterzahlung, eingeklammert
-// und ohne eigenen Betrag; nur wenn sie vom gezaehlten Wert abweicht.
-export function weiterzahlungZeile(l, geld) {
+// Rechter Teil einer Kachelzeile: Zusatz und Betrag; mit Unterzeile stehen beide
+// in einem rechtsbuendigen Block, die Unterzeile darunter. Ein umgebrochener
+// Name links nutzt so dieselbe zweite Zeile.
+export function rechtsBlock(zusatzHtml, betragHtml, unter = "") {
+  const zeile = `${zusatzHtml}<span class="amount">${betragHtml}</span>`;
+  return unter ? `<span class="kopf-rechts"><span class="kopf-rechts-zeile">${zeile}</span><span class="muted kopf-unter">${escapeHtml(unter)}</span></span>` : zeile;
+}
+
+// Unterzeile einer Kapitalleistung: die Ablaufleistung bei Weiterzahlung, eingeklammert;
+// nur wenn sie vom gezaehlten Wert abweicht.
+export function weiterzahlungText(l, geld) {
   if (!l.weiterzahlung_cents || l.weiterzahlung_cents === l.wert_cents) return "";
-  return `<li class="kopf-unterzeile"><span class="muted">${escapeHtml(tf("vorsorge.beiWeiterzahlung", { betrag: geld(l.weiterzahlung_cents) }))}</span></li>`;
+  return tf("vorsorge.beiWeiterzahlung", { betrag: geld(l.weiterzahlung_cents) });
 }
 
 // Pfeil des Jahresvergleichs (trendVergleich aus uebersicht-rechnung.mjs):

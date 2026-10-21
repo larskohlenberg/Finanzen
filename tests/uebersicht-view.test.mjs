@@ -194,7 +194,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.match(bereich("vermoegen"), /aria-label="Konten:[\s\S]*?aria-label="Festgeld:[\s\S]*?aria-label="Depots:/);
   assert.match(bereich("vermoegen"), /segment-festgeld/);
   // Konten, Festgeld und Depots in der Unterkachel "Schnell verfuegbar", zusammen 25.471,09.
-  assert.match(bereich("vermoegen"), /Schnell verfügbar<\/h3>\s*<div class="vermoegen-teil-wert">25\.471\s€/);
+  assert.match(bereich("vermoegen"), /Schnell verfügbar<\/h3>\s*<span class="vermoegen-teil-wert">25\.471\s€/);
   assert.match(bereich("vermoegen"), /Langfristig gebunden<\/h3>[\s\S]*Nichts erfasst/);
   assert.match(bereich("vermoegen"), /<svg class="vermoegen-balken"/);
   assert.match(bereich("vorsorge"), /Keine erwarteten Renten erfasst/);
@@ -292,10 +292,10 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen
   state.lang = "de";
 
   const html = (await gerenderteUebersicht());
-  const teil = (titel) => html.match(new RegExp(`<h3 class="vermoegen-teil-titel">${titel}</h3>[\\s\\S]*?</div>\\s*</div>`))?.[0] ?? "";
+  const teil = (titel) => html.match(new RegExp(`<h3 class="vermoegen-teil-titel">${titel}</h3>[\\s\\S]*?</div>\\s*</div>\\s*</div>`))?.[0] ?? "";
   assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?<div class="kpi-value">311\.000\s€/);
   // Rueckkaufswerte zaehlen im Nettovermoegen, die Kachel verweist nur auf die Tabelle.
-  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?uebersicht-verweis">darin 60\.000\s€ Rückkaufswerte der Versicherungen <span class="pfeil-breit" aria-hidden="true">→<\/span>/);
+  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?uebersicht-verweis">darin 60\.000\s€ Rückkaufswerte <span class="pfeil-breit" aria-hidden="true">→<\/span>/);
   assert.match(teil("Schnell verfügbar"), /vermoegen-teil-wert">1\.000\s€[\s\S]*aria-label="Konten: 1\.000,00\s€"/);
   assert.doesNotMatch(teil("Schnell verfügbar"), /Immobilien|Darlehen/);
   // Langfristig netto: Immobilien minus Darlehen, mit Schuldenbalken.

@@ -3660,6 +3660,8 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 @supports not selector(::-webkit-scrollbar) {
   .versicherungen-scroll, .termine-liste { scrollbar-width: thin; scrollbar-color: var(--border-strong) var(--surface-2); }
 }
+/* Abstand zwischen Inhalt und Balken, sonst kleben die Betraege daran. */
+.uebersicht-versicherungen .versicherungen-scroll, .termine-liste { padding-right: 8px; }
 .termine-liste li { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--border); }
 .termine-datum { color: var(--muted); font-variant-numeric: tabular-nums; }
 /* Einzeilig: der Name behaelt Vorrang, der graue Bezug wird zuerst gekuerzt; voller Text im title. */

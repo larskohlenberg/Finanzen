@@ -3320,6 +3320,54 @@ a.linkish {
   text-transform: uppercase;
 }
 .vorsorge-gruppe-lead { margin: 0 0 8px; font-size: 12px; }
+/* Vorsorge-Tabs: links die Vertragsliste, rechts das Detail des gewaehlten Vertrags.
+   Die Liste bleibt beim Scrollen stehen und scrollt selbst, ein Klick wechselt nur das Detail. */
+.vorsorge-master-detail { display: grid; grid-template-columns: minmax(280px, 330px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.vorsorge-liste {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 8px;
+}
+.vorsorge-liste .objekt-karten { grid-template-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 8px; }
+.vorsorge-liste .objekt-karte { padding: 10px; }
+.vorsorge-liste .objekt-karte-wert { font-size: 16px; }
+.vorsorge-liste .objekt-karte-marke .logo-marke { width: 30px; height: 30px; font-size: 12px; }
+.vorsorge-liste .vorsorge-gruppe-titel:first-child { margin-top: 0; }
+/* Beendete Vertraege als flache Klappgruppe in der Liste, nicht als eigene Kachel. */
+.vorsorge-liste .vorsorge-liste-gruppe { margin-top: 8px; padding: 0; border: 0; background: none; box-shadow: none; }
+.vorsorge-liste .vorsorge-liste-gruppe .section-title { color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.vorsorge-liste .vorsorge-liste-gruppe:not(.zu) > .klapp-kopf { margin-bottom: 4px; }
+.vorsorge-liste::-webkit-scrollbar { width: 8px; }
+.vorsorge-liste::-webkit-scrollbar-track { background: var(--surface-2); border-radius: 4px; }
+.vorsorge-liste::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+.vorsorge-liste::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+@supports not selector(::-webkit-scrollbar) {
+  .vorsorge-liste { scrollbar-width: thin; scrollbar-color: var(--border-strong) var(--surface-2); }
+}
+.vorsorge-detail-spalte { min-width: 0; container-type: inline-size; }
+.vorsorge-detail-spalte .objekt-detail-titel { margin-top: 0; padding-top: 0; border-top: 0; }
+/* Das Detail ist schmaler als die Seite: Spalten und Kennzahlen richten sich nach seiner Breite. */
+@container (max-width: 860px) {
+  .vorsorge-detail-spalte .vorsorge-spalten, .vorsorge-detail-spalte .vorsorge-spalten-breit { grid-template-columns: minmax(0, 1fr); }
+  .vorsorge-detail-spalte .kennzahl-raster-5, .vorsorge-detail-spalte .kennzahl-raster-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (max-width: 640px) {
+  .vorsorge-detail-spalte .kennzahl-raster, .vorsorge-detail-spalte .kennzahl-raster-5, .vorsorge-detail-spalte .kennzahl-raster-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 420px) {
+  .vorsorge-detail-spalte .kennzahl-raster, .vorsorge-detail-spalte .kennzahl-raster-5, .vorsorge-detail-spalte .kennzahl-raster-6 { grid-template-columns: minmax(0, 1fr); }
+}
+/* Schmaler Bildschirm: Liste ueber dem Detail, ohne eigenes Scrollen; ein Klick springt zum Detail. */
+@media (max-width: 1100px) {
+  .vorsorge-master-detail { grid-template-columns: minmax(0, 1fr); }
+  .vorsorge-liste { position: static; max-height: none; overflow: visible; padding-right: 0; }
+  .vorsorge-liste .objekt-karten { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .vorsorge-detail-spalte .objekt-detail-titel { margin-top: 12px; padding-top: 16px; border-top: 1px solid var(--border-strong); scroll-margin-top: 80px; }
+}
 .objekt-karte.objekt-karte-ungeprueft { border-style: dashed; background: var(--surface); }
 .objekt-karte.objekt-karte-ungeprueft.active { border-style: solid; }
 .objekt-karte-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }

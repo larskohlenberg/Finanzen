@@ -34,8 +34,19 @@ sind immer klappbare Kacheln, gebaut mit `klappKachel` aus `app/komponenten.mjs`
   seitenuebergreifend bis zum Neuladen.
 - Standard: Arbeitsinhalt offen, der Anhang (**Bemerkung, Wertstaende,
   Sondertilgungen**) zu.
-- Detail-Kacheln laufen ueber die volle Breite und teilen ihren Inhalt bei Bedarf in
-  Spalten (`vorsorge-spalten`), statt Kacheln nebeneinander zu stellen.
+- Detail-Kacheln laufen ueber die volle Breite des Detailbereichs und teilen ihren
+  Inhalt bei Bedarf in Spalten (`vorsorge-spalten`), statt Kacheln nebeneinander zu
+  stellen. Ist der Detailbereich schmal (Liste daneben), richten sich Spalten und
+  Kennzahlen nach seiner Breite, nicht nach der des Fensters.
+
+## Liste und Detail
+
+Die Vertrags-Tabs der Vorsorge (Renten, Lebensversicherungen, Versicherungen) zeigen
+links die Vertragsliste und rechts das Detail des gewaehlten Vertrags
+(`vorsorge-master-detail`). Ein Klick wechselt nur das Detail; die Liste bleibt beim
+Scrollen stehen und scrollt selbst. Gruppen in der Liste: laufend, Ungeprueft, Beendet
+(zugeklappt, ausser ein beendeter Vertrag ist gewaehlt). Bis 1100 px Fensterbreite
+steht die Liste ueber dem Detail, und ein Klick springt zum Detail.
 
 Bereichsseiten (Vorsorge, Vermoegen, Liquiditaet) bauen ihre Kennzahlen aus
 `kennzahlKachel` (`app/komponenten.mjs`): Wert, Notiz, flacher Verlauf
@@ -57,7 +68,7 @@ Reihenfolge und Standard je Detailansicht:
 | Plan & Ist | Auswahl unter dem Seitenkopf (Jahr/Quartal/Monat, Zeitraum mit Gesamter Bestand und Letzte 12 Monate, Ø je Monat oder Summe); drei Kennzahlen (Einnahmen, Ausgaben, Sparquote) mit flachem Verlauf Ist gegen Plan; Verlauf als Tabelle (Zeile waehlt den Zeitraum), Einnahmen und Ausgaben je Kategorie (Zeile klappt Regelzahlungen und Einzelposten auf), Sparen, Regelzahlungen ohne Buchung (zu). Abweichungen gruen, wenn sie guenstig sind, sonst rot. Die Kacheln der Uebersicht tragen darunter die Planzeile mit Link hierher |
 | Liquiditaet | Liquiditaet heute (letzte 24 Monate, dazu gestrichelt der Trend aus gleitender Regression ueber sechs Monate) und Prognose (Horizont standardmaessig zwoelf Monate) nebeneinander; darunter Einnahmen und Ausgaben im Trend nebeneinander (gleitendes 12-Monats-Mittel, blass die Monatswerte, Pfeil im Vergleich mit den zwoelf Monaten davor, darunter Stand und beide Zeitraeume, die fuenf groessten Kategorien), Kategorien im Trend (zu, Stand im Titel, Spalten mit ihren Zeitraeumen, Minikurve je Kategorie), Bewegungen im laufenden Monat (zu), Prognose-Tabelle (zu). Die Kacheln der Uebersicht tragen denselben Pfeil an der Summe und, nur bei spuerbarer Veraenderung, an der Kategorie |
 | Vorsorge, Uebersicht | Tabs direkt unter dem Seitenkopf; im Tab: Alterseinkommen und Kapitalleistungen nebeneinander (je mit flachem Zeitverlauf auf derselben Jahresachse), Rueckkaufswerte und Beitraege, offene Punkte (ohne offene nur eine Zeile). Andere Tabs ohne Seitenkennzahlen |
-| Vorsorge, Tab Versicherungen | Jahresbeitraege im Vergleich (zu), Vertragskarten, Vertragsdetail |
+| Vorsorge, Tabs Renten, Lebensversicherungen, Versicherungen | nur Versicherungen: Jahresbeitraege im Vergleich (zu); darunter Vertragsliste links (Beendet zu), Vertragsdetail rechts |
 | Uebersicht, Absicherung | je Person eine Summenzeile (zu), aufgeklappt die einzelnen Leistungen |
 
 ## Dokumente eines Objekts

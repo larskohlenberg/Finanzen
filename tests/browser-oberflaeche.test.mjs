@@ -237,29 +237,30 @@ describe("Oberflaeche im Browser", { skip: fehlt ?? false, timeout: 120000 }, ()
     await seite.warteAuf(`document.getElementById("liquiditaet-bis")?.value === "30.6.2028"`, { text: "2 Jahre gesetzt" });
     assert.equal(await seite.werte(`document.querySelector('[data-liquiditaet-horizont="2028-06-30"]').getAttribute("aria-pressed")`), "true");
 
-    // Kalender: oeffnen, einen Monat weiter, Tag waehlen -> uebernommen und zu.
+    // Kalender: oeffnen, einen Monat weiter, Tag waehlen -> auf das Monatsende
+    // gerundet uebernommen (die Prognose rechnet volle Monate) und zu.
     await seite.klicke(`[data-datum-kalender="liquiditaet-bis"]`);
     await seite.warteAuf(`document.querySelector('.kalender-popover [data-vc-date="2028-06-15"]')`, { text: "Kalender offen" });
     await seite.klicke(`.kalender-popover [data-vc-arrow="next"]`);
     await seite.klicke(`.kalender-popover [data-vc-date="2028-07-14"] button`);
-    await seite.warteAuf(`!document.querySelector(".kalender-popover") && document.getElementById("liquiditaet-bis").value === "14.7.2028"`, { text: "Tag uebernommen" });
+    await seite.warteAuf(`!document.querySelector(".kalender-popover") && document.getElementById("liquiditaet-bis").value === "31.7.2028"`, { text: "Monatsende uebernommen" });
 
     // Esc schliesst ohne Aenderung und gibt den Fokus an den Knopf zurueck.
     await seite.klicke(`[data-datum-kalender="liquiditaet-bis"]`);
     await seite.warteAuf(`document.querySelector(".kalender-popover [data-vc-date]")`, { text: "Kalender wieder offen" });
     await seite.page.keyboard.press("Escape");
     await seite.warteAuf(`!document.querySelector(".kalender-popover")`, { text: "Esc schliesst" });
-    assert.equal(await datum(), "14.7.2028");
+    assert.equal(await datum(), "31.7.2028");
     assert.equal(await seite.werte(`document.activeElement?.dataset.datumKalender`), "liquiditaet-bis");
 
     // Tippen: Enter uebernimmt, Unlesbares wird markiert und aendert nichts.
     await seite.page.locator("#liquiditaet-bis").fill("1.3.29");
     await seite.page.keyboard.press("Enter");
-    await seite.warteAuf(`document.getElementById("liquiditaet-bis")?.value === "1.3.2029"`, { text: "getipptes Datum uebernommen" });
+    await seite.warteAuf(`document.getElementById("liquiditaet-bis")?.value === "31.3.2029"`, { text: "getipptes Datum auf Monatsende uebernommen" });
     await seite.page.locator("#liquiditaet-bis").fill("31.2.2029");
     await seite.page.keyboard.press("Enter");
     await seite.warteAuf(`document.getElementById("liquiditaet-bis").hasAttribute("aria-invalid")`, { text: "ungueltig markiert" });
-    assert.match(await seite.werte(`document.querySelector(".liquiditaet-bis")?.closest("section, .panel, article")?.textContent ?? ""`), /1\.3\.2029/);
+    assert.match(await seite.werte(`document.querySelector(".liquiditaet-bis")?.closest("section, .panel, article")?.textContent ?? ""`), /31\.3\.2029/);
   });
 
   test("Buchungen Von-Bis: Datum tippen oder im Kalender waehlen, beides landet im Filter", async () => {

@@ -6,7 +6,7 @@
 import { data, state, t, tf, fmt, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
-import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein, checkFormat, weiterzahlungText } from "../komponenten.mjs";
+import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein, checkFormat, weiterzahlungText, kapitalInfoText, infoTipp } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { vermoegenCheckText } from "../check-texte.mjs";
 import { aktuellerZeitwert } from "../vermoegen.mjs";
@@ -193,12 +193,9 @@ function renderUebersichtTab(today, offen) {
     ...kapital.undatiert.map((l) => kapitalZeile(l, t("vorsorge.kopf.ohneTermin"))),
   ];
   const nichtFaellig = kapital.bedingt_cents + kapital.undatiert_cents;
-  const kapitalNotiz = [
-    kapital.jahre.length ? tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") }) : "",
-    standHeute ? tf("vorsorge.kopf.kapitalStandHeute", { betrag: formatMoney(standHeute) }) : "",
-    kapital.terminiert_weiterzahlung_cents !== kapital.terminiert_cents ? tf("vorsorge.kopf.beiWeiterzahlung", { betrag: formatMoney(kapital.terminiert_weiterzahlung_cents) }) : "",
-    nichtFaellig ? tf("vorsorge.kopf.nichtFaellig", { betrag: formatMoney(nichtFaellig) }) : "",
-  ].filter(Boolean).join(" · ");
+  // Termine und Betraege stehen in Zeitstrahl und Liste; die Erklaerung liegt hinter dem Info-Zeichen.
+  const kapitalInfo = kapitalInfoText({ jahre: kapital.jahre, summe_cents: kapital.terminiert_cents, weiterzahlung_cents: kapital.terminiert_weiterzahlung_cents,
+    stand_heute_cents: standHeute, nicht_faellig_cents: nichtFaellig }, formatMoney);
   const mitWert = vorsorgePositionen.filter((p) => !p.fehlt).sort((a, b) => b.wert_cents - a.wert_cents);
   const ohneWert = vorsorgePositionen.filter((p) => p.fehlt);
   const ohneWertTab = ohneWert.length ? tabFuerVorsorge((data.vorsorge ?? []).find((vs) => vs.vorsorge_id === ohneWert[0].id)) : null;
@@ -223,7 +220,7 @@ function renderUebersichtTab(today, offen) {
   return `
     <div class="kachel-paare kachel-paare-oben">
       ${kz(t("vorsorge.kopf.alterseinkommen"), `${escapeHtml(formatMoney(gesamt))} ${einheit(t("vorsorge.jeMonatBrutto"))}`, escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten")), [], { unten: renteUnten })}
-      ${kz(t("vorsorge.kopf.kapital"), escapeHtml(formatMoney(kapital.terminiert_cents)), escapeHtml(kapitalNotiz), kapitalZeilen, { unten: zeitverlauf(z, "kapital") })}
+      ${kz(t("vorsorge.kopf.kapital"), `${escapeHtml(formatMoney(kapital.terminiert_cents))}${infoTipp(kapitalInfo)}`, "", kapitalZeilen, { unten: zeitverlauf(z, "kapital") })}
     </div>
     <div class="kachel-paare">
       ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: mitWert.length, gesamt: vorsorgePositionen.length })), rkwZeilen, { grafik: rkwDonut })}

@@ -11,7 +11,7 @@ import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, trendZeitraumText, zielElement, hrefAttr, teilbestandChip, weiterzahlungText, rechtsBlock } from "../komponenten.mjs";
+import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, trendZeitraumText, zielElement, hrefAttr, teilbestandChip, weiterzahlungText, rechtsBlock, kapitalInfoText } from "../komponenten.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { verteileRundung } from "../uebersicht-rechnung.mjs";
@@ -363,9 +363,9 @@ function renderVorsorgeKachel(modell) {
   const einmal = kapital.length ? `
       <div class="uebersicht-zweitwert">
         <h3 class="vermoegen-teil-titel">${link(ZIEL.vorsorgeTab("lebensversicherungen"), t("overview.kapitalFaellig"))}</h3>
-        <div class="kpi-value">${escapeHtml(geldOhneCent(kapitalSumme))} <span class="betrag-einheit">${escapeHtml(t("overview.einmalig"))}</span></div>
-        <div class="kpi-note">${escapeHtml([tf("vorsorge.kopf.kapitalFaellig", { jahre: kapitalJahre.join(" · ") }),
-          gruppen.terminiert_weiterzahlung_cents !== kapitalSumme ? tf("vorsorge.kopf.beiWeiterzahlung", { betrag: geldOhneCent(gruppen.terminiert_weiterzahlung_cents) }) : "", nichtFaellig ? tf("vorsorge.kopf.nichtFaellig", { betrag: geldOhneCent(nichtFaellig) }) : ""].filter(Boolean).join(" · "))}</div>
+        <div class="kpi-value">${escapeHtml(geldOhneCent(kapitalSumme))} <span class="betrag-einheit">${escapeHtml(t("overview.einmalig"))}</span>${infoTipp(kapitalInfoText({
+          jahre: kapitalJahre, summe_cents: kapitalSumme, weiterzahlung_cents: gruppen.terminiert_weiterzahlung_cents,
+          stand_heute_cents: kapital.filter((l) => l.ersatz).reduce((a, l) => a + l.wert_cents, 0), nicht_faellig_cents: nichtFaellig }, geldOhneCent))}</div>
         <div class="uebersicht-balken">${balkenSvg(kapitalSegmente)}</div>
         <ul class="vorsorge-kopf-liste">${kapitalZeilen.join("")}</ul>
       </div>` : "";

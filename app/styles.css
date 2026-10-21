@@ -3147,6 +3147,7 @@ a.linkish {
   color: var(--muted);
   cursor: help;
 }
+.kpi-value .info-tipp, .vorsorge-kopf-wert .info-tipp { vertical-align: middle; }
 .info-tipp:hover, .info-tipp:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
 .info-tipp-text {
   position: absolute;

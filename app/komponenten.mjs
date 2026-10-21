@@ -290,6 +290,18 @@ export function rechtsBlock(zusatzHtml, betragHtml, unter = "") {
   return unter ? `<span class="kopf-rechts"><span class="kopf-rechts-zeile">${zeile}</span><span class="muted kopf-unter">${escapeHtml(unter)}</span></span>` : zeile;
 }
 
+// Erklaerung zur Summe der Kapitalleistungen fuer das Info-Zeichen hinter dem Betrag:
+// Termine, was gezaehlt ist, Stand-heute-Anteil, Summe bei Weiterzahlung, nicht Faelliges.
+export function kapitalInfoText({ jahre, summe_cents, weiterzahlung_cents, stand_heute_cents, nicht_faellig_cents }, geld) {
+  return [
+    jahre.length ? tf("vorsorge.kapitalInfo.faellig", { jahre: jahre.join(", ") }) : "",
+    t("vorsorge.kapitalInfo.gezaehlt"),
+    stand_heute_cents ? tf("vorsorge.kapitalInfo.standHeute", { betrag: geld(stand_heute_cents) }) : "",
+    weiterzahlung_cents !== summe_cents ? tf("vorsorge.kapitalInfo.weiterzahlung", { betrag: geld(weiterzahlung_cents) }) : "",
+    nicht_faellig_cents ? tf("vorsorge.kapitalInfo.nichtFaellig", { betrag: geld(nicht_faellig_cents) }) : "",
+  ].filter(Boolean).join(" ");
+}
+
 // Unterzeile einer Kapitalleistung: die Ablaufleistung bei Weiterzahlung, eingeklammert;
 // nur wenn sie vom gezaehlten Wert abweicht.
 export function weiterzahlungText(l, geld) {

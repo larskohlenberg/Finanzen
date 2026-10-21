@@ -43,8 +43,9 @@ sind immer klappbare Kacheln, gebaut mit `klappKachel` aus `app/komponenten.mjs`
 
 Die Vertrags-Tabs der Vorsorge (Renten, Lebensversicherungen, Versicherungen) zeigen
 links die Vertragsliste und rechts das Detail des gewaehlten Vertrags
-(`vorsorge-master-detail`). Ein Klick wechselt nur das Detail; die Liste bleibt beim
-Scrollen stehen und scrollt selbst. Gruppen in der Liste: laufend, Ungeprueft, Beendet
+(`vorsorge-master-detail`). Ein Klick wechselt nur das Detail und zeigt es von oben.
+Liste und Detail fuellen das Fenster bis unten und scrollen je fuer sich, die Seite
+selbst scrollt nicht; der Vertragsname bleibt oben im Detail stehen. Gruppen in der Liste: laufend, Ungeprueft, Beendet
 (zugeklappt, ausser ein beendeter Vertrag ist gewaehlt). Bis 1100 px Fensterbreite
 steht die Liste ueber dem Detail, und ein Klick springt zum Detail.
 

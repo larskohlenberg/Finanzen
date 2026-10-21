@@ -8,7 +8,7 @@
 // data-Attribute des Elements. Keine Liste einzelner Attribute mehr, die bei
 // jedem neuen Bedienelement nachgezogen werden muss.
 
-const SCROLL_SELECTORS = [".nav", ".table-wrap", ".vorsorge-liste"];
+const SCROLL_SELECTORS = [".nav", ".table-wrap", ".vorsorge-liste", ".vorsorge-detail-spalte"];
 
 // Wert fuer einen Attribut-Selektor in Anfuehrungszeichen maskieren.
 const maskiere = (wert) => String(wert).replace(/["\\]/g, "\\$&").replace(/\n/g, "\\a ");

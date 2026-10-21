@@ -370,15 +370,34 @@ function renderGruppenTab(tab, today, offen) {
     </div>`;
 }
 
-// Nach der Wahl eines Vertrags: die gewaehlte Karte in der Liste sichtbar halten und,
-// wenn das Detail nicht im Blick ist (schmaler Bildschirm, weit gescrollt), dorthin springen.
+// Nach der Wahl eines Vertrags: die gewaehlte Karte in der Liste sichtbar halten, das
+// Detail von oben zeigen und, wenn es nicht im Blick ist (schmaler Bildschirm), dorthin springen.
 export function vorsorgeAuswahlZeigen() {
   if (typeof document === "undefined") return;
   document.querySelector(".vorsorge-liste .objekt-karte.active")?.scrollIntoView?.({ block: "nearest" });
+  const spalte = document.querySelector(".vorsorge-detail-spalte");
+  if (spalte) spalte.scrollTop = 0;
   const titel = document.querySelector(".vorsorge-detail-spalte .objekt-detail-titel");
   const oben = titel?.getBoundingClientRect?.().top;
   if (oben === undefined) return;
   if (oben < 0 || oben > window.innerHeight * 0.6) titel.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+// Liste und Detail fuellen das Fenster bis unten und scrollen je fuer sich, die Seite
+// selbst scrollt nicht mehr. Gemessen, weil der Kopf darueber (Tabs, Beitragsvergleich)
+// verschieden hoch ist. Bis 1100 px stehen beide untereinander und die Seite scrollt.
+const VORSORGE_MIN_HOEHE = 420;
+
+export function vorsorgeHoeheEinpassen(root) {
+  const box = root.querySelector(".vorsorge-master-detail");
+  if (!box) return;
+  if (window.matchMedia("(max-width: 1100px)").matches) {
+    box.style.height = "";
+    return;
+  }
+  const oben = box.getBoundingClientRect().top + window.scrollY;
+  const unten = parseFloat(getComputedStyle(root.querySelector(".main") ?? box).paddingBottom) || 0;
+  box.style.height = `${Math.max(VORSORGE_MIN_HOEHE, Math.floor(window.innerHeight - oben - unten))}px`;
 }
 
 // Jahresbeitrag je Versicherung als Rangliste, dazu die Veraenderung zum Vorjahr:

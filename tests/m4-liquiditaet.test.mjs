@@ -9,6 +9,7 @@ import {
   computeLiquiditaetPrognose,
   computeLiquiditaetPrognoseDetail,
   defaultHorizonEnd,
+  monatsende,
   localTodayIso,
   periodenSchluessel,
   toCents,
@@ -168,9 +169,29 @@ test("computeLiquiditaetPrognoseDetail gruppiert Prognose und fuehrt Saldo je Po
   ]);
 });
 
-test("defaultHorizonEnd: zwoelf Monate ab heute", () => {
-  assert.equal(defaultHorizonEnd("2026-06-01"), "2027-06-01");
-  assert.equal(defaultHorizonEnd("2026-06-01", 6), "2026-12-01");
+test("defaultHorizonEnd: zwoelf Monate ab heute, bis zum Monatsende", () => {
+  assert.equal(defaultHorizonEnd("2026-06-01"), "2027-06-30");
+  assert.equal(defaultHorizonEnd("2026-06-01", 6), "2026-12-31");
+  assert.equal(defaultHorizonEnd("2026-10-21"), "2027-10-31");
+});
+
+test("monatsende: letzter Tag des Monats, auch im Februar", () => {
+  assert.equal(monatsende("2026-10-21"), "2026-10-31");
+  assert.equal(monatsende("2027-02-03"), "2027-02-28");
+  assert.equal(monatsende("2028-02-03"), "2028-02-29");
+  assert.equal(monatsende("2026-12-31"), "2026-12-31");
+});
+
+test("Prognose rechnet immer volle Monate: Horizont mitten im Monat gilt bis Monatsende", () => {
+  const data = {
+    konten: [{ konto_id: "KTO-001", name: "Giro", kontotyp: "giro", liquiditaetsrelevant: true, status: "aktiv" }],
+    zeitwerte: [{ entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "1000.00", standdatum: "2026-06-01", qualitaet: "belegt" }],
+    transaktionen: [],
+    regelzahlungen: [{ regelzahlung_id: "RZ-001", bezeichnung: "Einnahme", betrag: "100.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-06-28", status: "bestaetigt" }],
+  };
+  const result = computeLiquiditaetPrognose(data, { today: "2026-06-09", horizonEnd: "2026-07-15" });
+  assert.equal(result.horizont_ende, "2026-07-31");
+  assert.deepEqual(result.verlauf.map((e) => e.datum), ["2026-06-28", "2026-07-28"]);
 });
 
 test("toCents parst Decimal-Strings centgenau", () => {

@@ -9,7 +9,7 @@ import { safeRender, guard } from "./error.mjs";
 import { captureFocus, restoreFocus, captureScroll, restoreScroll } from "./fokus.mjs";
 import { formatMoney, heuteIso } from "./komponenten.mjs";
 import { beiDatenwechsel, datenwechselMelden, erstelleEntpreller, eingabeBereit, merkeDetails } from "./lebenszyklus.mjs";
-import { defaultHorizonEnd } from "./liquiditaet.mjs";
+import { defaultHorizonEnd, monatsende } from "./liquiditaet.mjs";
 import { seitenTitel } from "./navigation.mjs";
 import { rahmen, renderSidebar, renderTabbar, renderTopbar, renderPromptFallback, renderValidationBanner, renderUiErrorBanner, schnellsucheTreffer } from "./rahmen.mjs";
 import { routeFromState, parseRoute } from "./routing.mjs";
@@ -140,7 +140,7 @@ function render() {
 // Prognosehorizont setzen (Schnellauswahl oder Datumsfeld); schliesst den Kalender.
 function setzeHorizont(datum) {
   if (state.datumEingabe?.name === "liquiditaet-bis") state.datumEingabe = null;
-  state.liquiditaet.bisDatum = datum || defaultHorizonEnd(heuteIso());
+  state.liquiditaet.bisDatum = datum ? monatsende(datum) : defaultHorizonEnd(heuteIso());
   state.kalenderOffen = "";
   state.liquiditaetExpanded.clear();
   render();

@@ -3,7 +3,8 @@
 import { ablauf } from "../ablauf.mjs";
 import { data, state } from "../runtime.mjs";
 import { commitNavigation } from "../verlauf.mjs";
-import { resetVorsorgeFilters, vorsorgeAuswahlZeigen } from "../views/vorsorge.mjs";
+import { listeDetailAuswahlZeigen } from "../komponenten.mjs";
+import { resetVorsorgeFilters } from "../views/vorsorge.mjs";
 import { tabFuerVorsorge } from "../vorsorge-rechnung.mjs";
 
 export const aktionen = {
@@ -20,7 +21,7 @@ export const aktionen = {
     state.view = "vorsorge";
     state.selectedVorsorgeId = element.dataset.vorsorge || "";
     commitNavigation();
-    vorsorgeAuswahlZeigen();
+    listeDetailAuswahlZeigen();
   },
   "vorsorge-tab": (element) => {
     state.view = "vorsorge";

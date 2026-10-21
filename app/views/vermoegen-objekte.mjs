@@ -1,12 +1,12 @@
 // app/views/vermoegen-objekte.mjs
-// Tabs Immobilien und Darlehen der Vermoegensseite: oben eine Karte je Objekt,
-// darunter das gewaehlte Objekt in voller Breite: Kennzahlen und Stammdaten,
+// Tabs Immobilien und Darlehen der Vermoegensseite: links eine Karte je Objekt,
+// rechts daneben das gewaehlte Objekt: Kennzahlen und Stammdaten,
 // dann Diagramme und Tabelle, zuletzt Bemerkung, Wertstaende und Dokumente.
 // Rechnen in vermoegen-details.mjs, hier nur Darstellung.
 import { data, state, t, tf, fmt, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
-import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel, bemerkungInhalt } from "../komponenten.mjs";
+import { formatMoney, formatDate, formatMonth, detailRow, categoryName, klappKachel, bemerkungInhalt, listeUndDetail } from "../komponenten.mjs";
 import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
 import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, investitionsKategorien } from "../vermoegen-details.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
@@ -107,9 +107,7 @@ export function renderImmobilienTab(today, modell) {
     });
   }).join("");
 
-  return `
-    <div class="objekt-karten">${karten}</div>
-    ${renderImmobilieDetail(auswahl, today, modell)}`;
+  return listeUndDetail({ label: t("vermoegen.tabs.immobilien"), liste: `<div class="objekt-karten">${karten}</div>`, detail: renderImmobilieDetail(auswahl, today, modell) });
 }
 
 // Dokumente einer Immobilie: ihre eigenen, die der zugeordneten Darlehen und die
@@ -371,8 +369,7 @@ export function renderDarlehenTab(today) {
 
   return `
     ${kopf}
-    <div class="objekt-karten">${karten}</div>
-    ${renderDarlehenDetail(auswahl, kennzahlenJe.get(auswahl.darlehen_id), today)}`;
+    ${listeUndDetail({ label: t("vermoegen.tabs.darlehen"), liste: `<div class="objekt-karten">${karten}</div>`, detail: renderDarlehenDetail(auswahl, kennzahlenJe.get(auswahl.darlehen_id), today) })}`;
 }
 
 function addJahre(iso, jahre) {

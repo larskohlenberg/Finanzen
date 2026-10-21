@@ -1,7 +1,7 @@
 // app/aktionen/vermoegen.mjs
 // Aktionen (data-action) – Vermoegen: Tabs, Objekte, Wertstaende, Immobilien.
 import { ablauf } from "../ablauf.mjs";
-import { oeffneKlappKachel } from "../komponenten.mjs";
+import { listeDetailAuswahlZeigen, oeffneKlappKachel } from "../komponenten.mjs";
 import { state } from "../runtime.mjs";
 import { oeffneVermoegenObjekt, commitNavigation } from "../verlauf.mjs";
 import { TAB_FUER_KLASSE } from "../vermoegen-routen.mjs";
@@ -47,6 +47,7 @@ export const aktionen = {
   },
   "select-vermoegen-objekt": (element) => {
     oeffneVermoegenObjekt(element.dataset.vermoegen);
+    listeDetailAuswahlZeigen();
   },
   "select-vermoegen-konto": (element) => {
     oeffneVermoegenObjekt(`konto:${element.dataset.account}`);

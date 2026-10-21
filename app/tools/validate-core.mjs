@@ -316,7 +316,7 @@ const schemas = {
     fields: {
       entitaet: { type: "string", enum: ["konto", "immobilie", "vermoegenswert", "darlehen", "vorsorge"] },
       entitaet_id: { type: "string", minLength: 1 },
-      feld: { type: "string", enum: ["kontostand", "depotwert", "marktwert", "restschuld", "rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "beitragsfreie_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "beitragssumme"] },
+      feld: { type: "string", enum: ["kontostand", "depotwert", "marktwert", "restschuld", "rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "beitragsfreie_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "waisenrente", "beitragssumme"] },
       wert: { type: "string", money: true },
       standdatum: { type: "string", format: "date" },
       qualitaet: { type: "string", enum: ["belegt", "geschaetzt"] },
@@ -794,7 +794,7 @@ function validateCrossFieldRules(data, errors) {
     immobilie: ["marktwert"],
     vermoegenswert: ["marktwert"],
     darlehen: ["restschuld"],
-    vorsorge: ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "beitragsfreie_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "beitragssumme"],
+    vorsorge: ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "beitragsfreie_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "waisenrente", "beitragssumme"],
   };
   // Je (Entitaet, ID, Feld, Standdatum) ein Wert: sonst entschiede die Dateireihenfolge,
   // welcher Wert gilt (aktuellerZeitwert nimmt den ersten). Gleicher Wert doppelt ist harmlos.

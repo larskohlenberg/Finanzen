@@ -53,6 +53,7 @@ async function mitFixture(fn) {
       zeitwerte: [
         zw("VS-001", "erwerbsminderungsrente", "950.00", "2026-07-01"),
         zw("VS-001", "hinterbliebenenrente", "600.00", "2026-07-01"),
+        { ...zw("VS-001", "waisenrente", "150.00", "2026-07-01"), qualitaet: "geschaetzt" },
         zw("VS-002", "bu_rente", "1500.00", "2026-03-01"),
       ],
       regelzahlungen: [], transaktionen: [], konten: [], kategorien: [], transfers: [],
@@ -96,8 +97,12 @@ test("Kacheln Absicherung: je eine fuer BU und Tod, darin je Person Summe und Po
   assert.ok(buAnna.indexOf("VS-002") < buAnna.indexOf("VS-001"), "groesster Posten zuerst");
   assert.doesNotMatch(buAnna, /Hinterbliebenenrente/);
   const todAnna = tod.slice(tod.indexOf("Anna Muster"), tod.indexOf("Ben Muster"));
-  assert.match(todAnna, /Anna Muster<\/span><strong>600,00\s€ je Monat<\/strong>/);
-  assert.match(todAnna, /Hinterbliebenenrente · Stand 1\.7\.2026/);
+  // Die gesetzliche Witwenrente steht vor Einkommensanrechnung: Stern an der Summe, Fussnote.
+  assert.match(todAnna, /Anna Muster<\/span><strong>750,00\s€ je Monat\*<\/strong>/);
+  assert.match(todAnna, /Witwen-\/Witwerrente · vor Einkommensanrechnung\* · Stand 1\.7\.2026/);
+  assert.match(todAnna, /Waisenrente · geschätzt · befristet · Stand 1\.7\.2026/);
+  assert.match(tod, /<p class="muted absicherung-hinweis">\* Gesetzliche Witwen-\/Witwerrente vor Anrechnung eigenen Einkommens/);
+  assert.doesNotMatch(bu, /absicherung-hinweis/);
   assert.match(bu.slice(bu.indexOf("Ben Muster")), /Ben Muster<\/h3>\s*<span class="muted">nicht erfasst/);
   assert.match(tod.slice(tod.indexOf("Ben Muster")), /Ben Muster<\/h3>\s*<span class="muted">nicht erfasst/);
   assert.doesNotMatch(html, /style=/);
@@ -120,6 +125,25 @@ test("Wertstaende eines Vertrags beschriften die Absicherungswerte sprechend", a
   state.klappKacheln = { "vorsorge.anhang": true };
   const html = (await vorsorgeGezeichnet());
   assert.match(html, /Erwerbsminderungsrente · 1\.7\.2026/);
-  assert.match(html, /Hinterbliebenenrente · 1\.7\.2026/);
+  assert.match(html, /Witwen-\/Witwerrente · 1\.7\.2026/);
+  assert.match(html, /Waisenrente · 1\.7\.2026/);
   assert.doesNotMatch(html, /erwerbsminderungsrente ·/);
+}));
+
+test("Vorsorgeseite: Uebersichtstab zeigt die Absicherungs-Kacheln ohne Link auf sich selbst", async () => mitFixture(async () => {
+  state.view = "vorsorge";
+  state.selectedVorsorgeId = null;
+  state.vorsorgeTab = "uebersicht";
+  const html = await vorsorgeGezeichnet();
+  assert.equal((html.match(/<section class="panel panel-pad absicherung-kachel"/g) ?? []).length, 2);
+  assert.match(html, /id="absicherung-tod-titel"><span class="uebersicht-kachel-titel"><svg[\s\S]*?<span>Absicherung im Todesfall<\/span><\/span><\/h2>/);
+  assert.doesNotMatch(html, /absicherung-kachel[\s\S]*?data-view="vorsorge"/);
+  assert.ok(html.indexOf("absicherung-kacheln") > html.indexOf("Rückkaufswerte"), "unter Rueckkaufswerten und Beitraegen");
+}));
+
+test("Kacheln Absicherung: ohne gesetzliche Witwenrente kein Stern und keine Fussnote", async () => mitFixture(async () => {
+  data.vorsorge = data.vorsorge.map((vs) => (vs.vorsorge_id === "VS-001" ? { ...vs, art: "betriebsrente" } : vs));
+  const html = renderAbsicherungKacheln(absicherung(data, HEUTE));
+  assert.doesNotMatch(html, /absicherung-hinweis/);
+  assert.doesNotMatch(html, /je Monat\*/);
 }));

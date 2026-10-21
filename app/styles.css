@@ -3610,6 +3610,9 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .absicherung-kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
 .absicherung-kachel { min-width: 0; }
 .absicherung-kachel .uebersicht-kachel-kopf { margin-bottom: 8px; }
+.absicherung-kachel .uebersicht-kachel-titel { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-weight: 650; }
+.absicherung-kachel .uebersicht-kachel-titel svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.absicherung-hinweis { margin: 8px 0 0; font-size: 0.85rem; }
 .absicherung-person { padding: 6px 0; }
 .absicherung-person + .absicherung-person { border-top: 1px solid var(--border); }
 .absicherung-person-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }

@@ -13,6 +13,8 @@ import { aktuellerZeitwert } from "../vermoegen.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 import { donutDiagramm, wertVerlauf } from "../charts.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
+import { absicherung } from "../absicherung.mjs";
+import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import {
   VORSORGE_TABS, beitragJeJahrVertrag, beitragJeMonatVertrag,
   gesetzlicherRentenbeginn, kapitalLeistungen, kapitalZumAblauf, istBeendet, laufendeBeitraege, leistungsZeitstrahl, monateBis, naechsterBeitrag,
@@ -146,7 +148,8 @@ export function renderVorsorge() {
 
 // Der Uebersichtstab traegt die Kennzahlen der ganzen Seite: oben
 // Alterseinkommen und Kapitalleistungen je mit Zeitverlauf, darunter
-// Rueckkaufswerte und Beitraege, zuletzt die offenen Punkte. Die anderen Tabs starten direkt mit
+// Rueckkaufswerte und Beitraege, dann die Absicherung bei BU und im Todesfall
+// (derselbe Baustein wie auf der Uebersicht), zuletzt die offenen Punkte. Die anderen Tabs starten direkt mit
 // ihren Vertraegen.
 function renderUebersichtTab(today, offen) {
   const { renten, stufen, gesamt_cents: gesamt, ohne_beginn: ohneBeginn } = rentenStufen(data);
@@ -227,6 +230,7 @@ function renderUebersichtTab(today, offen) {
       ${kz(t("vorsorge.kopf.rueckkaufswerte"), escapeHtml(formatMoney(rkw)), escapeHtml(tf("vorsorge.kopf.bewertet", { mit: mitWert.length, gesamt: vorsorgePositionen.length })), rkwZeilen, { grafik: rkwDonut })}
       ${kz(t("vorsorge.kopf.beitraege"), `${escapeHtml(formatMoney(beitragVorsorge))} ${einheit(t("vorsorge.jeMonat"))}`, escapeHtml(tf("vorsorge.kopf.beitraegeNotiz", { betrag: formatMoney(beitragVersicherung) })), beitragZeilen, { grafik: beitragDonut })}
     </div>
+    ${renderAbsicherungKacheln(absicherung(data, today), { kopfLink: false })}
     ${renderOffenePunkte(offen)}`;
 }
 
@@ -708,6 +712,7 @@ const FELD_LABEL = {
   erwerbsminderungsrente: "vorsorge.erwerbsminderungsrente",
   todesfallleistung: "vorsorge.todesfallleistung",
   hinterbliebenenrente: "vorsorge.hinterbliebenenrente",
+  waisenrente: "vorsorge.waisenrente",
   beitragssumme: "vorsorge.beitragssumme",
 };
 
@@ -778,6 +783,7 @@ const ABSICHERUNG_FELDER = [
   ["erwerbsminderungsrente", true],
   ["todesfallleistung", false],
   ["hinterbliebenenrente", true],
+  ["waisenrente", true],
 ];
 
 function absicherungKennzahl(vs) {

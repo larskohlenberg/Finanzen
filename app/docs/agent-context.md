@@ -860,7 +860,10 @@ Zeitwerte zu Vorsorge stehen in `DATENROOT/zeitwerte.jsonl` mit
   `bu_rente` (Euro je Monat), `erwerbsminderungsrente` (Euro je Monat,
   gesetzliche Rente), `todesfallleistung` (einmalig; die aktuelle Leistung im
   Todesfall zum Standdatum, nicht die garantierte Mindestleistung) und
-  `hinterbliebenenrente` (Euro je Monat, Witwen- und Waisenrente zusammen).
+  `hinterbliebenenrente` (Euro je Monat, Witwen-/Witwerrente) und
+  `waisenrente` (Euro je Monat, alle Waisenrenten zusammen, befristet). Die
+  gesetzliche Witwen-/Witwerrente wird vor Einkommensanrechnung erfasst; die
+  Anzeige markiert sie mit diesem Vorbehalt (`einkommensanrechnung` am Posten).
   Nur Anzeige (Kachel Absicherung, `kennzahlen`, Wertstaende); nie
   Nettovermoegen, nie Altersrente, nicht in Szenarien. Gerechnet in
   `absicherung.mjs` (`absicherung(data, today)`): je aktiver Person mit

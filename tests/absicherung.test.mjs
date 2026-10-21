@@ -29,6 +29,7 @@ function daten() {
       zw("VS-001", "erwerbsminderungsrente", "900.00", "2025-07-01"),
       zw("VS-001", "erwerbsminderungsrente", "950.50", "2026-07-01"),
       zw("VS-001", "hinterbliebenenrente", "600.00", "2026-07-01"),
+      { ...zw("VS-001", "waisenrente", "200.00", "2026-07-01"), qualitaet: "geschaetzt" },
       zw("VS-001", "erwartete_rente", "1800.00", "2026-07-01"),
       zw("VS-002", "bu_rente", "1500.00", "2026-03-01"),
       zw("VS-002", "bu_rente", "1600.00", "2027-01-01"), // nach dem Stichtag, zaehlt noch nicht
@@ -48,12 +49,16 @@ test("absicherung: je aktiver Person mit Vertrag BU und Tod mit Summen und Poste
   assert.equal(anna.name, "Anna Muster");
   assert.equal(anna.bu.monatlich_cents, 245050);
   assert.deepEqual(anna.bu.posten, [
-    { vorsorge_id: "VS-002", name: "BU Anna", feld: "bu_rente", wert_cents: 150000, standdatum: "2026-03-01" },
-    { vorsorge_id: "VS-001", name: "Gesetzliche Rente Anna", feld: "erwerbsminderungsrente", wert_cents: 95050, standdatum: "2026-07-01" },
+    { vorsorge_id: "VS-002", name: "BU Anna", feld: "bu_rente", wert_cents: 150000, standdatum: "2026-03-01", qualitaet: "belegt", einkommensanrechnung: false },
+    { vorsorge_id: "VS-001", name: "Gesetzliche Rente Anna", feld: "erwerbsminderungsrente", wert_cents: 95050, standdatum: "2026-07-01", qualitaet: "belegt", einkommensanrechnung: false },
   ]);
   assert.equal(anna.tod.einmalig_cents, 15000000);
-  assert.equal(anna.tod.monatlich_cents, 60000);
-  assert.deepEqual(anna.tod.posten.map((p) => [p.vorsorge_id, p.feld]), [["VS-003", "todesfallleistung"], ["VS-001", "hinterbliebenenrente"]]);
+  assert.equal(anna.tod.monatlich_cents, 80000);
+  assert.deepEqual(anna.tod.posten.map((p) => [p.vorsorge_id, p.feld, p.qualitaet, p.einkommensanrechnung]), [
+    ["VS-003", "todesfallleistung", "belegt", false],
+    ["VS-001", "hinterbliebenenrente", "belegt", true],
+    ["VS-001", "waisenrente", "geschaetzt", false],
+  ]);
 });
 
 test("absicherung: Person ohne Werte bekommt leere Faelle", () => {
@@ -72,7 +77,7 @@ test("absicherung: beendete Vertraege und Personen mit aktiv_bis in der Vergange
 
 test("absicherung: leerer Bestand liefert leere Liste", () => {
   assert.deepEqual(absicherung({}, HEUTE), []);
-  assert.deepEqual(ABSICHERUNG_FELDER, ["bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente"]);
+  assert.deepEqual(ABSICHERUNG_FELDER, ["bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "waisenrente"]);
 });
 
 test("Absicherungswerte zaehlen weder ins Vermoegen noch als Altersleistung", () => {

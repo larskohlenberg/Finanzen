@@ -10,7 +10,13 @@ import { istBeendet } from "./vorsorge-rechnung.mjs";
 // Zeitwert-Felder je Fall und Art: monatlich (Rente, brutto) oder einmalig.
 const BU_FELDER = ["bu_rente", "erwerbsminderungsrente"];
 const TOD_EINMALIG = ["todesfallleistung"];
-const TOD_MONATLICH = ["hinterbliebenenrente"];
+// hinterbliebenenrente: Witwen-/Witwerrente (lebenslang); waisenrente: alle
+// Waisenrenten zusammen (befristet bis 18, in Ausbildung bis 27).
+const TOD_MONATLICH = ["hinterbliebenenrente", "waisenrente"];
+
+// Die gesetzliche Witwen-/Witwerrente kuerzt eigenes Einkommen des
+// Hinterbliebenen (40 Prozent ueber einem Freibetrag); erfasst ist der Wert davor.
+const mitEinkommensanrechnung = (vs, feld) => feld === "hinterbliebenenrente" && vs.art === "gesetzliche-rente";
 
 export const ABSICHERUNG_FELDER = [...BU_FELDER, ...TOD_EINMALIG, ...TOD_MONATLICH];
 
@@ -24,7 +30,8 @@ const summe = (posten) => posten.reduce((s, p) => s + p.wert_cents, 0);
 // Je aktiver Person, die versicherte Person mindestens eines laufenden Vertrags
 // ist: { person_id, name, bu: { monatlich_cents, posten }, tod: { einmalig_cents,
 // monatlich_cents, posten } }. Je Vertrag und Feld zaehlt der juengste Zeitwert
-// bis zum Stichtag.
+// bis zum Stichtag. Ein Posten traegt die Qualitaet des Zeitwerts und, ob der
+// Wert vor einer Einkommensanrechnung steht.
 export function absicherung(data, today) {
   const vertraege = (data.vorsorge ?? []).filter((vs) => !istBeendet(vs));
   return (data.personen ?? [])
@@ -34,7 +41,10 @@ export function absicherung(data, today) {
         .filter((vs) => vs.person_id === person.person_id)
         .flatMap((vs) => felder.map((feld) => {
           const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld, today);
-          return zw && { vorsorge_id: vs.vorsorge_id, name: vs.name, feld, wert_cents: toCents(zw.wert), standdatum: zw.standdatum };
+          return zw && {
+            vorsorge_id: vs.vorsorge_id, name: vs.name, feld, wert_cents: toCents(zw.wert), standdatum: zw.standdatum,
+            qualitaet: zw.qualitaet, einkommensanrechnung: mitEinkommensanrechnung(vs, feld),
+          };
         }))
         .filter(Boolean)
         .sort(nachWert);

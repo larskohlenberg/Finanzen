@@ -276,6 +276,13 @@ export function termineListenBegrenzen(root) {
     const letzte = liste.children[TERMIN_ZEILEN - 1];
     liste.style.maxHeight = liste.children.length > TERMIN_ZEILEN ? `${letzte.offsetTop + letzte.offsetHeight}px` : "";
   }
+  // Tabellen mit data-max-zeilen ebenso: hoechstens so viele Zeilen, der Kopf bleibt stehen.
+  for (const box of root.querySelectorAll("[data-max-zeilen]")) {
+    const zeilen = box.querySelectorAll("tbody tr");
+    const letzte = zeilen[Number(box.dataset.maxZeilen) - 1];
+    box.style.maxHeight = letzte && zeilen.length > Number(box.dataset.maxZeilen)
+      ? `${letzte.getBoundingClientRect().bottom - box.getBoundingClientRect().top + box.scrollTop}px` : "";
+  }
 }
 
 // Versatz in px, damit ein Element mit diesen Kanten im Fenster bleibt

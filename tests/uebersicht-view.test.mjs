@@ -295,7 +295,7 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen
   const teil = (titel) => html.match(new RegExp(`<h3 class="vermoegen-teil-titel">${titel}</h3>[\\s\\S]*?</div>\\s*</div>`))?.[0] ?? "";
   assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?<div class="kpi-value">311\.000\s€/);
   // Rueckkaufswerte zaehlen im Nettovermoegen, die Kachel verweist nur auf die Tabelle.
-  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?uebersicht-verweis">darin 60\.000\s€ Rückkaufswerte der Versicherungen/);
+  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?uebersicht-verweis">darin 60\.000\s€ Rückkaufswerte der Versicherungen <span class="pfeil-breit" aria-hidden="true">→<\/span>/);
   assert.match(teil("Schnell verfügbar"), /vermoegen-teil-wert">1\.000\s€[\s\S]*aria-label="Konten: 1\.000,00\s€"/);
   assert.doesNotMatch(teil("Schnell verfügbar"), /Immobilien|Darlehen/);
   // Langfristig netto: Immobilien minus Darlehen, mit Schuldenbalken.
@@ -305,7 +305,8 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen
 
   const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.doesNotMatch(vorsorge.replace(/<span class="info-tipp"[\s\S]*?<\/span><\/span>/g, ""), /Beiträge|Offene Punkte|Einmalzahlungen/);
-  assert.match(vorsorge, /uebersicht-verweis">darin 100\s€ \/ Monat aus Versicherungen/);
+  // Verweis auf die Versicherungen nebenan: Pfeil zur Seite, schmal nach unten.
+  assert.match(vorsorge, /uebersicht-verweis"><span class="pfeil-breit" aria-hidden="true">←<\/span> darin 100\s€ \/ Monat aus Versicherungen <span class="pfeil-schmal" aria-hidden="true">↓<\/span>/);
   assert.doesNotMatch(html, /vermoegen-teil-breit|Rückkaufswerte der Versicherungen<span/);
 
   // Tabelle nach Faelligkeit: Rueckkauf heute, Faellig, bei Beitragsfreistellung, bei Weiterzahlung.
@@ -314,16 +315,21 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen
   const reihen = [...tabelle.matchAll(/data-vorsorge="(VS-\d+)"/g)].map((m) => m[1]);
   assert.deepEqual(reihen, ["VS-903", "VS-901", "VS-902"]);
   const reihe = (id) => tabelle.match(new RegExp(`data-vorsorge="${id}"[\\s\\S]*?</tr>`))?.[0] ?? "";
-  const werte = (id) => [...reihe(id).matchAll(/<td class="amount"[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1].replace(/\s/g, " "));
+  const werte = (id) => [...reihe(id).matchAll(/<td class="amount"[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1].replace(/<span title="[^"]*">|<\/span>$/g, "").replace(/\s/g, " "));
   assert.deepEqual(werte("VS-901"), ["30.000 €", "1.12.2040", "100.000 €", "150.000 €"]);
   // Ohne Garantie: Rueckkaufswert von heute mit Sternchen.
   assert.deepEqual(werte("VS-903"), ["10.000 €", "1.6.2035", '10.000 €<sup class="muted">*</sup>', "25.000 €"]);
   // Rentenvertrag: Monatsrente statt Kapital.
   assert.deepEqual(werte("VS-902"), ["20.000 €", "1.3.2043", '20.000 €<sup class="muted">*</sup>', "100 € / Monat"]);
-  // Summen: Rueckkauf aller Vertraege, sonst nur Kapital (ohne Monatsrente).
-  const summe = [...(tabelle.match(/<tfoot>[\s\S]*?<\/tfoot>/)?.[0] ?? "").matchAll(/<td class="amount"[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1].replace(/\s/g, " "));
-  assert.deepEqual(summe, ["60.000 €", "", "130.000 €", "175.000 €"]);
-  assert.match(tabelle, /\* Kein garantierter Wert/);
+  // Summen ueber der Tabelle: Rueckkauf aller Vertraege, sonst nur Kapital (ohne Monatsrente).
+  const summen = [...(tabelle.match(/<div class="versicherungen-summe">[\s\S]*?<\/div>\s*<div class="table-wrap/)?.[0] ?? "").matchAll(/<strong>([^<]*)<\/strong>/g)].map((m) => m[1].replace(/\s/g, " "));
+  assert.deepEqual(summen, ["60.000 €", "130.000 €", "175.000 €"]);
+  assert.doesNotMatch(tabelle, /<tfoot>/);
+  // Sternchen-Erlaeuterung im Info-Zeichen der Summen und als Tooltip am Wert.
+  assert.match(tabelle, /versicherungen-summe[\s\S]*info-tipp-text" role="tooltip">Summen über alle Verträge[^<]*\n\n\* Kein garantierter Wert/);
+  assert.match(tabelle, /<span title="Kein garantierter Wert[^"]*">10\.000\s€<sup/);
+  // Nach fuenf Zeilen scrollt die Tabelle.
+  assert.match(tabelle, /class="table-wrap versicherungen-scroll" data-max-zeilen="5"/);
   assert.match(vorsorge, /<h3 class="vermoegen-teil-titel uebersicht-werttitel"><a class="linkish" href="#\/vorsorge\/renten" data-action="vorsorge-tab" data-tab="renten">Monatliche Renten<\/a><\/h3>\s*<div class="kpi-value">/);
 });
 
@@ -370,7 +376,7 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   assert.match(kachel("ausgaben"), /<details data-details="uebersicht\.uebrige\.ausgaben"><summary>[\s\S]*Übrige[\s\S]*<ul class="flach-unterliste"><li><button class="linkish" data-action="kategorie-transactions" data-kategorie="KAT-006"/);
 
   // Sparquote: (3000 - 1700) / 3000 = 43 %, Rest bleibt auf den Konten.
-  assert.match(kachel("sparquote"), /Sparquote[\s\S]*info-tipp-text" role="tooltip">1\.300\s€ \/ Monat übrig · 1 Monat · [^<]*Sparquote = [\s\S]*<div class="kpi-value">43\s%<\/div>/);
+  assert.match(kachel("sparquote"), /Sparquote[\s\S]*info-tipp-text" role="tooltip">1\.300\s€ \/ Monat übrig\n1 Monat · [^<]*\n\nSparquote = [\s\S]*<div class="kpi-value">43\s%<\/div>/);
   // Zeitraum steht nur im Info-Zeichen, nicht als eigene Zeile.
   assert.doesNotMatch(kachel("einnahmen"), /<div class="kpi-note">/);
   assert.match(kachel("sparquote"), /<summary>[\s\S]*?Konten &amp; Tagesgeld<\/span><span class="amount">1\.300\s€[\s\S]*?data-konto="KTO-901"/);

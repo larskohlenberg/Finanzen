@@ -126,6 +126,11 @@ test("MCP mit externem Datenort: lesen, schreiben, ablegen, suchen unter logisch
     assert.ok(!ablage.isError, ablage.text);
     assert.match(ablage.text, /data\/inbox\/scan\.pdf -> Belege\/Sonstiges\/Allgemein\/2026\/Test_Scan\.pdf/);
     assert.equal(readFileSync(join(abzug.extern, "Belege", "Sonstiges", "Allgemein", "2026", "Test_Scan.pdf"), "utf8"), "%PDF-1.4 Test");
+    // Importbericht: die abgelegte Datei steht mit logischen Pfaden drin.
+    const auftrag = JSON.parse(readFileSync(join(abzug.extern, "master", "importauftraege.jsonl"), "utf8").trim().split("\n").at(-1));
+    assert.deepEqual([auftrag.art, auftrag.status, auftrag.quelle, auftrag.ziele], ["beleg", "abgelegt", "data/inbox/scan.pdf", ["Belege/Sonstiges/Allgemein/2026/Test_Scan.pdf"]]);
+    const importe = await s.werkzeug("status");
+    assert.match(importe.text, /"art": "beleg"/);
 
     const verworfen = await s.werkzeug("beleg_verwerfen", { pfad: "Belege/Sonstiges/Allgemein/2026/Test_Scan.pdf", grund: "Test", schreiben: true });
     assert.ok(!verworfen.isError, verworfen.text);

@@ -119,10 +119,11 @@ export function renderUpload() {
   `;
 }
 
-const SCHRITT_KLASSE = { uebernommen: "success", teilweise: "review", abgewiesen: "danger" };
+const SCHRITT_KLASSE = { uebernommen: "success", teilweise: "review", abgewiesen: "danger", abgelegt: "success", geteilt: "success", verworfen: "neutral" };
 
-// Je Auftrag: Datei, Zeitpunkt, Schritte bis "abgeschlossen", Zeilenzahlen,
-// abgewiesene Zeilen aufklappbar, Archivort.
+// Je Auftrag (jede Datei, die die Inbox verlassen hat): Datei, Weg, Zeitpunkt,
+// Schritte, bei Kontoauszuegen Zeilenzahlen und abgewiesene Zeilen, sonst das
+// Ziel (Beleg, Teile) bzw. der Papierkorb.
 function renderImporte() {
   const { antwort, fehler } = importeAntwort();
   if (!antwort) return `<p class="muted" role="status">${escapeHtml(t(fehler ? "uploadPage.apiUnavailable" : "uploadPage.importeLaden"))}</p>`;
@@ -137,12 +138,13 @@ function renderImporte() {
       </details>` : "";
     return `
       <li class="import-eintrag">
-        <div class="import-kopf"><strong>${escapeHtml(dateiname(a.quelle))}</strong> <span class="muted">${escapeHtml(formatZeit(a.zeitpunkt))} · ${escapeHtml(a.auftrag_id)}</span></div>
+        <div class="import-kopf"><strong>${escapeHtml(dateiname(a.quelle))}</strong> <span class="muted">${escapeHtml(t(`uploadPage.art.${a.art ?? "csv"}`))} · ${escapeHtml(formatZeit(a.zeitpunkt))} · ${escapeHtml(a.auftrag_id)}</span></div>
         <ol class="import-schritte">${schritte}</ol>
-        <div class="muted">${escapeHtml(tf("uploadPage.zeilen", { gelesen: z.gelesen ?? 0, uebernommen: z.uebernommen ?? 0, dubletten: z.dubletten ?? 0, abgewiesen: z.abgewiesen ?? 0 }))}${a.pruefen ? ` · ${escapeHtml(tf("uploadPage.pruefen", { n: a.pruefen }))}` : ""}</div>
+        ${a.zeilen ? `<div class="muted">${escapeHtml(tf("uploadPage.zeilen", { gelesen: z.gelesen ?? 0, uebernommen: z.uebernommen ?? 0, dubletten: z.dubletten ?? 0, abgewiesen: z.abgewiesen ?? 0 }))}${a.pruefen ? ` · ${escapeHtml(tf("uploadPage.pruefen", { n: a.pruefen }))}` : ""}</div>` : ""}
+        ${a.ziele?.length ? `<ul class="import-ziele">${a.ziele.map((ziel) => `<li>${escapeHtml(tf(a.art === "teilen" ? "uploadPage.teil" : "uploadPage.abgelegtUnter", { pfad: ziel }))}</li>`).join("")}</ul>` : ""}
         ${a.grund ? `<div>${escapeHtml(tf("uploadPage.grundAbgewiesen", { grund: a.grund }))}</div>` : ""}
         ${abgewiesen}
-        ${a.archiv ? `<div class="muted">${escapeHtml(tf("uploadPage.archiv", { pfad: a.archiv }))}</div>` : ""}
+        ${a.archiv ? `<div class="muted">${escapeHtml(tf(a.art === "verworfen" || a.art === "teilen" ? "uploadPage.papierkorb" : "uploadPage.archiv", { pfad: a.archiv }))}</div>` : ""}
       </li>`;
   }).join("")}</ul>`;
 }

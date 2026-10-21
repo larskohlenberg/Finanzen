@@ -14,13 +14,15 @@
 /**
  * @typedef {object} Importauftrag
  * @property {string} auftrag_id
+ * @property {"csv"|"import"|"beleg"|"teilen"|"verworfen"} [art]
+ * @property {string[]} [ziele]
  * @property {string} zeitpunkt
  * @property {string} quelle
  * @property {string} quelle_sha256
- * @property {string} profil_id
+ * @property {string} [profil_id]
  * @property {string} [konto_id]
- * @property {"uebernommen"|"teilweise"|"abgewiesen"} status
- * @property {{ gelesen: number, uebernommen: number, dubletten: number, abgewiesen: number }} zeilen
+ * @property {"uebernommen"|"teilweise"|"abgewiesen"|"abgelegt"|"geteilt"|"verworfen"} status
+ * @property {{ gelesen: number, uebernommen: number, dubletten: number, abgewiesen: number }} [zeilen]
  * @property {{ zeile: number, grund: string, rohzeile?: string }[]} [abgewiesen]
  * @property {string} [grund]
  * @property {string} [archiv]
@@ -36,12 +38,14 @@ export function importStandModell({ auftraege, wartend, anzahl = 20 }) {
   return {
     auftraege: sortiert.slice(0, anzahl).map((a) => ({
       auftrag_id: a.auftrag_id,
+      art: a.art ?? "csv",
       zeitpunkt: a.zeitpunkt,
       quelle: a.quelle,
-      profil_id: a.profil_id,
+      profil_id: a.profil_id ?? null,
+      ziele: a.ziele ?? [],
       konto_id: a.konto_id ?? null,
       status: a.status,
-      zeilen: a.zeilen,
+      zeilen: a.zeilen ?? null,
       abgewiesen: a.abgewiesen ?? [],
       grund: a.grund ?? null,
       archiv: a.archiv ?? null,
@@ -49,7 +53,8 @@ export function importStandModell({ auftraege, wartend, anzahl = 20 }) {
     })),
     wartend: wartend.map((w) => {
       const auftrag = w.sha256 ? nachSumme.get(w.sha256) : undefined;
-      return auftrag && auftrag.status !== "abgewiesen"
+      // Nur ein CSV-Lauf laesst die Datei nach dem Uebernehmen liegen (Archiv folgt).
+      return auftrag && (auftrag.art ?? "csv") === "csv" && auftrag.status !== "abgewiesen"
         ? { datei: w.datei, status: "uebernommen-archiv-ausstehend", auftrag_id: auftrag.auftrag_id }
         : { datei: w.datei, status: "hochgeladen" };
     }),

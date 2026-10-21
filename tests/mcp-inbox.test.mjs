@@ -19,6 +19,7 @@ before(() => {
 after(() => abzug.aufraeumen());
 
 const logZeilen = () => readFileSync(join(abzug.master, "agent_log.jsonl"), "utf8").trim().split("\n").map((z) => JSON.parse(z));
+const auftraege = () => (existsSync(join(abzug.master, "importauftraege.jsonl")) ? readFileSync(join(abzug.master, "importauftraege.jsonl"), "utf8").trim().split("\n").filter(Boolean).map((z) => JSON.parse(z)) : []);
 
 test("inbox_verwerfen: aus der Wurzel samt Zwilling und Textvorlauf in den Papierkorb, mit Log-Zeile", async () => {
   mkdirSync(join(inbox, "standardized"), { recursive: true });
@@ -51,6 +52,16 @@ test("inbox_verwerfen: aus der Wurzel samt Zwilling und Textvorlauf in den Papie
     assert.deepEqual(eintrag.papierkorb, [`data/papierkorb/${tag}/duplikat.pdf`, `data/papierkorb/${tag}/duplikat.txt`, `data/papierkorb/${tag}/standardized/duplikat.txt`]);
     assert.match(eintrag.zeitpunkt, /^\d{4}-\d{2}-\d{2}T/);
     assert.equal(eintrag.anzahl_fehler, 0);
+
+    // Importbericht: auch eine verworfene Datei steht drin, mit Grund und Papierkorb.
+    const auftrag = auftraege().at(-1);
+    assert.equal(auftrag.art, "verworfen");
+    assert.equal(auftrag.status, "verworfen");
+    assert.equal(auftrag.quelle, "data/inbox/duplikat.pdf");
+    assert.equal(auftrag.grund, "Duplikat eines bereits importierten Auszugs");
+    assert.equal(auftrag.archiv, `data/papierkorb/${tag}/duplikat.pdf`);
+    assert.match(auftrag.quelle_sha256, /^[0-9a-f]{64}$/);
+    assert.match(auftrag.auftrag_id, /^IMP-\d{3,}$/);
   } finally {
     await s.beenden();
   }

@@ -12,6 +12,29 @@ import { loadMasterData, validateMasterData } from "./validator.mjs";
 import { neueFehler } from "./lib/validator-befund.mjs";
 import { beginneLauf } from "./lib/fingerabdruck.mjs";
 import { ersetzeDatei } from "./lib/datei.mjs";
+import { haengeImportauftragAn } from "./lib/bestand-datei.mjs";
+import { logisch } from "./lib/datenort.mjs";
+import { alsBestandsPfad } from "./lib/schreiblauf.mjs";
+import { createHash } from "node:crypto";
+
+const APP = fileURLToPath(new URL("../", import.meta.url));
+
+// Importauftrag fuer den Importbericht (Hochladen -> Importe): eine vom Agenten
+// aufbereitete Datei, eingespielt mit import.mjs (art import). quelle als
+// Pfad im App-Raum (data/inbox/...), auch bei externem Datenort.
+export function importAuftragVonHand({ quelle, quelle_sha256, zeitpunkt, entries, result }) {
+  const abgewiesen = result.errors.length;
+  return {
+    art: "import",
+    zeitpunkt,
+    quelle,
+    quelle_sha256,
+    status: abgewiesen ? "teilweise" : "uebernommen",
+    zeilen: { gelesen: entries.length, uebernommen: result.written.length, dubletten: result.skipped_dedupe.length, abgewiesen },
+    ...(abgewiesen ? { abgewiesen: result.errors.map((f) => ({ zeile: f.row, grund: `${f.reason}: ${f.detail}` })) } : {}),
+    ...(result.pruefen?.length ? { pruefen: result.pruefen.length } : {}),
+  };
+}
 
 const optionalTransactionFields = [
   "wertstellungsdatum",
@@ -148,7 +171,9 @@ async function main() {
     readJson(new URL("kategorisierungsregeln.json", masterRoot)),
     readJson(new URL("regelzahlungen.json", masterRoot)),
   ]);
-  const entries = await readJsonl(pathToFileURL(resolve(process.cwd(), inputPath)));
+  const eingabe = resolve(process.cwd(), inputPath);
+  const rohtext = await readFile(eingabe);
+  const entries = await readJsonl(pathToFileURL(eingabe));
 
   const out = runImport({ entries, konten, kategorien, kategorisierungsregeln, transaktionen, transfers, regelzahlungen });
   console.log(JSON.stringify({ modus: schreiben ? "geschrieben" : "vorschau", ...out.result }, null, 2));
@@ -160,7 +185,15 @@ async function main() {
   // Erst den neuen Bestand pruefen: bringt der Import neue Validatorfehler,
   // wird nichts geschrieben.
   const bestand = await loadMasterData(masterRoot);
-  const neu = neueFehler(validateMasterData(bestand).befunde, validateMasterData({ ...bestand, transaktionen: out.transaktionen, transfers: out.transfers }).befunde);
+  const auftrag = importAuftragVonHand({
+    quelle: logisch(APP, alsBestandsPfad(eingabe)),
+    quelle_sha256: createHash("sha256").update(rohtext).digest("hex"),
+    zeitpunkt: new Date().toISOString(),
+    entries,
+    result: out.result,
+  });
+  const vorschauAuftraege = [...(bestand.importauftraege ?? []), { auftrag_id: "IMP-999999", ...auftrag }];
+  const neu = neueFehler(validateMasterData(bestand).befunde, validateMasterData({ ...bestand, transaktionen: out.transaktionen, transfers: out.transfers, importauftraege: vorschauAuftraege }).befunde);
   if (neu.length) {
     console.error("Validierung des neuen Bestands fehlgeschlagen — nichts geschrieben:");
     for (const error of neu) console.error(`- ${error}`);
@@ -169,6 +202,7 @@ async function main() {
   }
   await ersetzeDatei(new URL("transaktionen.jsonl", masterRoot), out.transaktionen.map((tx) => JSON.stringify(tx)).join("\n") + "\n");
   await ersetzeDatei(new URL("transfers.json", masterRoot), JSON.stringify(out.transfers, null, 2) + "\n");
+  await haengeImportauftragAn(masterRoot, auftrag);
   // Dubletten-Prueffaelle (ADR 0034) ins Protokoll, damit der Pruefbericht sie
   // zeigt, bis ein spaeterer Eintrag sie mit dubletten_geprueft abhakt.
   if (out.result.pruefen.length) {

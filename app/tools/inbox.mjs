@@ -47,6 +47,7 @@ import { alsBestandsPfad } from "./lib/schreiblauf.mjs";
 import { validateImportProfil } from "./import-format.mjs";
 import { BILD_ENDUNGEN, erkenneText } from "./lib/ocr.mjs";
 import { bestandOrte } from "./lib/bestand-orte.mjs";
+import { logisch } from "./lib/datenort.mjs";
 import { ersetzeDatei } from "./lib/datei.mjs";
 import { liesJsonl, naechsteId, schreibeJsonl } from "./lib/bestand-datei.mjs";
 
@@ -54,7 +55,8 @@ const APP = fileURLToPath(new URL("../", import.meta.url));
 // Inbox-Pfad relativ zum App-Raum fuer Bericht, rohquelle und Protokoll
 // (data/master: data/inbox, sonst <bestand>/inbox).
 // Name wie im eigentlichen Bestand, auch wenn der Lauf in einem Entwurf arbeitet.
-const inboxName = (inboxRoot) => path.relative(APP, alsBestandsPfad(fileURLToPath(inboxRoot))).split(path.sep).join("/");
+// Name der Inbox im App-Raum (data/inbox), auch bei externem Datenort.
+const inboxName = (inboxRoot) => logisch(APP, alsBestandsPfad(fileURLToPath(inboxRoot)));
 
 const IGNORIEREN = new Set([".DS_Store", ".gitkeep"]);
 const VERARBEITBAR = new Set(["csv", "pdf", ...BILD_ENDUNGEN]);
@@ -470,7 +472,7 @@ async function main() {
     for (const a of bisherigeAuftraege) {
       // Nur vollstaendig uebernommene: bei teilweise ist ein neuer Lauf harmlos
       // (die Dublettenpruefung ergaenzt nur Fehlendes) und schreibt die Fehlernotiz neu.
-      if (a.quelle_sha256 !== quelle_sha256 || a.status !== "uebernommen") continue;
+      if ((a.art ?? "csv") !== "csv" || a.quelle_sha256 !== quelle_sha256 || a.status !== "uebernommen") continue;
       const ziel = archivRelativ(inboxRoot, a.archiv);
       // Nie archiviert (Abbruch davor): weder die Datei noch ihre Fehlernotiz
       // liegt am Ziel. Liegt die Notiz in error/, hat jemand die Datei bewusst

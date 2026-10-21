@@ -3071,6 +3071,8 @@ a.linkish {
 .vorsorge-kopf-liste .kopf-rechts { flex: 0 0 auto; margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; }
 .vorsorge-kopf-liste .kopf-rechts-zeile { display: flex; align-items: baseline; gap: 6px; }
 .vorsorge-kopf-liste .kopf-unter { white-space: nowrap; }
+/* Farbpunkt auf Hoehe der ersten Zeile, auch wenn Name oder rechter Block umbrechen. */
+.vorsorge-kopf-liste .farbpunkt { align-self: flex-start; margin-top: calc((1lh - 9px) / 2); }
 /* Vermoegenskachel: Namen einzeilig, je nach Kachelbreite mit "…" gekuerzt (voller Name im title). */
 .vermoegen-teil .vorsorge-kopf-liste .linkish { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vorsorge-kopf-liste .amount { flex: 0 0 auto; margin-left: auto; font-variant-numeric: tabular-nums; }

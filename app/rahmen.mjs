@@ -172,7 +172,6 @@ export function renderTopbar() {
         ${data.validation?.valid
           ? `<span class="chip success icon-chip" role="img" aria-label="${escapeHtml(t("chrome.validationPassed"))}" title="${escapeHtml(`${t("chrome.validationPassed")} – ${t("chrome.validationPassedHint")}`)}">${iconSvg("success")}</span>`
           : `<button class="chip danger linkish" data-action="show-validation" title="${escapeHtml(t("chrome.validationFailedHint"))}">${iconSvg("warning")}${data.validation?.errors.length ?? 0} ${escapeHtml(t("chrome.validationFailed"))}</button>`}
-        <button class="chip neutral linkish icon-chip" data-action="reload-data" aria-label="${escapeHtml(t("chrome.reloadData"))}" title="${escapeHtml(t("chrome.reloadData"))}">${iconSvg("regelzahlungen")}</button>
         ${kopfleisteFehler() ? `<button class="chip danger linkish" data-action="reload-data" title="${escapeHtml(kopfleisteFehler().message)}">${iconSvg("warning")}${escapeHtml(t("chrome.kopfleisteFehler"))}</button>` : ""}
         ${openCategories > 0 ? `<button class="chip review linkish" data-action="filter-open-category">${iconSvg("review")}${openCategories} ${escapeHtml(t("chrome.categoryOpen"))}</button>` : ""}
         ${offeneChecks > 0 ? `<button class="chip review linkish" data-action="show-checks">${iconSvg("review")}${offeneChecks} ${escapeHtml(t("chrome.openChecks"))}</button>` : ""}

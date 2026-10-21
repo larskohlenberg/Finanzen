@@ -16,7 +16,7 @@ export function erstelleStandWaechter({ stand, holeStand, holeGrunddaten, uebern
 
   async function lauf(erzwingen) {
     zuletzt = jetzt();
-    // Erzwungen (Knopf "Daten neu laden"): direkt bedingt laden, 304 = unveraendert.
+    // Erzwungen (Fehler-Chip der Kopfleiste): direkt bedingt laden, 304 = unveraendert.
     if (!erzwingen && (await holeStand()) === aktuell) return false;
     const bundle = await holeGrunddaten(aktuell);
     if (!bundle) return false;

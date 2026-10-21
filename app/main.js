@@ -677,7 +677,7 @@ const standWaechter = erstelleStandWaechter({
 function pruefeStand(optionen) {
   if (sitzungGesperrt) return;
   // Nicht erreichbar oder kaputt: der bisherige Stand bleibt sichtbar, der
-  // naechste Klick fragt erneut. Beim Knopf "Daten neu laden" erscheint der
+  // naechste Klick fragt erneut. Beim Fehler-Chip der Kopfleiste erscheint der
   // Fehler im Fehlerbanner.
   standWaechter.pruefe(optionen).catch((fehler) => {
     if (optionen?.erzwingen) setUiError(fehler, "daten-neu-laden");

@@ -33,6 +33,7 @@ import { verlaufBericht } from "../tools/verlauf.mjs";
 import { OhneVerlauf } from "../tools/lib/generationen.mjs";
 import { bestandFingerabdruck } from "../tools/lib/fingerabdruck.mjs";
 import { importStandModell } from "../tools/lib/importstand.mjs";
+import { haengeImportauftragAn } from "../tools/lib/bestand-datei.mjs";
 import { AUFGABEN, KATEGORIE_REGEL, aufgabeVon } from "./vertrag.mjs";
 import { createHash } from "node:crypto";
 import { releaseStand } from "./version.mjs";
@@ -1091,12 +1092,28 @@ const belegAblegen = {
     const bericht = paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${bericht}`);
     return mitVerschieben(ctx, async (s) => {
+      const sha = await pruefsummeVon(s.pfad(quelle.absolut));
       await mkdir(path.dirname(s.pfad(ziel.absolut)), { recursive: true });
       for (const [q, z] of paare) await rename(s.pfad(q.absolut), s.pfad(z.absolut));
+      await inboxAuftrag(s, quelle, sha, { art: "beleg", status: "abgelegt", ziele: [ziel.relativ] });
       return ergebnis(paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n"));
     });
   },
 };
+
+const pruefsummeVon = async (absolut) => createHash("sha256").update(await readFile(absolut)).digest("hex");
+
+// Was aus einer Inbox-Datei wurde, als Importauftrag in den Entwurf: so steht
+// jeder Weg aus der Inbox im Importbericht (Hochladen -> Importe), nicht nur
+// der CSV-Lauf. sha vor dem Verschieben bilden.
+async function inboxAuftrag(s, quelle, sha, felder) {
+  await haengeImportauftragAn(pathToFileURL(`${s.ordner}${path.sep}`), {
+    zeitpunkt: new Date().toISOString(),
+    quelle: quelle.relativ,
+    quelle_sha256: sha,
+    ...felder,
+  });
+}
 
 // Eine Protokollzeile im Format der CLIs (inbox.mjs) ans agent_log.jsonl des Entwurfs.
 async function protokolliere(s, eintrag) {
@@ -1180,9 +1197,10 @@ async function planeBelegKorb(ctx, beleg) {
 }
 
 // Stamm- und Bewegungsdaten, die einen Belegpfad als ganzen Pfad nennen
-// (agent_log.jsonl ausgenommen: das Protokoll haelt fest, was damals war).
+// (agent_log.jsonl und importauftraege.jsonl ausgenommen: die Protokolle
+// halten fest, was damals war).
 async function datenMitVerweis(ctx, pfade) {
-  const namen = (await readdir(ctx.datenroot)).filter((n) => /\.(json|jsonl)$/.test(n) && n !== "agent_log.jsonl").sort();
+  const namen = (await readdir(ctx.datenroot)).filter((n) => /\.(json|jsonl)$/.test(n) && n !== "agent_log.jsonl" && n !== "importauftraege.jsonl").sort();
   const treffer = [];
   for (const name of namen) {
     const text = await readFile(path.join(ctx.datenroot, name), "utf8");
@@ -1220,7 +1238,9 @@ const inboxVerwerfen = {
     const paare = await planePapierkorb(ctx, quelle);
     if (!args.schreiben) return ergebnis(`Vorschau (nichts verschoben):\n${paare.map(([q, z]) => `${q.relativ} -> ${z.relativ}`).join("\n")}`);
     return mitVerschieben(ctx, async (s) => {
+      const sha = await pruefsummeVon(s.pfad(quelle.absolut));
       await inDenPapierkorb(paare, s);
+      await inboxAuftrag(s, quelle, sha, { art: "verworfen", status: "verworfen", grund: args.grund?.trim() || "aus der Inbox verworfen", archiv: paare[0][1].relativ });
       await protokolliere(s, {
         anlass: "inbox-verwerfen",
         inputs: paare.map(([q]) => q.relativ),
@@ -1301,7 +1321,9 @@ const belegTeilen = {
       } finally {
         await rm(ordner, { recursive: true, force: true });
       }
+      const sha = await pruefsummeVon(s.pfad(quelle.absolut));
       await inDenPapierkorb(korb, s);
+      await inboxAuftrag(s, quelle, sha, { art: "teilen", status: "geteilt", ziele: teile.map((t) => t.ziel.relativ), archiv: korb[0][1].relativ });
       await protokolliere(s, {
         anlass: "beleg-teilen",
         inputs: [quelle.relativ],
@@ -1360,6 +1382,7 @@ const belegErgaenzen = {
     ].join("\n");
     if (!args.schreiben) return ergebnis(`Vorschau (nichts geschrieben):\n${bericht}`);
     return mitVerschieben(ctx, async (s) => {
+      const sha = ausBelege ? null : await pruefsummeVon(s.pfad(quelle.absolut));
       const ordner = await mkdtemp(path.join(tmpdir(), "finanzen-mcp-ergaenzen-"));
       try {
         await programm("pdfseparate", [s.pfad(ziel.absolut), path.join(ordner, "alt-%d.pdf")]);
@@ -1380,6 +1403,7 @@ const belegErgaenzen = {
         await rm(ordner, { recursive: true, force: true });
       }
       for (const v of verweise) await ersetzeDatei(path.join(s.ordner, v.name), ersetzeVerweise(v.text, ersetzungen).text);
+      if (sha) await inboxAuftrag(s, quelle, sha, { art: "beleg", status: "abgelegt", ziele: [ziel.relativ] });
       await protokolliere(s, {
         anlass: "beleg-ergaenzen",
         inputs: [quelle.relativ],

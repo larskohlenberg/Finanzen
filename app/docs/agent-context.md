@@ -487,7 +487,15 @@ Wichtige Tools:
   einen Auftrag an (`IMP-NNN`: Quelle, Pruefsumme, Profil, Konto, Status
   `uebernommen`/`teilweise`/`abgewiesen`, Zaehler gelesen/uebernommen/dubletten/
   abgewiesen, jede abgewiesene Zeile mit Grund, Archivziel), atomar mit den
-  Buchungen. Liegt eine schon uebernommene Quelle nach einem Abbruch noch in der
+  Buchungen (`art` fehlt oder `csv`). Auch jeder andere Weg aus der Inbox
+  schreibt seinen Auftrag selbst, damit der Importbericht vollstaendig ist:
+  `import` (aufbereitete JSONL, `art: import`, Zaehler wie oben), `beleg_ablegen`
+  und `beleg_ergaenzen` mit Inbox-Quelle (`art: beleg`, `status: abgelegt`,
+  `ziele`), `beleg_teilen` (`art: teilen`, `status: geteilt`, `ziele` = Teile) und
+  `inbox_verwerfen` (`art: verworfen`, `grund`, `archiv` = Papierkorb). Nichts
+  davon von Hand nachtragen. Wie `agent_log.jsonl` haelt die Datei fest, was
+  damals war: Belegumzuege und Verweispruefungen lassen sie aus.
+  Liegt eine schon uebernommene Quelle nach einem Abbruch noch in der
   Inbox, archiviert der naechste Lauf sie nur (`wiederaufgenommen`); wurde sie
   archiviert, ohne dass der Bestand uebernommen wurde, holt er sie ueber die
   Marke in `<inbox>/.auftraege/` zurueck (`zurueckgeholt`). `status` zeigt

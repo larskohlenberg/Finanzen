@@ -238,3 +238,25 @@ test("Teilweise uebernommene Datei, die nach einem Abbruch noch in der Inbox lie
     abzug.aufraeumen();
   }
 });
+
+test("import.mjs: von Hand aufbereitete Datei wird als Importauftrag (art import) protokolliert", async () => {
+  const { importAuftragVonHand } = await import("../app/tools/import.mjs");
+  const result = { written: [{}, {}], skipped_dedupe: [{}], errors: [{ row: 4, reason: "betrag", detail: "fehlt" }], pruefen: [] };
+  const a = importAuftragVonHand({ quelle: "data/inbox/standardized/lauf.jsonl", quelle_sha256: "a".repeat(64), zeitpunkt: "2026-10-21T06:00:00.000Z", entries: [1, 2, 3, 4], result });
+  assert.equal(a.art, "import");
+  assert.equal(a.status, "teilweise");
+  assert.deepEqual(a.zeilen, { gelesen: 4, uebernommen: 2, dubletten: 1, abgewiesen: 1 });
+  assert.deepEqual(a.abgewiesen, [{ zeile: 4, grund: "betrag: fehlt" }]);
+  assert.equal(importAuftragVonHand({ quelle: "x", quelle_sha256: "a".repeat(64), zeitpunkt: "2026-10-21T06:00:00.000Z", entries: [1], result: { written: [{}], skipped_dedupe: [], errors: [], pruefen: [] } }).status, "uebernommen");
+});
+
+test("Validator: Art und Status eines Importauftrags passen zusammen, Pflichtfelder je Art", async () => {
+  const { validateMasterData } = await import("../app/tools/validator.mjs");
+  const basis = { auftrag_id: "IMP-001", zeitpunkt: "2026-10-21T06:00:00.000Z", quelle: "data/inbox/a.pdf", quelle_sha256: "b".repeat(64) };
+  const befunde = (a) => validateMasterData({ konten: [], kategorien: [], transaktionen: [], importauftraege: [a] }).befunde.filter((b) => b.sammlung === "importauftraege").map((b) => b.code);
+  assert.deepEqual(befunde({ ...basis, art: "beleg", status: "abgelegt", ziele: ["Belege/a.pdf"] }), []);
+  assert.ok(befunde({ ...basis, art: "beleg", status: "uebernommen", ziele: ["Belege/a.pdf"] }).includes("enum"));
+  assert.ok(befunde({ ...basis, art: "beleg", status: "abgelegt" }).includes("pflicht"));
+  assert.ok(befunde({ ...basis, status: "uebernommen", zeilen: { gelesen: 0, uebernommen: 0, dubletten: 0, abgewiesen: 0 } }).includes("pflicht"), "csv ohne profil_id");
+  assert.deepEqual(befunde({ ...basis, art: "verworfen", status: "verworfen", grund: "Duplikat" }), []);
+});

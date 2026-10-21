@@ -8,7 +8,8 @@
 // Ein Eintrag mit `kopie: true` legt stattdessen eine Kopie an (Beleg zu
 // mehreren Objekten); Quelle und Verweise bleiben, Kopien laufen vor den
 // Verschiebungen und lesen die Quelle daher an ihrem alten Platz.
-// agent_log.jsonl bleibt unveraendert: das Protokoll haelt fest, was damals war.
+// agent_log.jsonl und importauftraege.jsonl bleiben unveraendert: die Protokolle
+// halten fest, was damals war.
 //
 // Vorschau ist Default, --schreiben wendet an. Ein schon erledigter Umzug
 // (Quelle weg, Ziel da) zaehlt als erledigt, damit ein abgebrochener Lauf
@@ -27,7 +28,7 @@ import { ersetzeDatei } from "./lib/datei.mjs";
 
 // Belege/ des Echtbestands, mit FINANZEN_DATEN am externen Datenort.
 const belegeStandard = () => pathToFileURL(`${physisch(fileURLToPath(new URL("../", import.meta.url)), "Belege")}${path.sep}`);
-const PROTOKOLL = "agent_log.jsonl";
+const PROTOKOLLE = new Set(["agent_log.jsonl", "importauftraege.jsonl"]);
 
 const nfc = (wert) => String(wert).normalize("NFC");
 const endung = (pfad) => path.posix.extname(pfad).toLowerCase();
@@ -139,7 +140,7 @@ async function dateienUnter(ordnerUrl, praefix = "Belege") {
 const absolutUnter = (belegeRoot, relativ) => path.join(fileURLToPath(belegeRoot), ...relativ.split("/").slice(1));
 
 async function datenDateien(datenRoot) {
-  const namen = (await readdir(datenRoot)).filter((name) => /\.(json|jsonl)$/.test(name) && name !== PROTOKOLL).sort();
+  const namen = (await readdir(datenRoot)).filter((name) => /\.(json|jsonl)$/.test(name) && !PROTOKOLLE.has(name)).sort();
   return Promise.all(namen.map(async (name) => ({ name, text: await readFile(new URL(name, datenRoot), "utf8") })));
 }
 

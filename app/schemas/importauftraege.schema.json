@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "importauftraege.schema.json",
-  "title": "Importauftrag (eine Zeile in importauftraege.jsonl)",
+  "title": "Importauftrag: was aus einer Datei der Inbox wurde (eine Zeile in importauftraege.jsonl)",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -9,14 +9,23 @@
     "zeitpunkt",
     "quelle",
     "quelle_sha256",
-    "profil_id",
-    "status",
-    "zeilen"
+    "status"
   ],
   "properties": {
     "auftrag_id": {
       "type": "string",
       "pattern": "^IMP-\\d{3,}$"
+    },
+    "art": {
+      "type": "string",
+      "enum": [
+        "csv",
+        "import",
+        "beleg",
+        "teilen",
+        "verworfen"
+      ],
+      "description": "Weg der Datei: csv (Inbox-Lauf mit Importprofil; fehlt art, gilt csv), import (vom Agenten aufbereitet und eingespielt), beleg (unter Belege/ abgelegt), teilen (in einzelne Belege zerlegt), verworfen (Papierkorb)"
     },
     "zeitpunkt": {
       "type": "string",
@@ -35,7 +44,8 @@
     },
     "profil_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Importprofil; Pflicht bei art csv"
     },
     "konto_id": {
       "type": "string",
@@ -46,13 +56,16 @@
       "enum": [
         "uebernommen",
         "teilweise",
-        "abgewiesen"
+        "abgewiesen",
+        "abgelegt",
+        "geteilt",
+        "verworfen"
       ],
-      "description": "uebernommen: alle Zeilen gelesen; teilweise: Zeilen abgewiesen; abgewiesen: nichts gelesen (Profil- oder Lesefehler)"
+      "description": "csv/import: uebernommen (alle Zeilen gelesen), teilweise (Zeilen abgewiesen), abgewiesen (nichts gelesen, nur csv); beleg: abgelegt; teilen: geteilt; verworfen: verworfen"
     },
     "zeilen": {
       "type": "object",
-      "description": "Zaehler gelesen, uebernommen, dubletten, abgewiesen"
+      "description": "Zaehler gelesen, uebernommen, dubletten, abgewiesen; Pflicht bei art csv und import"
     },
     "abgewiesen": {
       "type": "array",
@@ -60,7 +73,7 @@
     },
     "grund": {
       "type": "string",
-      "description": "Grund bei Status abgewiesen"
+      "description": "Grund bei Status abgewiesen oder verworfen"
     },
     "archiv": {
       "type": "string",
@@ -74,6 +87,15 @@
     },
     "referenz_unzuverlaessig": {
       "type": "boolean"
+    },
+    "ziele": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Wohin die Datei ging: Ablagepfad(e) unter Belege/ (beleg) bzw. die Teile in der Inbox (teilen); Pflicht bei beleg und teilen"
     }
   }
 }

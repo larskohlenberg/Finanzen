@@ -48,6 +48,17 @@ export async function protokolliere(root, eintrag) {
   await haengeAn(new URL("agent_log.jsonl", root), `${JSON.stringify(eintrag)}\n`);
 }
 
+// Was aus einer Inbox-Datei wurde, als Importauftrag anhaengen (Importbericht
+// der Oberflaeche); vergibt die naechste IMP-Id. auftrag ohne auftrag_id.
+/** @param {URL} root Datenroot @param {Record<string, unknown>} auftrag */
+export async function haengeImportauftragAn(root, auftrag) {
+  const url = new URL("importauftraege.jsonl", root);
+  const bisher = await liesJsonl(url);
+  const eintrag = { auftrag_id: naechsteId(bisher, "auftrag_id", "IMP"), ...auftrag };
+  await schreibeJsonl(url, [...bisher, eintrag]);
+  return eintrag;
+}
+
 // Naechste laufende Nummer einer ID-Klasse (PRAEFIX-NNN, mindestens drei Stellen).
 /** @param {Record<string, any>[]} liste @param {string} feld @param {string} praefix */
 export function naechsteId(liste, feld, praefix) {

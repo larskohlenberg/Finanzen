@@ -11,6 +11,9 @@ const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const TXN_ID = /^TXN-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const TRF_ID = /^TRF-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+// Arten eines Importauftrags (importauftraege.jsonl); ohne art: csv.
+export const IMPORT_ARTEN = ["csv", "import", "beleg", "teilen", "verworfen"];
+
 const schemas = {
   personen: {
     required: ["person_id", "name", "status"],
@@ -281,24 +284,28 @@ const schemas = {
       abgerufen_am: { type: "string", format: "date" },
     },
   },
-  // Importauftraege (Review 1B.5): je CSV-Lauf ein Eintrag in derselben
-  // Generation wie seine Buchungen; Grundlage fuer Wiederaufnahme und den
-  // Importbericht der Oberflaeche.
+  // Importauftraege (Review 1B.5): je Datei, die die Inbox verlaesst, ein
+  // Eintrag in derselben Generation wie ihre Wirkung (art): csv (Inbox-Lauf mit
+  // Profil, ohne art), import (vom Agenten aufbereitet), beleg (abgelegt),
+  // teilen (in Teile zerlegt), verworfen (Papierkorb). Grundlage fuer
+  // Wiederaufnahme und den Importbericht der Oberflaeche.
   importauftraege: {
     optional: true,
-    required: ["auftrag_id", "zeitpunkt", "quelle", "quelle_sha256", "profil_id", "status", "zeilen"],
+    required: ["auftrag_id", "zeitpunkt", "quelle", "quelle_sha256", "status"],
     fields: {
       auftrag_id: { type: "string", pattern: /^IMP-\d{3,}$/ },
+      art: { type: "string", enum: IMPORT_ARTEN },
       zeitpunkt: { type: "string", pattern: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/ },
       quelle: { type: "string", minLength: 1 },
       quelle_sha256: { type: "string", pattern: /^[0-9a-f]{64}$/ },
       profil_id: { type: "string", minLength: 1 },
       konto_id: { type: "string", pattern: /^KTO-\d{3,}$/ },
-      status: { type: "string", enum: ["uebernommen", "teilweise", "abgewiesen"] },
+      status: { type: "string", enum: ["uebernommen", "teilweise", "abgewiesen", "abgelegt", "geteilt", "verworfen"] },
       zeilen: { type: "object" },
       abgewiesen: { type: "array" },
       grund: { type: "string" },
       archiv: { type: "string", minLength: 1 },
+      ziele: { type: "array", minItems: 1 },
       pruefen: { type: "number", integer: true, min: 0 },
       referenz_unzuverlaessig: { type: "boolean" },
     },
@@ -853,9 +860,24 @@ function validateCrossFieldRules(data, errors) {
 
 const ZEILEN_ZAEHLER = ["gelesen", "uebernommen", "dubletten", "abgewiesen"];
 
+// Welche Status und Pflichtfelder je Art eines Importauftrags gelten.
+const IMPORT_ART_REGELN = {
+  csv: { status: ["uebernommen", "teilweise", "abgewiesen"], pflicht: ["profil_id", "zeilen"] },
+  import: { status: ["uebernommen", "teilweise"], pflicht: ["zeilen"] },
+  beleg: { status: ["abgelegt"], pflicht: ["ziele"] },
+  teilen: { status: ["geteilt"], pflicht: ["ziele"] },
+  verworfen: { status: ["verworfen"], pflicht: [] },
+};
+
 function validateImportauftraege(auftraege, konten, errors) {
   for (const a of auftraege) {
     const p = `importauftraege.${a.auftrag_id}`;
+    const regel = IMPORT_ART_REGELN[a.art ?? "csv"];
+    if (regel) {
+      if (a.status !== undefined && !regel.status.includes(a.status)) melde(errors, "enum", `${p}.status`, `${a.status} passt nicht zur Art ${a.art ?? "csv"} (erlaubt: ${regel.status.join(", ")})`);
+      for (const feld of regel.pflicht) if (a[feld] === undefined) melde(errors, "pflicht", `${p}.${feld}`, `Pflichtfeld bei Art ${a.art ?? "csv"}`);
+    }
+    if (Array.isArray(a.ziele) && a.ziele.some((z) => typeof z !== "string" || !z)) melde(errors, "format", `${p}.ziele`, "nur nicht leere Pfade");
     if (a.konto_id && !konten.has(a.konto_id)) melde(errors, "verweis", `${p}.konto_id`, `${a.konto_id} existiert nicht`);
     if (istObjekt(a.zeilen)) {
       for (const feld of Object.keys(a.zeilen)) if (!ZEILEN_ZAEHLER.includes(feld)) melde(errors, "unbekanntes-feld", `${p}.zeilen`, `unbekanntes Feld ${feld}`);

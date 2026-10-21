@@ -3587,12 +3587,13 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 /* Gleich hohe Kacheln und eine feste Groesse fuer alle Kennzahlen (statt an die Kachelbreite gekoppelt). */
 /* Zweite Zeile: Vermoegen (Unterkacheln untereinander), Versicherungen, Vorsorge. */
 .uebersicht-kacheln { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.75fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
-.vermoegen-teile { display: grid; gap: 8px; margin-top: 10px; }
-.vermoegen-teil { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+.vermoegen-teile { display: grid; gap: 12px; margin-top: 14px; }
+.vermoegen-teil { min-width: 0; }
+.vermoegen-teil-kopf { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .vermoegen-teil-titel { margin: 0; color: var(--muted); font-size: 13px; font-weight: 650; }
-.vermoegen-teil-wert { margin: 4px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.vermoegen-teil > p.muted { margin: 8px 0 0; font-size: 13px; }
-.vermoegen-teil-breit { grid-column: 1 / -1; }
+.vermoegen-teil-wert { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vermoegen-teil .uebersicht-balken { margin-top: 6px; }
+.vermoegen-teil > p.muted { margin: 4px 0 0; font-size: 13px; }
 .uebersicht-kachel { display: flex; flex-direction: column; container-type: inline-size; min-width: 0; }
 .uebersicht-kachel .kpi-value { margin: 8px 0 6px; font-size: 34px; }
 .uebersicht-zweitwert { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -3628,10 +3629,13 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .versicherungen-tabelle sup { line-height: 0; }
 /* Summen ueber der Tabelle; die Tabelle scrollt nach fuenf Zeilen (Hoehe setzt
    termineListenBegrenzen), der Kopf bleibt stehen. */
-.versicherungen-summe { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 18px; margin-top: 8px; }
-.versicherungen-summe > div { display: flex; flex-direction: column; }
+.versicherungen-summe { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
+.versicherungen-summe > div { display: flex; flex-direction: column; min-width: 0; }
+.versicherungen-summe > .info-tipp { position: absolute; top: 0; right: 0; }
 .versicherungen-summe .muted { font-size: 11px; }
-.versicherungen-summe strong { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+/* Gleiche Groesse wie die uebrigen Kennzahlen der Uebersicht; drei nebeneinander
+   passen erst ab gut 600 px Kachelbreite, darunter schrumpfen sie mit der Kachel. */
+.versicherungen-summe strong { margin-top: 4px; font-size: min(34px, 5.6cqi); font-weight: 800; line-height: 1; letter-spacing: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .versicherungen-summe .info-tipp { margin-top: 2px; }
 .uebersicht-versicherungen .versicherungen-scroll { overflow-y: auto; overscroll-behavior: contain; }
 .versicherungen-tabelle thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); }

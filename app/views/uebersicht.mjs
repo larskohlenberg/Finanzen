@@ -260,7 +260,8 @@ function renderLiquiditaetKachel(modell) {
 
 // ------------------------------------------------------------- Vermoegen
 
-// Unterkachel der Vermoegenskachel: Teilsumme und Balken. Jeder Abschnitt nennt
+// Unterkachel der Vermoegenskachel, schlank ohne Rahmen: Titel und Teilsumme in
+// einer Zeile, darunter der Balken. Jeder Abschnitt nennt
 // beim Hovern Klasse und Betrag und fuehrt per Klick ins Detail.
 // Darlehen (darlehen) stehen als eigener roter Balken darunter, je Darlehen ein
 // Abschnitt, in der Laenge relativ zu den Aktiva.
@@ -280,8 +281,10 @@ function vermoegenTeil({ titel, positionen, klassen, darlehen = [] }) {
     : "";
   return `
         <div class="vermoegen-teil">
-          <h3 class="vermoegen-teil-titel">${escapeHtml(titel)}</h3>
-          <div class="vermoegen-teil-wert">${escapeHtml(geldOhneCent(summe(() => true)))}</div>
+          <div class="vermoegen-teil-kopf">
+            <h3 class="vermoegen-teil-titel">${escapeHtml(titel)}</h3>
+            <span class="vermoegen-teil-wert">${escapeHtml(geldOhneCent(summe(() => true)))}</span>
+          </div>
           ${balken || `<p class="muted">${escapeHtml(t("overview.vermoegenTeilLeer"))}</p>`}
         </div>`;
 }

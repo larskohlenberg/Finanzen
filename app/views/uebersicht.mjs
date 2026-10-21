@@ -257,7 +257,7 @@ function renderLiquiditaetKachel(modell) {
 // ------------------------------------------------------------- Vermoegen
 
 // Unterkachel der Vermoegenskachel: Teilsumme, Balken, Zeilen je Klasse.
-function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null }) {
+function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null, notiz = "", breit = false }) {
   const summe = (filter) => positionen.filter(filter).reduce((a, p) => a + p.wert_cents, 0);
   const sichtbar = klassen.filter((k) => positionen.some(k.filter));
   const aktiva = sichtbar.filter((k) => k !== darlehenKlasse).reduce((a, k) => a + summe(k.filter), 0);
@@ -271,18 +271,28 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null }) {
   const balken = aktiva || schulden
     ? `<div class="uebersicht-balken">${balkenSvg(segmente)}${schulden ? balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(schulden)}` }], { laenge: schulden / basis }) : ""}</div>`
     : "";
-  const zeilen = sichtbar.map((k) => zeile(link(k.ziel, k.titel, { title: k.titel }), escapeHtml(geldOhneCent(summe(k.filter))), { punkt: k.punkt }));
+  const zeilen = sichtbar.map((k) => zeile(link(k.ziel, k.titel, { title: k.titel }), escapeHtml(geldOhneCent(summe(k.filter))), { punkt: k.punkt, zusatz: k.zusatz ?? "" }));
   return `
-        <div class="vermoegen-teil">
+        <div class="vermoegen-teil${breit ? " vermoegen-teil-breit" : ""}">
           <h3 class="vermoegen-teil-titel">${escapeHtml(titel)}</h3>
           <div class="vermoegen-teil-wert">${escapeHtml(geldOhneCent(summe(() => true)))}</div>
           ${balken}
           ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : `<p class="muted">${escapeHtml(t("overview.vermoegenTeilLeer"))}</p>`}
+          ${notiz ? `<p class="muted">${escapeHtml(notiz)}</p>` : ""}
         </div>`;
 }
 
+// Jahre der Leistungsbeginne einer Gruppe: "ab 2043" oder "2035–2041".
+function beginnJahre(verwendungen) {
+  const jahre = [...new Set(verwendungen.map((v) => v.beginn?.slice(0, 4)).filter(Boolean))].sort();
+  if (!jahre.length) return "";
+  return jahre.length === 1 ? tf("overview.rueckkaufAb", { jahr: jahre[0] }) : `${jahre[0]}–${jahre.at(-1)}`;
+}
+
 // Breite Kachel: oben das Nettovermoegen, darunter schnell verfuegbar (Konten,
-// Festgeld, Depots) und langfristig gebunden (Immobilien einzeln, Sachwerte, Vorsorge minus Darlehen).
+// Festgeld, Depots) und langfristig gebunden (Immobilien einzeln, Sachwerte minus
+// Darlehen). Die Rueckkaufswerte stehen getrennt darunter: Sie sind dasselbe Geld,
+// das die Vorsorgekachel als spaetere Leistung zeigt.
 function renderVermoegenKachel(modell) {
   const r = modell.vermoegen;
   const kontotyp = new Map(Object.entries(r.kontotyp));
@@ -296,6 +306,13 @@ function renderVermoegenKachel(modell) {
     .map((imm) => ({ titel: imm.name, filter: (p) => p.klasse === "immobilie" && p.id === imm.id, ziel: ZIEL.vermoegenObjekt("immobilie", imm.id), punkt: "segment-immobilie" }));
   // Rueckkaufswerte fuehren in den Vorsorge-Reiter, der den groessten Teil davon haelt.
   const rueckkaufTab = r.rueckkauf_tab;
+  const verwendung = (p) => r.rueckkauf_verwendung[p.id] ?? { art: "kapital", beginn: null };
+  const rueckkauf = (art) => {
+    const filter = (p) => p.klasse === "vorsorge" && verwendung(p).art === art;
+    return { titel: t(art === "rente" ? "overview.rueckkaufRente" : "overview.rueckkaufKapital"), filter,
+      zusatz: beginnJahre(r.positionen.filter(filter).map(verwendung)),
+      ziel: ZIEL.vorsorgeTab(art === "rente" ? "renten" : rueckkaufTab), punkt: art === "rente" ? "segment-vorsorge-rente" : "segment-vorsorge" };
+  };
   const stand = r.positionen.map((p) => p.standdatum).filter(Boolean).sort()[0] ?? "";
   return `
     <section class="panel panel-pad uebersicht-kachel uebersicht-kachel-breit" aria-labelledby="kachel-vermoegen">
@@ -316,15 +333,21 @@ function renderVermoegenKachel(modell) {
         })}
         ${vermoegenTeil({
           titel: t("overview.vermoegenLangfristig"),
-          positionen: r.positionen.filter((p) => !schnell(p)),
+          positionen: r.positionen.filter((p) => !schnell(p) && p.klasse !== "vorsorge"),
           klassen: [
             ...immobilien,
             klasse("vermoegenswert", ZIEL.vermoegenTab("sonstige")),
-            { ...klasse("vorsorge", ZIEL.vorsorgeTab(rueckkaufTab)), titel: t("overview.vorsorgeRueckkauf") },
             darlehen,
           ],
           darlehenKlasse: darlehen,
         })}
+        ${r.positionen.some((p) => p.klasse === "vorsorge") ? vermoegenTeil({
+          titel: t("overview.vorsorgeRueckkauf"),
+          positionen: r.positionen.filter((p) => p.klasse === "vorsorge"),
+          klassen: [rueckkauf("kapital"), rueckkauf("rente")],
+          notiz: t("overview.rueckkaufNotiz"),
+          breit: true,
+        }) : ""}
       </div>
     </section>`;
 }

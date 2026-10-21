@@ -287,8 +287,8 @@ test("Vertragsliste links, Detail rechts daneben", async () => {
   await mitFixture(async () => {
     state.vorsorgeTab = "renten";
     const html = await vorsorgeGezeichnet();
-    const liste = html.indexOf('class="vorsorge-liste"');
-    const detail = html.indexOf('class="vorsorge-detail-spalte"');
+    const liste = html.indexOf('class="liste-detail-liste"');
+    const detail = html.indexOf('class="liste-detail-detail"');
     assert.ok(liste > 0 && detail > liste, "Liste vor dem Detail im selben Rahmen");
     assert.ok(html.indexOf("objekt-karte ", liste) < detail, "Karten stehen in der Liste");
     assert.ok(html.indexOf("objekt-detail-titel") > detail, "Detail in der rechten Spalte");

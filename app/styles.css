@@ -3320,53 +3320,55 @@ a.linkish {
   text-transform: uppercase;
 }
 .vorsorge-gruppe-lead { margin: 0 0 8px; font-size: 12px; }
-/* Vorsorge-Tabs: links die Vertragsliste, rechts das Detail des gewaehlten Vertrags.
-   Beide fuellen das Fenster bis unten (Hoehe setzt vorsorgeHoeheEinpassen) und scrollen
-   je fuer sich; ein Klick wechselt nur das Detail. */
-.vorsorge-master-detail { display: grid; grid-template-columns: minmax(280px, 330px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 16px; }
-.vorsorge-liste, .vorsorge-detail-spalte {
+/* Liste und Detail (listeUndDetail): links die Auswahlkarten, rechts das gewaehlte Objekt
+   (Vorsorge-Vertraege, Immobilien, Darlehen). Beide fuellen das Fenster bis unten (Hoehe
+   setzt listeDetailEinpassen) und scrollen je fuer sich; ein Klick wechselt nur das Detail. */
+.liste-detail { display: grid; grid-template-columns: minmax(280px, 330px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 16px; }
+.liste-detail-liste, .liste-detail-detail {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   padding-right: 8px;
 }
-.vorsorge-liste .objekt-karten { grid-template-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 8px; }
-.vorsorge-liste .objekt-karte { padding: 10px; }
-.vorsorge-liste .objekt-karte-wert { font-size: 16px; }
-.vorsorge-liste .objekt-karte-marke .logo-marke { width: 30px; height: 30px; font-size: 12px; }
-.vorsorge-liste .vorsorge-gruppe-titel:first-child { margin-top: 0; }
+.liste-detail-liste .objekt-karten { grid-template-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 8px; }
+.liste-detail-liste .objekt-karte { padding: 10px; }
+.liste-detail-liste .objekt-karte-wert { font-size: 16px; }
+.liste-detail-liste .objekt-karte-marke .logo-marke { width: 30px; height: 30px; font-size: 12px; }
+.liste-detail-liste .vorsorge-gruppe-titel:first-child { margin-top: 0; }
 /* Beendete Vertraege als flache Klappgruppe in der Liste, nicht als eigene Kachel. */
-.vorsorge-liste .vorsorge-liste-gruppe { margin-top: 8px; padding: 0; border: 0; background: none; box-shadow: none; }
-.vorsorge-liste .vorsorge-liste-gruppe .section-title { color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-.vorsorge-liste .vorsorge-liste-gruppe:not(.zu) > .klapp-kopf { margin-bottom: 4px; }
-.vorsorge-liste::-webkit-scrollbar, .vorsorge-detail-spalte::-webkit-scrollbar { width: 8px; }
-.vorsorge-liste::-webkit-scrollbar-track, .vorsorge-detail-spalte::-webkit-scrollbar-track { background: var(--surface-2); border-radius: 4px; }
-.vorsorge-liste::-webkit-scrollbar-thumb, .vorsorge-detail-spalte::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
-.vorsorge-liste::-webkit-scrollbar-thumb:hover, .vorsorge-detail-spalte::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.liste-detail-liste .liste-detail-gruppe { margin-top: 8px; padding: 0; border: 0; background: none; box-shadow: none; }
+.liste-detail-liste .liste-detail-gruppe .section-title { color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.liste-detail-liste .liste-detail-gruppe:not(.zu) > .klapp-kopf { margin-bottom: 4px; }
+.liste-detail-liste::-webkit-scrollbar, .liste-detail-detail::-webkit-scrollbar { width: 8px; }
+.liste-detail-liste::-webkit-scrollbar-track, .liste-detail-detail::-webkit-scrollbar-track { background: var(--surface-2); border-radius: 4px; }
+.liste-detail-liste::-webkit-scrollbar-thumb, .liste-detail-detail::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+.liste-detail-liste::-webkit-scrollbar-thumb:hover, .liste-detail-detail::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 @supports not selector(::-webkit-scrollbar) {
-  .vorsorge-liste, .vorsorge-detail-spalte { scrollbar-width: thin; scrollbar-color: var(--border-strong) var(--surface-2); }
+  .liste-detail-liste, .liste-detail-detail { scrollbar-width: thin; scrollbar-color: var(--border-strong) var(--surface-2); }
 }
-.vorsorge-detail-spalte { min-width: 0; container-type: inline-size; }
+.liste-detail-detail { min-width: 0; container-type: inline-size; }
 /* Der Name des Vertrags bleibt beim Scrollen im Detail oben stehen. */
-.vorsorge-detail-spalte .objekt-detail-titel { position: sticky; top: 0; z-index: 2; margin: 0 0 12px; padding: 0 0 8px; border-top: 0; background: var(--bg); }
+.liste-detail-detail .objekt-detail-titel { position: sticky; top: 0; z-index: 2; margin: 0 0 12px; padding: 0 0 8px; border-top: 0; background: var(--bg); }
 /* Das Detail ist schmaler als die Seite: Spalten und Kennzahlen richten sich nach seiner Breite. */
 @container (max-width: 860px) {
-  .vorsorge-detail-spalte .vorsorge-spalten, .vorsorge-detail-spalte .vorsorge-spalten-breit { grid-template-columns: minmax(0, 1fr); }
-  .vorsorge-detail-spalte .kennzahl-raster-5, .vorsorge-detail-spalte .kennzahl-raster-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .liste-detail-detail .stammdaten-fest { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .liste-detail-detail .vorsorge-spalten, .liste-detail-detail .vorsorge-spalten-breit { grid-template-columns: minmax(0, 1fr); }
+  .liste-detail-detail .kennzahl-raster-5, .liste-detail-detail .kennzahl-raster-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @container (max-width: 640px) {
-  .vorsorge-detail-spalte .kennzahl-raster, .vorsorge-detail-spalte .kennzahl-raster-5, .vorsorge-detail-spalte .kennzahl-raster-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .liste-detail-detail .detail-zweispaltig, .liste-detail-detail .objekt-anhang-raster { grid-template-columns: minmax(0, 1fr); }
+  .liste-detail-detail .kennzahl-raster, .liste-detail-detail .kennzahl-raster-5, .liste-detail-detail .kennzahl-raster-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @container (max-width: 420px) {
-  .vorsorge-detail-spalte .kennzahl-raster, .vorsorge-detail-spalte .kennzahl-raster-5, .vorsorge-detail-spalte .kennzahl-raster-6 { grid-template-columns: minmax(0, 1fr); }
+  .liste-detail-detail .kennzahl-raster, .liste-detail-detail .kennzahl-raster-5, .liste-detail-detail .kennzahl-raster-6 { grid-template-columns: minmax(0, 1fr); }
 }
 /* Schmaler Bildschirm: Liste ueber dem Detail, ohne eigenes Scrollen; ein Klick springt zum Detail. */
 @media (max-width: 1100px) {
-  .vorsorge-master-detail { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
-  .vorsorge-liste, .vorsorge-detail-spalte { overflow: visible; padding-right: 0; }
-  .vorsorge-liste .objekt-karten { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-  .vorsorge-detail-spalte .objekt-detail-titel { position: static; margin-top: 12px; padding-top: 16px; border-top: 1px solid var(--border-strong); scroll-margin-top: 80px; }
+  .liste-detail { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .liste-detail-liste, .liste-detail-detail { overflow: visible; padding-right: 0; }
+  .liste-detail-liste .objekt-karten { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .liste-detail-detail .objekt-detail-titel { position: static; margin-top: 12px; padding-top: 16px; border-top: 1px solid var(--border-strong); scroll-margin-top: 80px; }
 }
 .objekt-karte.objekt-karte-ungeprueft { border-style: dashed; background: var(--surface); }
 .objekt-karte.objekt-karte-ungeprueft.active { border-style: solid; }

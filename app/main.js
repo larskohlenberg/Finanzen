@@ -8,7 +8,7 @@ import { bindTabellenkopf, tabellenkoepfeSetzen } from "./tabellenkopf.mjs";
 import { diffusorAnwenden, schalteDiffusor } from "./diffusor-anzeige.mjs";
 import { safeRender, guard } from "./error.mjs";
 import { captureFocus, restoreFocus, captureScroll, restoreScroll } from "./fokus.mjs";
-import { formatMoney, heuteIso } from "./komponenten.mjs";
+import { formatMoney, heuteIso, listeDetailEinpassen } from "./komponenten.mjs";
 import { beiDatenwechsel, datenwechselMelden, erstelleEntpreller, eingabeBereit, merkeDetails } from "./lebenszyklus.mjs";
 import { defaultHorizonEnd, monatsende } from "./liquiditaet.mjs";
 import { seitenTitel } from "./navigation.mjs";
@@ -30,7 +30,7 @@ import { renderOverview } from "./views/uebersicht.mjs";
 import { renderUpload, dateienEinreihen, inboxBeiBedarfLaden } from "./views/upload.mjs";
 import { setWertstaendeFilter, toggleWertstaendeSort } from "./views/vermoegen-wertstaende.mjs";
 import { renderVermoegen } from "./views/vermoegen.mjs";
-import { renderVorsorge, vorsorgeHoeheEinpassen } from "./views/vorsorge.mjs";
+import { renderVorsorge } from "./views/vorsorge.mjs";
 import { aktionen as rahmenAktionen } from "./aktionen/rahmen.mjs";
 import { aktionen as dokumentAktionen } from "./aktionen/dokumente.mjs";
 import { aktionen as stammdatenAktionen } from "./aktionen/stammdaten.mjs";
@@ -118,7 +118,7 @@ function render() {
   restoreScroll(app, scrollSnap);
   anwendenBaumBreite(app);
   termineListenBegrenzen(app);
-  vorsorgeHoeheEinpassen(app);
+  listeDetailEinpassen(app);
   tabellenkoepfeSetzen(app);
   kalenderAnbinden(app, { sprache: state.lang, beiWahl: setzeDatum }).catch(setUiError);
   restoreFocus(app, focusSnap);
@@ -644,7 +644,7 @@ for (const typ of ["dragover", "drop"]) {
 bindDiagrammHover(app);
 window.addEventListener("resize", () => {
   termineListenBegrenzen(app);
-  vorsorgeHoeheEinpassen(app);
+  listeDetailEinpassen(app);
 });
 bindTabellenkopf(app);
 bindBelegeTrenner(app);

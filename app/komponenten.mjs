@@ -635,3 +635,43 @@ function renderAccountRows(accounts, kontenModell, { showId = false, rowAction =
     })
     .join("");
 }
+
+// Liste und Detail (Designregel, docs/ui-regeln.md): links die Auswahlkarten, rechts das
+// gewaehlte Objekt. Beide fuellen das Fenster bis unten und scrollen je fuer sich
+// (Hoehe setzt listeDetailEinpassen); bis 1100 px stehen sie untereinander.
+export function listeUndDetail({ liste, detail, label }) {
+  return `
+    <div class="liste-detail">
+      <nav class="liste-detail-liste" aria-label="${escapeHtml(label)}">${liste}</nav>
+      <div class="liste-detail-detail">${detail}</div>
+    </div>`;
+}
+
+// Nach der Wahl eines Objekts: die gewaehlte Karte in der Liste sichtbar halten, das
+// Detail von oben zeigen und, wenn es nicht im Blick ist (schmaler Bildschirm), dorthin springen.
+export function listeDetailAuswahlZeigen() {
+  if (typeof document === "undefined") return;
+  document.querySelector(".liste-detail-liste .objekt-karte.active")?.scrollIntoView?.({ block: "nearest" });
+  const spalte = document.querySelector(".liste-detail-detail");
+  if (spalte) spalte.scrollTop = 0;
+  const titel = spalte?.querySelector(".objekt-detail-titel");
+  const oben = titel?.getBoundingClientRect?.().top;
+  if (oben === undefined) return;
+  if (oben < 0 || oben > window.innerHeight * 0.6) titel.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+// Gemessen, weil der Kopf darueber (Tabs, Summen, Beitragsvergleich) verschieden hoch ist;
+// die Seite selbst scrollt dann nicht mehr.
+const LISTE_DETAIL_MIN_HOEHE = 420;
+
+export function listeDetailEinpassen(root) {
+  const box = root.querySelector(".liste-detail");
+  if (!box) return;
+  if (window.matchMedia("(max-width: 1100px)").matches) {
+    box.style.height = "";
+    return;
+  }
+  const oben = box.getBoundingClientRect().top + window.scrollY;
+  const unten = parseFloat(getComputedStyle(root.querySelector(".main") ?? box).paddingBottom) || 0;
+  box.style.height = `${Math.max(LISTE_DETAIL_MIN_HOEHE, Math.floor(window.innerHeight - oben - unten))}px`;
+}

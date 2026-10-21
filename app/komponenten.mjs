@@ -389,8 +389,9 @@ export function saldoLinie(punkte, ariaLabel) {
 
 // Oben die Suche, darunter der Zeitraum. Dann entweder eine Zeile fields oder
 // Gruppen (groups: [{ label, fields, klasse? }]), je Gruppe eine Zeile; der Titel ist nur
-// fuer Screenreader. Aktive Filter (chips) stehen ueber der Trefferzeile.
-export function renderTableFilters({ chips = "", searchFields = [], timeFields = [], fields = [], groups = [], filters, filterAttr, clearAction, resetAction, activeCount, resultCount, totalCount }) {
+// fuer Screenreader. Aktive Filter (chips) stehen ueber der Trefferzeile;
+// ergebnisZusatz (HTML, z. B. die Summe) steht in ihr ganz rechts.
+export function renderTableFilters({ chips = "", searchFields = [], timeFields = [], fields = [], groups = [], filters, filterAttr, clearAction, resetAction, activeCount, resultCount, totalCount, ergebnisZusatz = "" }) {
   const effectiveActiveCount = activeCount ?? Object.values(filters).filter(Boolean).length;
   const activeLabel = t(effectiveActiveCount === 1 ? "chrome.filterActiveOne" : "chrome.filterActiveOther");
   const hasResultCount = Number.isFinite(resultCount) && Number.isFinite(totalCount);
@@ -426,6 +427,7 @@ export function renderTableFilters({ chips = "", searchFields = [], timeFields =
             <span class="filter-active-count">${effectiveActiveCount > 0 ? `${effectiveActiveCount} ${escapeHtml(activeLabel)}` : ""}</span>
             <button class="filter-reset" data-action="${escapeHtml(resetAction)}"${resetDisabled ? " disabled" : ""}>${iconSvg("clear")}${escapeHtml(t("chrome.clearAllFilters"))}</button>
           </span>
+          ${ergebnisZusatz}
         </div>` : ""}
     </section>
   `;

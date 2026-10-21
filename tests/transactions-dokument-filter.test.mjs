@@ -64,7 +64,7 @@ test("Dokument-Filter erscheint als entfernbarer Chip mit Dateiname", async () =
     renderTransactions();
     await apiAbwarten();
     const html = renderTransactions();
-    assert.match(html, /<strong>2<\/strong>/, "Treffer aus der API");
+    assert.match(html, /filter-result-count">2 von/, "Treffer aus der API");
     assert.match(html, /class="filter-chip/);
     assert.match(html, /auszug_2026-01\.csv/);
     assert.match(html, /data-action="clear-transaction-filter" data-filter-name="beleg"/);

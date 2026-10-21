@@ -375,7 +375,7 @@ function verweis(text, seite) {
   return `<div class="kpi-note uebersicht-verweis">${seite === "links" ? `${zurSeite} ` : ""}${escapeHtml(text)}${seite === "links" ? "" : ` ${zurSeite}`} ${pfeil("pfeil-schmal", "↓")}</div>`;
 }
 
-// Kachel zwischen Vermoegen und Vorsorge: je Versicherung mit Rueckkaufswert
+// Kachel zwischen Vermoegen und Vorsorge: je Kapital- oder Rentenversicherung
 // eine Zeile, nach Faelligkeit; die Person steht im Tooltip des Namens. Oben die
 // Summen (nur Kapital), darunter die Tabelle, die nach fuenf Zeilen scrollt. Rentenvertraege zeigen die Monatsrente; die Summen
 // zaehlen nur Kapital. Ohne Garantie gilt bei Beitragsfreistellung der
@@ -384,6 +384,7 @@ function renderVersicherungenKachel(modell) {
   const v = modell.versicherungen;
   if (!v.zeilen.length) return "";
   const leer = `<span class="muted">—</span>`;
+  const gebunden = `<span class="muted" title="${escapeHtml(t("overview.versicherung.gebunden"))}">${escapeHtml(t("overview.versicherung.gebundenKurz"))}</span>`;
   const betrag = (w) => {
     if (!w) return leer;
     const geld = escapeHtml(w.rente ? tf("overview.jeMonatKurz", { betrag: geldOhneCent(w.cents) }) : geldOhneCent(w.cents));
@@ -394,7 +395,7 @@ function renderVersicherungenKachel(modell) {
   const zeilen = v.zeilen.map((z) => `
           <tr>
             <td class="karten-kopf"><a class="linkish" href="${escapeHtml(zielRoute("open-vorsorge", z.vorsorge_id))}" data-action="open-vorsorge" data-vorsorge="${escapeHtml(z.vorsorge_id)}" title="${escapeHtml([z.name, z.person].filter(Boolean).join(" · "))}">${escapeHtml(z.name)}</a></td>
-            ${zelle(0, z.rueckkauf_cents === null ? leer : escapeHtml(geldOhneCent(z.rueckkauf_cents)))}
+            ${zelle(0, z.rueckkauf_cents !== null ? escapeHtml(geldOhneCent(z.rueckkauf_cents)) : z.gebunden ? gebunden : leer)}
             ${zelle(1, z.beginn ? escapeHtml(formatDate(z.beginn)) : leer)}
             ${zelle(2, betrag(z.beitragsfrei))}
             ${zelle(3, betrag(z.weiterzahlung))}

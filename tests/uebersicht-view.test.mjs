@@ -274,6 +274,9 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen
     { vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2040-12-01" },
     { vorsorge_id: "VS-902", art: "rentenversicherung", name: "Testrente", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2043-03-01" },
     { vorsorge_id: "VS-903", art: "lebensversicherung", name: "Testfonds", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2035-06-01" },
+    { vorsorge_id: "VS-904", art: "riester", name: "Testriester", person_id: "PER-001", status: "aktiv", kapitalbildend: false, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2044-01-01" },
+    { vorsorge_id: "VS-905", art: "ruerup", name: "Testbasisrente", person_id: "PER-001", status: "aktiv", kapitalbildend: false, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2045-01-01" },
+    { vorsorge_id: "VS-906", art: "schutzversicherung", sparte: "pflege", name: "Testpflege", person_id: "PER-001", status: "aktiv", kapitalbildend: false, beitrag: "-50.00", beitrag_rhythmus: "monat" },
   ];
   data.zeitwerte = [
     { entitaet: "konto", entitaet_id: "KTO-901", feld: "kontostand", standdatum: "2026-09-01", wert: "1000.00", qualitaet: "belegt" },
@@ -287,6 +290,11 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen
     { entitaet: "vorsorge", entitaet_id: "VS-902", feld: "erwartete_rente", standdatum: "2026-01-01", wert: "100.00", qualitaet: "belegt" },
     { entitaet: "vorsorge", entitaet_id: "VS-903", feld: "rueckkaufswert", standdatum: "2026-01-01", wert: "10000.00", qualitaet: "belegt" },
     { entitaet: "vorsorge", entitaet_id: "VS-903", feld: "erwartete_kapitalleistung", standdatum: "2026-01-01", wert: "25000.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-904", feld: "rueckkaufswert", standdatum: "2026-01-01", wert: "40000.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-904", feld: "erwartete_rente", standdatum: "2026-01-01", wert: "200.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-905", feld: "vertragswert", standdatum: "2026-01-01", wert: "30000.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-905", feld: "erwartete_rente", standdatum: "2026-01-01", wert: "50.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-906", feld: "rueckkaufswert", standdatum: "2026-01-01", wert: "5000.00", qualitaet: "belegt" },
   ];
   state.view = "overview";
   state.lang = "de";
@@ -306,14 +314,15 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen
   const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.doesNotMatch(vorsorge.replace(/<span class="info-tipp"[\s\S]*?<\/span><\/span>/g, ""), /Beiträge|Offene Punkte|Einmalzahlungen/);
   // Verweis auf die Versicherungen nebenan: Pfeil zur Seite, schmal nach unten.
-  assert.match(vorsorge, /uebersicht-verweis"><span class="pfeil-breit" aria-hidden="true">←<\/span> darin 100\s€ \/ Monat aus Versicherungen <span class="pfeil-schmal" aria-hidden="true">↓<\/span>/);
+  assert.match(vorsorge, /uebersicht-verweis"><span class="pfeil-breit" aria-hidden="true">←<\/span> darin 350\s€ \/ Monat aus Versicherungen <span class="pfeil-schmal" aria-hidden="true">↓<\/span>/);
   assert.doesNotMatch(html, /vermoegen-teil-breit|Rückkaufswerte der Versicherungen<span/);
 
   // Tabelle nach Faelligkeit: Rueckkauf heute, Faellig, bei Beitragsfreistellung, bei Weiterzahlung.
   const tabelle = html.match(/aria-labelledby="kachel-versicherungen">[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.match(tabelle, /<th>Vertrag<\/th><th class="amount">Rückkauf heute<\/th><th class="amount">Fällig<\/th><th class="amount">Bei Beitragsfreistellung<\/th><th class="amount">Bei Weiterzahlung<\/th>/);
   const reihen = [...tabelle.matchAll(/data-vorsorge="(VS-\d+)"/g)].map((m) => m[1]);
-  assert.deepEqual(reihen, ["VS-903", "VS-901", "VS-902"]);
+  // Schutzversicherungen fehlen, auch mit Rueckkaufswert; gefoerderte Renten stehen dabei.
+  assert.deepEqual(reihen, ["VS-903", "VS-901", "VS-902", "VS-904", "VS-905"]);
   const reihe = (id) => tabelle.match(new RegExp(`data-vorsorge="${id}"[\\s\\S]*?</tr>`))?.[0] ?? "";
   const werte = (id) => [...reihe(id).matchAll(/<td class="amount"[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1].replace(/<span title="[^"]*">|<\/span>$/g, "").replace(/\s/g, " "));
   assert.deepEqual(werte("VS-901"), ["30.000 €", "1.12.2040", "100.000 €", "150.000 €"]);
@@ -321,6 +330,11 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen
   assert.deepEqual(werte("VS-903"), ["10.000 €", "1.6.2035", '10.000 €<sup class="muted">*</sup>', "25.000 €"]);
   // Rentenvertrag: Monatsrente statt Kapital.
   assert.deepEqual(werte("VS-902"), ["20.000 €", "1.3.2043", '20.000 €<sup class="muted">*</sup>', "100 € / Monat"]);
+  // Riester und Ruerup: Kapital gebunden, kein Rueckkaufswert, keine Kapital-Annahme bei Beitragsfreistellung.
+  const ohneTitel = (z) => z.replace(/<span class="muted" title="[^"]*">/, "");
+  assert.deepEqual(werte("VS-904").map(ohneTitel), ["gebunden", "1.1.2044", '<span class="muted">—', "200 € / Monat"]);
+  assert.deepEqual(werte("VS-905").map(ohneTitel), ["gebunden", "1.1.2045", '<span class="muted">—', "50 € / Monat"]);
+  assert.match(reihe("VS-904"), /title="Gefördertes Kapital[^"]*nicht ins Nettovermögen\.">gebunden<\/span>/);
   // Summen ueber der Tabelle: Rueckkauf aller Vertraege, sonst nur Kapital (ohne Monatsrente).
   const summen = [...(tabelle.match(/<div class="versicherungen-summe">[\s\S]*?<\/div>\s*<div class="table-wrap/)?.[0] ?? "").matchAll(/<strong>([^<]*)<\/strong>/g)].map((m) => m[1].replace(/\s/g, " "));
   assert.deepEqual(summen, ["60.000 €", "130.000 €", "175.000 €"]);

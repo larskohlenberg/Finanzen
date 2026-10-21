@@ -174,6 +174,24 @@ describe("Ablaeufe im Browser", { skip: fehlt ?? false, timeout: 120000 }, () =>
     await seite.warteAuf(`location.pathname === "/abgemeldet"`, { text: "Zur Logout-URL" });
   });
 
+  test("Dokument-Link: der Browser oeffnet ihn selbst, andere Aktions-Links nicht", async () => {
+    await oeffne();
+    // Klick auf einen Link in #app und melden, ob die App die Standardaktion verhindert hat.
+    const verhindert = (action) => seite.werte(`(() => {
+      const a = document.createElement("a");
+      a.href = "#/test-ziel";
+      a.dataset.action = ${JSON.stringify(action)};
+      document.querySelector("#app").append(a);
+      let ergebnis = null;
+      window.addEventListener("click", (e) => { ergebnis = e.defaultPrevented; e.preventDefault(); }, { once: true });
+      a.click();
+      a.remove();
+      return ergebnis;
+    })()`);
+    assert.equal(await verhindert("dokument-link"), false);
+    assert.equal(await verhindert("select-beleg"), true);
+  });
+
   test("keine Skriptfehler im Verlauf", () => {
     assert.deepEqual(seite.fehler, []);
   });

@@ -44,7 +44,7 @@ function postenHtml(p) {
 // Ein Block je Person: Name mit Summe, aufgeklappt darunter die einzelnen
 // Leistungen. Die ganze Zeile ist der Klappknopf, Standard zu; der Zustand
 // gilt je Fall und Person (klappKacheln). Steht in einer Summe ein Wert vor
-// Einkommensanrechnung, traegt sie einen Stern (Fussnote der Kachel).
+// Einkommensanrechnung, traegt sie einen Stern wie der Posten darunter.
 function personHtml(fall, person, summen, posten) {
   const stern = (einmalig) => (!einmalig && posten.some((p) => p.einkommensanrechnung) ? "*" : "");
   const summe = summen.filter(([cents]) => cents).map(([cents, einmalig]) => `${betrag(cents, einmalig)}${stern(einmalig)}`).join(" · ");
@@ -68,7 +68,7 @@ function personHtml(fall, person, summen, posten) {
         </div>`;
 }
 
-function kachelHtml(fall, personen, personBlock, { kopfLink, hinweis }) {
+function kachelHtml(fall, personen, personBlock, { kopfLink }) {
   const inhalt = personen.length
     ? personen.map(personBlock).join("")
     : `<p class="muted">${escapeHtml(t("absicherung.keinePersonen"))}</p>`;
@@ -77,8 +77,7 @@ function kachelHtml(fall, personen, personBlock, { kopfLink, hinweis }) {
   return `
       <section class="panel panel-pad absicherung-kachel" aria-labelledby="absicherung-${fall}-titel">
         <h2 class="uebersicht-kachel-kopf" id="absicherung-${fall}-titel">${kopf}</h2>
-        ${inhalt}${hinweis ? `
-        <p class="muted absicherung-hinweis">${escapeHtml(hinweis)}</p>` : ""}
+        ${inhalt}
       </section>`;
 }
 
@@ -87,10 +86,9 @@ function kachelHtml(fall, personen, personBlock, { kopfLink, hinweis }) {
 // (in der Uebersicht vom Server, GET /api/v1/uebersicht). kopfLink: Titel
 // fuehrt zur Vorsorgeseite (auf ihr selbst aus).
 export function renderAbsicherungKacheln(personen, { kopfLink = true } = {}) {
-  const anrechnung = personen.some((p) => p.tod.posten.some((x) => x.einkommensanrechnung));
   return `
     <div class="absicherung-kacheln">
       ${kachelHtml("bu", personen, (p) => personHtml("bu", p, [[p.bu.monatlich_cents, false]], p.bu.posten), { kopfLink })}
-      ${kachelHtml("tod", personen, (p) => personHtml("tod", p, [[p.tod.einmalig_cents, true], [p.tod.monatlich_cents, false]], p.tod.posten), { kopfLink, hinweis: anrechnung ? t("absicherung.anrechnungHinweis") : "" })}
+      ${kachelHtml("tod", personen, (p) => personHtml("tod", p, [[p.tod.einmalig_cents, true], [p.tod.monatlich_cents, false]], p.tod.posten), { kopfLink })}
     </div>`;
 }

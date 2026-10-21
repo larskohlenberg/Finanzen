@@ -97,12 +97,11 @@ test("Kacheln Absicherung: je eine fuer BU und Tod, darin je Person Summe und Po
   assert.ok(buAnna.indexOf("VS-002") < buAnna.indexOf("VS-001"), "groesster Posten zuerst");
   assert.doesNotMatch(buAnna, /Hinterbliebenenrente/);
   const todAnna = tod.slice(tod.indexOf("Anna Muster"), tod.indexOf("Ben Muster"));
-  // Die gesetzliche Witwenrente steht vor Einkommensanrechnung: Stern an der Summe, Fussnote.
+  // Die gesetzliche Witwenrente steht vor Einkommensanrechnung: Stern an der Summe und am Posten, keine Fussnote.
   assert.match(todAnna, /Anna Muster<\/span><strong>750,00\s€ je Monat\*<\/strong>/);
   assert.match(todAnna, /Witwen-\/Witwerrente · vor Einkommensanrechnung\* · Stand 1\.7\.2026/);
   assert.match(todAnna, /Waisenrente · geschätzt · befristet · Stand 1\.7\.2026/);
-  assert.match(tod, /<p class="muted absicherung-hinweis">\* Gesetzliche Witwen-\/Witwerrente vor Anrechnung eigenen Einkommens/);
-  assert.doesNotMatch(bu, /absicherung-hinweis/);
+  assert.doesNotMatch(html, /absicherung-hinweis/);
   assert.match(bu.slice(bu.indexOf("Ben Muster")), /Ben Muster<\/h3>\s*<span class="muted">nicht erfasst/);
   assert.match(tod.slice(tod.indexOf("Ben Muster")), /Ben Muster<\/h3>\s*<span class="muted">nicht erfasst/);
   assert.doesNotMatch(html, /style=/);
@@ -141,9 +140,8 @@ test("Vorsorgeseite: Uebersichtstab zeigt die Absicherungs-Kacheln ohne Link auf
   assert.ok(html.indexOf("absicherung-kacheln") > html.indexOf("Rückkaufswerte"), "unter Rueckkaufswerten und Beitraegen");
 }));
 
-test("Kacheln Absicherung: ohne gesetzliche Witwenrente kein Stern und keine Fussnote", async () => mitFixture(async () => {
+test("Kacheln Absicherung: ohne gesetzliche Witwenrente kein Stern", async () => mitFixture(async () => {
   data.vorsorge = data.vorsorge.map((vs) => (vs.vorsorge_id === "VS-001" ? { ...vs, art: "betriebsrente" } : vs));
   const html = renderAbsicherungKacheln(absicherung(data, HEUTE));
-  assert.doesNotMatch(html, /absicherung-hinweis/);
-  assert.doesNotMatch(html, /je Monat\*/);
+  assert.doesNotMatch(html, /\*/);
 }));

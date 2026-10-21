@@ -145,10 +145,12 @@ export function balkenSvg(teile, { klasse = "vermoegen-balken", laenge = 1 } = {
     const hover = tl.titel ? ` data-titel="${escapeHtml(tl.titel)}" data-label="${escapeHtml(label)}"` : "";
     const rect = `<rect x="${(x * 100).toFixed(3)}" y="0" width="${breite.toFixed(3)}" height="10" class="${tl.titel ? "balken-segment " : ""}${tl.klasse}"${hover}></rect>`;
     x += breite / 100;
-    return rect;
+    // Mit Ziel (Attribute wie href und data-action) ist der Abschnitt ein Link ins Detail.
+    return tl.ziel ? `<a ${tl.ziel} aria-label="${escapeHtml(tl.titel ?? "")}">${rect}</a>` : rect;
   }).join("");
   const breiteGesamt = (Math.max(0, Math.min(1, laenge)) * 100).toFixed(2);
-  return `<svg class="${klasse}" viewBox="0 0 100 10" preserveAspectRatio="none" width="${breiteGesamt}%" aria-hidden="true"><rect x="0" y="0" width="100" height="10" class="balken-grund" />${rects}</svg>`;
+  const verlinkt = teile.some((tl) => tl.ziel && tl.anteil > 0);
+  return `<svg class="${klasse}" viewBox="0 0 100 10" preserveAspectRatio="none" width="${breiteGesamt}%"${verlinkt ? "" : ' aria-hidden="true"'}><rect x="0" y="0" width="100" height="10" class="balken-grund" />${rects}</svg>`;
 }
 
 // Dokumente eines Objekts als Ausschnitt der Dokumentenansicht (Ordnerbaum und

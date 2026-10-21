@@ -236,13 +236,10 @@ function renderEinnahmenAusgaben(modell) {
 
 // ------------------------------------------------------------- Liquiditaet
 
-// Nur der Ist-Stand je Konto; die Prognose steht auf der Liquiditaetsseite.
+// Nur die Summe der verfuegbaren Konten; die Konten einzeln und die Prognose
+// stehen auf der Liquiditaetsseite.
 function renderLiquiditaetKachel(modell) {
   const verfuegbar = modell.konten;
-  const zeilen = verfuegbar.zeilen.map((z) => zeile(
-    link(ZIEL.vermoegenTab("konten"), z.name),
-    z.wert_cents === null ? `<span class="muted">${escapeHtml(t("overview.nichtBelegt"))}</span>` : escapeHtml(geldOhneCent(z.wert_cents)),
-  ));
   return bereichsKachel({
     id: "liquiditaet",
     icon: "liquiditaet",
@@ -250,14 +247,14 @@ function renderLiquiditaetKachel(modell) {
     ziel: ZIEL.liquiditaet,
     wert: escapeHtml(geldOhneCent(verfuegbar.summe_cents)),
     notiz: `${escapeHtml(t("overview.availableMoney"))} · ${escapeHtml(standText(verfuegbar.aeltester))}`,
-    zeilen,
   });
 }
 
 // ------------------------------------------------------------- Vermoegen
 
-// Unterkachel der Vermoegenskachel: Teilsumme, Balken, Zeilen je Klasse.
-function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null, info = "", breit = false }) {
+// Unterkachel der Vermoegenskachel: Teilsumme und Balken. Jeder Abschnitt nennt
+// beim Hovern Klasse und Betrag und fuehrt per Klick ins Detail.
+function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null }) {
   const summe = (filter) => positionen.filter(filter).reduce((a, p) => a + p.wert_cents, 0);
   const sichtbar = klassen.filter((k) => positionen.some(k.filter));
   const aktiva = sichtbar.filter((k) => k !== darlehenKlasse).reduce((a, k) => a + summe(k.filter), 0);
@@ -266,18 +263,17 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null, info
     anteil: summe(k.filter) / basis,
     klasse: k.punkt,
     titel: `${k.titel}: ${formatMoney(summe(k.filter))}`,
+    ziel: k.ziel,
   }));
   const schulden = darlehenKlasse && sichtbar.includes(darlehenKlasse) ? -summe(darlehenKlasse.filter) : 0;
   const balken = aktiva || schulden
-    ? `<div class="uebersicht-balken">${balkenSvg(segmente)}${schulden ? balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(schulden)}` }], { laenge: schulden / basis }) : ""}</div>`
+    ? `<div class="uebersicht-balken">${balkenSvg(segmente)}${schulden ? balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(schulden)}`, ziel: darlehenKlasse.ziel }], { laenge: schulden / basis }) : ""}</div>`
     : "";
-  const zeilen = sichtbar.map((k) => zeile(link(k.ziel, k.titel, { title: k.titel }), escapeHtml(geldOhneCent(summe(k.filter))), { punkt: k.punkt }));
   return `
-        <div class="vermoegen-teil${breit ? " vermoegen-teil-breit" : ""}">
-          <h3 class="vermoegen-teil-titel">${escapeHtml(titel)}${info ? infoTipp(info) : ""}</h3>
+        <div class="vermoegen-teil">
+          <h3 class="vermoegen-teil-titel">${escapeHtml(titel)}</h3>
           <div class="vermoegen-teil-wert">${escapeHtml(geldOhneCent(summe(() => true)))}</div>
-          ${balken}
-          ${zeilen.length ? `<ul class="vorsorge-kopf-liste">${zeilen.join("")}</ul>` : `<p class="muted">${escapeHtml(t("overview.vermoegenTeilLeer"))}</p>`}
+          ${balken || `<p class="muted">${escapeHtml(t("overview.vermoegenTeilLeer"))}</p>`}
         </div>`;
 }
 

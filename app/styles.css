@@ -3206,6 +3206,7 @@ a.linkish {
   font-style: normal;
   line-height: 1.45;
   text-align: left;
+  white-space: pre-line; /* Absaetze im Text (\n) bleiben stehen */
   /* Geschlossen ohne Platzbedarf, sonst ragt er am rechten Rand ueber die Seite. */
   display: none;
   visibility: hidden;
@@ -3624,9 +3625,17 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .versicherungen-tabelle th:first-child, .versicherungen-tabelle td:first-child { padding-left: 0; }
 .versicherungen-tabelle th:last-child, .versicherungen-tabelle td:last-child { padding-right: 0; }
 .versicherungen-tabelle .amount { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.versicherungen-tabelle tfoot td { font-weight: 650; border-top: 1px solid var(--border-strong); border-bottom: 0; }
 .versicherungen-tabelle sup { line-height: 0; }
-.uebersicht-versicherungen > .kpi-note { margin-top: 6px; }
+/* Summen ueber der Tabelle; die Tabelle scrollt nach fuenf Zeilen (Hoehe setzt
+   termineListenBegrenzen), der Kopf bleibt stehen. */
+.versicherungen-summe { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 18px; margin-top: 8px; }
+.versicherungen-summe > div { display: flex; flex-direction: column; }
+.versicherungen-summe .muted { font-size: 11px; }
+.versicherungen-summe strong { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.versicherungen-summe .info-tipp { margin-top: 2px; }
+.uebersicht-versicherungen .versicherungen-scroll { overflow-y: auto; overscroll-behavior: contain; }
+.versicherungen-tabelle thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); }
+.pfeil-schmal { display: none; }
 .termine-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 28px; margin-top: 10px; }
 .termine-titel { margin: 0 0 4px; font-size: 13px; }
 /* Hoechstens sechs Eintraege (Hoehe setzt termineListenBegrenzen), der Rest scrollt; die Zeitleiste scrollt beim Hover mit. */
@@ -3664,6 +3673,8 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 @media (max-width: 1280px) {
   .uebersicht-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .uebersicht-versicherungen { grid-column: 1 / -1; order: 1; }
+  .pfeil-breit { display: none; }
+  .pfeil-schmal { display: inline; }
 }
 @media (max-width: 1100px) {
   .uebersicht-kacheln { grid-template-columns: 1fr; }

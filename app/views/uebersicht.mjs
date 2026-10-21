@@ -129,7 +129,7 @@ function rundeUnter(unter, zielCents) {
 // die Leiste und unter ihr die Legende. Zeitraum und Erlaeuterung (notiz, info)
 // stehen im Info-Zeichen am Titel. Teile mit negativem Betrag stehen nur in der Legende.
 function flacheKachel({ id, titel, info = "", wert, trend = "", notiz, plan = "", teile: roh, summe_cents }) {
-  const infoText = [notiz, info].filter(Boolean).join(" ");
+  const infoText = [notiz, info].filter(Boolean).join("\n\n");
   const teile = summe_cents === undefined ? roh : rundeTeile(roh, summe_cents);
   const basis = Math.max(teile.filter((k) => k.mittel_cents > 0).reduce((a, k) => a + k.mittel_cents, 0), 1);
   const segmente = teile.filter((k) => k.mittel_cents > 0).map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
@@ -226,7 +226,7 @@ function renderEinnahmenAusgaben(modell) {
         info: t("overview.sparquoteInfo"),
         wert: sparen.quote === null ? "–" : escapeHtml(formatProzent(sparen.quote)),
         trend: quotePfeil(trend?.sparquote, trend?.zeitraum),
-        notiz: `${tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) })} · ${basisNotiz}`,
+        notiz: `${tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) })}\n${basisNotiz}`,
         plan: quoteZeile,
         teile: sparTeile,
         summe_cents: sparen.ueberschuss_cents,
@@ -310,7 +310,7 @@ function renderVermoegenKachel(modell) {
       </h2>
       <div class="kpi-value">${escapeHtml(geldOhneCent(r.netto_cents))}</div>
       <div class="kpi-note">${escapeHtml(t("vermoegen.netto"))} · ${escapeHtml(standText(stand))} ${teilbestandChip(r.positionen)}</div>
-      ${rueckkauf ? verweis(tf("overview.darinRueckkauf", { betrag: geldOhneCent(rueckkauf) })) : ""}
+      ${rueckkauf ? verweis(tf("overview.darinRueckkauf", { betrag: geldOhneCent(rueckkauf) }), "rechts") : ""}
       <div class="vermoegen-teile">
         ${vermoegenTeil({
           titel: t("overview.vermoegenSchnell"),
@@ -358,19 +358,23 @@ function renderVorsorgeKachel(modell) {
     wert: `${escapeHtml(geldOhneCent(gesamt))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonatBrutto"))}</span>`,
     notiz: escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten")),
     grafik: renten.length ? `<div class="uebersicht-balken">${balkenSvg(segmente)}</div>` : "",
-    zusatz: ausVersicherungen ? verweis(tf("overview.darinRente", { betrag: geldOhneCent(ausVersicherungen) })) : "",
+    zusatz: ausVersicherungen ? verweis(tf("overview.darinRente", { betrag: geldOhneCent(ausVersicherungen) }), "links") : "",
   });
 }
 
 // ------------------------------------------------------------- Versicherungen
 
-// Hinweis in Vermoegen und Vorsorge auf die Versicherungskachel daneben.
-function verweis(text) {
-  return `<div class="kpi-note uebersicht-verweis">${escapeHtml(text)}</div>`;
+// Hinweis in Vermoegen und Vorsorge auf die Versicherungskachel: daneben (Pfeil
+// zur Seite) oder, wenn sie schmal darunter rutscht, darunter (CSS tauscht).
+function verweis(text, seite) {
+  const pfeil = (klasse, zeichen) => `<span class="${klasse}" aria-hidden="true">${zeichen}</span>`;
+  const zurSeite = pfeil("pfeil-breit", seite === "links" ? "←" : "→");
+  return `<div class="kpi-note uebersicht-verweis">${seite === "links" ? `${zurSeite} ` : ""}${escapeHtml(text)}${seite === "links" ? "" : ` ${zurSeite}`} ${pfeil("pfeil-schmal", "↓")}</div>`;
 }
 
 // Kachel zwischen Vermoegen und Vorsorge: je Versicherung mit Rueckkaufswert
-// eine Zeile, nach Faelligkeit; die Person steht im Tooltip des Namens. Rentenvertraege zeigen die Monatsrente; die Summen
+// eine Zeile, nach Faelligkeit; die Person steht im Tooltip des Namens. Oben die
+// Summen (nur Kapital), darunter die Tabelle, die nach fuenf Zeilen scrollt. Rentenvertraege zeigen die Monatsrente; die Summen
 // zaehlen nur Kapital. Ohne Garantie gilt bei Beitragsfreistellung der
 // Rueckkaufswert von heute (mit Sternchen).
 function renderVersicherungenKachel(modell) {
@@ -380,7 +384,7 @@ function renderVersicherungenKachel(modell) {
   const betrag = (w) => {
     if (!w) return leer;
     const geld = escapeHtml(w.rente ? tf("overview.jeMonatKurz", { betrag: geldOhneCent(w.cents) }) : geldOhneCent(w.cents));
-    return w.annahme ? `${geld}<sup class="muted">*</sup>` : geld;
+    return w.annahme ? `<span title="${escapeHtml(t("overview.versicherung.annahme"))}">${geld}<sup class="muted">*</sup></span>` : geld;
   };
   const spalten = [t("overview.versicherung.rueckkauf"), t("overview.versicherung.faellig"), t("overview.versicherung.beitragsfrei"), t("overview.versicherung.weiterzahlung")];
   const zelle = (i, html) => `<td class="amount" data-label="${escapeHtml(spalten[i])}">${html}</td>`;
@@ -393,28 +397,26 @@ function renderVersicherungenKachel(modell) {
             ${zelle(3, betrag(z.weiterzahlung))}
           </tr>`);
   const annahme = v.zeilen.some((z) => z.beitragsfrei?.annahme);
+  const summeInfo = [t("overview.versicherung.summeInfo"), annahme ? `* ${t("overview.versicherung.annahme")}` : ""].filter(Boolean).join("\n\n");
+  const summe = (label, cents) => `<div><span class="muted">${escapeHtml(label)}</span><strong>${escapeHtml(geldOhneCent(cents))}</strong></div>`;
   return `
     <section class="panel panel-pad uebersicht-kachel uebersicht-versicherungen" aria-labelledby="kachel-versicherungen">
       <h2 class="uebersicht-kachel-kopf" id="kachel-versicherungen">
         ${zielElement(ZIEL.vorsorgeTab("lebensversicherungen"), `${iconSvg("vorsorge")}<span>${escapeHtml(t("overview.versicherung.titel"))}</span>${iconSvg("chevronRight")}`)}
       </h2>
-      <div class="table-wrap">
+      <div class="versicherungen-summe">
+        ${summe(spalten[0], v.rueckkauf_cents)}
+        ${summe(spalten[2], v.beitragsfrei_cents)}
+        ${summe(spalten[3], v.weiterzahlung_cents)}
+        ${infoTipp(summeInfo)}
+      </div>
+      <div class="table-wrap versicherungen-scroll" data-max-zeilen="5">
         <table class="versicherungen-tabelle karten-tabelle">
           <thead><tr><th>${escapeHtml(t("overview.versicherung.vertrag"))}</th>${spalten.map((s) => `<th class="amount">${escapeHtml(s)}</th>`).join("")}</tr></thead>
           <tbody>${zeilen.join("")}
           </tbody>
-          <tfoot>
-            <tr>
-              <td class="karten-kopf">${escapeHtml(t("overview.versicherung.summe"))}${infoTipp(t("overview.versicherung.summeInfo"))}</td>
-              ${zelle(0, escapeHtml(geldOhneCent(v.rueckkauf_cents)))}
-              ${zelle(1, "")}
-              ${zelle(2, escapeHtml(geldOhneCent(v.beitragsfrei_cents)))}
-              ${zelle(3, escapeHtml(geldOhneCent(v.weiterzahlung_cents)))}
-            </tr>
-          </tfoot>
         </table>
       </div>
-      ${annahme ? `<p class="kpi-note">* ${escapeHtml(t("overview.versicherung.annahme"))}</p>` : ""}
     </section>`;
 }
 

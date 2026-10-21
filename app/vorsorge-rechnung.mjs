@@ -202,6 +202,48 @@ export function kapitalLeistungen(data, today = null) {
   };
 }
 
+// Versicherungen mit Rueckkaufswert oder Kapitalleistung, je Vertrag drei Werte:
+// Rueckkaufswert heute, Leistung bei Beitragsfreistellung (garantiert; ohne
+// Garantie der Rueckkaufswert von heute, markiert als annahme) und Leistung bei
+// Weiterzahlung (Kapital oder, bei Rentenvertraegen, die Monatsrente). Sortiert
+// nach Faelligkeit; die Summen zaehlen nur Kapital, keine Monatsrenten.
+export function versicherungsWerte(data, today = null) {
+  const personName = new Map((data.personen ?? []).map((p) => [p.person_id, p.name]));
+  const zeilen = [];
+  for (const vs of data.vorsorge ?? []) {
+    if (istBeendet(vs)) continue;
+    const wert = (feld) => {
+      const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld, today);
+      return zw ? toCents(zw.wert) : null;
+    };
+    const rueckkauf = wert("rueckkaufswert");
+    const garantiert = wert("beitragsfreie_kapitalleistung");
+    const weiter = wert("erwartete_kapitalleistung");
+    const rente = wert("erwartete_rente");
+    // Ohne Rueckkaufswert gehoert nur ein kapitalbildender Vertrag mit Ablaufleistung dazu
+    // (keine reinen Renten, keine Todesfallsummen).
+    if (rueckkauf === null && !(vs.kapitalbildend && (garantiert !== null || weiter !== null))) continue;
+    zeilen.push({
+      vorsorge_id: vs.vorsorge_id,
+      name: vs.name,
+      person: personName.get(vs.person_id) ?? "",
+      beginn: vs.leistung_beginn || null,
+      rueckkauf_cents: rueckkauf,
+      beitragsfrei: garantiert !== null ? { cents: garantiert, annahme: false } : rueckkauf !== null ? { cents: rueckkauf, annahme: true } : null,
+      weiterzahlung: weiter !== null ? { cents: weiter, rente: false } : rente !== null ? { cents: rente, rente: true } : null,
+    });
+  }
+  zeilen.sort((a, b) => String(a.beginn ?? "9999").localeCompare(String(b.beginn ?? "9999")) || a.vorsorge_id.localeCompare(b.vorsorge_id));
+  const summe = (f) => zeilen.reduce((a, z) => a + (f(z) ?? 0), 0);
+  return {
+    zeilen,
+    rueckkauf_cents: summe((z) => z.rueckkauf_cents),
+    beitragsfrei_cents: summe((z) => z.beitragsfrei?.cents),
+    weiterzahlung_cents: summe((z) => (z.weiterzahlung?.rente ? 0 : z.weiterzahlung?.cents)),
+    rente_cents: summe((z) => (z.weiterzahlung?.rente ? z.weiterzahlung.cents : 0)),
+  };
+}
+
 // Monatsrente in Stufen: je Rentenbeginn die Summe aller bis dahin laufenden
 // Renten. Renten ohne Beginn zaehlen nur in die Gesamtsumme.
 export function rentenStufen(data) {

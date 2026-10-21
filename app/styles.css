@@ -2961,6 +2961,11 @@ a.linkish {
   background: var(--surface);
 }
 .kennzahl-label { color: var(--muted); font-size: 12px; }
+/* Stand der Hauptzahl rechts neben der Ueberschrift, die Qualitaet als kleines Symbol (Text im Tooltip). */
+.kennzahl-label:has(.kennzahl-stand) { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; }
+.kennzahl-stand { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 11px; }
+.chip.qualitaet-marke { justify-content: center; width: 18px; height: 18px; min-height: 0; padding: 0; }
+.chip.qualitaet-marke .icon { width: 12px; height: 12px; margin: 0; }
 .kennzahl-wert { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .kennzahl-notiz { margin-top: 2px; color: var(--muted); font-size: 12px; }
 .betrag-negativ { color: var(--danger); }

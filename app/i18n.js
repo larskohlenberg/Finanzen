@@ -789,6 +789,7 @@ window.FINANCE_I18N = {
       qualitaetHead: "Qualität",
       standOhne: "kein Wert",
       qualityBelegt: "belegt",
+      standAm: "Stand {datum}",
       qualityGeschaetzt: "geschätzt",
       qualityFehlend: "fehlend",
       klasse: {
@@ -2087,6 +2088,7 @@ window.FINANCE_I18N = {
       qualitaetHead: "Quality",
       standOhne: "no value",
       qualityBelegt: "confirmed",
+      standAm: "As of {datum}",
       qualityGeschaetzt: "estimated",
       qualityFehlend: "missing",
       klasse: {

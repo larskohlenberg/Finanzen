@@ -3,7 +3,7 @@
 // Buchung, ueberfaellig; sortier- und filterbar (Modell: termine-modell.mjs).
 import { data, state, t, tf, escapeHtml } from "../runtime.mjs";
 import { iconSvg } from "../icons.js";
-import { formatMoney, formatDate, mitLogo, statusChip } from "../komponenten.mjs";
+import { formatMoney, formatDate, mitLogo } from "../komponenten.mjs";
 import { toCents } from "../liquiditaet.mjs";
 import { heuteIso } from "../selektoren.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
@@ -37,8 +37,19 @@ function statusZelle(z) {
     const titel = tf("regelzahlungen.ueberfaelligHinweis", { datum: formatDate(z.erwartet), tage: UEBERFAELLIG_TOLERANZ_TAGE, stand: formatDate(z.importstand) });
     return `<span class="chip danger" title="${escapeHtml(titel)}">${iconSvg("warning")}${escapeHtml(t("regelzahlungen.ueberfaellig"))}</span>`;
   }
-  if (z.beendet) return `<span class="chip neutral">${escapeHtml(z.rz.aktiv_bis ? tf("regelzahlungen.bis", { datum: formatDate(z.rz.aktiv_bis) }) : t("regelzahlungen.beendet"))}</span>`;
-  return `${statusChip(z.rz.status)}${z.rz.aktiv_bis ? ` <span class="muted">${escapeHtml(tf("regelzahlungen.bis", { datum: formatDate(z.rz.aktiv_bis) }))}</span>` : ""}`;
+  if (z.beendet) return `<span class="chip neutral">${escapeHtml(t("regelzahlungen.beendet"))}</span>`;
+  // Laufend: nur das Symbol, der Status steht im Tooltip; das Enddatum zeigt die Spalte Gueltig.
+  const bestaetigt = z.rz.status === "bestaetigt";
+  const label = escapeHtml(t(`status.${z.rz.status}`));
+  return `<span class="chip ${bestaetigt ? "success" : "neutral"} status-marke" title="${label}" aria-label="${label}">${iconSvg(bestaetigt ? "success" : "neutral")}</span>`;
+}
+
+// Gueltigkeit im Monatsraster, kurz als "1/2027": von der ersten Faelligkeit bis
+// aktiv_bis. Bei wenig Platz bricht die Zeile zwischen den Monaten um.
+const kurzMonat = (iso) => `${Number(iso.slice(5, 7))}/${iso.slice(0, 4)}`;
+function gueltigZelle(rz) {
+  const von = kurzMonat(rz.anker_datum);
+  return escapeHtml(rz.aktiv_bis ? tf("regelzahlungen.gueltigVonBis", { von, bis: kurzMonat(rz.aktiv_bis) }) : tf("regelzahlungen.gueltigAb", { von }));
 }
 
 export function renderRegelzahlungen() {
@@ -58,6 +69,7 @@ export function renderRegelzahlungen() {
       <td>${mitLogo({ regelzahlung: rz }, `${escapeHtml(rz.bezeichnung)}<div class="id-zeile muted">${escapeHtml(rz.regelzahlung_id)}</div>`, { groesse: "tabelle" })}</td>
       <td class="amount">${escapeHtml(formatMoney(toCents(rz.betrag)))}</td>
       <td>${escapeHtml(formatRhythmus(rz.rhythmus_einheit, rz.rhythmus_intervall))}</td>
+      <td>${gueltigZelle(rz)}</td>
       <td>${rz.konto_id ? escapeHtml(kontoName(rz.konto_id)) : `<span class="muted">—</span>`}</td>
       <td>${z.naechste ? escapeHtml(formatDate(z.naechste)) : `<span class="muted">—</span>`}</td>
       <td>${letzte}</td>
@@ -83,6 +95,7 @@ export function renderRegelzahlungen() {
               ${sortKopf("bezeichnung", t("regelzahlungen.bezeichnung"))}
               ${sortKopf("betrag", t("labels.amount"), { amount: true })}
               <th>${escapeHtml(t("regelzahlungen.rhythmus"))}</th>
+              <th>${escapeHtml(t("regelzahlungen.gueltig"))}</th>
               <th>${escapeHtml(t("regelzahlungen.konto"))}</th>
               ${sortKopf("naechste", t("regelzahlungen.naechsteFaelligkeit"))}
               ${sortKopf("letzte", t("regelzahlungen.letzteBuchung"))}

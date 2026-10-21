@@ -59,7 +59,8 @@ function fixture() {
       zw("VS-002", "erwartete_rente", "150.00", "2026-01-01", "geschaetzt"),
       zw("VS-002", "rueckkaufswert", "20000.00", "2025-12-31"),
       zw("VS-003", "rueckkaufswert", "12000.00", "2026-07-01"),
-      zw("VS-003", "erwartete_kapitalleistung", "25000.00", "2026-07-01"),
+      zw("VS-003", "erwartete_kapitalleistung", "30000.00", "2026-07-01"),
+      zw("VS-003", "beitragsfreie_kapitalleistung", "25000.00", "2026-07-01"),
     ],
     regelzahlungen: [
       { regelzahlung_id: "RZ-001", bezeichnung: "Riester-Beitrag", vorsorge_id: "VS-002", betrag: "-150.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-06-01", status: "bestaetigt" },
@@ -147,7 +148,7 @@ test("Kopf-Kacheln schluesseln ihre Summen je Vertrag auf", async () => {
     assert.doesNotMatch(rkw, /Riester Lena/, "Riester steht nicht bei den Rueckkaufswerten im Vermoegen");
     // Beitraege als Donut je Bereich.
     assert.match(kachel("Beiträge"), /class="donut-segment tab-farbe-renten" data-titel="Renten &amp; Anwartschaften pro Jahr: 1\.800,00/);
-    assert.match(kachel("Kapitalleistungen"), /LV Lena<\/(?:a|button)><span class="muted">2035<\/span><span class="amount">25\.000,00/);
+    assert.match(kachel("Kapitalleistungen"), /LV Lena<\/(?:a|button)><span class="muted">2035<\/span><span class="amount">25\.000,00\s€<\/span><\/li><li class="kopf-unterzeile"><span class="muted">\(bei Weiterzahlung 30\.000,00\s€\)<\/span><\/li>/);
     const beitraege = kachel("Beiträge");
     assert.match(beitraege, /data-tab="renten">Renten &amp; Anwartschaften<\/button><span class="amount">150,00\s€ \/ Monat/);
     assert.match(beitraege, /data-tab="versicherungen">Versicherungen<\/button><span class="amount">900,00\s€ \/ Jahr/);
@@ -393,11 +394,11 @@ test("Lebensversicherung: Fortschritt Rueckkaufswert zur Ablaufleistung und Farb
     const start = html.indexOf('data-action="select-vorsorge" data-vorsorge="VS-003" aria-pressed');
     const karte = html.slice(start, html.indexOf("</div>", start));
     assert.match(karte, /<strong><i class="farbpunkt vertrag-farbe-\d" aria-hidden="true"><\/i>LV Lena<\/strong><\/span><span class="objekt-karte-marke"><span class="chip neutral">Lebensversicherung<\/span><span class="logo-marke kuerzel-farbe-\d" aria-hidden="true">LL<\/span><\/span>/);
-    assert.match(karte, /class="fortschritt"[\s\S]*width="48\.000"/, "12.000 von 25.000 = 48 %");
+    assert.match(karte, /class="fortschritt"[\s\S]*width="40\.000"/, "12.000 von 30.000 (Ablaufleistung bei Weiterzahlung) = 40 %");
     const balken = karte.slice(karte.indexOf('class="fortschritt"'), karte.indexOf("</svg>", karte.indexOf('class="fortschritt"')));
     assert.match(balken, /class="[^"]*\bfortschritt-wert"/, "Balken in einheitlicher Farbe");
     assert.doesNotMatch(balken, /vertrag-farbe/, "Vertragsfarbe traegt keine Bedeutung fuer den Fortschritt");
-    assert.match(karte, /48 % der garantierten Ablaufleistung als Rückkaufswert/);
+    assert.match(karte, /40 % der garantierten Ablaufleistung als Rückkaufswert/);
     const martin = html.slice(html.indexOf('data-vorsorge="VS-004" aria-pressed'));
     assert.doesNotMatch(martin.slice(0, martin.indexOf("</div>")), /class="fortschritt"/, "ohne Werte kein Fortschritt");
   });
@@ -624,7 +625,7 @@ test("Kapitalleistungen: bedingte Todesfallsumme steht da, wird aber nicht faell
   await mitFixture(async () => {
     const html = (await vorsorgeGezeichnet());
     const kachel = html.slice(html.indexOf("Kapitalleistungen"), html.indexOf("Rückkaufswerte im Vermögen"));
-    assert.match(kachel, /25\.000,00[\s\S]*fällig 2035 · dazu 200\.000,00\s€ bedingt oder ohne Termin, nicht eingerechnet/);
+    assert.match(kachel, /25\.000,00[\s\S]*fällig 2035 · bei Weiterzahlung bis Ablauf 30\.000,00\s€ · dazu 200\.000,00\s€ bedingt oder ohne Termin, nicht eingerechnet/);
     assert.doesNotMatch(kachel, /225\.000,00/, "keine Summe aus Faelligem und Bedingtem");
     assert.match(kachel, /Risiko-LV Martin[\s\S]*bedingt[\s\S]*200\.000,00|Risiko-LV Martin[\s\S]*200\.000,00[\s\S]*bedingt/);
   }, { vorsorge: [...fixture().vorsorge, risiko], zeitwerte: [...fixture().zeitwerte, zw("VS-007", "erwartete_kapitalleistung", "200000.00")] });

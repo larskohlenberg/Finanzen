@@ -143,17 +143,22 @@ export function beitragVorjahr(data, vorsorgeId) {
   };
 }
 
-// Kapital zum Ablauf: die erwartete Kapitalleistung laut Beleg. Fondsgebundene
-// Lebensversicherungen garantieren keine; dort gilt der jeweils neueste
-// Rueckkaufswert als Stand heute (ersatz: true), ohne Hochrechnung. Nicht fuer
-// Vertraege mit erwarteter Rente oder gewaehlter Monatsrente.
+// Kapital zum Ablauf, vorsichtig: zaehlt, was ohne weitere Beitraege garantiert
+// ist (beitragsfreie Kapitalleistung laut Beleg). Die Ablaufleistung bei
+// Weiterzahlung laeuft als `weiterzahlung` mit, zaehlt aber in keine Summe.
+// Kapitalbildende Lebensversicherungen ohne beitragsfreien Wert zaehlen mit dem
+// jeweils neuesten Rueckkaufswert als Stand heute (ersatz: true), ohne
+// Hochrechnung. Andere Vertraege behalten die erwartete Kapitalleistung. Nicht
+// fuer Vertraege mit erwarteter Rente oder gewaehlter Monatsrente.
 export function kapitalZumAblauf(data, vs, today = null) {
   const wert = (feld) => aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld, today);
-  const kapital = wert("erwartete_kapitalleistung");
-  if (kapital) return { zeitwert: kapital, ersatz: false };
-  if (vs.art !== "lebensversicherung" || !vs.kapitalbildend || vs.kapitalwahl === "monatsrente" || wert("erwartete_rente")) return null;
-  const rkw = wert("rueckkaufswert");
-  return rkw ? { zeitwert: rkw, ersatz: true } : null;
+  const weiter = wert("erwartete_kapitalleistung");
+  const beitragsfrei = wert("beitragsfreie_kapitalleistung");
+  if (beitragsfrei) return { zeitwert: beitragsfrei, ersatz: false, weiterzahlung: weiter };
+  const lv = vs.art === "lebensversicherung" && vs.kapitalbildend && vs.kapitalwahl !== "monatsrente" && !wert("erwartete_rente");
+  const rkw = lv ? wert("rueckkaufswert") : null;
+  if (rkw) return { zeitwert: rkw, ersatz: true, weiterzahlung: weiter };
+  return weiter ? { zeitwert: weiter, ersatz: false, weiterzahlung: null } : null;
 }
 
 // Erwartete Leistungen laufender Vertraege: Renten (monatlich) und Kapital, mit
@@ -165,7 +170,10 @@ export function erwarteteLeistungen(data, today = null) {
     const rente = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, "erwartete_rente", today);
     if (rente) leistungen.push({ vorsorge: vs, typ: "rente", wert_cents: toCents(rente.wert), beginn: vs.leistung_beginn || null, zeitwert: rente });
     const kapital = kapitalZumAblauf(data, vs, today);
-    if (kapital) leistungen.push({ vorsorge: vs, typ: "kapital", wert_cents: toCents(kapital.zeitwert.wert), beginn: vs.leistung_beginn || null, zeitwert: kapital.zeitwert, ersatz: kapital.ersatz });
+    if (kapital) {
+      leistungen.push({ vorsorge: vs, typ: "kapital", wert_cents: toCents(kapital.zeitwert.wert), beginn: vs.leistung_beginn || null, zeitwert: kapital.zeitwert, ersatz: kapital.ersatz,
+        weiterzahlung_cents: kapital.weiterzahlung ? toCents(kapital.weiterzahlung.wert) : null });
+    }
   }
   return leistungen.sort((a, b) => String(a.beginn ?? "9999").localeCompare(String(b.beginn ?? "9999")) || a.vorsorge.vorsorge_id.localeCompare(b.vorsorge.vorsorge_id));
 }
@@ -188,6 +196,8 @@ export function kapitalLeistungen(data, today = null) {
     terminiert_cents: summe(terminiert),
     bedingt_cents: summe(bedingt),
     undatiert_cents: summe(undatiert),
+    // Faellige Summe, wenn alle Vertraege bis zum Ablauf weiter bespart werden (nur Anzeige).
+    terminiert_weiterzahlung_cents: terminiert.reduce((a, l) => a + (l.weiterzahlung_cents ?? l.wert_cents), 0),
     jahre: [...new Set(terminiert.map((l) => l.beginn.slice(0, 4)))].sort(),
   };
 }

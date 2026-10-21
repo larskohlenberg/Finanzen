@@ -845,7 +845,13 @@ Zeitwerte zu Vorsorge stehen in `DATENROOT/zeitwerte.jsonl` mit
 - `rueckkaufswert`: aktueller verwertbarer Wert kapitalbildender Vorsorge.
 - `erwartete_rente`: erwartete monatliche Leistung, als Netto-Wert oder klar
   gekennzeichnete Netto-Schaetzung.
-- `erwartete_kapitalleistung`: erwartete einmalige Kapitalleistung.
+- `erwartete_kapitalleistung`: erwartete einmalige Kapitalleistung, wenn die
+  Beitraege bis zum Ablauf weiterlaufen. Nur Hinweis "bei Weiterzahlung".
+- `beitragsfreie_kapitalleistung`: garantierte einmalige Leistung bei Ablauf,
+  wenn ab dem Standdatum keine Beitraege mehr fliessen (Beitragsfreistellung
+  laut Beleg; Standdatum = Freistellungsstichtag). Sie zaehlt in Summen und
+  Zeitstrahl. Fehlt sie bei einer kapitalbildenden Lebensversicherung, zaehlt
+  der neueste `rueckkaufswert` als "Stand heute".
 - `vertragswert`: ausgewiesenes Vertragsguthaben (z. B. aus einem
   Vermittlerportal), auch bei nicht kuendbaren Vertraegen. Nur Anzeige, zaehlt
   nie ins Nettovermoegen. Ein Portalfeld "Rueckkaufswert" ohne ausgewiesenen
@@ -877,7 +883,12 @@ In Szenarien wird die Annahme-Art `vorsorge-leistung` verwendet. Sie verweist au
 `vorsorge_id` und einen Arm (`rente` oder `kapital`). `szenarien.mjs` loest diese
 Annahme zur Rechenzeit in vorhandene Primitive auf: Rente wird zu
 `regelzahlung-neu`, Kapitalleistung zu `einmalzahlung`; bei kapitalbildender
-Vorsorge wird der Rueckkaufswert ueber eine Gegenbuchung abgebaut. Fehlt
+Vorsorge wird der Rueckkaufswert ueber eine Gegenbuchung abgebaut. Beim Arm
+`kapital` sagt `fortfuehrung`, wie der Vertrag bis dahin laeuft: `weiterzahlen`
+(Standard, `erwartete_kapitalleistung`), `beitragsfrei` mit `beitragsfrei_ab`
+(`beitragsfreie_kapitalleistung`, Beitraege enden ab dem Datum) oder `kuendigen`
+(neuester `rueckkaufswert` zum `ab`, Beitraege enden dann). Weicht
+`beitragsfrei_ab` vom Standdatum des Belegwerts ab, warnt das Szenario. Fehlt
 `geprueft_am`, deckelt die Engine die Qualitaet auf `offen`.
 
 Vorsorge-Checks werden von `vermoegen.mjs` geliefert und in den

@@ -130,3 +130,54 @@ test("expand: fehlender zeitwert erzeugt warnung vorsorge-leistung-ohne-wert und
   assert.equal(szenario.annahmen.length, 0);
   assert.ok(warnungen.some((w) => w.code === "vorsorge-leistung-ohne-wert"));
 });
+
+// Klassische LV mit drei Belegwerten und einem monatlichen Beitrag (100,00).
+function lvMitBeitrag() {
+  const data = baseData({
+    vorsorge: [{ vorsorge_id: "VS-007", art: "lebensversicherung", name: "Klassik-LV", person_id: "PER-001", status: "aktiv", kapitalbildend: true, geprueft_am: "2026-01-01" }],
+    regelzahlungen: [{ regelzahlung_id: "RZ-007", bezeichnung: "Beitrag Klassik-LV", betrag: "-100.00", rhythmus_einheit: "monat", rhythmus_intervall: 1,
+      anker_datum: "2026-08-01", status: "bestaetigt", kategorie_id: "KAT-014", qualitaet: "belegt", vorsorge_id: "VS-007", konto_id: "KTO-001" }],
+  });
+  const wert = (feld, w, standdatum = "2026-06-01") => ({ entitaet: "vorsorge", entitaet_id: "VS-007", feld, wert: w, standdatum, qualitaet: "belegt" });
+  data.zeitwerte.push(wert("rueckkaufswert", "4000.00"), wert("erwartete_kapitalleistung", "9000.00"), wert("beitragsfreie_kapitalleistung", "6000.00"));
+  return data;
+}
+const kapitalAnnahme = (extra) => ({ annahme_id: "A1", art: "vorsorge-leistung", vorsorge_id: "VS-007", arm: "kapital", ab: "2028-07-01", ...extra });
+
+test("expand: weiterzahlen (Standard) nimmt die Ablaufleistung bei Weiterzahlung, Beitraege bleiben", () => {
+  const { szenario, warnungen } = expandVorsorgeLeistungen(lvMitBeitrag(), { annahmen: [kapitalAnnahme()] }, TODAY);
+  assert.deepEqual(warnungen, []);
+  assert.deepEqual(szenario.annahmen.map((a) => [a.art, a.betrag ?? a.aktion]), [["einmalzahlung", "9000.00"]]);
+});
+
+test("expand: beitragsfrei nimmt den garantierten Wert ohne Beitraege und beendet die Beitraege", () => {
+  const { szenario, warnungen } = expandVorsorgeLeistungen(lvMitBeitrag(), { annahmen: [kapitalAnnahme({ fortfuehrung: "beitragsfrei", beitragsfrei_ab: "2026-06-01" })] }, TODAY);
+  assert.deepEqual(warnungen, []);
+  assert.deepEqual(szenario.annahmen.map((a) => [a.art, a.betrag ?? a.aktion, a.datum ?? a.ab]), [
+    ["einmalzahlung", "6000.00", "2028-07-01"],
+    // Anker liegt nach dem Freistellungsdatum: Beitrag endet am Anker, sonst griffe das Beenden ins Leere.
+    ["regelzahlung-aenderung", "beenden", "2026-08-01"],
+  ]);
+});
+
+test("expand: beitragsfrei zu einem anderen Datum als im Beleg warnt", () => {
+  const { warnungen } = expandVorsorgeLeistungen(lvMitBeitrag(), { annahmen: [kapitalAnnahme({ fortfuehrung: "beitragsfrei", beitragsfrei_ab: "2027-01-01" })] }, TODAY);
+  assert.deepEqual(warnungen.map((w) => [w.code, w.stichtag, w.datum]), [["beitragsfrei-stichtag", "2026-06-01", "2027-01-01"]]);
+});
+
+test("expand: kuendigen zahlt den Rueckkaufswert zum Datum und beendet die Beitraege", () => {
+  const { szenario } = expandVorsorgeLeistungen(lvMitBeitrag(), { annahmen: [kapitalAnnahme({ fortfuehrung: "kuendigen", ab: "2027-01-01" })] }, TODAY);
+  assert.deepEqual(szenario.annahmen.map((a) => [a.art, a.betrag ?? a.aktion, a.datum ?? a.ab]), [
+    ["einmalzahlung", "4000.00", "2027-01-01"],
+    ["regelzahlung-aenderung", "beenden", "2027-01-01"],
+  ]);
+});
+
+test("Szenario beitragsfrei: weniger Kapital, aber keine Beitraege mehr", () => {
+  const rechne = (extra) => rechneSzenario(lvMitBeitrag(), { szenario_id: "SZN-009", name: "LV", status: "entwurf", stand: TODAY, reichweite_bis: "2028-12-31", erstellt_am: TODAY,
+    annahmen: [kapitalAnnahme(extra)] }, TODAY).punkte.at(-1).liquide_cents;
+  const weiter = rechne({});
+  const frei = rechne({ fortfuehrung: "beitragsfrei", beitragsfrei_ab: "2026-06-01" });
+  // 3.000 weniger Kapital, dafuer 29 Beitraege (08/2026 bis 12/2028) zu 100 gespart.
+  assert.equal(frei - weiter, -300000 + 29 * 10000);
+});

@@ -316,7 +316,7 @@ const schemas = {
     fields: {
       entitaet: { type: "string", enum: ["konto", "immobilie", "vermoegenswert", "darlehen", "vorsorge"] },
       entitaet_id: { type: "string", minLength: 1 },
-      feld: { type: "string", enum: ["kontostand", "depotwert", "marktwert", "restschuld", "rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "beitragssumme"] },
+      feld: { type: "string", enum: ["kontostand", "depotwert", "marktwert", "restschuld", "rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "beitragsfreie_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "beitragssumme"] },
       wert: { type: "string", money: true },
       standdatum: { type: "string", format: "date" },
       qualitaet: { type: "string", enum: ["belegt", "geschaetzt"] },
@@ -794,7 +794,7 @@ function validateCrossFieldRules(data, errors) {
     immobilie: ["marktwert"],
     vermoegenswert: ["marktwert"],
     darlehen: ["restschuld"],
-    vorsorge: ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "beitragssumme"],
+    vorsorge: ["rueckkaufswert", "erwartete_rente", "erwartete_kapitalleistung", "beitragsfreie_kapitalleistung", "vertragswert", "bu_rente", "erwerbsminderungsrente", "todesfallleistung", "hinterbliebenenrente", "beitragssumme"],
   };
   // Je (Entitaet, ID, Feld, Standdatum) ein Wert: sonst entschiede die Dateireihenfolge,
   // welcher Wert gilt (aktuellerZeitwert nimmt den ersten). Gleicher Wert doppelt ist harmlos.
@@ -1063,6 +1063,14 @@ function validateSzenarien(data, errors) {
         if (!vorsorgeIds.has(a.vorsorge_id)) melde(errors, "verweis", `${ap}`, `vorsorge_id ${a.vorsorge_id} existiert nicht`);
         if (!["rente", "kapital"].includes(a.arm)) melde(errors, "konsistenz", `${ap}`, `arm ungueltig (rente|kapital)`);
         if (!isIsoDate(a.ab)) melde(errors, "konsistenz", `${ap}`, `ab fehlt/ungueltig`);
+        if (a.fortfuehrung !== undefined) {
+          if (!["weiterzahlen", "beitragsfrei", "kuendigen"].includes(a.fortfuehrung)) melde(errors, "konsistenz", `${ap}`, `fortfuehrung ungueltig (weiterzahlen|beitragsfrei|kuendigen)`);
+          else if (a.arm !== "kapital") melde(errors, "konsistenz", `${ap}`, `fortfuehrung nur beim arm kapital`);
+        }
+        if (a.fortfuehrung === "beitragsfrei" && (!isIsoDate(a.beitragsfrei_ab) || (isIsoDate(a.ab) && a.beitragsfrei_ab > a.ab))) {
+          melde(errors, "konsistenz", `${ap}`, `beitragsfrei braucht beitragsfrei_ab (Datum, nicht nach ab)`);
+        }
+        if (a.beitragsfrei_ab !== undefined && a.fortfuehrung !== "beitragsfrei") melde(errors, "konsistenz", `${ap}`, `beitragsfrei_ab nur mit fortfuehrung beitragsfrei`);
         if (a.gegenbuchung) melde(errors, "konsistenz", `${ap}`, `vorsorge-leistung darf keine gegenbuchung haben (wird zur Rechenzeit erzeugt)`);
         continue;
       }

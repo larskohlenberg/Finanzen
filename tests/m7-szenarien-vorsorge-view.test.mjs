@@ -85,3 +85,22 @@ test("Szenario-Detail rendert vorsorge-leistung (Kapital-Arm)", async () => {
   assert.match(html, /VS-005/);
   assert.match(html, /Kapitalleistung/, "Arm-Label 'kapital' muss lokalisiert erscheinen");
 });
+
+test("Szenario-Detail nennt die Fortfuehrung beitragsfrei mit Datum", async () => {
+  setBasis();
+  data.vorsorge = [{ vorsorge_id: "VS-007", art: "lebensversicherung", name: "Klassik-LV", person_id: "PER-001", status: "aktiv", kapitalbildend: true, geprueft_am: "2026-01-15" }];
+  data.zeitwerte = [
+    { entitaet: "konto", entitaet_id: "KTO-001", feld: "kontostand", wert: "5000.00", standdatum: "2026-06-01", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-007", feld: "beitragsfreie_kapitalleistung", wert: "6000.00", standdatum: "2026-01-01", qualitaet: "belegt" },
+  ];
+  data.szenarien = [{
+    szenario_id: "SZN-006", name: "LV beitragsfrei", status: "entwurf", stand: "2026-06-22", reichweite_bis: "2030-12-31", erstellt_am: "2026-06-22",
+    annahmen: [{ annahme_id: "A1", art: "vorsorge-leistung", vorsorge_id: "VS-007", arm: "kapital", ab: "2028-03-15", fortfuehrung: "beitragsfrei", beitragsfrei_ab: "2026-01-01", qualitaet: "belegt" }],
+  }];
+  state.selectedSzenarioId = "SZN-006";
+  state.szenarioPhaseOffen = new Set([0]);
+
+  const html = (await szenarienGezeichnet());
+  assert.match(html, /Kapitalleistung · beitragsfrei ab 1\.1\.2026/);
+  assert.doesNotMatch(html, /szenarien\.fortfuehrung/);
+});

@@ -95,12 +95,12 @@ test("work status chip reflects real in-app validation, never an unconditional p
   assert.doesNotMatch(main, /chrome\.validationExternal/);
 });
 
-test("work status offers an explicit data reload action", () => {
-  assert.match(main, /data-action="reload-data"/);
-  assert.match(main, /url\.searchParams\.set\("_reload"/);
-  assert.match(main, /window\.location\.assign\(url\)/);
-  assert.match(i18n, /reloadData:\s*"Daten neu laden"/);
-  assert.match(i18n, /reloadData:\s*"Reload data"/);
+test("work status has no permanent reload button; only the error chip retries", () => {
+  // Der Stand wird bei jedem Klick geprueft (stand-wechsel.mjs); ein eigener
+  // Knopf dafuer hatte keine sichtbare Wirkung mehr.
+  assert.doesNotMatch(main, /chrome\.reloadData/);
+  assert.doesNotMatch(i18n, /reloadData:/);
+  assert.match(main, /kopfleisteFehler\(\) \? `<button class="chip danger linkish" data-action="reload-data"/);
 });
 
 test("next action copies an agent prompt instead of duplicating open-category navigation", () => {

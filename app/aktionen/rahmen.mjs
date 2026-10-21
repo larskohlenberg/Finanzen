@@ -1,5 +1,5 @@
 // app/aktionen/rahmen.mjs
-// Aktionen (data-action) – Rahmen: Einstellungen, Menues, Agenten-Prompt, Daten neu laden, Sidebar, Kacheln.
+// Aktionen (data-action) – Rahmen: Einstellungen, Menues, Agenten-Prompt, erneuter Abruf, Sidebar, Kacheln.
 import { ablauf } from "../ablauf.mjs";
 import { verwerfeApiCaches } from "../api-daten.mjs";
 import { hashNachModuswechsel } from "../demo-modus.mjs";
@@ -93,6 +93,8 @@ export const aktionen = {
   "abmelden": () => {
     rahmen.sitzungswaechter?.abmelden();
   },
+  // Nur noch am Fehler-Chip der Kopfleiste: die App prueft den Stand ohnehin
+  // bei jedem Klick und bei Rueckkehr in den Tab.
   "reload-data": () => {
     // Ohne Seiten-Reload: Bestand bedingt neu holen, Antworten der Lese-APIs
     // (auch gescheiterte) neu abrufen, Dokumente und Inbox frisch listen.

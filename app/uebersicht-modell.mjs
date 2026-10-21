@@ -10,6 +10,7 @@ import { anstehendeFristen } from "./fristen.mjs";
 import { anstehendeJahreszahlungen } from "./liquiditaet.mjs";
 import { planIst } from "./plan-ist.mjs";
 import { kontenGruppen, mittelVergleich, monatsMittel, vorjahresMittel } from "./uebersicht-rechnung.mjs";
+import { aktuellerZeitwert } from "./bewertung.mjs";
 import { computeNettovermoegen } from "./vermoegen.mjs";
 import { gesetzlicherRentenbeginn, kapitalLeistungen, rentenStufen, tabFuerVorsorge, vertragsFarben } from "./vorsorge-rechnung.mjs";
 
@@ -50,6 +51,13 @@ export function uebersichtModell(daten, heute) {
     const tab = tabFuerVorsorge((daten.vorsorge ?? []).find((vs) => vs.vorsorge_id === p.id));
     jeTab.set(tab, (jeTab.get(tab) ?? 0) + p.wert_cents);
   }
+  // Was bei Ablauf aus dem Rueckkaufswert wird: Rente (faellt dann aus dem
+  // Vermoegen) oder Kapital (bleibt als Guthaben), mit Leistungsbeginn.
+  const rueckkaufVerwendung = Object.fromEntries(netto.positionen.filter((p) => p.klasse === "vorsorge").map((p) => {
+    const vs = (daten.vorsorge ?? []).find((v) => v.vorsorge_id === p.id);
+    const rente = vs?.kapitalwahl === "monatsrente" || Boolean(aktuellerZeitwert(daten.zeitwerte, "vorsorge", p.id, "erwartete_rente", heute));
+    return [p.id, { art: rente ? "rente" : "kapital", beginn: vs?.leistung_beginn || null }];
+  }));
 
   const { renten, stufen, gesamt_cents } = rentenStufen(daten);
   const kapital = kapitalLeistungen(daten, heute);
@@ -87,6 +95,7 @@ export function uebersichtModell(daten, heute) {
       // fehlt: Position ohne Wert (Chip "bekannter Teilbestand" in der Kachel).
       positionen: netto.positionen.map(({ klasse, id, name, wert_cents, standdatum, fehlt }) => ({ klasse, id, name, wert_cents, standdatum, fehlt: Boolean(fehlt) })),
       kontotyp,
+      rueckkauf_verwendung: rueckkaufVerwendung,
       rueckkauf_tab: [...jeTab].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "lebensversicherungen",
     },
     vorsorge: {

@@ -267,7 +267,10 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   ];
   data.darlehen = [{ darlehen_id: "DAR-901", bezeichnung: "Testdarlehen", status: "aktiv" }];
   data.vermoegenswerte = [];
-  data.vorsorge = [{ vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2040-12-01" }];
+  data.vorsorge = [
+    { vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2040-12-01" },
+    { vorsorge_id: "VS-902", art: "rentenversicherung", name: "Testrente", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2043-03-01" },
+  ];
   data.zeitwerte = [
     { entitaet: "konto", entitaet_id: "KTO-901", feld: "kontostand", standdatum: "2026-09-01", wert: "1000.00", qualitaet: "belegt" },
     { entitaet: "immobilie", entitaet_id: "IMM-901", feld: "marktwert", standdatum: "2026-01-01", wert: "300000.00", qualitaet: "geschaetzt" },
@@ -275,13 +278,16 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
     { entitaet: "darlehen", entitaet_id: "DAR-901", feld: "restschuld", standdatum: "2026-09-01", wert: "100000.00", qualitaet: "belegt" },
     { entitaet: "vorsorge", entitaet_id: "VS-901", feld: "erwartete_kapitalleistung", standdatum: "2026-01-01", wert: "150000.00", qualitaet: "belegt" },
     { entitaet: "vorsorge", entitaet_id: "VS-901", feld: "beitragsfreie_kapitalleistung", standdatum: "2026-01-01", wert: "100000.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-901", feld: "rueckkaufswert", standdatum: "2026-01-01", wert: "30000.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-902", feld: "rueckkaufswert", standdatum: "2026-01-01", wert: "20000.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-902", feld: "erwartete_rente", standdatum: "2026-01-01", wert: "100.00", qualitaet: "belegt" },
   ];
   state.view = "overview";
   state.lang = "de";
 
   const html = (await gerenderteUebersicht());
   const teil = (titel) => html.match(new RegExp(`<h3 class="vermoegen-teil-titel">${titel}</h3>[\\s\\S]*?</ul>`))?.[0] ?? "";
-  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?<div class="kpi-value">251\.000\s€/);
+  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?<div class="kpi-value">301\.000\s€/);
   assert.match(teil("Schnell verfügbar"), /vermoegen-teil-wert">1\.000\s€[\s\S]*Konten/);
   assert.doesNotMatch(teil("Schnell verfügbar"), /Immobilien|Darlehen/);
   // Langfristig netto: Immobilien minus Darlehen, mit Schuldenbalken.
@@ -299,7 +305,15 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   assert.match(vorsorge, /info-tipp-text" role="tooltip">Fällig 2040\.[^<]*Werden alle Beiträge bis zum Ablauf gezahlt, sind es 150\.000\s€\./);
   assert.match(vorsorge, /<svg class="vermoegen-balken"[\s\S]*data-titel="Testvertrag: 100\.000,00\s€" data-label="Testvertrag"/);
   assert.match(vorsorge, /data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag<\/(?:a|button)><span class="kopf-rechts"><span class="kopf-rechts-zeile"><span class="muted">1\.12\.2040<\/span><span class="amount">100\.000\s€<\/span><\/span><span class="muted kopf-unter">\(bei Weiterzahlung 150\.000\s€\)<\/span><\/span><\/li>/);
-  assert.match(teil("Langfristig gebunden"), /data-action="vorsorge-tab" data-tab="lebensversicherungen"[^>]*>Rückkaufswerte</);
+  // Rueckkaufswerte stehen getrennt unter den beiden Teilen, mit Vermerk, nicht im langfristigen Teil.
+  assert.doesNotMatch(teil("Langfristig gebunden"), /Rückkaufswerte/);
+  const rueckkauf = html.match(/<div class="vermoegen-teil vermoegen-teil-breit">[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? "";
+  assert.match(rueckkauf, /Rückkaufswerte der Versicherungen<\/h3>/);
+  assert.match(rueckkauf, /data-action="vorsorge-tab" data-tab="lebensversicherungen"[^>]*>Wird als Kapital ausgezahlt<\/a><span class="muted">ab 2040<\/span>/);
+  assert.match(rueckkauf, /vermoegen-teil-wert">50\.000\s€/);
+  assert.match(rueckkauf, />Wird als Kapital ausgezahlt<\/a><span class="muted">ab 2040<\/span><span class="amount">30\.000\s€/);
+  assert.match(rueckkauf, /segment-vorsorge-rente[\s\S]*data-tab="renten"[^>]*>Wird verrentet<\/a><span class="muted">ab 2043<\/span><span class="amount">20\.000\s€/);
+  assert.match(rueckkauf, /Wert bei Kündigung heute\./);
   assert.match(vorsorge, /<h3 class="vermoegen-teil-titel uebersicht-werttitel"><a class="linkish" href="#\/vorsorge\/renten" data-action="vorsorge-tab" data-tab="renten">Monatliche Renten<\/a><\/h3>\s*<div class="kpi-value">/);
 });
 

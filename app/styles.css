@@ -2791,10 +2791,12 @@ a.linkish {
 .segment-immobilie { --farbe: #3b6fb6; fill: #3b6fb6; background: #3b6fb6; }
 .segment-vermoegenswert { --farbe: #a07a1c; fill: #a07a1c; background: #a07a1c; }
 .segment-vorsorge { --farbe: #8a5cc2; fill: #8a5cc2; background: #8a5cc2; }
+.segment-vorsorge-rente { --farbe: color-mix(in srgb, #8a5cc2 50%, var(--surface)); fill: color-mix(in srgb, #8a5cc2 50%, var(--surface)); background: color-mix(in srgb, #8a5cc2 50%, var(--surface)); }
 .segment-darlehen { --farbe: var(--danger); fill: var(--danger); background: var(--danger); }
 :root[data-theme="dark"] .segment-immobilie { --farbe: #7fa8e8; fill: #7fa8e8; background: #7fa8e8; }
 :root[data-theme="dark"] .segment-vermoegenswert { --farbe: #e0b84f; fill: #e0b84f; background: #e0b84f; }
 :root[data-theme="dark"] .segment-vorsorge { --farbe: #c39bf0; fill: #c39bf0; background: #c39bf0; }
+:root[data-theme="dark"] .segment-vorsorge-rente { --farbe: color-mix(in srgb, #c39bf0 50%, var(--surface)); fill: color-mix(in srgb, #c39bf0 50%, var(--surface)); background: color-mix(in srgb, #c39bf0 50%, var(--surface)); }
 .vermoegen-legende {
   display: flex;
   flex-wrap: wrap;
@@ -3553,6 +3555,7 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .vermoegen-teil-titel { margin: 0; color: var(--muted); font-size: 13px; font-weight: 650; }
 .vermoegen-teil-wert { margin: 4px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .vermoegen-teil .muted { margin: 8px 0 0; font-size: 13px; }
+.vermoegen-teil-breit { grid-column: 1 / -1; }
 .uebersicht-kachel { display: flex; flex-direction: column; container-type: inline-size; min-width: 0; }
 .uebersicht-kachel .kpi-value { margin: 8px 0 6px; font-size: 34px; }
 .uebersicht-zweitwert { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }

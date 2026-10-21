@@ -221,8 +221,9 @@ describe("Oberflaeche im Browser", { skip: fehlt ?? false, timeout: 120000 }, ()
       const seitenleiste = await seite.werte(`[...document.querySelectorAll(".sidebar [data-view]")].map((b) => b.dataset.view)`);
       assert.deepEqual(new Set(mobil), new Set(seitenleiste));
       const tabs = await seite.werte(`[...document.querySelectorAll(".tabbar-row [data-view]")].map((b) => b.dataset.view)`);
+      assert.deepEqual(tabs, ["overview", "transactions", "liquiditaet", "vermoegen"], "Tabs in eigener Reihenfolge");
       assert.deepEqual(mobil, [...tabs, ...seitenleiste.filter((v) => !tabs.includes(v))], "Mehr-Menue in Seitenleisten-Reihenfolge");
-      assert.deepEqual(seitenleiste, ["overview", "transactions", "liquiditaet", "vermoegen", "vorsorge", "planIst", "termine", "szenarien", "belege", "upload", "masterdata"]);
+      assert.deepEqual(seitenleiste, ["overview", "liquiditaet", "vermoegen", "vorsorge", "planIst", "termine", "szenarien", "transactions", "belege", "upload", "masterdata"]);
     } finally {
       await seite.viewport(1280, 900);
     }

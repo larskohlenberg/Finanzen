@@ -3547,8 +3547,8 @@ td.logo-zelle .logo-marke { margin-right: 0; }
   .flach-inhalt { grid-template-columns: 1fr; gap: 8px; }
 }
 /* Gleich hohe Kacheln und eine feste Groesse fuer alle Kennzahlen (statt an die Kachelbreite gekoppelt). */
-.uebersicht-kacheln { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.4fr); gap: 16px; align-items: stretch; }
-.vermoegen-teile { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 12px; }
+.uebersicht-kacheln { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.3fr); gap: 16px; align-items: stretch; }
+.vermoegen-teile { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .vermoegen-teil { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
 .vermoegen-teil-titel { margin: 0; color: var(--muted); font-size: 13px; font-weight: 650; }
 .vermoegen-teil-wert { margin: 4px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
@@ -3602,12 +3602,11 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 @media (max-width: 1100px) {
   .uebersicht-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .uebersicht-kachel-breit { grid-column: 1 / -1; order: -1; }
-  .uebersicht-kachel-breit .vermoegen-teile { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .uebersicht-flach { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
   .uebersicht-kacheln { grid-template-columns: 1fr; }
-  .uebersicht-kachel-breit .vermoegen-teile { grid-template-columns: 1fr; }
+  .vermoegen-teile { grid-template-columns: 1fr; }
   .uebersicht-flach { grid-template-columns: 1fr; }
   .termine-liste li { grid-template-columns: 5.5em minmax(0, 1fr) auto; gap: 6px; }
 }

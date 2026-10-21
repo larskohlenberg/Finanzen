@@ -2,8 +2,8 @@
 // Ganz oben drei flache Kacheln: monatliche Einnahmen, Ausgaben und Sparquote
 // (Ø der letzten zwoelf Monate aus den Buchungen, nach Kategorie).
 // Übersicht als Dashboard: je Bereich (Liquidität, Vermögen, Vorsorge) eine Kachel
-// mit Kennzahl und Zeilen, die ins Detail führen; Vermögen mit zwei
-// Unterkacheln untereinander (schnell verfügbar, langfristig gebunden). Darunter die
+// mit Kennzahl und Zeilen, die ins Detail führen; Vermögen breit mit zwei
+// Unterkacheln (schnell verfügbar, langfristig gebunden). Darunter die
 // Termine der nächsten zwölf Monate (Fristen und jährliche Zahlungen) und die
 // Absicherung bei Berufsunfähigkeit und im Todesfall als zwei Kacheln. Konten- und Depottabellen stehen nur noch
 // unter Vermögen, die nächste Aktion im Arbeitsstatus oben.
@@ -281,7 +281,7 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null }) {
         </div>`;
 }
 
-// Kachel: oben das Nettovermoegen, darunter schnell verfuegbar (Konten,
+// Breite Kachel: oben das Nettovermoegen, darunter schnell verfuegbar (Konten,
 // Festgeld, Depots) und langfristig gebunden (Immobilien einzeln, Sachwerte, Vorsorge minus Darlehen).
 function renderVermoegenKachel(modell) {
   const r = modell.vermoegen;

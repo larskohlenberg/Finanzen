@@ -73,7 +73,7 @@ async function mitFixture(fn) {
 test("Kacheln Absicherung: Personenzeilen sind per Standard zugeklappt", async () => mitFixture(async () => {
   const html = renderAbsicherungKacheln(absicherung(data, HEUTE));
   assert.doesNotMatch(html, /absicherung-posten/);
-  assert.match(html, /<h3 class="absicherung-person-titel">\s*<button type="button" class="klapp-knopf absicherung-person-kopf" data-action="klapp-kachel" data-kachel="absicherung\.bu\.PER-001" data-standard="false" aria-expanded="false"><svg[\s\S]*?<span class="absicherung-person-name">Anna Muster<\/span><strong>2\.450,00\s€ je Monat<\/strong><\/button>/);
+  assert.match(html, /<h3 class="absicherung-person-titel">\s*<button type="button" class="klapp-knopf absicherung-person-kopf" data-action="klapp-kachel" data-kachel="absicherung\.bu\.PER-001" data-standard="false" aria-expanded="false"><svg[\s\S]*?<span class="absicherung-person-name">Anna Muster<\/span><strong>1\.500,00\s€ je Monat<\/strong><span class="absicherung-person-zusatz">bei voller Erwerbsminderung 2\.450,00\s€<\/span><\/button>/);
   assert.match(html, /data-kachel="absicherung\.tod\.PER-001"/);
   // Ohne Posten gibt es nichts aufzuklappen.
   assert.match(html, /<h3>Ben Muster<\/h3>/);
@@ -90,17 +90,18 @@ test("Kacheln Absicherung: je eine fuer BU und Tod, darin je Person Summe und Po
   assert.equal((bu.match(/class="absicherung-person"/g) ?? []).length, 2);
   assert.equal((tod.match(/class="absicherung-person"/g) ?? []).length, 2);
   const buAnna = bu.slice(bu.indexOf("Anna Muster"), bu.indexOf("Ben Muster"));
-  assert.match(buAnna, /Anna Muster<\/span><strong>2\.450,00\s€ je Monat<\/strong>/);
-  assert.match(buAnna, /data-action="open-vorsorge" data-vorsorge="VS-002"><span class="mit-logo"><span class="logo-marke [^"]*"[^>]*>[^<]*<\/span><span>BU Anna<\/span>/);
-  assert.match(buAnna, /BU-Rente · Stand 1\.3\.2026/);
-  assert.match(buAnna, /Erwerbsminderungsrente · Stand 1\.7\.2026/);
+  // BU-Summe nur BU-Renten, die Erwerbsminderungsrente erst bei voller Erwerbsminderung (eigene Zeile).
+  assert.match(buAnna, /Anna Muster<\/span><strong>1\.500,00\s€ je Monat<\/strong><span class="absicherung-person-zusatz">bei voller Erwerbsminderung 2\.450,00\s€<\/span>/);
+  assert.match(buAnna, /data-action="open-vorsorge" data-vorsorge="VS-002" title="BU Anna"><span class="mit-logo"><span class="logo-marke [^"]*"[^>]*>[^<]*<\/span><span>BU Anna<\/span>/);
+  assert.match(buAnna, /BU-Rente · 1\.3\.2026/);
+  assert.match(buAnna, /Erwerbsminderungsrente · 1\.7\.2026/);
   assert.ok(buAnna.indexOf("VS-002") < buAnna.indexOf("VS-001"), "groesster Posten zuerst");
   assert.doesNotMatch(buAnna, /Hinterbliebenenrente/);
   const todAnna = tod.slice(tod.indexOf("Anna Muster"), tod.indexOf("Ben Muster"));
   // Die gesetzliche Witwenrente steht vor Einkommensanrechnung: Stern an der Summe und am Posten, keine Fussnote.
   assert.match(todAnna, /Anna Muster<\/span><strong>750,00\s€ je Monat\*<\/strong>/);
-  assert.match(todAnna, /Witwen-\/Witwerrente · vor Einkommensanrechnung\* · Stand 1\.7\.2026/);
-  assert.match(todAnna, /Waisenrente · geschätzt · befristet · Stand 1\.7\.2026/);
+  assert.match(todAnna, /Witwen-\/Witwerrente · vor Anrechnung\* · 1\.7\.2026/);
+  assert.match(todAnna, /Waisenrente · geschätzt · befristet · 1\.7\.2026/);
   assert.doesNotMatch(html, /absicherung-hinweis/);
   assert.match(bu.slice(bu.indexOf("Ben Muster")), /Ben Muster<\/h3>\s*<span class="muted">nicht erfasst/);
   assert.match(tod.slice(tod.indexOf("Ben Muster")), /Ben Muster<\/h3>\s*<span class="muted">nicht erfasst/);
@@ -144,4 +145,15 @@ test("Kacheln Absicherung: ohne gesetzliche Witwenrente kein Stern", async () =>
   data.vorsorge = data.vorsorge.map((vs) => (vs.vorsorge_id === "VS-001" ? { ...vs, art: "betriebsrente" } : vs));
   const html = renderAbsicherungKacheln(absicherung(data, HEUTE));
   assert.doesNotMatch(html, /\*/);
+}));
+
+test("Kacheln Absicherung: Tod mit Einmal- und laufendem Betrag, BU nur mit Erwerbsminderungsrente", async () => mitFixture(async () => {
+  data.zeitwerte = [
+    ...data.zeitwerte.filter((z) => z.feld !== "bu_rente"),
+    zw("VS-002", "todesfallleistung", "50000.00", "2026-03-01"),
+  ];
+  const html = renderAbsicherungKacheln(absicherung(data, HEUTE));
+  const [bu, tod] = html.split('id="absicherung-tod-titel"');
+  assert.match(bu, /Anna Muster<\/span><strong>keine BU-Rente<\/strong><span class="absicherung-person-zusatz">bei voller Erwerbsminderung 950,00\s€<\/span>/);
+  assert.match(tod, /Anna Muster<\/span><strong>50\.000,00\s€ einmalig<\/strong><span class="absicherung-person-zusatz">dazu 750,00\s€ je Monat\*<\/span>/);
 }));

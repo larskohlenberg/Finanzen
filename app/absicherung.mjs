@@ -8,7 +8,12 @@ import { aktuellerZeitwert } from "./vermoegen.mjs";
 import { istBeendet } from "./vorsorge-rechnung.mjs";
 
 // Zeitwert-Felder je Fall und Art: monatlich (Rente, brutto) oder einmalig.
-const BU_FELDER = ["bu_rente", "erwerbsminderungsrente"];
+// Berufsunfaehigkeit (eigener Beruf, private BU-Rente) und volle Erwerbsminderung
+// (kaum noch irgendeine Arbeit, gesetzliche Rente) sind verschiedene Risiken:
+// Die BU-Summe zaehlt nur BU-Renten, die Erwerbsminderungsrente kommt erst bei
+// voller Erwerbsminderung dazu.
+const BU_FELDER = ["bu_rente"];
+const EM_FELDER = ["erwerbsminderungsrente"];
 const TOD_EINMALIG = ["todesfallleistung"];
 // hinterbliebenenrente: Witwen-/Witwerrente (lebenslang); waisenrente: alle
 // Waisenrenten zusammen (befristet bis 18, in Ausbildung bis 27).
@@ -18,7 +23,7 @@ const TOD_MONATLICH = ["hinterbliebenenrente", "waisenrente"];
 // Hinterbliebenen (40 Prozent ueber einem Freibetrag); erfasst ist der Wert davor.
 const mitEinkommensanrechnung = (vs, feld) => feld === "hinterbliebenenrente" && vs.art === "gesetzliche-rente";
 
-export const ABSICHERUNG_FELDER = [...BU_FELDER, ...TOD_EINMALIG, ...TOD_MONATLICH];
+export const ABSICHERUNG_FELDER = [...BU_FELDER, ...EM_FELDER, ...TOD_EINMALIG, ...TOD_MONATLICH];
 
 const personAktiv = (person, today) => person.status === "aktiv" && (!person.aktiv_bis || person.aktiv_bis >= today);
 
@@ -28,9 +33,10 @@ const nachWert = (a, b) => b.wert_cents - a.wert_cents || a.vorsorge_id.localeCo
 const summe = (posten) => posten.reduce((s, p) => s + p.wert_cents, 0);
 
 // Je aktiver Person, die versicherte Person mindestens eines laufenden Vertrags
-// ist: { person_id, name, bu: { monatlich_cents, posten }, tod: { einmalig_cents,
-// monatlich_cents, posten } }. Je Vertrag und Feld zaehlt der juengste Zeitwert
-// bis zum Stichtag. Ein Posten traegt die Qualitaet des Zeitwerts und, ob der
+// ist: { person_id, name, bu: { monatlich_cents, erwerbsminderung_cents, posten },
+// tod: { einmalig_cents, monatlich_cents, posten } }; erwerbsminderung_cents ist
+// BU- plus Erwerbsminderungsrente. Je Vertrag und Feld zaehlt der juengste
+// Zeitwert bis zum Stichtag. Ein Posten traegt die Qualitaet des Zeitwerts und, ob der
 // Wert vor einer Einkommensanrechnung steht.
 export function absicherung(data, today) {
   const vertraege = (data.vorsorge ?? []).filter((vs) => !istBeendet(vs));
@@ -49,12 +55,13 @@ export function absicherung(data, today) {
         .filter(Boolean)
         .sort(nachWert);
       const bu = posten(BU_FELDER);
+      const em = posten(EM_FELDER);
       const todEinmalig = posten(TOD_EINMALIG);
       const todMonatlich = posten(TOD_MONATLICH);
       return {
         person_id: person.person_id,
         name: person.name,
-        bu: { monatlich_cents: summe(bu), posten: bu },
+        bu: { monatlich_cents: summe(bu), erwerbsminderung_cents: summe(bu) + summe(em), posten: [...bu, ...em] },
         tod: { einmalig_cents: summe(todEinmalig), monatlich_cents: summe(todMonatlich), posten: [...todEinmalig, ...todMonatlich] },
       };
     });

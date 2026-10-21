@@ -122,7 +122,7 @@ function renderAbmelden() {
 }
 
 export function renderTabbar() {
-  const primary = navItems.filter(([view]) => TABBAR_VIEWS.includes(view));
+  const primary = TABBAR_VIEWS.map((view) => navItems.find(([v]) => v === view));
   const secondary = navItems.filter(([view]) => !TABBAR_VIEWS.includes(view));
   const moreActive = secondary.some(([view]) => view === state.view);
   return `

@@ -225,10 +225,11 @@ app.addEventListener("error", (event) => {
 
 app.addEventListener("click", guard((event) => {
   // Echte Links: mit Zusatztaste (neuer Tab/Fenster) entscheidet der Browser.
-  // Sonst uebernimmt die Aktion des Links, der Browser folgt der href nicht.
+  // Sonst uebernimmt die Aktion des Links, der Browser folgt der href nicht;
+  // ausser bei Dokument-Links: die oeffnet der Browser selbst (handleAction).
   const anker = event.target.closest("a[href]");
   if (anker && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button > 0)) return;
-  if (anker?.matches("[data-action], [data-view], [data-rule]")) event.preventDefault();
+  if (anker?.matches("[data-action], [data-view], [data-rule]") && anker.dataset.action !== "dokument-link") event.preventDefault();
   if (state.settingsMenuOpen && !event.target.closest(".settings-control")) {
     state.settingsMenuOpen = false;
     render();

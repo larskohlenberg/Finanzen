@@ -3607,6 +3607,8 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .uebersicht-kachel-kopf .linkish:hover { color: var(--accent); }
 .uebersicht-kachel-kopf svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .uebersicht-balken { display: grid; gap: 4px; margin-top: 10px; }
+.uebersicht-balken a { cursor: pointer; }
+.uebersicht-balken a:focus-visible rect { outline: 2px solid var(--accent); }
 .uebersicht-termine,
 .uebersicht-versicherungen,
 .absicherung-kacheln { margin-top: 16px; }

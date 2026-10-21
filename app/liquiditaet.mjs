@@ -48,11 +48,19 @@ export function anstehendeJahreszahlungen(regelzahlungen, today, monate = 3) {
     .sort((a, b) => a.datum.localeCompare(b.datum) || a.regelzahlung.regelzahlung_id.localeCompare(b.regelzahlung.regelzahlung_id));
 }
 
-// Standard-Horizont der Prognose: zwoelf Monate ab heute. Weiter reicht die
-// Aussage kaum, weil viele Regelzahlungen unbefristet weiterlaufen; ein
-// spaeteres Datum laesst sich in der Ansicht waehlen.
+// Letzter Tag des Monats von isoDate. Die Prognose rechnet immer volle Monate:
+// jeder Horizont wird auf sein Monatsende gerundet.
+export function monatsende(isoDate) {
+  const [jahr, monat] = isoDate.split("-").map(Number);
+  const tage = new Date(Date.UTC(jahr, monat, 0)).getUTCDate();
+  return `${monatVon(isoDate)}-${String(tage).padStart(2, "0")}`;
+}
+
+// Standard-Horizont der Prognose: zwoelf Monate ab heute, bis zum Monatsende.
+// Weiter reicht die Aussage kaum, weil viele Regelzahlungen unbefristet
+// weiterlaufen; ein spaeteres Datum laesst sich in der Ansicht waehlen.
 export function defaultHorizonEnd(today, monate = 12) {
-  return addInterval(today, "monat", monate);
+  return monatsende(addInterval(today, "monat", monate));
 }
 
 export function periodenSchluessel(monat, granularitaet) {
@@ -247,7 +255,7 @@ export function grosseBuchungen(data, von, bis, schwelle = GROSSE_BUCHUNG_CENTS)
 }
 
 export function computeLiquiditaetPrognose(data, { today, horizonEnd }) {
-  const ende = horizonEnd ?? defaultHorizonEnd(today);
+  const ende = horizonEnd ? monatsende(horizonEnd) : defaultHorizonEnd(today);
   const ist = computeLiquiditaetIst(data, { today });
   const ereignisse = [];
   let bestaetigt = 0;

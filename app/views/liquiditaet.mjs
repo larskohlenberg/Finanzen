@@ -8,7 +8,7 @@ import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
 import { datumsFeld, formatMoney, formatDate, formatMonth, renderPageHead, heuteIso, kennzahlKachel, kachelZeile, zeitverlaufKlein, klappKachel, trendPfeil, trendZeitraumText } from "../komponenten.mjs";
 import { miniKurve } from "../charts.mjs";
-import { addInterval, toCents } from "../liquiditaet.mjs";
+import { defaultHorizonEnd, toCents } from "../liquiditaet.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 import { LEERE_FILTER, filterAlsQuery } from "../navigation.mjs";
 
@@ -253,14 +253,15 @@ function kategorienTrendTabelle(trend) {
 // Prognose: Stand am Horizont, Verlauf je Monatsende bis dahin, darunter die
 // naechsten grossen Zahlungen (jaehrliche Abfluesse der naechsten drei Monate).
 // Prognosehorizont: Schnellauswahl relativ zu heute, daneben das Datumsfeld
-// (tippen oder Kalender, komponenten.mjs datumsFeld).
+// (tippen oder Kalender, komponenten.mjs datumsFeld). Jeder Horizont endet am
+// Monatsende, die Prognose rechnet nur volle Monate.
 export function horizontVorschlaege(heute) {
   return [
-    ["6m", addInterval(heute, "monat", 6)],
-    ["1j", addInterval(heute, "monat", 12)],
+    ["6m", defaultHorizonEnd(heute, 6)],
+    ["1j", defaultHorizonEnd(heute, 12)],
     ["jahresende", `${heute.slice(0, 4)}-12-31`],
-    ["2j", addInterval(heute, "monat", 24)],
-    ["5j", addInterval(heute, "monat", 60)],
+    ["2j", defaultHorizonEnd(heute, 24)],
+    ["5j", defaultHorizonEnd(heute, 60)],
   ];
 }
 

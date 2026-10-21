@@ -58,12 +58,11 @@ export const storageKeys = {
   diffusor: "finance-m2-diffusor",
 };
 
-// Reihenfolge gilt fuer Desktop-Sidebar UND mobile Tab-Bar/Mehr-Menue
-// (beide leiten sie hieraus ab). vermoegen vor termine, damit die
+// Reihenfolge gilt fuer Desktop-Sidebar und mobiles Mehr-Menue; die Tabs
+// der mobilen Tab-Bar folgen TABBAR_VIEWS. vermoegen vor termine, damit die
 // Kernsichten der mobilen Tab-Bar zusammenhaengen.
 export const navItems = [
   ["overview", "nav.overview", "overview"],
-  ["transactions", "nav.transactions", "transactions"],
   ["liquiditaet", "nav.liquiditaet", "liquiditaet"],
   ["vermoegen", "nav.vermoegen", "vermoegen"],
   ["vorsorge", "nav.vorsorge", "vorsorge"],
@@ -73,13 +72,16 @@ export const navItems = [
   // Termine buendelt Regelzahlungen und Fristen (Reiter der Seite).
   ["termine", "nav.termine", "termine"],
   ["szenarien", "nav.szenarien", "szenarien"],
+  // Transaktionen hinter den Auswertungen, direkt vor den Dokumenten.
+  ["transactions", "nav.transactions", "transactions"],
   ["belege", "nav.belege", "belege"],
   ["upload", "nav.upload", "upload"],
   // Administration buendelt Stammdaten, Checks und Export (Bereiche der Seite).
   ["masterdata", "nav.masterdata", "masterdata"],
 ];
 
-// Mobile Bottom-Tab-Bar: die vier Kernsichten als Tabs, der Rest im Mehr-Menü.
+// Mobile Bottom-Tab-Bar: die vier Kernsichten als Tabs in dieser Reihenfolge,
+// der Rest im Mehr-Menü.
 // Liquidität bleibt Tab, weil sie die führende Geldsicht ist (ADR 0016).
 export const TABBAR_VIEWS = ["overview", "transactions", "liquiditaet", "vermoegen"];
 

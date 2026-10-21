@@ -132,7 +132,7 @@ test("Uebersicht: Kennzahlen der Kacheln ohne Rohlisten, Stichtag geprueft", asy
   assert.equal(res.status, 200);
   const a = res.json();
   assert.equal(a.heute, "2026-10-19");
-  assert.deepEqual(Object.keys(a).sort(), ["absicherung", "fristen", "heute", "konten", "mittel", "plan", "stand", "trend", "vermoegen", "vorsorge", "zahlungen"]);
+  assert.deepEqual(Object.keys(a).sort(), ["absicherung", "fristen", "heute", "konten", "mittel", "plan", "stand", "trend", "vermoegen", "versicherungen", "vorsorge", "zahlungen"]);
   // Datenschutz: keine Buchungslisten, Konten nur mit Id, Name und Wert.
   assert.equal(JSON.stringify(a).includes('"transaktion_id"'), false);
   for (const z of a.konten.zeilen) assert.deepEqual(Object.keys(z).sort(), ["konto_id", "name", "wert_cents"]);

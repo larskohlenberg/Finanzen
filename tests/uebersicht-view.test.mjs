@@ -252,7 +252,7 @@ test("Termin-Kachel zeigt Fristen mit Spur, Objekt-Link und Hinweis auf bald und
   assert.match(leer, /Keine Frist in den nächsten zwölf Monaten/);
 });
 
-test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt Rente und Einmalzahlungen", async () => {
+test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen stehen je Vertrag in eigener Tabelle", async () => {
   data.validation = { valid: true, errors: [] };
   data.importfehler = [];
   data.checks = [];
@@ -270,6 +270,7 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   data.vorsorge = [
     { vorsorge_id: "VS-901", art: "lebensversicherung", name: "Testvertrag", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2040-12-01" },
     { vorsorge_id: "VS-902", art: "rentenversicherung", name: "Testrente", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2043-03-01" },
+    { vorsorge_id: "VS-903", art: "lebensversicherung", name: "Testfonds", person_id: "PER-001", status: "aktiv", kapitalbildend: true, beitrag: "-50.00", beitrag_rhythmus: "monat", leistung_beginn: "2035-06-01" },
   ];
   data.zeitwerte = [
     { entitaet: "konto", entitaet_id: "KTO-901", feld: "kontostand", standdatum: "2026-09-01", wert: "1000.00", qualitaet: "belegt" },
@@ -281,13 +282,17 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
     { entitaet: "vorsorge", entitaet_id: "VS-901", feld: "rueckkaufswert", standdatum: "2026-01-01", wert: "30000.00", qualitaet: "belegt" },
     { entitaet: "vorsorge", entitaet_id: "VS-902", feld: "rueckkaufswert", standdatum: "2026-01-01", wert: "20000.00", qualitaet: "belegt" },
     { entitaet: "vorsorge", entitaet_id: "VS-902", feld: "erwartete_rente", standdatum: "2026-01-01", wert: "100.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-903", feld: "rueckkaufswert", standdatum: "2026-01-01", wert: "10000.00", qualitaet: "belegt" },
+    { entitaet: "vorsorge", entitaet_id: "VS-903", feld: "erwartete_kapitalleistung", standdatum: "2026-01-01", wert: "25000.00", qualitaet: "belegt" },
   ];
   state.view = "overview";
   state.lang = "de";
 
   const html = (await gerenderteUebersicht());
   const teil = (titel) => html.match(new RegExp(`<h3 class="vermoegen-teil-titel">${titel}</h3>[\\s\\S]*?</ul>`))?.[0] ?? "";
-  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?<div class="kpi-value">301\.000\s€/);
+  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?<div class="kpi-value">311\.000\s€/);
+  // Rueckkaufswerte zaehlen im Nettovermoegen, die Kachel verweist nur auf die Tabelle.
+  assert.match(html, /aria-labelledby="kachel-vermoegen">[\s\S]*?uebersicht-verweis">darin 60\.000\s€ Rückkaufswerte der Versicherungen/);
   assert.match(teil("Schnell verfügbar"), /vermoegen-teil-wert">1\.000\s€[\s\S]*Konten/);
   assert.doesNotMatch(teil("Schnell verfügbar"), /Immobilien|Darlehen/);
   // Langfristig netto: Immobilien minus Darlehen, mit Schuldenbalken.
@@ -298,21 +303,26 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Vorsorge zeigt
   assert.match(teil("Langfristig gebunden"), /<a class="linkish" href="#\/vermoegen\/immobilien\/IMM-901" data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="IMM-901" title="Testhaus">Testhaus<\/a>/);
 
   const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
-  assert.doesNotMatch(vorsorge.replace(/<span class="info-tipp"[\s\S]*?<\/span><\/span>/g, ""), /Beiträge|Offene Punkte/);
-  // Einmalzahlungen gross, mit Leiste und Zeile je Vertrag, die in den Vertrag fuehrt.
-  // Es zaehlt der Wert ohne weitere Beitraege; der bei Weiterzahlung steht nur daneben.
-  assert.match(vorsorge, /Einmalzahlungen fällig<\/(?:a|button)><\/h3>\s*<div class="kpi-value">100\.000\s€/);
-  assert.match(vorsorge, /info-tipp-text" role="tooltip">Fällig 2040\.[^<]*Werden alle Beiträge bis zum Ablauf gezahlt, sind es 150\.000\s€\./);
-  assert.match(vorsorge, /<svg class="vermoegen-balken"[\s\S]*data-titel="Testvertrag: 100\.000,00\s€" data-label="Testvertrag"/);
-  assert.match(vorsorge, /data-action="open-vorsorge" data-vorsorge="VS-901">Testvertrag<\/(?:a|button)><span class="kopf-rechts"><span class="kopf-rechts-zeile"><span class="muted">1\.12\.2040<\/span><span class="amount">100\.000\s€<\/span><\/span><span class="muted kopf-unter">\(bei Weiterzahlung 150\.000\s€\)<\/span><\/span><\/li>/);
-  // Rueckkaufswerte stehen getrennt unter den beiden Teilen, mit Vermerk, nicht im langfristigen Teil.
-  assert.doesNotMatch(teil("Langfristig gebunden"), /Rückkaufswerte/);
-  const rueckkauf = html.match(/<div class="vermoegen-teil vermoegen-teil-breit">[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? "";
-  assert.match(rueckkauf, /Rückkaufswerte der Versicherungen<span class="info-tipp"[^>]*>i<span class="info-tipp-text" role="tooltip">Wert bei Kündigung heute\./);
-  assert.match(rueckkauf, /data-action="vorsorge-tab" data-tab="lebensversicherungen"[^>]*>Wird als Kapital ausgezahlt<\/a><span class="amount">/);
-  assert.match(rueckkauf, /vermoegen-teil-wert">50\.000\s€/);
-  assert.match(rueckkauf, />Wird als Kapital ausgezahlt<\/a><span class="amount">30\.000\s€/);
-  assert.match(rueckkauf, /segment-vorsorge-rente[\s\S]*data-tab="renten"[^>]*>Wird verrentet<\/a><span class="amount">20\.000\s€/);
+  assert.doesNotMatch(vorsorge.replace(/<span class="info-tipp"[\s\S]*?<\/span><\/span>/g, ""), /Beiträge|Offene Punkte|Einmalzahlungen/);
+  assert.match(vorsorge, /uebersicht-verweis">darin 100\s€ \/ Monat aus Versicherungen/);
+  assert.doesNotMatch(html, /vermoegen-teil-breit|Rückkaufswerte der Versicherungen<span/);
+
+  // Tabelle nach Faelligkeit: Rueckkauf heute, Faellig, bei Beitragsfreistellung, bei Weiterzahlung.
+  const tabelle = html.match(/aria-labelledby="kachel-versicherungen">[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.match(tabelle, /<th>Vertrag<\/th><th class="amount">Rückkauf heute<\/th><th class="amount">Fällig<\/th><th class="amount">Bei Beitragsfreistellung<\/th><th class="amount">Bei Weiterzahlung<\/th>/);
+  const reihen = [...tabelle.matchAll(/data-vorsorge="(VS-\d+)"/g)].map((m) => m[1]);
+  assert.deepEqual(reihen, ["VS-903", "VS-901", "VS-902"]);
+  const reihe = (id) => tabelle.match(new RegExp(`data-vorsorge="${id}"[\\s\\S]*?</tr>`))?.[0] ?? "";
+  const werte = (id) => [...reihe(id).matchAll(/<td class="amount"[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1].replace(/\s/g, " "));
+  assert.deepEqual(werte("VS-901"), ["30.000 €", "1.12.2040", "100.000 €", "150.000 €"]);
+  // Ohne Garantie: Rueckkaufswert von heute mit Sternchen.
+  assert.deepEqual(werte("VS-903"), ["10.000 €", "1.6.2035", '10.000 €<sup class="muted">*</sup>', "25.000 €"]);
+  // Rentenvertrag: Monatsrente statt Kapital.
+  assert.deepEqual(werte("VS-902"), ["20.000 €", "1.3.2043", '20.000 €<sup class="muted">*</sup>', "100 € / Monat"]);
+  // Summen: Rueckkauf aller Vertraege, sonst nur Kapital (ohne Monatsrente).
+  const summe = [...(tabelle.match(/<tfoot>[\s\S]*?<\/tfoot>/)?.[0] ?? "").matchAll(/<td class="amount"[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1].replace(/\s/g, " "));
+  assert.deepEqual(summe, ["60.000 €", "", "130.000 €", "175.000 €"]);
+  assert.match(tabelle, /\* Kein garantierter Wert/);
   assert.match(vorsorge, /<h3 class="vermoegen-teil-titel uebersicht-werttitel"><a class="linkish" href="#\/vorsorge\/renten" data-action="vorsorge-tab" data-tab="renten">Monatliche Renten<\/a><\/h3>\s*<div class="kpi-value">/);
 });
 

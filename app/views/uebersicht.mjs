@@ -11,7 +11,7 @@ import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, trendZeitraumText, zielElement, hrefAttr, teilbestandChip, weiterzahlungText, rechtsBlock, kapitalInfoText } from "../komponenten.mjs";
+import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, trendZeitraumText, zielElement, hrefAttr, teilbestandChip, rechtsBlock } from "../komponenten.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { verteileRundung } from "../uebersicht-rechnung.mjs";
@@ -283,8 +283,8 @@ function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null, info
 
 // Breite Kachel: oben das Nettovermoegen, darunter schnell verfuegbar (Konten,
 // Festgeld, Depots) und langfristig gebunden (Immobilien einzeln, Sachwerte minus
-// Darlehen). Die Rueckkaufswerte stehen getrennt darunter: Sie sind dasselbe Geld,
-// das die Vorsorgekachel als spaetere Leistung zeigt.
+// Darlehen). Die Rueckkaufswerte zaehlen im Nettovermoegen mit, stehen aber
+// je Vertrag in der Versicherungskachel darunter; hier nur der Hinweis darauf.
 function renderVermoegenKachel(modell) {
   const r = modell.vermoegen;
   const kontotyp = new Map(Object.entries(r.kontotyp));
@@ -296,14 +296,7 @@ function renderVermoegenKachel(modell) {
   // Immobilien einzeln, die wertvollste zuerst; der Link oeffnet ihre Details.
   const immobilien = r.positionen.filter((p) => p.klasse === "immobilie").sort((a, b) => b.wert_cents - a.wert_cents)
     .map((imm) => ({ titel: imm.name, filter: (p) => p.klasse === "immobilie" && p.id === imm.id, ziel: ZIEL.vermoegenObjekt("immobilie", imm.id), punkt: "segment-immobilie" }));
-  // Rueckkaufswerte fuehren in den Vorsorge-Reiter, der den groessten Teil davon haelt.
-  const rueckkaufTab = r.rueckkauf_tab;
-  const verwendung = (p) => r.rueckkauf_verwendung[p.id] ?? "kapital";
-  const rueckkauf = (art) => {
-    const filter = (p) => p.klasse === "vorsorge" && verwendung(p) === art;
-    return { titel: t(art === "rente" ? "overview.rueckkaufRente" : "overview.rueckkaufKapital"), filter,
-      ziel: ZIEL.vorsorgeTab(art === "rente" ? "renten" : rueckkaufTab), punkt: art === "rente" ? "segment-vorsorge-rente" : "segment-vorsorge" };
-  };
+  const rueckkauf = r.positionen.filter((p) => p.klasse === "vorsorge").reduce((a, p) => a + p.wert_cents, 0);
   const stand = r.positionen.map((p) => p.standdatum).filter(Boolean).sort()[0] ?? "";
   return `
     <section class="panel panel-pad uebersicht-kachel uebersicht-kachel-breit" aria-labelledby="kachel-vermoegen">
@@ -312,6 +305,7 @@ function renderVermoegenKachel(modell) {
       </h2>
       <div class="kpi-value">${escapeHtml(geldOhneCent(r.netto_cents))}</div>
       <div class="kpi-note">${escapeHtml(t("vermoegen.netto"))} · ${escapeHtml(standText(stand))} ${teilbestandChip(r.positionen)}</div>
+      ${rueckkauf ? verweis(tf("overview.darinRueckkauf", { betrag: geldOhneCent(rueckkauf) })) : ""}
       <div class="vermoegen-teile">
         ${vermoegenTeil({
           titel: t("overview.vermoegenSchnell"),
@@ -332,21 +326,14 @@ function renderVermoegenKachel(modell) {
           ],
           darlehenKlasse: darlehen,
         })}
-        ${r.positionen.some((p) => p.klasse === "vorsorge") ? vermoegenTeil({
-          titel: t("overview.vorsorgeRueckkauf"),
-          positionen: r.positionen.filter((p) => p.klasse === "vorsorge"),
-          klassen: [rueckkauf("kapital"), rueckkauf("rente")],
-          info: t("overview.rueckkaufInfo"),
-          breit: true,
-        }) : ""}
       </div>
     </section>`;
 }
 
 // ------------------------------------------------------------- Vorsorge
 
-// Zwei gleich grosse Werte: die monatliche Rente und die faelligen Einmalzahlungen.
-// Beitraege und offene Punkte stehen auf der Vorsorgeseite.
+// Die monatliche Rente; Kapital und Rueckkaufswerte stehen je Vertrag in der
+// Versicherungskachel. Beitraege und offene Punkte stehen auf der Vorsorgeseite.
 function renderVorsorgeKachel(modell) {
   const { renten, stufen, gesamt_cents: gesamt, farben, gesetzlich } = modell.vorsorge;
   const farbKlasse = (id) => (Object.hasOwn(farben, id) ? `vertrag-farbe-${farben[id]}` : "vertrag-farbe-rest");
@@ -357,32 +344,7 @@ function renderVorsorgeKachel(modell) {
   const sortiert = [...renten].sort((a, b) => b.wert_cents - a.wert_cents);
   const segmente = sortiert.map((l) => ({ anteil: l.wert_cents / Math.max(gesamt, 1), klasse: farbKlasse(l.vorsorge_id), titel: `${l.name}: ${formatMoney(l.wert_cents)}` }));
 
-  // Faellig ist nur, was ein Datum hat; bedingte (z. B. Todesfallsumme) und
-  // undatierte Leistungen nennt die Notiz, ohne sie einzurechnen. Gleiche Rechnung
-  // wie die Vorsorgeseite. Einmalzahlungen = garantierte Ablaufleistung ohne weitere
-  // Beitraege; ohne sie zaehlt der Rueckkaufswert von heute ("Stand heute"). Die
-  // Ablaufleistung bei Weiterzahlung steht nur als Hinweis daneben.
-  const gruppen = modell.vorsorge.kapital;
-  const kapital = gruppen.terminiert;
-  const kapitalJahre = gruppen.jahre;
-  const kapitalSumme = gruppen.terminiert_cents;
-  const nichtFaellig = gruppen.nicht_faellig_cents;
-  const kapitalSegmente = [...kapital].sort((a, b) => b.wert_cents - a.wert_cents)
-    .map((l) => ({ anteil: l.wert_cents / Math.max(kapitalSumme, 1), klasse: farbKlasse(l.vorsorge_id), titel: `${l.name}: ${formatMoney(l.wert_cents)}` }));
-  const kapitalZeilen = kapital.map((l) => zeile(
-    `<a class="linkish" href="${escapeHtml(zielRoute("open-vorsorge", l.vorsorge_id))}" data-action="open-vorsorge" data-vorsorge="${escapeHtml(l.vorsorge_id)}">${escapeHtml(l.name)}</a>`,
-    escapeHtml(geldOhneCent(l.wert_cents)),
-    { zusatz: [formatDate(l.beginn), l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), punkt: farbKlasse(l.vorsorge_id), unter: weiterzahlungText(l, geldOhneCent) },
-  ));
-  const einmal = kapital.length ? `
-      <div class="uebersicht-zweitwert">
-        <h3 class="vermoegen-teil-titel">${link(ZIEL.vorsorgeTab("lebensversicherungen"), t("overview.kapitalFaellig"))}</h3>
-        <div class="kpi-value">${escapeHtml(geldOhneCent(kapitalSumme))} <span class="betrag-einheit">${escapeHtml(t("overview.einmalig"))}</span>${infoTipp(kapitalInfoText({
-          jahre: kapitalJahre, summe_cents: kapitalSumme, weiterzahlung_cents: gruppen.terminiert_weiterzahlung_cents,
-          stand_heute_cents: kapital.filter((l) => l.ersatz).reduce((a, l) => a + l.wert_cents, 0), nicht_faellig_cents: nichtFaellig }, geldOhneCent))}</div>
-        <div class="uebersicht-balken">${balkenSvg(kapitalSegmente)}</div>
-        <ul class="vorsorge-kopf-liste">${kapitalZeilen.join("")}</ul>
-      </div>` : "";
+  const ausVersicherungen = modell.versicherungen.rente_cents;
   return bereichsKachel({
     id: "vorsorge",
     icon: "vorsorge",
@@ -392,8 +354,64 @@ function renderVorsorgeKachel(modell) {
     wert: `${escapeHtml(geldOhneCent(gesamt))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonatBrutto"))}</span>`,
     notiz: escapeHtml(renten.length ? notizen.join(" · ") : t("vorsorge.kopf.keineRenten")),
     grafik: renten.length ? `<div class="uebersicht-balken">${balkenSvg(segmente)}</div>` : "",
-    zusatz: einmal,
+    zusatz: ausVersicherungen ? verweis(tf("overview.darinRente", { betrag: geldOhneCent(ausVersicherungen) })) : "",
   });
+}
+
+// ------------------------------------------------------------- Versicherungen
+
+// Hinweis in Vermoegen und Vorsorge auf die Versicherungskachel darunter.
+function verweis(text) {
+  return `<div class="kpi-note uebersicht-verweis">${escapeHtml(text)} ${iconSvg("chevronDown")}</div>`;
+}
+
+// Breite Kachel unter Vermoegen und Vorsorge: je Versicherung mit Rueckkaufswert
+// eine Zeile, nach Faelligkeit. Rentenvertraege zeigen die Monatsrente; die Summen
+// zaehlen nur Kapital. Ohne Garantie gilt bei Beitragsfreistellung der
+// Rueckkaufswert von heute (mit Sternchen).
+function renderVersicherungenKachel(modell) {
+  const v = modell.versicherungen;
+  if (!v.zeilen.length) return "";
+  const leer = `<span class="muted">—</span>`;
+  const betrag = (w) => {
+    if (!w) return leer;
+    const geld = escapeHtml(w.rente ? tf("overview.jeMonatKurz", { betrag: geldOhneCent(w.cents) }) : geldOhneCent(w.cents));
+    return w.annahme ? `${geld}<sup class="muted">*</sup>` : geld;
+  };
+  const spalten = [t("overview.versicherung.rueckkauf"), t("overview.versicherung.faellig"), t("overview.versicherung.beitragsfrei"), t("overview.versicherung.weiterzahlung")];
+  const zelle = (i, html) => `<td class="amount" data-label="${escapeHtml(spalten[i])}">${html}</td>`;
+  const zeilen = v.zeilen.map((z) => `
+          <tr>
+            <td class="karten-kopf"><a class="linkish" href="${escapeHtml(zielRoute("open-vorsorge", z.vorsorge_id))}" data-action="open-vorsorge" data-vorsorge="${escapeHtml(z.vorsorge_id)}">${escapeHtml(z.name)}</a>${z.person ? ` <span class="muted">${escapeHtml(z.person)}</span>` : ""}</td>
+            ${zelle(0, z.rueckkauf_cents === null ? leer : escapeHtml(geldOhneCent(z.rueckkauf_cents)))}
+            ${zelle(1, z.beginn ? escapeHtml(formatDate(z.beginn)) : leer)}
+            ${zelle(2, betrag(z.beitragsfrei))}
+            ${zelle(3, betrag(z.weiterzahlung))}
+          </tr>`);
+  const annahme = v.zeilen.some((z) => z.beitragsfrei?.annahme);
+  return `
+    <section class="panel panel-pad uebersicht-versicherungen" aria-labelledby="kachel-versicherungen">
+      <h2 class="uebersicht-kachel-kopf" id="kachel-versicherungen">
+        ${zielElement(ZIEL.vorsorgeTab("lebensversicherungen"), `${iconSvg("vorsorge")}<span>${escapeHtml(t("overview.versicherung.titel"))}</span>${iconSvg("chevronRight")}`)}
+      </h2>
+      <div class="table-wrap">
+        <table class="versicherungen-tabelle karten-tabelle">
+          <thead><tr><th>${escapeHtml(t("overview.versicherung.vertrag"))}</th>${spalten.map((s) => `<th class="amount">${escapeHtml(s)}</th>`).join("")}</tr></thead>
+          <tbody>${zeilen.join("")}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="karten-kopf">${escapeHtml(t("overview.versicherung.summe"))}${infoTipp(t("overview.versicherung.summeInfo"))}</td>
+              ${zelle(0, escapeHtml(geldOhneCent(v.rueckkauf_cents)))}
+              ${zelle(1, "")}
+              ${zelle(2, escapeHtml(geldOhneCent(v.beitragsfrei_cents)))}
+              ${zelle(3, escapeHtml(geldOhneCent(v.weiterzahlung_cents)))}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      ${annahme ? `<p class="kpi-note">* ${escapeHtml(t("overview.versicherung.annahme"))}</p>` : ""}
+    </section>`;
 }
 
 // ------------------------------------------------------------- Termine
@@ -477,6 +495,7 @@ export function renderOverview() {
       ${renderVermoegenKachel(modell)}
       ${renderVorsorgeKachel(modell)}
     </div>
+    ${renderVersicherungenKachel(modell)}
     ${renderTermineKachel(modell)}
     ${renderAbsicherungKacheln(modell.absicherung)}
   `;

@@ -10,9 +10,8 @@ import { anstehendeFristen } from "./fristen.mjs";
 import { anstehendeJahreszahlungen } from "./liquiditaet.mjs";
 import { planIst } from "./plan-ist.mjs";
 import { kontenGruppen, mittelVergleich, monatsMittel, vorjahresMittel } from "./uebersicht-rechnung.mjs";
-import { aktuellerZeitwert } from "./bewertung.mjs";
 import { computeNettovermoegen } from "./vermoegen.mjs";
-import { gesetzlicherRentenbeginn, kapitalLeistungen, rentenStufen, tabFuerVorsorge, vertragsFarben } from "./vorsorge-rechnung.mjs";
+import { gesetzlicherRentenbeginn, rentenStufen, versicherungsWerte, vertragsFarben } from "./vorsorge-rechnung.mjs";
 
 export const HORIZONT_MONATE = 12;
 
@@ -45,22 +44,8 @@ export function uebersichtModell(daten, heute) {
 
   const netto = computeNettovermoegen(daten, heute);
   const kontotyp = Object.fromEntries((daten.konten ?? []).map((k) => [k.konto_id, k.kontotyp]));
-  // Rueckkaufswerte fuehren in den Vorsorge-Reiter, der den groessten Teil davon haelt.
-  const jeTab = new Map();
-  for (const p of netto.positionen.filter((p) => p.klasse === "vorsorge")) {
-    const tab = tabFuerVorsorge((daten.vorsorge ?? []).find((vs) => vs.vorsorge_id === p.id));
-    jeTab.set(tab, (jeTab.get(tab) ?? 0) + p.wert_cents);
-  }
-  // Was bei Ablauf aus dem Rueckkaufswert wird: Rente (faellt dann aus dem
-  // Vermoegen) oder Kapital (bleibt als Guthaben).
-  const rueckkaufVerwendung = Object.fromEntries(netto.positionen.filter((p) => p.klasse === "vorsorge").map((p) => {
-    const vs = (daten.vorsorge ?? []).find((v) => v.vorsorge_id === p.id);
-    const rente = vs?.kapitalwahl === "monatsrente" || Boolean(aktuellerZeitwert(daten.zeitwerte, "vorsorge", p.id, "erwartete_rente", heute));
-    return [p.id, rente ? "rente" : "kapital"];
-  }));
 
   const { renten, stufen, gesamt_cents } = rentenStufen(daten);
-  const kapital = kapitalLeistungen(daten, heute);
   const kontoName = new Map((daten.konten ?? []).map((k) => [k.konto_id, k.name]));
 
   return {
@@ -95,8 +80,6 @@ export function uebersichtModell(daten, heute) {
       // fehlt: Position ohne Wert (Chip "bekannter Teilbestand" in der Kachel).
       positionen: netto.positionen.map(({ klasse, id, name, wert_cents, standdatum, fehlt }) => ({ klasse, id, name, wert_cents, standdatum, fehlt: Boolean(fehlt) })),
       kontotyp,
-      rueckkauf_verwendung: rueckkaufVerwendung,
-      rueckkauf_tab: [...jeTab].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "lebensversicherungen",
     },
     vorsorge: {
       renten: renten.map((l) => ({ ...vertrag(l.vorsorge), wert_cents: l.wert_cents })),
@@ -104,14 +87,9 @@ export function uebersichtModell(daten, heute) {
       gesamt_cents,
       farben: Object.fromEntries(vertragsFarben(daten)),
       gesetzlich: gesetzlicherRentenbeginn(daten),
-      kapital: {
-        terminiert: kapital.terminiert.map((l) => ({ ...vertrag(l.vorsorge), wert_cents: l.wert_cents, weiterzahlung_cents: l.weiterzahlung_cents, beginn: l.beginn, ersatz: Boolean(l.ersatz) })),
-        jahre: kapital.jahre,
-        terminiert_cents: kapital.terminiert_cents,
-        terminiert_weiterzahlung_cents: kapital.terminiert_weiterzahlung_cents,
-        nicht_faellig_cents: kapital.bedingt_cents + kapital.undatiert_cents,
-      },
     },
+    // Versicherungen mit Rueckkaufswert: heute, bei Beitragsfreistellung, bei Weiterzahlung.
+    versicherungen: versicherungsWerte(daten, heute),
     fristen: anstehendeFristen(daten, heute, HORIZONT_MONATE).map((f) => ({ ...f, bezug: bezugMitName(daten, f.bezug) })),
     zahlungen: anstehendeJahreszahlungen(daten.regelzahlungen, heute, HORIZONT_MONATE).map(({ datum, regelzahlung: rz }) => ({
       datum,

@@ -3569,7 +3569,22 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .uebersicht-kachel-kopf svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .uebersicht-balken { display: grid; gap: 4px; margin-top: 10px; }
 .uebersicht-termine,
+.uebersicht-versicherungen,
 .absicherung-kacheln { margin-top: 16px; }
+/* Hinweis in Vermoegen und Vorsorge auf die Versicherungskachel darunter. */
+.uebersicht-verweis { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+.uebersicht-verweis svg { width: 14px; height: 14px; flex: 0 0 auto; }
+/* Kompakt: Zeilen so niedrig wie die Kachellisten, Kopf ohne Versalien. */
+.uebersicht-versicherungen .table-wrap { margin-top: 8px; border: 0; }
+.versicherungen-tabelle { min-width: 0; font-size: 13px; }
+.versicherungen-tabelle th, .versicherungen-tabelle td { padding: 5px 8px; }
+.versicherungen-tabelle th { text-transform: none; letter-spacing: 0; font-weight: 600; vertical-align: bottom; }
+.versicherungen-tabelle th:first-child, .versicherungen-tabelle td:first-child { padding-left: 0; }
+.versicherungen-tabelle th:last-child, .versicherungen-tabelle td:last-child { padding-right: 0; }
+.versicherungen-tabelle .amount { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.versicherungen-tabelle tfoot td { font-weight: 650; border-top: 1px solid var(--border-strong); border-bottom: 0; }
+.versicherungen-tabelle sup { line-height: 0; }
+.uebersicht-versicherungen > .kpi-note { margin-top: 6px; }
 .termine-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 28px; margin-top: 10px; }
 .termine-titel { margin: 0 0 4px; font-size: 13px; }
 /* Hoechstens sechs Eintraege (Hoehe setzt termineListenBegrenzen), der Rest scrollt; die Zeitleiste scrollt beim Hover mit. */
@@ -3739,6 +3754,8 @@ td.logo-zelle .logo-marke { margin-right: 0; }
   .karten-tabelle td[data-label]::before { content: attr(data-label); color: var(--muted); text-align: left; font-weight: 400; margin-right: auto; }
   .karten-tabelle td.karten-kopf { display: block; text-align: left; font-weight: 600; padding-bottom: 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
   .karten-tabelle tr.plan-ist-detail td { display: block; text-align: left; padding: 6px 0; }
+  .versicherungen-tabelle tfoot { display: block; width: 100%; }
+  .versicherungen-tabelle td.amount:empty { display: none; }
   .karten-tabelle .plan-ist-abw { display: inline; margin-left: 6px; }
   .karten-tabelle .plan-ist-summe td { border-top: 0; }
 }

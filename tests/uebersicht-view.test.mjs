@@ -180,8 +180,10 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   assert.doesNotMatch(uebersicht, /account-table|hero-kpi|Nächste Aktion|copy-next-agent-prompt/);
   assert.match(bereich("liquiditaet"), /data-view="liquiditaet"[\s\S]*Liquidität/);
   assert.match(bereich("liquiditaet"), /<div class="kpi-value">1\.150\s€<\/div>[\s\S]*Verfügbares Geld · Stand 10\.6\.2026/);
-  // Liquiditaet nur als Summe, ohne Konten einzeln und ohne Prognose.
-  assert.doesNotMatch(bereich("liquiditaet"), /Giro belegt|vorsorge-kopf-liste|diagramm-wrap|Tiefster Stand|In zwölf Monaten/);
+  // Liquiditaet als Summe mit Balken je Konto (Link ins Konto), ohne Zeilen und ohne Prognose.
+  assert.match(bereich("liquiditaet"), /<a href="#\/vermoegen\/konten\/KTO-903"\s*data-action="open-vermoegen-entity" data-vklasse="konto" data-vid="KTO-903" aria-label="Giro belegt: 1\.150,00\s€"><rect /);
+  assert.match(bereich("liquiditaet"), /2 Konten/);
+  assert.doesNotMatch(bereich("liquiditaet"), /vorsorge-kopf-liste|diagramm-wrap|Tiefster Stand|In zwölf Monaten/);
   // Vermoegen ohne Zeilen: die Balkenabschnitte nennen Klasse und Betrag und fuehren ins Detail.
   assert.doesNotMatch(bereich("vermoegen"), /vorsorge-kopf-liste/);
   const abschnitt = (titel) => new RegExp(`<a href="#/vermoegen/konten"\\s*data-action="vermoegen-tab" data-tab="konten" aria-label="${titel}"><rect [^>]*data-titel="${titel}"`);
@@ -298,7 +300,7 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen
   assert.doesNotMatch(teil("Schnell verfügbar"), /Immobilien|Darlehen/);
   // Langfristig netto: Immobilien minus Darlehen, mit Schuldenbalken.
   // Jede Immobilie ein eigener Abschnitt, die wertvollste zuerst, der in ihre Details fuehrt.
-  assert.match(teil("Langfristig gebunden"), /vermoegen-teil-wert">250\.000\s€[\s\S]*href="#\/vermoegen\/immobilien\/IMM-901"\s*data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="IMM-901" aria-label="Testhaus: 300\.000,00\s€"[\s\S]*data-vid="IMM-902" aria-label="Testwohnung: 50\.000,00\s€"[\s\S]*data-tab="darlehen"[^>]*><rect[^>]*segment-darlehen/);
+  assert.match(teil("Langfristig gebunden"), /vermoegen-teil-wert">250\.000\s€[\s\S]*href="#\/vermoegen\/immobilien\/IMM-901"\s*data-action="open-vermoegen-entity" data-vklasse="immobilie" data-vid="IMM-901" aria-label="Testhaus: 300\.000,00\s€"[\s\S]*data-vid="IMM-902" aria-label="Testwohnung: 50\.000,00\s€"[\s\S]*data-vklasse="darlehen" data-vid="DAR-901" aria-label="Testdarlehen: 100\.000,00\s€"><rect[^>]*segment-darlehen/);
   assert.doesNotMatch(teil("Langfristig gebunden"), /vorsorge-kopf-liste/);
 
   const vorsorge = html.match(/aria-labelledby="kachel-vorsorge">[\s\S]*?<\/section>/)?.[0] ?? "";
@@ -368,7 +370,9 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   assert.match(kachel("ausgaben"), /<details data-details="uebersicht\.uebrige\.ausgaben"><summary>[\s\S]*Übrige[\s\S]*<ul class="flach-unterliste"><li><button class="linkish" data-action="kategorie-transactions" data-kategorie="KAT-006"/);
 
   // Sparquote: (3000 - 1700) / 3000 = 43 %, Rest bleibt auf den Konten.
-  assert.match(kachel("sparquote"), /Sparquote[\s\S]*<div class="kpi-value">43\s%<\/div>[\s\S]*1\.300\s€ \/ Monat übrig/);
+  assert.match(kachel("sparquote"), /Sparquote[\s\S]*info-tipp-text" role="tooltip">1\.300\s€ \/ Monat übrig · 1 Monat · [^<]*Sparquote = [\s\S]*<div class="kpi-value">43\s%<\/div>/);
+  // Zeitraum steht nur im Info-Zeichen, nicht als eigene Zeile.
+  assert.doesNotMatch(kachel("einnahmen"), /<div class="kpi-note">/);
   assert.match(kachel("sparquote"), /<summary>[\s\S]*?Konten &amp; Tagesgeld<\/span><span class="amount">1\.300\s€[\s\S]*?data-konto="KTO-901"/);
   assert.match(kachel("sparquote"), /class="info-tipp"[\s\S]*Sparquote = \(Einnahmen − Ausgaben\)/);
   assert.doesNotMatch(kachel("sparquote"), /flach-fuss/);

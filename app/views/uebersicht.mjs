@@ -125,9 +125,11 @@ function rundeUnter(unter, zielCents) {
   return gruppen.flatMap((g, i) => [{ ...g.kopf, mittel_cents: koepfe[i] }, ...rundeTeile(g.teile, koepfe[i])]);
 }
 
-// Flache Kachel: Kennzahl, darunter Trendpfeil und Notiz in einer Zeile, dann
-// die Leiste und unter ihr die Legende. Teile mit negativem Betrag stehen nur in der Legende.
+// Flache Kachel: Kennzahl, darunter Trendpfeil und Plan in einer Zeile, dann
+// die Leiste und unter ihr die Legende. Zeitraum und Erlaeuterung (notiz, info)
+// stehen im Info-Zeichen am Titel. Teile mit negativem Betrag stehen nur in der Legende.
 function flacheKachel({ id, titel, info = "", wert, trend = "", notiz, plan = "", teile: roh, summe_cents }) {
+  const infoText = [notiz, info].filter(Boolean).join(" ");
   const teile = summe_cents === undefined ? roh : rundeTeile(roh, summe_cents);
   const basis = Math.max(teile.filter((k) => k.mittel_cents > 0).reduce((a, k) => a + k.mittel_cents, 0), 1);
   const segmente = teile.filter((k) => k.mittel_cents > 0).map((k) => ({ anteil: k.mittel_cents / basis, klasse: k.klasse, titel: `${k.name}: ${formatMoney(k.mittel_cents)}` }));
@@ -135,11 +137,10 @@ function flacheKachel({ id, titel, info = "", wert, trend = "", notiz, plan = ""
   return `
     <section class="panel panel-pad uebersicht-flach-kachel" aria-labelledby="kachel-${id}">
       <h2 class="uebersicht-kachel-kopf" id="kachel-${id}">
-        ${zielElement(ZIEL.liquiditaet, `${iconSvg("liquiditaet")}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}`)}${info ? infoTipp(info) : ""}
+        ${zielElement(ZIEL.liquiditaet, `${iconSvg("liquiditaet")}<span>${escapeHtml(titel)}</span>${iconSvg("chevronRight")}`)}${infoTipp(infoText)}
       </h2>
       <div class="kpi-value">${wert}</div>
-      <div class="kpi-note">${trend ? `<span class="kpi-trend">${trend}</span> · ` : ""}${notiz}</div>
-      ${plan ? `<div class="kpi-plan">${plan}</div>` : ""}
+      ${trend || plan ? `<div class="kpi-plan">${[trend ? `<span class="kpi-trend">${trend}</span>` : "", plan].filter(Boolean).join(" · ")}</div>` : ""}
       ${teile.length ? `
       <div class="flach-inhalt">
         <div class="uebersicht-balken">${segmente.length ? balkenSvg(segmente) : ""}</div>
@@ -167,7 +168,7 @@ function renderEinnahmenAusgaben(modell) {
   const { mittel, plan, trend } = modell;
   if (!mittel.anzahl_monate) return "";
   const zeitraum = mittel.anzahl_monate === 1 ? formatMonatLang(mittel.monate[0]) : `${formatMonatLang(mittel.monate[0])} – ${formatMonatLang(mittel.monate.at(-1))}`;
-  const basisNotiz = `${escapeHtml(tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate }))} · ${escapeHtml(zeitraum)}`;
+  const basisNotiz = `${tf(mittel.anzahl_monate === 1 ? "overview.mittelEins" : "overview.mittelMonate", { n: mittel.anzahl_monate })} · ${zeitraum}.`;
   const jeMonat = (cents) => `${escapeHtml(geldOhneCent(cents))} <span class="betrag-einheit">${escapeHtml(t("vorsorge.jeMonat"))}</span>`;
   const { sparen } = mittel;
   // Planzeile: Plan aus den Regelzahlungen im selben Zeitraum, Abweichung
@@ -225,7 +226,7 @@ function renderEinnahmenAusgaben(modell) {
         info: t("overview.sparquoteInfo"),
         wert: sparen.quote === null ? "–" : escapeHtml(formatProzent(sparen.quote)),
         trend: quotePfeil(trend?.sparquote, trend?.zeitraum),
-        notiz: `${escapeHtml(tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) }))} · ${basisNotiz}`,
+        notiz: `${tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) })} · ${basisNotiz}`,
         plan: quoteZeile,
         teile: sparTeile,
         summe_cents: sparen.ueberschuss_cents,
@@ -234,10 +235,18 @@ function renderEinnahmenAusgaben(modell) {
 
 // ------------------------------------------------------------- Liquiditaet
 
-// Nur die Summe der verfuegbaren Konten; die Konten einzeln und die Prognose
-// stehen auf der Liquiditaetsseite.
+// Summe der verfuegbaren Konten und ein Balken, ein Abschnitt je Konto (Hover:
+// Name und Betrag, Klick: das Konto). Die Prognose steht auf der Liquiditaetsseite.
 function renderLiquiditaetKachel(modell) {
   const verfuegbar = modell.konten;
+  const positiv = verfuegbar.zeilen.filter((z) => z.wert_cents > 0).sort((a, b) => b.wert_cents - a.wert_cents);
+  const basis = Math.max(positiv.reduce((a, z) => a + z.wert_cents, 0), 1);
+  const segmente = positiv.map((z, i) => ({
+    anteil: z.wert_cents / basis,
+    klasse: `vertrag-farbe-${i % 14}`,
+    titel: `${z.name}: ${formatMoney(z.wert_cents)}`,
+    ziel: ZIEL.vermoegenObjekt("konto", z.konto_id),
+  }));
   return bereichsKachel({
     id: "liquiditaet",
     icon: "liquiditaet",
@@ -245,6 +254,7 @@ function renderLiquiditaetKachel(modell) {
     ziel: ZIEL.liquiditaet,
     wert: escapeHtml(geldOhneCent(verfuegbar.summe_cents)),
     notiz: `${escapeHtml(t("overview.availableMoney"))} · ${escapeHtml(standText(verfuegbar.aeltester))}`,
+    grafik: segmente.length ? `<div class="uebersicht-balken">${balkenSvg(segmente)}</div><div class="kpi-note">${escapeHtml(tf("overview.kontenAnzahl", { n: verfuegbar.zeilen.length }))}</div>` : "",
   });
 }
 
@@ -252,20 +262,21 @@ function renderLiquiditaetKachel(modell) {
 
 // Unterkachel der Vermoegenskachel: Teilsumme und Balken. Jeder Abschnitt nennt
 // beim Hovern Klasse und Betrag und fuehrt per Klick ins Detail.
-function vermoegenTeil({ titel, positionen, klassen, darlehenKlasse = null }) {
+// Darlehen (darlehen) stehen als eigener roter Balken darunter, je Darlehen ein
+// Abschnitt, in der Laenge relativ zu den Aktiva.
+function vermoegenTeil({ titel, positionen, klassen, darlehen = [] }) {
   const summe = (filter) => positionen.filter(filter).reduce((a, p) => a + p.wert_cents, 0);
-  const sichtbar = klassen.filter((k) => positionen.some(k.filter));
-  const aktiva = sichtbar.filter((k) => k !== darlehenKlasse).reduce((a, k) => a + summe(k.filter), 0);
-  const basis = Math.max(aktiva, 1);
-  const segmente = sichtbar.filter((k) => k !== darlehenKlasse).map((k) => ({
-    anteil: summe(k.filter) / basis,
+  const abschnitte = (liste, basis, betrag = (k) => summe(k.filter)) => liste.filter((k) => positionen.some(k.filter)).map((k) => ({
+    anteil: betrag(k) / basis,
     klasse: k.punkt,
-    titel: `${k.titel}: ${formatMoney(summe(k.filter))}`,
+    titel: `${k.titel}: ${formatMoney(betrag(k))}`,
     ziel: k.ziel,
   }));
-  const schulden = darlehenKlasse && sichtbar.includes(darlehenKlasse) ? -summe(darlehenKlasse.filter) : 0;
+  const aktiva = klassen.reduce((a, k) => a + summe(k.filter), 0);
+  const basis = Math.max(aktiva, 1);
+  const schulden = -darlehen.reduce((a, k) => a + summe(k.filter), 0);
   const balken = aktiva || schulden
-    ? `<div class="uebersicht-balken">${balkenSvg(segmente)}${schulden ? balkenSvg([{ anteil: 1, klasse: "segment-darlehen", titel: `${t("vermoegen.passiva")}: ${formatMoney(schulden)}`, ziel: darlehenKlasse.ziel }], { laenge: schulden / basis }) : ""}</div>`
+    ? `<div class="uebersicht-balken">${balkenSvg(abschnitte(klassen, basis))}${schulden ? balkenSvg(abschnitte(darlehen, Math.max(schulden, 1), (k) => -summe(k.filter)), { laenge: schulden / basis }) : ""}</div>`
     : "";
   return `
         <div class="vermoegen-teil">
@@ -286,10 +297,10 @@ function renderVermoegenKachel(modell) {
   const istFestgeld = (p) => p.klasse === "konto" && kontotyp.get(p.id) === "festgeld";
   const schnell = (p) => p.klasse === "konto";
   const klasse = (key, ziel) => ({ titel: t(`vermoegen.klassePlural.${key}`), filter: (p) => p.klasse === key, ziel, punkt: `segment-${key}` });
-  const darlehen = klasse("darlehen", ZIEL.vermoegenTab("darlehen"));
-  // Immobilien einzeln, die wertvollste zuerst; der Link oeffnet ihre Details.
-  const immobilien = r.positionen.filter((p) => p.klasse === "immobilie").sort((a, b) => b.wert_cents - a.wert_cents)
-    .map((imm) => ({ titel: imm.name, filter: (p) => p.klasse === "immobilie" && p.id === imm.id, ziel: ZIEL.vermoegenObjekt("immobilie", imm.id), punkt: "segment-immobilie" }));
+  // Immobilien und Darlehen einzeln, die groessten zuerst; der Link oeffnet ihre Details.
+  const einzeln = (key) => r.positionen.filter((p) => p.klasse === key).sort((a, b) => Math.abs(b.wert_cents) - Math.abs(a.wert_cents))
+    .map((o) => ({ titel: o.name, filter: (p) => p.klasse === key && p.id === o.id, ziel: ZIEL.vermoegenObjekt(key, o.id), punkt: `segment-${key}` }));
+  const immobilien = einzeln("immobilie");
   const rueckkauf = r.positionen.filter((p) => p.klasse === "vorsorge").reduce((a, p) => a + p.wert_cents, 0);
   const stand = r.positionen.map((p) => p.standdatum).filter(Boolean).sort()[0] ?? "";
   return `
@@ -316,9 +327,8 @@ function renderVermoegenKachel(modell) {
           klassen: [
             ...immobilien,
             klasse("vermoegenswert", ZIEL.vermoegenTab("sonstige")),
-            darlehen,
           ],
-          darlehenKlasse: darlehen,
+          darlehen: einzeln("darlehen"),
         })}
       </div>
     </section>`;
@@ -354,13 +364,13 @@ function renderVorsorgeKachel(modell) {
 
 // ------------------------------------------------------------- Versicherungen
 
-// Hinweis in Vermoegen und Vorsorge auf die Versicherungskachel darunter.
+// Hinweis in Vermoegen und Vorsorge auf die Versicherungskachel daneben.
 function verweis(text) {
-  return `<div class="kpi-note uebersicht-verweis">${escapeHtml(text)} ${iconSvg("chevronDown")}</div>`;
+  return `<div class="kpi-note uebersicht-verweis">${escapeHtml(text)}</div>`;
 }
 
-// Breite Kachel unter Vermoegen und Vorsorge: je Versicherung mit Rueckkaufswert
-// eine Zeile, nach Faelligkeit. Rentenvertraege zeigen die Monatsrente; die Summen
+// Kachel zwischen Vermoegen und Vorsorge: je Versicherung mit Rueckkaufswert
+// eine Zeile, nach Faelligkeit; die Person steht im Tooltip des Namens. Rentenvertraege zeigen die Monatsrente; die Summen
 // zaehlen nur Kapital. Ohne Garantie gilt bei Beitragsfreistellung der
 // Rueckkaufswert von heute (mit Sternchen).
 function renderVersicherungenKachel(modell) {
@@ -376,7 +386,7 @@ function renderVersicherungenKachel(modell) {
   const zelle = (i, html) => `<td class="amount" data-label="${escapeHtml(spalten[i])}">${html}</td>`;
   const zeilen = v.zeilen.map((z) => `
           <tr>
-            <td class="karten-kopf"><a class="linkish" href="${escapeHtml(zielRoute("open-vorsorge", z.vorsorge_id))}" data-action="open-vorsorge" data-vorsorge="${escapeHtml(z.vorsorge_id)}">${escapeHtml(z.name)}</a>${z.person ? ` <span class="muted">${escapeHtml(z.person)}</span>` : ""}</td>
+            <td class="karten-kopf"><a class="linkish" href="${escapeHtml(zielRoute("open-vorsorge", z.vorsorge_id))}" data-action="open-vorsorge" data-vorsorge="${escapeHtml(z.vorsorge_id)}" title="${escapeHtml([z.name, z.person].filter(Boolean).join(" · "))}">${escapeHtml(z.name)}</a></td>
             ${zelle(0, z.rueckkauf_cents === null ? leer : escapeHtml(geldOhneCent(z.rueckkauf_cents)))}
             ${zelle(1, z.beginn ? escapeHtml(formatDate(z.beginn)) : leer)}
             ${zelle(2, betrag(z.beitragsfrei))}
@@ -384,7 +394,7 @@ function renderVersicherungenKachel(modell) {
           </tr>`);
   const annahme = v.zeilen.some((z) => z.beitragsfrei?.annahme);
   return `
-    <section class="panel panel-pad uebersicht-versicherungen" aria-labelledby="kachel-versicherungen">
+    <section class="panel panel-pad uebersicht-kachel uebersicht-versicherungen" aria-labelledby="kachel-versicherungen">
       <h2 class="uebersicht-kachel-kopf" id="kachel-versicherungen">
         ${zielElement(ZIEL.vorsorgeTab("lebensversicherungen"), `${iconSvg("vorsorge")}<span>${escapeHtml(t("overview.versicherung.titel"))}</span>${iconSvg("chevronRight")}`)}
       </h2>
@@ -489,9 +499,9 @@ export function renderOverview() {
     </div>
     <div class="uebersicht-kacheln">
       ${renderVermoegenKachel(modell)}
+      ${renderVersicherungenKachel(modell)}
       ${renderVorsorgeKachel(modell)}
     </div>
-    ${renderVersicherungenKachel(modell)}
     ${renderTermineKachel(modell)}
     ${renderAbsicherungKacheln(modell.absicherung)}
   `;

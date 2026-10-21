@@ -273,8 +273,25 @@ test("ungepruefte und beendete Vertraege stehen in eigenen Gruppen", async () =>
 
     state.vorsorgeTab = "versicherungen";
     html = (await vorsorgeGezeichnet());
+    assert.match(html, /data-kachel="vorsorge\.beendet\.versicherungen"[^>]*aria-expanded="false"[\s\S]*Beendet \(1\)/, "beendete Vertraege zugeklappt");
+    assert.doesNotMatch(html, /Alte Haftpflicht/);
+
+    state.klappKacheln = { ...state.klappKacheln, "vorsorge.beendet.versicherungen": true };
+    html = (await vorsorgeGezeichnet());
     assert.match(html, /Beendet \(1\)[\s\S]*Alte Haftpflicht/);
     assert.match(html, /Gekündigt/);
+  });
+});
+
+test("Vertragsliste links, Detail rechts daneben", async () => {
+  await mitFixture(async () => {
+    state.vorsorgeTab = "renten";
+    const html = await vorsorgeGezeichnet();
+    const liste = html.indexOf('class="vorsorge-liste"');
+    const detail = html.indexOf('class="vorsorge-detail-spalte"');
+    assert.ok(liste > 0 && detail > liste, "Liste vor dem Detail im selben Rahmen");
+    assert.ok(html.indexOf("objekt-karte ", liste) < detail, "Karten stehen in der Liste");
+    assert.ok(html.indexOf("objekt-detail-titel") > detail, "Detail in der rechten Spalte");
   });
 });
 

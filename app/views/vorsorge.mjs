@@ -1,8 +1,8 @@
 // app/views/vorsorge.mjs
 // Vorsorgeseite im Aufbau der Vermoegensseite: Kopf (erwartetes Alterseinkommen,
 // Kapitalleistungen, Rueckkaufswerte, Beitraege), darunter je Vertragsart ein Tab
-// (Renten, Lebensversicherungen, Versicherungen). Im Tab eine Karte je Vertrag,
-// darunter der gewaehlte Vertrag in voller Breite. Rechnen in vorsorge-rechnung.mjs.
+// (Renten, Lebensversicherungen, Versicherungen). Im Tab links die Vertragsliste,
+// rechts daneben der gewaehlte Vertrag. Rechnen in vorsorge-rechnung.mjs.
 import { data, state, t, tf, fmt, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
@@ -345,14 +345,40 @@ function renderGruppenTab(tab, today, offen) {
     <div class="vorsorge-gruppe-titel">${escapeHtml(titel)} (${vertraege.length})</div>
     ${lead ? `<p class="muted vorsorge-gruppe-lead">${escapeHtml(lead)}</p>` : ""}
     ${karten(vertraege)}` : "";
+  // Beendete Vertraege sind selten gefragt: zugeklappt, ausser einer davon ist gewaehlt.
+  const beendetGruppe = beendet.length ? klappKachel({
+    id: `vorsorge.beendet.${tab}`,
+    titel: `${t("vorsorge.gruppe.beendet")} (${beendet.length})`,
+    inhalt: karten(beendet),
+    offen: beendet.includes(auswahl),
+    klasse: "vorsorge-liste-gruppe",
+  }) : "";
 
+  // Liste links, Detail rechts: ein Klick wechselt nur das Detail, die Liste bleibt stehen.
   return `
     <div class="vorsorge-tab-kopf"><span class="muted">${escapeHtml(tf("vorsorge.tabLead", { n: liste.length }))}</span>${filter}</div>
     ${tab === "versicherungen" ? renderBeitragsRanking(liste, today) : ""}
-    ${laufend.length ? karten(laufend) : ""}
-    ${gruppe(ungeprueft, t("vorsorge.gruppe.ungeprueft"), t("vorsorge.ungeprueftHinweis"))}
-    ${gruppe(beendet, t("vorsorge.gruppe.beendet"))}
-    ${auswahl ? renderDetail(auswahl, tab, today, offen) : `<section class="panel panel-pad"><p class="muted">${escapeHtml(t("vorsorge.noMatches"))}</p></section>`}`;
+    <div class="vorsorge-master-detail">
+      <nav class="vorsorge-liste" aria-label="${escapeHtml(t(`vorsorge.tabs.${tab}`))}">
+        ${laufend.length ? karten(laufend) : ""}
+        ${gruppe(ungeprueft, t("vorsorge.gruppe.ungeprueft"), t("vorsorge.ungeprueftHinweis"))}
+        ${beendetGruppe}
+      </nav>
+      <div class="vorsorge-detail-spalte">
+        ${auswahl ? renderDetail(auswahl, tab, today, offen) : `<section class="panel panel-pad"><p class="muted">${escapeHtml(t("vorsorge.noMatches"))}</p></section>`}
+      </div>
+    </div>`;
+}
+
+// Nach der Wahl eines Vertrags: die gewaehlte Karte in der Liste sichtbar halten und,
+// wenn das Detail nicht im Blick ist (schmaler Bildschirm, weit gescrollt), dorthin springen.
+export function vorsorgeAuswahlZeigen() {
+  if (typeof document === "undefined") return;
+  document.querySelector(".vorsorge-liste .objekt-karte.active")?.scrollIntoView?.({ block: "nearest" });
+  const titel = document.querySelector(".vorsorge-detail-spalte .objekt-detail-titel");
+  const oben = titel?.getBoundingClientRect?.().top;
+  if (oben === undefined) return;
+  if (oben < 0 || oben > window.innerHeight * 0.6) titel.scrollIntoView({ block: "start", behavior: "smooth" });
 }
 
 // Jahresbeitrag je Versicherung als Rangliste, dazu die Veraenderung zum Vorjahr:

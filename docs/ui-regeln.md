@@ -17,6 +17,9 @@ eigenes Escaping in Views; ein Test prueft das.
   Tooltips und Checks zeigen den Betrag mit Cent (`geld`).
 - Deutsch formatiert als `de-DE`, Englisch einheitlich als `en-GB` (Euro,
   Tag vor Monat).
+- **Stand und Qualitaet einer Kennzahl** stehen rechts neben ihrer Ueberschrift
+  („Stand 1.2.2026“ plus Symbol: Haken = belegt, Kreis = geschaetzt; der Text steht im
+  Tooltip), nicht in der Notiz (`kennzahl(..., { stand })`, `qualitaetMarke`).
 - Texte mit Platzhaltern ueber `tf("schluessel", { name: wert })`, nicht mit
   `.replace("{name}", ...)`.
 

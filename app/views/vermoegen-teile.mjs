@@ -19,10 +19,21 @@ export function qualitaetChip(p) {
   return `<span class="chip ${p.qualitaet === "belegt" ? "success" : "neutral"}">${p.qualitaet === "belegt" ? iconSvg("success") : ""}${escapeHtml(t(`vermoegen.quality${p.qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`))}</span>`;
 }
 
-export function kennzahl(label, wertHtml, notizHtml = "", { titel = "" } = {}) {
+// Kurzform fuer Kennzahlen: nur das Symbol, Qualitaet und Stand stehen im Tooltip.
+export function qualitaetMarke(qualitaet, standdatum = "") {
+  const fehlt = !qualitaet;
+  const text = [t(fehlt ? "vermoegen.qualityFehlend" : `vermoegen.quality${qualitaet === "belegt" ? "Belegt" : "Geschaetzt"}`), standdatum ? tf("vermoegen.standAm", { datum: formatDate(standdatum) }) : ""].filter(Boolean).join(" · ");
+  const art = fehlt ? "review" : qualitaet === "belegt" ? "success" : "neutral";
+  return `<span class="chip ${art} qualitaet-marke" title="${escapeHtml(text)}" aria-label="${escapeHtml(text)}" role="img">${iconSvg(art)}</span>`;
+}
+
+// stand: Zeitwert ({ qualitaet, standdatum }) der Hauptzahl; Stand und Qualitaet stehen dann
+// rechts neben der Ueberschrift, die Notiz bleibt fuer den Inhalt frei.
+export function kennzahl(label, wertHtml, notizHtml = "", { titel = "", stand = null } = {}) {
+  const standHtml = stand ? `<span class="kennzahl-stand">${escapeHtml(tf("vermoegen.standAm", { datum: formatDate(stand.standdatum) }))}${qualitaetMarke(stand.qualitaet, stand.standdatum)}</span>` : "";
   return `
     <div class="kennzahl"${titel ? ` title="${escapeHtml(titel)}"` : ""}>
-      <div class="kennzahl-label">${escapeHtml(label)}</div>
+      <div class="kennzahl-label">${standHtml ? `<span>${escapeHtml(label)}</span>${standHtml}` : escapeHtml(label)}</div>
       <div class="kennzahl-wert">${wertHtml}</div>
       ${notizHtml ? `<div class="kennzahl-notiz">${notizHtml}</div>` : ""}
     </div>`;

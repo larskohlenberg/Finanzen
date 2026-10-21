@@ -11,7 +11,7 @@ import { monatsBalken, jahresBalken, restschuldVerlauf } from "../charts.mjs";
 import { darlehenKennzahlen, darlehensKategorien, immobilienKennzahlen, investitionsKategorien } from "../vermoegen-details.mjs";
 import { belegOrdnerAusText } from "../belege.mjs";
 import {
-  balkenSvg, dokumenteBrowserHtml, geld, kennzahl, laufzeitText, prozent, qualitaetChip, rateJeMonatCents,
+  balkenSvg, dokumenteBrowserHtml, geld, kennzahl, laufzeitText, prozent, rateJeMonatCents,
   fristenText, renderPositionWertstaende, rhythmusLabel, sondertilgungenRow,
 } from "./vermoegen-teile.mjs";
 
@@ -171,11 +171,10 @@ function renderImmobilieDetail(imm, today, modell) {
   }
 
   const marktwertNotiz = k.marktwert
-    ? `${qualitaetChip({ qualitaet: k.marktwert.qualitaet })} ${escapeHtml(formatDate(k.marktwert.standdatum))}${k.anteilig_cents !== k.marktwert_cents ? ` · ${escapeHtml(t("vermoegen.immobilie.gesamt"))} ${escapeHtml(formatMoney(k.marktwert_cents))}` : ""}`
-    : "";
+    && k.anteilig_cents !== k.marktwert_cents ? `${escapeHtml(t("vermoegen.immobilie.gesamt"))} ${escapeHtml(formatMoney(k.marktwert_cents))}` : "";
   const kennzahlen = `
     <div class="kennzahl-raster">
-      ${kennzahl(t("vermoegen.immobilie.marktwertAnteilig"), k.anteilig_cents === null ? `<span class="chip review">${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : geld(k.anteilig_cents), marktwertNotiz)}
+      ${kennzahl(t("vermoegen.immobilie.marktwertAnteilig"), k.anteilig_cents === null ? `<span class="chip review">${escapeHtml(t("vermoegen.qualityFehlend"))}</span>` : geld(k.anteilig_cents), marktwertNotiz, { stand: k.marktwert })}
       ${kennzahl(t("vermoegen.immobilie.restschuldZugeordnet"), k.darlehen_ids.length ? geld(-k.restschuld_cents, { negativ: true }) : `<span class="muted">${escapeHtml(t("vermoegen.immobilie.schuldenfrei"))}</span>`, k.darlehen_ids.length && !k.restschuld_vollstaendig ? escapeHtml(t("vermoegen.immobilie.restschuldUnvollstaendig")) : "")}
       ${kennzahl(t("vermoegen.immobilie.eigenkapital"), geld(k.eigenkapital_cents), k.restschuld_cents && k.beleihung !== null ? `${escapeHtml(t("vermoegen.immobilie.beleihung"))} ${escapeHtml(prozent(k.beleihung))}` : "")}
       ${kennzahl(viertesLabel, durchschnitt === null ? `<span class="muted">—</span>` : geld(durchschnitt, { negativ: true }), viertesNotiz)}

@@ -22,7 +22,7 @@ import {
 } from "../vorsorge-rechnung.mjs";
 import { dynamikStand, widerspruchFuerFrist } from "../vorsorge-dynamik.mjs";
 import { fristenZuObjekt } from "../fristen.mjs";
-import { balkenSvg, dokumenteBrowserHtml, fristenText, geld, kennzahl, prozent, qualitaetChip, rhythmusLabel } from "./vermoegen-teile.mjs";
+import { balkenSvg, dokumenteBrowserHtml, fristenText, geld, kennzahl, prozent, qualitaetMarke, rhythmusLabel } from "./vermoegen-teile.mjs";
 
 const GRUPPEN_TABS = VORSORGE_TABS.filter((tab) => tab !== "uebersicht");
 
@@ -498,10 +498,6 @@ function renderDetail(vs, tab, today, offen) {
     </div>`;
 }
 
-function zeitwertNotiz(zw) {
-  return `${qualitaetChip({ qualitaet: zw.qualitaet })} ${escapeHtml(formatDate(zw.standdatum))}`;
-}
-
 function kennzahlenVorsorge(vs, today) {
   const rkw = zeitwert(vs, "rueckkaufswert");
   const vertragswert = zeitwert(vs, "vertragswert");
@@ -511,12 +507,14 @@ function kennzahlenVorsorge(vs, today) {
 
   let wert;
   if (rkw) {
-    const zusatz = vertragswert ? ` · ${escapeHtml(t("vorsorge.vertragswert"))} ${escapeHtml(geldOhneCent(cents(vertragswert.wert)))}` : "";
-    const nicht = vs.kapitalbildend ? "" : ` · ${escapeHtml(t("vorsorge.nichtImVermoegen"))}`;
-    const gebunden = istRiester(vs) ? `<br>${escapeHtml(t("vorsorge.riester.nurBeiKuendigung"))}` : "";
-    wert = kennzahl(rkwLabel(vs), geld(cents(rkw.wert)), zeitwertNotiz(rkw) + nicht + zusatz + gebunden);
+    const zeile = [
+      vs.kapitalbildend ? "" : escapeHtml(t("vorsorge.nichtImVermoegen")),
+      vertragswert ? `${escapeHtml(t("vorsorge.vertragswert"))} ${escapeHtml(geldOhneCent(cents(vertragswert.wert)))}` : "",
+    ].filter(Boolean).join(" · ");
+    const gebunden = istRiester(vs) ? escapeHtml(t("vorsorge.riester.nurBeiKuendigung")) : "";
+    wert = kennzahl(rkwLabel(vs), geld(cents(rkw.wert)), [zeile, gebunden].filter(Boolean).join("<br>"), { stand: rkw });
   } else if (vertragswert) {
-    wert = kennzahl(t("vorsorge.vertragswert"), geld(cents(vertragswert.wert)), `${escapeHtml(formatDate(vertragswert.standdatum))} · ${escapeHtml(t("vorsorge.nichtImVermoegen"))}`);
+    wert = kennzahl(t("vorsorge.vertragswert"), geld(cents(vertragswert.wert)), escapeHtml(t("vorsorge.nichtImVermoegen")), { stand: vertragswert });
   } else if (vs.kapitalbildend) {
     wert = kennzahl(t("vorsorge.rueckkaufswert"), `<span class="chip review">${escapeHtml(t("vermoegen.qualityFehlend"))}</span>`, escapeHtml(t("vorsorge.nochNichtImVermoegen")));
   } else {
@@ -524,13 +522,13 @@ function kennzahlenVorsorge(vs, today) {
   }
 
   const leistung = rente
-    ? kennzahl(t("vorsorge.erwarteteRente"), `${geld(cents(rente.wert))} ${einheit(t("vorsorge.jeMonat"))}`, zeitwertNotiz(rente) + (istRiester(vs) ? `<br>${escapeHtml(riesterHinweis(vs))}` : ""))
+    ? kennzahl(t("vorsorge.erwarteteRente"), `${geld(cents(rente.wert))} ${einheit(t("vorsorge.jeMonat"))}`, istRiester(vs) ? escapeHtml(riesterHinweis(vs)) : "", { stand: rente })
     : kapital
       ? kennzahl(t("vorsorge.kapitalBeiAblauf"), geld(cents(kapital.wert)), [
-        kapitalAblauf.ersatz ? `${escapeHtml(t("vorsorge.kapitalStandHeute"))} · ${escapeHtml(formatDate(kapital.standdatum))}`
-          : `${kapitalAblauf.weiterzahlung ? `${escapeHtml(t("vorsorge.kapitalGarantiert"))} · ` : ""}${zeitwertNotiz(kapital)}`,
+        kapitalAblauf.ersatz ? escapeHtml(t("vorsorge.kapitalStandHeute"))
+          : kapitalAblauf.weiterzahlung ? escapeHtml(t("vorsorge.kapitalGarantiert")) : "",
         kapitalAblauf.weiterzahlung ? escapeHtml(tf("vorsorge.beiWeiterzahlung", { betrag: formatMoney(cents(kapitalAblauf.weiterzahlung.wert)) })) : "",
-      ].filter(Boolean).join("<br>"))
+      ].filter(Boolean).join("<br>"), { stand: kapital })
       : kennzahl(t("vorsorge.erwarteteLeistung"), `<span class="muted">—</span>`, escapeHtml(t("vorsorge.keineLeistung")));
 
   let beginnNotiz = "";
@@ -580,7 +578,7 @@ function kennzahlenVersicherung(vs, today) {
     + kennzahl(t("vorsorge.naechsteFaelligkeit"), naechster ? escapeHtml(formatDate(naechster.datum)) : `<span class="muted">—</span>`, konto ? escapeHtml(tf("vorsorge.lastschriftVon", { konto })) : "")
     + veraenderung
     + (rkw
-      ? kennzahl(t("vorsorge.rueckkaufswert"), geld(cents(rkw.wert)), zeitwertNotiz(rkw) + (vs.kapitalbildend ? "" : ` · ${escapeHtml(t("vorsorge.nichtImVermoegen"))}`))
+      ? kennzahl(t("vorsorge.rueckkaufswert"), geld(cents(rkw.wert)), vs.kapitalbildend ? "" : escapeHtml(t("vorsorge.nichtImVermoegen")), { stand: rkw })
       : kennzahl(t("vorsorge.geprueftAm"), vs.geprueft_am ? escapeHtml(formatDate(vs.geprueft_am)) : `<span class="chip ungeprueft">${escapeHtml(t("vorsorge.ungeprueft"))}</span>`, ""));
 }
 
@@ -800,7 +798,7 @@ function absicherungKennzahl(vs) {
   const [haupt, ...rest] = werte;
   const betrag = (w) => `${geld(cents(w.zw.wert))}${w.monatlich ? ` ${einheit(t("vorsorge.jeMonat"))}` : ""}`;
   const weitere = rest.map((w) => `<br>${escapeHtml(t(FELD_LABEL[w.feld]))} ${escapeHtml(formatMoney(cents(w.zw.wert)))}${w.monatlich ? ` ${escapeHtml(t("vorsorge.jeMonat"))}` : ""}`).join("");
-  return kennzahl(t("vorsorge.absicherung"), betrag(haupt), `${escapeHtml(t(FELD_LABEL[haupt.feld]))} · ${zeitwertNotiz(haupt.zw)}${weitere}`);
+  return kennzahl(t("vorsorge.absicherung"), betrag(haupt), `${escapeHtml(t(FELD_LABEL[haupt.feld]))}${weitere}`, { stand: haupt.zw });
 }
 
 // Kennzahlen im Vertragsdetail: vier Grundkacheln, dazu Absicherung und
@@ -823,7 +821,7 @@ function renderAnhang(vs) {
     ? staende.map((zw) => `
       <div class="wertstand-item">
         <div><strong>${escapeHtml(formatMoney(cents(zw.wert)))}</strong> <span class="muted">${escapeHtml(zw.feld === "rueckkaufswert" ? rkwLabel(vs) : t(FELD_LABEL[zw.feld] ?? zw.feld))}${ausserhalbVermoegen(vs, zw.feld) ? ` (${escapeHtml(t("vorsorge.nichtImVermoegen"))})` : ""} · ${escapeHtml(formatDate(zw.standdatum))}</span></div>
-        <div>${qualitaetChip({ qualitaet: zw.qualitaet })}</div>
+        <div>${qualitaetMarke(zw.qualitaet, zw.standdatum)}</div>
         ${zw.quelle_hinweis ? `<div class="muted">${quelleHtml(zw.quelle_hinweis)}</div>` : ""}
       </div>`).join("")
     : `<p class="muted">${escapeHtml(t("vermoegen.noWertstaende"))}</p>`;

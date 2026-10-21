@@ -547,8 +547,8 @@ test("Absicherung als Kennzahl-Kachel: Hauptwert, weitere Werte darunter, mit Dy
     const html = (await vorsorgeGezeichnet());
     const raster = html.match(/<div class="kennzahl-raster kennzahl-raster-5">([\s\S]*?)<\/div>\s*<section/)?.[1] ?? "";
     assert.equal(anzahl(raster, /class="kennzahl"/g), 5, "Absicherung als fuenfte Kachel");
-    assert.match(raster, /Absicherung<\/div>\s*<div class="kennzahl-wert">[\s\S]*?1\.500,00\s€<\/span> <span class="betrag-einheit">\/ Monat/);
-    assert.match(raster, /BU-Rente · [\s\S]*1\.1\.2026<br>Todesfallleistung 45\.000,00\s€/, "juengster Todesfallwert unter der BU-Rente");
+    assert.match(raster, /Absicherung<\/span><span class="kennzahl-stand">Stand 1\.1\.2026<span class="chip [^"]+ qualitaet-marke"[\s\S]*?<div class="kennzahl-wert">[\s\S]*?1\.500,00\s€<\/span> <span class="betrag-einheit">\/ Monat/, "Stand der Hauptzahl neben der Ueberschrift");
+    assert.match(raster, /<div class="kennzahl-notiz">BU-Rente<br>Todesfallleistung 45\.000,00\s€/, "juengster Todesfallwert unter der BU-Rente, ohne Datum in der Notiz");
   }, { zeitwerte });
 
   const termin = "2099-12-01";

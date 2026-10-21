@@ -73,3 +73,21 @@ test("Regelzahlungen zeigen die ID und markieren die angesteuerte Zeile", () => 
   assert.match(html, /aria-sort="ascending"><button class="linkish sort-th" data-action="rz-sort" data-sort="bezeichnung">/);
   state.selectedRegelzahlungId = "";
 });
+
+test("Regelzahlungen zeigen die Gueltigkeit in Monaten und den Status nur als Symbol mit Tooltip", () => {
+  data.regelzahlungen = [
+    { regelzahlung_id: "RZ-001", bezeichnung: "Befristet", betrag: "100.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2027-01-28", aktiv_bis: "2028-03-31", status: "bestaetigt" },
+    { regelzahlung_id: "RZ-002", bezeichnung: "Offen", betrag: "-20.00", rhythmus_einheit: "monat", rhythmus_intervall: 1, anker_datum: "2026-07-01", status: "bestaetigt" },
+  ];
+  state.view = "termine";
+  state.lang = "de";
+  const html = renderRegelzahlungen();
+  assert.match(html, /<th>Gültig<\/th>/);
+  const zeile = (id) => html.match(new RegExp(`id="regelzahlung-${id}"[\\s\\S]*?</tr>`))[0];
+  assert.match(zeile("RZ-001"), /<td>1\/2027 – 3\/2028<\/td>/);
+  assert.match(zeile("RZ-002"), /<td>ab 7\/2026<\/td>/);
+  // Bestaetigt: nur der Haken, das Wort steht im Tooltip und fuer Screenreader im aria-label.
+  assert.match(zeile("RZ-001"), /<span class="chip success status-marke" title="Bestätigt" aria-label="Bestätigt"><svg/);
+  assert.doesNotMatch(zeile("RZ-001"), /<\/svg>Bestätigt/);
+  assert.doesNotMatch(zeile("RZ-001"), /bis 31\.3\.2028/);
+});

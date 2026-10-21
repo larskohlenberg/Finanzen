@@ -685,7 +685,8 @@ tbody tr.transaction-row:focus-within td {
   background: var(--surface-2);
 }
 
-.transfer-marke {
+.transfer-marke,
+.status-marke {
   justify-content: center;
   min-width: 26px;
   padding: 4px;

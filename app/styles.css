@@ -3645,6 +3645,21 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 /* Hoechstens sechs Eintraege (Hoehe setzt termineListenBegrenzen), der Rest scrollt; die Zeitleiste scrollt beim Hover mit. */
 .termine-liste { position: relative; margin: 0; padding: 0; list-style: none; font-size: 13px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .termine-liste li.aktiv { background: var(--accent-soft); }
+/* Scrollbare Listen der Uebersicht zeigen ihren Balken immer: macOS blendet
+   Scrollbalken sonst aus, und man sieht nicht, dass mehr kommt. Ein gestalteter
+   ::-webkit-scrollbar ist in Chrome und Safari dauerhaft sichtbar; Firefox kennt
+   ihn nicht und bekommt den schmalen Standardbalken in denselben Farben. */
+.versicherungen-scroll::-webkit-scrollbar,
+.termine-liste::-webkit-scrollbar { width: 8px; }
+.versicherungen-scroll::-webkit-scrollbar-track,
+.termine-liste::-webkit-scrollbar-track { background: var(--surface-2); border-radius: 4px; }
+.versicherungen-scroll::-webkit-scrollbar-thumb,
+.termine-liste::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+.versicherungen-scroll::-webkit-scrollbar-thumb:hover,
+.termine-liste::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+@supports not selector(::-webkit-scrollbar) {
+  .versicherungen-scroll, .termine-liste { scrollbar-width: thin; scrollbar-color: var(--border-strong) var(--surface-2); }
+}
 .termine-liste li { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--border); }
 .termine-datum { color: var(--muted); font-variant-numeric: tabular-nums; }
 /* Einzeilig: der Name behaelt Vorrang, der graue Bezug wird zuerst gekuerzt; voller Text im title. */

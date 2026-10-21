@@ -3584,8 +3584,9 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .flach-legende .amount { min-width: 8ch; text-align: right; }
 .uebersicht-flach-kachel .uebersicht-kachel-kopf { display: flex; align-items: center; gap: 6px; }
 /* Gleich hohe Kacheln und eine feste Groesse fuer alle Kennzahlen (statt an die Kachelbreite gekoppelt). */
-.uebersicht-kacheln { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr); gap: 16px; align-items: stretch; }
-.vermoegen-teile { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+/* Zweite Zeile: Vermoegen (Unterkacheln untereinander), Versicherungen, Vorsorge. */
+.uebersicht-kacheln { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.75fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.vermoegen-teile { display: grid; gap: 8px; margin-top: 10px; }
 .vermoegen-teil { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
 .vermoegen-teil-titel { margin: 0; color: var(--muted); font-size: 13px; font-weight: 650; }
 .vermoegen-teil-wert { margin: 4px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
@@ -3604,17 +3605,21 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .uebersicht-kachel-kopf svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .uebersicht-balken { display: grid; gap: 4px; margin-top: 10px; }
 .uebersicht-balken a { cursor: pointer; }
+/* Trennstrich zwischen gleichfarbigen Abschnitten (Immobilien, Darlehen). */
+.uebersicht-balken .balken-segment { stroke: var(--surface); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .uebersicht-balken a:focus-visible rect { outline: 2px solid var(--accent); }
 .uebersicht-termine,
-.uebersicht-versicherungen,
 .absicherung-kacheln { margin-top: 16px; }
 /* Hinweis in Vermoegen und Vorsorge auf die Versicherungskachel darunter. */
-.uebersicht-verweis { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
-.uebersicht-verweis svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.uebersicht-verweis { margin-top: 4px; }
 /* Kompakt: Zeilen so niedrig wie die Kachellisten, Kopf ohne Versalien. */
 .uebersicht-versicherungen .table-wrap { margin-top: 8px; border: 0; }
-.versicherungen-tabelle { min-width: 0; font-size: 13px; }
-.versicherungen-tabelle th, .versicherungen-tabelle td { padding: 5px 8px; }
+.versicherungen-tabelle { min-width: 0; font-size: 12px; table-layout: fixed; }
+.versicherungen-tabelle th, .versicherungen-tabelle td { padding: 4px 5px; }
+.versicherungen-tabelle th { font-size: 11px; }
+.versicherungen-tabelle th.amount { white-space: normal; hyphens: auto; }
+.versicherungen-tabelle th:first-child { width: 30%; }
+.versicherungen-tabelle td:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .versicherungen-tabelle th { text-transform: none; letter-spacing: 0; font-weight: 600; vertical-align: bottom; }
 .versicherungen-tabelle th:first-child, .versicherungen-tabelle td:first-child { padding-left: 0; }
 .versicherungen-tabelle th:last-child, .versicherungen-tabelle td:last-child { padding-right: 0; }
@@ -3654,6 +3659,12 @@ td.logo-zelle .logo-marke { margin-right: 0; }
 .terminleiste-marker.ueberfaellig { fill: var(--danger); }
 .termine-liste li.ueberfaellig .termine-datum { color: var(--danger); }
 .termine-liste li.bald .termine-datum { color: var(--review); }
+/* Unter 1280 px ist die Mitte fuer fuenf Zahlenspalten zu eng: Vermoegen und
+   Vorsorge nebeneinander, die Versicherungen in voller Breite darunter. */
+@media (max-width: 1280px) {
+  .uebersicht-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .uebersicht-versicherungen { grid-column: 1 / -1; order: 1; }
+}
 @media (max-width: 1100px) {
   .uebersicht-kacheln { grid-template-columns: 1fr; }
   .uebersicht-flach { grid-template-columns: repeat(2, minmax(0, 1fr)); }

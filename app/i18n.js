@@ -127,6 +127,7 @@ window.FINANCE_I18N = {
       sparziel: { liquide: "Kurzfristig liquide", depot: "Depots", versicherung: "Versicherungsverträge" },
       sparquoteInfo: "Sparquote = (Einnahmen − Ausgaben) / Einnahmen, Ø der Monate im Zeitraum. Der Zeitraum endet mit dem letzten Monat, der auf allen Konten vollständig gebucht ist. Umbuchungen zwischen eigenen Konten zählen nicht. Steuererstattungen sind ein Sondereffekt und zählen nicht als Einnahme. Depots und Versicherungsverträge kommen aus den Buchungen ihrer Kategorien; Konten & Tagesgeld ist der Rest. Aufgeklappt zeigt er die tatsächliche Veränderung je Konto, ihre Summe und darunter, was auf den Konten liegt, aber nicht aus dem laufenden Überschuss kommt (Steuererstattung, Investitionen, nicht markierte Umbuchungen).",
       darinRueckkauf: "darin {betrag} Rückkaufswerte der Versicherungen",
+      kontenAnzahl: "{n} Konten",
       darinRente: "darin {betrag} / Monat aus Versicherungen",
       jeMonatKurz: "{betrag} / Monat",
       versicherung: {
@@ -1423,6 +1424,7 @@ window.FINANCE_I18N = {
       sparziel: { liquide: "Short-term liquid", depot: "Securities accounts", versicherung: "Insurance contracts" },
       sparquoteInfo: "Savings rate = (income − spending) / income, average over the months in the period. The period ends with the last month fully booked on all accounts. Transfers between own accounts do not count. Tax refunds are one-offs and do not count as income. Securities and insurance contracts come from the bookings of their categories; short-term liquid is the rest (accounts, savings, fixed deposits).",
       darinRueckkauf: "incl. {betrag} insurance surrender values",
+      kontenAnzahl: "{n} accounts",
       darinRente: "incl. {betrag} / month from insurance contracts",
       jeMonatKurz: "{betrag} / month",
       versicherung: {

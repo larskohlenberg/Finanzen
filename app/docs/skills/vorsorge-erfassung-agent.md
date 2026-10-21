@@ -49,7 +49,16 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
   keinen `rueckkaufswert`.
 - **Kapitalprognose / Ablaufleistung:** `erwartete_kapitalleistung` als Zeitwert
   erfassen, wenn der Beleg eine einmalige Leistung oder ein Kapitalwahlrecht
-  ausweist. Garantiert eine fondsgebundene Lebensversicherung keine
+  ausweist (das ist der Wert bei Weiterzahlung bis zum Ablauf).
+- **Leistung nach Beitragsfreistellung:** Nennt der Beleg die garantierte
+  Ablaufleistung, wenn keine Beitraege mehr fliessen (oft "Garantierte Leistung
+  bei Beitragsfreistellung" oder eine Auskunft auf Anfrage), diese als
+  `beitragsfreie_kapitalleistung` erfassen. `standdatum` ist der
+  Freistellungsstichtag aus dem Beleg. Nur den garantierten Teil nehmen, keine
+  Modellrechnung. Diesen Wert bei jeder Jahresmitteilung mit erfassen: Er ist
+  der Wert, der in Summen und Zeitstrahl zaehlt. Fehlt er bei einer
+  kapitalbildenden Lebensversicherung, zaehlt ersatzweise der neueste
+  `rueckkaufswert` als "Stand heute". Garantiert eine fondsgebundene Lebensversicherung keine
   Ablaufleistung, nichts eintragen, auch nicht den Rueckkaufswert: Die App
   zeigt dann den jeweils neuesten `rueckkaufswert` als Kapital "Stand heute,
   nicht garantiert". Dafuer braucht der Vertrag `leistung_beginn` (Ablauf).

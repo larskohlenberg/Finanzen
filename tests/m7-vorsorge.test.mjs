@@ -125,6 +125,22 @@ test("vorsorge-leistung-Annahme mit unbekannter vorsorge_id ist Fehler", () => {
   assert.ok(validateMasterData(data).errors.some((e) => e.includes("VS-777")));
 });
 
+test("vorsorge-leistung: fortfuehrung nur beim Kapital-Arm, beitragsfrei braucht beitragsfrei_ab", () => {
+  const fehler = (annahme) => validateMasterData(basis({
+    vorsorge: [{ vorsorge_id: "VS-003", art: "lebensversicherung", name: "LV", person_id: "PER-001", status: "aktiv", kapitalbildend: true }],
+    szenarien: [{ szenario_id: "SZN-001", name: "LV", status: "entwurf", stand: "2026-06-28", reichweite_bis: "2050-12-31", erstellt_am: "2026-06-28",
+      annahmen: [{ annahme_id: "A1", art: "vorsorge-leistung", vorsorge_id: "VS-003", arm: "kapital", ab: "2041-03-01", qualitaet: "belegt", ...annahme }] }],
+  })).errors.filter((e) => e.includes("SZN-001"));
+  assert.deepEqual(fehler({}), []);
+  assert.deepEqual(fehler({ fortfuehrung: "beitragsfrei", beitragsfrei_ab: "2026-09-01" }), []);
+  assert.deepEqual(fehler({ fortfuehrung: "kuendigen" }), []);
+  assert.ok(fehler({ fortfuehrung: "pausieren" }).some((e) => e.includes("fortfuehrung ungueltig")));
+  assert.ok(fehler({ fortfuehrung: "beitragsfrei" }).some((e) => e.includes("beitragsfrei_ab")));
+  assert.ok(fehler({ fortfuehrung: "beitragsfrei", beitragsfrei_ab: "2042-01-01" }).some((e) => e.includes("beitragsfrei_ab")), "nach ab");
+  assert.ok(fehler({ beitragsfrei_ab: "2026-09-01" }).some((e) => e.includes("nur mit fortfuehrung beitragsfrei")));
+  assert.ok(fehler({ arm: "rente", fortfuehrung: "kuendigen" }).some((e) => e.includes("nur beim arm kapital")));
+});
+
 // --- Review-Fixes ---
 
 test("gegenbuchung(vorsorge) mit existierender vorsorge_id ist valide", () => {

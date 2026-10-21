@@ -199,6 +199,21 @@ function restschuldProjektion(darlehen, startRest, today, horizon, sondertilgung
 // regelzahlung-neu (lebenslanges Einkommen) + bei kapitalbildenden Vertraegen ein 0-Cash-
 // einmalzahlung-Abbau des Rueckkaufswerts (Verrentung); Arm 'kapital' -> einmalzahlung
 // (Kapitalzufluss) + Abbau bei kapitalbildend. Qualitaet: ungeprueft -> offen.
+// Beim Kapital-Arm sagt `fortfuehrung`, wie es bis dahin weitergeht: weiterzahlen
+// (Standard, Ablaufleistung bei Weiterzahlung), beitragsfrei ab `beitragsfrei_ab`
+// (garantierte Leistung ohne weitere Beitraege) oder kuendigen zum `ab` (neuester
+// Rueckkaufswert sofort). Bei beitragsfrei und kuendigen enden die Beitraege.
+const FORTFUEHRUNG_FELD = { weiterzahlen: "erwartete_kapitalleistung", beitragsfrei: "beitragsfreie_kapitalleistung", kuendigen: "rueckkaufswert" };
+
+// Beitraege eines Vertrags ab `ab` im Szenario beenden. Liegt der Anker einer
+// Regelzahlung spaeter, endet sie an ihrem Anker (frueher griffe das Beenden ins Leere).
+function beitraegeBeenden(data, vorsorgeId, ab, annahme, begruendung) {
+  return (data.regelzahlungen ?? [])
+    .filter((r) => r.status === "bestaetigt" && r.vorsorge_id === vorsorgeId && toCents(r.betrag) < 0 && !(r.aktiv_bis && r.aktiv_bis < ab))
+    .map((r) => ({ annahme_id: `${annahme.annahme_id}~${r.regelzahlung_id}`, art: "regelzahlung-aenderung", regelzahlung_id: r.regelzahlung_id,
+      aktion: "beenden", ab: r.anker_datum > ab ? r.anker_datum : ab, qualitaet: annahme.qualitaet, begruendung }));
+}
+
 // Ereignis BU oder Arbeitslosigkeit ab `ab` (bis optional `bis`) fuer eine Person:
 // Die Beitraege aller laufenden Vertraege dieser Person mit passender
 // Beitragsbefreiung entfallen; bei BU fliessen zusaetzlich die erfassten BU- und
@@ -250,13 +265,21 @@ export function expandVorsorgeLeistungen(data, szenario, today) {
     if (a.art !== "vorsorge-leistung") { annahmen.push(a); continue; }
     const vs = (data.vorsorge ?? []).find((v) => v.vorsorge_id === a.vorsorge_id);
     if (!vs) { warnungen.push({ code: "vorsorge-unbekannt", annahme_id: a.annahme_id, vorsorge_id: a.vorsorge_id }); continue; }
-    const feld = a.arm === "kapital" ? "erwartete_kapitalleistung" : "erwartete_rente";
+    const fortfuehrung = a.arm === "kapital" ? (a.fortfuehrung ?? "weiterzahlen") : null;
+    const feld = a.arm === "kapital" ? FORTFUEHRUNG_FELD[fortfuehrung] : "erwartete_rente";
     const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", a.vorsorge_id, feld, today);
     if (!zw) { warnungen.push({ code: "vorsorge-leistung-ohne-wert", annahme_id: a.annahme_id, vorsorge_id: a.vorsorge_id, feld }); continue; }
     const qualitaet = vs.geprueft_am ? (zw.qualitaet ?? "offen") : "offen";
     if (a.arm === "kapital") {
       annahmen.push({ annahme_id: a.annahme_id, art: "einmalzahlung", datum: a.ab, betrag: zw.wert, qualitaet,
         gegenbuchung: vs.kapitalbildend ? { ziel_typ: "vorsorge", ziel_id: vs.vorsorge_id } : undefined });
+      if (fortfuehrung === "beitragsfrei") {
+        // Der Belegwert gilt fuer die Freistellung zu seinem Standdatum; spaeter freigestellt waere es etwas mehr.
+        if (a.beitragsfrei_ab !== zw.standdatum) warnungen.push({ code: "beitragsfrei-stichtag", annahme_id: a.annahme_id, vorsorge_id: a.vorsorge_id, datum: a.beitragsfrei_ab, stichtag: zw.standdatum });
+        annahmen.push(...beitraegeBeenden(data, vs.vorsorge_id, a.beitragsfrei_ab, { ...a, qualitaet }, `Beitragsfrei ab ${a.beitragsfrei_ab}`));
+      } else if (fortfuehrung === "kuendigen") {
+        annahmen.push(...beitraegeBeenden(data, vs.vorsorge_id, a.ab, { ...a, qualitaet }, `Kündigung zum ${a.ab}`));
+      }
     } else {
       annahmen.push({ annahme_id: a.annahme_id, art: "regelzahlung-neu", name: vs.name, betrag: zw.wert, qualitaet,
         rhythmus_einheit: "monat", rhythmus_intervall: 1, ab: a.ab, bis: a.bis });

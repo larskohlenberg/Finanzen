@@ -52,6 +52,7 @@ export const VORLAGEN = Object.freeze({
   "ereignis-ohne-wirkung": "Ereignis {annahme}: kein Vertrag mit Beitragsbefreiung oder BU-Leistung für {person}",
   "vorsorge-unbekannt": "Annahme {annahme} verweist auf unbekannte Vorsorge {vorsorge}",
   "vorsorge-leistung-ohne-wert": "Vorsorge {vorsorge} hat keinen {feld}-Zeitwert",
+  "beitragsfrei-stichtag": "Annahme {annahme}: beitragsfreier Wert von {vorsorge} gilt für die Freistellung zum {stichtag}, angenommen ist {datum}",
   "startbestand-unbekannt": "Startbestand unvollständig, ohne belegten Wert: {positionen}",
   "depot-ueberzogen": "Verkauf übersteigt verfügbaren Depotwert ({annahme})",
   "depot-vorbehalt": "Gegenbuchung auf Depot {konto} ist ein Vorbehalt, kein Garant",
@@ -108,6 +109,7 @@ export function szenarioWarnungText(w, format = {}) {
     case "ereignis-ohne-wirkung": return satz("ereignis-ohne-wirkung", { annahme: w.annahme_id, person: w.person_id });
     case "vorsorge-unbekannt": return satz("vorsorge-unbekannt", { annahme: w.annahme_id, vorsorge: w.vorsorge_id });
     case "vorsorge-leistung-ohne-wert": return satz("vorsorge-leistung-ohne-wert", { vorsorge: w.vorsorge_id, feld: w.feld });
+    case "beitragsfrei-stichtag": return satz("beitragsfrei-stichtag", { annahme: w.annahme_id, vorsorge: w.vorsorge_id, stichtag: datum(w.stichtag), datum: datum(w.datum) });
     case "startbestand-unbekannt": return satz("startbestand-unbekannt", { positionen: (w.positionen ?? []).map((p) => `${wort(`klasse-${p.klasse}`) ?? p.klasse} ${p.name}`).join(", ") });
     case "depot-ueberzogen": return satz("depot-ueberzogen", { annahme: w.annahme_id });
     case "depot-vorbehalt": return w.vorbehalt ?? satz("depot-vorbehalt", { konto: w.konto_id });

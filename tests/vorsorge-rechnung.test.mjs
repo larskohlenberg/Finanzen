@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   beitragJeJahrCents, beitragJeJahrVertrag, beitragJeMonatCents, beitragJeMonatVertrag, beitragVorjahr, erwarteteLeistungen,
-  gebuchteBeitraegeAlle, kapitalZumAblauf, gesetzlicherRentenbeginn, leistungsZeitstrahl, monateBis, naechsterBeitrag,
+  gebuchteBeitraegeAlle, kapitalLeistungen, kapitalZumAblauf, gesetzlicherRentenbeginn, leistungsZeitstrahl, monateBis, naechsterBeitrag,
   rentenStufen, tabFuerVorsorge, vermoegensBezug, beitragsAenderungen, vertragsFarben,
 } from "../app/vorsorge-rechnung.mjs";
 
@@ -177,6 +177,38 @@ test("Vertragsfarben: mehr Vertraege als Farben beginnen die Palette von vorn st
   assert.equal(farben.get("VS-016"), 1);
 });
 
+test("Kapital zum Ablauf: zaehlt die garantierte Leistung ohne weitere Beitraege, die bei Weiterzahlung nur als Hinweis", () => {
+  const d = {
+    vorsorge: [
+      { vorsorge_id: "VS-020", art: "lebensversicherung", name: "Klassik", person_id: "PER-001", status: "aktiv", kapitalbildend: true, leistung_beginn: "2036-07-01" },
+      { vorsorge_id: "VS-021", art: "lebensversicherung", name: "Ohne LV-Art", person_id: "PER-001", status: "aktiv", kapitalbildend: true, leistung_beginn: "2041-03-01" },
+      { vorsorge_id: "VS-022", art: "riester", name: "Riester", person_id: "PER-001", status: "aktiv", kapitalbildend: false, leistung_beginn: "2039-01-01" },
+    ],
+    zeitwerte: [
+      zw("VS-020", "rueckkaufswert", "15000.00"),
+      zw("VS-020", "erwartete_kapitalleistung", "30000.00"),
+      zw("VS-020", "beitragsfreie_kapitalleistung", "22000.00"),
+      zw("VS-021", "beitragsfreie_kapitalleistung", "16000.00"),
+      zw("VS-022", "erwartete_kapitalleistung", "9000.00"),
+    ],
+  };
+  const vs = (id) => d.vorsorge.find((v) => v.vorsorge_id === id);
+  assert.deepEqual(kapitalZumAblauf(d, vs("VS-020")), { zeitwert: d.zeitwerte[2], ersatz: false, weiterzahlung: d.zeitwerte[1] });
+  assert.deepEqual(kapitalZumAblauf(d, vs("VS-021")), { zeitwert: d.zeitwerte[3], ersatz: false, weiterzahlung: null });
+  // Ausserhalb kapitalbildender Lebensversicherungen bleibt die erwartete Kapitalleistung.
+  assert.deepEqual(kapitalZumAblauf(d, vs("VS-022")), { zeitwert: d.zeitwerte[4], ersatz: false, weiterzahlung: null });
+
+  const k = kapitalLeistungen(d, HEUTE);
+  assert.deepEqual(k.terminiert.map((l) => [l.vorsorge.vorsorge_id, l.wert_cents, l.weiterzahlung_cents]), [
+    ["VS-020", 2200000, 3000000],
+    ["VS-022", 900000, null],
+    ["VS-021", 1600000, null],
+  ]);
+  assert.equal(k.terminiert_cents, 4700000, "Summe nur garantiert");
+  assert.equal(k.terminiert_weiterzahlung_cents, 5500000, "bei Weiterzahlung: 30.000 statt 22.000");
+  assert.equal(leistungsZeitstrahl(d, HEUTE).kapital.at(-1), 4700000, "Zeitstrahl nur garantiert");
+});
+
 test("Kapital zum Ablauf: Lebensversicherung ohne Ablaufleistung zaehlt mit dem neuesten Rueckkaufswert", () => {
   const lv = (id, extra = {}) => ({ vorsorge_id: id, art: "lebensversicherung", name: id, person_id: "PER-001", status: "aktiv", kapitalbildend: true, ...extra });
   const d = {
@@ -206,13 +238,14 @@ test("Kapital zum Ablauf: Lebensversicherung ohne Ablaufleistung zaehlt mit dem 
   const ersatz = kapitalZumAblauf(d, vs("VS-010"));
   assert.equal(ersatz.ersatz, true);
   assert.equal(ersatz.zeitwert.wert, "37454.52");
-  assert.deepEqual(kapitalZumAblauf(d, vs("VS-011")), { zeitwert: d.zeitwerte[3], ersatz: false });
+  // Ablaufleistung nur bei Weiterzahlung belegt: es zaehlt vorsichtig der Rueckkaufswert.
+  assert.deepEqual(kapitalZumAblauf(d, vs("VS-011")), { zeitwert: d.zeitwerte[2], ersatz: true, weiterzahlung: d.zeitwerte[3] });
   for (const id of ["VS-012", "VS-013", "VS-014", "VS-015"]) assert.equal(kapitalZumAblauf(d, vs(id)), null, id);
 
   const kapital = erwarteteLeistungen(d).filter((l) => l.typ === "kapital");
   assert.deepEqual(kapital.map((l) => [l.vorsorge.vorsorge_id, l.wert_cents, l.ersatz, l.beginn]), [
     ["VS-010", 3745452, true, "2051-11-01"],
-    ["VS-011", 2500000, false, null],
+    ["VS-011", 2000000, true, null],
   ]);
   const z = leistungsZeitstrahl(d, HEUTE);
   assert.equal(z.kapital.at(-1), 3745452);

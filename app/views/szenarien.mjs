@@ -474,7 +474,9 @@ function annahmeZeile(a) {
     wirkung = `${vorzeichen(cents(a.betrag))} ${t("szenarien.einmalig")}`;
   } else if (a.art === "vorsorge-leistung") {
     const arm = t(`szenarien.arm.${a.arm}`);
-    nachher = arm === `szenarien.arm.${a.arm}` ? a.arm : arm;
+    // Wie es bis zur Auszahlung weitergeht, nur wenn die Annahme es ausdruecklich sagt.
+    const weiter = a.arm === "kapital" && a.fortfuehrung ? tf(`szenarien.fortfuehrung.${a.fortfuehrung}`, { datum: a.beitragsfrei_ab ? formatDate(a.beitragsfrei_ab) : "" }) : "";
+    nachher = [arm === `szenarien.arm.${a.arm}` ? a.arm : arm, weiter].filter(Boolean).join(" · ");
   } else if (a.art === "ereignis") {
     nachher = `${t(`szenarien.ereignisFolge.${a.fall}`)}${a.bis ? ` ${t("szenarien.bis")} ${monatLabel(a.bis)}` : ""}`;
     // Monatswirkung zu Beginn: entfallende Beitraege plus einsetzende Renten.

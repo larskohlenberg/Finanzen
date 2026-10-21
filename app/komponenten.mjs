@@ -282,6 +282,13 @@ export function kachelZeile(linkHtml, betrag, zusatz = "", farbe = "") {
   return `<li>${farbe ? farbPunkt(farbe) : ""}${linkHtml}${zusatz ? `<span class="muted">${escapeHtml(zusatz)}</span>` : ""}<span class="amount">${escapeHtml(betrag)}</span></li>`;
 }
 
+// Unterzeile einer Kapitalleistung: die Ablaufleistung bei Weiterzahlung, eingeklammert
+// und ohne eigenen Betrag; nur wenn sie vom gezaehlten Wert abweicht.
+export function weiterzahlungZeile(l, geld) {
+  if (!l.weiterzahlung_cents || l.weiterzahlung_cents === l.wert_cents) return "";
+  return `<li class="kopf-unterzeile"><span class="muted">${escapeHtml(tf("vorsorge.beiWeiterzahlung", { betrag: geld(l.weiterzahlung_cents) }))}</span></li>`;
+}
+
 // Pfeil des Jahresvergleichs (trendVergleich aus uebersicht-rechnung.mjs):
 // letzte zwoelf Monate gegen die zwoelf davor. Gruen, wenn die Richtung guenstig
 // ist (mehrIstGut), sonst rot; seitwaerts grau oder (ohneSeitwaerts) gar nicht.

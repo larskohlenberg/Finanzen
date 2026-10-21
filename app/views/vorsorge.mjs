@@ -6,7 +6,7 @@
 import { data, state, t, tf, fmt, escapeHtml, cents, personenById, kontenById } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
-import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein, checkFormat } from "../komponenten.mjs";
+import { heuteIso, formatMoney, formatDate, logoMarke, mitLogo, renderPageHead, detailRow, quelleHtml, klappKachel, bemerkungInhalt, kennzahlKachel, kachelZeile, farbPunkt, zeitverlaufKlein, checkFormat, weiterzahlungZeile } from "../komponenten.mjs";
 import { iconSvg } from "../icons.js";
 import { vermoegenCheckText } from "../check-texte.mjs";
 import { aktuellerZeitwert } from "../vermoegen.mjs";
@@ -181,8 +181,12 @@ function renderUebersichtTab(today, offen) {
 
   // Faellig ist nur Terminiertes; bedingte (z. B. Todesfallsumme) und undatierte
   // Leistungen stehen darunter, ohne Jahr und ohne in die Summe einzugehen.
-  // Ohne belegte Ablaufleistung zaehlt der heutige Rueckkaufswert (ersatz), markiert als "Stand heute".
-  const kapitalZeile = (l, zusatz) => zeile(vertragLink(l.vorsorge.vorsorge_id, l.vorsorge.name), formatMoney(l.wert_cents), [zusatz, l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), farbKlasse(farben, l.vorsorge.vorsorge_id));
+  // Es zaehlt die garantierte Leistung ohne weitere Beitraege; ohne sie der heutige
+  // Rueckkaufswert (ersatz, "Stand heute"). Die Ablaufleistung bei Weiterzahlung steht
+  // nur eingeklammert in einer Zeile darunter.
+  const kapitalZeile = (l, zusatz) => zeile(vertragLink(l.vorsorge.vorsorge_id, l.vorsorge.name), formatMoney(l.wert_cents),
+    [zusatz, l.ersatz ? t("vorsorge.standHeute") : ""].filter(Boolean).join(" · "), farbKlasse(farben, l.vorsorge.vorsorge_id))
+    + weiterzahlungZeile(l, formatMoney);
   const standHeute = kapital.terminiert.filter((l) => l.ersatz).reduce((a, l) => a + l.wert_cents, 0);
   const kapitalZeilen = [
     ...kapital.terminiert.map((l) => kapitalZeile(l, l.beginn.slice(0, 4))),
@@ -193,6 +197,7 @@ function renderUebersichtTab(today, offen) {
   const kapitalNotiz = [
     kapital.jahre.length ? tf("vorsorge.kopf.kapitalFaellig", { jahre: kapital.jahre.join(", ") }) : "",
     standHeute ? tf("vorsorge.kopf.kapitalStandHeute", { betrag: formatMoney(standHeute) }) : "",
+    kapital.terminiert_weiterzahlung_cents !== kapital.terminiert_cents ? tf("vorsorge.kopf.beiWeiterzahlung", { betrag: formatMoney(kapital.terminiert_weiterzahlung_cents) }) : "",
     nichtFaellig ? tf("vorsorge.kopf.nichtFaellig", { betrag: formatMoney(nichtFaellig) }) : "",
   ].filter(Boolean).join(" · ");
   const mitWert = vorsorgePositionen.filter((p) => !p.fehlt).sort((a, b) => b.wert_cents - a.wert_cents);
@@ -412,7 +417,10 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
   } else {
     wert = rkw ? escapeHtml(formatMoney(cents(rkw.wert))) : fehlt;
     zeilen.push([personName(vs.person_id), beginn].filter(Boolean).join(" · "));
-    if (kapital) zeilen.push(tf("vorsorge.karte.kapital", { betrag: formatMoney(cents(kapital.wert)) }));
+    // Vorne der Wert ohne weitere Beitraege, in Klammern der bei Weiterzahlung.
+    const beitragsfrei = zeitwert(vs, "beitragsfreie_kapitalleistung");
+    if (beitragsfrei) zeilen.push([tf("vorsorge.karte.kapital", { betrag: formatMoney(cents(beitragsfrei.wert)) }), kapital ? tf("vorsorge.beiWeiterzahlung", { betrag: formatMoney(cents(kapital.wert)) }) : ""].filter(Boolean).join(" "));
+    else if (kapital) zeilen.push(tf("vorsorge.karte.kapital", { betrag: formatMoney(cents(kapital.wert)) }));
     if (rkw && kapital && cents(kapital.wert) > 0) {
       const anteil = Math.min(1, cents(rkw.wert) / cents(kapital.wert));
       fortschritt = { anteil, text: tf("vorsorge.karte.fortschritt", { prozent: `${Math.round(anteil * 100)} %` }) };
@@ -510,7 +518,11 @@ function kennzahlenVorsorge(vs, today) {
   const leistung = rente
     ? kennzahl(t("vorsorge.erwarteteRente"), `${geld(cents(rente.wert))} ${einheit(t("vorsorge.jeMonat"))}`, zeitwertNotiz(rente) + (istRiester(vs) ? `<br>${escapeHtml(riesterHinweis(vs))}` : ""))
     : kapital
-      ? kennzahl(t("vorsorge.kapitalBeiAblauf"), geld(cents(kapital.wert)), kapitalAblauf.ersatz ? `${escapeHtml(t("vorsorge.kapitalStandHeute"))} · ${escapeHtml(formatDate(kapital.standdatum))}` : zeitwertNotiz(kapital))
+      ? kennzahl(t("vorsorge.kapitalBeiAblauf"), geld(cents(kapital.wert)), [
+        kapitalAblauf.ersatz ? `${escapeHtml(t("vorsorge.kapitalStandHeute"))} · ${escapeHtml(formatDate(kapital.standdatum))}`
+          : `${kapitalAblauf.weiterzahlung ? `${escapeHtml(t("vorsorge.kapitalGarantiert"))} · ` : ""}${zeitwertNotiz(kapital)}`,
+        kapitalAblauf.weiterzahlung ? escapeHtml(tf("vorsorge.beiWeiterzahlung", { betrag: formatMoney(cents(kapitalAblauf.weiterzahlung.wert)) })) : "",
+      ].filter(Boolean).join("<br>"))
       : kennzahl(t("vorsorge.erwarteteLeistung"), `<span class="muted">—</span>`, escapeHtml(t("vorsorge.keineLeistung")));
 
   let beginnNotiz = "";
@@ -695,6 +707,7 @@ const FELD_LABEL = {
   vertragswert: "vorsorge.vertragswert",
   erwartete_rente: "vorsorge.erwarteteRente",
   erwartete_kapitalleistung: "vorsorge.erwarteteKapitalleistung",
+  beitragsfreie_kapitalleistung: "vorsorge.beitragsfreieKapitalleistung",
   bu_rente: "vorsorge.buRente",
   erwerbsminderungsrente: "vorsorge.erwerbsminderungsrente",
   todesfallleistung: "vorsorge.todesfallleistung",

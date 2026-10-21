@@ -96,9 +96,10 @@ export function uebersichtModell(daten, heute) {
       farben: Object.fromEntries(vertragsFarben(daten)),
       gesetzlich: gesetzlicherRentenbeginn(daten),
       kapital: {
-        terminiert: kapital.terminiert.map((l) => ({ ...vertrag(l.vorsorge), wert_cents: l.wert_cents, beginn: l.beginn, ersatz: Boolean(l.ersatz) })),
+        terminiert: kapital.terminiert.map((l) => ({ ...vertrag(l.vorsorge), wert_cents: l.wert_cents, weiterzahlung_cents: l.weiterzahlung_cents, beginn: l.beginn, ersatz: Boolean(l.ersatz) })),
         jahre: kapital.jahre,
         terminiert_cents: kapital.terminiert_cents,
+        terminiert_weiterzahlung_cents: kapital.terminiert_weiterzahlung_cents,
         nicht_faellig_cents: kapital.bedingt_cents + kapital.undatiert_cents,
       },
     },

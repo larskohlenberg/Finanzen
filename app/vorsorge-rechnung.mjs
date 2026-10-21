@@ -202,11 +202,17 @@ export function kapitalLeistungen(data, today = null) {
   };
 }
 
-// Versicherungen mit Rueckkaufswert oder Kapitalleistung, je Vertrag drei Werte:
-// Rueckkaufswert heute, Leistung bei Beitragsfreistellung (garantiert; ohne
-// Garantie der Rueckkaufswert von heute, markiert als annahme) und Leistung bei
-// Weiterzahlung (Kapital oder, bei Rentenvertraegen, die Monatsrente). Sortiert
-// nach Faelligkeit; die Summen zaehlen nur Kapital, keine Monatsrenten.
+// Kapital- und Rentenversicherungen, je Vertrag drei Werte: Rueckkaufswert heute,
+// Leistung bei Beitragsfreistellung (garantiert; ohne Garantie der Rueckkaufswert
+// von heute, markiert als annahme) und Leistung bei Weiterzahlung (Kapital oder,
+// bei Rentenvertraegen, die Monatsrente). Dazu gehoeren kapitalbildende Vertraege
+// und die gefoerderten Rentenvertraege (Riester, Ruerup) mit erwarteter Rente;
+// deren Kapital ist gebunden (gebunden: true) und zaehlt wie im Nettovermoegen
+// nicht als Rueckkaufswert. Schutzversicherungen (etwa eine Pflegerente mit
+// Rueckkaufswert) gehoeren nicht dazu. Sortiert nach Faelligkeit; die Summen
+// zaehlen nur Kapital, keine Monatsrenten.
+const GEFOERDERTE_RENTE = new Set(["riester", "ruerup"]);
+
 export function versicherungsWerte(data, today = null) {
   const personName = new Map((data.personen ?? []).map((p) => [p.person_id, p.name]));
   const zeilen = [];
@@ -216,19 +222,21 @@ export function versicherungsWerte(data, today = null) {
       const zw = aktuellerZeitwert(data.zeitwerte, "vorsorge", vs.vorsorge_id, feld, today);
       return zw ? toCents(zw.wert) : null;
     };
-    const rueckkauf = wert("rueckkaufswert");
+    const rueckkauf = vs.kapitalbildend ? wert("rueckkaufswert") : null;
     const garantiert = wert("beitragsfreie_kapitalleistung");
     const weiter = wert("erwartete_kapitalleistung");
     const rente = wert("erwartete_rente");
-    // Ohne Rueckkaufswert gehoert nur ein kapitalbildender Vertrag mit Ablaufleistung dazu
-    // (keine reinen Renten, keine Todesfallsummen).
-    if (rueckkauf === null && !(vs.kapitalbildend && (garantiert !== null || weiter !== null))) continue;
+    const gebunden = !vs.kapitalbildend && GEFOERDERTE_RENTE.has(vs.art) && rente !== null;
+    // Kapitalbildend mit Rueckkaufswert oder Ablaufleistung, oder gefoerderte Rente
+    // (keine reinen Schutzvertraege, keine Todesfallsummen).
+    if (!gebunden && !(vs.kapitalbildend && (rueckkauf !== null || garantiert !== null || weiter !== null))) continue;
     zeilen.push({
       vorsorge_id: vs.vorsorge_id,
       name: vs.name,
       person: personName.get(vs.person_id) ?? "",
       beginn: vs.leistung_beginn || null,
       rueckkauf_cents: rueckkauf,
+      gebunden,
       beitragsfrei: garantiert !== null ? { cents: garantiert, annahme: false } : rueckkauf !== null ? { cents: rueckkauf, annahme: true } : null,
       weiterzahlung: weiter !== null ? { cents: weiter, rente: false } : rente !== null ? { cents: rente, rente: true } : null,
     });

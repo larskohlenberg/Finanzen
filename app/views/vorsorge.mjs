@@ -806,7 +806,7 @@ function absicherungKennzahl(vs) {
 }
 
 // Kennzahlen im Vertragsdetail: vier Grundkacheln, dazu Absicherung und
-// Beitragsdynamik, wenn vorhanden (fuenf in einer Reihe, sechs in zwei).
+// Beitragsdynamik, wenn vorhanden (fuenf oder sechs in Reihen zu drei).
 function kennzahlRaster(vs, tab, today) {
   const extra = [absicherungKennzahl(vs), dynamikKennzahl(vs, today)].filter(Boolean);
   const basis = tab === "versicherungen" ? kennzahlenVersicherung(vs, today) : kennzahlenVorsorge(vs, today);

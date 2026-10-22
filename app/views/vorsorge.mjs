@@ -676,7 +676,7 @@ function wertEntwicklungHtml(vs, we, link) {
       wertKachel,
       kennzahl(eingezahltText, geld(letzter.eingezahlt_cents), escapeHtml(tf(umfang ? `vorsorge.wertentwicklung.umfangNotiz.${umfang}` : "vorsorge.wertentwicklung.eingezahltLaut", { datum: formatDate(letzter.datum) }))),
       letzter.eingezahlt_cents > 0
-        ? kennzahl(t("vorsorge.wertentwicklung.differenz"), betrag(differenz), escapeHtml(tf("vorsorge.wertentwicklung.anteil", { prozent: prozent(letzter.wert_cents / letzter.eingezahlt_cents) })))
+        ? kennzahl(t("vorsorge.wertentwicklung.differenz"), betrag(differenz), escapeHtml(tf("vorsorge.wertentwicklung.anteil", { prozent: `${differenz > 0 ? "+" : ""}${prozent(differenz / letzter.eingezahlt_cents)}` })))
         : kennzahl(t("vorsorge.wertentwicklung.differenz"), geld(null), escapeHtml(t("vorsorge.wertentwicklung.differenzFehlt"))),
       ertragKachel,
     ];

@@ -252,6 +252,7 @@ const schemas = {
       bemerkung: { type: "string" },
       dynamik: { type: "object" },
       beitragsbefreiung: { type: "array", minItems: 1, uniqueItems: true, itemEnum: ["bu", "arbeitslosigkeit"] },
+      beitragssumme_umfang: { type: "string", enum: ["sparanteil", "mit_zulagen"] },
     },
   },
   kategorisierungsregeln: {

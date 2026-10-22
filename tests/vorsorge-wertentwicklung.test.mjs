@@ -121,3 +121,23 @@ test("ohne Beitragssumme: Ertrag je Zeitraum und Wert ohne Ertrag, so weit die B
   ]);
   assert.equal(ergebnis.ertrag.ertrag_cents, 0);
 });
+
+test("nur Sparanteil: Lastschriften mit BU-Anteil zaehlen nicht, Eingezahltes nur zum Stichtag der Summe", () => {
+  const data = daten({
+    zeitwerte: [
+      zw("vertragswert", "1000.00", "2024-12-31"),
+      zw("beitragssumme", "1100.00", "2024-12-31"),
+      zw("vertragswert", "1500.00", "2025-12-31"),
+      zw("beitragssumme", "1700.00", "2025-12-31"),
+      zw("vertragswert", "1600.00", "2026-03-31"),
+    ],
+    transaktionen: [tx("2024-12-01"), tx("2025-06-01"), tx("2026-01-01")],
+  });
+  data.vorsorge[0].beitragssumme_umfang = "sparanteil";
+  const ergebnis = wertEntwicklung(data, "VS-001");
+  assert.deepEqual(ergebnis.punkte.map((p) => [p.eingezahlt_cents, p.vollstaendig]), [[110000, true], [170000, true], [0, false]],
+    "nach der letzten Summe keine Fortschreibung mit der vollen Lastschrift");
+  assert.deepEqual(ergebnis.zeitraeume.map((z) => [z.von, z.ertrag_cents]), [["2024-12-31", -10000]], "Zuwachs 500 minus Sparbeitraege 600");
+  assert.equal(ergebnis.ertrag, null);
+  assert.deepEqual(ergebnis.ohne_ertrag, []);
+});

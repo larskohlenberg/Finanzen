@@ -24,6 +24,7 @@
       "quelle_standdatum": { "type": "string", "format": "date" },
       "bemerkung": { "type": "string" },
       "beitragsbefreiung": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["bu", "arbeitslosigkeit"] }, "description": "Im Vertrag vereinbarte Beitragsbefreiung bei Berufsunfaehigkeit (bu) und/oder Arbeitslosigkeit. Ein Szenario-Ereignis gleichen Falls laesst die Beitraege dieses Vertrags entfallen." },
+      "beitragssumme_umfang": { "type": "string", "enum": ["sparanteil", "mit_zulagen"], "description": "Was die Zeitwerte beitragssumme zaehlen, wenn es nicht einfach die gezahlten Beitraege sind: sparanteil = nur der Anteil, der ins Kapital fliesst (ohne BU- und andere Risikobeitraege); mit_zulagen = Eigenbeitraege plus staatliche Zulagen. Die App benennt das Eingezahlte entsprechend." },
       "dynamik": {
         "type": "object",
         "description": "Beitragsdynamik: jaehrlicher Erhoehungstermin und Entscheidungen je Termin. Fristen zum Widerspruch stehen in fristen.json.",

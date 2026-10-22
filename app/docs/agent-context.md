@@ -861,6 +861,12 @@ Zeitwerte zu Vorsorge stehen in `DATENROOT/zeitwerte.jsonl` mit
   Wertentwicklung im Vertragsdetail (Wert gegen Eingezahltes); Buchungen nach
   dem Standdatum zaehlen dort dazu, fuer fruehere Stichtage werden sie
   abgezogen. Eine Summe je Vertrag reicht also. Nie Nettovermoegen.
+  Zaehlt die Summe nicht einfach die Lastschriften, steht das am Vertrag in
+  `beitragssumme_umfang`: `sparanteil` (nur der Anteil, der ins Kapital
+  fliesst, ohne BU- und Risikobeitraege; dann je Wertstand eine Summe zum
+  selben Stichtag, Buchungen zaehlen nicht dazu) oder `mit_zulagen`
+  (Eigenbeitraege plus staatliche Zulagen, Riester). Die App beschriftet das
+  Eingezahlte danach.
 - Absicherungswerte, was bei Berufsunfaehigkeit oder Tod der versicherten
   Person (`person_id` am Vertrag) fliesst, brutto wie im Beleg:
   `bu_rente` (Euro je Monat), `erwerbsminderungsrente` (Euro je Monat,

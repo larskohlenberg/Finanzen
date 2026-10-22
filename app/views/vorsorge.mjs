@@ -643,7 +643,11 @@ function wertEntwicklungHtml(vs, we, link) {
   const vergleich = new Map(mitSumme
     ? we.punkte.filter((p) => p.vollstaendig).map((p) => [p.datum, p.eingezahlt_cents])
     : we.ohne_ertrag.map((p) => [p.datum, p.cents]));
-  const eingezahltLabel = t(mitSumme ? "vorsorge.wertentwicklung.eingezahlt" : "vorsorge.wertentwicklung.ohneErtrag");
+  // Zaehlt die Beitragssumme nicht einfach die Lastschriften (nur Sparanteil oder
+  // mit Zulagen), sagt das die Beschriftung, sonst vergleicht man mit dem Konto.
+  const umfang = vs.beitragssumme_umfang;
+  const eingezahltText = umfang ? t(`vorsorge.wertentwicklung.umfang.${umfang}`) : t("vorsorge.wertentwicklung.eingezahlt");
+  const eingezahltLabel = mitSumme ? eingezahltText : t("vorsorge.wertentwicklung.ohneErtrag");
   const ertragJeDatum = new Map(we.zeitraeume.map((z) => [z.bis, z.ertrag_cents]));
   const svg = wertVerlauf({
     punkte: we.punkte.map((p) => ({ datum: p.datum, wert_cents: p.wert_cents, eingezahlt_cents: vergleich.get(p.datum) ?? null, ertrag_cents: ertragJeDatum.get(p.datum) ?? null })),
@@ -670,7 +674,7 @@ function wertEntwicklungHtml(vs, we, link) {
     const differenz = letzter.wert_cents - letzter.eingezahlt_cents;
     kennzahlen = [
       wertKachel,
-      kennzahl(t("vorsorge.wertentwicklung.eingezahlt"), geld(letzter.eingezahlt_cents), escapeHtml(tf("vorsorge.wertentwicklung.eingezahltLaut", { datum: formatDate(letzter.datum) }))),
+      kennzahl(eingezahltText, geld(letzter.eingezahlt_cents), escapeHtml(tf(umfang ? `vorsorge.wertentwicklung.umfangNotiz.${umfang}` : "vorsorge.wertentwicklung.eingezahltLaut", { datum: formatDate(letzter.datum) }))),
       letzter.eingezahlt_cents > 0
         ? kennzahl(t("vorsorge.wertentwicklung.differenz"), betrag(differenz), escapeHtml(tf("vorsorge.wertentwicklung.anteil", { prozent: prozent(letzter.wert_cents / letzter.eingezahlt_cents) })))
         : kennzahl(t("vorsorge.wertentwicklung.differenz"), geld(null), escapeHtml(t("vorsorge.wertentwicklung.differenzFehlt"))),

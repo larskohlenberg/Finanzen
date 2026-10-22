@@ -624,6 +624,27 @@ test("Beitraege und Wertentwicklung: Diagramm links, vier Kennzahlen rechts, ohn
   }, { zeitwerte });
 });
 
+test("Wertentwicklung: Beitragssumme nur Sparanteil oder mit Zulagen steht in der Beschriftung", async () => {
+  const zeitwerte = [
+    ...fixture().zeitwerte,
+    zw("VS-002", "rueckkaufswert", "19000.00", "2024-12-31"),
+    zw("VS-002", "beitragssumme", "16200.00", "2024-12-31"),
+    zw("VS-002", "beitragssumme", "18000.00", "2025-12-31"),
+  ];
+  const mit = (umfang) => fixture().vorsorge.map((vs) => (vs.vorsorge_id === "VS-002" ? { ...vs, beitragssumme_umfang: umfang } : vs));
+  await mitFixture(async () => {
+    state.selectedVorsorgeId = "VS-002";
+    const html = (await vorsorgeGezeichnet());
+    assert.match(html, /Eingezahlt \(Sparanteil\)<\/div>\s*<div class="kennzahl-wert"><span class="">18\.000,00\s€<\/span><\/div>\s*<div class="kennzahl-notiz">ohne BU- und Risikobeiträge, bis 31\.12\.2025/);
+    assert.match(html, /<span class="swatch eingezahlt"><\/span>Eingezahlt \(Sparanteil\)/);
+  }, { zeitwerte, vorsorge: mit("sparanteil") });
+  await mitFixture(async () => {
+    state.selectedVorsorgeId = "VS-002";
+    const html = (await vorsorgeGezeichnet());
+    assert.match(html, /Eingezahlt inkl\. Zulagen<\/div>[\s\S]*?Eigenbeiträge plus Zulagen, bis 31\.12\.2025/);
+  }, { zeitwerte, vorsorge: mit("mit_zulagen") });
+});
+
 test("Wertentwicklung ohne Beitragssumme vergleicht mit Stand plus Beitraegen und zeigt den Ertrag je Zeitraum im Hover", async () => {
   const zeitwerte = [...fixture().zeitwerte, zw("VS-005", "rueckkaufswert", "1000.00", "2024-03-11"), zw("VS-005", "rueckkaufswert", "2100.00", "2025-03-31")];
   await mitFixture(async () => {

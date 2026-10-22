@@ -337,7 +337,11 @@ export function vertragsFarben(data) {
 // Mitteilung plus die danach gebuchten Beitraege, vor der ersten Summe diese minus
 // die Buchungen bis dahin; ohne Beitragssumme zaehlen nur die Buchungen
 // (vollstaendig: false), was meist zu wenig ist. Null ohne Wertstand.
+// Zaehlen die Beitragssummen nur den Sparanteil (beitragssumme_umfang
+// "sparanteil"), enthalten die Lastschriften auch Risikobeitraege wie die BU;
+// dann gilt nur eine Summe genau zum Stichtag, Buchungen bleiben aussen vor.
 export function wertEntwicklung(data, vorsorgeId) {
+  const nurSparanteil = (data.vorsorge ?? []).find((v) => v.vorsorge_id === vorsorgeId)?.beitragssumme_umfang === "sparanteil";
   const staende = (feld) => {
     const jeDatum = new Map();
     for (const zw of data.zeitwerte ?? []) {
@@ -351,7 +355,7 @@ export function wertEntwicklung(data, vorsorgeId) {
   const werte = feld === "vertragswert" ? vw : rkw;
   if (!werte.length) return null;
   const summen = staende("beitragssumme");
-  const buchungen = gebuchteBeitraegeAlle(data, vorsorgeId).map((tx) => ({ datum: tx.buchungsdatum, cents: -toCents(tx.betrag) }));
+  const buchungen = nurSparanteil ? [] : gebuchteBeitraegeAlle(data, vorsorgeId).map((tx) => ({ datum: tx.buchungsdatum, cents: -toCents(tx.betrag) }));
   const ersteBuchung = buchungen.reduce((min, b) => (!min || b.datum < min ? b.datum : min), null);
   // Die Buchungen decken den Zeitraum ab einem Stichtag ab, wenn die erste schon
   // davor liegt; bei monatlich zahlenden Vertraegen reicht die erste Lastschrift
@@ -361,7 +365,7 @@ export function wertEntwicklung(data, vorsorgeId) {
   const gedecktAb = (datum) => ersteBuchung !== null && ersteBuchung <= (monatlich ? addInterval(datum, "monat", 1) : datum);
   const summeZwischen = (von, bis) => buchungen.filter((b) => b.datum > von && b.datum <= bis).reduce((s, b) => s + b.cents, 0);
   const eingezahltBis = (datum) => {
-    const basis = summen.filter((s) => s.datum <= datum).at(-1);
+    const basis = summen.filter((s) => (nurSparanteil ? s.datum === datum : s.datum <= datum)).at(-1);
     if (basis) return { cents: basis.cents + summeZwischen(basis.datum, datum), vollstaendig: true };
     // Vor der ersten Beitragssumme rueckwaerts: Summe minus die Buchungen dazwischen,
     // sofern die Buchungen das Intervall abdecken.
@@ -379,7 +383,7 @@ export function wertEntwicklung(data, vorsorgeId) {
   for (let i = 1; i < punkte.length; i++) {
     const a = punkte[i - 1];
     const b = punkte[i];
-    if (!(a.vollstaendig || (!b.vollstaendig && gedecktAb(a.datum)))) continue;
+    if (!(a.vollstaendig || (!b.vollstaendig && gedecktAb(a.datum))) || (nurSparanteil && !b.vollstaendig)) continue;
     const beitraege = b.eingezahlt_cents - a.eingezahlt_cents;
     const zuwachs = b.wert_cents - a.wert_cents;
     zeitraeume.push({ von: a.datum, bis: b.datum, zuwachs_cents: zuwachs, beitraege_cents: beitraege, ertrag_cents: zuwachs - beitraege });
@@ -389,7 +393,7 @@ export function wertEntwicklung(data, vorsorgeId) {
   // Stand plus alle Beitraege seither. Liegt der Wert darueber, hat der Vertrag
   // etwas erwirtschaftet; das geht auch ohne Beitragssumme aus einer Mitteilung.
   const start = punkte.find((p) => p.vollstaendig || gedecktAb(p.datum));
-  const ohneErtrag = start
+  const ohneErtrag = start && !nurSparanteil
     ? punkte.filter((p) => p.datum >= start.datum).map((p) => ({ datum: p.datum, cents: start.wert_cents + summeZwischen(start.datum, p.datum) }))
     : [];
   return { feld, punkte, letzter: punkte.at(-1), ertrag, zeitraeume, ohne_ertrag: ohneErtrag, erste_buchung: ersteBuchung };

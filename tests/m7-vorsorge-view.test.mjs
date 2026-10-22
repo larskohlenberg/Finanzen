@@ -613,7 +613,7 @@ test("Beitraege und Wertentwicklung: Diagramm links, vier Kennzahlen rechts, ohn
     assert.match(kachel, /class="vorsorge-spalten vorsorge-spalten-breit wert-entwicklung">\s*<div>[\s\S]*?class="wert-linie"[\s\S]*?<div class="kennzahl-raster wert-kennzahlen">/, "Diagramm vor den Kennzahlen");
     const raster = kachel.match(/<div class="kennzahl-raster wert-kennzahlen">([\s\S]*?)<\/div><p/)?.[1] ?? "";
     assert.equal(anzahl(raster, /class="kennzahl"/g), 4);
-    assert.match(raster, /Wert minus Beiträge<\/div>\s*<div class="kennzahl-wert"><span class="">\+2\.000,00\s€/);
+    assert.match(raster, /Wert minus Beiträge<\/div>\s*<div class="kennzahl-wert"><span class="">\+2\.000,00\s€<\/span><\/div>\s*<div class="kennzahl-notiz">\+11\s%\sgegenüber den Beiträgen/, "Prozent bezieht sich auf die Differenz, nicht auf den Wert");
     assert.match(raster, /Ertrag 2024–2025<\/div>\s*<div class="kennzahl-wert"><span class="betrag-negativ">-800,00\s€<\/span><\/div>\s*<div class="kennzahl-notiz">Wert \+1\.000,00\s€, Beiträge 1\.800,00\s€/);
     assert.match(kachel, /wert-kennzahlen[\s\S]*Noch keine Beitragsbuchung zugeordnet/, "Hinweis bzw. Link rechts unter den Kennzahlen");
 

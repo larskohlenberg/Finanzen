@@ -2,6 +2,8 @@
 
 Fuer eine Installation, bei der die App auf einem eigenen Server (z. B. einer VM) laeuft: Webdienst per systemd (`ops/systemd/`), Agenten per MCP ueber SSH mit Forced Command, Deploy per `ops/aktualisieren.sh`. Namen und Pfade unten sind Beispiele: Checkout `/opt/finanzen`, fachlicher User `finanzen`, Datenort `/var/lib/finanzen`.
 
+**Nach jedem Merge nach `main` wird der Server aktualisiert:** `sudo finanzen-aktualisieren` (auf der VM, bei uns per `ssh finanzen-vm`). Das Skript prueft Validator und Rauchtest und startet den Dienst neu. Der Agent macht das ohne Ansage direkt nach dem Merge.
+
 ## Datenort (ADR 0036)
 
 Ohne Einstellung liegen die Echtdaten im Checkout (`app/data/master`, `app/data/master.gen`, `app/data/inbox`, `app/data/import-profile`, `app/data/papierkorb`, `app/Belege`). Mit `FINANZEN_DATEN=/var/lib/finanzen` liegen sie dort:

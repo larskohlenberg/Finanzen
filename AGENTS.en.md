@@ -121,7 +121,7 @@ For Claude Code the first two are ready in `.claude/agents/` (`import-normalisie
 ## Working on the code
 - `npm test` must pass. Tools are a pure function plus a CLI, tested with `node --test`.
 - `npm run typen` checks the JSDoc types at the core boundaries (files with `// @ts-check`, listed in `tsconfig.json`); TypeScript is only fetched as a dev tool into `.typpruefung/`.
-- Merge only once CI is green (GitHub Actions: tests on Node 22 and 24, validator on demo data and fixtures, PII scan): `gh pr checks <nr> --watch`, then `gh pr merge <nr> --merge`. Run the PII scan locally before pushing too: `node app/tools/pii-scan.mjs origin/main`. Errors (real IBAN, card number) block, warnings are worth a look.
+- Merge only once CI is green (GitHub Actions: tests on Node 22 and 24, validator on demo data and fixtures, PII scan): `gh pr checks <nr> --watch`, then `gh pr merge <nr> --merge`. If the app runs on a server, update it right after (`sudo finanzen-aktualisieren`, see `docs/betrieb.md`) without waiting to be asked. Run the PII scan locally before pushing too: `node app/tools/pii-scan.mjs origin/main`. Errors (real IBAN, card number) block, warnings are worth a look.
 - No build pipeline. Server and tools need only Node.js, no runtime dependencies. The only development dependency is Playwright (`playwright-core`, pinned) for the browser tests (ADR 0038). The only third-party library in the browser is Vanilla Calendar Pro for date picking, as an unmodified copy in `app/vendor/` (ADR 0039). Further packages or libraries only after asking the user.
 - The data set is always an argument (`dataRootFromArg` from `app/tools/data-root.mjs`), never hard-coded.
 - Amounts via `toCents` from `app/tools/lib/text.mjs`.

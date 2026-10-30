@@ -180,7 +180,10 @@ oder Alt+Umschalt+D. Der Browser merkt sich den Schalter.
   Dokumentnamen) wird Wort fuer Wort zu Zeichen. Neue Freitextfelder markieren:
   `vertraulich()` aus `app/komponenten.mjs` oder `data-diffus="text"`.
 - Logos werden zu neutralen Flaechen. Diagramme, Prozente, Daten, Anzahlen und
-  Kategorien bleiben lesbar.
+  Kategorien bleiben lesbar. Ausnahme ist die Sparquote (Wert, Plan, Abweichung
+  und Trend in Pp.): sie verraet das Verhaeltnis von Einkommen zu Ausgaben und
+  wird mit `vertraulich()` verdeckt. Die Verlaufsgrafik der Sparquote in
+  Plan & Ist zeigt ihre Werte weiter.
 - Eingaben (Suchfelder, Betrag ab/bis, Schnellsuche) erscheinen als Zeichen:
   der echte Text im Feld ist durchsichtig, eine Decke darueber zeigt ihn
   verdeckt. Suchen und Filtern funktionieren unveraendert; wer zuschaut, sieht

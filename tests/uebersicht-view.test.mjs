@@ -390,7 +390,7 @@ test("Flache Kacheln oben: monatliche Einnahmen und Ausgaben mit Kategorien und 
   assert.match(kachel("ausgaben"), /<details data-details="uebersicht\.uebrige\.ausgaben"><summary>[\s\S]*Übrige[\s\S]*<ul class="flach-unterliste"><li><button class="linkish" data-action="kategorie-transactions" data-kategorie="KAT-006"/);
 
   // Sparquote: (3000 - 1700) / 3000 = 43 %, Rest bleibt auf den Konten.
-  assert.match(kachel("sparquote"), /Sparquote[\s\S]*info-tipp-text" role="tooltip">1\.300\s€ \/ Monat übrig\n1 Monat · [^<]*\n\nSparquote = [\s\S]*<div class="kpi-value">43\s%<\/div>/);
+  assert.match(kachel("sparquote"), /Sparquote[\s\S]*info-tipp-text" role="tooltip">1\.300\s€ \/ Monat übrig\n1 Monat · [^<]*\n\nSparquote = [\s\S]*<div class="kpi-value"><span data-diffus="text">43\s%<\/span><\/div>/);
   // Zeitraum steht nur im Info-Zeichen, nicht als eigene Zeile.
   assert.doesNotMatch(kachel("einnahmen"), /<div class="kpi-note">/);
   assert.match(kachel("sparquote"), /<summary>[\s\S]*?Konten &amp; Tagesgeld<\/span><span class="amount">1\.300\s€[\s\S]*?data-konto="KTO-901"/);

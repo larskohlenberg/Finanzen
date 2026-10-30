@@ -10,7 +10,7 @@
 // Regelzahlungen ohne zugeordnete Buchung. Gerechnet wird in app/plan-ist.mjs.
 import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { zielRoute } from "../routing.mjs";
-import { formatDate, formatMonth, heuteIso, infoTipp, kennzahlKachel, kachelZeile, klappKachel, renderPageHead, zeitverlaufKlein } from "../komponenten.mjs";
+import { vertraulich, formatDate, formatMonth, heuteIso, infoTipp, kennzahlKachel, kachelZeile, klappKachel, renderPageHead, zeitverlaufKlein } from "../komponenten.mjs";
 import { perioden } from "../plan-ist.mjs";
 import { erstelleApiCache } from "../api-daten.mjs";
 
@@ -150,7 +150,7 @@ function sparquoteKachel(r, wert, einheit, verlauf) {
   const { ist, plan } = r.sparen;
   const quoteDiff = ist.quote !== null && plan.quote !== null ? Math.round((ist.quote - plan.quote) * 100) : null;
   const klasse = quoteDiff === null || quoteDiff === 0 ? "abw-neutral" : quoteDiff > 0 ? "abw-gut" : "abw-schlecht";
-  const notiz = `${escapeHtml(t("planIst.plan"))} ${escapeHtml(prozent(plan.quote))}${quoteDiff === null ? "" : ` · <span class="${klasse}">${quoteDiff > 0 ? "+" : quoteDiff < 0 ? "−" : "±"}${Math.abs(quoteDiff)} ${escapeHtml(t("planIst.prozentpunkte"))}</span>`}`;
+  const notiz = `${escapeHtml(t("planIst.plan"))} ${vertraulich(escapeHtml(prozent(plan.quote)))}${quoteDiff === null ? "" : ` · <span data-diffus="text" class="${klasse}">${quoteDiff > 0 ? "+" : quoteDiff < 0 ? "−" : "±"}${Math.abs(quoteDiff)} ${escapeHtml(t("planIst.prozentpunkte"))}</span>`}`;
   const zeilen = [
     kachelZeile(escapeHtml(t("planIst.ueberschuss")), `${geld(wert(ist.ueberschuss_cents))} / ${geld(wert(plan.ueberschuss_cents))}`),
     kachelZeile(escapeHtml(t("overview.sparziel.depot")), `${geld(wert(ist.depot_cents))} / ${geld(wert(plan.depot_cents))}`),
@@ -161,7 +161,7 @@ function sparquoteKachel(r, wert, einheit, verlauf) {
   return kennzahlKachel({
     label: t("planIst.sparquote"),
     info: t("planIst.sparquoteInfo"),
-    wert: escapeHtml(prozent(ist.quote)),
+    wert: vertraulich(escapeHtml(prozent(ist.quote))),
     notiz,
     zeilen: [`<li><span class="muted">${escapeHtml(t("planIst.istSlashPlan"))}${einheit ? ` ${escapeHtml(t("vorsorge.jeMonat"))}` : ""}</span></li>`, ...zeilen],
     unten: verlaufGrafik(verlauf, quoteFeld, { quote: true }),
@@ -189,7 +189,7 @@ function verlaufTabelle(verlauf) {
               ${zelle("einnahmen", mittel(p.r.einnahmen.ist_cents, p), mittel(p.r.einnahmen.plan_cents, p), true)}
               ${zelle("ausgaben", mittel(p.r.ausgaben.ist_cents, p), mittel(p.r.ausgaben.plan_cents, p), false)}
               ${zelle("ueberschuss", mittel(p.r.sparen.ist.ueberschuss_cents, p), mittel(p.r.sparen.plan.ueberschuss_cents, p), true)}
-              <td class="amount" data-label="${escapeHtml(`${t("planIst.sparquote")} · ${t("planIst.ist")}`)}">${escapeHtml(prozent(p.r.sparen.ist.quote))}</td><td class="amount muted" data-label="${escapeHtml(`${t("planIst.sparquote")} · ${t("planIst.plan")}`)}">${escapeHtml(prozent(p.r.sparen.plan.quote))}</td>
+              <td class="amount" data-label="${escapeHtml(`${t("planIst.sparquote")} · ${t("planIst.ist")}`)}">${vertraulich(escapeHtml(prozent(p.r.sparen.ist.quote)))}</td><td class="amount muted" data-label="${escapeHtml(`${t("planIst.sparquote")} · ${t("planIst.plan")}`)}">${vertraulich(escapeHtml(prozent(p.r.sparen.plan.quote)))}</td>
             </tr>`).join("")}
         </tbody>
       </table>

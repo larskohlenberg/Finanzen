@@ -11,7 +11,7 @@ import { state, t, tf, fmt, escapeHtml } from "../runtime.mjs";
 import { detailsAttr } from "../lebenszyklus.mjs";
 import { zielRoute } from "../routing.mjs";
 import { iconSvg } from "../icons.js";
-import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, trendZeitraumText, zielElement, hrefAttr, teilbestandChip, rechtsBlock } from "../komponenten.mjs";
+import { formatDate, formatMoney, infoTipp, renderPageHead, heuteIso, trendPfeil, trendZeitraumText, zielElement, hrefAttr, teilbestandChip, rechtsBlock, vertraulich } from "../komponenten.mjs";
 import { addInterval, toCents } from "../liquiditaet.mjs";
 import { renderAbsicherungKacheln } from "./absicherung.mjs";
 import { verteileRundung } from "../uebersicht-rechnung.mjs";
@@ -160,7 +160,7 @@ function quotePfeil(sq, zeitraum) {
   const titel = zeitraum
     ? tf("trend.quoteTitelZeitraum", { aenderung, vorher: formatProzent(sq.vorher_quote), zeitraum: trendZeitraumText(zeitraum.vorher_von, zeitraum.vorher_bis) })
     : tf("trend.quoteTitel", { aenderung, vorher: formatProzent(sq.vorher_quote) });
-  return `<span class="trend-pfeil ${klasse}" title="${escapeHtml(titel)}" aria-label="${escapeHtml(titel)}">${{ hoch: "↗", runter: "↘", seitwaerts: "→" }[richtung]} ${escapeHtml(aenderung)} ${escapeHtml(t("trend.pp"))}</span>`;
+  return `<span class="trend-pfeil ${klasse}" data-diffus="text" title="${escapeHtml(titel)}" aria-label="${escapeHtml(titel)}">${{ hoch: "↗", runter: "↘", seitwaerts: "→" }[richtung]} ${escapeHtml(aenderung)} ${escapeHtml(t("trend.pp"))}</span>`;
 }
 
 function renderEinnahmenAusgaben(modell) {
@@ -178,7 +178,9 @@ function renderEinnahmenAusgaben(modell) {
   const planZeile = (ist, planCents, mehrIstGut) => `${planLink(tf("planIst.kachelPlan", { betrag: geldOhneCent(planCents) }))} · ${abweichungHtml(ist, planCents, { mehrIstGut })}`;
   const quotePlan = plan.quote;
   const quoteDiff = sparen.quote !== null && quotePlan !== null ? Math.round((sparen.quote - quotePlan) * 100) : null;
-  const quoteZeile = quotePlan === null ? "" : `${planLink(tf("planIst.kachelPlan", { betrag: formatProzent(quotePlan) }))}${quoteDiff === null ? "" : ` · <span class="${quoteDiff > 0 ? "abw-gut" : quoteDiff < 0 ? "abw-schlecht" : "abw-neutral"}">${quoteDiff > 0 ? "+" : quoteDiff < 0 ? "−" : "±"}${Math.abs(quoteDiff)} ${escapeHtml(t("planIst.prozentpunkte"))}</span>`}`;
+  // Die Sparquote verraet das Einkommensverhaeltnis, darum verdeckt der Diffusor sie samt Plan und Abweichung.
+  const quotePlanText = escapeHtml(tf("planIst.kachelPlan", { betrag: "\u0000" })).replace("\u0000", vertraulich(escapeHtml(formatProzent(quotePlan ?? 0))));
+  const quoteZeile = quotePlan === null ? "" : `<button class="linkish" data-action="plan-ist" data-periode="12m">${quotePlanText}</button>${quoteDiff === null ? "" : ` · <span data-diffus="text" class="${quoteDiff > 0 ? "abw-gut" : quoteDiff < 0 ? "abw-schlecht" : "abw-neutral"}">${quoteDiff > 0 ? "+" : quoteDiff < 0 ? "−" : "±"}${Math.abs(quoteDiff)} ${escapeHtml(t("planIst.prozentpunkte"))}</span>`}`;
   const zielLinkFuer = (ids) => (ids.length === 1 ? `data-action="kategorie-transactions" data-kategorie="${escapeHtml(ids[0])}" data-von="${escapeHtml(mittel.von)}" data-bis="${escapeHtml(mittel.bis)}"` : "");
   const ZIEL_KLASSE = { liquide: "segment-konto", depot: "segment-depot", versicherung: "segment-vorsorge" };
   // Kurzfristig liquide in seine Teile: liquide Kategorien (Festgeld) mit Link in
@@ -224,7 +226,7 @@ function renderEinnahmenAusgaben(modell) {
         id: "sparquote",
         titel: t("overview.sparquote"),
         info: t("overview.sparquoteInfo"),
-        wert: sparen.quote === null ? "–" : escapeHtml(formatProzent(sparen.quote)),
+        wert: sparen.quote === null ? "–" : vertraulich(escapeHtml(formatProzent(sparen.quote))),
         trend: quotePfeil(trend?.sparquote, trend?.zeitraum),
         notiz: `${tf("overview.sparquoteNotiz", { betrag: geldOhneCent(sparen.ueberschuss_cents) })}\n${basisNotiz}`,
         plan: quoteZeile,

@@ -245,6 +245,8 @@ const schemas = {
       sparte: { type: "string", enum: ["kfz", "haftpflicht", "rechtsschutz", "hausrat", "wohngebaeude", "photovoltaik", "berufsunfaehigkeit", "pflege", "krankenzusatz", "unfall", "risikoleben", "reise", "sonstige"] },
       geprueft_am: { type: "string", format: "date" },
       leistung_beginn: { type: "string", format: "date" },
+      beitrag_bis: { type: "string", format: "date" },
+      entnahme_flexibel: { type: "boolean" },
       ersetzt_vorsorge_id: { type: "string", pattern: /^VS-\d{3,}$/ },
       aktiv_bis: { type: "string", format: "date" },
       quelle_hinweis: { type: "string" },
@@ -843,6 +845,9 @@ function validateCrossFieldRules(data, errors) {
       melde(errors, "konsistenz", `vorsorge.${vs.vorsorge_id}.kapitalbildend`, `riester ist zweckgebunden (hoechstens 30 Prozent Einmalzahlung zu Rentenbeginn) und kann nicht kapitalbildend sein; der Rueckkaufswert bleibt als gebundenes Kapital erfasst`);
     }
     validateVorsorgeStatusJeArt(vs, errors);
+    if (vs.beitrag_bis && vs.leistung_beginn && vs.beitrag_bis > vs.leistung_beginn) {
+      melde(errors, "konsistenz", `vorsorge.${vs.vorsorge_id}.beitrag_bis`, `liegt nach leistung_beginn`);
+    }
     if (vs.dynamik !== undefined) pruefeDynamik(`vorsorge.${vs.vorsorge_id}.dynamik`, vs.dynamik, errors);
     if (vs.ersetzt_vorsorge_id) {
       if (vs.ersetzt_vorsorge_id === vs.vorsorge_id) {

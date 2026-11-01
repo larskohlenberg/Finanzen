@@ -486,6 +486,24 @@ test("Vertragsdaten zeigen die naechsten Fristen des Vertrags", async () => {
   });
 });
 
+test("Beitragsende und flexible Entnahme stehen auf Karte, Kennzahl und in den Vertragsdaten", async () => {
+  await mitFixture(async () => {
+    Object.assign(data.vorsorge.find((v) => v.vorsorge_id === "VS-003"), { beitrag_bis: "2030-04-30", entnahme_flexibel: true });
+    state.vorsorgeTab = "lebensversicherungen";
+    state.selectedVorsorgeId = "VS-003";
+    state.klappKacheln = { "vorsorge.vertragsdaten": true };
+    const html = (await vorsorgeGezeichnet());
+    const start = html.indexOf('data-vorsorge="VS-003" aria-pressed');
+    const karte = html.slice(start, html.indexOf("</div>", start));
+    assert.match(karte, /Lena · Beitrag bis 30\.4\.2030 · Entnahme flexibel bis 1\.5\.2035/);
+    assert.match(html, /Ablauf<[\s\S]*1\.5\.2035[\s\S]*Beitrag bis 30\.4\.2030, danach Entnahme flexibel/);
+    assert.match(html, /detail-label">Beitrag bis<[\s\S]*30\.4\.2030/);
+    assert.match(html, /detail-label">Entnahme<[\s\S]*flexibel bis zum Ablauf, ganz oder in Teilen/);
+    const martin = html.slice(html.indexOf('data-vorsorge="VS-004" aria-pressed'));
+    assert.doesNotMatch(martin.slice(0, martin.indexOf("</div>")), /Beitrag bis|Entnahme flexibel/);
+  });
+});
+
 test("unbekannte Auswahl faellt auf die Uebersicht zurueck", async () => {
   await mitFixture(async () => {
     state.selectedVorsorgeId = "VS-999";

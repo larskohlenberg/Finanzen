@@ -121,7 +121,12 @@ und Beitrags-Regelzahlungen in `DATENROOT/regelzahlungen.json`.
    den Textzwilling neben den Beleg und raeumt `standardized/` ab.
 3. **Vorsorge-Entitaet vorschlagen:** `vorsorge_id`, `art`, `name`, `person_id`,
    `status`, `kapitalbildend`, optional `kapitalwahl`, `leistung_beginn`,
-   `aktiv_bis`, `ersetzt_vorsorge_id`, `quelle_standdatum` und `bemerkung`.
+   `beitrag_bis`, `entnahme_flexibel`, `aktiv_bis`, `ersetzt_vorsorge_id`,
+   `quelle_standdatum` und `bemerkung`.
+   Endet die Beitragszahlung vor dem Ablauf, steht das Ende in `beitrag_bis`;
+   `leistung_beginn` bleibt der Ablauf. Kann das Kapital zwischen Beitragsende
+   und Ablauf jederzeit ganz oder teilweise entnommen werden, zusaetzlich
+   `entnahme_flexibel: true`; die App nennt `leistung_beginn` dann „Ablauf“.
    Bei `schutzversicherung` zusaetzlich `sparte` (z. B. `kfz`, `hausrat`,
    `wohngebaeude`, `berufsunfaehigkeit`); sie steht als Etikett auf der Kachel.
 4. **Zeitwerte vorschlagen:** nur belegte oder nachvollziehbar geschaetzte Werte

@@ -18,6 +18,8 @@
       "sparte": { "type": "string", "enum": ["kfz", "haftpflicht", "rechtsschutz", "hausrat", "wohngebaeude", "photovoltaik", "berufsunfaehigkeit", "pflege", "krankenzusatz", "unfall", "risikoleben", "reise", "sonstige"], "description": "Versicherungssparte; erscheint als Etikett auf der Versicherungskachel." },
       "geprueft_am": { "type": "string", "format": "date" },
       "leistung_beginn": { "type": "string", "format": "date" },
+      "beitrag_bis": { "type": "string", "format": "date", "description": "Ende der Beitragszahlung, wenn es vor dem Leistungsbeginn liegt. Erscheint auf der Kachel und als Termin in den Fristen." },
+      "entnahme_flexibel": { "type": "boolean", "description": "Das Kapital bleibt nach dem Beitragsende angelegt und kann bis zum Ablauf jederzeit ganz oder teilweise entnommen werden. leistung_beginn ist dann der Ablauf, also der spaeteste Auszahlungstermin." },
       "ersetzt_vorsorge_id": { "type": "string", "pattern": "^VS-\\d{3,}$" },
       "aktiv_bis": { "type": "string", "format": "date" },
       "quelle_hinweis": { "type": "string" },

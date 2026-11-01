@@ -401,7 +401,11 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
   const kapital = zeitwert(vs, "erwartete_kapitalleistung");
   const vertragswert = zeitwert(vs, "vertragswert");
   const fehlt = `<span class="chip review">${escapeHtml(t("vorsorge.keinWert"))}</span>`;
-  const beginn = vs.leistung_beginn ? tf("vorsorge.karte.leistungAb", { datum: formatDate(vs.leistung_beginn) }) : "";
+  // Mit flexibler Entnahme ist leistung_beginn der Ablauf, also der spaeteste Termin.
+  const beginn = [
+    vs.beitrag_bis ? tf("vorsorge.karte.beitragBis", { datum: formatDate(vs.beitrag_bis) }) : "",
+    vs.leistung_beginn ? tf(vs.entnahme_flexibel ? "vorsorge.karte.entnahmeFlexibel" : "vorsorge.karte.leistungAb", { datum: formatDate(vs.leistung_beginn) }) : "",
+  ].filter(Boolean).join(" · ");
   const zeilen = [];
   let wert;
   let fortschritt = null;
@@ -542,7 +546,11 @@ function kennzahlenVorsorge(vs, today) {
     }
     beginnNotiz = escapeHtml(teile.join(" · "));
   }
-  const beginn = kennzahl(t("vorsorge.leistungBeginn"), vs.leistung_beginn ? escapeHtml(formatDate(vs.leistung_beginn)) : `<span class="muted">—</span>`, vs.leistung_beginn ? beginnNotiz : escapeHtml(t("vorsorge.nichtHinterlegt")));
+  const beitragEnde = vs.beitrag_bis
+    ? tf(vs.entnahme_flexibel ? "vorsorge.beitragBisFlexibel" : "vorsorge.beitragBisNotiz", { datum: formatDate(vs.beitrag_bis) })
+    : vs.entnahme_flexibel ? t("vorsorge.vorherFlexibel") : "";
+  if (beitragEnde) beginnNotiz = [beginnNotiz, escapeHtml(beitragEnde)].filter(Boolean).join("<br>");
+  const beginn = kennzahl(t(vs.entnahme_flexibel ? "vorsorge.ablauf" : "vorsorge.leistungBeginn"), vs.leistung_beginn ? escapeHtml(formatDate(vs.leistung_beginn)) : `<span class="muted">—</span>`, vs.leistung_beginn ? beginnNotiz : escapeHtml(t("vorsorge.nichtHinterlegt")));
 
   const monat = beitragJeMonatVertrag(data, vs.vorsorge_id, today);
   const jahr = beitragJeJahrVertrag(data, vs.vorsorge_id, today);
@@ -612,6 +620,8 @@ function renderVertragsdaten(vs, tab, offen) {
         ${tab === "versicherungen" && !vs.kapitalbildend ? "" : detailRow(t("vorsorge.kapitalbildendLabel"), escapeHtml(vs.kapitalbildend ? t("labels.yes") : t("labels.no")))}
         ${vs.kapitalwahl ? detailRow(t("vorsorge.kapitalwahl"), escapeHtml(istRiester(vs) ? `${vs.kapitalwahl} · ${riesterHinweis(vs)}` : vs.kapitalwahl)) : ""}
         ${vs.aktiv_bis ? detailRow(t("vorsorge.aktivBis"), escapeHtml(formatDate(vs.aktiv_bis))) : ""}
+        ${vs.beitrag_bis ? detailRow(t("vorsorge.beitragBis"), escapeHtml(formatDate(vs.beitrag_bis))) : ""}
+        ${vs.entnahme_flexibel ? detailRow(t("vorsorge.entnahme"), escapeHtml(t("vorsorge.entnahmeFlexibel"))) : ""}
         ${beitraege.length || vs.beitragsbefreiung ? detailRow(t("vorsorge.beitragsbefreiung.titel"), beitragsbefreiungHtml(vs)) : ""}
         ${fristen ? detailRow(t("vermoegen.fristen"), fristen) : ""}
         ${detailRow(t("vorsorge.geprueftAm"), vs.geprueft_am

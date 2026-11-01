@@ -941,7 +941,7 @@ Fliesstext in Bemerkungen.
 `app/fristen.mjs` rechnet `anstehendeFristen(data, heute, monate = 12)`: die
 erfassten Termine plus abgeleitete Termine ohne eigenen Eintrag (Darlehen
 `zinsbindung_bis` und `laufzeit_bis`, Vorsorge `leistung_beginn` — bei
-`kapitalwahl = offen` als Entscheidung — und `aktiv_bis`, bestaetigte
+`kapitalwahl = offen` als Entscheidung —, `beitrag_bis` und `aktiv_bis`, bestaetigte
 Regelzahlungen mit `aktiv_bis`). Was schon aus diesen Feldern folgt, wird nicht
 zusaetzlich als Frist erfasst. Ein ueberfaelliger, nicht abgehakter Termin
 erscheint als Check `frist-ueberfaellig`.

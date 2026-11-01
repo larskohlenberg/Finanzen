@@ -73,6 +73,30 @@ test("abgeleitete Termine aus Darlehen, Vorsorge und Regelzahlungen", () => {
   assert.ok(termine.every((t) => t.abgeleitet && t.frist_id === null && !t.ueberfaellig));
 });
 
+test("Beitragsende als eigener Termin, bei flexibler Entnahme ist der Leistungsbeginn der Ablauf", () => {
+  const data = { ...leer, vorsorge: [
+    { vorsorge_id: "VS-001", status: "aktiv", beitrag_bis: "2026-06-30", leistung_beginn: "2026-12-01", entnahme_flexibel: true },
+    { vorsorge_id: "VS-002", status: "aktiv", beitrag_bis: "2026-05-31", leistung_beginn: "2026-06-01" },
+    { vorsorge_id: "VS-003", status: "gekuendigt", beitrag_bis: "2026-07-31" },
+  ] };
+  assert.deepEqual(anstehendeFristen(data, HEUTE).map((t) => [t.datum, t.bezeichnung, t.bezug.id]), [
+    ["2026-05-31", "Beitragsende", "VS-002"],
+    ["2026-06-01", "Leistungsbeginn", "VS-002"],
+    ["2026-06-30", "Beitragsende, danach Entnahme flexibel", "VS-001"],
+    ["2026-12-01", "Ablauf, spaetester Auszahlungstermin", "VS-001"],
+  ]);
+});
+
+test("Validator: Beitragsende darf nicht nach dem Leistungsbeginn liegen", () => {
+  const vs = { vorsorge_id: "VS-001", art: "lebensversicherung", name: "LV", person_id: "PER-001", status: "aktiv", kapitalbildend: true,
+    leistung_beginn: "2036-07-01", beitrag_bis: "2036-08-01", entnahme_flexibel: true };
+  const data = { personen: [{ person_id: "PER-001", name: "A", status: "aktiv" }], vorsorge: [vs] };
+  const fehler = validateMasterData(data).errors.filter((e) => String(e.pfad ?? e.path ?? e).includes("beitrag_bis"));
+  assert.equal(fehler.length, 1);
+  assert.deepEqual(validateMasterData({ ...data, vorsorge: [{ ...vs, beitrag_bis: "2036-06-30" }] }).errors
+    .filter((e) => String(e.pfad ?? e.path ?? e).includes("beitrag_bis")), []);
+});
+
 test("fristenZuObjekt filtert auf einen Bezug", () => {
   const data = { ...leer,
     fristen: [

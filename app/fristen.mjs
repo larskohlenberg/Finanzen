@@ -8,8 +8,9 @@
 //   einschliesslich `erledigt_bis` sind abgehakt; aeltere offene Termine bleiben
 //   als ueberfaellig drin.
 // - abgeleitete Termine aus vorhandenen Feldern (Zinsbindung, Laufzeit,
-//   Leistungsbeginn, Vertrags- und Zahlungsende), ohne eigene Eintraege. Sie
-//   zaehlen ab heute; was vorbei ist, ist Geschichte, nicht ueberfaellig.
+//   Leistungsbeginn, Beitragsende, Vertrags- und Zahlungsende), ohne eigene
+//   Eintraege. Sie zaehlen ab heute; was vorbei ist, ist Geschichte, nicht
+//   ueberfaellig.
 import { addInterval } from "./liquiditaet.mjs";
 import { termine } from "./rhythmus.mjs";
 import { FRIST_BEZUEGE } from "./tools/validate-core.mjs";
@@ -41,7 +42,10 @@ function abgeleiteteTermine(data) {
     if (vs.status === "beendet") continue;
     if (vs.leistung_beginn && vs.status !== "gekuendigt") {
       if (vs.kapitalwahl === "offen") neu(vs.leistung_beginn, "entscheidung", "Kapitalwahl entscheiden", "vorsorge", vs.vorsorge_id);
-      else neu(vs.leistung_beginn, "sonstiges", "Leistungsbeginn", "vorsorge", vs.vorsorge_id);
+      else neu(vs.leistung_beginn, "sonstiges", vs.entnahme_flexibel ? "Ablauf, spaetester Auszahlungstermin" : "Leistungsbeginn", "vorsorge", vs.vorsorge_id);
+    }
+    if (vs.beitrag_bis && vs.status !== "gekuendigt") {
+      neu(vs.beitrag_bis, "sonstiges", vs.entnahme_flexibel ? "Beitragsende, danach Entnahme flexibel" : "Beitragsende", "vorsorge", vs.vorsorge_id);
     }
     if (vs.aktiv_bis) neu(vs.aktiv_bis, "sonstiges", "Vertrag endet", "vorsorge", vs.vorsorge_id);
   }

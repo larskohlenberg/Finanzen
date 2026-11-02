@@ -486,7 +486,7 @@ test("Vertragsdaten zeigen die naechsten Fristen des Vertrags", async () => {
   });
 });
 
-test("Beitragsende steht in der Kennzahl im Fokus, der Ablauf klein darunter, die Karte bleibt kurz", async () => {
+test("Beitragsende steht auf Karte und Kennzahl im Fokus, der Ablauf klein darunter", async () => {
   await mitFixture(async () => {
     Object.assign(data.vorsorge.find((v) => v.vorsorge_id === "VS-003"), { beitrag_bis: "2030-04-30", entnahme_flexibel: true });
     state.vorsorgeTab = "lebensversicherungen";
@@ -495,8 +495,8 @@ test("Beitragsende steht in der Kennzahl im Fokus, der Ablauf klein darunter, di
     const html = (await vorsorgeGezeichnet());
     const start = html.indexOf('data-vorsorge="VS-003" aria-pressed');
     const karte = html.slice(start, html.indexOf("</div>", start));
-    assert.match(karte, /Lena · Leistung ab 1\.5\.2035/);
-    assert.doesNotMatch(karte, /Beitrag bis|Entnahme flexibel/, "Details stehen rechts, nicht doppelt auf der Karte");
+    assert.match(karte, /Lena · Beitrag bis 30\.4\.2030<\/span>/, "eine Zeile mit demselben Datum wie die Kennzahl");
+    assert.doesNotMatch(karte, /Leistung ab|Entnahme flexibel/, "Ablauf und Entnahme stehen rechts, nicht doppelt auf der Karte");
     assert.match(html, /Beitrag bis<[\s\S]{0,200}30\.4\.2030[\s\S]{0,400}Ablauf 1\.5\.2035, bis dahin Entnahme flexibel/);
     assert.match(html, /detail-label">Beitrag bis<[\s\S]*30\.4\.2030/);
     assert.match(html, /detail-label">Entnahme<[\s\S]*flexibel bis zum Ablauf, ganz oder in Teilen/);

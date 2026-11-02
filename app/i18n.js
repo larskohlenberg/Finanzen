@@ -555,6 +555,8 @@ window.FINANCE_I18N = {
       },
       karte: {
         leistungAb: "Leistung ab {datum}",
+        beitragBis: "Beitrag bis {datum}",
+        ablauf: "Ablauf {datum}",
         faellig: "fällig {datum}",
         vorjahr: "Vorjahr {betrag}",
         kapital: "Kapital bei Ablauf {betrag}",
@@ -1862,6 +1864,8 @@ window.FINANCE_I18N = {
       },
       karte: {
         leistungAb: "benefit from {datum}",
+        beitragBis: "contributions until {datum}",
+        ablauf: "maturity {datum}",
         faellig: "due {datum}",
         vorjahr: "previous year {betrag}",
         kapital: "lump sum at maturity {betrag}",

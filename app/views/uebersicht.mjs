@@ -380,8 +380,8 @@ function verweis(text, seite) {
 // Kachel zwischen Vermoegen und Vorsorge: je Kapital- oder Rentenversicherung
 // eine Zeile, nach "verfuegbar ab" (bei flexibler Entnahme das Beitragsende); die Person steht im Tooltip des Namens. Oben die
 // Summen (nur Kapital), darunter die Tabelle, die nach fuenf Zeilen scrollt. Rentenvertraege zeigen die Monatsrente; die Summen
-// zaehlen nur Kapital. Ohne Garantie gilt bei Beitragsfreistellung der
-// Rueckkaufswert von heute (mit Sternchen).
+// zaehlen nur Kapital. Ohne Garantie gilt bei Beitragsfreistellung und bei
+// Weiterzahlung der Rueckkaufswert von heute (mit Sternchen).
 function renderVersicherungenKachel(modell) {
   const v = modell.versicherungen;
   if (!v.zeilen.length) return "";
@@ -402,7 +402,7 @@ function renderVersicherungenKachel(modell) {
             ${zelle(2, betrag(z.beitragsfrei))}
             ${zelle(3, betrag(z.weiterzahlung))}
           </tr>`);
-  const annahme = v.zeilen.some((z) => z.beitragsfrei?.annahme);
+  const annahme = v.zeilen.some((z) => z.beitragsfrei?.annahme || z.weiterzahlung?.annahme);
   const summeInfo = [t("overview.versicherung.summeInfo"), annahme ? `* ${t("overview.versicherung.annahme")}` : ""].filter(Boolean).join("\n\n");
   const summe = (label, cents) => `<div><span class="muted">${escapeHtml(label)}</span><strong>${escapeHtml(geldOhneCent(cents))}</strong></div>`;
   return `

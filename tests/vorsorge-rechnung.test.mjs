@@ -104,6 +104,18 @@ test("verfuegbar ab: bei flexibler Entnahme das Beitragsende, sonst der Leistung
   assert.equal(versicherungsWerte(data).zeilen.find((z) => z.vorsorge_id === "VS-003").beginn, "2036-12-01");
 });
 
+test("Uebersichtstabelle: ohne Garantie gilt auch bei Weiterzahlung der Rueckkaufswert von heute als Annahme", () => {
+  const data = daten();
+  data.vorsorge.push({ vorsorge_id: "VS-030", art: "lebensversicherung", name: "Fonds-LV", person_id: "PER-001", status: "aktiv", kapitalbildend: true, leistung_beginn: "2051-12-01" });
+  data.zeitwerte.push(zw("VS-030", "rueckkaufswert", "10000.00"));
+  const z = versicherungsWerte(data).zeilen.find((r) => r.vorsorge_id === "VS-030");
+  assert.deepEqual(z.beitragsfrei, { cents: 1000000, annahme: true });
+  assert.deepEqual(z.weiterzahlung, { cents: 1000000, rente: false, annahme: true });
+  data.zeitwerte.push(zw("VS-030", "erwartete_kapitalleistung", "30000.00"));
+  assert.deepEqual(versicherungsWerte(data).zeilen.find((r) => r.vorsorge_id === "VS-030").weiterzahlung, { cents: 3000000, rente: false },
+    "mit Ablaufleistung zaehlt sie, ohne Sternchen");
+});
+
 test("Rentenstufen summieren je Beginn, Renten ohne Beginn nur im Gesamtwert", () => {
   const r = rentenStufen(daten());
   assert.deepEqual(r.stufen.map((s) => [s.datum, s.summe_cents]), [["2040-02-01", 15000], ["2040-04-01", 255000]]);

@@ -244,7 +244,9 @@ export function versicherungsWerte(data, today = null) {
       rueckkauf_cents: rueckkauf,
       gebunden,
       beitragsfrei: garantiert !== null ? { cents: garantiert, annahme: false } : rueckkauf !== null ? { cents: rueckkauf, annahme: true } : null,
-      weiterzahlung: weiter !== null ? { cents: weiter, rente: false } : rente !== null ? { cents: rente, rente: true } : null,
+      // Ohne Garantie (fondsgebunden) gilt auch bei Weiterzahlung der Rueckkaufswert von heute als Annahme.
+      weiterzahlung: weiter !== null ? { cents: weiter, rente: false } : rente !== null ? { cents: rente, rente: true }
+        : rueckkauf !== null ? { cents: rueckkauf, rente: false, annahme: true } : null,
     });
   }
   zeilen.sort((a, b) => String(a.beginn ?? "9999").localeCompare(String(b.beginn ?? "9999")) || a.vorsorge_id.localeCompare(b.vorsorge_id));

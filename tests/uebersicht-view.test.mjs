@@ -319,7 +319,7 @@ test("Vermoegenskachel trennt schnell verfuegbar und langfristig, Versicherungen
 
   // Tabelle nach Faelligkeit: Rueckkauf heute, Faellig, bei Beitragsfreistellung, bei Weiterzahlung.
   const tabelle = html.match(/aria-labelledby="kachel-versicherungen">[\s\S]*?<\/section>/)?.[0] ?? "";
-  assert.match(tabelle, /<th>Vertrag<\/th><th class="amount">Rückkauf heute<\/th><th class="amount">Fällig<\/th><th class="amount">Bei Beitragsfreistellung<\/th><th class="amount">Bei Weiterzahlung<\/th>/);
+  assert.match(tabelle, /<th>Vertrag<\/th><th class="amount">Rückkauf heute<\/th><th class="amount">Verfügbar ab<\/th><th class="amount">Bei Beitragsfreistellung<\/th><th class="amount">Bei Weiterzahlung<\/th>/);
   const reihen = [...tabelle.matchAll(/data-vorsorge="(VS-\d+)"/g)].map((m) => m[1]);
   // Schutzversicherungen fehlen, auch mit Rueckkaufswert; gefoerderte Renten stehen dabei.
   assert.deepEqual(reihen, ["VS-903", "VS-901", "VS-902", "VS-904", "VS-905"]);

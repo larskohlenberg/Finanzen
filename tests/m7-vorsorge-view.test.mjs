@@ -106,7 +106,7 @@ test("Uebersicht zeigt Alterseinkommen, Kapitalleistungen, Rueckkaufswerte und B
     assert.match(html, /2\.550,00/, "DRV + Riester");
     assert.match(html, /voll ab 1\.4\.2040/);
     assert.match(html, /class="balken-segment vertrag-farbe-\d" data-titel="Gesetzliche Rente/, "Balken je Rente in Vertragsfarbe");
-    assert.match(html, /Kapitalleistungen[\s\S]*25\.000,00[\s\S]*Fällig 2035\./);
+    assert.match(html, /Kapitalleistungen[\s\S]*25\.000,00[\s\S]*Verfügbar 2035\./);
     assert.match(html, /Rückkaufswerte im Vermögen[\s\S]*12\.000,00/, "nur kapitalbildende mit Wert, Riester ist gebunden");
     assert.match(html, /1 von 2 kapitalbildenden bewertet/);
     assert.match(html, /230,00[\s\S]*\/ Monat/, "Beitraege Riester + LV Martin");
@@ -684,7 +684,7 @@ test("Kapitalleistungen: bedingte Todesfallsumme steht da, wird aber nicht faell
     const html = (await vorsorgeGezeichnet());
     const kachel = html.slice(html.indexOf("Kapitalleistungen"), html.indexOf("Rückkaufswerte im Vermögen"));
     // Erklaerung hinter dem Info-Zeichen statt als Notiz unter dem Betrag.
-    assert.match(kachel, /25\.000,00\s€<span class="info-tipp"[^>]*>i<span class="info-tipp-text" role="tooltip">Fällig 2035\. Gezählt ist je Vertrag, was bei Ablauf garantiert ist, auch wenn ab heute keine Beiträge mehr fließen\. Werden alle Beiträge bis zum Ablauf gezahlt, sind es 30\.000,00\s€\. Dazu kommen 200\.000,00\s€ bedingt oder ohne Termin, nicht eingerechnet\./);
+    assert.match(kachel, /25\.000,00\s€<span class="info-tipp"[^>]*>i<span class="info-tipp-text" role="tooltip">Verfügbar 2035\. Gezählt ist je Vertrag, was bei Ablauf garantiert ist, auch wenn ab heute keine Beiträge mehr fließen\. Werden alle Beiträge bis zum Ablauf gezahlt, sind es 30\.000,00\s€\. Dazu kommen 200\.000,00\s€ bedingt oder ohne Termin, nicht eingerechnet\./);
     assert.doesNotMatch(kachel, /class="kpi-note"/, "keine Notiz mehr unter dem Betrag");
     assert.doesNotMatch(kachel, /225\.000,00/, "keine Summe aus Faelligem und Bedingtem");
     assert.match(kachel, /Risiko-LV Martin[\s\S]*bedingt[\s\S]*200\.000,00|Risiko-LV Martin[\s\S]*200\.000,00[\s\S]*bedingt/);
@@ -719,7 +719,7 @@ test("Lebensversicherung ohne Ablaufleistung erscheint mit dem heutigen Rueckkau
   const vorsorge = f.vorsorge.map((vs) => (vs.vorsorge_id === "VS-004" ? { ...vs, leistung_beginn: "2050-11-01" } : vs));
   await mitFixture(async () => {
     const kachel = kapitalKachel((await vorsorgeGezeichnet()));
-    assert.match(kachel, /33\.000,00[\s\S]*Fällig 2035, 2050\.[^<]*ihrem heutigen Rückkaufswert, zusammen 8\.000,00\s€/);
+    assert.match(kachel, /33\.000,00[\s\S]*Verfügbar 2035, 2050\.[^<]*ihrem heutigen Rückkaufswert, zusammen 8\.000,00\s€/);
     assert.match(kachel, /LV Martin<\/(?:a|button)><span class="muted">2050 · Stand heute<\/span><span class="amount">8\.000,00/);
     state.vorsorgeTab = "lebensversicherungen";
     state.selectedVorsorgeId = "VS-004";

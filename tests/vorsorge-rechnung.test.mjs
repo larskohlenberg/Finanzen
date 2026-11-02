@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   beitragJeJahrCents, beitragJeJahrVertrag, beitragJeMonatCents, beitragJeMonatVertrag, beitragVorjahr, erwarteteLeistungen,
   gebuchteBeitraegeAlle, kapitalLeistungen, kapitalZumAblauf, gesetzlicherRentenbeginn, leistungsZeitstrahl, monateBis, naechsterBeitrag,
-  rentenStufen, tabFuerVorsorge, vermoegensBezug, beitragsAenderungen, vertragsFarben,
+  rentenStufen, tabFuerVorsorge, vermoegensBezug, beitragsAenderungen, vertragsFarben, verfuegbarAb, versicherungsWerte,
 } from "../app/vorsorge-rechnung.mjs";
 
 const HEUTE = "2026-10-16";
@@ -88,6 +88,20 @@ test("Vorjahresvergleich nimmt die Zahlung rund ein Jahr vor der letzten", () =>
 test("erwartete Leistungen ohne beendete Vertraege, nach Beginn sortiert", () => {
   const l = erwarteteLeistungen(daten());
   assert.deepEqual(l.map((x) => [x.vorsorge.vorsorge_id, x.typ]), [["VS-003", "kapital"], ["VS-002", "rente"], ["VS-001", "rente"], ["VS-006", "rente"]]);
+});
+
+test("verfuegbar ab: bei flexibler Entnahme das Beitragsende, sonst der Leistungsbeginn", () => {
+  assert.equal(verfuegbarAb({ leistung_beginn: "2051-12-01", beitrag_bis: "2036-12-01", entnahme_flexibel: true }), "2036-12-01");
+  assert.equal(verfuegbarAb({ leistung_beginn: "2036-07-01", beitrag_bis: "2036-06-30" }), "2036-07-01", "ohne flexible Entnahme zaehlt der Ablauf");
+  assert.equal(verfuegbarAb({ leistung_beginn: "2046-10-31", entnahme_flexibel: true }), "2046-10-31", "ohne Beitragsende bleibt der Ablauf");
+  assert.equal(verfuegbarAb({}), null);
+
+  const data = daten();
+  Object.assign(data.vorsorge.find((v) => v.vorsorge_id === "VS-003"), { leistung_beginn: "2051-12-01", beitrag_bis: "2036-12-01", entnahme_flexibel: true });
+  data.zeitwerte.push(zw("VS-003", "rueckkaufswert", "10000.00"));
+  const lv = erwarteteLeistungen(data).find((l) => l.vorsorge.vorsorge_id === "VS-003" && l.typ === "kapital");
+  assert.equal(lv.beginn, "2036-12-01");
+  assert.equal(versicherungsWerte(data).zeilen.find((z) => z.vorsorge_id === "VS-003").beginn, "2036-12-01");
 });
 
 test("Rentenstufen summieren je Beginn, Renten ohne Beginn nur im Gesamtwert", () => {

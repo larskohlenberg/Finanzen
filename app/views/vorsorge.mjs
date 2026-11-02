@@ -401,7 +401,11 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
   const kapital = zeitwert(vs, "erwartete_kapitalleistung");
   const vertragswert = zeitwert(vs, "vertragswert");
   const fehlt = `<span class="chip review">${escapeHtml(t("vorsorge.keinWert"))}</span>`;
-  const beginn = vs.leistung_beginn ? tf("vorsorge.karte.leistungAb", { datum: formatDate(vs.leistung_beginn) }) : "";
+  // Dasselbe Datum wie die Kennzahl rechts: Beitragsende vor Ablauf, bei
+  // flexibler Entnahme ohne Beitragsende der Ablauf, sonst der Leistungsbeginn.
+  const beginn = vs.beitrag_bis ? tf("vorsorge.karte.beitragBis", { datum: formatDate(vs.beitrag_bis) })
+    : !vs.leistung_beginn ? ""
+    : tf(vs.entnahme_flexibel ? "vorsorge.karte.ablauf" : "vorsorge.karte.leistungAb", { datum: formatDate(vs.leistung_beginn) });
   const zeilen = [];
   let wert;
   let fortschritt = null;

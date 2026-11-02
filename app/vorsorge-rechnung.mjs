@@ -161,6 +161,12 @@ export function kapitalZumAblauf(data, vs, today = null) {
   return weiter ? { zeitwert: weiter, ersatz: false, weiterzahlung: null } : null;
 }
 
+// Ab wann das Kapital eines Vertrags zur Verfuegung steht: bei flexibler Entnahme
+// das Beitragsende, sonst der Leistungsbeginn (Ablauf bzw. Rentenbeginn).
+export function verfuegbarAb(vs) {
+  return (vs.entnahme_flexibel && vs.beitrag_bis) || vs.leistung_beginn || null;
+}
+
 // Erwartete Leistungen laufender Vertraege: Renten (monatlich) und Kapital, mit
 // Wertstand bis zum Stichtag `today` (ohne: der juengste).
 export function erwarteteLeistungen(data, today = null) {
@@ -171,7 +177,7 @@ export function erwarteteLeistungen(data, today = null) {
     if (rente) leistungen.push({ vorsorge: vs, typ: "rente", wert_cents: toCents(rente.wert), beginn: vs.leistung_beginn || null, zeitwert: rente });
     const kapital = kapitalZumAblauf(data, vs, today);
     if (kapital) {
-      leistungen.push({ vorsorge: vs, typ: "kapital", wert_cents: toCents(kapital.zeitwert.wert), beginn: vs.leistung_beginn || null, zeitwert: kapital.zeitwert, ersatz: kapital.ersatz,
+      leistungen.push({ vorsorge: vs, typ: "kapital", wert_cents: toCents(kapital.zeitwert.wert), beginn: verfuegbarAb(vs), zeitwert: kapital.zeitwert, ersatz: kapital.ersatz,
         weiterzahlung_cents: kapital.weiterzahlung ? toCents(kapital.weiterzahlung.wert) : null });
     }
   }
@@ -234,7 +240,7 @@ export function versicherungsWerte(data, today = null) {
       vorsorge_id: vs.vorsorge_id,
       name: vs.name,
       person: personName.get(vs.person_id) ?? "",
-      beginn: vs.leistung_beginn || null,
+      beginn: verfuegbarAb(vs),
       rueckkauf_cents: rueckkauf,
       gebunden,
       beitragsfrei: garantiert !== null ? { cents: garantiert, annahme: false } : rueckkauf !== null ? { cents: rueckkauf, annahme: true } : null,

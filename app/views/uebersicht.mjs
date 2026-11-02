@@ -378,7 +378,7 @@ function verweis(text, seite) {
 }
 
 // Kachel zwischen Vermoegen und Vorsorge: je Kapital- oder Rentenversicherung
-// eine Zeile, nach Faelligkeit; die Person steht im Tooltip des Namens. Oben die
+// eine Zeile, nach "verfuegbar ab" (bei flexibler Entnahme das Beitragsende); die Person steht im Tooltip des Namens. Oben die
 // Summen (nur Kapital), darunter die Tabelle, die nach fuenf Zeilen scrollt. Rentenvertraege zeigen die Monatsrente; die Summen
 // zaehlen nur Kapital. Ohne Garantie gilt bei Beitragsfreistellung der
 // Rueckkaufswert von heute (mit Sternchen).

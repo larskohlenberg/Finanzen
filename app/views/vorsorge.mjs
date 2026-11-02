@@ -401,11 +401,7 @@ function renderKarte(vs, tab, aktiv, today, offen, farben = new Map()) {
   const kapital = zeitwert(vs, "erwartete_kapitalleistung");
   const vertragswert = zeitwert(vs, "vertragswert");
   const fehlt = `<span class="chip review">${escapeHtml(t("vorsorge.keinWert"))}</span>`;
-  // Mit flexibler Entnahme ist leistung_beginn der Ablauf, also der spaeteste Termin.
-  const beginn = [
-    vs.beitrag_bis ? tf("vorsorge.karte.beitragBis", { datum: formatDate(vs.beitrag_bis) }) : "",
-    vs.leistung_beginn ? tf(vs.entnahme_flexibel ? "vorsorge.karte.entnahmeFlexibel" : "vorsorge.karte.leistungAb", { datum: formatDate(vs.leistung_beginn) }) : "",
-  ].filter(Boolean).join(" · ");
+  const beginn = vs.leistung_beginn ? tf("vorsorge.karte.leistungAb", { datum: formatDate(vs.leistung_beginn) }) : "";
   const zeilen = [];
   let wert;
   let fortschritt = null;
@@ -535,22 +531,26 @@ function kennzahlenVorsorge(vs, today) {
       ].filter(Boolean).join("<br>"), { stand: kapital })
       : kennzahl(t("vorsorge.erwarteteLeistung"), `<span class="muted">—</span>`, escapeHtml(t("vorsorge.keineLeistung")));
 
+  // Endet der Beitrag vor dem Ablauf, steht das Beitragsende im Fokus und der
+  // Ablauf klein darunter; mit flexibler Entnahme ist der Ablauf der spaeteste Termin.
+  const fokus = vs.beitrag_bis || vs.leistung_beginn;
   let beginnNotiz = "";
-  if (vs.leistung_beginn) {
-    const monate = monateBis(today, vs.leistung_beginn);
+  if (fokus) {
+    const monate = monateBis(today, fokus);
     const teile = [monate > 0 ? tf("vorsorge.inJahrenMonaten", { j: Math.floor(monate / 12), m: monate % 12 }) : t("vorsorge.laeuft")];
     const gesetzlich = vs.art === "gesetzliche-rente" ? null : gesetzlicherRentenbeginn(data, vs.person_id);
     if (gesetzlich) {
-      const abstand = monateBis(gesetzlich, vs.leistung_beginn);
+      const abstand = monateBis(gesetzlich, fokus);
       teile.push(abstand === 0 ? t("vorsorge.mitGesetzlicherRente") : tf(abstand < 0 ? "vorsorge.vorGesetzlicherRente" : "vorsorge.nachGesetzlicherRente", { m: Math.abs(abstand) }));
     }
     beginnNotiz = escapeHtml(teile.join(" · "));
   }
-  const beitragEnde = vs.beitrag_bis
-    ? tf(vs.entnahme_flexibel ? "vorsorge.beitragBisFlexibel" : "vorsorge.beitragBisNotiz", { datum: formatDate(vs.beitrag_bis) })
+  const ablauf = !vs.leistung_beginn ? ""
+    : vs.beitrag_bis ? tf(vs.entnahme_flexibel ? "vorsorge.ablaufFlexibel" : "vorsorge.karte.leistungAb", { datum: formatDate(vs.leistung_beginn) })
     : vs.entnahme_flexibel ? t("vorsorge.vorherFlexibel") : "";
-  if (beitragEnde) beginnNotiz = [beginnNotiz, escapeHtml(beitragEnde)].filter(Boolean).join("<br>");
-  const beginn = kennzahl(t(vs.entnahme_flexibel ? "vorsorge.ablauf" : "vorsorge.leistungBeginn"), vs.leistung_beginn ? escapeHtml(formatDate(vs.leistung_beginn)) : `<span class="muted">—</span>`, vs.leistung_beginn ? beginnNotiz : escapeHtml(t("vorsorge.nichtHinterlegt")));
+  if (ablauf) beginnNotiz = [beginnNotiz, escapeHtml(ablauf)].filter(Boolean).join("<br>");
+  const beginnLabel = vs.beitrag_bis ? "vorsorge.beitragBis" : vs.entnahme_flexibel ? "vorsorge.ablauf" : "vorsorge.leistungBeginn";
+  const beginn = kennzahl(t(beginnLabel), fokus ? escapeHtml(formatDate(fokus)) : `<span class="muted">—</span>`, fokus ? beginnNotiz : escapeHtml(t("vorsorge.nichtHinterlegt")));
 
   const monat = beitragJeMonatVertrag(data, vs.vorsorge_id, today);
   const jahr = beitragJeJahrVertrag(data, vs.vorsorge_id, today);

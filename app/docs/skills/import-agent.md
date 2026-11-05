@@ -238,6 +238,12 @@ Erfahrungswerte aus Monatsauszuegen, deren Posten so aussehen:
   Reihenfolge ist fest, auch wenn das zweite Datum frueher liegt. Belegt ist das
   an einer Lastschrift, bei der die umgekehrte Lesart unzulaessig waere: Belastet
   die Bank ein Konto, darf der Wertstellungstag nicht vor dem Buchungstag liegen.
+- **Monatsauszug endet am letzten Bankarbeitstag**: Faellt das Monatsende auf ein
+  Wochenende, endet der Auszug davor; der Zeitraum im Belegnamen folgt dem „neuer
+  Kontostand vom". Vorgezogene Dauerauftraege koennen dann zweimal im selben
+  Auszug stehen, und zum Monatsende faellige Lastschriften erscheinen erst im
+  Folgeauszug. Beides ist kein Dublettenhinweis und keine Luecke, solange die
+  Saldokette aufgeht.
 - **Rechnungsabschluss**: Das separate Dokument enthaelt keine Buchung. Die
   Abschlussbuchung (Zinsen, Entgelte) steht im Auszug zum Quartalsende. Der
   Abschluss nennt keinen Gegenpartei-Namen; die Bank selbst eintragen.

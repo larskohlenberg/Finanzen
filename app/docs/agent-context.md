@@ -501,6 +501,10 @@ Wichtige Tools:
   Marke in `<inbox>/.auftraege/` zurueck (`zurueckgeholt`). `status` zeigt
   unter `importe` die letzten Auftraege und ob eine wartende Datei nur
   hochgeladen oder schon uebernommen ist.
+- **Auszugsrhythmus je Konto:** `auszug_rhythmus: "quartal"` an Konten, die nur
+  quartalsweise Auszuege bekommen. Sie gelten fuer vollstaendige Monate bis zum
+  naechsten erwarteten Auszug als belegt und halten Einnahmen, Ausgaben und
+  Sparquote nicht auf. Monatsende ist der letzte Bankarbeitstag.
 - **Referenz-Verlaesslichkeit je Konto:** `bank_referenz_verlaesslich: false`
   am Konto (per `stammdatum_setzen`) schaltet den Abgleich ueber die
   Bank-Referenz fuer dieses Konto ab (ADR 0034), z. B. wenn die Bank Referenzen

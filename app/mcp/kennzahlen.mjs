@@ -55,7 +55,7 @@ function absicherungZeilen(data, stichtag) {
 // Umfang und Ausschluesse einer Kennzahl (klassifikation.mjs) als Textzeilen.
 const KLASSE_TEXT = { transfer: "Umbuchungen", startzustand: "Startzustaende", investition: "Investitionen", sondereffekt: "Sondereffekte (Gutschriften)" };
 export function umfangZeilen(abdeckung, ausschluesse) {
-  const konten = abdeckung.konten.map((k) => `${k.konto_id} bis ${k.belegt_bis || "-"}`).join(", ");
+  const konten = abdeckung.konten.map((k) => `${k.konto_id} bis ${k.belegt_bis || "-"}${k.gilt_bis !== k.belegt_bis ? ` (quartalsweise, gilt bis ${k.gilt_bis})` : ""}`).join(", ");
   const aus = Object.entries(ausschluesse ?? {}).filter(([, x]) => x.anzahl).map(([k, x]) => `${KLASSE_TEXT[k] ?? k} ${x.anzahl} (${centsToDecimal(x.summe_cents)})`).join(", ");
   return [
     `  Umfang: verfuegbare Konten belegt (letzte Buchung oder Kontostand): ${konten || "keine"}; vollstaendig bis ${abdeckung.vollstaendig_bis || "-"}${abdeckung.begrenzt_durch ? `, begrenzt durch ${abdeckung.begrenzt_durch}` : ""}`,

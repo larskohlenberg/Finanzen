@@ -98,3 +98,14 @@ export function zinsJePeriodeCents(restCents, zinssatz, einheit, intervall) {
   if ((betrag % nenner) * 2n >= nenner) q += 1n;
   return Number(negativ ? -q : q);
 }
+
+// Letzter Bankarbeitstag eines Monats (JJJJ-MM): Monatsauszuege enden dort, wenn
+// das Monatsende auf ein Wochenende faellt; Silvester buchen Banken nicht regulaer.
+// Weitere Feiertage kennt die Regel nicht.
+export function letzterBankarbeitstag(monat) {
+  const [y, m] = monat.split("-").map(Number);
+  const tag = new Date(Date.UTC(y, m, 0));
+  if (m === 12) tag.setUTCDate(30);
+  while (tag.getUTCDay() === 0 || tag.getUTCDay() === 6) tag.setUTCDate(tag.getUTCDate() - 1);
+  return tag.toISOString().slice(0, 10);
+}

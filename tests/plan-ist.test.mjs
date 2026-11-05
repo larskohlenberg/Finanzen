@@ -52,7 +52,7 @@ test("bestandsMonate: ab dem letzten Startzustand, bis zum letzten vollen Monat"
   assert.deepEqual(bestandsMonate(data, "2024-04-20"), ["2024-01", "2024-02", "2024-03"]);
   // Ohne Startzustand ab der ersten Buchung; vollstaendigBis kappt das Ende.
   const ohne = { transaktionen: [...data.transaktionen.filter((t) => !t.transaktionstyp), tx("2024-02-15", "-5.00", "KAT-003")] };
-  assert.deepEqual(bestandsMonate(ohne, "2024-05-02", { vollstaendigBis: "2024-03-30" }).at(-1), "2024-02");
+  assert.deepEqual(bestandsMonate(ohne, "2024-05-02", { vollstaendigBis: "2024-03-28" }).at(-1), "2024-02");
   assert.equal(bestandsMonate(ohne, "2024-05-02")[0], "2023-05");
 });
 

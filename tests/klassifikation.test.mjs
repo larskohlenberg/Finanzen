@@ -1,6 +1,8 @@
 // Zentrale Klassifikation der Buchungen (Review Welle 2, 2.2): eine Klasse je
 // Buchung, je Kennzahl eine Auswahl; Kennzahlen liefern Monatsliste, Umfang und
 // Ausschluesse; Vollstaendigkeit ueber die Importabdeckung je Konto.
+import { letzterBankarbeitstag } from "../app/rhythmus.mjs";
+import { bestandsMonate } from "../app/plan-ist.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buchungsKlasse, importAbdeckung, kategorienIndex } from "../app/klassifikation.mjs";
@@ -120,6 +122,38 @@ test("importAbdeckung: je Konto belegt bis (letzte Buchung oder Anker); ruhige K
   // Keine automatische Ruhe-Ausnahme: erst ein neuer Kontostand belegt den Zeitraum.
   d.zeitwerte.push({ entitaet: "konto", entitaet_id: "KTO-003", feld: "kontostand", wert: "10.00", standdatum: "2026-01-05", qualitaet: "belegt" });
   assert.equal(importAbdeckung(d, HEUTE).begrenzt_durch, "KTO-001");
+});
+
+test("importAbdeckung: Quartalskonto gilt bis zum naechsten erwarteten Auszug, hoechstens bis zum Stichtag", () => {
+  const konto = (auszug_rhythmus) => ({ konto_id: "KTO-S", name: "Spar", kontotyp: "spar", status: "aktiv", liquiditaetsrelevant: true, ...(auszug_rhythmus ? { auszug_rhythmus } : {}) });
+  const mit = (rhythmus, datum, heute) => importAbdeckung({ konten: [konto(rhythmus)], transaktionen: [tx("KTO-S", datum, "1.39", "KAT-003")], zeitwerte: [] }, heute);
+  // Ohne Angabe begrenzt die letzte Buchung wie bisher.
+  assert.equal(mit(undefined, "2026-09-30", "2026-11-05").vollstaendig_bis, "2026-09-30");
+  // Quartalsweise: laufendes Quartal zaehlt bis zum Stichtag ...
+  const a = mit("quartal", "2026-09-30", "2026-11-05");
+  assert.equal(a.vollstaendig_bis, "2026-11-05");
+  assert.equal(a.konten[0].belegt_bis, "2026-09-30");
+  // ... ein ueberfaelliger Auszug haelt ab dem Folgequartal wieder auf.
+  assert.equal(mit("quartal", "2026-09-30", "2027-02-15").vollstaendig_bis, "2026-12-31");
+  // Stand am Quartalsende: Der naechste Auszug ist das Folgequartal.
+  assert.equal(mit("quartal", "2026-06-30", "2027-02-15").vollstaendig_bis, "2026-09-30");
+  // Stand mitten im Quartal: dasselbe Quartalsende.
+  assert.equal(mit("quartal", "2026-08-10", "2027-02-15").vollstaendig_bis, "2026-09-30");
+});
+
+test("letzterBankarbeitstag: Wochenende und Silvester zaehlen nicht", () => {
+  assert.equal(letzterBankarbeitstag("2026-10"), "2026-10-30"); // 31.10. Samstag
+  assert.equal(letzterBankarbeitstag("2026-05"), "2026-05-29"); // 31.5. Sonntag
+  assert.equal(letzterBankarbeitstag("2026-09"), "2026-09-30");
+  assert.equal(letzterBankarbeitstag("2026-12"), "2026-12-30");
+  assert.equal(letzterBankarbeitstag("2028-12"), "2028-12-29"); // 30.12. Samstag
+});
+
+test("bestandsMonate: Beleg bis zum letzten Bankarbeitstag macht den Monat voll, davor nicht", () => {
+  const data = { transaktionen: [tx("KTO-001", "2026-08-15", "-1.00", "KAT-003"), tx("KTO-001", "2026-09-15", "-1.00", "KAT-003"), tx("KTO-001", "2026-10-15", "-1.00", "KAT-003")] };
+  assert.equal(bestandsMonate(data, "2026-11-05", { vollstaendigBis: "2026-10-30" }).at(-1), "2026-10");
+  assert.equal(bestandsMonate(data, "2026-11-05", { vollstaendigBis: "2026-10-29" }).at(-1), "2026-09");
+  assert.equal(bestandsMonate(data, "2026-11-05", { vollstaendigBis: "2026-09-29" }).at(-1), "2026-08");
 });
 
 test("Startzustand nach dem Fensterende leert vergangene Fenster nicht (Trend)", () => {

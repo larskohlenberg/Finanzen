@@ -23,6 +23,7 @@
 // ein neuer Kontostand belegt den Zeitraum ohne Buchungen. Die Auswahl sind die
 // verfuegbaren Konten (liquiditaetsrelevant, kein Depot, kein Bargeld, am
 // Stichtag offen) und wird mit ausgegeben.
+import { letzterBankarbeitstag } from "./rhythmus.mjs";
 import { kontoAktivAm } from "./bewertung.mjs";
 import { toCents } from "./tools/lib/text.mjs";
 
@@ -64,13 +65,25 @@ export function ausschlussZaehler() {
   };
 }
 
+// Das naechste Quartalsende nach einem Stand; ein Stand am letzten Bankarbeitstag
+// des Quartals zaehlt schon als dieses Quartalsende.
+function naechstesQuartalsende(datum) {
+  const y = Number(datum.slice(0, 4));
+  const m = Math.ceil(Number(datum.slice(5, 7)) / 3) * 3;
+  const ende = (jahr, monat) => new Date(Date.UTC(jahr, monat, 0)).toISOString().slice(0, 10);
+  if (datum < letzterBankarbeitstag(`${y}-${String(m).padStart(2, "0")}`)) return ende(y, m);
+  return m === 12 ? ende(y + 1, 3) : ende(y, m + 3);
+}
+
 const verfuegbar = (konto, today, data) => konto.kontotyp !== "depot" && konto.kontotyp !== "bar" && konto.liquiditaetsrelevant === true && kontoAktivAm(konto, today, data);
 
 // Importabdeckung je verfuegbarem Konto zum Stichtag: von (erste Buchung),
 // belegt_bis (letzte Buchung oder letzter Kontostand-Anker bis zum Stichtag).
-// vollstaendig_bis ist das frueheste belegt_bis, begrenzt_durch das Konto dazu.
+// gilt_bis ist belegt_bis, bei Konten mit auszug_rhythmus "quartal" bis zum
+// naechsten erwarteten Auszug (hoechstens bis zum Stichtag): dazwischen fehlt dort
+// nichts. vollstaendig_bis ist das frueheste gilt_bis, begrenzt_durch das Konto dazu.
 export function importAbdeckung(data, today) {
-  const konten = (data.konten ?? []).filter((k) => verfuegbar(k, today, data)).map((k) => ({ konto_id: k.konto_id, name: k.name, von: "", belegt_bis: "" }));
+  const konten = (data.konten ?? []).filter((k) => verfuegbar(k, today, data)).map((k) => ({ konto_id: k.konto_id, name: k.name, von: "", belegt_bis: "", auszug_rhythmus: k.auszug_rhythmus }));
   const index = new Map(konten.map((k) => [k.konto_id, k]));
   for (const tx of data.transaktionen ?? []) {
     const k = index.get(tx.konto_id);
@@ -83,6 +96,10 @@ export function importAbdeckung(data, today) {
     if (k && zw.standdatum <= today && zw.standdatum > k.belegt_bis) k.belegt_bis = zw.standdatum;
   }
   let grenze = null;
-  for (const k of konten) if (k.belegt_bis && (!grenze || k.belegt_bis < grenze.belegt_bis)) grenze = k;
-  return { konten, vollstaendig_bis: grenze?.belegt_bis ?? "", begrenzt_durch: grenze?.konto_id ?? "" };
+  const zeilen = konten.map(({ auszug_rhythmus, ...k }) => {
+    const erwartet = auszug_rhythmus === "quartal" && k.belegt_bis ? naechstesQuartalsende(k.belegt_bis) : k.belegt_bis;
+    return { ...k, gilt_bis: erwartet > today ? today : erwartet };
+  });
+  for (const k of zeilen) if (k.gilt_bis && (!grenze || k.gilt_bis < grenze.gilt_bis)) grenze = k;
+  return { konten: zeilen, vollstaendig_bis: grenze?.gilt_bis ?? "", begrenzt_durch: grenze?.konto_id ?? "" };
 }

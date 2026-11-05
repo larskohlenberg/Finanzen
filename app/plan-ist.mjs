@@ -10,7 +10,7 @@
 // Cent; das Monatsmittel teilt die Ansicht durch anzahl_monate.
 // Rein, ohne DOM: Uebersicht, Seite Plan & Ist und MCP rechnen hiermit.
 import { addInterval, periodenSchluessel } from "./liquiditaet.mjs";
-import { termine } from "./rhythmus.mjs";
+import { letzterBankarbeitstag, termine } from "./rhythmus.mjs";
 import { dayDiff, toCents } from "./tools/lib/text.mjs";
 import { ausschlussZaehler, buchungsKlasse, kategorienIndex, KATEGORIE_UNGEKLAERT, STARTZUSTAND } from "./klassifikation.mjs";
 
@@ -56,12 +56,12 @@ export function regelzahlungBeginn(data) {
 // Startzustand (am Monatsersten zaehlt der Monat, sonst der folgende); ohne
 // Startzustand die erste Buchung. Ende: der letzte volle Monat (Grenze wie
 // monatsMittel: vor dem laufenden Monat, hoechstens bis zum Monat, in dem alle
-// Konten belegt sind).
+// Konten bis zum letzten Bankarbeitstag belegt sind).
 export function bestandsMonate(data, today, { vollstaendigBis = "" } = {}) {
   let grenze = today.slice(0, 7);
   if (vollstaendigBis) {
-    const [y, m, d] = vollstaendigBis.split("-").map(Number);
-    const voll = d >= new Date(Date.UTC(y, m, 0)).getUTCDate() ? vollstaendigBis.slice(0, 7) : new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7);
+    const [y, m] = vollstaendigBis.split("-").map(Number);
+    const voll = vollstaendigBis >= letzterBankarbeitstag(vollstaendigBis.slice(0, 7)) ? vollstaendigBis.slice(0, 7) : new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7);
     if (voll < grenze) grenze = new Date(Date.UTC(Number(voll.slice(0, 4)), Number(voll.slice(5, 7)), 1)).toISOString().slice(0, 7);
   }
   const vorher = (data.transaktionen ?? []).map((tx) => tx.buchungsdatum?.slice(0, 7)).filter((m) => m && m < grenze).sort();

@@ -3,6 +3,8 @@
 // Nachkontrolle statt Vorab-Zustimmung (ADR 0025). Rein lesend, blockiert nie,
 // Exit-Code immer 0. Ersetzt die Bucket-Dialoge durch eine Liste dessen, was
 // ein Mensch sich ansehen sollte — vor allem das, was nie ein Mensch gesehen hat.
+// Standard ist der Bericht zum Lauf (laufBericht, ADR 0040); die Gesamtsicht des
+// Bestands (pruefbericht) gibt es mit --bestand.
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { categorize } from "./categorizer.mjs";
@@ -17,6 +19,8 @@ import { reconciliationDrift } from "../vermoegen.mjs";
 const GROSSE_ANZAHL = 15;
 const AUSREISSER_FAKTOR = 2;
 const AUSREISSER_MINDESTABWEICHUNG_CENT = 10000; // 100 EUR: darunter ist es Rauschen
+const GROSSE_ANZAHL_LAUF = 5;
+const LAUF_ANLASS = "import-durchlauf"; // dieser Protokolleintrag schliesst einen Lauf ab
 
 const istAuto = (tx) => tx.bestaetigt_durch === "auto";
 const istMensch = (tx) => tx.bestaetigt_durch === "mensch" || tx.kategorie_herkunft === "manuell";
@@ -200,8 +204,133 @@ export function pruefbericht({ transaktionen, regeln, konten, zeitwerte, log }) 
   };
 }
 
+const zeitVon = (wert) => {
+  const t = Date.parse(wert ?? "");
+  return Number.isFinite(t) ? t : null;
+};
+
+// Der Lauf: alles, was seit dem letzten Abschlusseintrag importiert wurde. Ist
+// seither nichts dazugekommen, der zuletzt abgeschlossene Lauf, damit der Bericht
+// auch spaeter noch dasselbe zeigt. Fehlt ein Abschlusseintrag, zeigt der Bericht
+// eher zu viel als zu wenig. Buchungen ohne importiert_am stammen aus der Zeit vor
+// dem Feld und gehoeren zu keinem Lauf.
+export function laufFenster(transaktionen, log) {
+  const marken = (log ?? []).filter((e) => e.anlass === LAUF_ANLASS).map((e) => zeitVon(e.zeitpunkt)).filter((t) => t !== null).sort((a, b) => a - b);
+  const mitDatum = (transaktionen ?? []).filter((tx) => zeitVon(tx.importiert_am) !== null);
+  const letzte = marken.at(-1) ?? null;
+  const nachMarke = mitDatum.filter((tx) => letzte === null || zeitVon(tx.importiert_am) > letzte);
+  if (nachMarke.length > 0 || letzte === null) return { von: letzte, bis: null, buchungen: nachMarke };
+  const von = marken.at(-2) ?? null;
+  return { von, bis: letzte, buchungen: mitDatum.filter((tx) => {
+    const t = zeitVon(tx.importiert_am);
+    return t <= letzte && (von === null || t > von);
+  }) };
+}
+
+// Ausreisser nur dort, wo der Lauf etwas hinzugefuegt hat. Transfers und
+// zugeordnete Regelzahlungen zaehlen nicht: Sie sind erwartet, auch die
+// Jahresraten, die jeden Jahresmonat sonst als Ausreisser melden wuerden.
+function ausreisserImLauf(transaktionen, lauf) {
+  const zaehlt = (tx) => tx.kategorie_id && !tx.ist_transfer && !tx.regelzahlung_id;
+  const summen = new Map();
+  for (const tx of transaktionen) {
+    if (!zaehlt(tx)) continue;
+    const monate = summen.get(tx.kategorie_id) ?? new Map();
+    const monat = tx.buchungsdatum.slice(0, 7);
+    monate.set(monat, (monate.get(monat) ?? 0) + Math.abs(toCents(tx.betrag)));
+    summen.set(tx.kategorie_id, monate);
+  }
+  const betroffen = new Set(lauf.filter(zaehlt).map((tx) => `${tx.kategorie_id}|${tx.buchungsdatum.slice(0, 7)}`));
+  const treffer = [];
+  for (const key of [...betroffen].sort()) {
+    const [kategorie_id, monat] = key.split("|");
+    const monate = summen.get(kategorie_id);
+    const davor = [...monate.keys()].filter((m) => m < monat).sort().slice(-6);
+    if (davor.length < 2) continue;
+    const vergleich = median(davor.map((m) => monate.get(m)));
+    const summe = monate.get(monat);
+    if (vergleich > 0 && summe > vergleich * AUSREISSER_FAKTOR && summe - vergleich > AUSREISSER_MINDESTABWEICHUNG_CENT) {
+      treffer.push({ kategorie_id, monat, summe_cent: summe, median_cent: vergleich });
+    }
+  }
+  return treffer;
+}
+
+export function laufBericht(eingabe) {
+  const transaktionen = eingabe.transaktionen ?? [];
+  const log = eingabe.log ?? [];
+  const bestand = pruefbericht(eingabe);
+  const { von, bis, buchungen } = laufFenster(transaktionen, log);
+  const imLauf = new Set(buchungen.map((tx) => tx.transaktion_id));
+
+  const bekannt = new Set(transaktionen.filter((tx) => !imLauf.has(tx.transaktion_id)).map((tx) => normalizeLoose(tx.gegenpartei)));
+  const neueHaendler = new Map();
+  for (const tx of buchungen) {
+    const key = normalizeLoose(tx.gegenpartei);
+    if (!key || bekannt.has(key)) continue;
+    const eintrag = neueHaendler.get(key) ?? { gegenpartei: tx.gegenpartei, anzahl: 0, summe_cent: 0, kategorie_id: tx.kategorie_id };
+    eintrag.anzahl += 1;
+    eintrag.summe_cent += toCents(tx.betrag);
+    neueHaendler.set(key, eintrag);
+  }
+
+  const imFenster = (t) => t !== null && (von === null || t > von) && (bis === null || t <= bis);
+  const freigabe = log.filter((e) => e.anlass === "freigabe" && imFenster(zeitVon(e.zeitpunkt))).pop();
+
+  return {
+    von, bis,
+    anzahl: buchungen.length,
+    summe_cent: buchungen.reduce((s, tx) => s + toCents(tx.betrag), 0),
+    grosse: [...buchungen].sort((a, b) => Math.abs(toCents(b.betrag)) - Math.abs(toCents(a.betrag))).slice(0, GROSSE_ANZAHL_LAUF),
+    neue_haendler: [...neueHaendler.values()],
+    ausreisser: ausreisserImLauf(transaktionen, buchungen),
+    nicht_freigegeben: buchungen.filter((tx) => tx.kategorisierung_status !== "bestaetigt"),
+    kat012: buchungen.filter((tx) => istAuto(tx) && tx.kategorie_id === "KAT-012"),
+    geschaetzt: buchungen.filter((tx) => tx.kategorie_herkunft === "agent" && tx.bestaetigt_durch !== "mensch"),
+    gate_durchfall: freigabe?.gate_durchfall ?? [],
+    // Bestandsprobleme stehen immer drin, solange sie bestehen: Sie verlangen
+    // eine Handlung und verschwinden danach von selbst.
+    widersprueche: bestand.widersprueche,
+    konten_ohne_anker: bestand.konten_ohne_anker,
+    salden_drift: bestand.salden_drift,
+    reconciliation: bestand.reconciliation,
+    dubletten_pruefen: bestand.dubletten_pruefen,
+    gesperrte_belegstufen: bestand.lernen.gesperrte_belegstufen,
+  };
+}
+
 function zeile(betrag, text) {
   return `  ${String(betrag).padStart(12)}  ${text}`;
+}
+
+export function renderLaufBericht(b) {
+  const z = [];
+  const seit = b.von === null ? "" : ` seit ${new Date(b.von).toISOString().slice(0, 10)}`;
+  if (b.anzahl === 0) z.push(`DIESER LAUF: keine neuen Buchungen${seit}`);
+  else z.push(`DIESER LAUF${b.bis === null ? "" : " (zuletzt abgeschlossen)"}: ${b.anzahl} ${b.anzahl === 1 ? "neue Buchung" : "neue Buchungen"}${seit}, Summe ${centsToDecimal(b.summe_cent)}`);
+  const abschnitt = (titel, liste, render) => {
+    if (liste.length === 0) return;
+    z.push("", `${titel} (${liste.length})`);
+    for (const e of liste) z.push(render(e));
+  };
+  const buchung = (tx) => zeile(tx.betrag, `${tx.buchungsdatum}  ${tx.gegenpartei}  [${tx.kategorie_id ?? "ohne Kategorie"}]`);
+  abschnitt("GROESSTE BETRAEGE", b.grosse, buchung);
+  const nurGroesste = z.length;
+  abschnitt("NEUE HAENDLER, ERSTMALS IM BESTAND", b.neue_haendler, (h) => `  ${String(h.anzahl).padStart(4)}x  ${h.gegenpartei}  ${centsToDecimal(h.summe_cent)}  [${h.kategorie_id ?? "ohne Kategorie"}]`);
+  abschnitt("AUFFAELLIGE MONATE, OHNE TRANSFERS UND REGELZAHLUNGEN", b.ausreisser, (a) => `  ${a.kategorie_id}  ${a.monat}: ${(a.summe_cent / 100).toFixed(2)} gegen Median ${(a.median_cent / 100).toFixed(2)}`);
+  abschnitt("NOCH NICHT FREIGEGEBEN", b.nicht_freigegeben, buchung);
+  abschnitt("AM GATE GESCHEITERT", b.gate_durchfall, (d) => `  ${d.regel_id}${d.konto_id ? ` auf ${d.konto_id}` : ""}: ${d.grund}`);
+  abschnitt("AUTO-FREIGEGEBEN AUF KAT-012", b.kat012, buchung);
+  abschnitt("VOM AGENTEN GESCHAETZT", b.geschaetzt, buchung);
+  abschnitt("BESTAND: MENSCHLICHE ENTSCHEIDUNGEN IM WIDERSPRUCH ZUM REGELWERK", b.widersprueche, (w) => zeile(w.betrag, `${w.buchungsdatum}  ${w.gegenpartei}  ${w.ist_kategorie} -> ${w.regel_kategorie}  [${w.regeln.join(", ")}]`));
+  abschnitt("BESTAND: KONTEN OHNE BELEGTEN ANKER", b.konten_ohne_anker, (k) => `  ${k.konto_id}  ${k.name}`);
+  abschnitt("BESTAND: SALDENKETTE GEHT NICHT AUF", b.salden_drift, (d) => `  ${d.konto_id}  ${d.von} -> ${d.bis}: belegt ${centsToDecimal(d.belegt_cents)}, erwartet ${centsToDecimal(d.erwartet_cents)}, Differenz ${centsToDecimal(d.differenz_cents)}`);
+  abschnitt("BESTAND: ZURUECKGEHALTENE KOPFSTAENDE", b.reconciliation, (r) => `  ${r.quelle}: Differenz ${reconDifferenz(r.reconciliation_differenz)}`);
+  abschnitt("BESTAND: DUBLETTEN-PRUEFFAELLE", b.dubletten_pruefen, (f) => `  ${f.art}  ${f.konto_id}  ${f.quelle ?? "(ohne Quelle)"} Zeile ${(f.zeilen ?? []).join(", ")}${f.transaktion_id ? `  ${f.transaktion_id}` : ""}${f.hinweis ? `  ${f.hinweis}` : ""}`);
+  if (b.gesperrte_belegstufen.length) z.push("", `BESTAND: GESPERRTE BELEGSTUFEN: ${b.gesperrte_belegstufen.join(", ")}`);
+  if (z.length === nurGroesste) z.push("", "Keine Auffaelligkeiten.");
+  z.push("", "Gesamtsicht des Bestands nur auf Nachfrage: --bestand, im MCP umfang: bestand.");
+  return z.join("\n");
 }
 
 export function renderBericht(b) {
@@ -288,7 +417,8 @@ async function main() {
     readJson(new URL("kategorisierungsregeln.json", masterRoot)),
     readJson(new URL("konten.json", masterRoot)),
   ]));
-  console.log(renderBericht(pruefbericht({ transaktionen, regeln, konten, zeitwerte, log })));
+  const eingabe = { transaktionen, regeln, konten, zeitwerte, log };
+  console.log(process.argv.includes("--bestand") ? renderBericht(pruefbericht(eingabe)) : renderLaufBericht(laufBericht(eingabe)));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

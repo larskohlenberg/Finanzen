@@ -200,8 +200,9 @@ const CLI_WERKZEUGE = [
   cli({
     name: "pruefbericht",
     skript: "pruefbericht.mjs",
-    beschreibung: "Pruefbericht nach einem Durchlauf (tools/pruefbericht.mjs): groesste Auto-Freigaben, Merchants ohne menschliche Bestaetigung, auto-freigegebene KAT-012, menschliche Entscheidungen im Widerspruch zum Regelwerk, am Gate gescheiterte Regeln, Konten ohne Anker, nicht reconciliierte Kontostaende. Rein lesend. Dem Nutzer ungekuerzt zeigen.",
-    argv: async (ctx, a, root) => [root],
+    beschreibung: "Pruefbericht nach einem Durchlauf (tools/pruefbericht.mjs). Standard umfang lauf: nur die Buchungen dieses Laufs (groesste Betraege, neue Haendler, auffaellige Monate ohne Transfers und Regelzahlungen, nicht Freigegebenes, Gate, Schaetzungen) plus offene Bestandsprobleme; leere Abschnitte fallen weg. Der Lauf endet mit dem Protokolleintrag anlass import-durchlauf. umfang bestand: Gesamtsicht ueber alle Buchungen, nur auf Nachfrage oder nach einem Erstimport. Rein lesend. Dem Nutzer ungekuerzt zeigen.",
+    eigenschaften: { umfang: { type: "string", enum: ["lauf", "bestand"], description: "lauf (Default) oder bestand" } },
+    argv: async (ctx, a, root) => [...(a.umfang === "bestand" ? ["--bestand"] : []), root],
   }),
   cli({
     name: "inbox",

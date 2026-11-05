@@ -27,7 +27,8 @@ Lauf eine Vorschau.
    verregelt, was belegt ist, und schaetzt den Rest als Einzelvorschlag.
 4. `freigabe` mit `schreiben: true`, danach `regelzahlungen_zuordnen` und
    `personenbezug` (beide mit `schreiben: true`).
-5. `pruefbericht` — **ungekuerzt zeigen**.
+5. `pruefbericht` — **ungekuerzt zeigen**. Er umfasst nur diesen Lauf und offene
+   Bestandsprobleme; Gesamtsicht mit `umfang: "bestand"` nur auf Nachfrage.
 6. `logos` — Bericht lesen, neue Gegenparteien ohne Logo melden, fuer die
    wiederkehrenden die Domain bestimmen und Logos nachziehen (Vorschau, dann
    `schreiben: true`). Liefert der Dienst nur ein winziges Bild, eine bessere
@@ -35,8 +36,8 @@ Lauf eine Vorschau.
 7. `belege_text` mit `schreiben: true` — raeumt `processed/` und
    `standardized/` per Inhalts-Hash ab. Ohne Nachweis bleibt die Datei liegen
    und steht unter `offen`. `error/` bleibt unangetastet.
-8. Zaehler in `DATENROOT/agent_log.jsonl` protokollieren (`datei_schreiben`
-   mit `anhaengen: true, schreiben: true`).
+8. Zaehler protokollieren (`protokoll_eintrag` mit `anlass: "import-durchlauf"`,
+   `schreiben: true`). Der Eintrag schliesst den Lauf ab.
 
 ## Die drei Regeln, die den Unterschied machen
 

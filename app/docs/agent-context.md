@@ -532,7 +532,11 @@ Wichtige Tools:
   vollstaendige Regelwerk; weicht Kategorie oder Trefferliste vom gespeicherten
   Vorschlag ab, haelt es mit dem Grund `abweichung` zurueck, bis
   `recategorize.mjs` den Vorschlag erneuert hat. Schreibt `bestaetigt_durch = auto`. `npm run freigabe` ist die Vorschau.
-- `tools/pruefbericht.mjs`: Nachkontrolle nach einem Durchlauf — groesste
+- `tools/pruefbericht.mjs`: Nachkontrolle nach einem Durchlauf. Standard ist der
+  Lauf: Buchungen, deren `importiert_am` nach dem letzten Protokolleintrag
+  `import-durchlauf` liegt (sonst der zuletzt abgeschlossene Lauf), dazu offene
+  Bestandsprobleme; leere Abschnitte fallen weg. `--bestand` (MCP
+  `umfang: "bestand"`) zeigt die Gesamtsicht (ADR 0040): groesste
   Auto-Freigaben, Merchants ohne jede menschliche Bestaetigung,
   Kategorie-Ausreisser, alle auto-freigegebenen `KAT-012`, Zahl der
   Agenten-Schaetzungen (Herkunft `agent`), menschliche Entscheidungen im

@@ -53,8 +53,11 @@ das ist **kategorisierung-review**.
    Dann Tool `personenbezug` ohne `ids` mit `schreiben: true`: die neuen
    Buchungen bekommen ihre Person aus Regelzahlung oder Regel (ADR 0039).
    `konflikte` im Bericht nennen.
-5. **Pruefen.** Tool `pruefbericht` und den Bericht
-   **ungekuerzt** zeigen.
+5. **Pruefen.** Tool `pruefbericht` und den Bericht **ungekuerzt** zeigen. Er
+   umfasst nur diesen Lauf und offene Bestandsprobleme; die Gesamtsicht
+   (`umfang: "bestand"`) gibt es auf Nachfrage und nach einem Erstimport.
+   Eigene Kommentare beziehen sich auf diesen Lauf. Eine Auffaelligkeit erst
+   ansehen und dann nennen, nie ungeprueft weiterreichen.
 6. **Logos nachziehen.** Tool `logos` ohne Argumente: der Bericht nennt die
    haeufigsten Gegenparteien sowie Regelzahlungen und Vorsorgevertraege ohne
    Logo. Neue Gegenparteien ohne Logo dem Nutzer kurz melden. Fuer die
@@ -79,8 +82,9 @@ das ist **kategorisierung-review**.
    Hineinkopierte Archivexporte liegen in Unterordnern und werden vom Tool
    nicht erfasst — die von Hand abgleichen, wenn welche da sind.
 8. **Protokollieren.** Die Zaehler im Agentenprotokoll festhalten
-   (`protokoll_eintrag` mit `anlass`, `notiz`, `zaehler`, `schreiben: true`;
-   das Protokoll ist fuer Datei-Edits gesperrt).
+   (`protokoll_eintrag` mit `anlass: "import-durchlauf"`, `notiz`, `zaehler`,
+   `schreiben: true`; das Protokoll ist fuer Datei-Edits gesperrt). Dieser
+   Eintrag schliesst den Lauf ab: Der naechste Pruefbericht beginnt danach.
 
 ## Zentrale Regeln
 
@@ -88,7 +92,7 @@ das ist **kategorisierung-review**.
   ist die Kontrolle. Bucket-Dialoge gehoeren nicht in diesen Skill — sie waren
   der Engpass, den er abschafft.
 - **Den Pruefbericht vollstaendig zeigen**, nicht zusammenfassen. Er ist der
-  einzige Ort, an dem der Nutzer sieht, was nie ein Mensch angesehen hat.
+  einzige Ort, an dem der Nutzer sieht, was in diesem Lauf automatisch geschah.
 - **Textvorschlaege aus Station 2 nie selbst uebernehmen.** Sie aendern
   kuenftiges Verhalten und brauchen ein Wort des Nutzers.
 - **Bei einem harten Validierungsfehler stoppen.** Der Lauf haelt nicht fuer
@@ -100,12 +104,12 @@ das ist **kategorisierung-review**.
   eroeffnen — dort ist die Aufmerksamkeit am wertvollsten.
 - Am Gate gescheiterte Regeln als Arbeitsliste anbieten: das ist Regelarbeit an
   einer Handvoll Muster, nicht an hunderten Buchungen.
-- Merchants, die nie ein Mensch bestaetigt hat, ausdruecklich benennen. Sie
-  sind der blinde Fleck der Automatik.
-- Die Sektion „Regeln auf Konten ohne menschlichen Anker" mitlesen, besonders
-  nach einem Erstimport. Oben stehen die verliehenen Belegstufen — dort hat das
-  Gate gehalten und dort liegt die Arbeit. Darunter steht, was neu erschlossen
-  wurde: nicht blockiert, aber auch nie geprueft.
+- Neue Haendler des Laufs ausdruecklich benennen. Sie hat noch nie jemand
+  gesehen.
+- Nach einem Erstimport die Gesamtsicht dazuholen und die Sektion „Regeln auf
+  Konten ohne menschlichen Anker" mitlesen. Oben stehen die verliehenen
+  Belegstufen — dort hat das Gate gehalten und dort liegt die Arbeit. Darunter
+  steht, was neu erschlossen wurde: nicht blockiert, aber auch nie geprueft.
 
 ## Don'ts
 
@@ -115,8 +119,9 @@ das ist **kategorisierung-review**.
   der Transaktionsansicht.
 - **Keinen Saldo-Anker uebernehmen, der nicht reconciliert.**
 - **Keine Regel selbst anlegen** — das ist Station 3.
-- **Den Pruefbericht nicht auf „alles in Ordnung" eindampfen.** Wenn er lang
-  ist, ist das die Information.
+- **Den Pruefbericht nicht auf „alles in Ordnung" eindampfen.**
+- **Keine Bestandsthemen ohne Anlass kommentieren.** Was der Nutzer schon kennt
+  und nichts mit diesem Lauf zu tun hat, bleibt ungesagt.
 - **Den Eingang nicht voll zuruecklassen.** Ein Eingang, in dem verarbeitete
   Dateien liegen bleiben, zwingt jeden naechsten Lauf zu der Frage, was davon
   schon drin ist — und die beantwortet der Bestand nicht, weil ein importierter

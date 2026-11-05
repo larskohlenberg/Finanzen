@@ -10,6 +10,9 @@ mit dem Grund `abweichung` zurueck, bis die Nach-Kategorisierung den Vorschlag
 erneuert. Menschliche Bestaetigungen legt die Nach-Kategorisierung nicht mehr
 vor (ADR 0017).
 
+Statushinweis 2026-11-05: Der Pruefbericht zeigt standardmaessig nur noch den
+Lauf, die Gesamtsicht gibt es auf Nachfrage (ADR 0040).
+
 Vorgeschlagene Kategorien werden nicht mehr einzeln vom Nutzer bestaetigt,
 sondern von einem deterministischen Gate automatisch freigegeben. Die Kontrolle
 verschiebt sich von einer Zustimmung vorab auf einen Pruefbericht danach.

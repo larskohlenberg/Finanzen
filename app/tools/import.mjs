@@ -47,7 +47,7 @@ const optionalTransactionFields = [
   "regelzahlung_id",
 ];
 
-export function runImport({ entries, konten, kategorien, kategorisierungsregeln, transaktionen, transfers, regelzahlungen = [] }) {
+export function runImport({ entries, konten, kategorien, kategorisierungsregeln, transaktionen, transfers, regelzahlungen = [], importiertAm = new Date().toISOString() }) {
   const kontenIds = new Set(konten.map((k) => k.konto_id));
   const kategorienIds = new Set(kategorien.map((k) => k.kategorie_id));
   const regelzahlungIds = new Set(regelzahlungen.map((rz) => rz.regelzahlung_id));
@@ -105,6 +105,8 @@ export function runImport({ entries, konten, kategorien, kategorisierungsregeln,
       transaktion_id,
       dedupe_hash,
       rohquelle: entry.rohquelle,
+      // Wann die Buchung in den Bestand kam; der Pruefbericht grenzt damit den Lauf ab (ADR 0040).
+      importiert_am: importiertAm,
       konto_id: entry.konto_id,
       buchungsdatum: entry.buchungsdatum,
       betrag: entry.betrag,

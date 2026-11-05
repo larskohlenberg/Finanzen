@@ -257,6 +257,7 @@ Cron-Agent verarbeitet Dateien aus `data/inbox/`. Erst nachdem der Bestand gesch
 
 Keine eigene Entitaet. Quellen leben als Felder direkt am Datensatz:
 - **Transaktion**: `rohquelle` (Pfad zur Import-Datei) ist Pflicht — fuer Deduplikation und Nachvollziehbarkeit beim Import.
+- **Transaktion**: `importiert_am` (Zeitpunkt in UTC) setzt der Import. Es ist optional, weil aeltere Buchungen es nicht tragen und ihr Importzeitpunkt nicht bekannt ist.
 - **Stammdaten** (Immobilie, Darlehen, Versicherung, Rente, Sozialleistung, **Regelzahlung**): optionales `quelle_hinweis` (Pfad oder Freitext) plus optionales `quelle_standdatum`. Bei einer `belegt`-Regelzahlung verweist `quelle_hinweis` auf den Vertrag bzw. die Jahres-Beitragsinfo.
 
 Keine `quellen.json`. Wenn dasselbe PDF an mehreren Stellen referenziert wird, steht der Pfad mehrfach — das ist akzeptiert, weil es keinen echten Pflegeaufwand erzeugt.

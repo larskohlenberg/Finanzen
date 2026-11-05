@@ -89,6 +89,10 @@ test("Lese-Tools liefern Bestand, Pruefbericht und Dateien", async () => {
     const bericht = await s.werkzeug("pruefbericht");
     assert.ok(!bericht.isError, bericht.text);
     assert.match(bericht.text, /Exitcode: 0/);
+    assert.match(bericht.text, /DIESER LAUF/);
+    const gesamt = await s.werkzeug("pruefbericht", { umfang: "bestand" });
+    assert.ok(!gesamt.isError, gesamt.text);
+    assert.match(gesamt.text, /GROESSTE AUTO-FREIGABEN/);
 
     const pdf = await s.werkzeug("datei_lesen", { pfad: "Belege/2025/rechnung.pdf" });
     assert.match(pdf.text, /Textzwilling/);

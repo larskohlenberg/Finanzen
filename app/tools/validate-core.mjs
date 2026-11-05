@@ -73,6 +73,7 @@ const schemas = {
       transaktion_id: { type: "string", pattern: TXN_ID },
       dedupe_hash: { type: "string", minLength: 1 },
       rohquelle: { type: "string", minLength: 1 },
+      importiert_am: { type: "string", pattern: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/ },
       konto_id: { type: "string", pattern: /^KTO-\d{3,}$/ },
       buchungsdatum: { type: "string", format: "date" },
       betrag: { type: "string", money: true },

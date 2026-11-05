@@ -52,7 +52,6 @@ export function uebersichtModell(daten, heute) {
     heute,
     konten: {
       summe_cents: gruppen.konten.summe_cents,
-      aeltester: gruppen.konten.aeltester,
       zeilen: gruppen.konten.zeilen.map(({ konto, zeile }) => ({ konto_id: konto.konto_id, name: konto.name, wert_cents: zeile.wert_cents })),
     },
     // Nur, was die Kacheln lesen (keine Einzelbuchungen der Sondereffekte, keine Monatsreihen).

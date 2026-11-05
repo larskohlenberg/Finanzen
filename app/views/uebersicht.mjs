@@ -255,7 +255,7 @@ function renderLiquiditaetKachel(modell) {
     titel: t("overview.liquiditaet"),
     ziel: ZIEL.liquiditaet,
     wert: escapeHtml(geldOhneCent(verfuegbar.summe_cents)),
-    notiz: `${escapeHtml(t("overview.availableMoney"))} · ${escapeHtml(standText(verfuegbar.aeltester))}`,
+    notiz: `${escapeHtml(t("overview.availableMoney"))} · ${escapeHtml(t("overview.lastBookedStand"))}`,
     grafik: segmente.length ? `<div class="uebersicht-balken">${balkenSvg(segmente)}</div><div class="kpi-note">${escapeHtml(tf("overview.kontenAnzahl", { n: verfuegbar.zeilen.length }))}</div>` : "",
   });
 }

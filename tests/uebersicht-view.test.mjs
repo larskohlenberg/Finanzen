@@ -179,7 +179,7 @@ test("Kontentabelle zeigt belegte Depot- und Kontostaende statt fester 'noch nic
   const bereich = (id) => uebersicht.match(new RegExp(`<section class="panel panel-pad uebersicht-kachel[^"]*" aria-labelledby="kachel-${id}">[\\s\\S]*?</section>`))?.[0] ?? "";
   assert.doesNotMatch(uebersicht, /account-table|hero-kpi|Nächste Aktion|copy-next-agent-prompt/);
   assert.match(bereich("liquiditaet"), /data-view="liquiditaet"[\s\S]*Liquidität/);
-  assert.match(bereich("liquiditaet"), /<div class="kpi-value">1\.150\s€<\/div>[\s\S]*Verfügbares Geld · Stand 10\.6\.2026/);
+  assert.match(bereich("liquiditaet"), /<div class="kpi-value">1\.150\s€<\/div>[\s\S]*Verfügbares Geld · letzter gebuchter Stand/);
   // Liquiditaet als Summe mit Balken je Konto (Link ins Konto), ohne Zeilen und ohne Prognose.
   assert.match(bereich("liquiditaet"), /<a href="#\/vermoegen\/konten\/KTO-903"\s*data-action="open-vermoegen-entity" data-vklasse="konto" data-vid="KTO-903" aria-label="Giro belegt: 1\.150,00\s€"><rect /);
   assert.match(bereich("liquiditaet"), /2 Konten/);

@@ -22,6 +22,7 @@
       "transaktion_id": { "type": "string", "pattern": "^TXN-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
       "dedupe_hash": { "type": "string", "minLength": 1 },
       "rohquelle": { "type": "string", "minLength": 1 },
+      "importiert_am": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$" },
       "konto_id": { "type": "string", "pattern": "^KTO-\\d{3,}$" },
       "buchungsdatum": { "type": "string", "format": "date" },
       "betrag": { "type": "string", "pattern": "^(?!-0\\.00$)-?(0|[1-9]\\d*)\\.\\d{2}$" },

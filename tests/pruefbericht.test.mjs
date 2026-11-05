@@ -1,7 +1,9 @@
 // tests/pruefbericht.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { pruefbericht, renderBericht } from "../app/tools/pruefbericht.mjs";
+import { runImport } from "../app/tools/import.mjs";
+import { validateMasterData } from "../app/tools/validate-core.mjs";
+import { laufBericht, pruefbericht, renderBericht, renderLaufBericht } from "../app/tools/pruefbericht.mjs";
 
 let n = 0;
 function tx(props) {
@@ -261,4 +263,92 @@ test("Dubletten-Prueffaelle aus dem Protokoll stehen im Bericht, bis ein spaeter
   const geprueft = pruefbericht({ ...leer, log: [...log, { anlass: "dubletten-pruefung", dubletten_geprueft: true }] });
   assert.deepEqual(geprueft.dubletten_pruefen, []);
   assert.match(renderBericht(geprueft), /DUBLETTEN-PRUEFFAELLE AUS IMPORTEN \(0\)/);
+});
+
+// --- Bericht zum Lauf (ADR 0040) ------------------------------------------
+
+const vor = "2026-11-01T10:00:00.000Z";
+const marke = { anlass: "import-durchlauf", zeitpunkt: "2026-11-02T10:00:00.000Z" };
+const nach = "2026-11-03T10:00:00.000Z";
+
+test("der Lauf umfasst nur Buchungen nach dem letzten Abschluss", () => {
+  const alt = auto({ betrag: "-9000.00", importiert_am: vor });
+  const ohneDatum = auto({ betrag: "-8000.00" });
+  const neu = auto({ betrag: "-20.00", importiert_am: nach });
+  const b = laufBericht({ ...leer, transaktionen: [alt, ohneDatum, neu], log: [marke] });
+  assert.equal(b.anzahl, 1);
+  assert.deepEqual(b.grosse.map((tx) => tx.transaktion_id), [neu.transaktion_id]);
+});
+
+test("ohne neue Buchungen zeigt der Bericht den zuletzt abgeschlossenen Lauf", () => {
+  const frueher = auto({ importiert_am: "2026-10-01T10:00:00.000Z" });
+  const letzter = auto({ importiert_am: vor });
+  const b = laufBericht({ ...leer, transaktionen: [frueher, letzter], log: [{ anlass: "import-durchlauf", zeitpunkt: "2026-10-02T10:00:00.000Z" }, marke] });
+  assert.equal(b.anzahl, 1);
+  assert.equal(b.grosse[0].transaktion_id, letzter.transaktion_id);
+  assert.match(renderLaufBericht(b), /zuletzt abgeschlossen/);
+});
+
+test("ohne Abschlusseintrag zaehlt alles mit Importdatum zum Lauf", () => {
+  const b = laufBericht({ ...leer, transaktionen: [auto({ importiert_am: vor }), auto({ importiert_am: nach }), auto({})] });
+  assert.equal(b.anzahl, 2);
+});
+
+test("neu ist nur ein Haendler, den der Bestand vorher nicht kannte", () => {
+  const b = laufBericht({ ...leer, log: [marke], transaktionen: [
+    auto({ gegenpartei: "Stammladen", importiert_am: vor }),
+    auto({ gegenpartei: "Stammladen", importiert_am: nach }),
+    auto({ gegenpartei: "Erstladen", betrag: "-5.00", importiert_am: nach }),
+    auto({ gegenpartei: "Erstladen", betrag: "-7.00", importiert_am: nach }),
+  ] });
+  assert.deepEqual(b.neue_haendler.map((h) => [h.gegenpartei, h.anzahl, h.summe_cent]), [["Erstladen", 2, -1200]]);
+});
+
+function monatsreihe(kategorie_id) {
+  return ["2026-07", "2026-08", "2026-09"].map((m) => auto({ kategorie_id, buchungsdatum: `${m}-10`, betrag: "-100.00", importiert_am: vor }));
+}
+
+test("auffaellig ist nur ein Monat, den der Lauf beruehrt, ohne Transfers und Regelzahlungen", () => {
+  const b = laufBericht({ ...leer, log: [marke], transaktionen: [
+    ...monatsreihe("KAT-003"), ...monatsreihe("KAT-004"), ...monatsreihe("KAT-005"), ...monatsreihe("KAT-006"),
+    auto({ kategorie_id: "KAT-003", buchungsdatum: "2026-10-10", betrag: "-900.00", importiert_am: nach }),
+    // gleich hoch, aber nicht aus diesem Lauf
+    auto({ kategorie_id: "KAT-004", buchungsdatum: "2026-10-10", betrag: "-900.00", importiert_am: vor }),
+    auto({ kategorie_id: "KAT-005", buchungsdatum: "2026-10-10", betrag: "-900.00", regelzahlung_id: "RZ-001", importiert_am: nach }),
+    auto({ kategorie_id: "KAT-006", buchungsdatum: "2026-10-10", betrag: "-900.00", ist_transfer: true, importiert_am: nach }),
+  ] });
+  assert.deepEqual(b.ausreisser.map((a) => a.kategorie_id), ["KAT-003"]);
+});
+
+test("Gate-Durchfall zaehlt nur aus dem laufenden Fenster", () => {
+  const alt = { anlass: "freigabe", zeitpunkt: vor, gate_durchfall: [{ regel_id: "REG-900", grund: "anker" }] };
+  const transaktionen = [auto({ importiert_am: nach })];
+  assert.deepEqual(laufBericht({ ...leer, transaktionen, log: [alt, marke] }).gate_durchfall, []);
+  const neu = { anlass: "freigabe", zeitpunkt: nach, gate_durchfall: [{ regel_id: "REG-901", grund: "anker" }] };
+  assert.deepEqual(laufBericht({ ...leer, transaktionen, log: [alt, marke, neu] }).gate_durchfall.map((d) => d.regel_id), ["REG-901"]);
+});
+
+test("Bestandsprobleme stehen auch ohne neue Buchungen im Bericht", () => {
+  const b = laufBericht({ ...leer, konten: [{ konto_id: "KTO-002", name: "Ohne Anker", kontotyp: "giro" }], log: [marke] });
+  assert.match(renderLaufBericht(b), /BESTAND: KONTEN OHNE BELEGTEN ANKER \(1\)/);
+  assert.doesNotMatch(renderLaufBericht(b), /Keine Auffaelligkeiten/);
+});
+
+test("ein ruhiger Lauf bleibt kurz und laesst leere Abschnitte weg", () => {
+  const text = renderLaufBericht(laufBericht({ ...leer, log: [marke], transaktionen: [
+    auto({ gegenpartei: "Stammladen", importiert_am: vor }), auto({ gegenpartei: "Stammladen", importiert_am: nach }),
+  ] }));
+  assert.match(text, /DIESER LAUF: 1 neue Buchung seit 2026-11-02, Summe -10\.00/);
+  assert.match(text, /Keine Auffaelligkeiten/);
+  assert.doesNotMatch(text, /NEUE HAENDLER|KAT-012|BESTAND:|undefined/);
+});
+
+test("der Import setzt importiert_am, und der Validator prueft die Form", () => {
+  const entry = { konto_id: "KTO-001", buchungsdatum: "2026-06-03", betrag: "-4.20", gegenpartei: "Testkiosk", verwendungszweck: "Test", rohquelle: "data/inbox/test.csv" };
+  const { transaktionen } = runImport({ entries: [entry], konten: [{ konto_id: "KTO-001" }], kategorien: [], kategorisierungsregeln: [], transaktionen: [], transfers: [], importiertAm: nach });
+  assert.equal(transaktionen[0].importiert_am, nach);
+
+  const feldBefunde = (tx) => validateMasterData({ transaktionen: [tx] }).befunde.filter((f) => String(f.feld ?? f.pfad ?? f.objekt ?? "").includes("importiert_am") || String(f.meldung ?? f.text ?? "").includes("importiert_am"));
+  assert.deepEqual(feldBefunde(transaktionen[0]), []);
+  assert.ok(feldBefunde({ ...transaktionen[0], importiert_am: "gestern" }).length > 0);
 });

@@ -37,7 +37,7 @@ const schemas = {
       aktiv_bis: { type: "string", format: "date" },
       // false: die Bank-Referenz dieses Kontos ist nie Dublettenschluessel
       // (ADR 0034); fehlt das Feld, misst der Import ihre Verlaesslichkeit.
-      auszug_rhythmus: { enum: ["monat", "quartal"] },
+      auszug_rhythmus: { type: "string", enum: ["monat", "quartal"] },
       bank_referenz_verlaesslich: { type: "boolean" },
     },
   },

@@ -200,3 +200,11 @@ test("Validator lehnt Regel mit Schemaverstoss ab", async () => {
     assert.equal(result.valid, false, `Regel ${JSON.stringify(kaputt)} haette abgelehnt werden muessen`);
   }
 });
+
+test("auszug_rhythmus am Konto: monat und quartal gueltig, anderes nicht", async () => {
+  const base = await loadMasterData();
+  const mit = (auszug_rhythmus) => validateMasterData({ ...base, konten: [{ ...base.konten[0], auszug_rhythmus }, ...base.konten.slice(1)] });
+  assert.equal(mit("quartal").valid, true);
+  assert.equal(mit("monat").valid, true);
+  assert.equal(mit("woche").valid, false);
+});

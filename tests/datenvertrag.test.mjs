@@ -55,3 +55,11 @@ test("Betragsmuster der JSON-Schemas entsprechen istGueltigerBetrag", async () =
     assert.equal(nichtNegativ.test(wert), istGueltigerBetrag(wert) && !wert.startsWith("-"), wert);
   }
 });
+
+test("jedes Feld des Validators nennt einen Typ (sonst weist er jeden Wert ab)", () => {
+  for (const [sammlung, vertrag] of Object.entries(DATENVERTRAG)) {
+    for (const [feld, spec] of Object.entries(vertrag.properties ?? {})) {
+      assert.ok(spec.type, `${sammlung}.${feld}`);
+    }
+  }
+});

@@ -73,6 +73,26 @@ export function markanteWoerter(name) {
     .filter((w) => w.length >= 4 && !/\p{N}/u.test(w) && !FUELLWOERTER.has(w)));
 }
 
+// Personen mit gleichem Nachnamen teilen ein markantes Wort, sind aber
+// verschiedene Empfaenger ("Tom Beispiel", "Mia Sophie Beispiel"). Ein Name sieht
+// nach Person aus, wenn er aus zwei bis vier reinen Wortteilen besteht, ohne
+// Rechtsform und ohne die Punkte und Nummern einer Kartenzahlung. Zwei solche
+// Namen sind nur gleich, wenn einer ganz im anderen steckt (zweiter Vorname,
+// umgestellter Name).
+const RECHTSFORMEN = new Set(["gmbh", "mbh", "ag", "kg", "ohg", "gbr", "ug", "se", "eg", "ev", "co"]);
+function personenWoerter(name) {
+  const text = String(name ?? "").toLowerCase().trim();
+  if (!/^[\p{L}\s,-]+$/u.test(text)) return null;
+  const woerter = text.split(/[\s,]+/u).filter(Boolean);
+  if (woerter.length < 2 || woerter.length > 4 || woerter.includes("-")) return null;
+  return woerter.some((w) => RECHTSFORMEN.has(w) || FUELLWOERTER.has(w)) ? null : woerter;
+}
+function verschiedenePersonen(a, b) {
+  const [woerterA, woerterB] = [personenWoerter(a), personenWoerter(b)];
+  if (!woerterA || !woerterB) return false;
+  return !woerterA.every((w) => woerterB.includes(w)) && !woerterB.every((w) => woerterA.includes(w));
+}
+
 // Gleiche Gegenpartei. Manche Auszuege (z. B. PDF statt CSV derselben Bank)
 // kuerzen den Namen nach einer festen Laenge; ein Name, der mit dem anderen
 // beginnt, zaehlt deshalb mit, sofern der kuerzere mindestens 20 Zeichen hat.
@@ -85,6 +105,7 @@ export function gleicheGegenpartei(a, b) {
   if (a === b) return true;
   const [kurz, lang] = a.length < b.length ? [a, b] : [b, a];
   if (kurz.length >= MIN_GEKUERZT && lang.startsWith(kurz)) return true;
+  if (verschiedenePersonen(a, b)) return false;
   const woerterLang = markanteWoerter(lang);
   return [...markanteWoerter(kurz)].some((w) => woerterLang.has(w));
 }

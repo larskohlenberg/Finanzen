@@ -821,6 +821,8 @@ matcht nur noch:
    reicht ein gemeinsames markantes Wort: ohne Zahlungsdienstleister,
    Rechtsformen, Buchungsarten, Branchenwoerter wie „Stadtwerke“ oder
    „Versicherung“, Woerter unter vier Zeichen und Woerter mit Ziffern.
+   Das gilt nicht fuer zwei Personennamen mit gleichem Nachnamen: Sie zaehlen
+   nur als gleich, wenn einer ganz im anderen steckt.
 6. **Eindeutig.** Je Termin hoechstens eine Buchung, je Buchung hoechstens ein
    Termin. Vergeben werden gegenseitig beste Paare (kleinste Betragsabweichung,
    dann kleinster Abstand). Gleich gute Alternativen stehen unter `mehrdeutig`.

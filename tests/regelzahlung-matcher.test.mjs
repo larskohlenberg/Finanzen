@@ -316,6 +316,39 @@ test("Verschiedene Empfaenger mit nur gemeinsamen Fuellwoertern gelten nicht als
   assert.equal(gleicheGegenpartei(undefined, "musikdienst"), false);
 });
 
+test("Personen mit gleichem Nachnamen sind verschiedene Empfaenger", () => {
+  const verschieden = [
+    ["tom beispiel", "mia sophie beispiel"],
+    ["tom beispiel", "mia beispiel"],
+    ["beispiel, tom", "mia beispiel"],
+  ];
+  for (const [a, b] of verschieden) {
+    assert.equal(gleicheGegenpartei(a, b), false, `${a} != ${b}`);
+    assert.equal(gleicheGegenpartei(b, a), false, `${b} != ${a}`);
+  }
+});
+
+test("Dieselbe Person bleibt gleich: zweiter Vorname und umgestellter Name", () => {
+  const gleich = [
+    ["mia beispiel", "mia sophie beispiel"],
+    ["beispiel, mia", "mia beispiel"],
+  ];
+  for (const [a, b] of gleich) {
+    assert.equal(gleicheGegenpartei(a, b), true, `${a} ~ ${b}`);
+    assert.equal(gleicheGegenpartei(b, a), true, `${b} ~ ${a}`);
+  }
+});
+
+test("Matcher ordnet eine Zahlung an ein Geschwisterkind nicht der Regelzahlung zu", () => {
+  const k = { kategorie_id: "KAT-008" };
+  const transaktionen = [
+    tx("KTO-001", "2025-10-27", "-35.00", { ...k, gegenpartei: "Mia Sophie Beispiel" }),
+    tx("KTO-001", "2026-10-30", "-35.00", { ...k, gegenpartei: "Tom Beispiel" }),
+  ];
+  const out = matchRegelzahlungen(transaktionen, [rz("RZ-001", "-35.00", "2026-10-30", k)]);
+  assert.deepEqual(zugeordnet(out, "RZ-001"), ["2026-10-30"]);
+});
+
 test("Matcher ordnet Kartenzahlungen mit wechselnder Gegenpartei zu, sonst nicht", () => {
   const k = { kategorie_id: "KAT-007" };
   const transaktionen = [
